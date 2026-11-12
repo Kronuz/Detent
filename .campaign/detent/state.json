@@ -6924,17 +6924,52 @@
         "docs/design/stash-niche.md",
         "docs/design/async-drivers-bench/stash_niche*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T03:44:46",
+          "commit": "5f32eb0456d1498838d3fd3fac23927c67fceeee",
+          "criteria": {
+            "A1": "261111-231503-9f6729 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231503-c6e0f3 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-ab1b64 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-d0ab1d (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-105c4b (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-a7001e (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231505-db629f (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231505-46ce45 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md)",
+            "A2": "[artifact] `docs/design/stash-niche.md`"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "9b5bc959f7c7278ef4036d1fe03376f1a0344272",
+              "docs": [
+                "docs/design/async-drivers-bench/stash_niche.cc",
+                "docs/design/async-drivers-bench/stash_niche.sh",
+                "docs/design/async-drivers-bench/stash_niche_summary.py",
+                "docs/design/async-drivers-bench/stash_niche_wheel.hh",
+                "docs/design/stash-niche.md",
+                "docs/dev/superseded-libraries.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-182314-ea4b17",
+              "level": "light",
+              "seconds": 975.4,
+              "state": "done",
+              "what": "wheel-evidence check suite at 9b5bc959f7c7"
+            }
+          ],
+          "final": true,
+          "from": "d78a72c5757962df94cdcafc54053d03c297f9c9",
+          "reason": "",
+          "tested": "dc9690b83a3d0f3a1513d8855dbbb3046285dabf"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Stash on its own shape: fire-and-forget, wide horizon, before retirement",
-      "updated": "2026-11-11T19:40:54",
-      "worktree": "../Detent-wt/detent/stash-niche"
+      "updated": "2026-11-12T03:44:48",
+      "worktree": ""
     },
     "superseded-sweep": {
       "accepted": {},
