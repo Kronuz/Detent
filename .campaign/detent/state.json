@@ -4452,9 +4452,7 @@
     },
     "namespace-s6": {
       "accepted": {},
-      "after": [
-        "namespace-s5-2"
-      ],
+      "after": [],
       "base": "f5b76ddd39423d6c321ececdbad5db1c8f4dd4c2",
       "branch": "quest/detent/namespace-s6",
       "checks": [
@@ -4484,7 +4482,9 @@
         "include/detent_distribution_http/**",
         "tests/detent_delivery/**",
         "tests/detent_distribution/**",
-        "docs/status/namespace-s6.md"
+        "docs/status/namespace-s6.md",
+        "include/detent/cursor.hh",
+        "include/detent_local/agent_store.hh"
       ],
       "history": [
         {
@@ -4555,7 +4555,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T11:37:48",
+      "updated": "2026-11-12T11:45:37",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s6-cutover": {
