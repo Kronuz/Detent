@@ -19,7 +19,11 @@ blocks / full copy by R against the cut), read from disk, digest-checked on read
 2. `tests/detent_relay/test_relay_mirror.cc` (A2, A4, chain part of A1) over a scripted upstream
    that counts bytes fetched.
 3. `tests/detent_relay/test_relay_mirror_crash.cc` (A3), the T7 harness over completion's sync seam.
-4. Durability review.
+4. A5 (D84, W8): relays read W5/W6 from the authority or an upstream relay, never members; a
+   relay-chain test. Built against namespace-s6's quest file (W5 request, W6 frames, frame
+   selection over a history interface): when S6 lands, the mirror implements that history
+   interface and `plan_answer` goes (one frame selection, S6's).
+5. Durability review.
 
 ## Blocked on
 
@@ -44,10 +48,16 @@ blocks / full copy by R against the cut), read from disk, digest-checked on read
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 | A4 | <no evidence yet> |
+| A5 | <no evidence yet> |
 
 ## Result
 
 <pending>
+
+## Lead rulings received
+
+- D84 (Detent:86704b50, merged at quest/detent/namespace-s8 7f2c16ce): A5 added (W8); S8 lands
+  after namespace-s6. Build A1-A4 now, A5 against S6's quest file.
 
 ## Rulings I made
 
