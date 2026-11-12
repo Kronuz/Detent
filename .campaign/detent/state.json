@@ -7337,9 +7337,9 @@
       "provides": [],
       "repo": "../task",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-11T20:17:39",
+      "updated": "2026-11-12T08:16:42",
       "worktree": "../task-wt/detent/task-wheel"
     },
     "wheel-evidence": {
