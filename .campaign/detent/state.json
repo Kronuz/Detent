@@ -6785,6 +6785,8 @@
       "after": [
         "task-wheel"
       ],
+      "base": "47d50f3384ac195d2e347e10311e885ed7490040",
+      "branch": "quest/detent/service-shape",
       "checks": [
         {
           "cmd": "test -s docs/design/service-shape.md",
@@ -6797,6 +6799,7 @@
       "files": [
         "docs/design/service-shape.md"
       ],
+      "journal": "../Detent-wt/detent/service-shape",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6808,9 +6811,10 @@
       ],
       "repo": "../task",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T04:29:14"
+      "updated": "2026-11-12T09:24:53",
+      "worktree": "../task-wt/detent/service-shape"
     },
     "sha256-avx2": {
       "accepted": {},
