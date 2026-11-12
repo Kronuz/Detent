@@ -1064,6 +1064,45 @@
       "updated": "2026-11-11T00:01:57",
       "worktree": ""
     },
+    "delta-plan-scaling": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_delta_plan.*",
+        "src/detent_local/paged_plan.*",
+        "src/detent_local/sparse_plan_finalizer.*",
+        "src/detent_local/paged_warm_validator.*",
+        "src/detent_local/warm_registry_merge.*",
+        "src/detent_local/paged_node_*",
+        "src/detent_local/paged_navigation.*",
+        "tests/detent_local/test_delta_plan_*",
+        "tests/detent_local/CMakeLists.txt",
+        "docs/perf/delta-plan-scaling.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "warm-graph-5m"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "A delta's plan grows superlinearly with the store",
+      "updated": "2026-11-12T15:20:10"
+    },
     "dense-distribution": {
       "accepted": {
         "design": {
