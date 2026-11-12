@@ -1,7 +1,11 @@
 # one-knob-type: journal
 
-State: session 3, code final at Detent:52afffdc; checking it with job 261111-183335-cadb42, then
-every evidence job at the head.
+State: waiting on jobs at Detent:432d75a4 (code final at 52afffdc): check 261111-183335-cadb42,
+suite 261111-183749-ea6a83, docs e2e 261111-183751-b78a79, A4 261111-183756-114e28, A2 mutants
+261111-183800-28bea7 / 261111-183804-21b82d, A3 prepare 261111-183845-6f9674, pairs 100k
+261111-183845-21dfff .. 261111-183845-8adf69, 5m 261111-183846-bdf446 .. 261111-183846-29ad06,
+pages 261111-183846-09f47c (100k) / 261111-183847-4a0ddc (5m), reports 261111-183858-1f07ad (100k)
+/ 261111-183901-4ac6d4 (5m)
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
