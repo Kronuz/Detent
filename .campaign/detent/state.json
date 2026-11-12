@@ -2972,6 +2972,8 @@
     "logger-wheel-slim": {
       "accepted": {},
       "after": [],
+      "base": "c93ace291347d67b2911a52908595dac91b74830",
+      "branch": "quest/detent/logger-wheel-slim",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
@@ -2987,6 +2989,7 @@
         "bench/wheel_ab/**",
         "docs/perf/wheel-ab.md"
       ],
+      "journal": "../Detent-wt/detent/logger-wheel-slim",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -2996,9 +2999,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Measure a slim deferred-line wheel record in logger",
-      "updated": "2026-11-12T06:08:02"
+      "updated": "2026-11-12T06:10:19",
+      "worktree": "../logger-wt/detent/logger-wheel-slim"
     },
     "m1-pins": {
       "accepted": {},
