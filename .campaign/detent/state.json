@@ -2938,6 +2938,37 @@
       "updated": "2026-11-11T21:14:31",
       "worktree": "../logger-wt/detent/logger-wheel-ab"
     },
+    "logger-wheel-slim": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "wheel:timer_wheel"
+      ],
+      "files": [
+        "bench/wheel_ab/**",
+        "docs/perf/wheel-ab.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "logger-wheel-ab"
+      ],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "low",
+      "status": "planned",
+      "title": "Measure a slim deferred-line wheel record in logger",
+      "updated": "2026-11-12T06:08:02"
+    },
     "m1-pins": {
       "accepted": {},
       "after": [],
