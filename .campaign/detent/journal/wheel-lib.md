@@ -9,15 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Moved task's "// Timers" block (task:5a1e516) into wheel.hh (wheel:c92c2c3); tests, model, fuzz,
-demo committed. Suite 261111-202844-8575e6 queued. A1 baseline rows at wheel:c92c2c3 queued
-(exclusive): single 261111-202415-05333c, cross 261111-202419-8b74a9; pads probe (a, w)
-261111-202423-339389.
+Finding (probe 261111-202423-339389, exclusive, pads 0-61440 B, a vs w at n = 1,000): w is
+1.36-1.50x a at every pad, with heads and entries at the same addresses mod 64 KiB for both
+arms. Placement is ruled out; the gap is code. Every pass is slower, not only re-arm: arm 6.5
+vs 3.9 ns, re-arm 9.5 vs 5.1, cancel 5.5 vs 4.3, expire 22.5 vs 18.0. Hypothesis: unlink/file
+outlined at -O2 (a call per unlink fits all four deltas); inlining probe 261111-203618-617a41.
 
-Pushed quest/detent/wheel-lib to origin (msg from coordinator: Kronuz/wheel exists); CI run
-43155546231 at wheel:f6f237a covers ASan+UBSan and TSan, so local sanitizer jobs
-261111-202932-3b2a16 and 261111-202934-2f9614 are cancelled. Mutants queued: no cascade
-261111-202912-b5aee7, no owner assertion 261111-202915-2b286a; fuzz 261111-202944-9750f6.
+CI caught a real bug (run 43155780729, wheel_test far, deadline never - 1): next() overflowed
+computing the end of the last tick before never and wrapped to a passed time. Fixed at
+wheel:01dfcc9 (saturate at never); mutant job 261111-204408-d59cd1 restores the old line.
+Suite at head 261111-204407-aef4ec.
 
 ## Next
 
