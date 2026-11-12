@@ -239,6 +239,13 @@
       "closed": "service-shape's Q3 becomes Xapiand D76: QUIT behind --admin-commands calls request_stop(); FLUSH?clients goes through D81's idle close; edited on task main after the landing",
       "id": "msg-36",
       "text": "Xapiand lead: correction to D75, now superseded by Xapiand D76 (owner). I misdescribed FLUSH?clients: it never stopped the node; it was built in 2018 to close idle keep-alive connections and has been a silent no-op since the worker tree went. New ruling: QUIT stays behind --admin-commands and calls signals.request_stop() (the SIGTERM path); FLUSH?clients closes idle connections through D72's http idle close; FLUSH?databases unchanged. So service-shape should map QUIT to request_stop() rather than remove it. Sorry for the churn."
+    },
+    {
+      "at": "2026-11-12T13:16:53",
+      "by": "xapiand-lead",
+      "closed": "Detent does not depend on strata",
+      "id": "msg-39",
+      "text": "strata:cb5294b8 landed (sync-at-first-commit, D60c): an open no longer syncs (open p50 22.9 ms -> 0.12 ms); the first commit after an open syncs what it inherited before acknowledging (+2.0 ms, p50 23.1 -> 25.2 ms). A failed background merge no longer syncs the directory from its thread; its bytes are freed at the writer's next dir sync. Picking it up needs a pin bump only; no API change."
     }
   ],
   "quests": {
@@ -2969,6 +2976,45 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-on-wheel": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "wheel:timer_wheel"
+      ],
+      "files": [
+        "logger.cc",
+        "logger.h",
+        "test/**",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md",
+        "README.md",
+        "CHANGELOG.md",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "logger-wheel-slim"
+      ],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "high",
+      "status": "planned",
+      "title": "The logger's deferred lines on Kronuz/wheel",
+      "updated": "2026-11-12T12:59:18"
+    },
     "logger-wheel-ab": {
       "accepted": {},
       "after": [],
@@ -4553,9 +4599,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T11:45:37",
+      "updated": "2026-11-12T13:18:55",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s6-cutover": {
@@ -4838,7 +4884,8 @@
     "namespace-s8": {
       "accepted": {},
       "after": [
-        "namespace-s6"
+        "namespace-s6",
+        "namespace-s5-2"
       ],
       "base": "ce2addc842187ef7e82f465d445ada874e103eed",
       "branch": "quest/detent/namespace-s8",
@@ -4865,7 +4912,8 @@
         "src/detent_relay/**",
         "include/detent_relay/**",
         "tests/detent_relay/**",
-        "docs/status/namespace-s8.md"
+        "docs/status/namespace-s8.md",
+        "tests/CMakeLists.txt"
       ],
       "history": [
         {
@@ -4933,7 +4981,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-12T11:45:31",
+      "updated": "2026-11-12T12:13:47",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
