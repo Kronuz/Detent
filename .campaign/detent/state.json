@@ -5067,6 +5067,53 @@
       "title": "Agent store: derived ids, no storage identity",
       "updated": "2026-11-12T14:58:38"
     },
+    "namespace-s7-store": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_testing/**",
+        "include/detent_testing/**",
+        "src/detent_agent/**",
+        "src/detent_delivery/coordinator*",
+        "include/detent_delivery/coordinator.hh",
+        "tests/detent_local/**",
+        "tests/detent_agent/**",
+        "tests/detent_system/**",
+        "tests/detent_testing/**",
+        "docs/status/namespace-s7.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s7-ids"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "detent-agent publishes and recovers through the agent store",
+      "updated": "2026-11-12T14:58:41"
+    },
     "namespace-s7-wire": {
       "accepted": {},
       "after": [
