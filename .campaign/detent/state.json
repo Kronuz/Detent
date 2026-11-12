@@ -6503,6 +6503,8 @@
     "wheel-lib": {
       "accepted": {},
       "after": [],
+      "base": "4eff806ec5d15fb86e920567dcaaf35aa2da098b",
+      "branch": "quest/detent/wheel-lib",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -6525,6 +6527,7 @@
         "AGENTS.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/wheel-lib",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6534,9 +6537,10 @@
       "provides": [],
       "repo": "../wheel",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
-      "updated": "2026-11-11T20:17:19"
+      "updated": "2026-11-11T20:17:49",
+      "worktree": "../wheel-wt/detent/wheel-lib"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
