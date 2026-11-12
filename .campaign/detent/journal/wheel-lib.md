@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261112-045053-06a547 261112-045105-3b0736 261112-045107-d98a70 261112-045109-600561 261112-045112-1213da 261112-045138-2d2840
+State: waiting on jobs 261112-045107-d98a70 261112-045109-600561 261112-045112-1213da
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,9 +40,10 @@ Jobs at wheel:45f98eb: suite 261112-045015-68d268 green. Mutants killed, each by
 261112-045020-d35b49 (a=0 b=0 c=0 size=3, as the reviewer's probe), F1 drain bits-only
 261112-045024-2acb3a, F6 old destructor 261112-045028-3630df (second dying fire). Old mutants
 rerun and killed: 261112-045042-c739f7 (no cascade), -045044-6131c7 (owner), -045047-01cc0b
-(next()), -045050-1426c6 (model fix). Pending: fuzz 261112-045053-06a547, ASan+UBSan suite
-261112-045105-3b0736, A1 D75 single 261112-045107-d98a70, cross 261112-045109-600561,
-default-build single 261112-045112-1213da, CI 261112-045138-2d2840 (branch pushed).
+(next()), -045050-1426c6 (model fix). Fuzz 261112-045053-06a547 passed (830,956 runs, 601 s).
+ASan+UBSan suite 261112-045105-3b0736 green. CI 261112-045138-2d2840 green (run 43221778598).
+Pending, exclusive: A1 D75 single 261112-045107-d98a70, cross 261112-045109-600561,
+default-build single 261112-045112-1213da.
 
 Earlier rounds:
 
@@ -113,8 +114,7 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Read the pending jobs: fuzz, ASan suite, A1 rows (the cross row at P = 1 decides A1 per the
-   lead), CI. Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
+1. Read the A1 rows (the cross row at P = 1 decides A1 per the lead). Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
    --confirm F1=261112-045015-68d268` (the lead's).
 2. A7 re-review by the Xapiand lead.
 
@@ -133,8 +133,8 @@ without 261112-045028-3630df).
 | A1 | pending: 261112-045107-d98a70 (D75 single), 261112-045109-600561 (cross); reported 261112-045112-1213da (default build). At 1cd7e7a: single 261111-234624-f5cc8e passed (1.049x, 0.924x), cross 261111-233422-3a6c0b P = 1 1.125x (A/A 35.1%) |
 | A2 | 261112-045015-68d268 (suite); fails without: 261112-045042-c739f7 (no cascade), 261112-045044-6131c7 (no owner assertion), 261112-045047-01cc0b (next() unsaturated), 261112-045050-1426c6 (model fix), 261112-045016-03086f, 261112-045020-d35b49, 261112-045024-2acb3a (F1), 261112-045028-3630df (F6) |
 | A3 | 261112-045015-68d268 (wheel_alloc in the suite) |
-| A4 | pending 261112-045138-2d2840 (CI at 45f98eb); local ASan+UBSan suite 261112-045105-3b0736 |
-| A5 | pending 261112-045053-06a547 (fuzz_ops, 10 min, seeded with fuzz/corpus) |
+| A4 | 261112-045138-2d2840 (CI run 43221778598 green at 45f98eb: ASan+UBSan, TSan, matrix); local ASan+UBSan suite 261112-045105-3b0736 |
+| A5 | 261112-045053-06a547 (fuzz_ops, 10 min, seeded with fuzz/corpus) |
 | A6 | `docs/timer-wheel.md` (Cost (A1), Threading contracts), README Performance, at wheel:45f98eb |
 | A7 | the Xapiand lead: CHANGES at f540679 (detent-wheel-lib-fit.md); F1, F3, F4, F6 answered at 45f98eb |
 
