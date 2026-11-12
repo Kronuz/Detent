@@ -18,6 +18,34 @@ group. JSON parsing, authority publish and decode, the wire decoder, paged and f
 refuse a definition it rejects. A percentage with no value would have nothing to serve; a value
 with no percentage would be a second, unreachable default.
 
+## Evaluation
+
+`get(name, hash, group) -> int64`: a CLI override, else a forced group value, else a group
+percentage, else the knob-wide percentage, else `default`; each percentage goes through
+`detail::ramp()`, which returns `rollout_value` when a hash is present and
+`stable_bucket(name, hash) < pct`, and `default` otherwise. The bucket is unchanged, so a caller in
+a flag's bucket at main is in it here. `get_as<T>` converts with a range check; `get_as<bool>`
+accepts 0 and 1 and nothing else (`ConversionFailed`). `eval` is gone. The full order is in
+[knob-model.md](knob-model.md#evaluation).
+
+## JSON
+
+```json
+{ "default": 25, "overrides": { "beta": 7, "canary": { "rollout_pct": 50 } },
+  "rollout_pct": 10, "rollout_value": 50 }
+```
+
+A flag is `{"default": 0, "rollout_pct": 10, "rollout_value": 1}`. There is no `type`; a `type`
+field, a boolean literal or a fraction is refused, as are unknown fields.
+
+## Why no strings (D65)
+
+Strings stay out. Every value is eight bytes in the flat image and one varint in a page, so a
+record has a fixed shape and a read returns a register, never a borrowed span whose lifetime ties
+the caller to a page or an image. A string value would bring back a second type, a length-prefixed
+body, a lifetime contract on the read API, and a size budget per value at publish. The owner's
+ruling (D65) keeps the single integer type until a use case pays for that.
+
 ## Outside the bucket (D68)
 
 A hashed caller outside a percentage's bucket gets `default`, as does a caller with no hash. A
