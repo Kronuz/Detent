@@ -3,6 +3,12 @@
 Risk: low (measurement). Repo: home (Detent). The lead writes this quest; contributors read it and
 never edit it. Machine state: `campaign status wheel-vs-stash`.
 
+## Hold
+
+Owner, 2026-11-12: on hold until the wheel stabilizes, since the logger-on-wheel decision may change
+it (for example a sorted expire). It resumes at the wheel commit that decision lands, not at
+wheel:bfd72bc.
+
 ## Outcome
 
 `docs/perf/wheel-vs-stash.md` gives the landed Kronuz/wheel (`wheel.hh` at wheel:bfd72bc,
