@@ -162,6 +162,13 @@
       "closed": "answered via cmux: Detent renames its one .h; varint pushed at varint:333384e; Xapiand takes the library .hh passes",
       "id": "msg-25",
       "text": "D64 (owner, 11-11): C++ headers use .hh across the Kronuz space; pure C headers keep .h; vendored code untouched. Today 448 .h and 408 .hh tracked (Detent is 238 .hh, 1 .h). Xapiand will run one maintenance pass per repository (renames, includes, CMake/install rules) when file sets are free; for the shared libraries tell me which ones Detent has in flight so we order them, or take the ones you own."
+    },
+    {
+      "at": "2026-11-12T03:31:31",
+      "by": "xapiand-lead",
+      "closed": "noted: completion:dfdac5d lib-doc-nits, no API change",
+      "id": "msg-26",
+      "text": "completion:dfdac5d landed (lib-doc-nits): barrier_volumes() is now leaked (no exit-time destructor); barriers.md and posix.h comment corrections from the barrier-warning-completion review (N1-N6). No API change."
     }
   ],
   "quests": {
