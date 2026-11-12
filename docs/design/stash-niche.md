@@ -113,4 +113,77 @@ decision row; the thresholds are unchanged and every row runs under them.
 
 ## Results
 
-Not yet measured.
+Rows at 771a3c5e (the harness and the vendored wheel are unchanged since 107fe6fb), stash pinned
+at stash:d249352, wheel:50665c8, on one Intel Core i9-9980HK (8 cores, 16 threads, macOS 15,
+Apple clang 17, x86-64 binaries, `-O2 -DNDEBUG`), `exclusive` jobs, 6 interleaved D51 pairs per
+row, all 144 runs valid (every entry delivered once, none early, ticks in order, none capped).
+Jobs: 1 s x 1,000 keys 261111-225202-d8a30c; 1 s x 1,000,000 261111-225206-c080d7; 24 h x 1,000
+261111-225211-0eb5ec; 24 h x 1,000,000 261111-225215-abef30; memory (strict, counting build)
+261111-225204-6df5aa, -225208-e62bf7, -225213-02c592, -225217-6c3043. The checks and the smoke
+that preceded them: 261111-213900-917751, 261111-213902-d798e3. Medians over the 6 runs of
+an arm, ns per key; **r** is the median over pairs of (w cost) / (b cost), so r above 1 means
+stash is cheaper; φ is the D51 noise floor on cost per key.
+
+| Horizon | Keys | P | stash insert / drain / cost | wheel insert / drain / cost | r | φ | time only |
+|---|---|---|---|---|---|---|---|
+| 1 s | 1,000 | 1 | 231 / 131 / 365 | 12.4 / 32 / 46 | 0.125 | 15% | loss |
+| 1 s | 1,000 | 4 | 589 / 133 / 724 | 30 / 33 / 65 | 0.089 | 13% | loss |
+| 1 s | 1,000 | 14 | 4,560 / 147 / 4,689 | 200 / 35 / 263 | 0.060 | 22% | loss |
+| 1 s | 1,000,000 | 1 | 106 / 282 / 388 | 9.8 / 122 / 132 | 0.341 | 3.6% | loss |
+| 1 s | 1,000,000 | 4 | 161 / 264 / 426 | 11.0 / 117 / 129 | 0.303 | 9.2% | loss |
+| 1 s | 1,000,000 | 14 | 296 / 279 / 573 | 32.7 / 119 / 154 | 0.265 | 9.0% | loss |
+| 24 h | 1,000 | 1 | 619 / 1,146 / 1,764 | 11.7 / 3,953 / 3,965 | **2.226** | 3.6% | **win** |
+| 24 h | 1,000 | 4 | 1,252 / 1,124 / 2,436 | 25.7 / 3,866 / 3,890 | **1.597** | 9.5% | **win** |
+| 24 h | 1,000 | 14 | 8,127 / 1,257 / 9,296 | 193 / 3,956 / 4,124 | 0.447 | 15.9% | loss |
+| 24 h | 1,000,000 | 1 | 661 / 1,368 / 2,046 | 8.9 / 218 / 227 | 0.111 | 4.6% | loss |
+| 24 h | 1,000,000 | 4 | 820 / 1,382 / 2,226 | 12.1 / 222 / 236 | 0.103 | 6.8% | loss |
+| 24 h | 1,000,000 | 14 | 1,950 / 1,439 / 3,392 | 32.5 / 210 / 242 | 0.072 | 3.3% | loss |
+
+No row was inconclusive (rule 3 reran nothing): every ratio is either below 1.10 or clears its
+floor by a wide margin. The wheel's insert is 9 to 160 times cheaper than stash's in every row
+(stash's grows with P, 106 to 8,127 ns), and its drain is cheaper in 10 of 12 rows.
+
+**Memory** (bytes per key, entry plus structure heap; exact: repeats are identical, and a row's
+P = 1 and 14 differ by at most 1.1%). The gate fails stash in every row, as D74 reworded it.
+
+| Horizon | Keys | stash entry + heap | wheel entry + heap | stash / wheel |
+|---|---|---|---|---|
+| 1 s | 1,000 | 16 + 213.8 = 229.8 | 32 + 65.9 = 97.9 | 2.35x |
+| 1 s | 1,000,000 | 16 + 27.4 = 43.4 | 32 + 0.07 = 32.1 | 1.35x |
+| 24 h | 1,000 | 16 + 706.8 = 722.8 | 32 + 65.9 = 97.9 | 7.38x |
+| 24 h | 1,000,000 | 16 + 366.2 = 382.2 | 32 + 0.07 = 32.1 | 11.92x |
+
+The wheel's 1,000-key figure is its fixed 66 KiB of slot heads over few keys. Stash's resident
+set grows 351 MB over the 24 h x 1,000,000 run (the wheel's 0.2 MB), 26 MB at 1 s.
+
+## Verdict
+
+**Retiring stash stands (D70): stash keeps no use.** By the rule, stash keeps a use only if all
+three of its producer-count rows are stash wins, and its memory is also at most 1.10x the
+wheel's; it wins no use on either count.
+
+- **1 s, 1,000 and 1,000,000 keys: lost on every row.** The wheel is 3 to 17 times cheaper per key
+  (r = 0.06 to 0.34), 3 to 12 times on drain alone, and uses 1.35x to 2.35x the bytes less.
+- **24 h x 1,000,000 keys: lost on every row**, r = 0.07 to 0.11: the wheel's 1,015,041 wakes
+  (20,861 of them empty) drain in 210-222 ns per key against stash's 1,368-1,439, and its
+  inserts cost 9-33 ns against 661-1,950.
+- **24 h x 1,000 keys: the only place stash is ahead, and not on a whole use.** Stash is cheaper
+  at P = 1 (r = 2.23) and P = 4 (r = 1.60), both clearing their floors; at P = 14 it loses
+  (r = 0.447) because its insert grows with contention to 8,127 ns. Its drain is 3.4x the
+  wheel's at every P (1,124-1,257 ns against 3,866-3,956), the wheel waking 2,263 times for 1,000
+  keys (1,263 empty, the cascades of a sparse 24 h horizon). The memory gate fails it as well
+  (722.8 against 97.9 B per key, 7.4x).
+
+The verdict does not depend on D74's gate: with the gate ignored ("time only", the last column)
+no use has all three rows won either, and the gate then adds only that stash's memory is 1.35x
+to 11.9x the wheel's. What stash's one winning region says, for the owner and not under the
+rule: stash's drain is better than the wheel's on a sparse key set over a wide horizon (3.4x at
+1,000 keys over 24 h, where the wheel pays its cascades and empty wakes), and its inserts are
+not, because producers share its slots. A single-producer or few-producer sparse timeline is
+the only shape in these rows where stash beat the wheel, and it did so by 1.6x to 2.2x on cost
+and used 7.4x the memory; that is not a use the rule registered and not one the rows prove.
+
+**Not measured:** producers overlapping the consumer (the wheel's filing would then overlap the
+inserts), Linux, key distributions other than uniform, N between 1,000 and 1,000,000 or above
+it, more than 14 producers, a consumer that must also wait for the next key (`next()` and a
+wake), and a wheel whose cascades are cheaper on a sparse wide horizon.
