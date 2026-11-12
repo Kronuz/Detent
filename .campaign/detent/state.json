@@ -4558,6 +4558,50 @@
       "updated": "2026-11-12T11:37:48",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
+    "namespace-s6-cutover": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [
+        "namespace-session",
+        "namespace-blocks"
+      ],
+      "files": [
+        "src/detent_authority/**",
+        "tests/detent_authority/**",
+        "include/detent/**",
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_agent/**",
+        "tests/detent_local/**",
+        "tests/detent_agent/**",
+        "benchmarks/**",
+        "docs/status/namespace-s6-cutover.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s6",
+        "namespace-s5-2",
+        "okt-followups"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
+      "updated": "2026-11-12T11:45:32"
+    },
     "namespace-s7": {
       "accepted": {
         "durability": {
