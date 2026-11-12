@@ -1,6 +1,6 @@
 # warm-graph-5m: journal
 
-State: waiting on jobs 261112-154256-ad53cb (F1 unmutated pass); F1 mutant confirm 261112-154129-2cdfff done
+State: fixes ready (F1=261112-154129-2cdfff)
 Quest: .campaign/detent/quests/warm-graph-5m.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -26,7 +26,7 @@ Instrumented 1M run (local, light hold): `WG5M finalize records 974665 strings 3
   `managed paged publication exact base or admission mismatch`, and the plan stays intact. disk_store.cc
   untouched. Confirm: F1=261112-154129-2cdfff (reviewer's mutant, narrowed to this test's target:
   MUTANT KILLED at 6c52a2b3; the mutant lets `begin()` proceed and the test dies on StoragePressure).
-  Unmutated pass at the same commit: 261112-154256-ad53cb. N1 is delta-plan-scaling's; N2, N3 moved to
+  Unmutated pass at the same commit: 261112-154256-ad53cb (done, exit 0). N1 is delta-plan-scaling's; N2, N3 moved to
   namespace-s7-ids (A4).
 
 ## Next
