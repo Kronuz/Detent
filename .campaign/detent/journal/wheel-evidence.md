@@ -10,7 +10,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Rows, doc and pick done (D70, 9b5bc959). Waiting on the VM test rerun 261111-182307-a3c694 (TSan
-under `setarch -R`; 261111-173910-3288f9 passed ASan+UBSan on the VM, TSan aborted with
+under `setarch -R`; 261111-182307-a3c694 (ASan+UBSan and TSan under setarch -R, all ok) passed ASan+UBSan on the VM, TSan aborted with
 "unexpected memory mapping", the 6.x kernel's mmap ASLR against TSan) and the suite gate
 261111-182314-ea4b17.
 
@@ -31,7 +31,7 @@ Nothing. D70 (owner): (f) is the one wheel; task-wheel closes the macOS re-arm g
 | A3 | D70 (PLAN.md: (f) adopted on these rows; D69 applied the rule to A5/A6); rule pre-registered at 7a3682c4 before the first measured job |
 | A4 | `docs/design/wheel-evidence.md`: "## The pick" |
 | A5 | 261111-143146-cf9183 (passed at 5ecbeb4c7693; ignores docs-only wheel_vs_stash.sh, wheel_vs_stash_vm.sh, wheel-evidence.md) |
-| A6 | 261111-144149-2a64b9, 261111-144151-4c40f1, 261111-144152-d8a935 (passed at 7c62c5dca353; ignores docs-only wheel-evidence.md), 261111-173910-3288f9 (VM tests) |
+| A6 | 261111-144149-2a64b9, 261111-144151-4c40f1, 261111-144152-d8a935 (passed at 7c62c5dca353; ignores docs-only wheel-evidence.md), 261111-182307-a3c694 (ASan+UBSan and TSan under setarch -R, all ok) (VM tests) |
 
 ## Result
 
@@ -62,7 +62,7 @@ VM 10.8%; 5% not reached. At 1M: 24.9% / 29.7%.
 - A5/A6 (D69): the A3 rule and thresholds unchanged; the R = 10 single rows decide by median ratio
   (change 3). The minimum sample is 100 ms of timed passes on top of 1,000,000 / n repetitions.
 - A6 adds a Linux run of the model, manual-clock and cross-thread tests (ASan+UBSan, TSan, g++)
-  261111-173910-3288f9, since rule 2 needs the manual-clock test on the host it picks for.
+  261111-182307-a3c694 (ASan+UBSan and TSan under setarch -R, all ok), since rule 2 needs the manual-clock test on the host it picks for.
 - VM cross row: (c) at P = 7 prints "inconclusive" (0.63x against a 53% band); not rerun, since (c)
   fails the VM single loop by 21x at n = 1,000 whatever that row says.
 - VM TSan runs under `setarch $(uname -m) -R` (ASLR off for that one process); the VM's sysctl is
