@@ -15,7 +15,6 @@
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution/wire_encoder.hh"
 #include "detent_local/disk_store.hh"
-#include "detent_local/paged_definition.hh"
 #include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_limits.hh"
@@ -126,33 +125,52 @@ Records records(const Corpus &c) {
 	return r;
 }
 
-// Appends the wire definition for a paged body; `flip` changes its default (an update).
+// A corpus body is the retired two-kind paged definition (DTCORP01 predates the one-knob type):
+// revision u64, kind u8 (1 boolean, 2 integer), default bool u8, rollout u8 (255 none), pad, override
+// count u32, default int i64, then rows of key length u16, kind u8 (0 forced, 1 percentage), value u8, key.
+// The wire form is the one-knob definition: a bool is default 0 or 1 with rollout value 1.
+// Appends it; `flip` changes the default (an update).
 void definition(std::string &out, std::string_view body, bool flip, std::uint64_t &overrides,
 				std::uint64_t &strings) {
-	const std::span<const char> bytes(body.data(), body.size());
-	const auto h = l::paged::decode_definition_header(bytes, UINT64_MAX);
-	if (!h.boolean) {
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
-		m::signed_integer(out, h.default_int + (flip ? 1 : 0));
+	const auto *bytes = body.data();
+	const auto kind = static_cast<unsigned char>(bytes[8]);
+	if (kind == 2) {
+		m::array(out, 4);
+		m::signed_integer(out, std::int64_t(be(bytes + 16, 8)) + (flip ? 1 : 0));
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		m::array(out, 0);
 		return;
 	}
+	const auto rollout = static_cast<unsigned char>(bytes[10]);
+	const auto count = be(bytes + 12, 4);
+	bool percentage = rollout != 255;
+	std::vector<std::pair<std::string_view, std::pair<bool, std::uint8_t>>> rows;
+	std::size_t offset = 24;
+	for (std::uint64_t i = 0; i < count; ++i) {
+		const auto length = be(bytes + offset, 2);
+		rows.push_back({{bytes + offset + 4, std::size_t(length)},
+						{bytes[offset + 2] != 0, static_cast<std::uint8_t>(bytes[offset + 3])}});
+		percentage |= bytes[offset + 2] != 0;
+		offset += 4 + length;
+	}
 	m::array(out, 4);
-	m::unsigned_integer(out, 0);
-	out.push_back((h.default_bool != flip) ? '\xc3' : '\xc2');
-	if (h.rollout)
-		m::unsigned_integer(out, *h.rollout);
+	m::signed_integer(out, (bytes[9] != 0) != flip ? 1 : 0);
+	if (rollout != 255)
+		m::unsigned_integer(out, rollout);
 	else
 		out.push_back('\xc0');
-	m::array(out, h.overrides);
-	std::size_t offset = l::paged::definition_header_bytes;
-	for (std::uint32_t i = 0; i < h.overrides; ++i) {
-		const auto o = l::paged::read_override(bytes, offset);
+	if (percentage)
+		m::signed_integer(out, 1);
+	else
+		out.push_back('\xc0');
+	m::array(out, count);
+	for (const auto &[key, row] : rows) {
 		const detent::GroupOverride value =
-			o.percentage ? detent::GroupOverride{detent::GroupRollout{o.value}} : detent::GroupOverride{bool(o.value)};
-		d::detail::wire::override_row(out, o.key, value);
+			row.first ? detent::GroupOverride{detent::GroupRollout{row.second}} : detent::GroupOverride{std::int64_t(row.second)};
+		d::detail::wire::override_row(out, key, value);
 		++overrides;
-		strings += o.key.size();
+		strings += key.size();
 	}
 }
 
