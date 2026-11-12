@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: waiting on jobs 261111-213553-ca2652 261111-213556-6fd40d
+State: waiting on jobs 261111-213900-917751 261111-213902-d798e3
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,7 @@ D74 (lead): wheel arm = Kronuz/wheel wheel.hh at wheel:50665c8 (vendored as stas
 arm "w"), memory gate on total bytes per key; recorded in docs/design/stash-niche.md (107fe6fb).
 Cancelled the earlier rows, memory jobs and probe (they ran the prototype (f)); main merged.
 The prototype smoke 261111-200152-81602e is kept as the reason (82.7M empty wakes of 82.8M).
-Submitted: checks 261111-213553-ca2652 (ASan+UBSan, TSan), then smoke 261111-213556-6fd40d on the
+Submitted (the first pair, 261111-213553-ca2652 and 261111-213556-6fd40d, failed on quoting of --ref: never ran; resubmitted with each option its own argument, spec checked): checks 261111-213900-917751 (ASan+UBSan, TSan), then smoke 261111-213902-d798e3 on the
 library (strict, after the checks). Rows are not submitted until the smoke shows the 24 h wakes
 near the occupied slots plus cascades.
 
