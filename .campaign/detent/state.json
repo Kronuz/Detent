@@ -4911,7 +4911,11 @@
         "cmake/dependencies.json",
         "src/detent_local/CMakeLists.txt",
         "src/CMakeLists.txt",
-        "tests/detent_delivery/scripted_upstream.hh"
+        "tests/detent_delivery/scripted_upstream.hh",
+        "docs/design/observability-bench.sh",
+        "docs/design/observability-summary.py",
+        "docs/design/observability-paired.py",
+        "docs/design/observability.md"
       ],
       "landed": [],
       "lenses": [
@@ -4924,7 +4928,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T18:20:21",
+      "updated": "2026-11-11T20:18:16",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
