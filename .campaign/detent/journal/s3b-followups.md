@@ -1,6 +1,6 @@
 # s3b-followups: journal
 
-State: waiting on jobs 261112-154056-4f72f4
+State: ready for review
 Quest: .campaign/detent/quests/s3b-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,11 +10,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Fixes and tests committed at 00377bb5. Pass job 261112-152830-3d7cba and the four mutant jobs are done
-(all mutants killed); N5 probe done. Waiting on the full suite 261112-154056-4f72f4.
+(all mutants killed); N5 probe done. Full suite 261112-154056-4f72f4 passed (exit 0, 857 s).
 
 ## Next
 
-1. When the suite is green, paste `campaign brief`'s Evidence table and Result; State "ready for review".
+1. Lead review; merge main before landing.
 
 ## Blocked on
 
