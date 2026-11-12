@@ -1,6 +1,6 @@
 add_library(detent_local_codec layout.cc paged_layout.cc paged_definition.cc)
 target_include_directories(detent_local_codec PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(detent_local_codec PUBLIC detent::detent detent::resources)
+target_link_libraries(detent_local_codec PUBLIC detent::detent detent::resources varint::varint)
 add_library(detent::local_codec ALIAS detent_local_codec)
 add_library(detent_local_packer paged_packer.cc paged_trie_cursor.cc)
 target_include_directories(detent_local_packer PUBLIC "${PROJECT_SOURCE_DIR}/src/detent_local")

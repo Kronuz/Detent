@@ -419,13 +419,14 @@ int main(int argc, char **argv) {
     auto state = read_state(source, verified);
     const auto body =
         state.lookup(source->rows.front().key, p::PageKind::Definition);
-    check(body && body->size() >= 24);
+    check(body && body->size() >= p::definition_header_bytes);
     const auto at = body->data() - source->bytes.data();
-    // Value edits retaining valid framing remain visible until scrub.
-    source->bytes[at + 23] ^= 1;
+    // Value edits retaining valid framing remain visible until scrub: byte 10 is the default's
+    // one-byte varint, so flipping its low bit changes the value only.
+    source->bytes[at + 10] ^= 1;
     const auto changed =
         state.lookup(source->rows.front().key, p::PageKind::Definition);
-    check(changed && (*changed)[23] != source->rows.front().body[23]);
+    check(changed && (*changed)[10] != source->rows.front().body[10]);
     auto bytes =
         std::span<char>(source->bytes)
             .subspan(source->root.tree.offset, source->root.tree.length);

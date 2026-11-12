@@ -1,8 +1,8 @@
 #include "detent_local/paged_definition.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
+#include <varint.hh>
 #include <algorithm>
-#include <bit>
 #include <stdexcept>
 
 namespace detent::local::paged {
@@ -15,28 +15,22 @@ bool less(std::string_view a, std::string_view b) {
 	return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(),
 										[](unsigned char x, unsigned char y) { return x < y; });
 }
+namespace leb128 = varint::leb128;
+// Writes value at offset; the caller sized the span by header_size or override_size.
 std::size_t put_varint(std::span<char> bytes, std::size_t offset, std::uint64_t value) {
-	for (; value >= 0x80; value >>= 7)
-		bytes[offset++] = static_cast<char>(value | 0x80);
-	bytes[offset++] = static_cast<char>(value);
-	return offset;
+	require(offset <= bytes.size() && leb128::size(value) <= bytes.size() - offset);
+	return leb128::encode(bytes.data() + offset, value) - bytes.data();
 }
-// A canonical LEB128 value: at most ten bytes, no trailing zero group, no bits past 64.
+// A canonical LEB128 value: no overlong encoding, no bits past 64.
 std::uint64_t get_varint(std::span<const char> bytes, std::size_t &offset) {
+	const char *at = bytes.data() + offset;
 	std::uint64_t value = 0;
-	for (unsigned shift = 0;; shift += 7) {
-		require(offset < bytes.size() && shift < 64);
-		const auto byte = static_cast<unsigned char>(bytes[offset++]);
-		require(shift != 63 || byte <= 1);
-		value |= std::uint64_t(byte & 0x7f) << shift;
-		if (!(byte & 0x80)) {
-			require(byte || !shift);
-			return value;
-		}
-	}
+	require(leb128::decode(&at, bytes.data() + bytes.size(), value));
+	offset = at - bytes.data();
+	return value;
 }
-std::int64_t unzigzag(std::uint64_t value) {
-	return std::bit_cast<std::int64_t>((value >> 1) ^ (0 - (value & 1)));
+std::int64_t get_signed(std::span<const char> bytes, std::size_t &offset) {
+	return leb128::unzigzag(get_varint(bytes, offset));
 }
 } // namespace
 std::size_t definition_size(const KnobDef &definition, std::uint32_t maximum_overrides) {
@@ -65,10 +59,10 @@ void encode_definition_header(std::span<char> bytes, const Definition &definitio
 	write_integer(bytes, 0, definition.revision, 8);
 	bytes[8] = static_cast<char>(definition.rollout ? *definition.rollout : 255);
 	bytes[9] = definition.rollout_value.has_value();
-	auto offset = put_varint(bytes, 10, zigzag(definition.default_value));
+	auto offset = put_varint(bytes, 10, leb128::zigzag(definition.default_value));
 	offset = put_varint(bytes, offset, definition.overrides);
 	if (definition.rollout_value)
-		put_varint(bytes, offset, zigzag(*definition.rollout_value));
+		put_varint(bytes, offset, leb128::zigzag(*definition.rollout_value));
 }
 void encode_override(std::span<char> bytes, const Override &value) {
 	const auto *rollout = std::get_if<GroupRollout>(&value.value);
@@ -80,7 +74,7 @@ void encode_override(std::span<char> bytes, const Override &value) {
 	if (rollout)
 		bytes[offset++] = static_cast<char>(rollout->rollout_pct);
 	else
-		offset = put_varint(bytes, offset, zigzag(std::get<std::int64_t>(value.value)));
+		offset = put_varint(bytes, offset, leb128::zigzag(std::get<std::int64_t>(value.value)));
 	std::copy(value.key.begin(), value.key.end(), bytes.begin() + offset);
 }
 void encode_definition(std::span<char> bytes, const KnobDef &definition, std::uint64_t revision,
@@ -112,7 +106,7 @@ Override read_override(std::span<const char> bytes, std::size_t &offset) {
 		require(percentage <= 100);
 		value = GroupRollout{percentage};
 	} else
-		value = unzigzag(get_varint(bytes, at));
+		value = get_signed(bytes, at);
 	require(length <= bytes.size() - at);
 	offset = at + length;
 	return {{bytes.data() + at, length}, value};
@@ -127,14 +121,14 @@ Definition decode_definition_header(std::span<const char> bytes, std::uint64_t n
 	const auto flags = static_cast<unsigned char>(bytes[9]);
 	require((rollout == 255 || rollout <= 100) && flags <= 1 && (rollout == 255 || flags));
 	std::size_t offset = 10;
-	result.default_value = unzigzag(get_varint(bytes, offset));
+	result.default_value = get_signed(bytes, offset);
 	const auto count = get_varint(bytes, offset);
 	require(count <= maximum_overrides && count < (1u << 14));
 	result.overrides = static_cast<std::uint32_t>(count);
 	if (rollout != 255)
 		result.rollout = rollout;
 	if (flags)
-		result.rollout_value = unzigzag(get_varint(bytes, offset));
+		result.rollout_value = get_signed(bytes, offset);
 	return result;
 }
 Definition validate_definition(std::span<const char> bytes, std::uint64_t namespace_revision,

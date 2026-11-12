@@ -1,6 +1,7 @@
 #pragma once
 #include "detent/model.hh"
 #include "paged_layout.hh"
+#include <varint.hh>
 
 namespace detent::local::paged {
 // A definition body (docs/design/one-knob-type.md): revision u64, rollout percentage u8 (255 =
@@ -22,24 +23,17 @@ struct Override {
 	std::string_view key;
 	GroupOverride value;
 };
-constexpr std::uint64_t zigzag(std::int64_t value) noexcept {
-	return (std::uint64_t(value) << 1) ^ std::uint64_t(value >> 63);
-}
-constexpr std::size_t varint_size(std::uint64_t value) noexcept {
-	std::size_t size = 1;
-	for (; value >= 0x80; value >>= 7)
-		++size;
-	return size;
-}
 // Encoded header bytes.
 constexpr std::size_t header_size(const Definition &definition) noexcept {
-	return 10 + varint_size(zigzag(definition.default_value)) + varint_size(definition.overrides) +
-		   (definition.rollout_value ? varint_size(zigzag(*definition.rollout_value)) : 0);
+	namespace v = varint::leb128;
+	return 10 + v::size(v::zigzag(definition.default_value)) + v::size(definition.overrides) +
+		   (definition.rollout_value ? v::size(v::zigzag(*definition.rollout_value)) : 0);
 }
 // Encoded override row bytes, key included.
 constexpr std::size_t override_size(const Override &value) noexcept {
+	namespace v = varint::leb128;
 	const auto *forced = std::get_if<std::int64_t>(&value.value);
-	return 2 + (forced ? varint_size(zigzag(*forced)) : 1) + value.key.size();
+	return 2 + (forced ? v::size(v::zigzag(*forced)) : 1) + value.key.size();
 }
 void encode_definition_header(std::span<char>, const Definition &, std::uint32_t maximum_overrides = 256);
 void encode_override(std::span<char>, const Override &);

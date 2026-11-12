@@ -85,13 +85,20 @@ inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_
 				 std::vector<char>(page.bytes->data(), page.bytes->data() + page.bytes->size()),
                  std::string(page.path)});
 			result->root.bytes += reference.length;
-			check(packer.commit(reference, budget));
+			// A commit refused for budget resumes with a fresh one.
+			for (unsigned retries = 0; !packer.commit(reference, budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
 			continue;
 		}
 		if (!packer.accepted())
 			continue;
 		if (cursor.ready()) {
-			check(cursor.commit(budget));
+			for (unsigned retries = 0; !cursor.commit(budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
 		}
 		cursor.step(budget);
 		if (cursor.ready()) {

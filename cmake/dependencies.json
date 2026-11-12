@@ -152,7 +152,7 @@
   {
     "name": "varint",
     "repository": "https://github.com/Kronuz/varint.git",
-    "revision": "1c3e526a9b99612038ed3573215a7560f0b2cd20",
+    "revision": "333384ee1f6b0cfb58f9ff6d4c1f1ebd4ff51cac",
     "source_subdir": "."
   },
   {
