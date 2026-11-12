@@ -34,7 +34,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | suite job 261112-115026-65553f (ctest in Release: events, callback_failure, accept_pressure incl. the manual-clock retry) |
+| A2 | pending: exclusive job 261112-115020-3a3dea |
+| A3 | ARCHITECTURE.md, section "Timers: one wheel, one Asio timer per loop" (reactor:99aff1b) |
+| A4 | open: Xapiand src/manager.cc still uses PeriodicTimer; nothing removed here |
 
 ## Result
 
