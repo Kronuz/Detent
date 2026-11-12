@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-221538-088160 261111-221548-54b209 261111-221548-4b10b6
+State: waiting on jobs 261111-233420-9245bb 261111-233422-3a6c0b 261111-233424-51ff26 261111-233446-2a29ab
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -36,6 +36,24 @@ A1, the gap is inlining, not placement:
   261111-221538-088160 (bench/forward_probe.sh) runs a vs w with the forwarders left to the
   compiler and then always inlined for every candidate alike.
 
+- Exp 4 result, probe 261111-221538-088160 (R = 3, n = 1,000): forwarders default w 1.169x a
+  (A/A 13.3%; arm 6.54 vs 5.03, re-arm 10.75 vs 7.95, cancel 5.28 vs 4.98, expire 22.13 vs
+  20.30); forwarders inlined 1.145x (A/A 23.7%; arm 5.98 vs 3.89, re-arm 6.56 vs 5.42, cancel
+  4.96 vs 4.59, expire 21.92 vs 20.72). A1 rows at wheel:94a51c6: single 261111-221548-54b209
+  misses at n = 1,000 (1.123x, A/A 24.8%; 1.097x at 1M), cross 261111-221548-4b10b6 passes.
+- Exp 5, the last (wheel:1cd7e7a, after merging main's .gitignore): arm no longer calls
+  cancel()+file(); it unlinks or reads queued(), files a level-0 deadline inline (a passed one at
+  the cursor via max), and sends a far deadline or a waiting inbox to one noinline arm_slow.
+  Probe 261111-232553-4ce4d5 (R = 3, n = 1,000):
+  - forwarders inlined: w 1.076x a (A/A 8.9%); arm 5.26 vs 5.24, re-arm 10.57 vs 11.65,
+    cancel 4.80 vs 5.04, expire 24.09 vs 19.77. The arm path is closed; expire is the gap.
+  - forwarders default (A1's build): w 1.176x (A/A 7.4%); arm 6.08 vs 4.86, re-arm 8.86 vs
+    7.73, cancel 5.27 vs 4.83, expire 23.83 vs 19.91. cand_w::arm stays out of line: clang's
+    inline cost 285 vs threshold 225 (local -Rpass-missed; job 261111-233446-2a29ab), 270-285
+    in three further unlink variants tried at compile time only; the one call arm keeps plus the
+    queued() test and the far branch are what a lacks.
+  - n = 1,000,000: inlined 1.004x, default 1.242x (A/A 16.7%; R = 3).
+
 Correctness so far: suite green at wheel:01dfcc9 (261111-204407-aef4ec); mutants caught: no
 cascade 261111-202912-b5aee7, no owner assertion 261111-202915-2b286a, unsaturated next()
 261111-204408-d59cd1. CI green at wheel:4a5bef4 (run 43159140943).
@@ -53,15 +71,12 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Read exp 4's probe 261111-221538-088160: two halves, forwarders default and always-inlined.
-   - If w passes 1.10x with default forwarders: A1 rows 261111-221548-54b209 (single) and
-     261111-221548-4b10b6 (cross) at wheel:94a51c6 are the evidence.
-   - If w passes only with inlined forwarders: the remaining gap is clang declining to inline the
-     harness's one-line cand_w::arm wrapper, not the wheel. Exp 5 (last): make arm smaller still
-     (no unlink clearing on the arm path), else bring the lead the choice (harness forwarders
-     always-inlined for every candidate vs accept the measured gap), with both numbers.
-   - Either way: write the numbers into docs/timer-wheel.md Cost and README Performance (A6),
-     Result here, State ready for review ("ready for Xapiand review" for A7).
+1. Read the A1 rows at wheel:1cd7e7a: single 261111-233420-9245bb (R = 10), cross
+   261111-233422-3a6c0b; suite 261111-233424-51ff26; reruns 261111-233426-fc722e (CI, A4),
+   261111-233426-cba5bf (fuzz, A5), mutants 261111-233426-1629a0, -739727, 261111-233427-f38b25,
+   -8621ae; inline-cost probe 261111-233446-2a29ab.
+2. Write the numbers into docs/timer-wheel.md Cost and README Performance (A6), the Evidence
+   table, Result; State ready for review, or the A1 miss stated plainly for the lead.
 
 ## Blocked on
 
