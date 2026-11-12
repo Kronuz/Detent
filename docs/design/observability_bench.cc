@@ -1,7 +1,8 @@
 // observability_bench: the warm-lookup cost of each knob-usage counting option (docs/design/observability.md
-// D2), measured around reader S6's real lookup. observability-bench.sh builds it against `Detent:b1d281c`.
+// D2), measured around reader S6's real lookup. observability-bench.sh built it against `Detent:b1d281c`,
+// whose C reader API (`detent/reader.h`) this file still calls; its definitions are the one knob type.
 //
-//   observability_bench --store DIR [--knobs N] [--reps N] [--calls N] [--threads 1,8] [--ops int,bool]
+//   observability_bench --store DIR [--knobs N] [--reps N] [--calls N] [--threads 1,8]
 //                       [--arms a,b,...] [--scattered N] [--map-dir DIR] [--soak SECONDS]
 //                       [--interleave 0|1] [--bare 0|1]
 //
@@ -14,7 +15,8 @@
 // `none`, and a case reports the median over all threads' block pairs of (arm - none). The `pos_*`,
 // `ever_*` and `dm_cache` arms index by the knob's definition position, which each name carries from
 // setup (the core would derive it from the definition it found; A8). `--bare 1` drops the lookup, so
-// a case times the counting code alone.
+// a case times the counting code alone. Every knob is one int64 definition read through `detent_get`
+// (docs/design/one-knob-type.md): half are plain integers, half serve a 50% rollout value.
 #include "detent/json_schema.hh"
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
@@ -214,7 +216,7 @@ static_assert(std::size_t(Arm::hook_on) < arm_count);
 
 struct Name {
 	std::string text;
-	std::uint32_t pos = 0; // definition position: 2 × index, + 1 for the bool
+	std::uint32_t pos = 0; // definition position: 2 × index, + 1 for the rollout knob
 	detent_str str() const noexcept { return {text.data(), text.size()}; }
 };
 // Relaxed atomic access to a plain word (the cells may live in a shared file mapping).
@@ -353,7 +355,7 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 }
 
 struct Options {
-	std::string store, map_dir, arms = "all", threads = "1,8", ops = "int,bool";
+	std::string store, map_dir, arms = "all", threads = "1,8";
 	std::size_t knobs = 100000, reps = 5, calls = 262144, scattered = 1024, soak = 0;
 	bool interleave = false, bare = false;
 };
@@ -365,7 +367,6 @@ Options parse(int argc, char **argv) {
 		else if (flag == "--map-dir") o.map_dir = value;
 		else if (flag == "--arms") o.arms = value;
 		else if (flag == "--threads") o.threads = value;
-		else if (flag == "--ops") o.ops = value;
 		else if (flag == "--knobs") o.knobs = std::stoull(value);
 		else if (flag == "--reps") o.reps = std::stoull(value);
 		else if (flag == "--calls") o.calls = std::stoull(value);
@@ -389,19 +390,19 @@ std::vector<std::string> split_list(const std::string &list) {
 		out.push_back(item);
 	return out;
 }
-// Names of realistic length (about 40 bytes): 64 namespaces, an int and a bool knob per index; `--knobs`
-// counts definitions, so there are knobs / 2 indices.
-std::string knob_name(std::size_t i, bool boolean) {
+// Names of realistic length (about 40 bytes): 64 namespaces, a plain and a rollout knob per index;
+// `--knobs` counts definitions, so there are knobs / 2 indices.
+std::string knob_name(std::size_t i, bool rollout) {
 	return "svc_namespace_" + std::to_string(i % 64) + ":feature_rollout_knob_" + std::to_string(i) +
-	       (boolean ? "_enabled" : "_limit");
+	       (rollout ? "_enabled" : "_limit");
 }
 // Builds the definitions and checks them against the parser's limits before publishing, so a set the
 // store rejects fails with its reason before any case is timed.
 void generate(const Options &o) {
 	std::string json = R"({"schema_version":1,"knobs":{)";
 	for (std::size_t i = 0; i != o.knobs / 2; ++i)
-		json += (i ? ",\"" : "\"") + knob_name(i, false) + R"(":{"type":"int","default":)" + std::to_string(i + 1) +
-		        "},\"" + knob_name(i, true) + R"(":{"type":"bool","default":false,"rollout_pct":50})";
+		json += (i ? ",\"" : "\"") + knob_name(i, false) + R"(":{"default":)" + std::to_string(i + 1) + "},\"" +
+		        knob_name(i, true) + R"(":{"default":0,"rollout_pct":50,"rollout_value":1})";
 	json += "}}";
 	const auto parsed = detent::parse_defaults(json, "observability_bench");
 	if (!parsed)
@@ -421,14 +422,8 @@ struct Result {
 	std::uint64_t stripe = 0;
 };
 using Lookup = detent_status (*)(detent_reader *, const Name &, std::int64_t &);
-detent_status lookup_int(detent_reader *core, const Name &name, std::int64_t &value) {
+detent_status lookup_get(detent_reader *core, const Name &name, std::int64_t &value) {
 	return detent_get(core, name.str(), 0, &value);
-}
-detent_status lookup_bool(detent_reader *core, const Name &name, std::int64_t &value) {
-	bool out = false;
-	const auto status = detent_eval(core, name.str(), {}, {}, false, &out);
-	value = out;
-	return status;
 }
 template <Arm A>
 void timed(detent_reader *core, Lookup lookup, const std::vector<Name> &names, std::size_t calls, Result &result) {
@@ -598,9 +593,9 @@ float percentile(std::vector<float> v, double p) {
 	return v[std::min(v.size() - 1, std::size_t(double(v.size()) * p))];
 }
 
-void run_case(detent_reader *core, const Options &o, Arm arm, const std::string &op, const std::string &set,
+void run_case(detent_reader *core, const Options &o, Arm arm, const std::string &set,
               const std::vector<Name> &names, std::size_t threads, std::size_t rep) {
-	const auto lookup = op == "int" ? &lookup_int : &lookup_bool;
+	const auto lookup = &lookup_get;
 	reset_counters();
 	hook.store(arm == Arm::hook_on ? &noop_hook : nullptr);
 	// Untimed warmup on this thread: attaches, verifies pages and claims each name's table slot.
@@ -633,7 +628,7 @@ void run_case(detent_reader *core, const Options &o, Arm arm, const std::string 
 		distinct.insert(r.stripe);
 		distinct8.insert(r.stripe & 7);
 	}
-	std::cout << "{\"arm\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"" << op << "\",\"set\":\"" << set
+	std::cout << "{\"arm\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"get\",\"set\":\"" << set
 	          << "\",\"threads\":" << threads << ",\"rep\":" << rep << ",\"p50_ns\":" << percentile(p50, 0.5)
 	          << ",\"p50_max_ns\":" << *std::max_element(p50.begin(), p50.end())
 	          << ",\"p99_ns\":" << percentile(p99, 0.5) << ",\"calls\":" << o.calls * threads
@@ -642,9 +637,9 @@ void run_case(detent_reader *core, const Options &o, Arm arm, const std::string 
 	          << ",\"rows8\":" << distinct8.size() << "}" << std::endl;
 }
 // OB1's paired case: every thread warms its own counters, then alternates arm and `none` blocks.
-void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string &op, const std::string &set,
+void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string &set,
               const std::vector<Name> &names, std::size_t threads, std::size_t rep) {
-	const auto lookup = o.bare ? &lookup_bare : op == "int" ? &lookup_int : &lookup_bool;
+	const auto lookup = o.bare ? &lookup_bare : &lookup_get;
 	reset_counters(true);
 	hook.store(arm == Arm::hook_on ? &noop_hook : nullptr);
 	const auto warm_calls = names.size() / batch * batch + batch;
@@ -707,7 +702,7 @@ void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string 
 	case Arm::es_tls_one: expected = std::int64_t(seen.size()); break;
 	default: break;
 	}
-	std::cout << "{\"pair\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"" << op << "\",\"set\":\"" << set
+	std::cout << "{\"pair\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"get\",\"set\":\"" << set
 	          << "\",\"bare\":" << o.bare << ",\"threads\":" << threads << ",\"rep\":" << rep
 	          << ",\"delta_ns\":" << (on_first_median + off_first_median) / 2
 	          << ",\"order_ns\":" << (off_first_median - on_first_median) / 2
@@ -724,7 +719,7 @@ void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string 
 void soak(detent_reader *core, const Options &o, Arm arm, const std::vector<Name> &names) {
 	reset_counters();
 	Result warm;
-	timed_arms[std::size_t(arm)](core, &lookup_int, names, names.size() / batch * batch + batch, warm);
+	timed_arms[std::size_t(arm)](core, &lookup_get, names, names.size() / batch * batch + batch, warm);
 	std::uint64_t total_faults = 0;
 	float worst = 0;
 	std::vector<float> seconds_p50;
@@ -734,7 +729,7 @@ void soak(detent_reader *core, const Options &o, Arm arm, const std::vector<Name
 		std::vector<float> means;
 		while (Clock::now() < end) {
 			Result r;
-			timed_arms[std::size_t(arm)](core, &lookup_int, names, batch * 256, r);
+			timed_arms[std::size_t(arm)](core, &lookup_get, names, batch * 256, r);
 			for (float m : r.per_call)
 				means.push_back(m), worst = std::max(worst, m);
 		}
@@ -760,12 +755,11 @@ int main(int argc, char **argv) try {
 	// Name sets: one hot name and `scattered` seeded names per operation.
 	std::mt19937_64 random(0x4f4253455256ull);
 	const auto indices = o.knobs / 2;
-	const auto named = [](std::size_t k, bool boolean) { return Name{knob_name(k, boolean), std::uint32_t(2 * k + boolean)}; };
-	std::vector<Name> hot_int{named(indices / 2, false)}, hot_bool{named(indices / 2, true)}, sc_int, sc_bool;
+	const auto named = [](std::size_t k, bool rollout) { return Name{knob_name(k, rollout), std::uint32_t(2 * k + rollout)}; };
+	std::vector<Name> hot{named(indices / 2, false)}, scattered;
 	for (std::size_t i = 0; i != o.scattered; ++i) {
-		const auto k = random() % indices;
-		sc_int.push_back(named(k, false));
-		sc_bool.push_back(named(k, true));
+		const auto draw = random();
+		scattered.push_back(named(draw / 2 % indices, draw & 1));
 	}
 	positions = indices * 2;
 	pos_counts = new std::atomic<std::uint64_t>[positions]();
@@ -782,19 +776,13 @@ int main(int argc, char **argv) try {
 	rows8.init(8, capacity, "");
 	rows64.init(stripes, capacity, "");
 	rows8_mapped.init(8, capacity, o.map_dir + "/usage-" + std::to_string(::getpid()) + ".cells");
-	// Smoke assertions: every name answers OK with the value it was published with.
-	for (const auto *set : {&hot_int, &sc_int}) {
+	// Smoke assertions: every name answers OK with its default (a hashless read of a rollout knob too).
+	for (const auto *set : {&hot, &scattered})
 		for (const auto &name : *set) {
-			std::int64_t value = 0;
-			if (detent_get(core, name.str(), -1, &value) != DETENT_OK || value <= 0)
-				throw std::runtime_error("int knob does not answer: " + name.text);
-		}
-	}
-	for (const auto *set : {&hot_bool, &sc_bool})
-		for (const auto &name : *set) {
-			bool value = true;
-			if (detent_eval(core, name.str(), {}, {}, true, &value) != DETENT_OK || value)
-				throw std::runtime_error("bool knob does not answer its default: " + name.text);
+			std::int64_t value = -1;
+			const auto expected = name.pos & 1 ? 0 : std::int64_t(name.pos / 2 + 1);
+			if (detent_get(core, name.str(), -1, &value) != DETENT_OK || value != expected)
+				throw std::runtime_error("knob does not answer its default: " + name.text);
 		}
 	std::vector<Arm> arms;
 	if (o.arms == "all") // D2's arms; A8's run by name with --interleave 1
@@ -810,8 +798,8 @@ int main(int argc, char **argv) try {
 		}
 	std::cout << "{\"config\":{\"knobs\":" << indices * 2 << ",\"scattered\":" << o.scattered
 	          << ",\"table_capacity\":" << capacity << ",\"calls_per_thread\":" << o.calls << ",\"reps\":" << o.reps
-	          << ",\"threads\":\"" << o.threads << "\",\"ops\":\"" << o.ops << "\",\"arms\":" << arms.size()
-	          << ",\"hot_name_bytes\":" << hot_int.front().text.size()
+	          << ",\"threads\":\"" << o.threads << "\",\"arms\":" << arms.size()
+	          << ",\"hot_name_bytes\":" << hot.front().text.size()
 	          << ",\"rows64_bytes\":" << rows64.bytes << ",\"rows8_bytes\":" << rows8.bytes
 	          << ",\"interleave\":" << o.interleave << ",\"bare\":" << o.bare << ",\"positions\":" << positions
 	          << ",\"mapped\":" << rows8_mapped.mapped << ",\"hardware_threads\":" << std::thread::hardware_concurrency()
@@ -820,16 +808,15 @@ int main(int argc, char **argv) try {
 	for (std::size_t rep = 0; rep != o.reps; ++rep)
 		for (std::size_t a = 0; a != arms.size(); ++a) {
 			const auto arm = arms[(a + rep) % arms.size()]; // rotate the order every repetition
-			for (const auto &op : split_list(o.ops))
-				for (const auto &t : thread_counts) {
-					const auto run = o.interleave ? &run_pair : &run_case;
-					run(core, o, arm, op, "hot", op == "int" ? hot_int : hot_bool, std::stoull(t), rep);
-					run(core, o, arm, op, "scattered", op == "int" ? sc_int : sc_bool, std::stoull(t), rep);
-				}
+			for (const auto &t : thread_counts) {
+				const auto run = o.interleave ? &run_pair : &run_case;
+				run(core, o, arm, "hot", hot, std::stoull(t), rep);
+				run(core, o, arm, "scattered", scattered, std::stoull(t), rep);
+			}
 		}
 	if (o.soak)
 		for (const auto arm : {Arm::knob_rows8, Arm::knob_rows8_mapped})
-			soak(core, o, arm, sc_int);
+			soak(core, o, arm, scattered);
 	std::cout << "{\"elapsed_s\":" << std::chrono::duration<double>(Clock::now() - started).count() << "}" << std::endl;
 	detent_close(core);
 	return 0;
