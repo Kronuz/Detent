@@ -1,6 +1,6 @@
 # relay-delta-shutdown-hang: journal
 
-State: waiting on jobs 261111-165851-1889f8 261111-165916-d794c9
+State: waiting on jobs (the check suite, `campaign verify`)
 Quest: .campaign/detent/quests/relay-delta-shutdown-hang.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix and tests committed (9c8cc070); waiting on the mutant (A2) and the A1 stack job at the diagnostic commit
-(07be9bf0). Then paste `campaign brief`'s table and set State to ready for review.
+All criteria have passing jobs; the check suite (`campaign verify relay-delta-shutdown-hang --for A2,A3`) is the
+last. Note: only the `published` case hangs without the fix (a close before the delta is selected leaves no edge
+in the bundle), so the other three phases pass on the old harness too: they prove the product drains mid-delta.
 
 ## Next
 
-1. When both jobs pass: `campaign brief`, paste the Evidence table, write the Result, set ready for review, push.
+1. When the suite passes: set State to ready for review, commit, push.
 
 ## Blocked on
 
@@ -31,7 +32,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
+| A1 | 261111-170342-8c9453 (hang reproduced without the fix, `lldb bt all`: main in `RetirementDrain::wait` at `cache_domain->close().wait()`); holders: 261111-165916-d794c9 (sink use count 3, 1 edge, 1 cache resident) |
+| A2 | 261111-165634-dbace0; fails without: 261111-165851-1889f8 (published case times out) |
+| A3 | 261111-165634-dbace0 (published, receiving, building, publishing) |
 
 ## Result
 
