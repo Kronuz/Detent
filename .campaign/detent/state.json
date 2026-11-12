@@ -6842,9 +6842,9 @@
       "provides": [],
       "repo": "../cpp-libraries",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "One server composition note for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T10:50:46",
+      "updated": "2026-11-12T11:04:17",
       "worktree": "../cpp-libraries-wt/detent/server-composition"
     },
     "service-shape": {
