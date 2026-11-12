@@ -79,8 +79,8 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 1. Reruns at wheel:f540679, needed only because the campaign's `tested_docs` lists README.md
    (wheel's README runs in no test; the Cost/README commits are docs only): suite
    261112-042845-375f03, fuzz 261112-042845-c55172, D75 row 261112-042845-b6a1c4, cross
-   261112-042845-919bf4, default-build row 261112-042845-ebe231, CI check (after CI run
-   43218170404). The lead may instead drop README.md from `tested_docs` for this repository.
+   261112-042845-919bf4, default-build row 261112-042845-ebe231, CI check 261112-042946-cdf883 (CI run
+   43218170404 green). The lead may instead drop README.md from `tested_docs` for this repository.
 2. The correctness review (lead), then A7 (the Xapiand lead).
 
 ## Blocked on
