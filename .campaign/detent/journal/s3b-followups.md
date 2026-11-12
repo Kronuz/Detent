@@ -55,3 +55,9 @@ runs inside the registered `scrub-worker` mode (adds about 12 s); no CMake chang
   damaged pack, a changed record and a finished pass are hashed again. The coordinator calls `rebase` when the pinned root changes.
 - Mutant patches live in `tests/detent_testing/mutants/` (inside the file set) and run through the existing
   `tests/detent_delivery/repair_mutant.sh`; the older `s3b-k4-obsolete-report-kept.patch` is unchanged and still applies.
+- Superseded jobs, not evidence: 261112-151503-6bde7b, 261112-151506-1a27b3, 261112-151509-3df73a, 261112-151512-209bec
+  (cancelled: they ran before the variant-17 setup fix); 261112-152833-e6e9c2, 261112-152837-60b9a3,
+  261112-152841-7de5cc, 261112-152846-ff0a5f, 261112-152852-df97b2, 261112-153026-51eb32 (no verdict, exit 3: parallel
+  jobs configured the same build dir; resubmitted chained with `--env REPAIR_MUTANT_BUILD=.scratch/build`);
+  261112-153106-905748 and its three chained successors (exit 127: my shell quoting of `--env`).
+- A4 is an [artifact] row (the doc edit at d91078d3); `campaign status` shows it pending until the lead marks it.
