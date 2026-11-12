@@ -5247,17 +5247,46 @@
         "src/detent_authority/export_encoder.*",
         "src/detent_local/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T14:21:14",
+          "commit": "c9258b8b6a7bf9e2b83ff91a8af2b1af798d4f28",
+          "criteria": {
+            "A1": "261112-131901-4e7ea5; fails without: 261112-114417-f899ed",
+            "A2": "261112-131901-4e7ea5; fails without: 261112-114424-6f60ca, 261112-131902-b2e1a4",
+            "A3": "261112-132758-bc1392; fails without: 261112-115028-7f7f86, 261112-132801-03b771",
+            "A4": "261112-131901-4e7ea5; fails without: 261112-114429-cba3de"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "233c39c70476bb5469b8ec9cf6e6a7979a40435b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-131901-4e7ea5",
+              "level": "light",
+              "seconds": 509.9,
+              "state": "done",
+              "what": "okt-followups check suite at 233c39c70476"
+            }
+          ],
+          "final": true,
+          "from": "eca7d7a77820ae367c7ac83e52c53af757880aec",
+          "reason": "",
+          "tested": "9c273675e9c3c792c21da416294aef2d2a7486fd"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "One knob type: review follow-ups C1-C5",
-      "updated": "2026-11-12T11:38:13",
-      "worktree": "../Detent-wt/detent/okt-followups"
+      "updated": "2026-11-12T14:21:33",
+      "worktree": ""
     },
     "one-knob-type": {
       "accepted": {
