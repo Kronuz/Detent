@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-062659-2d9cc1 261112-062710-0f5517 261112-062939-8e3351 261112-062944-bbdd36 261112-062949-8104aa
+State: waiting on jobs 261112-062659-2d9cc1 261112-062710-0f5517 261112-063105-c97a20 261112-063108-826152 261112-063111-1279f7
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,8 +13,8 @@ A1 committed (logger:123f5e2: docs/perf/wheel-ab.md "Arm D"; sizeof A 184, C 264
 261112-062455-24c582). Arm D is bench/wheel_ab/d/ (copy of C with the entry replacing
 ScheduledTask), built by its own d/CMakeLists.txt against wheel@45f98eb. Jobs running: check-d
 261112-062659-2d9cc1, tsan-d 261112-062710-0f5517 (A2 correctness). Pattern 3 rows (D at
-123f5e2, first iteration D1, 40 rounds, exclusive) queued `--after` both: P=1 261112-062939-8e3351,
-P=4 261112-062944-bbdd36, P=14 261112-062949-8104aa. If a check fails the rows are skipped.
+8094113, first iteration D1, 40 rounds, exclusive) queued `--after` both: P=1 261112-063105-c97a20,
+P=4 261112-063108-826152, P=14 261112-063111-1279f7. If a check fails the rows are skipped.
 
 ## Next
 
@@ -52,6 +52,15 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    deadline and the record's created time. Equal keys need two lines in the same nanosecond; the
    order check counts inversions.
 3. "No worse than A" (D72) is stated in the Rule for (D) before data: r(median) <= 1.10, r(p99) <=
-   1.10 + w, heap <= 1.10 A. The Rule's win/loss/no win stays beside it, under D77's statistic.
+   1.10 (lead ruling msg: not 1.10 + w; w and the interval reported beside it, a straddle of 1.10
+   reported as such, for median and p99), heap <= 1.10 A. The Rule's win/loss/no win stays beside
+   it, under D77's statistic, with the same p99 bound.
 4. One round = one process with one warm-up round and one measured round, so a per-round paired
    ratio exists (the harness's 8-round process has no per-round output); 40 rounds a row.
+
+5. p99 bound for D is r <= 1.10 (lead ruling), applied in the doc "Arm D", summarize.py (win and
+   no-worse) and ruling 3. Validation of `summarize.py --paired` on a real log: the A vs C pattern 3,
+   P = 1 log of logger-wheel-ab (261112-040552-6a1eea) turned into rounds gives r 1.245 (median),
+   1.631 (p99), heap 1.372, the same as that row's published values. The first row jobs
+   (261112-062939-8e3351, -062944-bbdd36, -062949-8104aa) were cancelled unrun and resubmitted at
+   8094113 as 261112-063105-c97a20, 261112-063108-826152, 261112-063111-1279f7.
