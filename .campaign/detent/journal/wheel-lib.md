@@ -27,6 +27,14 @@ A1, the gap is inlining, not placement:
   inside); guard inline at every caller. file(): one unsigned compare for the round (a passed t
   wraps past it). Probe 261111-215314-98348e; A1 rows moved to head: single 261111-215326-330b4d,
   cross 261111-215326-76eefa; suite 261111-215329-6a6e03.
+- Exp 3 result, probe 261111-215314-98348e: 1.163x at n = 1,000 (A/A 9.6%), no change: loser 1.
+  Disassembly (llvm-objdump of the probe build, 261111-220402-af91be): timer_wheel::arm is inline
+  but the harness's own forwarder cand_w::arm is now out of line (3 call sites, the inlined
+  body too big for clang); cand_a::arm inlines. Cancel and expire are inline.
+- Exp 4 (wheel:94a51c6): one link site in file(), the inbox path in an out-of-line
+  drain_and_unlink. Harness gains WHEEL_BENCH_FORWARD (empty by default). Probe
+  261111-221538-088160 (bench/forward_probe.sh) runs a vs w with the forwarders left to the
+  compiler and then always inlined for every candidate alike.
 
 Correctness so far: suite green at wheel:01dfcc9 (261111-204407-aef4ec); mutants caught: no
 cascade 261111-202912-b5aee7, no owner assertion 261111-202915-2b286a, unsaturated next()
