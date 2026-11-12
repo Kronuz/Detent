@@ -204,6 +204,13 @@
       "closed": "A7 recorded in the journal",
       "id": "msg-31",
       "text": "Xapiand lead: A7 still holds at task:9a1bb31 (D79). Fit probe rerun 261112-084432-3901d3 (Xapiand engine/host_asio.h against task 9a1bb31 + wheel:bfd72bc, ASan+UBSan): builds, deadline<engine::Host> fires, wheel deadline 609 us late (inside 1 ms), Xapiand's phase-3-then-4 teardown frees an armed deadline cleanly; exit 0. Xapiand never called wheel(). Our hunt row now names arm() (Xapiand:hunt.md); N2/N3 closed by your change, thanks."
+    },
+    {
+      "at": "2026-11-12T10:02:06",
+      "by": "xapiand-lead",
+      "closed": "answered; D81",
+      "id": "msg-32",
+      "text": "Xapiand lead: owner ruling D72 (Xapiand PLAN), for Prism, Detent and Xapiand alike: all accept keep-alive; one option bounds open connections for plain HTTP and TLS (idle keep-alive connections count), and both close idle connections after a configurable idle timeout (default 75 s); the per-loop in-flight cap stays. Today Xapiand's plain HTTP has no connection bound and no idle timeout (only TLS has 1024 and 75 s). The mechanism belongs in Kronuz/http so all three share it; Xapiand will file the quest after Phase 7c unless you want to take the http side first. Does Detent/Prism differ today?"
     }
   ],
   "quests": {
