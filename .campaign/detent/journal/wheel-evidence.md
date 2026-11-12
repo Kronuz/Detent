@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-173910-3288f9
+State: waiting on jobs 261111-182307-a3c694 261111-182314-ea4b17
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A5 and A6 rows in, the doc covers both hosts (bd8a0204). The VM's manual-clock test
-261111-173910-3288f9 (light) is still queued: the VM pick of (f) holds only if it passes.
+Rows, doc and pick done (D70, 9b5bc959). Waiting on the VM test rerun 261111-182307-a3c694 (TSan
+under `setarch -R`; 261111-173910-3288f9 passed ASan+UBSan on the VM, TSan aborted with
+"unexpected memory mapping", the 6.x kernel's mmap ASLR against TSan) and the suite gate
+261111-182314-ea4b17.
 
 ## Next
 
-1. Read 261111-173910-3288f9; if it passes, State "ready for review"; if not, the VM has no pick.
-2. Review; the lead takes the per-host result to the owner (Blocked on).
+1. Both jobs pass: paste the brief's table, State "ready for review", push.
 
 ## Blocked on
 
-Lead, then owner (D69 applies the rule now; the pick row follows the owner). The rule per host:
-macOS no pick ((f) misses only n = 1,000 single loop, 1.19x in the A5 row, on a re-arm gap of
-3.8 ns with disjoint ranges); Linux VM picks (f) (1.04x / 1.00x single loop, 0.04-0.08x of stash
-cross-thread). Recommendation: adopt (f) as the one wheel; the macOS gap is 7.1 ns per entry
-lifecycle at n = 1,000.
+Nothing. D70 (owner): (f) is the one wheel; task-wheel closes the macOS re-arm gap first.
 
 ## Evidence
 
@@ -31,7 +28,7 @@ lifecycle at n = 1,000.
 |---|---|
 | A1 | 261111-130750-f599af (passed at 512798d349d2; only merges from main since) |
 | A2 | 261111-121549-8cd0f8, 261111-121551-0e58b1 (passed at 40a5988ed6d4), 261111-130753-1687cf, 261111-130755-91093a, 261111-130756-004da8 (passed at 512798d349d2), 261111-143146-cf9183 (passed at 5ecbeb4c7693) |
-| A3 | D69 (PLAN.md: the rule applied to the A5 and A6 rows); rule pre-registered at 7a3682c4 before the first measured job; the pick row follows the owner's decision |
+| A3 | D70 (PLAN.md: (f) adopted on these rows; D69 applied the rule to A5/A6); rule pre-registered at 7a3682c4 before the first measured job |
 | A4 | `docs/design/wheel-evidence.md`: "## The pick" |
 | A5 | 261111-143146-cf9183 (passed at 5ecbeb4c7693; ignores docs-only wheel_vs_stash.sh, wheel_vs_stash_vm.sh, wheel-evidence.md) |
 | A6 | 261111-144149-2a64b9, 261111-144151-4c40f1, 261111-144152-d8a935 (passed at 7c62c5dca353; ignores docs-only wheel-evidence.md), 261111-173910-3288f9 (VM tests) |
@@ -68,4 +65,5 @@ VM 10.8%; 5% not reached. At 1M: 24.9% / 29.7%.
   261111-173910-3288f9, since rule 2 needs the manual-clock test on the host it picks for.
 - VM cross row: (c) at P = 7 prints "inconclusive" (0.63x against a 53% band); not rerun, since (c)
   fails the VM single loop by 21x at n = 1,000 whatever that row says.
-
+- VM TSan runs under `setarch $(uname -m) -R` (ASLR off for that one process); the VM's sysctl is
+  unchanged. macOS runs TSan as before.
