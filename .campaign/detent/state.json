@@ -6301,6 +6301,8 @@
       "after": [
         "wheel-evidence"
       ],
+      "base": "f001a607f406fc84bdf745abe73b98b1a9ace531",
+      "branch": "quest/detent/stash-niche",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -6321,9 +6323,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Stash on its own shape: fire-and-forget, wide horizon, before retirement",
-      "updated": "2026-11-11T18:34:03"
+      "updated": "2026-11-11T19:40:54",
+      "worktree": "../Detent-wt/detent/stash-niche"
     },
     "sync-groups-perf": {
       "accepted": {},
