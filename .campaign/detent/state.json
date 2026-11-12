@@ -3032,7 +3032,8 @@
       "files": [
         "logger.cc",
         "logger.h",
-        "test/**"
+        "test/**",
+        "docs/ROADMAP.md"
       ],
       "landed": [],
       "lenses": [],
@@ -3043,7 +3044,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T15:40:37"
+      "updated": "2026-11-12T15:54:37"
     },
     "logger-followups": {
       "accepted": {},
