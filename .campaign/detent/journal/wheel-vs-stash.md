@@ -1,6 +1,6 @@
 # wheel-vs-stash: journal
 
-State: working
+State: waiting on jobs 261112-131849-2dcaf3 261112-131851-01ae87 261112-131854-396348 261112-131856-04408f
 Quest: .campaign/detent/quests/wheel-vs-stash.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,26 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Hold lifted (D86). Harness rewritten to the fetched wheel (wheel:bfd72bc) and stash (b7d887678a):
-arms b, b2 (A/A twin), w in wheel_vs_stash.cc and stash_niche.cc; ghz0/ghz1 per row; scripts build
-through cmake (wheel_vs_stash_common.sh), print `round=R` before every sample, 40 rounds by default;
-summaries load the wheel's bench/wheel_bench_summary.py by path (statistics) and print w/b and b2/b
-ratios with 95% intervals. Syntax-checked; test and smoke jobs next, then the exclusive rows.
+Harness rewritten over the fetched wheel (wheel:bfd72bc) and stash (b7d887678a); arms b, b2 (A/A
+twin), w. Passed at 43f5dbf1-era harness: test 261112-131222-a47299 (ASan+UBSan, TSan, both
+binaries; model and cross checks), smoke 261112-131756-4c2758. Submitted at the harness commit
+(all with --ref wheel, stash pinned): exclusive single 261112-131849-2dcaf3 (n = 1e3, 1e6, 40
+rounds), cross 261112-131851-01ae87 (P = 1, 4, 14, 40 rounds), niche 261112-131854-396348 (24 h at
+N = 1e3 40 rounds, 1e6 24 rounds), light mem 261112-131856-04408f (wheel_vs_stash mem, nichemem at
+1e3 and 1e6). Host: Intel i9-9980HK, macOS, clang 17.
 
 ## Next
 
-1. Jobs at the commit: test (both binaries, ASan+UBSan, TSan), smoke (strict).
-2. Exclusive rows, each at most 10 minutes: single (1e3, 1e6), cross (P = 1, 4, 14), niche 24 h at
-   N = 1e3 and 1e6 (rounds split if over 10 minutes), mem (wheel_vs_stash, nichemem).
-3. docs/perf/wheel-vs-stash.md: tables, job ids, one apples-to-apples line per row, "Harness".
+1. When the jobs finish: read each job's log summary; if one failed or hit its bound, say why and
+   rerun (split rounds).
+2. docs/perf/wheel-vs-stash.md: tables (w and b medians, w/b ratio with 95% interval, A/A band),
+   job ids, one apples-to-apples line per row (arm: yes; re-arm, cancel, expire per operation: no,
+   stash leaves stale filings its expire pays for, whole-life score: yes; cross-thread arm: yes;
+   niche: yes, same keys; memory: entry plus heap), and "Harness" (fetched library, no copy; the
+   wheel.hh in this directory serves the design-record tests only).
+3. Journal Evidence/Result, State "ready for review".
 
-## ## Blocked on
+## Blocked on
 
 Nothing blocking. For the lead, A3: `wheel.hh` (the prototype) stays because the async-drivers
 design-record tests and probes (loops.hh, wheel_test, placement_test, driver_cost, ...) include it;
