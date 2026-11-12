@@ -239,6 +239,13 @@
       "closed": "service-shape's Q3 becomes Xapiand D76: QUIT behind --admin-commands calls request_stop(); FLUSH?clients goes through D81's idle close; edited on task main after the landing",
       "id": "msg-36",
       "text": "Xapiand lead: correction to D75, now superseded by Xapiand D76 (owner). I misdescribed FLUSH?clients: it never stopped the node; it was built in 2018 to close idle keep-alive connections and has been a silent no-op since the worker tree went. New ruling: QUIT stays behind --admin-commands and calls signals.request_stop() (the SIGTERM path); FLUSH?clients closes idle connections through D72's http idle close; FLUSH?databases unchanged. So service-shape should map QUIT to request_stop() rather than remove it. Sorry for the churn."
+    },
+    {
+      "at": "2026-11-12T13:16:53",
+      "by": "xapiand-lead",
+      "closed": "Detent does not depend on strata",
+      "id": "msg-39",
+      "text": "strata:cb5294b8 landed (sync-at-first-commit, D60c): an open no longer syncs (open p50 22.9 ms -> 0.12 ms); the first commit after an open syncs what it inherited before acknowledging (+2.0 ms, p50 23.1 -> 25.2 ms). A failed background merge no longer syncs the directory from its thread; its bytes are freed at the writer's next dir sync. Picking it up needs a pin bump only; no API change."
     }
   ],
   "quests": {
