@@ -7660,7 +7660,8 @@
     "wheel-followups": {
       "accepted": {},
       "after": [
-        "task-wheel"
+        "task-wheel",
+        "wheel-vs-stash"
       ],
       "checks": [
         {
@@ -7686,7 +7687,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T07:55:01"
+      "updated": "2026-11-12T11:05:15"
     },
     "wheel-lib": {
       "accepted": {
