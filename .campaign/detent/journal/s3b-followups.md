@@ -1,6 +1,6 @@
 # s3b-followups: journal
 
-State: working
+State: waiting on jobs 261112-153026-51eb32 261112-153030-e9d783 261112-153034-9bb3cd 261112-153038-a022d0 261112-153041-bddc45
 Quest: .campaign/detent/quests/s3b-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fixes committed (d91078d3, mutants d3624b1e). Unit and mutant jobs submitted for A1-A3 (see Evidence). Tuning the
-coordinator-level `scrub-carry` test (N4 wiring) from a local run; N5 measured with a probe job.
+Fixes and tests committed at 00377bb5. Pass job 261112-152830-3d7cba (exit 0) covers A1-A3. Mutant jobs
+(chained, they share a build dir) and the N5 probe are queued: waiting on them.
 
 ## Next
 
-1. Read the A1-A3 jobs; submit the `scrub-carry` pass job and its wiring mutant (`s3b-fu-a3-coordinator-begins`).
-2. Run the N5 probe (`tests/detent_testing/probes/n5_obsolete_count.sh`) as a job and decide: drop N5 or keep.
-3. `campaign verify s3b-followups`; fill the Evidence table; State "ready for review".
+1. Read the mutant jobs (all must be killed) and the N5 probe 261112-153041-bddc45; N5 is dropped when its count is negligible (see Rulings).
+2. `campaign verify s3b-followups`; fill the Evidence table; State "ready for review".
 
 ## Blocked on
 
