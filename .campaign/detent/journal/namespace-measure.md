@@ -1,6 +1,6 @@
 # namespace-measure: journal
 
-State: waiting on jobs 261112-114942-c476b9 261112-114948-146f96 261112-114954-8a716a 261112-115000-cd9622 261112-113801-4be23d
+State: waiting on jobs 261112-115033-5cb640 261112-115039-e2a0e2 261112-115045-0c8be1 261112-115051-073a9c 261112-113801-4be23d
 Quest: .campaign/detent/quests/namespace-measure.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,7 +11,7 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 Resumed 2026-11-12. Read the logs: 261110-204532-499625 (APFS) and 261110-204533-185018 (VM) exit 0, `skip 4096:1` only on APFS (239 s + 353 s > 540 s); no skip in the VM log. T9 261110-204105-976b50 failed: arm full ran (57 s apply), then arm 0.5 died with `invalid paged local image` at 5M. Cause (lldb, delta on a clone of the prepared store): `PagedCursor::step` decoded page headers with default `paged::Limits` (records 500000), so a branch page whose key count passed 504,096 was refused; the 100K smoke never reached it. Main already has the fix (`paged_cursor.cc` uses `paged_format_limits()`), so it was merged (`Detent:4d457cb`, clean); the library is untouched. The prepared store predates the merge: rebuilt by the new chain below. Second defect found: the flush driver read stat index 14 (field 15, discard ticks), so every flush count read 0; fixed to field 16 (`Detent:82757c6`) and the VM job resubmitted.
 
-Jobs at the ported harness (build 261112-113417-855a8e failed: the harness did not compile against main's one-knob types, see ruling 12; the chain below replaces it and its skipped prepare/round/smoke) (the first prepare/round/smoke submit mangled its env under zsh and was cancelled; these are the resubmits): T9 build 261112-114942-c476b9; prepare 261112-114948-146f96; 5M round 261112-114954-8a716a (exclusive, budget 540 s, arms `full 0.5 1 0.25 0.05`; the full arm took 63 s in the failed run, so all five are expected to fit); smoke 100K 261112-115000-cd9622; VM T4(7) with the flush fix 261112-113801-4be23d.
+Jobs at the ported harness (build 261112-113417-855a8e failed: the harness did not compile against main's one-knob types, see ruling 12; the chain below replaces it and its skipped prepare/round/smoke) (the first prepare/round/smoke submit mangled its env under zsh and was cancelled; these are the resubmits): T9 build 261112-115033-5cb640; prepare 261112-115039-e2a0e2; 5M round 261112-115045-0c8be1 (exclusive, budget 540 s, arms `full 0.5 1 0.25 0.05`; the full arm took 63 s in the failed run, so all five are expected to fit); smoke 100K 261112-115051-073a9c; VM T4(7) with the flush fix 261112-113801-4be23d.
 
 Pre-read of the rules on data already in hand (to be confirmed in "## Verdicts"):
 - Sync-bound: batched at 71-176 files is 28-32 ms on APFS and 14-32 ms on ext4 (interpolated from 64/128/256), far under 250 ms on both: rule 2 does not fire.
@@ -37,7 +37,7 @@ you examined, failures included, and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
-| A2 | build 261112-114942-c476b9; prepare 261112-114948-146f96; smoke 100K 261112-115000-cd9622; 5M round 261112-114954-8a716a (replaces the failed 261110-204105-976b50 (invalid paged local image at 5M, fixed on main) and the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
+| A2 | build 261112-115033-5cb640; prepare 261112-115039-e2a0e2; smoke 100K 261112-115051-073a9c; 5M round 261112-115045-0c8be1 (replaces the failed 261110-204105-976b50 (invalid paged local image at 5M, fixed on main) and the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
 | A3 | build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); VM rerun with the flush-counter fix 261112-113801-4be23d (its flush lines replace 261110-204533-185018's zeros); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded |
 | A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30), all exit 0 |
 | A5 | pending |
@@ -62,3 +62,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 10. The flush driver read `/sys/block/*/stat` index 14, which is field 15 (discard ticks), not field 16 (flush requests completed): every VM flush count in 261110-204533-185018 is 0 for that reason. The rules text says "field 15"; the intent is the completed-flush counter, so the driver reads field 16 and the VM job is rerun.
 11. T9 failed on a library defect already fixed on main (default `paged::Limits` in `PagedCursor`), not a harness fault; merged main (never rebase) and rebuilt the prepared store instead of editing the library (outside the file set).
 12. Main's one-knob-type change removed `paged::Definition::{boolean,default_int,default_bool}` and `Override::percentage`, and changed the wire definition to `[default, rollout_pct|nil, rollout_value|nil, [rows]]` with int64 forced overrides. The DTCORP01 corpora (dense, 4-5 Nov) hold the retired two-kind paged bodies, so the harness decodes those bodies itself (local legacy reader) and writes the one-knob wire definition: a bool is default 0/1, rollout value 1 when any percentage is present; an int keeps its default; `flip` toggles a bool's default or adds 1. Checked to build against the merged tree (incremental build of the slot's tree) and to run at 100K (full, then delta 0.5 on a clone: both published) before submitting; the x_raw bytes differ from the earlier runs because the wire form changed, so earlier T9 numbers are void anyway.
+13. The runner reads $CORPUS even in build mode, so the build job carries the corpus env (the first resubmit, 261112-114942-c476b9, failed on that and its chain was skipped).
