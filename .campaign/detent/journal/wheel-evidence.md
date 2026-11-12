@@ -9,11 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: A5 and A6 rows in, the doc covers both hosts (bd8a0204).
+A5 and A6 rows in, the doc covers both hosts (bd8a0204). The VM's manual-clock test
+261111-173910-3288f9 (light) is still queued: the VM pick of (f) holds only if it passes.
 
 ## Next
 
-1. Review; the lead takes the per-host result to the owner (Blocked on).
+1. Read 261111-173910-3288f9; if it passes, State "ready for review"; if not, the VM has no pick.
+2. Review; the lead takes the per-host result to the owner (Blocked on).
 
 ## Blocked on
 
