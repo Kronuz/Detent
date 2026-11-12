@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-071159-b0cda2 261112-071201-563e40 261112-071203-028190 261112-071206-e00583 261112-071208-a53db3 261112-071210-60b58a
+State: ready for review
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,24 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 committed (logger:123f5e2: docs/perf/wheel-ab.md "Arm D"; sizeof A 184, C 264, D 192;
-261112-062455-24c582). Arm D is bench/wheel_ab/d/ (copy of C with the entry replacing
-ScheduledTask), built by its own d/CMakeLists.txt against wheel@45f98eb. Jobs running: check-d
-261112-062659-2d9cc1, tsan-d 261112-062710-0f5517 (A2 correctness). Pattern 3 rows (D at
-8094113, first iteration D1, 40 rounds, exclusive) queued `--after` both: P=1 261112-063105-c97a20,
-P=4 261112-063108-826152, P=14 261112-063111-1279f7. If a check fails the rows are skipped.
+All rows in; Verdict D written (logger:7f3b850, docs/perf/wheel-ab.md "Verdict D").
 
 ## Next
 
-0. check-d 261112-062659-2d9cc1 and tsan-d 261112-062710-0f5517 passed (at 123f5e2; 123f5e2..8094113
-   touched only summarize.py and the doc, no arm code). The old pattern 3 rows exited 127 (the
-   `--after` ids landed in the command). Resubmitted at 8094113 without ordering, exclusive, 10 min:
-   pattern 3 P=1,4,14: 261112-071159-b0cda2, -071201-563e40, -071203-028190; pattern 2 P=1,4,14:
-   261112-071206-e00583, -071208-a53db3, -071210-60b58a. Then `summarize.py --paired` per row, Verdict D.
-
-1. Read the check and tsan jobs; fix D if it breaks an order or an exactly-once.
-2. Read pattern 3 rows (queued); submit pattern 2 rows (`run.sh row-d 2 1|4|14`) once a row's duration is known (10 min cap).
-3. Verdict D in docs/perf/wheel-ab.md; at most five measured iterations on D's layout.
+1. Review. If asked: more iterations on D's layout (budget: five measured; none used beyond D1).
 
 ## Blocked on
 
@@ -40,13 +27,17 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | artifact: docs/perf/wheel-ab.md "Arm D" (logger:123f5e2); sizeof A 184, C 264, D 192 (261112-062455-24c582) |
+| A2 | check-d 261112-071531-bd8c2e, tsan-d 261112-071533-689a79; rows pattern 3 P=1,4,14: 261112-071159-b0cda2, 261112-071201-563e40, 261112-071203-028190; pattern 2 P=1,4,14: 261112-071206-e00583, 261112-071208-a53db3, 261112-071210-60b58a (all passed at 8094113edbb0; later commits are docs-only) |
+| A3 | artifact: docs/perf/wheel-ab.md "Verdict D" (logger:7f3b850) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Verdict D (docs/perf/wheel-ab.md): median r 0.98 to 1.02 on all six rows, heap 1.031 times A.
+D is no worse than A on 4 of 6 rows; it loses p99 at P=1: pattern 3 r 1.469 [1.149-1.582], pattern
+2 r 1.133 [0.982-1.424] (straddles 1.10). Outside the Rule: lag p99 4.9 to 19.6 times A at
+pattern 2 and 6.5 times at pattern 3 P=14; LOG CPU 2.6 times at pattern 3 P=14. The owner
+decides: accept the two p99 losses or keep logger's heap.
 
 ## Rulings I made
 
