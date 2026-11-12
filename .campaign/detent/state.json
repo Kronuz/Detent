@@ -392,17 +392,40 @@
         "website/astro.config.mjs",
         "website/public/site.webmanifest"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T16:20:29",
+          "commit": "720554d1904f556983ae98b228187906c3656f91",
+          "evidence": [
+            {
+              "cmd": "cd website && npm ci && npm run build && grep -q apple-touch-icon dist/index.html && grep -q site.webmanifest dist/index.html",
+              "commit": "808c9f6ff2ef21547959c294048d2a07a35d0dc0",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-153427-7c50ee",
+              "level": "light",
+              "seconds": 25.5,
+              "state": "done",
+              "what": "brand-head-links check site at 808c9f6ff2ef"
+            }
+          ],
+          "final": true,
+          "from": "77fca9f8ffb8c3015e4d2f26e0a30d6524cf2ed9",
+          "reason": "",
+          "tested": "dc06eb1e1723c43b2ee088180235dc821fcb0e52"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Site head links for the touch icons and web manifest",
-      "updated": "2026-11-11T15:24:25",
-      "worktree": "../Detent-wt/detent/brand-head-links"
+      "updated": "2026-11-11T16:20:35",
+      "worktree": ""
     },
     "client-local-source": {
       "accepted": {},
