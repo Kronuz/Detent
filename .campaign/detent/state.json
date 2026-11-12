@@ -4794,8 +4794,7 @@
     "namespace-s8": {
       "accepted": {},
       "after": [
-        "namespace-s6",
-        "namespace-s7"
+        "namespace-s6"
       ],
       "base": "ce2addc842187ef7e82f465d445ada874e103eed",
       "branch": "quest/detent/namespace-s8",
@@ -4890,7 +4889,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-12T11:38:00",
+      "updated": "2026-11-12T11:45:31",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
