@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-215314-98348e 261111-215326-330b4d 261111-215326-76eefa 261111-215329-6a6e03
+State: waiting on jobs 261111-221538-088160 261111-221548-54b209 261111-221548-4b10b6
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -53,9 +53,15 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Read exp 2 (261111-210839-efd0f6) and the A1 rows; if they pass, write the numbers into
-   docs/timer-wheel.md Cost and README Performance (A6), Result here, State ready for review.
-   If w still misses, experiment 3 of 5 (remaining deltas by pass).
+1. Read exp 4's probe 261111-221538-088160: two halves, forwarders default and always-inlined.
+   - If w passes 1.10x with default forwarders: A1 rows 261111-221548-54b209 (single) and
+     261111-221548-4b10b6 (cross) at wheel:94a51c6 are the evidence.
+   - If w passes only with inlined forwarders: the remaining gap is clang declining to inline the
+     harness's one-line cand_w::arm wrapper, not the wheel. Exp 5 (last): make arm smaller still
+     (no unlink clearing on the arm path), else bring the lead the choice (harness forwarders
+     always-inlined for every candidate vs accept the measured gap), with both numbers.
+   - Either way: write the numbers into docs/timer-wheel.md Cost and README Performance (A6),
+     Result here, State ready for review ("ready for Xapiand review" for A7).
 
 ## Blocked on
 
@@ -65,7 +71,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261111-215326-330b4d (single), 261111-215326-76eefa (cross), at wheel:f9f3004 |
+| A1 | pending: 261111-221548-54b209 (single), 261111-221548-4b10b6 (cross), at wheel:94a51c6 |
 | A2 | 261111-211937-fea447 (suite at wheel:50665c8); fails without: 261111-202912-b5aee7 (no cascade), 261111-202915-2b286a (no owner assertion), 261111-204408-d59cd1 (next() unsaturated), 261111-210559-9425eb (model fix); reruns at wheel:f729317 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f |
 | A3 | 261111-211937-fea447 (wheel_alloc_test in the suite) |
 | A4 | 261111-213050-6af05a (CI run 43160670793 green at wheel:f729317: linux-asan-ubsan, linux-tsan, Linux/macOS/FreeBSD) |
