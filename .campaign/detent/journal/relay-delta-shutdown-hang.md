@@ -1,6 +1,6 @@
 # relay-delta-shutdown-hang: journal
 
-State: waiting on jobs (the check suite, `campaign verify`)
+State: waiting on jobs 261111-170617-519f06
 Quest: .campaign/detent/quests/relay-delta-shutdown-hang.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
