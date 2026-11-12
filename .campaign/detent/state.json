@@ -4838,7 +4838,8 @@
     "namespace-s8": {
       "accepted": {},
       "after": [
-        "namespace-s6"
+        "namespace-s6",
+        "namespace-s5-2"
       ],
       "base": "ce2addc842187ef7e82f465d445ada874e103eed",
       "branch": "quest/detent/namespace-s8",
@@ -4865,7 +4866,8 @@
         "src/detent_relay/**",
         "include/detent_relay/**",
         "tests/detent_relay/**",
-        "docs/status/namespace-s8.md"
+        "docs/status/namespace-s8.md",
+        "tests/CMakeLists.txt"
       ],
       "history": [
         {
@@ -4933,7 +4935,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-12T11:45:31",
+      "updated": "2026-11-12T12:13:47",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
