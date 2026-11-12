@@ -1,6 +1,6 @@
 # logger-wheel-ab: journal
 
-State: waiting on jobs 261112-053405-710f23 261112-052830-0b2f0e 261112-052833-be4dfa
+State: ready for review
 Quest: .campaign/detent/quests/logger-wheel-ab.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Every A/B and A/C row is done (16 rows, all exit 0); Verdict written in docs/perf/wheel-ab.md.
-The one failed job of the last chain, tsan-c 261112-040003-5f4ecf, was a harness race (Sink::log
-read the producer's post-call clock with no happens-before), fixed at logger:ef0bb6b and rerun
-clean as 261112-040521-982cc9: a harness failure, nothing to resubmit.
-
-Verdict: (B) loses pattern 1, wins 2 and 3 by the rule but breaks per-thread and due order;
-(C) loses pattern 2 (loss P1, P14; no win P4) and pattern 3 (loss every P); heap +80 B/line fails
-the 1.10 bound everywhere. Diagnostic queued: C's producer gap vs macOS's 256 B nano allocator
-(make_shared block 200 B in A, 280 B in C), rows 3 1 and 2 1 with MallocNanoZone=0.
+Done. The tsan-c failure 261112-040003-5f4ecf was a harness race, fixed at logger:ef0bb6b and
+rerun clean (261112-040521-982cc9). The first diagnostic pair (261112-052830-0b2f0e,
+261112-052833-be4dfa) failed on my zsh loop passing "3 1" as one argument; resubmitted with split
+args as 261112-055705-1b993a and 261112-055709-999bf4. Suite 261112-053405-710f23 green.
 
 ## Next
 
-1. Read 261112-052830-0b2f0e and 261112-052833-be4dfa; replace the "tested by" sentence in the
-   Verdict's (C) producer bullet with the result (gap closes: the 256 B size class; stays: not it).
-2. Suite 261112-053405-710f23 (campaign verify at logger:e7e7565) green; paste `campaign brief`'s
-   evidence table, set State "ready for review". The verdict does not depend on the diagnostic.
+1. Review.
 
 ## Blocked on
 
@@ -39,14 +31,21 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | logger:ce34d2d, `docs/perf/wheel-ab.md` "Rule", committed before any measured run |
-| A2 | 261112-040502-859c44, 261112-040515-550c07, 261112-040508-910d14, 261112-040521-982cc9, 261112-040527-32146a, 261112-040534-165b69, 261112-040540-dc3982, 261112-040546-2390a9, 261112-040552-6a1eea, 261112-040557-766cf0, 261112-040603-2ef310; A/B rows 261112-035007-2f8fd3, 261112-035011-fbe2f5, 261112-035015-2210ff, 261112-035018-1410b6, 261112-035022-b1f5a9, 261112-035026-0fd817, 261112-035030-378568, 261112-035034-adfe40, 261112-035037-bda2f7, 261112-035041-cd1116 |
+| A2 | 261112-040502-859c44 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040515-550c07 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040508-910d14 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040521-982cc9 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040534-165b69 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040540-dc3982 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040546-2390a9 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040552-6a1eea (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040557-766cf0 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040603-2ef310 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md) |
 | A3 | `docs/perf/wheel-ab.md` "Verdict" |
+
+Also: A/B rows at logger:91924df 261112-035007-2f8fd3 .. 261112-035041-cd1116 (10 rows); suite
+261112-053405-710f23; diagnostics 261112-055705-1b993a, 261112-055709-999bf4.
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+`docs/perf/wheel-ab.md` "Verdict" (logger:c93ace2): logger stays on its queues and heap for every
+pattern. (B) loses pattern 1 (r 1.36 to 1.84) and wins 2 and 3 (r 0.26 to 0.69) but breaks
+per-thread and due order. (C) keeps order and loses patterns 2 and 3 at every P except a no win
+at pattern 2, P = 4: producer median +24% to +55%, heap +80 B/line (fails 1.10 everywhere), fire
+lag +1 ms, LOG thread behind in pattern 3 from P = 4. Most of (C)'s producer gap is the make_shared
+block (280 B) crossing macOS's 256 B nano allocator: with it off, r falls to 1.048 (pattern 3) and
+1.112 (pattern 2). wheel:45f98eb cannot move (C)'s deciding metrics (from the diff, not rerun).
 
 ## Rulings I made
 
