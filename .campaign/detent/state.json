@@ -6364,6 +6364,43 @@
       "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
       "updated": "2026-11-08T15:38:27"
     },
+    "task-wheel": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "task.hh",
+        "task_asio.hh",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "README.md",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "wheel-evidence"
+      ],
+      "provides": [],
+      "repo": "../task",
+      "risk": "high",
+      "status": "planned",
+      "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
+      "updated": "2026-11-11T18:22:27"
+    },
     "wheel-evidence": {
       "accepted": {},
       "after": [],
