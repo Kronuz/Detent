@@ -5001,6 +5001,8 @@
       "after": [
         "one-knob-type"
       ],
+      "base": "9a68b6372e7ec94b7bc22e96d5b0aa639374288f",
+      "branch": "quest/detent/okt-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5024,9 +5026,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "One knob type: review follow-ups C1-C5",
-      "updated": "2026-11-11T23:38:57"
+      "updated": "2026-11-12T11:38:13",
+      "worktree": "../Detent-wt/detent/okt-followups"
     },
     "one-knob-type": {
       "accepted": {
