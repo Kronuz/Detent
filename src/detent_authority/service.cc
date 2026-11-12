@@ -10,7 +10,9 @@
 #include "detent_distribution_http/reply_pump.hh"
 #include "prepared.hh"
 #include "read_reply.hh"
+#include <algorithm>
 #include <asio.hpp>
+#include <cctype>
 #include <fcntl.h>
 #include <http_owned_stream.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
@@ -97,6 +99,41 @@ std::uint64_t number(const Object &v) {
 }
 std::optional<std::uint64_t> optional(const Object &v, const char *key) {
 	return v.HasMember(key) ? std::optional<std::uint64_t>{number(v[key])} : std::nullopt;
+}
+// A voter's host as written: an IP literal (not unspecified or multicast) or an RFC 1123 name of at
+// most 253 bytes. It is never resolved here; consensus's transport resolves names (D60).
+void voter_host(const std::string &host) {
+	check(!host.empty() && host.size() <= 253, "voter host must be 1 to 253 bytes");
+	asio::error_code error;
+	if (auto address = asio::ip::make_address(host, error); !error) {
+		check(!address.is_unspecified() && !address.is_multicast(), "voter host IP literal");
+		return;
+	}
+	std::size_t start = 0;
+	for (std::size_t i = 0; i <= host.size(); ++i) {
+		if (i != host.size() && host[i] != '.') {
+			const auto c = static_cast<unsigned char>(host[i]);
+			check(std::isalnum(c) || c == '-', "voter host name characters");
+			continue;
+		}
+		check(i > start && i - start <= 63 && host[start] != '-' && host[i - 1] != '-', "voter host name label");
+		if (i != host.size())
+			start = i + 1;
+	}
+	// A numeric final label would read as an IPv4 form (inet_aton) rather than a name.
+	check(!std::all_of(host.begin() + static_cast<std::ptrdiff_t>(start), host.end(),
+					   [](unsigned char c) { return std::isdigit(c); }),
+		  "voter host name must not end in a numeric label");
+}
+// The address a named local voter listens on without resolving its name: the IPv6 wildcard when
+// the host has IPv6 (consensus opens it dual-stack on every OS), else the IPv4 wildcard.
+asio::ip::address local_wildcard() {
+	asio::io_context io;
+	asio::ip::tcp::socket probe(io);
+	asio::error_code error;
+	if (!probe.open(asio::ip::tcp::v6(), error))
+		return asio::ip::address_v6::any();
+	return asio::ip::address_v4::any();
 }
 Identity identity(std::string_view hex) {
 	check(hex.size() == 32, "identity requires 32 hex characters");
@@ -372,16 +409,15 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		auto &voters = field(d, "voters");
 		check(voters.IsArray() && voters.Size() >= 3 && voters.Size() <= o.node.consensus.voters &&
 				  voters.Size() % 2,
-			  "fixed voter count");
-		std::set<asio::ip::tcp::endpoint> addresses;
+			  "fixed voter count: an odd number of voters, at least 3, within the voter limit");
+		std::set<std::pair<std::string, std::uint64_t>> addresses;
 		for (const auto &voter : voters.GetArray()) {
 			fields(voter, {"id", "host", "port", "certificate_sha256"});
 			auto id = number(field(voter, "id")), port = number(field(voter, "port"));
 			check(id && port && port <= 65535, "voter ID or port");
-			auto address = asio::ip::make_address(text(field(voter, "host")));
-			asio::ip::tcp::endpoint endpoint(address, static_cast<unsigned short>(port));
-			check(!address.is_unspecified() && !address.is_multicast() && addresses.insert(endpoint).second,
-				  "voter address");
+			auto host = text(field(voter, "host"), 1024);
+			voter_host(host);
+			check(addresses.emplace(host, port).second, "duplicate voter host and port");
 			auto hex = text(field(voter, "certificate_sha256"));
 			check(hex.size() == 64, "certificate fingerprint length");
 			kronuz::consensus::transport::Fingerprint fingerprint;
@@ -399,10 +435,14 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 					static_cast<unsigned char>((nibble(hex[2 * i]) << 4) | nibble(hex[2 * i + 1]));
 			check(peers.pins.emplace(id, fingerprint).second, "duplicate voter");
 			o.node.configuration.voters.push_back(id);
-			if (id == o.node.configuration.local)
-				peers.listen = endpoint;
-			else
-				peers.addresses.emplace(id, endpoint);
+			if (id == o.node.configuration.local) {
+				// A name is not resolved to bind: the local voter listens on the wildcard.
+				asio::error_code error;
+				auto address = asio::ip::make_address(host, error);
+				peers.listen = {error ? local_wildcard() : address, static_cast<unsigned short>(port)};
+			} else
+				peers.addresses.emplace(id, kronuz::consensus::transport::PeerAddress{
+												std::move(host), static_cast<std::uint16_t>(port)});
 		}
 		check(peers.listen.port(), "local voter missing");
 		o.peers = std::move(peers);
@@ -592,6 +632,11 @@ Service::~Service() {
 	owner_.close();
 	owner_.destroy_roots();
 }
+std::optional<std::string> Service::failure() const {
+	std::lock_guard lock(mutex_);
+	return failure_;
+}
+
 void Service::begin_shutdown() noexcept {
 	{
 		std::lock_guard lock(mutex_);
@@ -1480,6 +1525,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 									  options_.subscription_requests.opens +
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
+		// A leader is known: this node leads, or follows one. Health reports it before has_leader() does.
+		bool leader_known = false;
+		// Last proof a follower's leader is alive: a RoleChanged naming it, or our reply to its append.
+		auto leader_contact = Clock::now();
+		// A follower is ready only while that proof is within election_max, CheckQuorum's window on the
+		// leader side (D41); pre-vote keeps the leader known after it falls silent.
+		auto leader_alive = [&] {
+			return leader_known &&
+				   (node.worker().role() == kronuz::consensus::Role::Leader ||
+					Clock::now() - leader_contact <= std::chrono::milliseconds(options_.node.timing.election_max));
+		};
 		auto publish_health = [&] {
 			const auto export_progress = delivering && delivering->exporter
 				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
@@ -1592,7 +1648,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					return bounds + "]";
 				}() +
-				",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
+				",\"ready\":" + std::string(node.worker().ready() && leader_alive() ? "true" : "false") +
 				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 				",\"committed\":" + std::to_string(node.worker().committed()) +
 				",\"term\":" + std::to_string(node.worker().term()) +
@@ -1748,9 +1804,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			}
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<kronuz::consensus::Send>(action)) {
+					if (std::holds_alternative<kronuz::consensus::AppendResponse>(
+							std::get<kronuz::consensus::Send>(action).message))
+						leader_contact = Clock::now();
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
 					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
+				} else if (auto role = std::get_if<kronuz::consensus::RoleChanged>(&action)) {
+					leader_known = role->leader != 0;
+					leader_contact = Clock::now();
+					publish_health();
+					service.leader_known_.store(leader_known, std::memory_order_release);
 				}
 			}
 			if (peers)
@@ -2611,6 +2675,13 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		} else {
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
+			try {
+				throw;
+			} catch (const std::exception &error) {
+				service.failure_ = error.what();
+			} catch (...) {
+				service.failure_ = "unknown error";
+			}
 			service.health_stamp_ = Clock::now();
 			health_ = std::string("{\"mode\":\"") +
 					  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +

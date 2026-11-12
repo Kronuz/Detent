@@ -134,8 +134,8 @@ void run(bool paged_base) {
 		check(store->stats().reserved == l::DiskUsage{});
 		check(!std::filesystem::exists(directory / (l::generation_name(stale_id) + ".image")));
 		check(base.view().get("app", "count").value() == INT64_MIN);
-		check(recovered.view().eval("app", "flag", "host-a", "beta").value() ==
-			  base.view().eval("app", "flag", "host-a", "beta").value());
+		check(recovered.view().get("app", "flag", "host-a", "beta").value() ==
+			  base.view().get("app", "flag", "host-a", "beta").value());
 		store->close();
 		drive(store);
 		check(store->drained());

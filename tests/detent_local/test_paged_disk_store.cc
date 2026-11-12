@@ -63,7 +63,7 @@ int main() {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
 	l::StorageIdentity storage{}, generation{}, next{};
 	storage.fill('s');
 	generation.fill('g');
@@ -115,7 +115,7 @@ int main() {
 				plan.emplace(builder.take());
 			}
 			const auto wanted = plan->descriptor();
-			const auto logical = plan->root().logical;
+			const auto logical = l::paged::state_commitment(plan->root());
 			std::vector<std::uint64_t> lengths;
 			for (const auto &segment : plan->segments())
 				lengths.push_back(segment.bytes->size());
@@ -211,7 +211,7 @@ int main() {
 					{
 						const auto prepared =
 						    l::detail::PreparedReader::open(root, ::getuid(), options.recovery_limits);
-						check(prepared.descriptor == wanted && prepared.logical == logical);
+						check(prepared.descriptor == wanted && prepared.state_commitment == logical);
 						check(prepared.view.get("app", "count").value() == (progress ? INT64_MIN : 1));
 					}
 					auto recovered = l::detail::ManagedRecovery::recover(
@@ -228,9 +228,9 @@ int main() {
 							l::ValidationBudget budget;
 							oracle.step(budget);
 						}
-						check(oracle.take().root().logical == logical);
+						check(l::paged::state_commitment(oracle.take().root()) == logical);
 					} else
-						check(logical == image.root().logical);
+						check(logical == l::paged::state_commitment(image.root()));
 				}
 			}
 			if (store->status() == l::StoreStatus::Ready)

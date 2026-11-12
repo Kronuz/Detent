@@ -17,13 +17,13 @@ no files, no sources and no background thread:
 #include "detent/testing.hh"
 
 detent::Snapshot snap;
-snap.knobs["checkout:killswitch_new_path"] = detent::BoolDef{.default_value = true};
-snap.knobs["search:max_results"] = detent::IntDef{.default_value = 3};
+snap.knobs["checkout:killswitch_new_path"] = detent::KnobDef{.default_value = 1};
+snap.knobs["search:max_results"] = detent::KnobDef{.default_value = 3};
 
 auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 
 // Within this thread, detent::global::* now reads the test snapshot.
-assert(detent::global::eval_or_panic("checkout:killswitch_new_path"));
+assert(detent::global::get_as<bool>("checkout:killswitch_new_path").value());
 assert(detent::global::get_or_panic("search:max_results") == 3);
 ```
 
@@ -34,8 +34,8 @@ before, so guards nest and tests can't leak knobs into one another.
 Rollouts and group overrides work as they do in production:
 
 ```cpp
-detent::BoolDef def{.default_value = false, .rollout_pct = 10};
-def.overrides["employees"] = true;
+detent::KnobDef def{.default_value = 0, .rollout_pct = 10, .rollout_value = 1};
+def.overrides["employees"] = std::int64_t{1};
 def.overrides["beta"] = detent::GroupRollout{.rollout_pct = 50};
 snap.knobs["payments:new_processor"] = def;
 ```
@@ -63,12 +63,12 @@ opts.cli_overrides = {
 They're ideal for debugging a single process locally, or for integration tests
 that run a real binary. The rules are strict on purpose:
 
-1. Only lowercase `true` and `false` parse as booleans; anything else must be a
+1. Lowercase `true` and `false` parse as 1 and 0; anything else must be a
    signed base-10 64-bit integer.
 2. A name given twice is a startup error. There's no "last one wins".
 3. An override is checked before the snapshot, so it answers even for a knob
-   no snapshot defines. Reading it with the other type's call (a bool override
-   through `get()`, an int through `eval()`) is a `WrongType` error.
+   no snapshot defines. Reading it with `get_as<bool>` takes only 0 and 1;
+   any other value is a `ConversionFailed` error.
 4. Overrides are fixed at startup and stay in effect across every update.
 
 Detent parses the `name=value` pairs; splitting your own command line is up to
@@ -88,7 +88,7 @@ path without a live source:
 
 ```cpp
 detent::InitOptions opts;
-opts.defaults_path = "testdata/just_knobs.json";
+opts.defaults_path = "testdata/defaults.json";
 detent::Client client(std::move(opts));
 ```
 

@@ -9,7 +9,7 @@ class PagedSnapshotPlanBuilder {
 	PagedSnapshotPlanBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>,
 							 std::optional<RecoveredGeneration>, DirectoryIdentity, StorageIdentity,
 							 GenerationId, distribution::RetirementFactory,
-							 std::shared_ptr<distribution::StorageLedger>, ViewLimits);
+							 std::shared_ptr<distribution::StorageLedger>, ViewLimits, bool repair = false);
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	bool unchanged() const;
@@ -29,7 +29,7 @@ class PagedSnapshotPlanBuilder {
 	std::optional<StateEquivalenceProof> unchanged_proof_;
 	distribution::RetirementHandle<PagedPlanState> state_;
 	std::size_t copied_ = 0, histogram_ = 0, charge_ = 0;
-	bool failed_ = false, finished_ = false;
+	bool failed_ = false, finished_ = false, repair_ = false;
 	bool grant(std::size_t, ValidationBudget &);
 };
 } // namespace detent::local::detail

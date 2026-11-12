@@ -217,6 +217,17 @@ SubmitResult Node::propose(std::uint64_t request, const std::vector<Command> &co
 	auto prepared = builder.take();
 	return propose_prepared(request, prepared);
 }
+SubmitResult Node::propose_administrative(std::uint64_t request, const AdministrativeCommand &command) {
+	if (command.context != options_.context)
+		throw std::invalid_argument("foreign authority request");
+	auto bytes = encode(command, options_.application);
+	Digest digest{};
+	SHA256 sha;
+	sha.add(bytes.data(), bytes.size());
+	sha.getHash(digest.data());
+	PreparedProposal proposal(std::move(bytes), digest, options_.context, options_.application);
+	return propose_prepared(request, proposal);
+}
 SubmitResult Node::propose_prepared(std::uint64_t request, PreparedProposal &proposal) {
 	if (closing_)
 		return SubmitResult::Busy;
@@ -354,6 +365,11 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				return;
 			application_->command.reset();
 		}
+		if (application_->administrative) {
+			if (!application_->administrative->discard(budget))
+				return;
+			application_->administrative.reset();
+		}
 		if (application_->candidate) {
 			if (!application_->candidate->discard(budget))
 				return;
@@ -378,6 +394,17 @@ void Node::advance_application(CommandWorkBudget &budget) {
 			if (entry.kind == EntryKind::NoOp) {
 				next.emplace(state_);
 				next->advance(entry.index, entry.term);
+			} else if (is_administrative(entry.payload)) {
+				// The history resets at publish when a drop moves the revision.
+				if (!application_->administrative)
+					application_->administrative.emplace(
+						state_, entry.index, entry.term,
+						decode_administrative(entry.payload, options_.application));
+				while (!application_->administrative->done()) {
+					if (!budget.updates || budget.bytes < 1024)
+						return;
+					application_->administrative->step(budget);
+				}
 			} else {
 				if (!application_->decoder) {
 					if (recorder_) recorder_->begin_batch(state_.context(),entry.index,state_.revision());
@@ -410,6 +437,8 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				}
 				if (!application_->decoder->done())
 					throw std::logic_error("authority batch exhaustion mismatch");
+			}
+			if (entry.kind != EntryKind::NoOp) {
 				const auto interested =
 					std::any_of(pending_.begin(), pending_.end(), [&](const auto &waiter) {
 						return !waiter.second.read && waiter.second.index == entry.index;
@@ -428,7 +457,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 					application_->identity.emplace();
 					application_->hash.getHash(application_->identity->data());
 				}
-				auto outcome = application_->candidate->finish();
+				auto outcome = application_->administrative ? application_->administrative->finish()
+															: application_->candidate->finish();
+				application_->administrative.reset();
 				application_->decoder.reset();
 				application_->candidate.reset();
 				next.emplace(std::move(outcome.state));

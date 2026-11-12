@@ -34,13 +34,17 @@ target_link_libraries(driver_cost PRIVATE consensus::consensus completion::asio 
 add_executable(channel_layout channel_layout.cc)
 target_link_libraries(channel_layout PRIVATE consensus::consensus)
 
-# Protocol tests and probes for the design's threading rules (review F1-F5, F11-F14, X2-X5, R1-R4): assertions stay
+# Protocol tests and probes for the design's threading rules (review F1-F5, F11-F14, X2-X5, R1-R4, Xapiand review 2): assertions stay
 # on in every build type, so the wheel's owner-thread checks run.
-foreach(t wheel_test waiter_test blocking_entry reader_test placement_test lone_voter repartition_lost shrink_dial)
+foreach(t wheel_test waiter_test blocking_entry reader_test placement_test lone_voter repartition_lost frame_admission)
 	add_executable(${t} ${t}.cc)
 	target_link_libraries(${t} PRIVATE consensus::consensus completion::asio)
 	target_compile_options(${t} PRIVATE -UNDEBUG)
 endforeach()
+
+# The cross-loop hop a node-pair connection pays per received batch (D10, Xapiand review 2 X5).
+add_executable(hop_cost hop_cost.cc)
+target_link_libraries(hop_cost PRIVATE completion::asio)
 
 if(BENCH_TRANSPORT)
 	add_executable(peers_cost peers_cost.cc)

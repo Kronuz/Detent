@@ -15,14 +15,14 @@ Result<OverrideTable, std::string> parse_cli_overrides(const std::vector<std::st
 	builder.reserve(raw_pairs.size());
 	const auto fail = [&](std::string message) -> Result<OverrideTable, std::string> {
 		if (auto repeat = builder.finish())
-			return std::string("duplicate --just-knob override for: " + builder.entry(*repeat).first);
+			return std::string("duplicate --knob override for: " + builder.entry(*repeat).first);
 		return message;
 	};
 
 	for (const auto& raw : raw_pairs) {
 		auto eq = raw.find('=');
 		if (eq == std::string::npos) {
-			return fail("malformed --just-knob value (expected name=value): " + raw);
+			return fail("malformed --knob value (expected name=value): " + raw);
 		}
 		std::string name = raw.substr(0, eq);
 		std::string value = raw.substr(eq + 1);
@@ -31,15 +31,15 @@ Result<OverrideTable, std::string> parse_cli_overrides(const std::vector<std::st
 			return fail("invalid knob name in override: " + name);
 		}
 
-		OverrideValue parsed_value{false};
+		OverrideValue parsed_value = 0;
 		bool valid = true;
 		if (value == "true") {
-			parsed_value = OverrideValue{true};
+			parsed_value = 1;
 		} else if (value != "false") {
 			int errno_save = 0;
 			auto parsed = strict_stoll(&errno_save, value, nullptr, 10);
 			valid = errno_save == 0;
-			parsed_value = OverrideValue{static_cast<std::int64_t>(parsed)};
+			parsed_value = static_cast<std::int64_t>(parsed);
 		}
 		// Pushed before the value check: a duplicate name wins over its own bad value.
 		builder.push(name, parsed_value);
@@ -49,7 +49,7 @@ Result<OverrideTable, std::string> parse_cli_overrides(const std::vector<std::st
 	}
 
 	if (auto repeat = builder.finish())
-		return std::string("duplicate --just-knob override for: " + builder.entry(*repeat).first);
+		return std::string("duplicate --knob override for: " + builder.entry(*repeat).first);
 	return table;
 }
 

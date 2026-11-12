@@ -2,6 +2,7 @@
 #include "client.hh"
 #include "completion_scheduler.hh"
 #include "detent_local/disk_store.hh"
+#include "hash_stats.hh"
 #include "publication_sink.hh"
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
@@ -56,6 +57,12 @@ struct ScrubStatus {
 	// A pack of the selected generation differs from its owner record; reads of its pages fail first touch.
 	bool source_failure = false;
 };
+// Repair of the selected generation (namespace design D10.3): requested by a scrub report of a damaged pack or
+// a first-touch failure in the update path, completed when a repair publication is selected.
+struct RepairStatus {
+	std::uint64_t requested = 0, completed = 0;
+	bool pending = false;
+};
 struct CoordinatorStatus {
 	CoordinatorPhase phase = CoordinatorPhase::Starting;
 	local::SelectionSnapshot selected;
@@ -73,7 +80,10 @@ struct CoordinatorStatus {
 	// Publication sink, image builder, then decoded input.
 	std::array<CleanupProgress, 3> cleanup;
 	ScrubStatus scrub;
+	RepairStatus repair;
 	local::SyncStats sync;
+	// Everything this process (the tier) has hashed.
+	HashStats hash;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive

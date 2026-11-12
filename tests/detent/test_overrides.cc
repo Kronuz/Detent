@@ -1,5 +1,5 @@
-// Section 11: CLI override parsing and precedence over both baked defaults
-// and (Section 13) a later live snapshot.
+// CLI override parsing and precedence over both baked defaults
+// and a later live snapshot.
 #include <cassert>
 #include <cstdio>
 #include <fstream>
@@ -46,8 +46,8 @@ void test_cli_override_precedence() {
 	auto defaults_path = write_temp_file(R"({
 		"schema_version": 1,
 		"knobs": {
-			"checkout:killswitch_new_path": { "type": "bool", "default": false },
-			"search:max_results": { "type": "int", "default": 25 }
+			"checkout:killswitch_new_path": { "default": 0 },
+			"search:max_results": { "default": 25 }
 		}
 	})");
 
@@ -57,16 +57,19 @@ void test_cli_override_precedence() {
 
 	Client c(std::move(opts));
 
-	// Override shadows the baked default.
-	auto b = c.eval("checkout:killswitch_new_path");
-	assert(b.has_value() && b.value() == true);
+	// Override shadows the baked default; "true" is 1.
+	auto b = c.get("checkout:killswitch_new_path");
+	assert(b.has_value() && b.value() == 1);
+	auto flag = c.get_as<bool>("checkout:killswitch_new_path");
+	assert(flag.has_value() && flag.value() == true);
 	auto i = c.get("search:max_results");
 	assert(i.has_value() && i.value() == 999);
 
-	// Wrong-typed override read is an error, not a silent coercion.
-	auto wrong = c.get("checkout:killswitch_new_path");
+	// An override is a value like any other: get_as<bool> on 999 is a
+	// checked conversion failure, not a silent coercion.
+	auto wrong = c.get_as<bool>("search:max_results");
 	assert(!wrong.has_value());
-	assert(wrong.error().category == ErrorCategory::WrongType);
+	assert(wrong.error().category == ErrorCategory::ConversionFailed);
 
 	auto h = c.health();
 	assert(h.cli_overrides == 2);

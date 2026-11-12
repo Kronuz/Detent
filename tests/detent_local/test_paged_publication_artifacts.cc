@@ -86,7 +86,7 @@ int main() {
 					}
 					const auto ownership =
 						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
-					require(ownership.layout_version == 2 && ownership.storage == storage &&
+					require(ownership.layout_version == l::paged::format_version && ownership.storage == storage &&
 							ownership.generation == next);
 					std::vector<std::uint64_t> lengths;
 					for (const auto &segment : plan->segments())
@@ -99,8 +99,7 @@ int main() {
 					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
 					require(metadata.storage == storage && metadata.generation == next &&
 					        metadata.root_checksum == plan->descriptor().checksum &&
-					        metadata.counts.bools == plan->counts().bools &&
-					        metadata.counts.ints == plan->counts().ints &&
+					        metadata.counts.records == plan->counts().records &&
 					        metadata.physical_bytes == artifacts->target_physical_bytes());
 					require(artifacts->prefix_usage(0) == l::DiskUsage{});
 					require(artifacts->prefix_usage(rows.size()) == artifacts->usage());

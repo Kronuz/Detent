@@ -78,12 +78,12 @@ int main() {
 			rejects<std::logic_error>([&] { builder.take(); });
 			require(plan.base_descriptor() == base && plan.directory_identity() == identity &&
 					plan.storage_identity() == storage);
-			require(plan.root().tree == image.root().tree && plan.root().logical == image.root().logical);
+			require(plan.root().tree == image.root().tree);
 			require(plan.root().cursor == delta->target() && plan.descriptor().generation == next);
 			require(plan.descriptor().checksum ==
-					p::physical_commitment({plan.bytes()->data(), plan.bytes()->size()}));
+					p::metadata_commitment({plan.bytes()->data(), plan.bytes()->size()}));
 			require(plan.registry()->validated_root().cursor == base.cursor);
-			require(plan.counts().ints == 1 && plan.counts().bools == 1);
+			require(plan.counts().records == 2);
 			auto moved = std::move(plan);
 			rejects<std::logic_error>([&] { plan.root(); });
 			const int lease =

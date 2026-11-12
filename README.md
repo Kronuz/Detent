@@ -1,6 +1,6 @@
 # Detent (C++)
 
-Detent is a C++ runtime-configuration client for namespaced boolean and integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). It implements the model in [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md) and adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
+A detent is the click-stop that holds a knob at its setting. Detent is a C++ runtime-configuration client for namespaced 64-bit integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). Its model (knobs, namespaces, groups, overrides, rollout and evaluation) is specified in [`docs/design/knob-model.md`](docs/design/knob-model.md); around it Detent adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network distribution, configuration, and library examples.
 
@@ -8,7 +8,7 @@ Detent is a C++ runtime-configuration client for namespaced boolean and integer 
 
 - The steady-state read path is process-local and allocation-free: one atomic snapshot load, one lookup, and scalar evaluation. It does not touch the network, disk, or a mutex.
 - One background updater thread consumes a file source or a custom poll function, validates off the read path, merges over baked defaults, and atomically publishes a new immutable snapshot.
-- Bool knobs support exact-match group overrides and stable SHA-256 percentage rollouts. Integer knobs do not support per-group overrides in v1.
+- Every knob holds one `int64` value; a feature flag is a knob whose values are 0 and 1. Any knob supports exact-match group overrides and a stable SHA-256 percentage rollout to a `rollout_value`.
 - Missing knobs are errors. CLI overrides (`name=value`) shadow both baked defaults and live data.
 - `detentd` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
 - `detent-agent` receives authenticated deliveries from the authority and publishes immutable local generations, which `detent get` maps read-only for shell scripts and other non-C++ callers.
@@ -43,7 +43,7 @@ target_link_libraries(my_app PRIVATE detent::detent)
 
 For reproducible builds, replace `main` with the commit you have qualified. A local checkout can also be included with `add_subdirectory()`.
 
-### 2. Write your baked defaults (`just_knobs.json`)
+### 2. Write your baked defaults (`defaults.json`)
 
 Ship this alongside your binary. Baked defaults are the local fallback before any live snapshot arrives, and they are the place where new knob names are introduced.
 
@@ -51,8 +51,8 @@ Ship this alongside your binary. Baked defaults are the local fallback before an
 {
   "schema_version": 1,
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false },
-    "search:max_results": { "type": "int", "default": 25 }
+    "checkout:killswitch_new_path": { "default": 0 },
+    "search:max_results": { "default": 25 }
   }
 }
 ```
@@ -63,22 +63,21 @@ Ship this alongside your binary. Baked defaults are the local fallback before an
 #include "detent/client.hh"
 
 detent::InitOptions opts;
-opts.defaults_path = "/etc/myapp/just_knobs.json";
+opts.defaults_path = "/etc/myapp/defaults.json";
 // Leave source_path/source_poll unset for baked-defaults-only reads.
 
 detent::Client client(std::move(opts));
 
-bool killswitch = client.eval_or_panic("checkout:killswitch_new_path");
 std::int64_t max_results = client.get_or_panic("search:max_results");
 
-auto r = client.eval("checkout:killswitch_new_path");
+auto r = client.get_as<bool>("checkout:killswitch_new_path");
 if (r) {
     use(r.value());
 } else {
     log(r.error().what());
 }
 
-bool enabled = client.eval_or_panic(
+auto enabled = client.get_as<bool>(
     "checkout:killswitch_new_path",
     /*hash_val=*/user_id,
     /*switch_val=*/user_group);
@@ -111,7 +110,7 @@ Start a voter with `detentd --authority authority.json` and publish with `POST /
 
 ```cpp
 opts.cli_overrides = {
-    "checkout:killswitch_new_path=true",
+    "checkout:killswitch_new_path=1",
     "search:max_results=999",
 };
 ```
@@ -122,14 +121,13 @@ For tests, bypass files and HTTP entirely:
 #include "detent/testing.hh"
 
 detent::Snapshot snap;
-snap.knobs["checkout:killswitch_new_path"] =
-    detent::BoolDef{.default_value = true};
+snap.knobs["checkout:killswitch_new_path"] = detent::KnobDef{.default_value = 1};
 auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 ```
 
-## Scope vs. the spec
+## What the repository contains
 
-This repository implements the spec's client model and adds a concrete distribution layer:
+The client implements the [knob model](docs/design/knob-model.md), and a distribution layer carries it to hosts:
 
 - `detent`: core client, schema validation, rollout hashing, overrides, publication, health.
 - `detentd`: the durable authority daemon.
@@ -310,11 +308,11 @@ Python example:
 import detent
 
 client = detent.Client(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     source_path="/var/lib/myapp/live.json",
 )
-client.eval("payments:new_processor", hash_val="user-42")
-client.eval("checkout:new_flow", switch_val="beta_testers")
+client.get_bool("payments:new_processor", hash_val="user-42")
+client.get_bool("checkout:new_flow", switch_val="beta_testers")
 client.get("search:max_results")
 client.health()
 ```
@@ -323,14 +321,14 @@ Rust example:
 
 ```rust
 let client = detent::Client::new(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     Some("/var/lib/myapp/live.json"),
     vec![],
     200,
 )?;
-client.eval("payments:new_processor", Some("user-42"), None)?;
-client.eval("checkout:new_flow", None, Some("beta_testers"))?;
-client.get("search:max_results", None)?;
+client.get_bool("payments:new_processor", Some("user-42"), None)?;
+client.get_bool("checkout:new_flow", None, Some("beta_testers"))?;
+client.get("search:max_results", None, None)?;
 client.health();
 ```
 
@@ -378,13 +376,14 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 
 ### Rollouts by group
 
-Boolean overrides may be `true` or `false`, or an object containing only `rollout_pct` (an integer from 0 to 100):
+An override is an integer that forces the group's value, or an object containing only `rollout_pct` (an integer from 0 to 100). A knob with any percentage also carries `rollout_value`, the value callers inside the percentage get:
 
 ```json
-"overrides": {"employees": true, "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}}
+"overrides": {"employees": 1, "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}},
+"rollout_pct": 10, "rollout_value": 1
 ```
 
-A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Boolean overrides still force their value. The behavior is shared by C++ clients, language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
+A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket: a caller inside it gets `rollout_value`, and a caller outside it gets the default. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Integer overrides force their value. The behavior is shared by C++ clients, language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
 
 Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal colors, service configuration, and measured footprint. The logger is linked only into daemon executables.
 

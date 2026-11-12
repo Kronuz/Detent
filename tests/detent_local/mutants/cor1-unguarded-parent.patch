@@ -1,0 +1,86 @@
+diff --git a/src/detent_local/paged_node_step.hh b/src/detent_local/paged_node_step.hh
+index 0efa3a3..5f1a163 100644
+--- a/src/detent_local/paged_node_step.hh
++++ b/src/detent_local/paged_node_step.hh
+@@ -12,7 +12,7 @@ class NodeAt {
+ 	constexpr NodeAt() noexcept = default;
+ 	static NodeAt after(const NodeView &node) noexcept { return NodeAt(node.end); }
+ 	static NodeAt child(const NodeView &parent, std::uint16_t slot) {
+-		if (slot & 0x8000 || slot < parent.end)
++		if (slot & 0x8000)
+ 			throw std::invalid_argument("inline slot does not progress");
+ 		return NodeAt(slot);
+ 	}
+diff --git a/src/detent_local/paged_trie_overlay.cc b/src/detent_local/paged_trie_overlay.cc
+index 19cb7eb..d25384c 100644
+--- a/src/detent_local/paged_trie_overlay.cc
++++ b/src/detent_local/paged_trie_overlay.cc
+@@ -1,7 +1,6 @@
+ #include "paged_trie_overlay.hh"
+ #include "paged_navigation.hh"
+ #include <algorithm>
+-#include <limits>
+ #include <set>
+ #include <vector>
+ namespace detent::local::detail {
+@@ -106,44 +105,14 @@ struct TrieOverlay::Impl {
+ 		return true;
+ 	}
+ 	std::uint64_t keys(std::span<const char> bytes, p::NodeAt start) const {
+-		struct CountFrame {
+-			p::NodeView node;
+-			std::size_t next = 0, length = 0;
+-		};
+-		std::array<CountFrame, 203> stack{};
+-		std::size_t depth = 0, visited = 0;
+-		const auto header = p::decode_page_header(bytes, limits);
+-		auto enter = [&](p::NodeAt at, std::size_t before) {
+-			if (++visited > header.nodes || depth == stack.size())
+-				throw std::invalid_argument("overlay inline node budget exceeded");
+-			const auto node = at.decode(bytes, limits);
+-			if (before > key.size() || node.prefix.size() > key.size() - before)
+-				throw std::invalid_argument("overlay inline key depth exceeded");
+-			stack[depth++] = {node, 0, before + node.prefix.size()};
+-		};
++		const auto n = start.decode(bytes, limits);
++		if (n.kind != p::PageKind::Branch)
++			return 1;
+ 		std::uint64_t result = 0;
+-		auto add = [&](std::uint64_t count) {
+-			if (count > std::numeric_limits<std::uint64_t>::max() - result)
+-				throw std::invalid_argument("overlay inline key count overflow");
+-			result += count;
+-		};
+-		enter(start, 0);
+-		while (depth) {
+-			auto &frame = stack[depth - 1];
+-			if (frame.node.kind != p::PageKind::Branch) {
+-				add(1);
+-				--depth;
+-			} else if (frame.next == frame.node.labels.size()) {
+-				--depth;
+-			} else {
+-				if (frame.length == key.size())
+-					throw std::invalid_argument("overlay inline key depth exceeded");
+-				const auto slot = frame.node.slot(frame.next++);
+-				if (slot & 0x8000)
+-					add(p::decode_external(bytes, slot & 0x7fff, limits).keys);
+-				else
+-					enter(p::NodeAt::child(frame.node, slot), frame.length + 1);
+-			}
++		for (std::size_t i = 0; i < n.labels.size(); ++i) {
++			const auto slot = n.slot(i);
++			result += slot & 0x8000 ? p::decode_external(bytes, slot & 0x7fff, limits).keys
++									: keys(bytes, p::NodeAt::child(n, slot));
+ 		}
+ 		return result;
+ 	}
+@@ -421,8 +390,6 @@ void TrieOverlay::step(ValidationBudget &budget) {
+ 				if (!s.grant(p::page_header_bytes + s.view.prefix.size() + p::child_bytes + 8,
+ 							 budget))
+ 					return;
+-				if (s.view.prefix.size() > s.key.size() - s.offset)
+-					throw std::invalid_argument("overlay key depth exceeded");
+ 				s.common = 0;
+ 				while (s.common < s.view.prefix.size() && s.offset + s.common < s.key_length &&
+ 					   s.view.prefix[s.common] == s.key[s.offset + s.common])

@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index ba8a1c18..90c34fbb 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -1648,7 +1648,7 @@ void DiskStore::advance() {
+ }
+ void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
+ std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
+-	return impl_->core->closing ? std::chrono::steady_clock::time_point::max() : impl_->collection_retry;
++	return impl_->collection_retry;
+ }
+ bool DiskStore::publication_ready() const noexcept {
+ 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&

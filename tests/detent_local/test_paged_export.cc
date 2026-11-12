@@ -55,19 +55,21 @@ std::shared_ptr<const d::ValidatedSnapshot> small(unsigned count) {
 			text(keys[i]);
 			n(ns + 1);
 			if (i != 1) {
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(wire, -1);
+				wire.push_back('\xc0');
+				wire.push_back('\xc0');
+				a(0);
 			} else {
 				a(4);
 				n(0);
-				wire.push_back('\xc3');
 				n(25);
+				n(1);
 				a(2);
 				a(3);
 				text("beta");
 				n(0);
-				wire.push_back('\xc2');
+				n(0);
 				a(3);
 				text("tést");
 				n(1);

@@ -36,16 +36,15 @@ inline void put(const std::filesystem::path &path, std::span<const char> bytes) 
 	}
 	::close(fd);
 }
-inline void derive(const std::filesystem::path &directory) {
+inline void derive(const std::filesystem::path &directory, detent::local::ViewLimits limits = {}) {
 	namespace d = detent::distribution;
 	namespace l = detent::local;
 	namespace x = l::detail;
-	auto heap = std::make_shared<d::StorageLedger>(256ull << 20);
+	auto heap = std::make_shared<d::StorageLedger>(1ull << 30);
 	auto mappings = std::make_shared<d::StorageLedger>(1ull << 30);
 	d::RetirementRuntime runtime(heap, 1);
 	auto domain = runtime.domain(heap, 16384);
 	{
-		l::ViewLimits limits;
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mappings;
 		x::RecoveryContext context{domain.factory(), heap, mappings, limits, {}, {}};

@@ -89,8 +89,8 @@ int main() {
 					oracle.step(work);
 				}
 				auto wanted = oracle.take();
-				const auto [logical, keys] = fingerprint(overlay.root(), segments);
-				require(logical == wanted.root().logical &&
+				const auto [digest, keys] = fingerprint(overlay.root(), segments);
+				require(digest == p::state_commitment(wanted.root()) &&
 						keys == wanted.root().records + wanted.root().namespaces);
 				l::GenerationId next{};
 				next.fill('n');
@@ -102,7 +102,7 @@ int main() {
 					assembly.step(work);
 				}
 				auto assembled = std::make_shared<l::detail::PagedImage>(assembly.take());
-				require(assembled->root().logical == wanted.root().logical &&
+				require(p::state_commitment(assembled->root()) == p::state_commitment(wanted.root()) &&
 						assembled->root().records == wanted.root().records);
 				require(assembled->descriptor().cursor == update->target() &&
 						assembled->descriptor().generation == next);
@@ -123,8 +123,8 @@ int main() {
 						l::ValidationBudget work{1, 1};
 						graph.step(work);
 					}
-					require(graph.root().logical == wanted.root().logical &&
-							graph.counts().ints == (transactions == 1 && !progress ? 0 : 1));
+					require(p::state_commitment(graph.root()) == p::state_commitment(wanted.root()) &&
+							graph.counts().records == (transactions == 1 && !progress ? 1 : 2));
 				}
 				{
 					std::vector<l::detail::SegmentInput> added;
@@ -140,10 +140,9 @@ int main() {
 						l::ValidationBudget work{1, 1};
 						warm.step(work);
 					}
-					require(warm.root().logical == wanted.root().logical &&
+					require(p::state_commitment(warm.root()) == p::state_commitment(wanted.root()) &&
 							warm.hashed_segment_bytes() == bytes);
-					require(warm.counts().ints == (transactions == 1 && !progress ? 0 : 1) &&
-							warm.counts().bools == 1);
+					require(warm.counts().records == (transactions == 1 && !progress ? 1 : 2));
 					for (std::size_t i = 0; i < segments.size(); ++i)
 						require(warm.removed(i).pages == overlay.removed()[i].pages &&
 								warm.removed(i).bytes == overlay.removed()[i].bytes);
@@ -233,7 +232,8 @@ int main() {
 							if (warm.record_reachability(*registry, work))
 								break;
 						}
-						require(registry->validated_root().logical == assembled->root().logical &&
+						require(p::state_commitment(registry->validated_root()) ==
+									p::state_commitment(assembled->root()) &&
 								registry->reachability(0).pages == assembled->root().pages);
 						require(registry->override_histogram()[0] == assembled->root().records);
 						require(warm.record_reachability(*registry, none));
@@ -329,16 +329,39 @@ int main() {
 	}
 	{
 		auto account = source->storage_account();
-		const std::array<p::Child, 2> children{{{'K', image->root().tree}, {'W', image->root().tree}}};
-		l::detail::PageBuilder page(account, p::PageKind::Branch, 6, "", children, {});
-		while (!page.done()) {
-			l::ValidationBudget work;
-			page.step(work);
+		// A checksum-correct parent redirects two paths to the same base extent.
+		std::vector<char> encoded(p::page_header_bytes + 9 + 2 * p::child_bytes);
+		auto summary = image->root().tree;
+		summary.length = encoded.size();
+		summary.keys *= 2;
+		++summary.height;
+		const auto header = p::encode_page_header({summary.length, 2, 1, summary.keys,
+												  summary.height, {}}, p::Limits{});
+		std::copy(header.begin(), header.end(), encoded.begin());
+		const auto node = p::page_header_bytes;
+		encoded[node] = static_cast<char>(p::PageKind::Branch);
+		encoded[node + 2] = 1;
+		encoded[node + 3] = 'K';
+		encoded[node + 4] = 'W';
+		l::write_integer(encoded, node + 5, 0x8000, 2);
+		l::write_integer(encoded, node + 7, 0x8001, 2);
+		const auto content = p::encode_content(image->root().tree);
+		const auto placement = p::encode_placement(image->root().tree);
+		for (std::size_t i = 0; i < 2; ++i) {
+			std::copy(content.begin(), content.end(),
+					  encoded.begin() + node + 9 + i * p::content_bytes);
+			std::copy(placement.begin(), placement.end(),
+					  encoded.end() - (2 - i) * p::placement_bytes);
 		}
+		summary.digest = p::page_commitment(encoded, p::Limits{});
+		std::copy(summary.digest.begin(), summary.digest.end(), encoded.begin() + 32);
+		auto bytes = d::make_owned_buffer(account, encoded.size());
+		bytes->append({encoded.data(), encoded.size()});
+		bytes->seal();
 		l::GenerationId next{};
 		next.fill('a');
 		l::detail::SegmentBuilder segment(account, storage, next, 0);
-		segment.append(page);
+		segment.append({bytes, summary, {}});
 		while (!segment.page_ready()) {
 			l::ValidationBudget work;
 			segment.step(work);
@@ -354,12 +377,11 @@ int main() {
 		auto bad = image->root();
 		++bad.cursor.revision;
 		bad.tree = reference;
-		bad.logical = reference.logical;
-		bad.records = 5;
+		bad.records = 2 * (bad.records + bad.namespaces) - bad.namespaces;
 		++bad.pages;
 		bad.bytes += reference.length;
 		++bad.segments;
-		p::encode_root(bad);
+		p::encode_root(bad, p::Limits{});
 		l::detail::WarmGraphValidator validator(account, recovered, segment.bytes(), added, bad);
 		bool rejected = false;
 		try {

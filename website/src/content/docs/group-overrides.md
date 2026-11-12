@@ -10,57 +10,76 @@ sensitive customer segment, or ramp beta users faster than production users.
 
 ## Force and Ramp by Group
 
-Add an `overrides` object to a bool definition. Each entry maps a group name to
-either a forced boolean or its own `rollout_pct`:
+Add an `overrides` object to a definition. Each entry maps a group name to
+either a forced value or its own `rollout_pct`, which serves the knob's
+`rollout_value` to that percentage of the group:
 
 ```sh
 publish payments:new_processor '{
-  "type": "bool", "default": false, "rollout_pct": 10,
+  "default": 0, "rollout_pct": 10, "rollout_value": 1,
   "overrides": {
-    "employees": true, "excluded": false,
+    "employees": 1, "excluded": 0,
     "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}
   }
 }'
 ```
+
+<!-- e2e:begin
+stdout-matches: "status":"applied"
+e2e:end -->
 
 Your application supplies the caller's group as the *switch value*:
 
 ```sh
 sleep 1
 detent get payments:new_processor --hash user-1 --switch beta
-# true
+# 1
 detent get payments:new_processor --hash user-1 --switch production
-# false
+# 0
 detent get payments:new_processor --hash user-1 --switch employees
-# true
+# 1
 detent get payments:new_processor --hash user-1 --switch excluded
-# false
+# 0
 ```
 
+<!-- e2e:begin
+stdout:
+  1
+  0
+  1
+  0
+e2e:end -->
+
 ```cpp
-bool enabled = client.eval_or_panic("payments:new_processor", user_id, user_group);
+bool enabled = client.get_or_panic("payments:new_processor", user_id, user_group) == 1;
 ```
 
 ---
 
 ## How a Group Is Evaluated
 
-For a bool knob, Detent checks, in order:
+Detent checks, in order:
 
 1. A CLI override for this knob in this process, if any.
 2. An override whose group name **exactly** matches the switch value:
-   - A boolean override returns that value.
-   - A rollout override compares the caller's bucket against the group's
-     percentage. Without a hash value, it returns the knob's `default`.
-3. The knob-wide `rollout_pct`, when a hash value is present.
+   - A forced override returns its value.
+   - A rollout override returns `rollout_value` when the caller's bucket is
+     below the group's percentage, and `default` otherwise or without a hash
+     value.
+3. The knob-wide `rollout_pct`, when a hash value is present: `rollout_value`
+   inside the bucket, `default` outside it.
 4. The knob's `default`.
 
 A group that isn't listed falls through to the knob-wide rollout:
 
 ```sh
 detent get payments:new_processor --hash user-1 --switch unknown
-# false   (user-1 is outside the knob-wide 10%)
+# 0   (user-1 is outside the knob-wide 10%)
 ```
+
+<!-- e2e:begin
+stdout: 0
+e2e:end -->
 
 A group rollout uses the **same bucket** as the knob-wide rollout. `user-1`'s
 bucket for `payments:new_processor` is the same number whatever group it's
@@ -83,24 +102,30 @@ keep:
 
 ```sh
 detent get payments:new_processor --hash user-2 --switch beta
-# false
+# 0
 publish payments:new_processor '{
-  "type": "bool", "default": false, "rollout_pct": 10,
+  "default": 0, "rollout_pct": 10, "rollout_value": 1,
   "overrides": {
-    "employees": true, "excluded": false,
+    "employees": 1, "excluded": 0,
     "beta": {"rollout_pct": 100}, "production": {"rollout_pct": 5}
   }
 }'
 sleep 1
 detent get payments:new_processor --hash user-2 --switch beta
-# true
+# 1
 ```
 
-`user-2` falls outside the old 50% for this knob, so it reads `false` in `beta`
-before the publish and `true` after. Leaving `production` out of that
+<!-- e2e:begin
+stdout-matches: ^0\n
+stdout-matches: ^1$
+e2e:end -->
+
+`user-2` falls outside the old 50% for this knob, so it reads 0 in `beta`
+before the publish and 1 after. Leaving `production` out of that
 definition would delete its override.
 
-:::hint[Int knobs have no group overrides]{.info}
-Group overrides and rollouts are bool-only. The int read API accepts a switch
-value for symmetry with bool reads, but ignores it.
+:::hint[Any value, not only flags]{.info}
+Overrides and rollouts work the same for every knob. A batch size of 25 that
+the `beta` group sees as 7 and 10% of callers see as 50 is
+`{"default": 25, "rollout_pct": 10, "rollout_value": 50, "overrides": {"beta": 7}}`.
 :::

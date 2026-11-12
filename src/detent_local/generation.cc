@@ -171,7 +171,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 			read_record(lease.fd, record);
 			version = decode_generation_ownership(record).layout_version;
 		}
-		auto context = version == 2 ? paged_context : legacy;
+		auto context = version >= 2 ? paged_context : legacy;
 		context.selection =
 			GenerationSelection{descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 		context.layout_version = version;
@@ -329,7 +329,32 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			unsigned char digest[32];
 			hash.getHash(digest);
 			require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
-			if (generation_ownership && generation_ownership->layout_version == 2) {
+			const auto refuse = [&]() -> void {
+				require(generation_ownership.has_value());
+				struct stat image{}, named_image{}, named_anchor{};
+				require(::fstat(mapping->image, &image) == 0 &&
+						::fstatat(dir->fd, (name + ".image").c_str(), &named_image, AT_SYMLINK_NOFOLLOW) == 0 &&
+						image.st_dev == named_image.st_dev && image.st_ino == named_image.st_ino &&
+						::fstatat(dir->fd, (name + ".lease").c_str(), &named_anchor, AT_SYMLINK_NOFOLLOW) == 0 &&
+						lease_info.st_dev == named_anchor.st_dev && lease_info.st_ino == named_anchor.st_ino);
+				std::array<char, generation_ownership_bytes> anchor;
+				read_record(mapping->lease, anchor);
+				require(decode_generation_ownership(anchor) == *generation_ownership);
+				File storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+				trusted_file(storage.fd, directory_info.st_uid, storage_identity_bytes);
+				std::array<char, storage_identity_bytes> identity;
+				read_record(storage.fd, identity);
+				require(decode_storage_identity(identity) == generation_ownership->storage);
+				const auto selection = read_generation_selection(directory);
+				require(selection.descriptor == descriptor && selection.directory_identity ==
+						DirectoryIdentity{std::uint64_t(directory_info.st_dev), std::uint64_t(directory_info.st_ino)});
+				auto lease = std::allocate_shared<File>(distribution::StorageAllocator<File>(context.heap), -1);
+				lease->fd = std::exchange(mapping->lease, -1);
+				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
+			};
+			if (generation_ownership && !current_layout(generation_ownership->layout_version))
+				refuse();
+			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
@@ -353,12 +378,14 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				std::optional<detail::WarmGraphValidator> warm_validator;
 				std::optional<detail::DependencyDiscovery> discovery;
 				distribution::RetirementHandle<detail::SegmentRegistry> registry;
-				// A cold start over a generation with a live record trusts what its build verified.
+				// A generation with a live record is trusted: a cold start trusts what its build verified, and
+				// the recovery after this process's own publication trusts the build it just ran.
 				std::optional<detail::TrustedGeneration> trusted;
-				if (context.trusted_start && !context.admission && !prior)
-					trusted = detail::TrustedRestart::open(dir->fd, directory_info.st_uid, descriptor, root, storage,
-														   bounds, limits, factory, account, mapping_account,
-														   context.metrics.get());
+				if (context.trusted_start && !progress)
+					trusted = detail::TrustedRestart::open(
+						dir->fd, directory_info.st_uid, descriptor, root, storage, bounds, limits, factory, account,
+						mapping_account, context.metrics.get(),
+						{context.admission.get(), warm ? prior->registry().get() : nullptr});
 				if (trusted) {
 					registry = trusted->registry;
 				} else if (progress) {
@@ -405,7 +432,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 					registry = discovery->take();
 				}
 
-				if (warm && !progress) {
+				if (warm && !progress && !trusted) {
 					using Registry = distribution::RetirementHandle<detail::SegmentRegistry>;
 					auto fresh = registry;
 					std::shared_ptr<const void> owner =

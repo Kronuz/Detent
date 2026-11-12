@@ -77,6 +77,9 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 				   published_sync.files, published_sync.groups, published_sync.directory_syncs,
 				   published_sync.device_flushes, state.sync.total.device_flushes,
 				   state.sync.startup.device_flushes);
+			L_INFO("detent-agent: hashed {} bytes since start: {} to build, {} to check, {} in frames",
+				   state.hash.total_bytes(), state.hash.built_bytes(), state.hash.checked_bytes(),
+				   state.hash.frame.bytes);
 		}
 		if (state.scrub.damaged_packs != damaged_packs) {
 			L_WARNING("detent-agent: managed scrub found {} damaged packs in the selected generation after {} "

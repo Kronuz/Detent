@@ -18,15 +18,14 @@ knob `name`, a human-readable `detail`, and `what()` to format all three.
 | `Uninitialized` | Reading through `detent::global` before `init()` |
 | `InvalidName` | The name doesn't follow the [naming rule](/Detent/reference/knobs/#knob-names) |
 | `MissingKnob` | No CLI override, and the name is in neither the live snapshot nor the baked defaults |
-| `WrongType` | `eval` on an int knob or override, or `get` on a bool |
-| `ConversionFailed` | `get_as<T>` on a value that doesn't fit `T` |
+| `ConversionFailed` | `get_as<T>` on a value that doesn't fit `T`, such as `get_as<bool>` on a value other than 0 or 1 |
 
 The `_or_panic` helpers abort the process on any of these, with a message that
 names the knob and category.
 
 ### Why There's No Call-Site Default
 
-Detent's C++ API deliberately has no `eval(name, /*fallback=*/false)`. A
+Detent's C++ API deliberately has no `get(name, /*fallback=*/0)`. A
 fallback at the call site hides the two most common configuration bugs, a typo
 in the knob name and a knob that was never published, behind a value that looks
 plausible. Instead:
@@ -74,7 +73,7 @@ snapshot and records the reason:
 | Stale or duplicate version | Ignore; count as stale | Last known good |
 | Source disconnects | Reconnect with full-jitter backoff; staleness grows | Last known good |
 | Missing knob read | Return `MissingKnob` (or abort with `_or_panic`) | Unchanged |
-| Wrong-type read | Return `WrongType` (or abort) | Unchanged |
+| Value that doesn't fit `get_as<T>` | Return `ConversionFailed` | Unchanged |
 
 The guiding rule: distribution is control-plane work, serving is data-plane
 work. A distribution failure never adds I/O to a read and never erases a

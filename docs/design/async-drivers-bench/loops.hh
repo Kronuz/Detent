@@ -50,35 +50,67 @@ private:
 };
 
 // A loop with its own thread: post() from any thread, calls run in order on the loop's thread.
+// Destroyed running, it drains its queue first. Or torn down as task's asio_scheduler is
+// (docs/mechanisms/asio-scheduler-teardown.md in task): stop() joins the thread and leaves the
+// queue unrun (phase 1); close() drops the queue and every later post and releases the wheel
+// (phase 2), so teardown's thread may unlink entries (phase 3); the destructor then drops what
+// the wheel still holds (phase 4).
 class thread_loop {
 public:
 	thread_loop() : thread_([this] { run(); }) {}
 	thread_loop(const thread_loop&) = delete;
 	thread_loop& operator=(const thread_loop&) = delete;
 	~thread_loop() {
-		{
-			std::lock_guard lock(mutex_);
-			stopping_ = true;
+		if (thread_.joinable()) {
+			{
+				std::lock_guard lock(mutex_);
+				stopping_ = true;
+			}
+			ready_.notify_one();
+			thread_.join();
 		}
-		ready_.notify_one();
-		thread_.join();
+		close();
+		timers.expire(~std::uint64_t{0});  // only states whose deadline is gone and whose posted unlink was dropped
 	}
 	void post(std::function<void()> f) {
 		{
 			std::lock_guard lock(mutex_);
+			if (closed_) { return; }
 			queue_.push_back(std::move(f));
 		}
 		ready_.notify_one();
 	}
+	void stop() {
+		{
+			std::lock_guard lock(mutex_);
+			halted_ = true;
+		}
+		ready_.notify_one();
+		thread_.join();
+	}
+	void close(bool release_wheel = true) {
+		std::deque<std::function<void()>> dropped;
+		{
+			std::lock_guard lock(mutex_);
+			if (closed_) { return; }
+			closed_ = true;
+			dropped.swap(queue_);
+		}
+		if (release_wheel) { timers.release(); }
+	}
+	bool closed() const {
+		std::lock_guard lock(mutex_);
+		return closed_;
+	}
 	bool runs_here() const noexcept { return std::this_thread::get_id() == thread_.get_id(); }
-	wheel timers;  // touched only on this loop's thread
+	wheel timers;  // touched only on this loop's thread until close()
 
 private:
 	void run() {
 		std::unique_lock lock(mutex_);
 		for (;;) {
-			ready_.wait(lock, [&] { return stopping_ || !queue_.empty(); });
-			if (queue_.empty()) { return; }
+			ready_.wait(lock, [&] { return halted_ || stopping_ || !queue_.empty(); });
+			if (halted_ || queue_.empty()) { return; }
 			auto f = std::move(queue_.front());
 			queue_.pop_front();
 			lock.unlock();
@@ -86,17 +118,18 @@ private:
 			lock.lock();
 		}
 	}
-	std::mutex mutex_;
+	mutable std::mutex mutex_;
 	std::condition_variable ready_;
 	std::deque<std::function<void()>> queue_;
-	bool stopping_ = false;
+	bool stopping_ = false, halted_ = false, closed_ = false;
 	std::thread thread_;
 };
 
 // A deadline on a loop's wheel, at nanoseconds on that loop's clock. Its entry lives in a state
 // the wheel holds a reference to while armed, so only the loop touches the entry: on the loop,
 // creation arms and destruction unlinks at once; on another thread (`home` set) each is posted
-// to the loop. Once the destructor returns the deadline requests nothing, as task's does.
+// to the loop, and once the loop is closed the destructor unlinks in place (teardown's thread).
+// Once the destructor returns the deadline requests nothing, as task's does.
 class wheel_deadline {
 	enum : int { live, firing, fired, disarmed };
 	struct state : wheel_entry {
@@ -114,11 +147,18 @@ class wheel_deadline {
 			s->refs.fetch_add(1, std::memory_order_relaxed);
 			s->timers.arm(*s, s->deadline);
 		}
-		static void unlink(state* s) {  // on the loop
+		static void unlink(state* s) {  // on the loop, or on teardown's thread once it is closed
 			if (!s->armed()) { return; }
 			s->timers.cancel(*s);
 			s->release();
 		}
+		struct ref {  // a posted call's reference, released whether the call runs or is dropped
+			state* s;
+			explicit ref(state* p) noexcept : s(p) { s->refs.fetch_add(1, std::memory_order_relaxed); }
+			ref(const ref& other) noexcept : ref(other.s) {}
+			ref& operator=(const ref&) = delete;
+			~ref() { s->release(); }
+		};
 	};
 
 public:
@@ -140,8 +180,7 @@ public:
 		if (here()) {
 			state::arm(s_);
 		} else {
-			s_->refs.fetch_add(1, std::memory_order_relaxed);
-			home_->post([s = s_] { state::arm(s); s->release(); });
+			home_->post([r = state::ref(s_)] { state::arm(r.s); });
 		}
 	}
 	wheel_deadline(const wheel_deadline&) = delete;
@@ -151,11 +190,10 @@ public:
 		if (!s_->phase.compare_exchange_strong(expected, disarmed, std::memory_order_acq_rel) && !here()) {
 			while (s_->phase.load(std::memory_order_acquire) == firing) { s_->phase.wait(firing, std::memory_order_acquire); }
 		}
-		if (here()) {
+		if (here() || home_->closed()) {
 			state::unlink(s_);
 		} else {
-			s_->refs.fetch_add(1, std::memory_order_relaxed);
-			home_->post([s = s_] { state::unlink(s); s->release(); });
+			home_->post([r = state::ref(s_)] { state::unlink(r.s); });
 		}
 		s_->release();
 	}

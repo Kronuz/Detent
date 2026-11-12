@@ -102,12 +102,12 @@ int main() {
 			require(source->name_space(0).name == "app" && source->name_space(0).revision == 42);
 			const auto integer = source->record(0);
 			require(integer.key == "app:count" && integer.namespace_index == 0 && integer.revision == 41);
-			require(std::get<detent::IntDef>(integer.definition).default_value ==
-					std::numeric_limits<std::int64_t>::min());
+			require(integer.definition.default_value == std::numeric_limits<std::int64_t>::min() &&
+					!integer.definition.rollout_value && !integer.definition.override_count);
 			const auto boolean = source->record(1);
-			const auto definition = std::get<l::detail::SourceBoolean>(boolean.definition);
-			require(boolean.key == "app:flag" && boolean.revision == 42 && definition.default_value &&
-					definition.rollout_pct == 25);
+			const auto definition = boolean.definition;
+			require(boolean.key == "app:flag" && boolean.revision == 42 && definition.default_value == 0 &&
+					definition.rollout_pct == 25 && definition.rollout_value == 1);
 			require(definition.override_start == 0 && definition.override_count == 1);
 			const auto group = source->override_value(0);
 			require(group.name == "beta" && std::get<detent::GroupRollout>(group.value).rollout_pct == 17);

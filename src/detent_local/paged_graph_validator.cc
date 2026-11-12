@@ -1,6 +1,7 @@
 #include "paged_graph_validator.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include "read_root.hh"
 #include "segment_registry.hh"
 #include <algorithm>
@@ -51,6 +52,10 @@ struct GraphValidator::Impl {
 	struct Frame {
 		p::Reference reference;
 		p::PageHeader header;
+		p::NodeView node;
+		p::NodeAt at;
+		std::size_t prefix_offset = 0;
+		bool page_root = true;
 		std::span<const char> bytes;
 		std::size_t segment = 0, bit = 0, end = 0, restore = 0, child = 0;
 		std::uint64_t keys = 0;
@@ -73,7 +78,7 @@ struct GraphValidator::Impl {
 	SHA256 segment_hash;
 	std::size_t index = 0, offset = 0, bitmap_size = 0, depth = 0, key_size = 0, charge = 0;
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0, hashed_bytes = 0;
-	std::uint32_t bools = 0, ints = 0, maximum_overrides = 0;
+	std::uint32_t maximum_overrides = 0;
 	std::uint64_t overrides = 0;
 	std::array<std::uint32_t, 257> override_histogram{};
 	SegmentRegistry *recorded_registry = nullptr;
@@ -106,29 +111,40 @@ struct GraphValidator::Impl {
 		--budget.rows;
 		return true;
 	}
-	void push(const p::Reference &reference) {
+	void push(const p::Reference &reference, std::span<const char> existing = {},
+			  p::NodeAt at = {}) {
 		require(depth < frames.size());
 		const auto segment = find_segment(segments, reference.segment);
 		require(segment < segments.size());
-		const auto bytes = checked_page_bytes(segments[segment], reference);
-		require(pages < expected.pages && reference.length <= expected.bytes - extent_bytes);
+		const auto bytes = existing.empty() ? checked_page_bytes(segments[segment], reference) : existing;
+		const bool page_root = existing.empty();
+		if (page_root)
+			require(pages < expected.pages && reference.length <= expected.bytes - extent_bytes);
 		auto &frame = frames[depth++];
 		frame = {};
 		frame.reference = reference;
 		frame.segment = segment;
 		frame.bytes = bytes;
 		frame.restore = key_size;
-		frame.bit = reference.offset / 8;
-		frame.end = (std::size_t(reference.offset) + reference.length + 7) / 8;
-		++pages;
-		extent_bytes += reference.length;
-		++states[frame.segment].cells;
-		states[frame.segment].extents += reference.length;
+		frame.at = at;
+		frame.page_root = page_root;
+		if (page_root) {
+			frame.bit = reference.offset / 8;
+			frame.end = (std::size_t(reference.offset) + reference.length + 7) / 8;
+			++pages;
+			extent_bytes += reference.length;
+			++states[frame.segment].cells;
+			states[frame.segment].extents += reference.length;
+		} else {
+			frame.node = at.decode(bytes, limits);
+			require(frame.node.prefix.size() <= key.size() - key_size);
+			frame.phase = NodePhase::Prefix;
+		}
 	}
 	void leaf(Frame &frame) {
 		const auto parsed = p::decode_key({key.data(), key_size});
-		require(parsed.kind == frame.header.kind);
-		const auto body = frame.bytes.last(frame.header.body);
+		require(parsed.kind == frame.node.kind);
+		const auto body = frame.node.body;
 		if (parsed.kind == p::PageKind::Namespace) {
 			require(!definitions && namespaces.size() < expected.namespaces);
 			require(parsed.name_space.size() <= semantic_limits.strings - strings);
@@ -149,12 +165,9 @@ struct GraphValidator::Impl {
 			require(found != namespaces.end() && found->text() == parsed.name_space);
 			const auto definition = p::validate_definition(body, found->revision);
 			require(definition.overrides <= semantic_limits.overrides);
-			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + body.size() -
-							  p::definition_header_bytes -
-							  std::uint64_t(definition.overrides) * p::override_header_bytes;
+			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + definition.key_bytes;
 			require(text <= semantic_limits.strings - strings);
 			strings += text;
-			definition.boolean ? ++bools : ++ints;
 			overrides += definition.overrides;
 			maximum_overrides = std::max(maximum_overrides, definition.overrides);
 			++override_histogram[definition.overrides];
@@ -167,10 +180,10 @@ struct GraphValidator::Impl {
 GraphValidator::GraphValidator(std::shared_ptr<distribution::StorageLedger> account,
 							   std::shared_ptr<const void> owner, std::span<const SegmentInput> segments,
 							   p::Root root, StorageIdentity storage, p::Limits limits,
-							   PagedSemanticLimits semantics, const SegmentRegistry *compared)
+							   PagedSemanticLimits semantics, const SegmentRegistry *compared, bool own_build)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(owner),
 												   segments, root, storage, limits, semantics,
-												   digests_compared(compared, segments, root, limits))) {}
+												   digests_compared(compared, segments, root, limits) || own_build)) {}
 GraphValidator::~GraphValidator() = default;
 GraphValidator::GraphValidator(GraphValidator &&) noexcept = default;
 void GraphValidator::step(ValidationBudget &budget) {
@@ -227,6 +240,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (state.offset != input.bytes.size() || !budget.rows)
 					return;
 				--budget.rows;
+				p::count_hash(p::HashKind::Pack, 1, input.bytes.size());
 				require(finish(state.segment_hash) == input.ownership.checksum);
 				state.segment_hash = SHA256{};
 				state.offset = 0;
@@ -249,7 +263,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 			}
 			if (!state.started) {
 				if (state.expected.pages) {
-					if (!state.admit(p::reference_bytes, budget))
+					if (!state.admit(p::child_bytes, budget))
 						return;
 					state.push(state.expected.tree);
 				}
@@ -287,27 +301,27 @@ void GraphValidator::step(ValidationBudget &budget) {
 					return;
 				frame.header = state.page->header();
 				state.page.reset();
-				require(frame.header.kind != p::PageKind::Overflow &&
-						frame.header.prefix <= state.key.size() - state.key_size);
+				frame.node = frame.at.decode(frame.bytes, state.limits);
+				require(frame.node.prefix.size() <= state.key.size() - state.key_size);
 				frame.phase = Impl::NodePhase::Prefix;
 				state.offset = 0;
 				break;
 			case Impl::NodePhase::Prefix: {
-				const auto count = std::min<std::size_t>(frame.header.prefix - state.offset, budget.bytes);
-				std::copy_n(frame.bytes.begin() + p::page_header_bytes + state.offset, count,
+				const auto count = std::min<std::size_t>(frame.node.prefix.size() - frame.prefix_offset, budget.bytes);
+				std::copy_n(frame.node.prefix.begin() + frame.prefix_offset, count,
 							state.key.begin() + state.key_size);
-				state.offset += count;
+				frame.prefix_offset += count;
 				state.key_size += count;
 				budget.bytes -= count;
-				if (state.offset != frame.header.prefix)
+				if (frame.prefix_offset != frame.node.prefix.size())
 					return;
-				frame.child = frame.header.children;
-				frame.phase = frame.header.kind == p::PageKind::Branch ? Impl::NodePhase::Children
+				frame.child = frame.node.labels.size();
+				frame.phase = frame.node.kind == p::PageKind::Branch ? Impl::NodePhase::Children
 																	   : Impl::NodePhase::Leaf;
 				break;
 			}
 			case Impl::NodePhase::Leaf:
-				if (!state.admit(frame.header.body + state.key_size, budget))
+				if (!state.admit(frame.node.body.size() + state.key_size, budget))
 					return;
 				state.leaf(frame);
 				break;
@@ -319,13 +333,15 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!state.admit(p::child_bytes + 1, budget))
 					return;
 				{
-					const auto child = p::decode_child(frame.bytes.subspan(
-						p::page_header_bytes + frame.header.prefix + (--frame.child) * p::child_bytes,
-						p::child_bytes));
+					const auto child = --frame.child;
+					const auto slot = frame.node.slot(child);
 					require(state.key_size < state.key.size());
 					const auto restore = state.key_size;
-					state.key[state.key_size++] = static_cast<char>(child.label);
-					state.push(child.reference);
+					state.key[state.key_size++] = frame.node.labels[child];
+					if (slot & 0x8000)
+						state.push(p::decode_external(frame.bytes, slot & 0x7fff, state.limits));
+					else
+						state.push(frame.reference, frame.bytes, p::NodeAt::child(frame.node, slot));
 					state.frames[state.depth - 1].restore = restore;
 				}
 				break;
@@ -333,12 +349,12 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!budget.rows)
 					return;
 				--budget.rows;
-				require(frame.keys == frame.header.keys);
+				require(!frame.page_root || frame.keys == frame.reference.keys);
 				state.key_size = frame.restore;
 				--state.depth;
 				if (state.depth) {
 					auto &parent = state.frames[state.depth - 1];
-					require(frame.keys <= parent.header.keys - parent.keys);
+					require(frame.keys <= state.expected.tree.keys - parent.keys);
 					parent.keys += frame.keys;
 				}
 				break;
@@ -363,7 +379,7 @@ std::uint64_t GraphValidator::hashed_segment_bytes() const noexcept {
 PagedStateCounts GraphValidator::counts() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
-	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings, impl_->maximum_overrides};
+	return {static_cast<std::uint32_t>(impl_->records), impl_->overrides, impl_->strings, impl_->maximum_overrides};
 }
 std::pair<std::shared_ptr<const void>, std::span<const SegmentInput>>
 GraphValidator::validated_inputs() const {
@@ -427,7 +443,7 @@ ReadView GraphValidator::take(distribution::RetirementFactory factory,
 		throw std::logic_error("graph validation incomplete");
 	auto &state = *impl_;
 	auto root = factory.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
-											 state.bools, state.ints, state.overrides, state.strings);
+											 state.overrides, state.strings);
 	impl_.reset();
 	return ReadView(std::move(root));
 }

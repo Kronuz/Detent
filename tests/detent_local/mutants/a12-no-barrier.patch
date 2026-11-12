@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index 8b8cdbe..55f8b52 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -170,7 +170,7 @@ class StartupOperation final : public c::Operation {
+ 					prepare_reader();
+ 				} else if (phase == Phase::RemoveSelected) {
+ 					data_->selected.reset();
+-					prepare(Phase::SyncOpen, c::Kind::OpenInto);
++					ready();
+ 				} else if (phase == Phase::SyncOpen) {
+ 					sync_file_[0] = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
+ 					prepare(Phase::Barrier, c::Kind::SyncFiles);

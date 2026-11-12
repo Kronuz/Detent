@@ -1,7 +1,6 @@
 #pragma once
 
-// Section 8: stable hash for percentage rollout. Normative for this clone --
-// never described as Meta's algorithm (see spec Section 2/8). Do not replace
+// Stable hash for percentage rollout (docs/design/knob-model.md). Do not replace
 // SHA-256 with a language runtime's default hash: many are randomized per
 // process, which would break cohort stickiness across restarts and hosts.
 

@@ -44,17 +44,19 @@ inline std::string delta_wire(bool progress, unsigned transactions = 2, std::str
 			if (!tx)
 				out.push_back('\xc0');
 			else {
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(out, tx);
+				out.push_back('\xc0');
+				out.push_back('\xc0');
+				a(0);
 			}
 			a(4);
 			n(0);
 			s(std::string(scope) + ":flag");
 			n(0);
 			a(4);
-			n(0);
-			out.push_back(tx % 2 ? '\xc3' : '\xc2');
+			n(tx % 2);
+			out.push_back('\xc0');
 			out.push_back('\xc0');
 			a(0);
 		}
@@ -112,17 +114,19 @@ inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsig
 		n(0);
 		text("app:count");
 		n(42 + tx);
-		a(2);
-		n(1);
+		a(4);
 		m::signed_integer(out, tx - 1);
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		a(0);
 	}
 	a(4);
 	n(0);
 	text("app:flag");
 	n(42 + tx);
 	a(4);
-	n(0);
-	out.push_back((tx - 1) % 2 ? '\xc3' : '\xc2');
+	n((tx - 1) % 2);
+	out.push_back('\xc0');
 	out.push_back('\xc0');
 	a(0);
 	return std::make_shared<const d::ValidatedSnapshot>(decode(out, target));
@@ -159,9 +163,11 @@ inline d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account
 	n(0);
 	m::string(wire, "app:count");
 	n(0);
-	a(2);
+	a(4);
 	n(1);
-	n(1);
+	wire.push_back('\xc0');
+	wire.push_back('\xc0');
+	a(0);
 	d::Limits limits;
 	limits.storage_account = std::move(account);
 	d::DeltaDecoder decoder(cursor(), {"app"}, limits);

@@ -141,9 +141,9 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		        ownership.generation == descriptor.generation &&
 		        ownership.image_length == descriptor.length &&
 		        ownership.image_checksum == descriptor.checksum);
-        if (ownership.layout_version == 1)
-            throw GenerationUnavailable("publisher has not prepared a paged generation");
-        require(ownership.layout_version == 2 && descriptor.length == paged::root_bytes);
+        if (ownership.layout_version != paged::format_version)
+            throw GenerationUnavailable("publisher has not prepared a current paged generation");
+        require(descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
 		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
 		require(checksum(image) == descriptor.checksum);
@@ -154,7 +154,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		    record<reader_metadata_bytes>(files->directory.fd, metadata_name.view(), publisher));
 		require(metadata.storage == storage && metadata.generation == descriptor.generation &&
 		        metadata.root_checksum == descriptor.checksum &&
-		        std::uint64_t(metadata.counts.bools) + metadata.counts.ints == root.records &&
+		        metadata.counts.records == root.records &&
 		        metadata.physical_bytes >= paged::root_bytes &&
 		        root.bytes <= metadata.physical_bytes - paged::root_bytes);
 		require(metadata.physical_bytes <= limits.bytes && metadata.counts.strings <= limits.strings &&
@@ -178,9 +178,9 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		    std::allocate_shared<Access>(d::StorageAllocator<Access>(heap), std::move(access));
 		std::shared_ptr<const PagedPageAccess> page_access(access_owner, access_owner->get());
 		auto view = factory.make<ReadView::Root>(
-		    access_owner, PagedReadState{root, {}, std::move(page_access)}, metadata.counts.bools,
-		    metadata.counts.ints, metadata.counts.overrides, metadata.counts.strings);
-		return {ReadView(std::move(view)), descriptor, directory_identity, root.logical};
+		    access_owner, PagedReadState{root, {}, std::move(page_access)}, metadata.counts.overrides,
+		    metadata.counts.strings);
+		return {ReadView(std::move(view)), descriptor, directory_identity, paged::state_commitment(root)};
 	}
 	throw GenerationUnavailable("selected generation changed during attachment");
 }

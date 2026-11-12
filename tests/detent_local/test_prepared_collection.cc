@@ -73,7 +73,7 @@ int main() {
 				compaction.step(budget);
 			}
 			auto plan = compaction.take();
-			check(plan.maintenance() && plan.root().logical == fixture->root.logical);
+			check(plan.maintenance() && l::paged::state_commitment(plan.root()) == l::paged::state_commitment(fixture->root));
 			bool old_pack_removed = false;
 			for (std::size_t i = 0; i != plan.registry()->inputs().size(); ++i)
 				if (plan.registry()->inputs()[i].ownership.segment == old_pack)
@@ -92,7 +92,7 @@ int main() {
         check(std::filesystem::exists(fixture->path / old_names.payload_name()));
 		check(std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".lease")));
 		// The prepared root opens its retired pack only after collection runs.
-		check(old_view.eval("b", "k").value());
+		check(old_view.get("b", "k").value() == 1);
 		old_view = {};
 		wait_unpinned(fixture->path / (l::generation_name(fixture->generation) + ".lease"));
 		store->request_collection();
@@ -101,7 +101,7 @@ int main() {
 		check(!std::filesystem::exists(fixture->path / old_names.owner_name()));
 		check(!std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".read")));
         check(reader.read_view().get("a", "k").value() == 42);
-        check(reader.read_view().eval("b", "k").value());
+        check(reader.read_view().get("b", "k").value() == 1);
 		store->close();
 		drive(store);
 		check(store->drained());

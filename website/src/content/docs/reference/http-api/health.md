@@ -6,6 +6,12 @@ title: "Health API"
 GET /v1/health
 ```
 
+<!-- e2e:begin
+ca: build/quickstart/certs/ca.pem
+json.mode: "durable_single_voter"
+json.fenced: false
+e2e:end -->
+
 The authority answers `GET /v1/health` without authentication. It's meant for
 load-balancer checks, dashboards and `--status`. A request with a body is
 rejected with `400` and `{"error":"health_body_forbidden"}`.

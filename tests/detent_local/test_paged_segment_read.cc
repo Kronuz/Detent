@@ -55,7 +55,7 @@ int main() {
 			const auto payload = variant == 8 ? std::span<const char>(large) : original;
 			if (variant == 8) {
 				expected.length = payload.size();
-				expected.checksum = l::paged::physical_commitment(payload);
+				expected.checksum = l::paged::pack_commitment(payload);
 			}
 			write(owner_path, l::encode_segment_ownership(expected));
 			write(pack_path, payload);

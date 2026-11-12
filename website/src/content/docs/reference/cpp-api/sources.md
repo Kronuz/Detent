@@ -88,6 +88,6 @@ Clients with a read source:
 
 1. Read through `read_view()`; `current_snapshot()` throws `std::logic_error`.
 2. Apply CLI overrides first, fall back to baked defaults for missing live
-   keys, and never fall back on a type or conversion error.
+   keys, and never fall back on a conversion error.
 3. Must be destroyed outside an event-loop turn, since destruction joins the
    refresh worker.

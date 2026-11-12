@@ -1,4 +1,5 @@
 #include "detent_distribution/framing.hh"
+#include "detent_distribution/frame_hash_counts.hh"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -62,6 +63,7 @@ std::string encode_fragment(const Fragment &fragment, bool compress) {
 	SHA256 hash;
 	hash.add(header.data(), header.size());
 	hash.add(payload.data(), payload.size());
+	count_frame_hash(header.size() + payload.size());
 	unsigned char digest[SHA256::HashBytes];
 	hash.getHash(digest);
 	header.append(reinterpret_cast<const char *>(digest), sizeof(digest));
@@ -131,6 +133,7 @@ struct FragmentDecoder::Impl {
 		payload = make_owned_buffer(account, encoded_size);
 		hash.reset();
 		hash.add(header.data(), 64);
+		count_frame_hash(64);
 	}
 	void complete() {
 		unsigned char digest[SHA256::HashBytes];
@@ -196,6 +199,7 @@ void FragmentDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
 					std::min({input.size(), budget.bytes, impl_->encoded_size - impl_->payload->size()});
 				impl_->payload->append({input.data(), count});
 				impl_->hash.add(input.data(), count);
+				count_frame_hash(count);
 				input = input.subspan(count);
 				budget.bytes -= count;
 				if (impl_->payload->size() == impl_->encoded_size) {

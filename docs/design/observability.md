@@ -6,7 +6,7 @@ Which knobs each service reads, what they resolve to, when they fall back, and h
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-09.
 - Base: `Detent:0bd2aba` (main). The reader core is not on main yet: core citations are at reader S6, `Detent:b1d281c` (`quest/detent/reader-s6`).
-- Depends on: reader.md R1 (the caller passes each lookup's default; no defaults file) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork); the `detent_*` C ABI (D1 there). It targets the Reader API only: `detent::Client`, defaults files and `parse_defaults` are decided for deletion (PLAN.md D13, D14; quest `legacy-h`), and nothing here reads from them. Benchmark: `docs/design/observability_bench.cc`, run by `observability-bench.sh`, summarized by `observability-summary.py` and paired by `observability-paired.py`.
+- Depends on: reader.md R1 (the caller passes each lookup's default; no defaults file) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork); the `detent_*` C ABI (D1 there). It targets the Reader API only: `detent::Client`, defaults files and `parse_defaults` are decided for deletion (PLAN.md D13, D14; quest `legacy-h`), and nothing here reads from them. Benchmark: `docs/design/observability_bench.cc` with `observability-bench.sh`, `observability-summary.py` and `observability-paired.py`, removed from the tree at `Detent:7aed2593`; read them at `Detent:7aed2593^`.
 
 ## Abstract
 
@@ -22,7 +22,7 @@ Measured on the S6 core (Intel i9-9980HK, Apple clang, 100,000 knobs) with OB1's
 | --- | --- | --- |
 | Knob read | The name passes `split` and `opened` (`core.cc:649-658`) | Nothing records it |
 | Resolved value | `evaluate` returns a bool (`src/detent_local/evaluation.hh:14-39`); `detent_get` returns the published integer (`core.cc:693`) | Not kept |
-| Arm | Implicit in `evaluate`'s branches: the definition's switch rule (forced bool or group rollout), then the global rollout, then the published value; no hash answers the published value (`evaluation.hh:30-38`) | Never returned; integers have no arms (spec `justknobs-implementation-spec.md:541`) |
+| Arm | Implicit in `evaluate`'s branches: the definition's switch rule (forced bool or group rollout), then the global rollout, then the published value; no hash answers the published value (`evaluation.hh:30-38`) | Never returned; integers have no arms (`docs/design/knob-model.md`, "Int") |
 | Caller's default taken | Every status but `DETENT_OK` writes the caller's fallback (`core.cc:673,699`; R1) | Not counted |
 | View freshness | Each view entry keeps the sequence it was built from (`core.cc:116-120`); the handle counts publishes, refusals and attaches (`core.cc:356,478,485`) | Readable only through test hooks; no attach time; stale answers (`core.cc:532-535`) uncounted |
 | Agent | `detent-agent --status` prints the pid, durable revision and knob count (`src/detent_agent/main.cc:125-147`); the monitor logs coordinator status every 20 ms (`src/detent_agent/managed_host.cc:28-100`) | No endpoint, no per-process view |
@@ -160,17 +160,17 @@ fleet: agent summary ─→ relay ─→ authority (Q4, deferred)
 2. **The agent reads untrusted pages with `pread`**, never `mmap`: a process that truncates its page would raise `SIGBUS` in a mapped reader. Every field is bounds-checked; names pass the reader's name validation. A process can lie about its own counts, which it could do anyway.
 3. **Lifetime.** The agent scans every few seconds, keeps the last counts of a process whose pid is gone (checked with its start time against pid reuse), reports them once more, then deletes the page.
 4. **Fork.** A child must not count into its parent's page: the child handler replaces the page's range with private anonymous memory (one `mmap`, no file I/O, matching reader.md D10's handler rules), and the child's next refresh creates its own page, copies its names and reseeds its stripes (D2 item 4). The child's ever-read bitmaps start clear in that memory, so a child's set holds only its own reads; the parent's stay in the parent's page.
-5. **Formats.** Host: one JSON usage document in the shape of the relay's health snapshot (hand-built, `host.cc:59-127`): per knob and revision the estimated reads by arm (samples × period) and the derived value; per namespace and revision the ever-read set, a base64 bitset by definition position in that revision's generation, outside the capped rows (D8); per process the namespaces, revisions, lag and age. Label-free totals (reads by kind and status, refused publishes, stale answers, processes) are spec §12's metrics (`justknobs-implementation-spec.md:690-738`), written as a Prometheus text file (D9).
+5. **Formats.** Host: one JSON usage document in the shape of the relay's health snapshot (hand-built, `host.cc:59-127`): per knob and revision the estimated reads by arm (samples × period) and the derived value; per namespace and revision the ever-read set, a base64 bitset by definition position in that revision's generation, outside the capped rows (D8); per process the namespaces, revisions, lag and age. Label-free totals (reads by kind and status, refused publishes, stale answers, processes) are the `Metrics` counters (`include/detent/client.hh:32-48`), written as a Prometheus text file (D9).
 6. **Fleet.** The ever-read union across hosts answers "which knobs are dead" exactly (D10); sampled reads per knob answer "how often", and only at fleet scale for rare knobs: 1,000 processes reading a knob 10 times each yield about 156 samples, while one host may show none. Aggregated by knob, the authority-side state is bounded by the store's knob count, not by hosts. It needs an upstream message from agent to relay to authority, a wire change, so it is Q4.
 
 ### D8. Privacy and limits
 
 | Data | Exported as | Why |
 | --- | --- | --- |
-| `hash_val`, `switch_val` | Never stored | User or tenant identifiers (spec :580, :708) |
+| `hash_val`, `switch_val` | Never stored | User or tenant identifiers (`include/detent/errors.hh:20`, `include/detent/client.hh:32-34`) |
 | Switch rule that matched | Never stored; only `switch_on` and `switch_off` | The rule's key equals a caller's switch value |
 | Caller's fallback value | Never stored; only that it was returned | Caller-supplied, unbounded (R1) |
-| Knob name | In the usage document and the snapshot, never a metric label | Spec §12 forbids name labels (:708) and allows a protected diagnostics endpoint (:712) |
+| Knob name | In the usage document and the snapshot, never a metric label | `Metrics` takes no name label (`include/detent/client.hh:32-34`); a protected diagnostics endpoint may carry names |
 | Resolved value | Derived from the published definition, as the value (Q5) | Already on every agent's disk |
 
 Unbounded sets are capped where they enter: `K` names per handle, then the overflow slot; names at most 200 bytes (`core.cc:265-278`); the host document at most 65,536 knob count rows, ordered by reads, with a `truncated` count; fleet rows at most the store's knobs.
@@ -289,7 +289,7 @@ Rerun with `campaign job rerun` on the four jobs at the commit under review (`ob
 
 **Record values instead of arms.** Integers would need an unbounded value histogram; arms are nine cells, and the value is recoverable from the definition.
 
-**Knob-name labels in Prometheus.** Spec §12 forbids it, and per-knob series across 250k agents do not fit a time-series store.
+**Knob-name labels in Prometheus.** `Metrics` (`include/detent/client.hh:32-34`) takes no name label, and per-knob series across 250k agents do not fit a time-series store.
 
 ## Owner decisions (PLAN.md D47)
 

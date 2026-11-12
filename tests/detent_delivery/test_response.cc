@@ -69,9 +69,11 @@ std::string message(d::UpdateKind kind, unsigned rows = 1) {
 		m::unsigned_integer(out, 0);
 		m::string(out, key);
 		m::unsigned_integer(out, kind == d::UpdateKind::Snapshot ? 5 : 0);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
+		m::array(out, 4); // [default, rollout %, rollout value, overrides]
 		m::signed_integer(out, 7);
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		m::array(out, 0);
 	}
 	return out;
 }

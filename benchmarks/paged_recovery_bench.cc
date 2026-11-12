@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
 			write(directory / (name + ".image"), {image.bytes()->data(), image.bytes()->size()});
 			write(
 				directory / (name + ".lease"),
-				l::encode_generation_ownership({storage, generation, original.length, original.checksum, 2}));
+				l::encode_generation_ownership({storage, generation, original.length, original.checksum, l::paged::format_version}));
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames names(segment.ownership.segment);
 				write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, 2}));
+						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, l::paged::format_version}));
 				for (const auto &segment : plan->segments()) {
 					const l::detail::SegmentNames names(segment.ownership.segment);
 					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -245,9 +245,9 @@ int main(int argc, char **argv) {
 							  cold->view().get("app", knob).value() == expected);
 					} else {
 						for (const auto scope : {"beta", "production"}) {
-							const auto expected = base.view().eval("app", knob, "host-a", scope).value();
-							check(warm->view().eval("app", knob, "host-a", scope).value() == expected &&
-								  cold->view().eval("app", knob, "host-a", scope).value() == expected);
+							const auto expected = base.view().get("app", knob, "host-a", scope).value();
+							check(warm->view().get("app", knob, "host-a", scope).value() == expected &&
+								  cold->view().get("app", knob, "host-a", scope).value() == expected);
 						}
 					}
 				}

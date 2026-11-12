@@ -28,9 +28,9 @@ int main(int argc, char** argv) {
 		out << R"({
 			"schema_version": 1,
 			"knobs": {
-				"checkout:killswitch_new_path": { "type": "bool", "default": false },
-				"search:max_results": { "type": "int", "default": 25 },
-				"payments:new_processor": { "type": "bool", "default": false, "rollout_pct": 10 }
+				"checkout:killswitch_new_path": { "default": 0 },
+				"search:max_results": { "default": 25 },
+				"payments:new_processor": { "default": 0, "rollout_pct": 10, "rollout_value": 1 }
 			}
 		})";
 	}
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 			while (!start.load(std::memory_order_acquire)) {}
 			std::uint64_t ok = 0;
 			for (std::uint64_t i = 0; i < ops_per_thread; ++i) {
-				// Alternate a plain int get() and a rollout eval() -- the two
+				// Alternate a plain get() and a hashed rollout get() -- the two
 				// shapes real callers actually use -- keyed so each thread's
 				// "user id" differs, exercising different hash buckets.
 				if (i & 1) {
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
 					ok += r.has_value();
 				} else {
 					auto id = std::to_string(t * 1'000'003 + i);
-					auto r = client.eval("payments:new_processor", id);
+					auto r = client.get("payments:new_processor", id);
 					ok += r.has_value();
 				}
 			}

@@ -29,18 +29,13 @@ class ImageSnapshotSource final : public d::SnapshotSource {
 		if (record_ == source_.record_count())
 			return {{}, true};
 		const auto row = source_.record(record_++);
-		d::WireDefinition definition;
-		override_ = override_end_ = 0;
-		if (const auto *flag = std::get_if<SourceBoolean>(&row.definition)) {
-			override_ = flag->override_start;
-			if (override_ > source_.override_count() ||
-				flag->override_count > source_.override_count() - override_)
-				throw std::logic_error("snapshot image override range");
-			override_end_ = override_ + flag->override_count;
-			definition = d::WireBoolDef{flag->default_value, {0, flag->override_count}, flag->rollout_pct};
-		} else {
-			definition = std::get<IntDef>(row.definition);
-		}
+		const auto &source = row.definition;
+		override_ = source.override_start;
+		if (override_ > source_.override_count() || source.override_count > source_.override_count() - override_)
+			throw std::logic_error("snapshot image override range");
+		override_end_ = override_ + source.override_count;
+		const d::WireDefinition definition{
+			source.default_value, {0, source.override_count}, source.rollout_pct, source.rollout_value};
 		return {d::Record{row.namespace_index, row.key, row.revision, definition}, false};
 	}
 	std::optional<d::OverrideRow> next_override() override {

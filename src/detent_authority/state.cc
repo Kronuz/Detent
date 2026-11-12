@@ -91,61 +91,93 @@ struct Reader {
 };
 using detent::valid_utf8;
 
+// Presence bits of a definition header: rollout_pct, rollout_value, nonempty overrides.
+constexpr unsigned has_rollout = 1, has_value = 2, has_overrides = 4;
+unsigned presence(const KnobDef &def) {
+	return (def.rollout_pct ? has_rollout : 0) | (def.rollout_value ? has_value : 0) |
+		   (def.overrides.empty() ? 0 : has_overrides);
+}
+void octet(Writer &w, unsigned value) {
+	char c = static_cast<char>(value);
+	w.raw({&c, 1});
+}
+unsigned octet(Reader &r) { return static_cast<unsigned char>(r.raw(1)[0]); }
+// Writes the header: default, presence byte, then the fields it names.
+void definition_header(Writer &w, const KnobDef &def, const Limits &limits) {
+	require(!definition_error(def), "invalid definition shape");
+	require(def.overrides.size() <= limits.overrides, "override count bound");
+	const auto bits = presence(def);
+	w.number(std::bit_cast<std::uint64_t>(def.default_value));
+	octet(w, bits);
+	if (bits & has_rollout)
+		octet(w, *def.rollout_pct);
+	if (bits & has_value)
+		w.number(std::bit_cast<std::uint64_t>(*def.rollout_value));
+	if (bits & has_overrides)
+		w.number(def.overrides.size());
+}
+void override_row(Writer &w, std::string_view key, const GroupOverride &value) {
+	require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
+	w.text(key);
+	if (auto forced = std::get_if<std::int64_t>(&value)) {
+		octet(w, 0);
+		w.number(std::bit_cast<std::uint64_t>(*forced));
+	} else {
+		auto pct = std::get<GroupRollout>(value).rollout_pct;
+		require(pct <= 100, "invalid group rollout");
+		octet(w, 1);
+		octet(w, pct);
+	}
+}
+// Reads the header into `def` and returns the override count that follows.
+std::uint64_t definition_header(Reader &r, KnobDef &def, const Limits &limits) {
+	def.default_value = std::bit_cast<std::int64_t>(r.number());
+	const auto bits = octet(r);
+	require(bits <= (has_rollout | has_value | has_overrides), "invalid definition presence");
+	if (bits & has_rollout) {
+		auto pct = octet(r);
+		require(pct <= 100, "invalid rollout");
+		def.rollout_pct = static_cast<std::uint8_t>(pct);
+	}
+	if (bits & has_value)
+		def.rollout_value = std::bit_cast<std::int64_t>(r.number());
+	std::uint64_t count = 0;
+	if (bits & has_overrides) {
+		count = r.number();
+		require(count && count <= limits.overrides, "override count bound");
+	}
+	return count;
+}
+GroupOverride override_value(Reader &r) {
+	const auto kind = octet(r);
+	require(kind <= 1, "invalid override kind");
+	if (!kind)
+		return std::bit_cast<std::int64_t>(r.number());
+	auto pct = octet(r);
+	require(pct <= 100, "invalid group rollout");
+	return GroupRollout{static_cast<std::uint8_t>(pct)};
+}
 void definition(Writer &w, const KnobDef &def, const Limits &limits) {
 	auto start = w.bytes.size();
-	w.flag(is_bool(def));
-	if (auto integer = std::get_if<IntDef>(&def)) {
-		w.number(std::bit_cast<std::uint64_t>(integer->default_value));
-	} else {
-		auto &flag = std::get<BoolDef>(def);
-		w.flag(flag.default_value);
-		w.optional(flag.rollout_pct);
-		require(!flag.rollout_pct || *flag.rollout_pct <= 100, "invalid rollout");
-		require(flag.overrides.size() <= limits.overrides, "override count bound");
-		w.number(flag.overrides.size());
-		for (const auto &[key, value] : flag.overrides) {
-			require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
-			w.text(key);
-			w.flag(std::holds_alternative<bool>(value));
-			if (auto forced = std::get_if<bool>(&value)) {
-				w.flag(*forced);
-			} else {
-				auto pct = std::get<GroupRollout>(value).rollout_pct;
-				require(pct <= 100, "invalid group rollout");
-				w.number(pct);
-			}
-		}
-	}
+	definition_header(w, def, limits);
+	for (const auto &[key, value] : def.overrides)
+		override_row(w, key, value);
 	require(w.bytes.size() - start <= limits.definition_bytes, "definition byte bound");
 }
 KnobDef definition(Reader &r, const Limits &limits) {
 	auto start = r.bytes.size();
-	if (!r.flag()) {
-		return IntDef{std::bit_cast<std::int64_t>(r.number())};
-	}
-	BoolDef result;
-	result.default_value = r.flag();
-	auto pct = r.optional();
-	require(!pct || *pct <= 100, "invalid rollout");
-	if (pct) {
-		result.rollout_pct = static_cast<std::uint8_t>(*pct);
-	}
-	auto count = r.number();
-	require(count <= limits.overrides, "override count bound");
+	KnobDef result;
+	auto count = definition_header(r, result, limits);
 	std::string previous;
 	for (std::uint64_t i = 0; i < count; ++i) {
 		auto key = r.text(128);
 		require(is_valid_group_key(key) && valid_utf8(key, false) && (i == 0 || previous < key),
 				"invalid or unordered group key");
 		previous = key;
-		if (r.flag()) {
-			result.overrides.emplace(std::move(key), r.flag());
-		} else {
-			auto p = r.number();
-			require(p <= 100, "invalid group rollout");
-			result.overrides.emplace(std::move(key), GroupRollout{static_cast<std::uint8_t>(p)});
-		}
+		auto value = override_value(r);
+		result.overrides.emplace(std::move(key), value);
 	}
+	require(!definition_error(result), "invalid definition shape");
 	require(start - r.bytes.size() <= limits.definition_bytes, "definition byte bound");
 	return result;
 }
@@ -303,8 +335,8 @@ struct CommandEncoder::Impl {
 	Writer writer;
 	std::map<std::string_view, const Mutation *> ordered;
 	decltype(ordered)::const_iterator mutation{};
-	decltype(BoolDef::overrides)::const_iterator group{};
-	const BoolDef *flag = nullptr;
+	decltype(KnobDef::overrides)::const_iterator group{};
+	const KnobDef *flag = nullptr;
 	std::size_t row = 0, definition_start = 0;
 	Phase phase = Phase::Validate;
 	bool failed = false, consumed = false;
@@ -428,18 +460,8 @@ void CommandEncoder::step(CommandWorkBudget &budget) {
 						break;
 					}
 					d.definition_start = w.bytes.size();
-					w.flag(is_bool(*op.value));
-					if (auto integer = std::get_if<IntDef>(&*op.value)) {
-						w.number(std::bit_cast<std::uint64_t>(integer->default_value));
-						d.end_definition();
-						break;
-					}
-					d.flag = &std::get<BoolDef>(*op.value);
-					require(!d.flag->rollout_pct || *d.flag->rollout_pct <= 100, "invalid rollout");
-					require(d.flag->overrides.size() <= d.limits.overrides, "override count bound");
-					w.flag(d.flag->default_value);
-					w.optional(d.flag->rollout_pct);
-					w.number(d.flag->overrides.size());
+					d.flag = &*op.value;
+					definition_header(w, *d.flag, d.limits);
 					require(w.bytes.size() - d.definition_start <= d.limits.definition_bytes,
 							"definition byte bound");
 					d.group = d.flag->overrides.begin();
@@ -455,16 +477,7 @@ void CommandEncoder::step(CommandWorkBudget &budget) {
 					return;
 				{
 					const auto &[key, value] = *d.group;
-					require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
-					w.text(key);
-					w.flag(std::holds_alternative<bool>(value));
-					if (auto forced = std::get_if<bool>(&value))
-						w.flag(*forced);
-					else {
-						auto pct = std::get<GroupRollout>(value).rollout_pct;
-						require(pct <= 100, "invalid group rollout");
-						w.number(pct);
-					}
+					override_row(w, key, value);
 					require(w.bytes.size() - d.definition_start <= d.limits.definition_bytes,
 							"definition byte bound");
 					++d.group;
@@ -544,15 +557,13 @@ struct CommandDecoder::Impl {
 		completed.expected = pending.expected;
 		completed.absence_revision = pending.absence_revision;
 		if (pending.value) {
-			if (auto value = std::get_if<BoolDef>(&*pending.value)) {
-				completed.value = BoolDef{};
-				auto &destination = std::get<BoolDef>(*completed.value);
-				destination.default_value = value->default_value;
-				destination.rollout_pct = value->rollout_pct;
-				destination.overrides.swap(value->overrides);
-			} else {
-				completed.value = std::get<IntDef>(*pending.value);
-			}
+			require(!definition_error(*pending.value), "invalid definition shape");
+			completed.value = KnobDef{};
+			auto &destination = *completed.value;
+			destination.default_value = pending.value->default_value;
+			destination.rollout_pct = pending.value->rollout_pct;
+			destination.rollout_value = pending.value->rollout_value;
+			destination.overrides.swap(pending.value->overrides);
 		}
 		pending = {};
 		previous_group.clear();
@@ -612,22 +623,8 @@ struct CommandDecoder::Impl {
 					break;
 				}
 				definition_start = reader.bytes.size();
-				if (!reader.flag()) {
-					pending.value = IntDef{std::bit_cast<std::int64_t>(reader.number())};
-					finish_mutation();
-					break;
-				}
-				pending.value = BoolDef{};
-				{
-					auto &value = std::get<BoolDef>(*pending.value);
-					value.default_value = reader.flag();
-					auto pct = reader.optional();
-					require(!pct || *pct <= 100, "invalid rollout");
-					if (pct)
-						value.rollout_pct = static_cast<std::uint8_t>(*pct);
-				}
-				overrides = reader.number();
-				require(overrides <= limits.overrides, "override count bound");
+				pending.value = KnobDef{};
+				overrides = definition_header(reader, *pending.value, limits);
 				require(definition_start - reader.bytes.size() <= limits.definition_bytes,
 						"definition byte bound");
 				phase = Phase::Overrides;
@@ -642,18 +639,11 @@ struct CommandDecoder::Impl {
 					require(is_valid_group_key(key) && valid_utf8(key, false) &&
 								(previous_group.empty() || previous_group < key),
 							"invalid or unordered group key");
-					GroupOverride value;
-					if (reader.flag()) {
-						value = reader.flag();
-					} else {
-						auto pct = reader.number();
-						require(pct <= 100, "invalid group rollout");
-						value = GroupRollout{static_cast<std::uint8_t>(pct)};
-					}
+					auto value = override_value(reader);
 					require(definition_start - reader.bytes.size() <= limits.definition_bytes,
 							"definition byte bound");
 					previous_group = key;
-					std::get<BoolDef>(*pending.value).overrides.emplace(std::move(key), value);
+					pending.value->overrides.emplace(std::move(key), value);
 				}
 				if (!--overrides)
 					finish_mutation();
@@ -703,12 +693,11 @@ bool CommandDecoder::discard(CommandWorkBudget &budget) {
 	impl_->consumed = true;
 	auto drain = [&](Mutation &mutation) {
 		if (mutation.value) {
-			if (auto value = std::get_if<BoolDef>(&*mutation.value)) {
-				while (!value->overrides.empty()) {
-					if (!Impl::claim(budget, 512))
-						return false;
-					value->overrides.erase(std::prev(value->overrides.end())); // last element: no shift
-				}
+			auto &overrides = mutation.value->overrides;
+			while (!overrides.empty()) {
+				if (!Impl::claim(budget, 512))
+					return false;
+				overrides.erase(std::prev(overrides.end())); // last element: no shift
 			}
 		}
 		if (!Impl::claim(budget, 1024))
@@ -742,7 +731,7 @@ State::State(Context c, Limits l) : context_(c), limits_(l) {
 				l.image_bytes <= std::uint64_t(INT64_MAX),
 			"authority resource ceiling");
 	auto metadata =
-		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 215 +
+		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 240 +
 		static_cast<std::uint64_t>(l.producers) * (177 + static_cast<std::uint64_t>(l.results) * 80);
 	require(metadata <= l.image_bytes && l.state_bytes <= l.image_bytes - metadata,
 			"application image cannot hold configured state and receipts");
@@ -759,14 +748,10 @@ std::shared_ptr<const KnobDef> copy_definition(detail::DeferredValues<KnobDef> &
 std::shared_ptr<const KnobDef> move_definition(detail::DeferredValues<KnobDef> &arena, KnobDef &source,
 											   std::size_t bytes) {
 	auto value = arena.create(bytes);
-	if (auto flag = std::get_if<BoolDef>(&source)) {
-		auto &destination = std::get<BoolDef>(*value);
-		destination.default_value = flag->default_value;
-		destination.rollout_pct = flag->rollout_pct;
-		destination.overrides.swap(flag->overrides);
-	} else {
-		*value = std::get<IntDef>(source);
-	}
+	value->default_value = source.default_value;
+	value->rollout_pct = source.rollout_pct;
+	value->rollout_value = source.rollout_value;
+	value->overrides.swap(source.overrides);
 	return value;
 }
 std::size_t stored_footprint(std::string_view key, const Record &record) {
@@ -782,10 +767,10 @@ std::size_t detail::collect_definition(DeferredValues<KnobDef> &arena, CommandWo
 	if (!budget.receipts || budget.bytes < 128)
 		return 0;
 	return arena.collect_one([&](KnobDef &value) {
-		if (auto flag = std::get_if<BoolDef>(&value); flag && !flag->overrides.empty()) {
+		if (!value.overrides.empty()) {
 			if (budget.bytes < 512)
 				return false;
-			flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
+			value.overrides.erase(std::prev(value.overrides.end())); // last element: no shift
 			budget.bytes -= 512;
 			--budget.receipts;
 			return false;
@@ -797,7 +782,7 @@ std::size_t detail::collect_definition(DeferredValues<KnobDef> &arena, CommandWo
 }
 bool State::reclamation_pending() const noexcept {
 	return records_.reclamation_pending() || namespaces_.reclamation_pending() ||
-		   producers_.reclamation_pending() || definitions_->pending() || producer_values_->pending();
+		   directory_.reclamation_pending() || producers_.reclamation_pending() || definitions_->pending() || producer_values_->pending();
 }
 std::uint64_t State::retired_values() const noexcept {
 	return definitions_->count() + producer_values_->count();
@@ -814,11 +799,11 @@ std::size_t State::collect(std::size_t budget) noexcept {
 std::size_t State::collect(CommandWorkBudget &budget) noexcept {
 	std::size_t freed = 0;
 	unsigned idle = 0;
-	while (budget.receipts && budget.bytes >= 128 && idle < 5) {
+	while (budget.receipts && budget.bytes >= 128 && idle < 6) {
 		auto previous = budget.receipts;
 		std::size_t n = 0;
 		auto lane = collection_cursor_;
-		collection_cursor_ = (collection_cursor_ + 1) % 5;
+		collection_cursor_ = (collection_cursor_ + 1) % 6;
 		switch (lane) {
 		case 0:
 			n = records_.collect(1);
@@ -843,6 +828,9 @@ std::size_t State::collect(CommandWorkBudget &budget) noexcept {
 				return true;
 			});
 			break;
+		case 5:
+			n = directory_.collect(1);
+			break;
 		}
 		if (n && previous == budget.receipts) {
 			budget.bytes -= 128;
@@ -855,7 +843,62 @@ std::size_t State::collect(CommandWorkBudget &budget) noexcept {
 }
 Revision State::namespace_revision(std::string_view name) const {
 	auto p = namespaces_.find(name);
-	return p ? *p : 0;
+	return p ? p->position : 0;
+}
+Identity derive_incarnation(const Context &context, const Identity &seed, std::uint64_t directory,
+							std::string_view name) {
+	Writer w{{}, 512};
+	w.raw("detent namespace incarnation");
+	encode_context(w, context);
+	w.identity(seed);
+	w.number(directory);
+	w.text(name);
+	SHA256 sha;
+	sha.add(w.bytes.data(), w.bytes.size());
+	Digest hash{};
+	sha.getHash(hash.data());
+	Identity result{};
+	std::copy_n(reinterpret_cast<const char *>(hash.data()), result.size(), result.begin());
+	return result;
+}
+NamespaceCursor State::namespace_cursor(std::string_view name) const {
+	auto entry = namespaces_.find(name);
+	return {context_.cluster, entry ? entry->incarnation : Identity{}, entry ? entry->position : 0};
+}
+CursorAnswer State::answer(std::string_view name, const NamespaceCursor &cursor) const {
+	auto entry = namespaces_.find(name);
+	if (!entry || !entry->live)
+		return CursorAnswer::Absent;
+	if (!positions_enabled() || cursor.cluster != context_.cluster || cursor.incarnation != entry->incarnation)
+		return CursorAnswer::FullCopy;
+	if (cursor.position == entry->position)
+		return CursorAnswer::Current;
+	return cursor.position < entry->position ? CursorAnswer::Behind : CursorAnswer::Ahead;
+}
+Namespace State::changed_namespace(std::string_view name) const {
+	auto found = namespaces_.find(name);
+	auto next = found ? *found : Namespace{};
+	if (!positions_enabled()) {
+		next.position = revision_ + 1;
+		return next;
+	}
+	++next.position;
+	if (!found || !found->live) {
+		// A first write, or one after a drop, creates a new incarnation; positions continue.
+		next.directory = directory_head_ + 1;
+		next.incarnation = derive_incarnation(context_, seed_, next.directory, name);
+		next.live = true;
+	}
+	return next;
+}
+void State::store_namespace(const std::string &name, std::uint64_t previous_directory, const Namespace &next) {
+	namespaces_ = namespaces_.set(name, next);
+	if (next.directory != previous_directory) {
+		if (previous_directory)
+			directory_ = directory_.erase(previous_directory);
+		directory_ = directory_.set(next.directory, name);
+		directory_head_ = std::max(directory_head_, next.directory);
+	}
 }
 const Producer *State::producer(std::string_view name) const {
 	auto p = producers_.find(name);
@@ -984,12 +1027,15 @@ Result State::apply(std::uint64_t index, const Command &c, std::uint64_t term) {
 				result.status = Status::Capacity;
 			}
 			if (result.status == Status::Applied) {
+				auto previous = namespaces_.find(c.name_space);
+				auto entry = changed_namespace(c.name_space);
+				entry.bytes = entry.bytes + total - bytes_;
 				for (const auto &op : c.mutations) {
 					auto old = find(op.key);
 					if (op.value && (!old || *old->value != *op.value)) {
 						candidate = candidate.set(
 							op.key,
-							Record{revision_ + 1, copy_definition(*next.definitions_, *op.value,
+							Record{entry.position, copy_definition(*next.definitions_, *op.value,
 																  footprint(op.key, *op.value, limits_) -
 																	  op.key.size() - 16)});
 					} else if (!op.value && old) {
@@ -999,8 +1045,9 @@ Result State::apply(std::uint64_t index, const Command &c, std::uint64_t term) {
 				next.records_ = std::move(candidate);
 				next.bytes_ = total;
 				next.revision_ = revision_ + 1;
-				next.namespaces_ = namespaces_.set(c.name_space, next.revision_);
-				result.revision = result.namespace_revision = next.revision_;
+				next.store_namespace(c.name_space, previous ? previous->directory : 0, entry);
+				result.revision = next.revision_;
+				result.namespace_revision = entry.position;
 			}
 		}
 	} else if (result.status == Status::Applied) {
@@ -1072,15 +1119,14 @@ std::string batch_header(std::size_t count, Limits limits) {
 bool dispose_command(Command &command, CommandWorkBudget &budget) noexcept {
 	while (!command.mutations.empty()) {
 		auto &op = command.mutations.back();
-		if (op.value)
-			if (auto flag = std::get_if<BoolDef>(&*op.value); flag && !flag->overrides.empty()) {
-				if (!budget.receipts || budget.bytes < 512)
-					return false;
-				--budget.receipts;
-				budget.bytes -= 512;
-				flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
-				continue;
-			}
+		if (op.value && !op.value->overrides.empty()) {
+			if (!budget.receipts || budget.bytes < 512)
+				return false;
+			--budget.receipts;
+			budget.bytes -= 512;
+			op.value->overrides.erase(std::prev(op.value->overrides.end())); // last element: no shift
+			continue;
+		}
 		if (!budget.receipts || budget.bytes < 1024)
 			return false;
 		--budget.receipts;
@@ -1166,10 +1212,12 @@ struct CommandApplication::Impl {
 	Result result;
 	Phase phase = Phase::Session;
 	std::size_t row = 0, receipt = 0, total = 0, count = 0;
+	Namespace entry;
+	std::uint64_t previous_directory = 0;
 	std::vector<unsigned char> changes;
 	const Producer *current = nullptr;
 	std::shared_ptr<Producer> producer;
-	using Iterator = decltype(BoolDef::overrides)::const_iterator;
+	using Iterator = decltype(KnobDef::overrides)::const_iterator;
 	Iterator left{}, right{};
 	bool changed = false, failed = false, consumed = false, retired = false;
 	Impl(const State &s, std::uint64_t i, std::uint64_t t, ValidatedCommand v)
@@ -1225,6 +1273,10 @@ struct CommandApplication::Impl {
 					 source.namespaces_.size() >= source.limits_.namespaces)
 				result.status = Status::Capacity;
 			else {
+				const auto &name = validated.command().name_space;
+				auto previous = source.namespaces_.find(name);
+				previous_directory = previous ? previous->directory : 0;
+				entry = source.changed_namespace(name);
 				row = 0;
 				phase = Phase::Subtract;
 				return;
@@ -1237,13 +1289,12 @@ struct CommandApplication::Impl {
 		auto &mutations = validated.command_.mutations;
 		while (!mutations.empty()) {
 			auto &op = mutations.back();
-			if (op.value)
-				if (auto flag = std::get_if<BoolDef>(&*op.value); flag && !flag->overrides.empty()) {
-					if (!retirement(b))
-						return false;
-					flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
-					continue;
-				}
+			if (op.value && !op.value->overrides.empty()) {
+				if (!retirement(b))
+					return false;
+				op.value->overrides.erase(std::prev(op.value->overrides.end())); // last element: no shift
+				continue;
+			}
 			if (!retirement(b, 1024))
 				return false;
 			mutations.pop_back();
@@ -1361,21 +1412,22 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					bool difference = false;
 					if (!op.value)
 						difference = old != nullptr;
-					else if (!old || old->value->index() != op.value->index())
+					else if (!old)
 						difference = true;
-					else if (auto flag = std::get_if<BoolDef>(&*op.value)) {
-						const auto &prior = std::get<BoolDef>(*old->value);
-						difference = flag->default_value != prior.default_value ||
-									 flag->rollout_pct != prior.rollout_pct ||
-									 flag->overrides.size() != prior.overrides.size();
-						if (!difference && !flag->overrides.empty()) {
+					else {
+						const auto &flag = *op.value;
+						const auto &prior = *old->value;
+						difference = flag.default_value != prior.default_value ||
+									 flag.rollout_pct != prior.rollout_pct ||
+									 flag.rollout_value != prior.rollout_value ||
+									 flag.overrides.size() != prior.overrides.size();
+						if (!difference && !flag.overrides.empty()) {
 							d.left = prior.overrides.begin();
-							d.right = flag->overrides.begin();
+							d.right = flag.overrides.begin();
 							d.phase = Phase::Compare;
 							break;
 						}
-					} else
-						difference = std::get<IntDef>(*old->value) != std::get<IntDef>(*op.value);
+					}
 					d.changes[d.row++] = difference;
 					d.changed |= difference;
 				}
@@ -1384,7 +1436,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				if (!Impl::record(budget))
 					return;
 				{
-					auto &flag = std::get<BoolDef>(*c.mutations[d.row].value);
+					auto &flag = *c.mutations[d.row].value;
 					bool difference = d.left->first != d.right->first || d.left->second != d.right->second;
 					++d.left;
 					++d.right;
@@ -1453,7 +1505,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					if (d.changes[i]) {
 						if (op.value)
 							d.candidate.records_ = d.candidate.records_.set(
-								op.key, Record{d.source.revision_ + 1,
+								op.key, Record{d.entry.position,
 											   move_definition(*d.candidate.definitions_, *op.value,
 															   d.validated.sizes_[i])});
 						else
@@ -1466,8 +1518,10 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					return;
 				d.candidate.bytes_ = d.total;
 				d.candidate.revision_ = d.source.revision_ + 1;
-				d.candidate.namespaces_ = d.candidate.namespaces_.set(c.name_space, d.candidate.revision_);
-				d.result.revision = d.result.namespace_revision = d.candidate.revision_;
+				d.entry.bytes = d.entry.bytes + d.total - d.source.bytes_;
+				d.candidate.store_namespace(c.name_space, d.previous_directory, d.entry);
+				d.result.revision = d.candidate.revision_;
+				d.result.namespace_revision = d.entry.position;
 				if (d.recorder)
 					d.phase = Phase::CaptureChange;
 				else
@@ -1632,6 +1686,156 @@ BatchResult BatchApplication::finish() {
 	return {std::move(candidate_), std::move(results_)};
 }
 
+namespace {
+void validate_administrative(const AdministrativeCommand &c) {
+	require(c.context.cluster != Identity{} && c.context.group != Identity{} && c.context.epoch != Identity{},
+			"missing authority identity");
+	if (c.kind == AdministrativeKind::EnablePositions)
+		require(c.nonce != Identity{} && c.name_space.empty() && c.incarnation == Identity{},
+				"invalid enabling entry");
+	else
+		require(c.kind == AdministrativeKind::DropNamespace && c.nonce == Identity{} &&
+					c.incarnation != Identity{} && !c.name_space.empty() &&
+					c.name_space.size() < 200 && is_valid_knob_name(c.name_space + ":x"),
+				"invalid namespace drop");
+}
+} // namespace
+bool is_administrative(std::string_view payload) noexcept { return payload.starts_with("DTAADM01"); }
+std::string encode(const AdministrativeCommand &c, Limits l) {
+	validate_administrative(c);
+	Writer w{{}, 1024};
+	w.raw("DTAADM01");
+	write_limits(w, l);
+	encode_context(w, c.context);
+	w.number(static_cast<std::uint8_t>(c.kind));
+	w.identity(c.nonce);
+	w.text(c.name_space);
+	w.identity(c.incarnation);
+	return std::move(w.bytes);
+}
+AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
+	Reader r{bytes};
+	require(r.raw(8) == "DTAADM01", "unsupported administrative entry");
+	Writer profile{{}, 1024};
+	write_limits(profile, l);
+	require(r.raw(profile.bytes.size()) == profile.bytes, "changed replicated semantic limits");
+	AdministrativeCommand c;
+	c.context = decode_context(r);
+	auto kind = r.number();
+	require(kind >= 1 && kind <= 2, "unknown administrative kind");
+	c.kind = static_cast<AdministrativeKind>(kind);
+	c.nonce = r.identity();
+	c.name_space = r.text(199);
+	c.incarnation = r.identity();
+	r.end();
+	validate_administrative(c);
+	return c;
+}
+AdministrativeApplication::AdministrativeApplication(const State &source, std::uint64_t index,
+													 std::uint64_t term, AdministrativeCommand command)
+	: source_(source), candidate_(source), index_(index), term_(term), command_(std::move(command)),
+	  result_{Status::Applied, source.revision_, 0, 0, 0} {
+	validate_administrative(command_);
+	require(command_.context == source.context_, "foreign authority context");
+	require(index > source.applied_ && index < maximum && term && term >= source.applied_term_,
+			"invalid application boundary");
+}
+void AdministrativeApplication::step(CommandWorkBudget &budget) {
+	require(!consumed_ && !retired_, "administrative application unavailable");
+	auto claim = [&] {
+		if (!budget.updates || budget.bytes < 1024)
+			return false;
+		--budget.updates;
+		budget.bytes -= 1024;
+		return true;
+	};
+	auto complete = [&] {
+		candidate_.applied_ = index_;
+		candidate_.applied_term_ = term_;
+		phase_ = Phase::Complete;
+	};
+	if (phase_ == Phase::Inspect) {
+		if (!claim())
+			return;
+		const auto &name = command_.name_space;
+		if (command_.kind == AdministrativeKind::EnablePositions) {
+			if (source_.positions_enabled()) {
+				result_.status = Status::NoChange;
+				return complete();
+			}
+			// Each namespace keeps its stored revision as its starting position.
+			candidate_.seed_ = command_.nonce;
+			cursor_.emplace(source_.namespaces_.cursor());
+			phase_ = Phase::Assign;
+		} else {
+			auto entry = source_.namespaces_.find(name);
+			if (!source_.positions_enabled())
+				result_.status = Status::Conflict;
+			else if (!entry || (!entry->live && entry->incarnation == command_.incarnation))
+				result_.status = Status::NoChange; // Absent, or this incarnation is already dropped.
+			else if (!entry->live || entry->incarnation != command_.incarnation)
+				result_.status = Status::Conflict;
+			else if (source_.revision_ == maximum)
+				result_.status = Status::Exhausted;
+			else {
+				// The drop is one change at the next position: every key goes, the
+				// tombstone keeps the position so a re-creation never reuses one.
+				candidate_.records_ = source_.records_.erase_range(name + ":", name + ";");
+				candidate_.bytes_ = source_.bytes_ - entry->bytes;
+				candidate_.revision_ = source_.revision_ + 1;
+				auto next = *entry;
+				++next.position;
+				next.bytes = 0;
+				next.live = false;
+				next.directory = source_.directory_head_ + 1;
+				candidate_.store_namespace(name, entry->directory, next);
+				result_.revision = candidate_.revision_;
+				result_.namespace_revision = next.position;
+			}
+			return complete();
+		}
+	}
+	while (phase_ == Phase::Assign && claim()) {
+		auto row = cursor_->next();
+		if (!row) {
+			cursor_.reset();
+			return complete();
+		}
+		auto next = *row->second;
+		next.directory = candidate_.directory_head_ + 1;
+		next.incarnation = derive_incarnation(candidate_.context_, candidate_.seed_, next.directory, *row->first);
+		candidate_.store_namespace(*row->first, 0, next);
+	}
+}
+BatchResult AdministrativeApplication::finish() {
+	require(done(), "administrative application incomplete");
+	consumed_ = true;
+	return {std::move(candidate_), {result_}};
+}
+bool AdministrativeApplication::discard(CommandWorkBudget &budget) {
+	require(!consumed_, "administrative application unavailable");
+	if (!retired_) {
+		cursor_.reset();
+		candidate_.retire();
+		source_.retire();
+		retired_ = true;
+	}
+	candidate_.collect(budget);
+	return !candidate_.reclamation_pending();
+}
+Result State::administer(std::uint64_t index, const AdministrativeCommand &command, std::uint64_t term) {
+	auto allocations_before = allocations();
+	AdministrativeApplication application(*this, index, term, command);
+	while (!application.done()) {
+		CommandWorkBudget budget;
+		application.step(budget);
+	}
+	auto outcome = application.finish();
+	*this = std::move(outcome.state);
+	collect(allocations() - allocations_before + 128);
+	return outcome.results.front();
+}
+
 Snapshot State::snapshot(std::string_view name_space) const {
 	Snapshot s;
 	s.version = revision_;
@@ -1650,13 +1854,15 @@ void ImageEncoder::row() {
 	Writer w{{}, state_.limits_.image_bytes};
 	for (;;) {
 		if (stage_ == 0) {
-			w.raw("DTAIMG01");
+			w.raw("DTAIMG02");
 			encode_context(w, state_.context_);
 			write_limits(w, state_.limits_);
 			w.number(state_.applied_);
 			w.number(state_.applied_term_);
 			w.number(state_.revision_);
 			w.number(state_.records_.size());
+			w.identity(state_.seed_);
+			w.number(state_.directory_head_);
 			++stage_;
 		} else if (stage_ == 1) {
 			if (auto item = records_.next()) {
@@ -1672,8 +1878,12 @@ void ImageEncoder::row() {
 			++stage_;
 		} else if (stage_ == 3) {
 			if (auto item = namespaces_.next()) {
+				// Live sizes are recomputed from the records.
 				w.text(*item->first);
-				w.number(*item->second);
+				w.number(item->second->position);
+				w.number(item->second->directory);
+				w.flag(item->second->live);
+				w.identity(item->second->incarnation);
 			} else {
 				++stage_;
 				continue;
@@ -1742,22 +1952,36 @@ struct ImageDecoder::Impl {
 	State state;
 	std::string buffer, previous;
 	std::size_t received = 0;
-	std::uint64_t remaining = 0, position = 0;
+	std::uint64_t remaining = 0, position = 0, namespace_bytes = 0, counted_bytes = 0;
+	std::string counting; // The namespace whose live size stage 4 is summing.
 	unsigned stage = 0;
 	bool final = false, waiting = true, complete = false, released = false;
 	std::optional<decltype(State::records_)::Cursor> records;
 	Impl(Context context, Limits limits) : state(context, limits) {}
+	// A namespace's records are contiguous in key order, so its live size is one run.
+	void count_namespace() {
+		if (!counting.empty()) {
+			auto entry = *state.namespaces_.find(counting);
+			entry.bytes = namespace_bytes;
+			state.namespaces_ = state.namespaces_.set(counting, entry);
+		}
+		counting.clear();
+		namespace_bytes = 0;
+	}
 	void row(Reader &r) {
 		auto &s = state;
 		auto &l = s.limits_;
 		if (stage == 0) {
-			require(r.raw(8) == "DTAIMG01" && decode_context(r) == s.context_, "foreign application image");
+			require(r.raw(8) == "DTAIMG02" && decode_context(r) == s.context_, "foreign application image");
 			Writer lw{{}, 1024};
 			write_limits(lw, l);
 			require(r.raw(lw.bytes.size()) == lw.bytes, "changed semantic limits");
 			auto applied = r.number(), term = r.number(), revision = r.number(), keys = r.number();
 			require(applied < maximum && bool(applied) == bool(term), "invalid image boundary");
 			require(keys <= l.keys, "image key count bound");
+			s.seed_ = r.identity();
+			s.directory_head_ = r.number();
+			require(s.positions_enabled() || !s.directory_head_, "invalid namespace directory");
 			s.applied_ = applied;
 			s.applied_term_ = term;
 			s.revision_ = revision;
@@ -1800,20 +2024,47 @@ struct ImageDecoder::Impl {
 				return;
 			}
 			auto name = r.text(199);
-			auto revision = r.number();
-			require(is_valid_knob_name(name + ":x") && (!position || previous < name) && revision &&
-						revision <= s.revision_,
+			Namespace entry;
+			entry.position = r.number();
+			entry.directory = r.number();
+			entry.live = r.flag();
+			entry.incarnation = r.identity();
+			require(is_valid_knob_name(name + ":x") && (!position || previous < name) && entry.position &&
+						entry.position <= s.revision_,
 					"invalid namespace record");
-			s.namespaces_ = s.namespaces_.set(name, revision);
+			if (s.positions_enabled()) {
+				require(entry.directory && entry.directory <= s.directory_head_ &&
+							!s.directory_.find(entry.directory),
+						"invalid namespace directory");
+				// A live namespace's incarnation is its creation's; a tombstone keeps the dropped one.
+				require(entry.live ? entry.incarnation ==
+										 derive_incarnation(s.context_, s.seed_, entry.directory, name)
+								   : entry.incarnation != Identity{},
+						"invalid namespace incarnation");
+				s.directory_ = s.directory_.set(entry.directory, name);
+			} else
+				require(!entry.directory && entry.live && entry.incarnation == Identity{},
+						"invalid namespace directory");
+			s.namespaces_ = s.namespaces_.set(name, entry);
 			previous = std::move(name);
 			--remaining;
 			++position;
 		} else if (stage == 4) {
 			if (auto item = records->next()) {
-				require(s.namespace_revision(item->first->substr(0, item->first->find(':'))) >=
-							item->second->revision,
+				auto name = std::string_view(*item->first).substr(0, item->first->find(':'));
+				auto entry = s.namespaces_.find(name);
+				require(entry && entry->live && entry->position >= item->second->revision,
 						"missing namespace revision");
+				if (name != counting) {
+					count_namespace();
+					counting = name;
+				}
+				auto amount = stored_footprint(*item->first, *item->second);
+				namespace_bytes += amount;
+				counted_bytes += amount;
 			} else {
+				count_namespace();
+				require(counted_bytes == s.bytes_, "namespace size mismatch");
 				records.reset();
 				stage = 5;
 			}

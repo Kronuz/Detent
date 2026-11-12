@@ -18,6 +18,9 @@ case "$mode" in
   partition) script=run_partition.py ;;
   all-down|no-quorum) script=run_outage.py; set -- "$@" --kind "$mode" ;;
   poll) script=run_writers.py; set -- "$@" --delivery-mode poll --duration 12 --kill-leader-at 3 ;;
+  relay-ipv6)
+    "$python" -c 'import socket; socket.socket(socket.AF_INET6).bind(("::1", 0))' 2>/dev/null || { echo "skip: no ::1"; exit 77; }
+    script=run_writers.py; set -- "$@" --relays "$relay" --address ::1 --duration 12 ;;
   relay) script=run_writers.py; set -- "$@" --relays "$relay" --duration 12 --kill-leader-at 3 ;;
   trust) script=run_trust_negatives.py; set -- --agents "$agent" --certificates "$build/tests/detent_authority/tls-fixture" --output "$output" ;;
   *) exit 2 ;;

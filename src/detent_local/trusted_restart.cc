@@ -37,7 +37,7 @@ TrustedGeneration
 TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, const paged::Root &root,
 					 StorageIdentity storage, paged::Limits bounds, const ViewLimits &limits,
 					 distribution::RetirementFactory factory, std::shared_ptr<distribution::StorageLedger> heap,
-					 std::shared_ptr<distribution::StorageLedger> mappings, RecoveryMetrics *metrics) {
+					 std::shared_ptr<distribution::StorageLedger> mappings, RecoveryMetrics *metrics, TrustedOwn own) {
 	std::uint64_t live_size = 0;
 	const GenerationName live_name(descriptor.generation, GenerationFile::Live);
 	RecoveryFile live_file(open_record(directory, live_name.view(), owner, live_record_size(root.segments), live_size));
@@ -52,7 +52,7 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 	const auto metadata = decode_reader_metadata(read_bytes);
 	require(metadata.storage == storage && metadata.generation == descriptor.generation &&
 			metadata.root_checksum == descriptor.checksum &&
-			std::uint64_t(metadata.counts.bools) + metadata.counts.ints == root.records &&
+			metadata.counts.records == root.records &&
 			metadata.physical_bytes >= paged::root_bytes && root.bytes <= metadata.physical_bytes - paged::root_bytes &&
 			metadata.physical_bytes <= limits.bytes && metadata.counts.strings <= limits.strings &&
 			metadata.counts.maximum_overrides <= limits.overrides && root.records <= limits.records &&
@@ -102,18 +102,36 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 									   return std::memcmp(id(row_or_id), id(other), 16) < 0;
 								   }));
 	bounds.segments = root.segments;
-	auto registry = factory.make<SegmentRegistry>(heap, storage, bounds);
+	auto registry = own.admission ? own.admission->target_registry()
+								  : factory.make<SegmentRegistry>(heap, storage, bounds);
+	require(registry && (!own.admission || (registry->uses_account(heap) && !registry->physical_bytes())));
+	const auto prior_rows = own.prior ? own.prior->inputs() : std::span<const SegmentInput>{};
 	std::vector<SegmentReachability> reachable;
 	reachable.reserve(live.rows.size());
 	for (const auto &row : live.rows) {
+		const SegmentOwnership ownership{storage, row.segment, row.length, row.checksum};
+		const auto held = std::lower_bound(prior_rows.begin(), prior_rows.end(), row.segment,
+										   [](const SegmentInput &input, const auto &id) {
+											   return std::memcmp(input.ownership.segment.data(), id.data(), id.size()) < 0;
+										   });
+		if (held != prior_rows.end() && held->ownership.segment == row.segment) {
+			require(held->ownership == ownership);
+			registry->append(own.prior->mapping(held - prior_rows.begin()));
+			reachable.push_back(row.live);
+			continue;
+		}
 		const SegmentNames names(row.segment);
 		RecoveryFile payload(
 			::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
 		require(payload.fd >= 0);
-		auto mapping =
-			factory.make<SegmentMapping>(mappings, payload.fd, owner,
-										 SegmentOwnership{storage, row.segment, row.length, row.checksum});
-		mapping->require_first_touch(heap);
+		distribution::RetirementHandle<SegmentMapping> mapping;
+		if (own.admission) {
+			mapping = own.admission->take_segment(ownership);
+			mapping->install(payload.fd, owner);
+		} else {
+			mapping = factory.make<SegmentMapping>(mappings, payload.fd, owner, ownership);
+			mapping->require_first_touch(heap);
+		}
 		registry->append(std::move(mapping));
 		reachable.push_back(row.live);
 		if (metrics)

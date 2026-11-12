@@ -45,7 +45,7 @@ void run(bool shared) {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
 	l::StorageIdentity storage{}, generation{}, next{};
 	storage.fill('s');
 	generation.fill('g');
@@ -63,7 +63,7 @@ void run(bool shared) {
 	const l::detail::SegmentNames names(orphan);
 	const std::string bytes(257, 'x');
 	write(directory / names.owner_name(),
-		  l::encode_segment_ownership({storage, orphan, bytes.size(), l::paged::physical_commitment(bytes)}));
+		  l::encode_segment_ownership({storage, orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
 	write(directory / names.payload_name(), bytes);
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
@@ -137,7 +137,7 @@ void run(bool shared) {
 	std::size_t flag = 0;
 	for (const auto hash : {"host-a", "host-b", "host-c"})
 		for (const auto scope : {"beta", "production"})
-			expected_flags[flag++] = base->view().eval("app", "flag", hash, scope).value();
+			expected_flags[flag++] = base->view().get("app", "flag", hash, scope).value();
 	base.reset();
 	const auto lease_path = directory / (l::generation_name(generation) + ".lease");
 	const int lease = ::open(lease_path.c_str(), O_RDWR | O_CLOEXEC);
@@ -161,7 +161,7 @@ void run(bool shared) {
 	if (shared)
 		for (const auto hash : {"host-a", "host-b", "host-c"})
 			for (const auto scope : {"beta", "production"})
-				require(target->view().eval("app", "flag", hash, scope).value() == expected_flags[flag++]);
+				require(target->view().get("app", "flag", hash, scope).value() == expected_flags[flag++]);
 	target.reset();
 	store->close();
 	drive(store);

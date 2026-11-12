@@ -60,7 +60,7 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 		if (sealed_ || !directory_ || !lease_ || !registry_ ||
 			paged::encode_root(registry_->validated_root(), paged_format_limits()) != paged::encode_root(root_, paged_format_limits()) ||
 			descriptor_.cursor != root_.cursor || descriptor_.profile != root_.profile ||
-			std::uint64_t(counts.bools) + counts.ints != root_.records)
+			counts.records != root_.records)
 			throw std::invalid_argument("invalid leased paged root");
 		counts_ = counts;
 		sealed_ = true;

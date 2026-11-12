@@ -6,9 +6,10 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 												   std::optional<RecoveredGeneration> base,
 												   DirectoryIdentity directory, StorageIdentity storage,
 												   GenerationId generation, d::RetirementFactory factory,
-												   std::shared_ptr<d::StorageLedger> heap, ViewLimits limits)
+												   std::shared_ptr<d::StorageLedger> heap, ViewLimits limits,
+												   bool repair)
 	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), directory_(directory),
-	  storage_(storage), limits_(limits) {
+	  storage_(storage), limits_(limits), repair_(repair) {
 	if (!source || source->storage_account() != heap_ || !factory_.uses_account(heap_) ||
 		(base_ &&
 		 (base_->directory_identity() != directory_ || base_->descriptor().generation == generation)) ||
@@ -50,6 +51,8 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 				return;
 			const auto &target = validator_->image()->image().descriptor();
 			const auto intent = !base_										  ? PagedPlanIntent::Fresh
+								: repair_ && target.cursor.same_identity(base_->descriptor().cursor)
+									? PagedPlanIntent::Repair
 								: target.cursor == base_->descriptor().cursor ? PagedPlanIntent::Maintenance
 								: target.cursor.same_identity(base_->descriptor().cursor)
 									? PagedPlanIntent::Forward

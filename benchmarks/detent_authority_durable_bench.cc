@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
 		std::optional<detent::KnobDef> heavy_definition;
 		std::size_t heavy_command_bytes = 0, heavy_override_count = 0;
 		if (heavy) {
-			detent::BoolDef definition;
+			detent::KnobDef definition;
 			auto probe = commands.front();
 			probe.sequence = 1;
 			for (std::size_t overrides = 0; overrides <= options.application.overrides; ++overrides) {
@@ -142,6 +142,7 @@ int main(int argc, char **argv) {
 				heavy_override_count = definition.overrides.size();
 				definition.overrides["group" + std::to_string(overrides) + std::string(40, 'x')] =
 					detent::GroupRollout{25};
+				definition.rollout_value = 1;
 			}
 			check(heavy_definition.has_value(), "heavy definition cannot fit the profile");
 		}
@@ -153,13 +154,14 @@ int main(int argc, char **argv) {
 			for (auto &c : commands) {
 				c.mutations.clear();
 				for (unsigned i = 0; i < 128 && key < count; ++i, ++key) {
-					detent::KnobDef value = detent::IntDef{static_cast<std::int64_t>(key)};
+					detent::KnobDef value;
+					value.default_value = static_cast<std::int64_t>(key);
 					if (!(key % 2)) {
-						detent::BoolDef flag;
-						flag.rollout_pct = 25;
-						flag.overrides["group0"] = detent::GroupRollout{5};
-						flag.overrides["group1"] = detent::GroupRollout{5};
-						value = std::move(flag);
+						value.default_value = 0;
+						value.rollout_pct = 25;
+						value.rollout_value = 1;
+						value.overrides["group0"] = detent::GroupRollout{5};
+						value.overrides["group1"] = detent::GroupRollout{5};
 					}
 					if (heavy_definition)
 						value = *heavy_definition;
@@ -184,7 +186,7 @@ int main(int argc, char **argv) {
 		for (int group = 0; group < 100; ++group) {
 			for (std::size_t i = 0; i < commands.size(); ++i) {
 				auto &c = commands[i];
-				c.mutations = {{"ns:feature_" + std::to_string(i), detent::IntDef{-1000 - group}, {}, {}}};
+				c.mutations = {{"ns:feature_" + std::to_string(i), detent::KnobDef{-1000 - group}, {}, {}}};
 				++c.sequence;
 			}
 			submit(commands);

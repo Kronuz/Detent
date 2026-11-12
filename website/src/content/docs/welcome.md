@@ -14,9 +14,9 @@ knobs**. Applications read knobs synchronously from an in-memory snapshot; a
 background thread keeps that snapshot fresh from a file, an HTTP endpoint, or
 a durable authority, and swaps each validated update in atomically.
 
-A *detent* is the mechanism that makes a rotary knob click into discrete,
-stable positions. That's the idea: your process always sees a complete,
-validated configuration, never something half-turned.
+A *detent* is the click-stop that holds a knob at its setting. That's the
+idea: your process always sees a complete, validated configuration, never
+something half-turned.
 
 Detent has three moving parts:
 
@@ -30,15 +30,9 @@ Detent has three moving parts:
    generations, so `detent get NAME` reads local files rather than the network,
    from any script or language.
 
-:::hint[Where the name comes from]{.info}
-Detent began as a faithful, independent clone of the publicly observable
-behavior of Meta's JustKnobs, and the original specification is kept in the
-repository as
-[`justknobs-implementation-spec.md`](https://github.com/Kronuz/Detent/blob/main/justknobs-implementation-spec.md).
-Detent is not a Meta product. Every identifier in the code is `detent`, and
-everything beyond the spec, from the agent to the durable authority, is
-Detent's own design.
-:::
+The knob model, with its names, groups, overrides, rollout and evaluation
+rules, is specified in
+[`docs/design/knob-model.md`](https://github.com/Kronuz/Detent/blob/main/docs/design/knob-model.md).
 
 ---
 

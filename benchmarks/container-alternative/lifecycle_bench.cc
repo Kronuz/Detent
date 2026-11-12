@@ -77,13 +77,13 @@ std::string group(unsigned g) {
 }
 void definition(std::string& out, unsigned id, unsigned salt) {
 	if (id % 4 == 3) {
-		out += R"({"type":"int","default":)" + std::to_string(id + salt) + "}";
+		out += R"({"default":)" + std::to_string(id + salt) + "}";
 		return;
 	}
-	out += R"({"type":"bool","default":)";
-	out += (id + salt) % 2 ? "true" : "false";
-	out += R"(,"overrides":{")" + group(0) + R"(":true,")" + group(1) + R"(":{"rollout_pct":)" +
-		   std::to_string(id % 100) + R"(},")" + group(2) + R"(":false}})";
+	out += R"({"default":)";
+	out += (id + salt) % 2 ? "1" : "0";
+	out += R"(,"overrides":{")" + group(0) + R"(":1,")" + group(1) + R"(":{"rollout_pct":)" +
+		   std::to_string(id % 100) + R"(},")" + group(2) + R"(":0},"rollout_value":1})";
 }
 
 struct Stage {
@@ -217,11 +217,11 @@ int main(int argc, char** argv) {
 		std::vector<std::uint64_t> out;
 		out.reserve(std::size_t(cleanup_reps) * 256);
 		for (unsigned rep = 0; rep < cleanup_reps; ++rep) {
-			detent::BoolDef def;
+			detent::KnobDef def;
 			std::vector<unsigned> groups(256);
 			std::iota(groups.begin(), groups.end(), 0u);
 			std::shuffle(groups.begin(), groups.end(), std::mt19937(rep));
-			for (auto g : groups) def.overrides.try_emplace(group(g), detent::GroupOverride(bool(g & 1)));
+			for (auto g : groups) def.overrides.try_emplace(group(g), detent::GroupOverride(std::int64_t(g & 1)));
 			const auto a0 = allocations;
 			while (!def.overrides.empty()) {
 				const auto t0 = std::chrono::steady_clock::now();
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
 	auto begin_pct = [&](double p) { return begin_turns[std::min(begin_turns.size() - 1, std::size_t(p * begin_turns.size()))]; };
 
 	std::printf("{\"knobs\":%u,\"long_names\":%s,\"random\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,",
-				count, long_names ? "true" : "false", random ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::BoolDef));
+				count, long_names ? "true" : "false", random ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::KnobDef));
 	std::printf("\"live_snapshot_requested_bytes\":%zu,\"coexisting_live_patch_history_requested_bytes\":%zu,", live_after_parse, coexisting_live);
 	std::printf("\"digests\":{\"snapshot\":\"%016llx\",\"patch\":\"%016llx\",\"diff\":\"%016llx\"},",
 				(unsigned long long)digest_snapshot, (unsigned long long)digest_patch, (unsigned long long)digest_diff);

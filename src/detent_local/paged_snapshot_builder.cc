@@ -3,7 +3,7 @@
 #include "detent_local/paged_definition.hh"
 #include "paged_image_state.hh"
 #include "paged_leaf_body.hh"
-#include "paged_page_builder.hh"
+#include "paged_packer.hh"
 #include "paged_segment_builder.hh"
 #include "paged_trie_cursor.hh"
 #include <algorithm>
@@ -26,15 +26,13 @@ std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> destin
 	const auto &source = *static_cast<const d::ValidatedSnapshot *>(owner);
 	if (ordinal < source.records().size())
 		return p::encode_definition_key(destination, source.records()[ordinal].key);
-	return p::encode_namespace_key(destination, source.namespaces()[ordinal - source.records().size()].name);
+	return p::encode_namespace_key(destination,
+								   source.namespaces()[ordinal - source.records().size()].name);
 }
 p::Override snapshot_override(const void *owner, std::uint64_t ordinal, std::uint32_t index) {
 	const auto &source = *static_cast<const d::ValidatedSnapshot *>(owner);
-	const auto &wire = std::get<d::WireBoolDef>(source.records()[ordinal].definition);
-	const auto &row = source.overrides(wire)[index];
-	const auto *rollout = std::get_if<GroupRollout>(&row.second);
-	return {row.first, rollout != nullptr,
-			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+	const auto &row = source.overrides(source.records()[ordinal].definition)[index];
+	return {row.first, row.second};
 }
 
 std::size_t borrowed_key(const void *owner, std::uint64_t ordinal, std::span<char> destination) {
@@ -48,57 +46,6 @@ p::Override borrowed_override(const void *owner, std::uint64_t ordinal, std::uin
 }
 
 } // namespace
-PagedImage::PagedImage(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, capacity)) {}
-PagedImage::~PagedImage() = default;
-PagedImage::PagedImage(PagedImage &&) noexcept = default;
-const p::Root &PagedImage::root() const {
-	if (!impl_ || !impl_->sealed || impl_->discarding)
-		throw std::logic_error("paged image unavailable");
-	return impl_->root;
-}
-const Descriptor &PagedImage::descriptor() const {
-	root();
-	return impl_->descriptor;
-}
-std::span<const BuiltSegment> PagedImage::segments() const {
-	root();
-	return impl_->segments;
-}
-std::shared_ptr<const d::OwnedBuffer> PagedImage::bytes() const {
-	root();
-	return impl_->bytes;
-}
-bool PagedImage::discard(ValidationBudget &budget) {
-	if (!impl_)
-		return true;
-	if (!budget.rows)
-		return false;
-	impl_->discarding = true;
-	while (!impl_->segments.empty() && budget.rows) {
-		--budget.rows;
-		impl_->segments.pop_back();
-	}
-	if (!budget.rows)
-		return false;
-	--budget.rows;
-	impl_.reset();
-	return true;
-}
-PagedImageOwner::PagedImageOwner(PagedImage &&image) : image_(std::move(image)) {
-	capacity_remaining_ = image_.bytes()->storage_capacity();
-	for (const auto &segment : image_.segments())
-		capacity_remaining_ += segment.bytes->storage_capacity();
-}
-bool PagedImageOwner::retire_step() noexcept {
-	// Account backing capacity before releasing buffers in bounded row batches.
-	if (capacity_remaining_) {
-		capacity_remaining_ -= std::min<std::size_t>(capacity_remaining_, 8192);
-		return false;
-	}
-	ValidationBudget budget{0, 16};
-	return image_.discard(budget);
-}
 struct PagedSnapshotBuilder::Impl {
 	enum class Phase {
 		Cursor,
@@ -122,7 +69,7 @@ struct PagedSnapshotBuilder::Impl {
 	p::Limits limits;
 	PagedImage output;
 	std::optional<TrieCursor> cursor;
-	std::optional<PageBuilder> page;
+	PagedPacker packer;
 	std::optional<SegmentBuilder> segment;
 	std::shared_ptr<const d::OwnedBuffer> body;
 	std::optional<LeafBody> leaf_body;
@@ -131,38 +78,35 @@ struct PagedSnapshotBuilder::Impl {
 	std::uint64_t physical_bytes = 0;
 	std::size_t charge = 0;
 	Phase phase = Phase::Cursor, after_pack = Phase::Page;
+	bool finishing = false;
 	bool failed = false, discarding = false;
-	Impl(std::shared_ptr<const d::ValidatedSnapshot> input, StorageIdentity identity, GenerationId id,
-		 p::Limits bounds)
-		: source(std::move(input)), account(source->storage_account()), storage(identity), generation(id),
-		  limits(bounds),
-		  output(account,
-				 std::min<std::uint64_t>(limits.segments,
-										 (source->records().size() + source->namespaces().size()) * 2)) {
-		require(nonzero(storage) && nonzero(generation) && source->records().size() <= limits.records &&
+	Impl(std::shared_ptr<const d::ValidatedSnapshot> input, StorageIdentity identity,
+		 GenerationId id, p::Limits bounds)
+		: source(std::move(input)), account(source->storage_account()), storage(identity),
+		  generation(id), limits(bounds), output(account, 0), packer(account, limits) {
+		require(nonzero(storage) && nonzero(generation) &&
+				source->records().size() <= limits.records &&
 				source->namespaces().size() <= limits.namespaces);
 		const auto count = source->records().size() + source->namespaces().size();
-		require(count <= limits.pages && count <= limits.bytes / p::page_header_bytes &&
-				(!count || limits.segments));
+		require(!count ||
+				(limits.pages && limits.segments && limits.bytes >= p::minimum_page_bytes));
 		auto &root = output.impl_->root;
 		root.cursor = source->cursor();
 		root.profile = source->profile();
 		root.records = source->records().size();
 		root.namespaces = source->namespaces().size();
-		cursor.emplace(account, source, key, source->records().size() + source->namespaces().size(), limits);
+		cursor.emplace(account, source, key, source->records().size() + source->namespaces().size(),
+					   limits);
 	}
-	Impl(std::shared_ptr<const BorrowedSnapshotSource> input, StorageIdentity identity, GenerationId id,
-		 p::Limits bounds)
-		: borrowed(std::move(input)), account(borrowed->storage_account()), storage(identity), generation(id),
-		  limits(bounds),
-		  output(account,
-				 std::min<std::uint64_t>(limits.segments,
-										 (std::uint64_t(borrowed->records()) + borrowed->namespaces()) * 2)) {
+	Impl(std::shared_ptr<const BorrowedSnapshotSource> input, StorageIdentity identity,
+		 GenerationId id, p::Limits bounds)
+		: borrowed(std::move(input)), account(borrowed->storage_account()), storage(identity),
+		  generation(id), limits(bounds), output(account, 0), packer(account, limits) {
 		require(nonzero(storage) && nonzero(generation) && borrowed->records() <= limits.records &&
 				borrowed->namespaces() <= limits.namespaces);
 		const auto count = std::uint64_t(borrowed->records()) + borrowed->namespaces();
-		require(count <= limits.pages && count <= limits.bytes / p::page_header_bytes &&
-				(!count || limits.segments));
+		require(!count ||
+				(limits.pages && limits.segments && limits.bytes >= p::minimum_page_bytes));
 		auto &root = output.impl_->root;
 		root.cursor = borrowed->descriptor().cursor;
 		root.profile = borrowed->descriptor().profile;
@@ -190,62 +134,59 @@ struct PagedSnapshotBuilder::Impl {
 				leaf_body.emplace(account, borrowed->watermark(event.ordinal));
 			else {
 				require(event.kind == p::PageKind::Definition);
-				leaf_body.emplace(account, borrowed->definition(event.ordinal), borrowed.get(), event.ordinal,
-								  borrowed_override,
-								  p::page_bytes - p::page_header_bytes - event.prefix.size());
+				leaf_body.emplace(account, borrowed->definition(event.ordinal), borrowed.get(),
+								  event.ordinal, borrowed_override,
+								  p::maximum_leaf_body_bytes - event.prefix.size());
 			}
 			phase = Phase::Body;
 			return;
 		}
 		if (event.kind == p::PageKind::Namespace) {
 			require(event.ordinal >= source->records().size());
-			leaf_body.emplace(account,
-							  source->namespaces()[event.ordinal - source->records().size()].revision);
+			leaf_body.emplace(
+				account, source->namespaces()[event.ordinal - source->records().size()].revision);
 		} else {
-			require(event.kind == p::PageKind::Definition && event.ordinal < source->records().size());
+			require(event.kind == p::PageKind::Definition &&
+					event.ordinal < source->records().size());
 			const auto &record = source->records()[event.ordinal];
-			p::Definition definition;
-			definition.revision = record.revision;
-			if (const auto *boolean = std::get_if<d::WireBoolDef>(&record.definition)) {
-				require(boolean->overrides.count <= 256);
-				definition.boolean = true;
-				definition.default_bool = boolean->default_value;
-				definition.rollout = boolean->rollout_pct;
-				definition.overrides = boolean->overrides.count;
-			} else
-				definition.default_int = std::get<IntDef>(record.definition).default_value;
+			const auto &wire = record.definition;
+			require(wire.overrides.count <= 256);
+			const auto definition = p::Definition{record.revision, wire.default_value, wire.rollout_pct,
+												  wire.rollout_value, static_cast<std::uint32_t>(wire.overrides.count)};
 			leaf_body.emplace(account, definition, source.get(), event.ordinal, snapshot_override,
-							  p::page_bytes - p::page_header_bytes - event.prefix.size());
+							  p::maximum_leaf_body_bytes - event.prefix.size());
 		}
 		phase = Phase::Body;
 	}
 
 	void make_page() {
-		page.emplace(account, event.kind, event.keys, event.prefix, event.children,
-					 body ? std::span<const char>(body->data(), body->size()) : std::span<const char>{},
-					 limits);
+		packer.push(event, body ? std::span<const char>(body->data(), body->size())
+								: std::span<const char>{});
 		phase = Phase::Page;
 	}
 };
 PagedSnapshotBuilder::PagedSnapshotBuilder(std::shared_ptr<const d::ValidatedSnapshot> source,
-										   StorageIdentity storage, GenerationId generation, p::Limits limits)
+										   StorageIdentity storage, GenerationId generation,
+										   p::Limits limits)
 	: impl_([&] {
 		  if (!source)
 			  throw std::invalid_argument("missing validated paged snapshot");
-		  return d::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free, source,
-											 storage, generation, limits);
+		  return d::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free,
+											 source, storage, generation, limits);
 	  }()) {}
 PagedSnapshotBuilder::PagedSnapshotBuilder(RecoveredGeneration generation,
-										   std::shared_ptr<d::StorageLedger> account, StorageIdentity storage,
-										   GenerationId id, p::Limits limits)
+										   std::shared_ptr<d::StorageLedger> account,
+										   StorageIdentity storage, GenerationId id,
+										   p::Limits limits)
 	: impl_([&] {
 		  if (!account)
 			  throw std::invalid_argument("borrowed snapshot account missing");
 		  auto source = std::allocate_shared<BorrowedSnapshotSource>(
 			  d::StorageAllocator<BorrowedSnapshotSource>(account), std::move(generation), account);
-		  return d::make_storage_owner<Impl>(account, std::malloc, std::free,
-											 std::shared_ptr<const BorrowedSnapshotSource>(std::move(source)),
-											 storage, id, limits);
+		  return d::make_storage_owner<Impl>(
+			  account, std::malloc, std::free,
+			  std::shared_ptr<const BorrowedSnapshotSource>(std::move(source)), storage, id,
+			  limits);
 	  }()) {}
 PagedSnapshotBuilder::~PagedSnapshotBuilder() = default;
 PagedSnapshotBuilder::PagedSnapshotBuilder(PagedSnapshotBuilder &&) noexcept = default;
@@ -260,12 +201,9 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 			case Impl::Phase::Cursor:
 				state.cursor->step(budget);
 				if (state.cursor->done()) {
-					if (state.segment) {
-						state.after_pack = Impl::Phase::Finish;
-						state.segment->seal();
-						state.phase = Impl::Phase::SealPack;
-					} else
-						state.phase = Impl::Phase::Finish;
+					state.packer.finish();
+					state.finishing = true;
+					state.phase = Impl::Phase::Page;
 					break;
 				}
 				if (!state.cursor->ready())
@@ -285,20 +223,32 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 				break;
 
 			case Impl::Phase::Page:
-				state.page->step(budget);
-				if (!state.page->done())
+				state.packer.step(budget);
+				if (state.packer.done()) {
+					if (state.segment) {
+						state.after_pack = Impl::Phase::Finish;
+						state.segment->seal();
+						state.phase = Impl::Phase::SealPack;
+					} else
+						state.phase = Impl::Phase::Finish;
+				} else if (state.packer.ready()) {
+					if (!state.segment)
+						state.segment.emplace(state.account, state.storage, state.generation,
+											  image.segments.size());
+					const auto page = state.packer.page();
+					if (!state.segment->fits(page)) {
+						state.after_pack = Impl::Phase::Page;
+						state.segment->seal();
+						state.phase = Impl::Phase::SealPack;
+					} else {
+						state.segment->append(page);
+						state.phase = Impl::Phase::Pack;
+					}
+				} else if (state.packer.accepted()) {
+					require(!state.finishing);
+					state.phase = Impl::Phase::ReleasePage;
+				} else
 					return;
-				if (!state.segment)
-					state.segment.emplace(state.account, state.storage, state.generation,
-										  image.segments.size());
-				if (!state.segment->fits(*state.page)) {
-					state.after_pack = Impl::Phase::Page;
-					state.segment->seal();
-					state.phase = Impl::Phase::SealPack;
-				} else {
-					state.segment->append(*state.page);
-					state.phase = Impl::Phase::Pack;
-				}
 				break;
 			case Impl::Phase::Pack:
 				state.segment->step(budget);
@@ -309,20 +259,19 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 						state.reference.length <= state.limits.bytes - image.root.bytes);
 				++image.root.pages;
 				image.root.bytes += state.reference.length;
-				state.phase = Impl::Phase::ReleasePage;
+				state.phase = Impl::Phase::Commit;
+				break;
+			case Impl::Phase::Commit:
+				if (!state.packer.commit(state.reference, budget))
+					return;
+				state.phase = Impl::Phase::Page;
 				break;
 			case Impl::Phase::ReleasePage:
-				if (state.page && !state.page->discard(budget))
-					return;
-				state.page.reset();
 				state.body.reset();
 				if (state.leaf_body && !state.leaf_body->discard(budget))
 					return;
 				state.leaf_body.reset();
-				state.phase = Impl::Phase::Commit;
-				break;
-			case Impl::Phase::Commit:
-				if (!state.cursor->commit(state.reference, budget))
+				if (!state.cursor->commit(budget))
 					return;
 				state.phase = Impl::Phase::Cursor;
 				break;
@@ -350,9 +299,8 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 				state.phase = state.after_pack;
 				break;
 			case Impl::Phase::Finish:
-				image.root.tree = state.cursor->root();
+				image.root.tree = state.packer.root();
 				image.root.segments = image.segments.size();
-				image.root.logical = image.root.pages ? image.root.tree.logical : p::empty_commitment();
 				state.phase = Impl::Phase::Root;
 				break;
 			case Impl::Phase::Root: {
@@ -362,8 +310,9 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 				auto bytes = d::make_owned_buffer(state.account, encoded.size());
 				bytes->append({encoded.data(), encoded.size()});
 				bytes->seal();
-				image.descriptor = {state.generation, p::root_bytes, p::physical_commitment(encoded),
-									image.root.cursor, image.root.profile};
+				image.descriptor = {state.generation, p::root_bytes,
+									p::metadata_commitment(encoded), image.root.cursor,
+									image.root.profile};
 				image.bytes = std::move(bytes);
 				image.sealed = true;
 				state.phase = Impl::Phase::Done;
@@ -394,9 +343,8 @@ bool PagedSnapshotBuilder::discard(ValidationBudget &budget) {
 	if (!budget.rows)
 		return false;
 	impl_->discarding = true;
-	if (impl_->page && !impl_->page->discard(budget))
+	if (!impl_->packer.discard(budget))
 		return false;
-	impl_->page.reset();
 	if (impl_->cursor && !impl_->cursor->discard(budget))
 		return false;
 	impl_->cursor.reset();

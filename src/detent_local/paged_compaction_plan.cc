@@ -15,10 +15,12 @@ struct PagedCompactionBuilder::Work final : d::RetirementNode {
 		 std::shared_ptr<d::StorageLedger> heap, std::span<const StorageIdentity> selected,
 		 CompactionLimits compaction, p::Limits limits)
 		: plan(std::move(state)), base(generation),
-		  finalizer(plan, heap, limits, compaction.maximum_output_bytes, plan->base_->root().logical) {
+		  finalizer(plan, heap, limits, compaction.maximum_output_bytes,
+					p::state_commitment(plan->base_->root())) {
 		using Base = d::RetirementHandle<LeasedPagedRoot>;
 		auto owner = std::allocate_shared<Base>(d::StorageAllocator<Base>(heap), plan->base_);
-		overlay.emplace(heap, std::move(owner), plan->registry_->inputs(), plan->base_->root(), limits);
+		overlay.emplace(heap, std::move(owner), plan->registry_->inputs(), plan->base_->root(),
+						limits);
 		overlay->begin_relocation(selected, compaction.maximum_recipes);
 	}
 	void step(ValidationBudget &budget) {
@@ -41,10 +43,10 @@ struct PagedCompactionBuilder::Work final : d::RetirementNode {
 				return;
 			if (plan->root_.cursor != base.descriptor().cursor ||
 				plan->root_.profile != base.descriptor().profile ||
-				plan->root_.logical != plan->base_->root().logical)
+				p::state_commitment(plan->root_) != p::state_commitment(plan->base_->root()))
 				throw std::invalid_argument("compaction semantic equality mismatch");
-			plan->maintenance_proof_.emplace(
-				StateEquivalenceProof(base.descriptor(), plan->descriptor_, base.directory_identity(), {}));
+			plan->maintenance_proof_.emplace(StateEquivalenceProof(
+				base.descriptor(), plan->descriptor_, base.directory_identity(), {}));
 			plan->sealed_ = true;
 		} catch (...) {
 			failed = true;
@@ -67,7 +69,8 @@ PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 											   GenerationId generation, d::RetirementDomain &domain,
 											   CompactionLimits compaction, p::Limits limits) {
 	if (!base.paged_ || selected.empty() || selected.size() > compaction.maximum_packs ||
-		compaction.maximum_packs > 8 || !compaction.maximum_recipes || !compaction.maximum_output_bytes)
+		compaction.maximum_packs > 8 || !compaction.maximum_recipes ||
+		!compaction.maximum_output_bytes)
 		throw std::invalid_argument("compaction selection or admission bound mismatch");
 	plan_ = domain.make<PagedPlanState>(domain.storage_account(), base.paged_, generation,
 										PagedPlanState::PhysicalMaintenance{});
@@ -76,22 +79,24 @@ PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 PagedCompactionBuilder::~PagedCompactionBuilder() = default;
 PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 											   std::span<const StorageIdentity> selected,
-											   GenerationId generation, d::RetirementFactory factory,
+											   GenerationId generation,
+											   d::RetirementFactory factory,
 											   std::shared_ptr<d::StorageLedger> heap,
 											   CompactionLimits compaction, p::Limits limits) {
 	if (!base.paged_ || !factory.uses_account(heap) || selected.empty() ||
 		selected.size() > compaction.maximum_packs || compaction.maximum_packs > 8 ||
 		!compaction.maximum_recipes || !compaction.maximum_output_bytes)
 		throw std::invalid_argument("compaction captured resources or selection mismatch");
-	plan_ =
-		factory.make<PagedPlanState>(heap, base.paged_, generation, PagedPlanState::PhysicalMaintenance{});
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation,
+										 PagedPlanState::PhysicalMaintenance{});
 	work_ = factory.make<Work>(plan_, base, std::move(heap), selected, compaction, limits);
 }
 std::shared_ptr<const StateEquivalenceProof> PagedCompactionBuilder::evidence() const {
 	if (!done() || !plan_->maintenance_proof_)
 		throw std::logic_error("compaction evidence unavailable");
 	using Handle = d::RetirementHandle<PagedPlanState>;
-	auto owner = std::allocate_shared<Handle>(d::StorageAllocator<Handle>(plan_->bytes()->account()), plan_);
+	auto owner =
+		std::allocate_shared<Handle>(d::StorageAllocator<Handle>(plan_->bytes()->account()), plan_);
 	return {std::move(owner), &*plan_->maintenance_proof_};
 }
 PagedCompactionBuilder::PagedCompactionBuilder(PagedCompactionBuilder &&) noexcept = default;

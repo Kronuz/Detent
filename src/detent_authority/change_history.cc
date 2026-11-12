@@ -18,8 +18,8 @@ class HistoryDraft final : public AppliedChangeDraft {
 	std::shared_ptr<d::OwnedBuffer> body_;
 	std::shared_ptr<CachedChange> entry_;
 	Scratch pending_;
-	const BoolDef *boolean_ = nullptr;
-	std::optional<decltype(BoolDef::overrides)::const_iterator> group_;
+	const KnobDef *definition_ = nullptr;
+	std::optional<decltype(KnobDef::overrides)::const_iterator> group_;
 	unsigned phase_ = 0;
 	bool emitting_ = false, complete_ = false, discarded_ = false;
 	void bounded_extent(std::size_t bytes) {
@@ -43,7 +43,7 @@ class HistoryDraft final : public AppliedChangeDraft {
 			return;
 		}
 		if (group_) {
-			if (*group_ != boolean_->overrides.end()) {
+			if (*group_ != definition_->overrides.end()) {
 				const auto &[name, value] = **group_;
 				detail::write_wire_override(pending_, name, value);
 				++*group_;
@@ -57,7 +57,7 @@ class HistoryDraft final : public AppliedChangeDraft {
 					entry_->maximum_definition_bytes =
 						std::max(entry_->maximum_definition_bytes, definition_bytes_);
 				group_.reset();
-				boolean_ = nullptr;
+				definition_ = nullptr;
 				++row_;
 			}
 			return;
@@ -88,11 +88,12 @@ class HistoryDraft final : public AppliedChangeDraft {
 		detail::write_wire_definition_head(pending_, *record->value);
 		if (!emitting_)
 			definition_bytes_ = pending_.size() - prefix;
-		if ((boolean_ = std::get_if<BoolDef>(record->value.get()))) {
+		if (!record->value->overrides.empty()) {
+			definition_ = record->value.get();
 			if (!emitting_)
 				entry_->maximum_overrides =
-					std::max<std::size_t>(entry_->maximum_overrides, boolean_->overrides.size());
-			group_ = boolean_->overrides.begin();
+					std::max<std::size_t>(entry_->maximum_overrides, definition_->overrides.size());
+			group_ = definition_->overrides.begin();
 		} else {
 			if (!emitting_)
 				entry_->maximum_definition_bytes =
@@ -173,7 +174,7 @@ class HistoryDraft final : public AppliedChangeDraft {
 	bool discard(CommandWorkBudget &budget) noexcept override {
 		discarded_ = true;
 		group_.reset();
-		boolean_ = nullptr;
+		definition_ = nullptr;
 		const auto capacity = body_ ? body_->storage_capacity()
 									: (entry_ && entry_->body ? entry_->body->storage_capacity() : 0);
 		if (capacity) {
@@ -277,6 +278,10 @@ std::shared_ptr<AppliedChangeDraft> ChangeHistory::capture(const State &state, c
 	auto &p = *impl_;
 	if (!p.batch || p.staged_count == p.staged.size() || !p.options.transactions ||
 		!p.options.payload_capacity || state.context() != p.context)
+		return {};
+	// The delta wire gives each record the group revision; a namespace whose
+	// position differs from it is delivered by snapshot until cursors are per namespace.
+	if (state.namespace_revision(command.name_space) != state.revision())
 		return {};
 	return std::allocate_shared<HistoryDraft>(d::StorageAllocator<HistoryDraft>(p.account), state, command,
 											  changed, p.account, p.options.transaction_bytes, &p);

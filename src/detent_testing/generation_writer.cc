@@ -43,9 +43,8 @@ std::string encode(const Snapshot &knobs, const d::Cursor &cursor, std::vector<s
 		for (const auto &[name, def] : rows) {
 			++records;
 			strings += name.size();
-			if (const auto *flag = std::get_if<BoolDef>(def))
-				for (const auto &[group, value] : flag->overrides)
-					++overrides, strings += group.size();
+			for (const auto &[group, value] : def->overrides)
+				++overrides, strings += group.size();
 		}
 	}
 	std::string out;
@@ -79,22 +78,12 @@ std::string encode(const Snapshot &knobs, const d::Cursor &cursor, std::vector<s
 			m::unsigned_integer(out, index);
 			m::string(out, name);
 			m::unsigned_integer(out, cursor.revision);
-			if (const auto *flag = std::get_if<BoolDef>(def)) {
-				m::array(out, 4);
-				m::unsigned_integer(out, 0);
-				out.push_back(flag->default_value ? '\xc3' : '\xc2');
-				if (flag->rollout_pct)
-					m::unsigned_integer(out, *flag->rollout_pct);
-				else
-					out.push_back('\xc0');
-				m::array(out, flag->overrides.size());
-				for (const auto &[group, value] : flag->overrides)
-					d::detail::wire::override_row(out, group, value);
-			} else {
-				m::array(out, 2);
-				m::unsigned_integer(out, 1);
-				m::signed_integer(out, std::get<IntDef>(*def).default_value);
-			}
+			d::detail::wire::definition(out, d::WireDefinition{def->default_value,
+															   {0, def->overrides.size()},
+															   def->rollout_pct,
+															   def->rollout_value});
+			for (const auto &[group, value] : def->overrides)
+				d::detail::wire::override_row(out, group, value);
 		}
 		++index;
 	}
@@ -168,9 +157,10 @@ struct GenerationWriter::Impl {
 		}
 		unwrap(disk->error());
 	}
-	std::uint64_t publish(const Snapshot &knobs) {
+	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {
 		auto next = cursor;
-		++next.revision;
+		if (!repair)
+			++next.revision;
 		std::vector<std::string> namespaces;
 		const auto wire = encode(knobs, next, namespaces);
 		d::Limits limits;
@@ -189,7 +179,7 @@ struct GenerationWriter::Impl {
 		for (auto &byte : generation)
 			byte = static_cast<char>(random());
 		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), identity,
-		                                            generation, domain.factory(), heap, options.recovery_limits);
+		                                            generation, domain.factory(), heap, options.recovery_limits, repair);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -264,11 +254,9 @@ struct GenerationWriter::Impl {
 			m::unsigned_integer(wire, namespace_index);
 			m::string(wire, name);
 			m::unsigned_integer(wire, value ? 0 : 1);
-			if (value) {
-				m::array(wire, 2);
-				m::unsigned_integer(wire, 1);
-				m::signed_integer(wire, *value);
-			} else
+			if (value)
+				d::detail::wire::definition(wire, d::WireDefinition{*value, {}, {}, {}});
+			else
 				wire.push_back('\xc0');
 		}
 		d::Limits limits;
@@ -327,6 +315,16 @@ std::uint64_t GenerationWriter::publish_json(std::string_view json) {
 	if (!parsed)
 		throw std::invalid_argument("invalid knob definitions");
 	return impl_->publish(parsed.value());
+}
+std::uint64_t GenerationWriter::repair_json(std::string_view json) {
+	auto parsed = parse_defaults(json, "test");
+	if (!parsed)
+		throw std::invalid_argument("invalid knob definitions");
+	return impl_->publish(parsed.value(), true);
+}
+void GenerationWriter::collect() {
+	impl_->disk->request_collection();
+	impl_->drive();
 }
 std::uint64_t GenerationWriter::publish_delta(const std::vector<std::string> &scope, std::string_view name_space,
                                               const std::map<std::string, std::int64_t> &upserts,

@@ -57,7 +57,7 @@ class ModelAuthority:
                 key: copy.deepcopy(self.knobs[key]) for key in keys if key in self.knobs
             }
             if self.corrupt in knobs:
-                knobs[self.corrupt]["default"] = 1
+                knobs[self.corrupt]["default"] += 1
             return 200, {
                 "authority": CONTEXT,
                 "schema_version": 1,
@@ -255,14 +255,12 @@ class MixedTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("expected_revision", commands[-1]["operations"][0])
         await writers.phase("verify")
 
-    async def test_full_definition_comparison_distinguishes_bool_and_int_scalars(
-        self,
-    ) -> None:
+    async def test_full_definition_comparison_catches_a_changed_default(self) -> None:
         authority = ModelAuthority()
         writers = MixedWriters(authority, 16, 2, 17)
         await writers.phase("prepare")
         authority.corrupt = "load0:key2"
-        self.assertIs(authority.knobs[authority.corrupt]["default"], True)
+        self.assertEqual(authority.knobs[authority.corrupt]["default"], 1)
         with self.assertRaisesRegex(RuntimeError, "definition oracle"):
             await writers.verify(0)
 
@@ -302,19 +300,19 @@ class MixedConfigurationTests(unittest.TestCase):
         self.assertEqual(
             definition(0, 0),
             {
-                "type": "bool",
-                "default": False,
-                "rollout_pct": None,
+                "default": 0,
                 "overrides": {
-                    "force-off": False,
-                    "force-on": True,
-                    "opaque\0group": True,
+                    "force-off": 0,
+                    "force-on": 1,
+                    "opaque\0group": 1,
                     "ramp": {"rollout_pct": 0},
                 },
+                "rollout_value": 1,
             },
         )
-        self.assertEqual(definition(1, 0), {"type": "int", "default": 17})
-        self.assertEqual(definition(0, 3), {"type": "int", "default": -314187})
+        self.assertEqual(definition(1, 1)["rollout_pct"], 20)
+        self.assertEqual(definition(1, 0), {"default": 17})
+        self.assertEqual(definition(0, 3), {"default": -314187})
         self.assertIsNone(definition(2, -1))
         self.assertIsNone(definition(2, -MAXIMUM_GENERATION - 1))
         for invalid in (UNSEEDED, MAXIMUM_GENERATION + 1):

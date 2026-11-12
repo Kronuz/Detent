@@ -225,7 +225,7 @@ int main() {
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, 2}));
+						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, detent::local::paged::format_version}));
 				for (const auto &segment : plan->segments()) {
 					const l::detail::SegmentNames names(segment.ownership.segment);
 					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -251,10 +251,10 @@ int main() {
 							(progress ? std::numeric_limits<std::int64_t>::min() : 1));
 					for (const auto hash : {"host-a", "host-b", "host-c"})
 						for (const auto switch_value : {"beta", "production"})
-							require(current.view().eval("app", "flag", hash, switch_value).value() ==
+							require(current.view().get("app", "flag", hash, switch_value).value() ==
 									(progress
-										 ? recovered.view().eval("app", "flag", hash, switch_value).value()
-										 : true));
+										 ? recovered.view().get("app", "flag", hash, switch_value).value()
+										 : 1));
 					require(mappings->used() == mappings->limit());
 				}
 				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));
@@ -271,14 +271,14 @@ int main() {
 				auto pressure = mappings->admit(mappings->limit() - baseline - needed);
 				auto invalid = plan->root();
 				++invalid.bytes;
-				const auto bytes = l::paged::encode_root(invalid);
+				const auto bytes = l::paged::encode_root(invalid, l::paged::Limits{});
 				auto descriptor = plan->descriptor();
-				descriptor.checksum = l::paged::physical_commitment(bytes);
+				descriptor.checksum = l::paged::metadata_commitment(bytes);
 				const auto name = l::generation_name(next);
 				write(directory / (name + ".image"), bytes);
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, descriptor.length, descriptor.checksum, 2}));
+						  {storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,

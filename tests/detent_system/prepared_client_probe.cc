@@ -1,6 +1,8 @@
 #include "detent/client.hh"
 #include "detent_local/client_source.hh"
+#include "detent_local/read_counters.hh"
 #include "names.hh"
+#include "lazy_page_access.hh"
 #include "prepared_reader.hh"
 #include <charconv>
 #include <chrono>
@@ -13,6 +15,21 @@ namespace d = detent::distribution;
 namespace l = detent::local;
 namespace x = l::detail;
 namespace {
+struct LookupProfile {
+	std::chrono::steady_clock::time_point miss;
+	std::uint64_t mapping_ns = 0, mappings = 0;
+};
+LookupProfile *lookup_profile = nullptr;
+void profile_window(x::LazyPageWindow window, void *context) noexcept {
+	auto &profile = *static_cast<LookupProfile *>(context);
+	if (window == x::LazyPageWindow::Miss)
+		profile.miss = std::chrono::steady_clock::now();
+	else if (window == x::LazyPageWindow::Publish) {
+		profile.mapping_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
+			std::chrono::steady_clock::now() - profile.miss).count();
+		++profile.mappings;
+	}
+}
 template <class Integer> Integer integer(std::string_view text) {
 	Integer value{};
 	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
@@ -69,6 +86,7 @@ void read(char **argv, std::uint64_t iterations) {
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
 		throw std::runtime_error("getrusage failed");
 	const auto start = std::chrono::steady_clock::now();
+	const auto counters = l::counters::snapshot();
 	detent::InitOptions options;
 	options.read_source = l::make_managed_read_source(argv[2], ::getuid());
 	detent::Client client(std::move(options));
@@ -77,6 +95,7 @@ void read(char **argv, std::uint64_t iterations) {
 	if (!value || value.value() != expected)
 		throw std::runtime_error("first live value differs");
 	const auto stop = std::chrono::steady_clock::now();
+	const auto counts = l::counters::snapshot() - counters;
 	if (::getrusage(RUSAGE_SELF, &after) != 0)
 		throw std::runtime_error("getrusage failed");
     double steady_ns = 0;
@@ -103,7 +122,16 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"minor_faults\":" << after.ru_minflt - before.ru_minflt
 	          << ",\"major_faults\":" << after.ru_majflt - before.ru_majflt
 	          << ",\"steady_mean_ns\":" << steady_ns
-	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
+	          << ",\"directory_trust\":" << counts.directory_trust
+	          << ",\"record_opens\":" << counts.record_opens
+	          << ",\"table_bytes\":" << counts.table_bytes
+	          << ",\"pages_verified\":" << counts.pages_verified
+	          << ",\"bytes_hashed\":" << counts.bytes_hashed
+	          << ",\"records\":" << client.health().knobs;
+	if (lookup_profile)
+		std::cout << ",\"profile_mapping_ns\":" << lookup_profile->mapping_ns
+				  << ",\"profile_mappings\":" << lookup_profile->mappings;
+	std::cout << "}\n";
 }
 } // namespace
 int main(int argc, char **argv) {
@@ -112,6 +140,18 @@ int main(int argc, char **argv) {
 			prepare(argv);
 		else if ((argc == 5 || argc == 6) && std::string_view(argv[1]) == "--read")
             read(argv, argc == 6 ? integer<std::uint64_t>(argv[5]) : 0);
+		else if (argc == 6 && std::string_view(argv[1]) == "--profile") {
+			LookupProfile profile;
+			lookup_profile = &profile;
+			x::LazyPageTesting::install(profile_window, &profile);
+			const auto repetitions = integer<unsigned>(argv[5]);
+			for (unsigned i = 0; i < repetitions; ++i) {
+				profile = {};
+				read(argv, 0);
+			}
+			x::LazyPageTesting::install(nullptr, nullptr);
+			lookup_profile = nullptr;
+		}
 		else
 			throw std::invalid_argument(
 			    "use --prepare DIR RECORDS BYTES STRINGS HEAP MAPPINGS or --read DIR KNOB EXPECTED_INT [ITERATIONS]");

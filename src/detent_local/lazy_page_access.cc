@@ -3,6 +3,7 @@
 #include "detent_local/paged_definition.hh"
 #include "generation_file_access.hh"
 #include "paged_limits.hh"
+#include "paged_node_step.hh"
 #include "segment_mapping.hh"
 #include "segment_names.hh"
 #include "verified_pages.hh"
@@ -193,22 +194,29 @@ struct LazyPageAccess::State {
 		try {
 			const auto &mapped = segment(reference.segment);
 			const auto extent = mapped.bytes;
-			if (reference.length < p::page_header_bytes || reference.offset > extent.size() ||
+			if (reference.offset % 8 || reference.length < p::minimum_page_bytes || reference.length > p::page_bytes || reference.offset > extent.size() ||
 			    reference.length > extent.size() - reference.offset)
 				throw ReadSourceFailure("local page exceeds its segment");
 			const auto bytes = extent.subspan(reference.offset, reference.length);
-			// A hit happens after a completed verification; the bytes are immutable while mapped.
+			const auto bounds = paged_limits(limits, p::root_bytes);
+			const auto header = p::decode_page_header(bytes, bounds);
+			if (header.length != reference.length || header.keys != reference.keys ||
+				header.height != reference.height || header.digest != reference.digest)
+				throw ReadSourceFailure("local page reference differs from reached header");
 			if (mapped.verified.test(reference.offset))
 				return bytes;
-			const auto bounds = paged_limits(limits, p::root_bytes);
 			p::verify_page(bytes, reference, bounds);
 			DETENT_COUNT(pages_verified, 1);
-			const auto header = p::decode_page_header(bytes, bounds);
-			if (header.kind == p::PageKind::Definition)
-				p::validate_definition(bytes.last(header.body), root.cursor.revision, limits.overrides);
-			else if (header.kind == p::PageKind::Namespace &&
-			         read_integer(bytes.last(header.body), 0, 8) > root.cursor.revision)
-				throw ReadSourceFailure("local namespace exceeds selected revision");
+			const auto nodes_end = bytes.size() - p::child_bytes * header.externals;
+			for (p::NodeAt at; at.offset() < nodes_end;) {
+				const auto node = at.decode(bytes, bounds);
+				if (node.kind == p::PageKind::Definition)
+					p::validate_definition(node.body, root.cursor.revision, limits.overrides);
+				else if (node.kind == p::PageKind::Namespace &&
+						 read_integer(node.body, 0, 8) > root.cursor.revision)
+					throw ReadSourceFailure("local namespace exceeds selected revision");
+				at = p::NodeAt::after(node);
+			}
 			verifications.fetch_add(1, std::memory_order_relaxed);
 			window(LazyPageWindow::Mark);
 			mapped.verified.set(reference.offset);

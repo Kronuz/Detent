@@ -6,7 +6,9 @@
 #include <sha256.h>
 #include <vector>
 namespace detent::local::detail {
-enum class PagedPlanIntent { Fresh, Forward, TrustedReset, Maintenance };
+// Repair publishes a snapshot of the base's identity at its cursor or later in place of a base that may be
+// damaged: no equality check against the base, and a recovery that never reads it.
+enum class PagedPlanIntent { Fresh, Forward, TrustedReset, Maintenance, Repair };
 class PagedPlanState final : public distribution::RetirementNode {
   public:
 	struct Forward {};
@@ -25,6 +27,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
 				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
 	bool maintenance() const;
+	bool snapshot() const noexcept { return bool(replacement_); }
 	PagedPlanIntent intent() const;
 	std::optional<Descriptor> selected_base() const;
 	const Descriptor &descriptor() const;
@@ -80,6 +83,7 @@ class PagedPlan {
 	PagedPlan(const PagedPlan &) = delete;
 	const Descriptor &descriptor() const { return checked_state().descriptor(); }
 	bool maintenance() const { return checked_state().maintenance(); }
+	bool snapshot() const { return checked_state().snapshot(); }
 	PagedPlanIntent intent() const { return checked_state().intent(); }
 	std::optional<Descriptor> selected_base() const { return checked_state().selected_base(); }
 	const paged::Root &root() const { return checked_state().root(); }

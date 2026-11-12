@@ -54,7 +54,7 @@ def run_pressure(request: Request) -> dict[int, dict[str, Any]]:
                         "operations": [
                             {
                                 "key": f"load{index}:key",
-                                "value": {"type": "int", "default": index},
+                                "value": {"default": index},
                                 "expected_revision": 0,
                                 "absent_namespace_revision": 0,
                             }

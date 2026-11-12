@@ -31,27 +31,30 @@ std::unique_ptr<ClientHandle> new_client(
 	opts.poll_interval = std::chrono::milliseconds{poll_interval_ms};
 	for (const auto& o : cli_overrides) opts.cli_overrides.emplace_back(view(o));
 	// detent::Client's constructor throws std::runtime_error on invalid/
-	// missing defaults or CLI overrides (Section 9's fail-fast contract);
+	// missing defaults or CLI overrides (the fail-fast contract);
 	// cxx translates that into Rust's Result::Err automatically because
 	// this function's bridge declaration returns Result<UniquePtr<...>>.
 	return std::make_unique<ClientHandle>(std::move(opts));
 }
 
-bool eval(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
-          rust::Str switch_val) {
+std::int64_t get(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
+                 rust::Str switch_val) {
 	std::optional<std::string_view> hv;
 	std::optional<std::string_view> sv;
 	if (has_hash) hv = view(hash_val);
 	if (has_switch) sv = view(switch_val);
-	auto result = client.client_.eval(view(name), hv, sv);
+	auto result = client.client_.get(view(name), hv, sv);
 	if (!result) throw std::runtime_error(result.error().what());
 	return result.value();
 }
 
-std::int64_t get_int(const ClientHandle& client, rust::Str name, bool has_switch, rust::Str switch_val) {
+bool get_bool(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
+              rust::Str switch_val) {
+	std::optional<std::string_view> hv;
 	std::optional<std::string_view> sv;
+	if (has_hash) hv = view(hash_val);
 	if (has_switch) sv = view(switch_val);
-	auto result = client.client_.get(view(name), sv);
+	auto result = client.client_.get_as<bool>(view(name), hv, sv);
 	if (!result) throw std::runtime_error(result.error().what());
 	return result.value();
 }
@@ -63,8 +66,7 @@ HealthInfo health(const ClientHandle& client) noexcept {
 	out.source_connected = h.source_connected;
 	out.accepted_version = h.accepted_version;
 	out.staleness_seconds = h.staleness_seconds;
-	out.bool_knobs = h.bool_knobs;
-	out.int_knobs = h.int_knobs;
+	out.knobs = h.knobs;
 	out.cli_overrides = h.cli_overrides;
 	return out;
 }

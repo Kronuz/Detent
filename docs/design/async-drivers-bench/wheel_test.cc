@@ -7,6 +7,11 @@
 //   loops      a parent on loop A, children on loop B: each deadline lives on its own wheel
 //   offloop    deadlines created and destroyed on threads other than their loop's while it
 //              fires: none requests after its destructor returns, every state is freed (F13)
+//   teardown   task's phased teardown (Xapiand review 2, X1): a loop arms a group's entry and
+//              deadlines, is stopped and closed, and teardown's thread destroys the frames'
+//              deadlines and the group; Debug assertions on, every state freed, 300 rounds
+//   teardown-bound   the negative control, not in `all`: the same with the wheel still bound to
+//              the joined loop's thread, D4's rule at Detent:73e96d6; the owner assertion aborts
 //   offloop-embedded   the negative control, not in `all`: the deadline as first designed,
 //              its entry inside the deadline, destroyed off its loop; the wheel's owner
 //              assertion aborts (what moving asio_scheduler onto the wheel would break)
@@ -330,6 +335,54 @@ void offloop() {
 		created_off, destroyed_off, requested);
 }
 
+// Task's teardown (docs/mechanisms/asio-scheduler-teardown.md in task) over a loop's wheel. On
+// the loop: a group's entry, a deadline made there and one posted from another thread. Phase 1
+// stops the loop; another thread then destroys a deadline, whose posted unlink never runs.
+// Phase 2 closes the loop, dropping that post. Phase 3, on teardown's thread, destroys the
+// frames' deadlines and the group, which unlink in place. Phase 4 drops what the wheel holds.
+void teardown(bool release_wheel) {
+	struct group {
+		wheel& timers;
+		wheel_entry entry;
+		explicit group(wheel& w) : timers(w) { entry.fire = [](wheel_entry&) noexcept {}; }
+		~group() { timers.cancel(entry); }  // on its loop, or on teardown's thread once the loop is closed
+	};
+	const int rounds = release_wheel ? 300 : 1;
+	int dropped_posts = 0;
+	for (int i = 0; i < rounds; ++i) {
+		auto a = std::make_unique<bench::thread_loop>();
+		const std::uint64_t far = steady_ns() + 60'000 * ms;
+		std::unique_ptr<group> g;
+		std::unique_ptr<bench::wheel_deadline> on_loop, posted, foreign;
+		on(*a, [&] {
+			g = std::make_unique<group>(a->timers);
+			a->timers.arm(g->entry, far);
+			on_loop = std::make_unique<bench::wheel_deadline>(a->timers, far, task::cancel_token{}, a.get());
+		});
+		posted = std::make_unique<bench::wheel_deadline>(a->timers, far, task::cancel_token{}, a.get());  // posts its arm
+		foreign = std::make_unique<bench::wheel_deadline>(a->timers, far + ms, task::cancel_token{}, a.get());
+		on(*a, [] {});  // both arms ran
+		CHECK(a->timers.size() == 4 && on_loop->armed() && posted->armed() && foreign->armed());
+		const auto t1 = on_loop->token(), t2 = posted->token(), t3 = foreign->token();
+		a->stop();                                // 1: the loop is joined
+		std::thread([&] { foreign.reset(); }).join();  // posts its unlink to the stopped loop
+		a->close(release_wheel);                  // 2: drops that post, releases the wheel
+		++dropped_posts;
+		if (!release_wheel) {
+			std::printf("teardown-bound: destroying a frame's deadline after the join (expected: the owner assertion aborts)\n");
+			std::fflush(stdout);
+		}
+		on_loop.reset();                          // 3: teardown's thread destroys the frames
+		posted.reset();
+		g.reset();
+		CHECK(a->timers.size() == 1);             // the foreign deadline's state, its unlink dropped
+		a.reset();                                // 4: the wheel drops it
+		CHECK(!t1.requested() && !t2.requested() && !t3.requested());
+		CHECK(bench::wheel_deadline::alive.load() == 0);
+	}
+	std::printf("teardown rounds=%d dropped_posts=%d requested=0 states_left=0 ok\n", rounds, dropped_posts);
+}
+
 // The deadline as D4 first had it: the entry inside the deadline, unlinked by its destructor
 // on whatever thread runs it. Destroyed off its loop, it touches the loop's wheel.
 void offloop_embedded() {
@@ -365,6 +418,11 @@ int main(int argc, char** argv) {
 	if (only == "all" || only == "chain") { chain(); }
 	if (only == "all" || only == "loops") { loops(); }
 	if (only == "all" || only == "offloop") { offloop(); }
+	if (only == "all" || only == "teardown") { teardown(true); }
+	if (only == "teardown-bound") {
+		teardown(false);
+		return 1;
+	}
 	if (only == "offloop-embedded") {
 		offloop_embedded();
 		return 1;

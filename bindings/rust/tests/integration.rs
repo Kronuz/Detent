@@ -1,17 +1,18 @@
 // Real end-to-end proof, not a mock: constructs a real detent::Client
 // through the cxx bridge, against a real defaults file, and checks the
 // exact same scenarios the Python binding and the C++ test suite cover --
-// bool/int reads, missing/wrong-type errors, and Section 8's hash_val/
-// switch_val precedence.
+// int64 reads, get_bool's checked conversion, missing-knob errors, and
+// hash_val/switch_val precedence.
 use std::io::Write;
 
 fn write_defaults() -> tempfile_path::TempFile {
     let contents = r#"{
         "schema_version": 1,
         "knobs": {
-            "checkout:killswitch_new_path": { "type": "bool", "default": false },
-            "search:max_results": { "type": "int", "default": 25 },
-            "payments:new_processor": { "type": "bool", "default": false, "rollout_pct": 10, "overrides": { "internal_employees": true } }
+            "checkout:killswitch_new_path": { "default": 0 },
+            "search:max_results": { "default": 25 },
+            "payments:new_processor": { "default": 0, "rollout_pct": 10, "rollout_value": 1, "overrides": { "internal_employees": 1 } },
+            "search:batch_size": { "default": 25, "rollout_pct": 100, "rollout_value": 50, "overrides": { "beta": 7, "canary": { "rollout_pct": 0 } } }
         }
     }"#;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -38,26 +39,28 @@ mod tempfile_path {
 }
 
 #[test]
-fn bool_and_int_reads() {
+fn int_and_bool_reads() {
     let defaults = write_defaults();
     let client = detent::Client::new(defaults.0.to_str().unwrap(), None, vec![], 200).unwrap();
 
-    assert_eq!(client.eval("checkout:killswitch_new_path", None, None).unwrap(), false);
-    assert_eq!(client.get("search:max_results", None).unwrap(), 25);
+    assert_eq!(client.get("checkout:killswitch_new_path", None, None).unwrap(), 0);
+    assert_eq!(client.get_bool("checkout:killswitch_new_path", None, None).unwrap(), false);
+    assert_eq!(client.get("search:max_results", None, None).unwrap(), 25);
 }
 
 #[test]
-fn missing_and_wrong_type_errors() {
+fn missing_and_conversion_errors() {
     let defaults = write_defaults();
     let client = detent::Client::new(defaults.0.to_str().unwrap(), None, vec![], 200).unwrap();
 
-    let missing = client.eval("nope:not_here", None, None);
+    let missing = client.get("nope:not_here", None, None);
     assert!(missing.is_err());
     assert!(missing.unwrap_err().to_string().contains("MissingKnob"));
 
-    let wrong_type = client.eval("search:max_results", None, None);
-    assert!(wrong_type.is_err());
-    assert!(wrong_type.unwrap_err().to_string().contains("WrongType"));
+    // 25 is not 0 or 1.
+    let not_bool = client.get_bool("search:max_results", None, None);
+    assert!(not_bool.is_err());
+    assert!(not_bool.unwrap_err().to_string().contains("ConversionFailed"));
 }
 
 #[test]
@@ -66,26 +69,37 @@ fn hash_val_and_switch_val_precedence() {
     let client = detent::Client::new(defaults.0.to_str().unwrap(), None, vec![], 200).unwrap();
 
     // No hash_val, no switch_val: rollout skipped entirely, plain default.
-    assert_eq!(client.eval("payments:new_processor", None, None).unwrap(), false);
+    assert_eq!(client.get_bool("payments:new_processor", None, None).unwrap(), false);
 
     // hash_val only: gated by the 10% rollout, stably bucketed -- these
-    // exact (name, hash_val) pairs were already proven against the real
-    // SHA-256 hash in test_hash_golden.cc and reconfirmed via the Python
-    // binding and the CLI earlier in this same session.
-    assert_eq!(client.eval("payments:new_processor", Some("user-1"), None).unwrap(), false);
-    assert_eq!(client.eval("payments:new_processor", Some("user-42"), None).unwrap(), true);
+    // exact (name, hash_val) pairs are pinned against SHA-256 in
+    // test_hash_golden.cc and reconfirmed via the Python binding.
+    assert_eq!(client.get_bool("payments:new_processor", Some("user-1"), None).unwrap(), false);
+    assert_eq!(client.get_bool("payments:new_processor", Some("user-42"), None).unwrap(), true);
 
     // switch_val naming a matching group: wins outright, even over a
     // hash_val that would otherwise fail the rollout gate.
     assert_eq!(
         client
-            .eval("payments:new_processor", Some("user-2"), Some("internal_employees"))
+            .get_bool("payments:new_processor", Some("user-2"), Some("internal_employees"))
             .unwrap(),
         true
     );
+}
 
-    // get() ignores switch_val (int model has no group overrides, Section 8).
-    assert_eq!(client.get("search:max_results", Some("anything")).unwrap(), 25);
+#[test]
+fn integer_targeting() {
+    let defaults = write_defaults();
+    let client = detent::Client::new(defaults.0.to_str().unwrap(), None, vec![], 200).unwrap();
+
+    // A 100% rollout serves rollout_value to every hash; no hash gets the default.
+    assert_eq!(client.get("search:batch_size", None, None).unwrap(), 25);
+    assert_eq!(client.get("search:batch_size", Some("user-1"), None).unwrap(), 50);
+    // A forced group wins; a 0% group serves the default to every hash.
+    assert_eq!(client.get("search:batch_size", Some("user-1"), Some("beta")).unwrap(), 7);
+    assert_eq!(client.get("search:batch_size", Some("user-1"), Some("canary")).unwrap(), 25);
+    // An unknown group falls through to the knob-wide rollout.
+    assert_eq!(client.get("search:batch_size", Some("user-1"), Some("other")).unwrap(), 50);
 }
 
 #[test]
@@ -95,8 +109,7 @@ fn health_snapshot() {
     let h = client.health();
     assert!(h.initialized);
     assert_eq!(h.accepted_version, 0); // baked defaults only, no source configured
-    assert_eq!(h.bool_knobs, 2);
-    assert_eq!(h.int_knobs, 1);
+    assert_eq!(h.knobs, 4);
 }
 
 #[test]

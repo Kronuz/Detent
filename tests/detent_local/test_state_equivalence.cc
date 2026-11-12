@@ -87,28 +87,27 @@ void run(bool nul_key, unsigned namespace_count) {
 				n(i);
 				text(scope[i] + ":count");
 				n(41);
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(wire, INT64_MIN);
+				wire.push_back('\xc0');
+				wire.push_back('\xc0');
+				a(0);
 				a(4);
 				n(i);
 				text(scope[i] + ":flag");
 				n(change == 2 ? 40 : 41);
 				a(4);
-				n(0);
-				wire.push_back('\xc3');
+				n(1);
 				if (change == 3)
 					wire.push_back('\xc0');
 				else
 					n(percentage);
+				n(1);
 				a(1);
 				a(3);
 				text(group);
 				n(change == 4 ? 0 : 1);
-				if (change == 4)
-					wire.push_back('\xc3');
-				else
-					n(17);
+				n(change == 4 ? 1 : 17);
 			}
 			d::Limits decoder_limits;
 			decoder_limits.storage_account = heap;
@@ -261,7 +260,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				borrowed.step(budget);
 			}
 			auto image = borrowed.take();
-			state_check(image.root().logical == paged_image.root().logical);
+			state_check(l::paged::state_commitment(image.root()) == l::paged::state_commitment(paged_image.root()));
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
 			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
 														 limits);
@@ -269,8 +268,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				l::ValidationBudget budget{1, 1};
 				validator.step(budget);
 			}
-			state_check(validator.counts().bools == namespace_count &&
-						validator.counts().ints == namespace_count);
+			state_check(validator.counts().records == 2 * namespace_count);
 			auto owner = validator.image();
 			l::detail::StateEquivalence equality(l::detail::StateCursor(*base, heap),
 												 l::detail::StateCursor(validator.take(), heap));
@@ -299,11 +297,12 @@ void run(bool nul_key, unsigned namespace_count) {
 				builder.step(budget);
 			}
 			auto image = builder.take();
+			// A wrong root checksum, then a broken page: the first page of a pack starts at its offset 0, and its
+			// magic is decoded on every walk (an own build's digests are trusted, so a digest flip is the scrub's).
 			if (!corruption)
 				const_cast<l::Descriptor &>(image.descriptor()).checksum[0] ^= 1;
 			else
-				const_cast<char *>(
-					image.segments()[0].bytes->data())[image.segments()[0].bytes->size() - 1] ^= 1;
+				const_cast<char *>(image.segments()[0].bytes->data())[0] ^= 1;
 			const auto before = mappings->used();
 			bool refused = false;
 			try {

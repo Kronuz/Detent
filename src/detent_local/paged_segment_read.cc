@@ -42,12 +42,14 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 	Phase phase = Phase::OpenOwner;
 	std::exception_ptr failure, closure_failure;
 	bool submitted = false, owner_open = false, pack_open = false, closing = false;
+	bool tolerate_mismatch = false, damaged = false;
 	State(std::shared_ptr<StorageSession> session, std::shared_ptr<d::StorageLedger> account,
-		  StorageIdentity storage, StorageIdentity segment, std::uint64_t uid)
+		  StorageIdentity storage, StorageIdentity segment, std::uint64_t uid, bool tolerate)
 		: session(std::move(session)), account(std::move(account)),
 		  owner(this->session->backend()->make_closed_file()),
 		  pack(this->session->backend()->make_closed_file()), storage(storage), segment(segment),
-		  names(segment), trusted_owner(uid), token(this->session->next_operation()) {}
+		  names(segment), trusted_owner(uid), token(this->session->next_operation()),
+		  tolerate_mismatch(tolerate) {}
 	bool safe(const c::EntryInspection &entry) const noexcept {
 		return entry.footprint.kind == c::EntryKind::Regular && entry.links == 1 &&
 			   entry.owner == trusted_owner && !(entry.permissions & 0022) &&
@@ -84,9 +86,10 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 };
 PagedSegmentRead::PagedSegmentRead(d::RetirementFactory factory, std::shared_ptr<StorageSession> session,
 								   std::shared_ptr<d::StorageLedger> account, StorageIdentity storage,
-								   StorageIdentity segment, std::uint64_t uid) {
+								   StorageIdentity segment, std::uint64_t uid, bool tolerate_mismatch) {
 	const auto context = session->allocation_context();
-	state_ = factory.make<State>(std::move(session), std::move(account), storage, segment, uid);
+	state_ = factory.make<State>(std::move(session), std::move(account), storage, segment, uid,
+								 tolerate_mismatch);
 	using Handle = d::RetirementHandle<State>;
 	pin_ = std::allocate_shared<Handle>(c::OwnedAllocator<Handle>(context), state_);
 	prepare(c::Kind::OpenInto);
@@ -94,6 +97,7 @@ PagedSegmentRead::PagedSegmentRead(d::RetirementFactory factory, std::shared_ptr
 PagedSegmentRead::~PagedSegmentRead() = default;
 bool PagedSegmentRead::ready() const noexcept { return state_->phase == State::Phase::Ready; }
 bool PagedSegmentRead::done() const noexcept { return ready() || state_->phase == State::Phase::Done; }
+bool PagedSegmentRead::damaged() const noexcept { return state_->damaged; }
 bool PagedSegmentRead::in_flight() const noexcept { return state_->submitted; }
 bool PagedSegmentRead::needs_work() const noexcept {
 	const auto phase = state_->phase;
@@ -212,8 +216,11 @@ void PagedSegmentRead::step(ValidationBudget &budget) {
 				--budget.rows;
 				unsigned char digest[32];
 				state_->hash.getHash(digest);
-				if (std::memcmp(digest, state_->ownership.checksum.data(), 32))
-					throw SegmentProofError("segment payload checksum mismatch");
+				if (std::memcmp(digest, state_->ownership.checksum.data(), 32)) {
+					if (!state_->tolerate_mismatch)
+						throw SegmentProofError("segment payload checksum mismatch");
+					state_->damaged = true;
+				}
 				state_->phase = Phase::Reheld;
 				prepare(c::Kind::InspectFile);
 			}

@@ -1,5 +1,5 @@
 // The timer wheel the design proposes (docs/design/async-drivers.md, D4), as a prototype to
-// measure and test: owner-thread only (Debug-asserted), clock-agnostic (deadlines are
+// measure and test: owner-thread only while its loop runs (Debug-asserted), clock-agnostic (deadlines are
 // nanoseconds on the owner's clock, manual or steady), intrusive (a 32-byte entry inside its
 // owner, no allocation), O(1) arm and cancel, and next() to arm the one reactor timer.
 // 4,096 slots of 1 ms; a deadline a round or more ahead waits in its slot, skipped until due.
@@ -29,6 +29,13 @@ public:
 	explicit wheel(std::uint64_t now = 0) noexcept : cursor_(now / tick) {}
 
 	// The first arm, cancel or expire binds the wheel to its thread; every later one must run there.
+	// release() unbinds it once the loop is stopped and closed (teardown's phase 2), so teardown's
+	// one thread may unlink entries and drop what is still armed (phases 3 and 4).
+	void release() noexcept {
+#ifndef NDEBUG
+		owner_ = std::thread::id{};
+#endif
+	}
 	void arm(wheel_entry& e, std::uint64_t deadline) noexcept {
 		owner_check();
 		if (e.armed()) { unlink(e); }

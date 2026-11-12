@@ -14,6 +14,7 @@ publication (agent and relay: one PublicationOperation in DiskStore)
 
 restart (StartupOperation)
   census   stat every entry, read storage.meta / selected / owner records read-only (no sync)
+  remove   selected, only when its ownership names a layout that is not current
   barrier  SyncFiles {storage.meta} + directory    -> then change bump_all, then ready()
 ```
 

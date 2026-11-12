@@ -21,6 +21,7 @@ class PagedSegmentCollection final : public kronuz::io::completion::Operation {
 	void invalidate() noexcept;
 	void close() noexcept;
 	std::exception_ptr error() const noexcept;
+	bool deferred() const noexcept;
 
   private:
 	struct State;

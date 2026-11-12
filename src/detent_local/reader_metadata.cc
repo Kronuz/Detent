@@ -17,9 +17,8 @@ template <class Bytes> bool nonzero(const Bytes &value) {
 void validate(const ReaderMetadata &value) {
 	const auto &counts = value.counts;
 	require(nonzero(value.storage) && nonzero(value.generation) && nonzero(value.root_checksum) &&
-	        std::uint64_t(counts.bools) + counts.ints <= UINT32_MAX && counts.maximum_overrides <= 256 &&
-	        (counts.overrides == 0) == (counts.maximum_overrides == 0) &&
-	        counts.overrides <= std::uint64_t(counts.bools) * counts.maximum_overrides &&
+	        counts.maximum_overrides <= 256 && (counts.overrides == 0) == (counts.maximum_overrides == 0) &&
+	        counts.overrides <= std::uint64_t(counts.records) * counts.maximum_overrides &&
 	        value.physical_bytes >= paged::root_bytes);
 }
 paged::Digest checksum(std::span<const char> bytes) {
@@ -42,8 +41,7 @@ std::array<char, reader_metadata_bytes> encode_reader_metadata(const ReaderMetad
 	std::copy(value.storage.begin(), value.storage.end(), bytes.begin() + 16);
 	std::copy(value.generation.begin(), value.generation.end(), bytes.begin() + 32);
 	std::copy(value.root_checksum.begin(), value.root_checksum.end(), bytes.begin() + 48);
-	write_integer(bytes, 80, value.counts.bools, 4);
-	write_integer(bytes, 84, value.counts.ints, 4);
+	write_integer(bytes, 80, value.counts.records, 4);
 	write_integer(bytes, 88, value.counts.overrides, 8);
 	write_integer(bytes, 96, value.counts.strings, 8);
 	write_integer(bytes, 104, value.physical_bytes, 8);
@@ -64,15 +62,14 @@ void validate_reader_metadata_prefix(std::span<const char> bytes, const ReaderMe
 	matches(0, 80);
 	matches(116, 160);
 	if (bytes.size() >= 88)
-		require(read_integer(bytes, 80, 4) + read_integer(bytes, 84, 4) <= UINT32_MAX);
+		require(read_integer(bytes, 84, 4) == 0);
 	if (bytes.size() >= 96)
 		require(read_integer(bytes, 88, 8) <= read_integer(bytes, 80, 4) * 256);
 	if (bytes.size() >= 112)
 		require(read_integer(bytes, 104, 8) >= paged::root_bytes);
 	if (bytes.size() >= 116) {
 		auto value = binding;
-		value.counts = {static_cast<std::uint32_t>(read_integer(bytes, 80, 4)),
-		                static_cast<std::uint32_t>(read_integer(bytes, 84, 4)), read_integer(bytes, 88, 8),
+		value.counts = {static_cast<std::uint32_t>(read_integer(bytes, 80, 4)), read_integer(bytes, 88, 8),
 		                read_integer(bytes, 96, 8), static_cast<std::uint32_t>(read_integer(bytes, 112, 4))};
 		value.physical_bytes = read_integer(bytes, 104, 8);
 		validate(value);
@@ -94,8 +91,8 @@ ReaderMetadata decode_reader_metadata(std::span<const char> bytes) {
 	std::copy_n(bytes.begin() + 16, value.storage.size(), value.storage.begin());
 	std::copy_n(bytes.begin() + 32, value.generation.size(), value.generation.begin());
 	std::copy_n(bytes.begin() + 48, value.root_checksum.size(), value.root_checksum.begin());
-	value.counts.bools = read_integer(bytes, 80, 4);
-	value.counts.ints = read_integer(bytes, 84, 4);
+	require(read_integer(bytes, 84, 4) == 0);
+	value.counts.records = read_integer(bytes, 80, 4);
 	value.counts.overrides = read_integer(bytes, 88, 8);
 	value.counts.strings = read_integer(bytes, 96, 8);
 	value.physical_bytes = read_integer(bytes, 104, 8);

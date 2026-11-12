@@ -9,8 +9,8 @@ StateEquivalence::StateEquivalence(RecoveredGeneration left, RecoveredGeneration
 	if (left.descriptor().cursor != right.descriptor().cursor ||
 		left.descriptor().profile != right.descriptor().profile) {
 		mismatch();
-	} else if (const auto a = StateCursor::logical_commitment(left),
-			   b = StateCursor::logical_commitment(right);
+	} else if (const auto a = StateCursor::state_commitment(left),
+			   b = StateCursor::state_commitment(right);
 			   a && b) {
 		done_ = true;
 		equal_ = *a == *b;
@@ -24,7 +24,7 @@ StateEquivalence::StateEquivalence(StateCursor left, StateCursor right)
 	  target_directory_(right.directory_identity()) {
 	if (source_.cursor != target_.cursor || source_.profile != target_.profile)
 		mismatch();
-	else if (const auto a = left.logical_commitment(), b = right.logical_commitment(); a && b) {
+	else if (const auto a = left.state_commitment(), b = right.state_commitment(); a && b) {
 		done_ = true;
 		equal_ = *a == *b;
 	} else {
@@ -124,17 +124,10 @@ void StateEquivalence::step(ValidationBudget &budget) {
 			pairs[0] = {a.name_space, b.name_space};
 			pairs[1] = {a.key, b.key};
 			pair_count = 2;
-			same = a.revision == b.revision && a.definition.index() == b.definition.index();
-			if (same) {
-				if (const auto *flag = std::get_if<SourceBoolean>(&a.definition)) {
-					const auto &other = std::get<SourceBoolean>(b.definition);
-					same = flag->default_value == other.default_value &&
-						   flag->rollout_pct == other.rollout_pct &&
-						   flag->override_count == other.override_count;
-				} else {
-					same = std::get<IntDef>(a.definition) == std::get<IntDef>(b.definition);
-				}
-			}
+			same = a.revision == b.revision && a.definition.default_value == b.definition.default_value &&
+				   a.definition.rollout_pct == b.definition.rollout_pct &&
+				   a.definition.rollout_value == b.definition.rollout_value &&
+				   a.definition.override_count == b.definition.override_count;
 		}
 		if (!same) {
 			mismatch();

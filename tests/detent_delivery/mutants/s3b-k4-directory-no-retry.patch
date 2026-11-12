@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index d75cb2d0..2e1cd27d 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -33,8 +33,6 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
+ 	if (directory_ >= 0)
+ 		::close(directory_);
+ 	directory_ = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+-	if (directory_ < 0)
+-		directory_ = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+ 	if (directory_ < 0) {
+ 		running_ = false;
+ 		throw std::system_error(errno, std::generic_category(), "open scrub directory");

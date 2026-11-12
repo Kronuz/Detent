@@ -3,10 +3,11 @@
 #   run.sh idle_cost [groups]       per-idle-group bytes, descriptors and threads
 #   run.sh driver_cost [section]    frames, resumes, wheels, steps, idle CPU
 #   run.sh channel_layout           where a follower's SnapshotChannel bytes go
-#   run.sh wheel_test|waiter_test|blocking_entry|reader_test|placement_test|lone_voter|repartition_lost|shrink_dial [args]
+#   run.sh wheel_test|waiter_test|blocking_entry|reader_test|placement_test|lone_voter|repartition_lost|frame_admission [args]
 #                                   the protocol tests and probes
 #   run.sh peers_cost [voters...]   today's per-group transport (OpenSSL 3 or later at $OPENSSL_ROOT)
 #   run.sh conn_cost [connections]  one idle peer connection, today's and D10's (the same OpenSSL)
+#   run.sh hop_cost [busy|idle]     the cross-loop hop of a received batch (D10)
 # SANITIZE=address,undefined or SANITIZE=thread builds with those sanitizers (own build dir).
 # A campaign job pins the libraries with --ref consensus=..., journal=..., completion=...,
 # task=... (checkouts at $JOB_REF_<NAME>); without them, the commits CMakeLists.txt declares.

@@ -1,5 +1,4 @@
 #include "detent_local/client_source.hh"
-#include "detent/detail/evaluation.hh"
 #include "detent/validation.hh"
 #include "resources.hh"
 #include <atomic_shared_ptr.h>
@@ -25,47 +24,37 @@ struct FrozenEvaluation : distribution::RetirementNode {
 					 std::shared_ptr<const OverrideTable> cli)
 		: live(std::move(view)), defaults(std::move(baked)), overrides(std::move(cli)), fallback(defaults) {
 		metadata.last_success = std::chrono::steady_clock::now();
-		metadata.bool_knobs = live.bool_count();
-		metadata.int_knobs = live.int_count();
+		metadata.knobs = live.size();
 		if (live)
 			metadata.cursor = live.cursor();
 		if (defaults) {
 			for (const auto &[name, definition] : defaults->knobs) {
 				auto separator = name.find(':');
-				if (!live.contains(name.substr(0, separator), name.substr(separator + 1))) {
-					metadata.bool_knobs += is_bool(definition);
-					metadata.int_knobs += is_int(definition);
-				}
+				metadata.knobs += !live.contains(name.substr(0, separator), name.substr(separator + 1));
 			}
 		}
 	}
-	Result<bool, KnobError> eval(std::string_view name, std::optional<std::string_view> hash,
-								 std::optional<std::string_view> group) const {
-		if (auto override = detent::detail::override_value<bool>(overrides.get(), name))
-			return std::move(*override);
+	Result<std::int64_t, KnobError> get(std::string_view name, std::optional<std::string_view> hash,
+										std::optional<std::string_view> group) const {
+		if (overrides) {
+			auto found = overrides->values.find(name);
+			if (found != overrides->values.end())
+				return found->second;
+		}
 		auto separator = name.find(':');
-		if (auto value = live.try_eval(name.substr(0, separator), name.substr(separator + 1), hash, group))
+		if (auto value = live.try_get(name.substr(0, separator), name.substr(separator + 1), hash, group))
 			return qualified(std::move(*value), name);
-		return fallback.eval(name, hash, group);
-	}
-	Result<std::int64_t, KnobError> get(std::string_view name) const {
-		if (auto override = detent::detail::override_value<std::int64_t>(overrides.get(), name))
-			return std::move(*override);
-		auto separator = name.find(':');
-		if (auto value = live.try_get(name.substr(0, separator), name.substr(separator + 1)))
-			return qualified(std::move(*value), name);
-		return fallback.get(name);
+		return fallback.get(name, hash, group);
 	}
 };
 class LocalEvaluation final : public EvaluationView {
   public:
 	explicit LocalEvaluation(distribution::RetirementHandle<FrozenEvaluation> frozen)
 		: frozen_(std::move(frozen)) {}
-	Result<bool, KnobError> eval(std::string_view name, std::optional<std::string_view> hash,
-								 std::optional<std::string_view> group) const override {
-		return frozen_->eval(name, hash, group);
+	Result<std::int64_t, KnobError> get(std::string_view name, std::optional<std::string_view> hash,
+										std::optional<std::string_view> group) const override {
+		return frozen_->get(name, hash, group);
 	}
-	Result<std::int64_t, KnobError> get(std::string_view name) const override { return frozen_->get(name); }
 	std::optional<distribution::Cursor> cursor() const noexcept override { return frozen_->metadata.cursor; }
 	const ReadSourceStatus &metadata() const noexcept { return frozen_->metadata; }
 

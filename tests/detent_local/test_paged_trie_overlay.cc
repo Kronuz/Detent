@@ -26,11 +26,10 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 	std::uint64_t strings = 3, overrides = 0;
 	for (const auto &[key, row] : rows) {
 		strings += key.size();
-		if (auto b = std::get_if<detent::BoolDef>(&row.first))
-			for (const auto &[name, v] : b->overrides) {
-				++overrides;
-				strings += name.size();
-			}
+		for (const auto &[name, v] : row.first.overrides) {
+			++overrides;
+			strings += name.size();
+		}
 	}
 	a(4);
 	n(1);
@@ -47,30 +46,28 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 		n(0);
 		text(key);
 		n(row.second);
-		if (auto b = std::get_if<detent::BoolDef>(&row.first)) {
-			a(4);
-			n(0);
-			wire.push_back(b->default_value ? '\xc3' : '\xc2');
-			if (b->rollout_pct)
-				n(*b->rollout_pct);
-			else
-				wire.push_back('\xc0');
-			a(b->overrides.size());
-			for (const auto &[name, v] : b->overrides) {
-				a(3);
-				text(name);
-				if (auto pct = std::get_if<detent::GroupRollout>(&v)) {
-					n(1);
-					n(pct->rollout_pct);
-				} else {
-					n(0);
-					wire.push_back(std::get<bool>(v) ? '\xc3' : '\xc2');
-				}
+		const auto &b = row.first;
+		a(4);
+		m::signed_integer(wire, b.default_value);
+		if (b.rollout_pct)
+			n(*b.rollout_pct);
+		else
+			wire.push_back('\xc0');
+		if (b.rollout_value)
+			m::signed_integer(wire, *b.rollout_value);
+		else
+			wire.push_back('\xc0');
+		a(b.overrides.size());
+		for (const auto &[name, v] : b.overrides) {
+			a(3);
+			text(name);
+			if (auto pct = std::get_if<detent::GroupRollout>(&v)) {
+				n(1);
+				n(pct->rollout_pct);
+			} else {
+				n(0);
+				m::signed_integer(wire, std::get<std::int64_t>(v));
 			}
-		} else {
-			a(2);
-			n(1);
-			m::signed_integer(wire, std::get<detent::IntDef>(row.first).default_value);
 		}
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decode(wire));
@@ -98,7 +95,14 @@ void finish(l::detail::TrieOverlay &overlay) {
 	}
 }
 int main() {
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	detent::KnobDef boolean;
+	boolean.rollout_pct = 25;
+	boolean.rollout_value = 1;
+	boolean.overrides.emplace("beta", detent::GroupRollout{17});
+	Rows original{{"app:count", {detent::KnobDef{INT64_MIN}, 41}}, {"app:flag", {boolean, 42}}};
+	for (unsigned i = 0; i < 500; ++i)
+		original["app:filler" + std::to_string(i)] = {detent::KnobDef{std::int64_t(i)}, 42};
+	auto source = oracle(original);
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
@@ -124,7 +128,7 @@ int main() {
 		finish(relocated);
 		relocated.seal();
 		const auto [logical, keys] = fingerprint(relocated.root(), input->segments);
-		require(logical == input->image.root().logical &&
+		require(logical == p::state_commitment(input->image.root()) &&
 				keys == input->image.root().records + input->image.root().namespaces);
 		require(relocated.visited_pages() == input->image.root().pages &&
 				relocated.relocated_pages() == input->image.root().pages);
@@ -148,33 +152,33 @@ int main() {
 		l::GenerationId split_generation{};
 		split_generation.fill('x');
 		auto split = std::make_shared<l::testing::SplitPagedInput>(
-			source->storage_account(), input->segments, input->image.root(), storage, split_generation);
-		l::detail::GraphValidator validator(source->storage_account(), split, split->inputs, split->root,
-											storage);
+			source->storage_account(), input->segments, input->image.root(), storage,
+			split_generation);
+		l::detail::GraphValidator validator(source->storage_account(), split, split->inputs,
+											split->root, storage);
 		while (!validator.done()) {
 			l::ValidationBudget budget{1, 1};
 			validator.step(budget);
 		}
 		for (std::size_t choice = 0; choice < split->packs.size(); ++choice) {
-			l::detail::TrieOverlay relocated(source->storage_account(), split, split->inputs, split->root);
+			l::detail::TrieOverlay relocated(source->storage_account(), split, split->inputs,
+											 split->root);
 			const auto identity = split->packs[choice].ownership.segment;
 			relocated.begin_relocation({&identity, 1}, 100);
 			finish(relocated);
 			relocated.seal();
 			const auto [logical, keys] = fingerprint(relocated.root(), split->inputs);
-			require(logical == split->root.logical && keys == split->root.records + split->root.namespaces);
+			require(logical == p::state_commitment(split->root) &&
+					keys == split->root.records + split->root.namespaces);
 			require(relocated.visited_pages() == split->root.pages);
 			const auto selected = l::detail::find_segment(split->inputs, identity);
-			require(relocated.removed()[selected].pages == validator.segment_reachability(selected).pages);
+			require(relocated.removed()[selected].pages ==
+					validator.segment_reachability(selected).pages);
 			if (!choice)
 				require(relocated.relocated_pages() < split->root.pages);
 		}
 	}
-	detent::BoolDef boolean;
-	boolean.default_value = true;
-	boolean.rollout_pct = 25;
-	boolean.overrides.emplace("beta", detent::GroupRollout{17});
-	Rows original{{"app:count", {detent::IntDef{INT64_MIN}, 41}}, {"app:flag", {boolean, 42}}};
+
 	struct Change {
 		std::string key;
 		std::optional<std::int64_t> value;
@@ -201,7 +205,7 @@ int main() {
 		const auto baseline = source->storage_account()->used();
 		p::Root empty;
 		empty.cursor = cursor();
-		empty.logical = p::empty_commitment();
+
 		l::detail::TrieOverlay overlay(source->storage_account(), input, {}, empty);
 		std::array<char, 202> key{};
 		const auto length = p::encode_namespace_key(key, "app");
@@ -230,8 +234,8 @@ int main() {
 										   input->image.root());
 			std::array<char, 202> key{};
 			const auto length = p::encode_definition_key(key, "app:count");
-			std::array<char, 24> body{};
-			p::encode_definition(body, detent::IntDef{0}, 42);
+			std::array<char, p::definition_header_bytes> body{};
+			p::encode_definition(body, detent::KnobDef{}, 42);
 			overlay.change({key.data(), length}, body);
 			l::ValidationBudget partial{sizeof(l::detail::OverlayNode) + body.size() + 1, 3};
 			overlay.step(partial);
@@ -249,7 +253,8 @@ int main() {
 			require(turns >= 8192);
 		}
 		require(source->storage_account()->used() == baseline);
-		auto pressure = source->storage_account()->admit(source->storage_account()->limit() - baseline);
+		auto pressure =
+			source->storage_account()->admit(source->storage_account()->limit() - baseline);
 		bool rejected = false;
 		try {
 			l::detail::TrieOverlay overlay(source->storage_account(), input, input->segments,
@@ -272,14 +277,15 @@ int main() {
 				const auto length = p::encode_definition_key(key, change.key);
 				std::vector<char> body;
 				if (change.value) {
-					detent::KnobDef value = detent::IntDef{*change.value};
+					detent::KnobDef value{*change.value};
 					body.resize(p::definition_size(value));
 					p::encode_definition(body, value, 42);
 					expected[change.key] = {value, 42};
 				} else
 					expected.erase(change.key);
 				overlay.change({key.data(), length},
-							   change.value ? std::optional<std::span<const char>>(body) : std::nullopt);
+							   change.value ? std::optional<std::span<const char>>(body)
+											: std::nullopt);
 				finish(overlay);
 				require(overlay.changed() == (change.key != "app:missing"));
 			}
@@ -292,13 +298,14 @@ int main() {
 				full.step(b);
 			}
 			auto image = full.take();
-			require(logical == image.root().logical && keys == expected.size() + 1);
+			require(logical == p::state_commitment(image.root()) && keys == expected.size() + 1);
 			std::uint64_t removed_pages = 0, removed_bytes = 0;
 			for (const auto &s : overlay.removed()) {
 				removed_pages += s.pages;
 				removed_bytes += s.bytes;
 			}
-			require(removed_pages <= input->image.root().pages && removed_bytes <= input->image.root().bytes);
+			require(removed_pages <= input->image.root().pages &&
+					removed_bytes <= input->image.root().bytes);
 			for (;;) {
 				l::ValidationBudget b{1, 1};
 				if (overlay.discard(b))

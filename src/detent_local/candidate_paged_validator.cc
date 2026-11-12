@@ -70,7 +70,7 @@ void CandidatePagedValidator::step(ValidationBudget &budget) {
 			inputs_.freeze();
 			const auto limits = paged_limits(limits_, image_->image().descriptor().length);
 			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), storage_, limits,
-						   PagedSemanticLimits{limits_.strings, limits_.overrides});
+						   PagedSemanticLimits{limits_.strings, limits_.overrides}, nullptr, true);
 			break;
 		}
 		if (!budget.rows)

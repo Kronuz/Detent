@@ -67,7 +67,7 @@ int main() {
 		for (unsigned revision = 1; revision <= 3; ++revision) {
 			command.sequence = revision;
 			command.name_space = revision == 2 ? "secret" : "ns";
-			command.mutations = {{revision == 2 ? "secret:x" : "ns:a", detent::IntDef{revision}, {}, {}}};
+			command.mutations = {{revision == 2 ? "secret:x" : "ns:a", detent::KnobDef{revision}, {}, {}}};
 			history->begin_batch(context, revision + 1, state.revision());
 			check(state.apply(revision + 1, command).status == a::Status::Applied);
 			auto draft = history->capture(state, command, changed);
@@ -173,7 +173,7 @@ int main() {
 			check(!exporter.counted());
 			command.sequence = 4;
 			command.name_space = "ns";
-			command.mutations = {{"ns:a", detent::IntDef{44}, {}, {}}};
+			command.mutations = {{"ns:a", detent::KnobDef{44}, {}, {}}};
 			history->begin_batch(context, 5, state.revision());
 			check(state.apply(5, command).status == a::Status::Applied);
 			auto draft = history->capture(state, command, changed);
@@ -196,7 +196,7 @@ int main() {
 			auto snapshot = decoder.finish();
 			check(snapshot.cursor().revision == 3 && snapshot.records().size() == 1);
 			check(snapshot.records()[0].key == "ns:a" && snapshot.records()[0].revision == 3 &&
-				  std::get<detent::IntDef>(snapshot.records()[0].definition).default_value == 3);
+				  (snapshot.records()[0].definition).default_value == 3);
 			dispose(exporter);
 		}
 		// Revoke coverage after admission, before count: fallback is owner-local.
@@ -225,7 +225,7 @@ int main() {
 		for (unsigned row = 0; row < 4000; ++row) {
 			command.sequence++;
 			command.name_space = "ns";
-			command.mutations = {{"ns:key" + std::to_string(row), detent::IntDef{row}, {}, {}}};
+			command.mutations = {{"ns:key" + std::to_string(row), detent::KnobDef{row}, {}, {}}};
 			check(state.apply(row + 6, command).status == a::Status::Applied);
 		}
 		{
