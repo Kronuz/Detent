@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261112-053956-3b0fae 261112-054000-50cdce 261112-054004-86840d
+State: waiting on jobs 261112-060238-07d083 261112-060240-aeddbe 261112-060242-91b3b1 261112-060245-8f3097 261112-060247-134b63 261112-060249-b9d1ca
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -27,6 +27,22 @@ measured tightly enough to decide 1.10x).
 - Disassembly 261112-053944-8a557a: at 45f98eb the armed path (re-arm, cancel) is 5 instructions
   shorter (unlink's one compare); the unarmed arm adds a load of e.next (pprev's line) and one
   not-taken jne: clang splits `queued() | (e.next != nullptr)` into two branches.
+- Rounds collapsed to 1 (lead's msg): round() echoed headers to stdout, not to $log, which the
+  in-job summary reads, so every run was round -1 and each arm kept its last run. The jobs ran
+  all rounds (full job logs). Also the cross printf patch had missed (no CPU time, no ghz) and a
+  failed build in `[ ] || compile` would not stop set -e. Fixed in wheel:c90dd8f; the parser
+  now exits 1 on a run repeated within a round (checked on a header-stripped log).
+- Offline from the full logs (not evidence; the reruns are): single R = 40 (054000-50cdce) w/a
+  0.986 [0.965-1.007] at 1K (band 3.9%), 1.012 [0.963-1.035] at 1M (4.6%); f/a 0.952, 0.971.
+  A/B R = 60 (053956-3b0fae): w.new/w.old 1.002 [0.978-1.014] (band 2.3%); JCC 0.985
+  [0.963-1.010]. Per pass w.new/w.old arm 1.351, rearm 1.132, cancel 0.839, expire 0.930, while
+  a.new/a.old (identical code) moves 1.129 overall, rearm 1.490: layout. Cross R = 40
+  (054004-86840d): w/f 1.065 [1.022-1.107] P = 1 (band 4.2%), 1.100 [0.904-1.333] P = 4 (7.9%),
+  1.093 [1.004-1.141] P = 14 (18.0%).
+- Reruns at wheel:c90dd8f, each row its own job: single 060238-07d083; cross P = 1, 4 R = 40
+  060240-aeddbe; cross P = 14 R = 100 060242-91b3b1 (band 18% at R = 40); beside, reported:
+  JCC single 060245-8f3097, JCC cross 060247-134b63; A/B four layouts (plain, JCC, blocks
+  aligned 32, functions aligned 64) 060249-b9d1ca after flag probe 055835-f1caf9.
 - wheel:ec5439a: AGENTS describes the paired method (docs only).
 - Jobs: Q1 A/B (w at f540679 vs head, a from both builds, plain and -mbranches-within-32B-
   boundaries) 261112-053956-3b0fae; single row R = 40 261112-054000-50cdce; cross row R = 40
@@ -138,10 +154,9 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Read 261112-053956-3b0fae (Q1: w.new/w.old and a.new/a.old, plain and JCC-aligned),
-   261112-054000-50cdce (single R = 40) and 261112-054004-86840d (cross R = 40; is producer_cpu_ns
-   tighter than producer_ns at P = 4, 14; ghz and speed_limit per run). Queued behind another
-   quest's light ASan hold until about 06:24. Then write the A1 verdict and the Cost section.
+1. Read the reruns (State). A1 under D77 by the paired median per row; say how much of any gap
+   the f and a controls show between builds; producer_cpu_ns vs producer_ns at P = 14. Then the
+   Cost section and README numbers.
 2. Read the A1 rows (the cross row at P = 1 decides A1 per the lead). Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
    --confirm F1=261112-045015-68d268` (the lead's).
 2. A7 re-review by the Xapiand lead.
