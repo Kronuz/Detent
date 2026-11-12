@@ -6811,9 +6811,9 @@
       ],
       "repo": "../task",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T09:24:53",
+      "updated": "2026-11-12T09:39:08",
       "worktree": "../task-wt/detent/service-shape"
     },
     "sha256-avx2": {
