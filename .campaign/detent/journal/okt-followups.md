@@ -1,6 +1,6 @@
 # okt-followups: journal
 
-State: waiting on jobs 261112-115015-ce950b 261112-115019-543828 261112-115028-7f7f86 261112-114417-f899ed 261112-114424-6f60ca 261112-114429-cba3de
+State: waiting on jobs 261112-131901-4e7ea5 261112-131902-b2e1a4
 Quest: .campaign/detent/quests/okt-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A3 job 261112-114409-93a80c failed: health_snapshot expected 4 knobs, my two new knobs make 6 (python test_detent.py:118, rust integration.rs:116). Fixed at 532c5c27. Jobs at 532c5c27: suite 261112-115015-ce950b (A1,A2,A4); A3 bindings 261112-115019-543828; A3 mutant c3 261112-115028-7f7f86 (rerun: the earlier run could have been killed by the count, not the test). Mutants A1 261112-114417-f899ed and A2 261112-114424-6f60ca (done, exit 0) and A4 261112-114429-cba3de (running) are at 23559fd2; the code and tests they exercise are unchanged by 532c5c27.
+Suite 261112-115015-ce950b failed in test_local_view: "invalid local image row". Cause: my `app:ramp7` record did not set the override start (r+32) to the running override index (2, after app:bool's two rows); view.cc:261 requires it. Not the A4 LeafBody check. Fixed at 233c39c7. Jobs at 233c39c7: suite 261112-131901-4e7ea5; A2 mutant rerun 261112-131902-b2e1a4 (the earlier exit 0, 261112-114424-6f60ca, was killed by the invalid row, not by the check). A1 mutant 261112-114417-f899ed and A4 mutant 261112-114429-cba3de are at code the fix does not touch (test_paged_definition, test_paged_leaf_body); A3 bindings 261112-115019-543828 and A3 mutant 261112-115028-7f7f86 passed at 532c5c27 (binding tests and read_view.hh unchanged since).
 
 ## Next
 
