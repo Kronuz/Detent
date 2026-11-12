@@ -5,27 +5,24 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+logger.cc's deferred lines live on a `wheel::timer_wheel` the LOG thread owns, as arm D of logger-wheel-slim (`bench/wheel_ab/d/logger.cc` at logger:afe86c5, changes 2 and 3, the sorted batch, no heap); the logger's own deadline structure is gone (D72, D86).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The suite passes, plus a test that a deferred line fires once, in order with its peers, no earlier than its due time and within one tick plus the LOG thread's wake: jobs
+- A2 TSan over the suite and the deferred-line stress test: a job
+- A3 The production logger matches arm D's numbers: the wheel_ab rows p3 and p2 at P=1, 4, 14 with the production logger as candidate against arm D as reference, by D77's paired statistic, none past 1.10: exclusive jobs
+- A4 A grep job finds no deadline heap or second timer structure left in logger.cc
+- A5 [artifact] ARCHITECTURE.md says deferred lines ride the LOG thread's wheel, their 1 ms resolution and why: `ARCHITECTURE.md`
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes `wheel:timer_wheel` (wheel:bfd72bc).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D72, D78, D86.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
