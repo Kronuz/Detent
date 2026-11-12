@@ -1,6 +1,6 @@
 # one-knob-type: journal
 
-State: waiting on jobs SUITE_IDS (suite after the S6 observability deletion and the main merge).
+State: waiting on jobs 261111-225634-f03976 (suite after the S6 observability deletion and the main merge).
 A3 written up at Detent:dad4d5f5 from the jobs at Detent:dab00c10; A1, A2, A4 met.
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
@@ -78,7 +78,7 @@ runs: varint 49.4 / 50.6 B per record against main 62.1 / 63.1 (-20%), fixed wid
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-200115-da0928; after the deletion and merge: SUITE_IDS |
+| A1 | 261111-200115-da0928; after the deletion and merge: 261111-225634-f03976 |
 | A2 | 261111-200115-da0928; fails without: 261111-183800-28bea7, 261111-183804-21b82d |
 | A3 | 261111-201652-e744f8, 261111-201652-1b9d0e, 261111-201510-0027ae, 261111-201515-c9a550, 261111-201520-86effa, 261111-201525-efcbe6, 261111-201530-3605db, 261111-201535-254d6a, 261111-201539-7b4315, 261111-201545-be6229, 261111-201550-b4eb67, 261111-201555-ac7f70, 261111-201600-cbb858, 261111-201605-e35e36, 261111-201609-b99e4c, 261111-201613-6fb580, 261111-201618-c669dd |
 | A4 | 261111-201651-a2bd67 |
