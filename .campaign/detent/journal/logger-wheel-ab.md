@@ -1,6 +1,6 @@
 # logger-wheel-ab: journal
 
-State: waiting on jobs 261111-213647-db2133 261111-213650-b74b73 261111-213704-468c65 261111-213706-83fcd7 261111-213709-9eeb14 261111-213711-19f0f9 261111-213714-b4e077 261111-213717-89857f 261111-213720-97a103 261111-213722-d6f730 261111-213725-b37905 261111-213727-d1817f 261111-213730-f2e369
+State: waiting on jobs 261111-214121-f90ca2 261111-214123-23aa11 261111-214125-385b87 261111-214127-dc777e 261111-214130-4103e4 261111-214132-5d4386 261111-214135-abf741 261111-214137-11d246 261111-214140-2dd32d 261111-214142-0655f8 261111-214145-259bc3 261111-214148-32e29d 261111-214151-0258b9
 Quest: .campaign/detent/quests/logger-wheel-ab.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Harness committed at logger:30790d1. Jobs queued (all `--slot wab`, tsan in `wab-tsan`):
-- A2 correctness: check 261111-213647-db2133 (light), tsan 261111-213650-b74b73 (light)
-- smoke 261111-213704-468c65 (strict, after check)
-- rows (exclusive, after smoke): p1 P1 261111-213706-83fcd7, p1 P4 261111-213709-9eeb14,
-  p1 P14 261111-213711-19f0f9, p2 P1 261111-213714-b4e077, p2 P4 261111-213717-89857f,
-  p2 P14 261111-213720-97a103, p3 P1 261111-213722-d6f730, p3 P4 261111-213725-b37905,
-  p3 P14 261111-213727-d1817f, formatted p1 P1 261111-213730-f2e369
+At logger:91924df (kept-line count made atomic after TSan job 261111-213650-b74b73 flagged the
+harness's own counter across libc++'s std::barrier; no backend race). Check at logger:30790d1
+passed (261111-213647-db2133): all 18 backend/pattern/P cases exactly once, none early, no
+cleared line written. Resubmitted at 91924df (old smoke/rows cancelled):
+- check 261111-214121-f90ca2, tsan 261111-214123-23aa11 (light), smoke 261111-214125-385b87
+- rows (exclusive): p1 P1 261111-214127-dc777e, p1 P4 261111-214130-4103e4,
+  p1 P14 261111-214132-5d4386, p2 P1 261111-214135-abf741, p2 P4 261111-214137-11d246,
+  p2 P14 261111-214140-2dd32d, p3 P1 261111-214142-0655f8, p3 P4 261111-214145-259bc3,
+  p3 P14 261111-214148-32e29d, formatted p1 P1 261111-214151-0258b9
 
-Probe (local, check mode, P=4, not timing): both backends pass exactly-once/no-early/no-cleared
+Order: (B) writes immediate lines out of per-thread order in every check (28,237 of 30,720 at
+P=1; 103,959 of 122,880 at P=4); (A) 0. Probe (local, check mode, P=4, not timing): both backends pass exactly-once/no-early/no-cleared
 for patterns 1 and 3; (B) wrote 24,002 of 24,576 immediate lines out of per-thread order (wheel
 slot lists are LIFO; inbox stripes are LIFO), (A) 0.
 
