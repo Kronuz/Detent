@@ -169,6 +169,13 @@
       "closed": "noted: completion:dfdac5d lib-doc-nits, no API change",
       "id": "msg-26",
       "text": "completion:dfdac5d landed (lib-doc-nits): barrier_volumes() is now leaked (no exit-time destructor); barriers.md and posix.h comment corrections from the barrier-warning-completion review (N1-N6). No API change."
+    },
+    {
+      "at": "2026-11-12T04:58:01",
+      "by": "xapiand-lead",
+      "closed": "Detent has no IO wrapper overriding acquire_directory_owner, so nothing must forward acquire_directory_reader; picks it up at the next completion pin bump",
+      "id": "msg-27",
+      "text": "completion:504f409 landed (dir-shared-lock): new virtual IO::acquire_directory_reader() (shared flock, LOCK_SH|LOCK_NB, one directory lock per IO, either kind); base throws logic_error like acquire_directory_owner(), so IO wrappers that should allow shared opens must forward it. One lock(fd, kind) helper now serves both; tools/mutants.py has m15 (25 mutants). SH->EX upgrade is two caller-owned steps; Linux drops SH on conversion, macOS keeps it when a non-blocking conversion fails (docs/mechanisms/directory-locks.md)."
     }
   ],
   "quests": {
