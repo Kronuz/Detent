@@ -4497,7 +4497,111 @@
       "updated": "2026-11-10T13:19:10"
     },
     "namespace-s6": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T13:42:22",
+          "base": "4d6e39c6d800644180ec58908f47140cbe91fcb0",
+          "blobs": {
+            "docs/status/namespace-s6.md": "100644:acb6c56e1b1af45a9fbdb0c988e5ce3bf66fd8f2",
+            "include/detent/cursor.hh": "100644:3c4d9b3105eef3f7c67b6c6514dcb5902e0d883d",
+            "include/detent_delivery/namespace_session.hh": "100644:9e944c4a3cec16ae6a029a258708a06b9b86ab11",
+            "include/detent_distribution/grants.hh": "100644:df1795d08fb4d2c8b4885c90eea6255d8956ede2",
+            "include/detent_distribution/history.hh": "100644:d68193feb94d614bab47a00ae956c104af72bd4e",
+            "include/detent_distribution/protocol.hh": "100644:a1dda205b17b9d213a7d36b489c844d62914e3e1",
+            "include/detent_distribution/session_frames.hh": "100644:f8561b85acbc94280c117cc23768ae0f23ae74b6",
+            "include/detent_distribution_http/session_request.hh": "100644:bb3c5be2707eac3583d3f5c9bae6365d5c1a2b31",
+            "include/detent_local/agent_store.hh": "100644:16840e0deaa316386965ff5903be01bebd4bc7b9",
+            "src/detent_delivery/CMakeLists.txt": "100644:03d22d7b1d18ecccbce65aa6f64aba2945cb6852",
+            "src/detent_delivery/client.cc": "100644:3a65074e895aab1bd807586428b34c0e42ea6084",
+            "src/detent_delivery/namespace_session.cc": "100644:20228c7fd0ec0c5369c66dc417fc8b3986c43d55",
+            "src/detent_delivery/session_control_internal.hh": "100644:9899706da0415bd89202be8d6dff68b5ed59483c",
+            "src/detent_distribution/CMakeLists.txt": "100644:6c0774cb607962168dfc250e6534d798d67a22b6",
+            "src/detent_distribution/frame_encoder.cc": "100644:f15c366ff564d07f038546dbfcd7fde03c5d3286",
+            "src/detent_distribution/framing.cc": "100644:8e66fab5a2b6f73adcde323f17498093ce1fa7af",
+            "src/detent_distribution/grants.cc": "100644:35e53d6b8634bdfdf3f48a98dbcb71fd5511359b",
+            "src/detent_distribution/session_frames.cc": "100644:58429d38908e73a71aa3b764b860486f7f11cfac",
+            "src/detent_distribution_http/session_request.cc": "100644:e23daec06b3cf8ba6af2d8d262436d01ad93e8ee",
+            "tests/detent_delivery/CMakeLists.txt": "100644:a6cad6e602d1882cbc1fb55fca45102ca57f3761",
+            "tests/detent_delivery/test_namespace_session.cc": "100644:582254857f3bfb25469755bcbefe14f393eda93e",
+            "tests/detent_delivery/test_session_request.cc": "100644:a6b02bb73d2e8e15b117b90759b713d9c520fb6b",
+            "tests/detent_distribution/CMakeLists.txt": "100644:d713be5aa2a7371ce2ca3ba816afa6d49dfaadfe",
+            "tests/detent_distribution/history_fixture.hh": "100644:8133634d76b40e000833028e187dc232823479e2",
+            "tests/detent_distribution/test_grants.cc": "100644:9a0121b3f47f675071f48341f410341ba33f193f",
+            "tests/detent_distribution/test_session_frames.cc": "100644:917e7b925e3125c8a00ed822e4e156708cbb5104"
+          },
+          "by": "review",
+          "commit": "c41c4aa337becfc54d12a1cc59f1d7bcbd5d07b6",
+          "criteria": "6115836cf6ef1fff",
+          "diffs": {
+            "docs/status/namespace-s6.md": "96a3af8886de59ec",
+            "include/detent/cursor.hh": "6e6fcebde8ef7658",
+            "include/detent_delivery/namespace_session.hh": "66c221531a6875dd",
+            "include/detent_distribution/grants.hh": "e0367559b87e1b22",
+            "include/detent_distribution/history.hh": "526c8d9455c3e8c1",
+            "include/detent_distribution/protocol.hh": "49435e62bc6d710e",
+            "include/detent_distribution/session_frames.hh": "c41dadd9711781bf",
+            "include/detent_distribution_http/session_request.hh": "66c15cd0d1850588",
+            "include/detent_local/agent_store.hh": "b059c17244b92628",
+            "src/detent_delivery/CMakeLists.txt": "4384c9520a1d4e89",
+            "src/detent_delivery/client.cc": "1b2aa9997a9c9112",
+            "src/detent_delivery/namespace_session.cc": "c9a356b7d91acef0",
+            "src/detent_delivery/session_control_internal.hh": "c16919951a62cfc9",
+            "src/detent_distribution/CMakeLists.txt": "f63d24ff9cce3a1a",
+            "src/detent_distribution/frame_encoder.cc": "034e1dd81f53488c",
+            "src/detent_distribution/framing.cc": "8de9412df95d3cbe",
+            "src/detent_distribution/grants.cc": "540aed9e9b9ef1c6",
+            "src/detent_distribution/session_frames.cc": "7ae27c632f353a17",
+            "src/detent_distribution_http/session_request.cc": "03dff95bea121f52",
+            "tests/detent_delivery/CMakeLists.txt": "d0b98c292ede2476",
+            "tests/detent_delivery/test_namespace_session.cc": "3a9085c91426abeb",
+            "tests/detent_delivery/test_session_request.cc": "5bc564d1abcf45d3",
+            "tests/detent_distribution/CMakeLists.txt": "24f03bb610bf5c1d",
+            "tests/detent_distribution/history_fixture.hh": "97e02d72a1c775c1",
+            "tests/detent_distribution/test_grants.cc": "1c83b579a8c3c068",
+            "tests/detent_distribution/test_session_frames.cc": "616a35fd17c8cdce"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'s/const bool whole = span.first > answer.after;.*/const bool whole = span.first == answer.after + 1;/'\"'\"' src/detent_distribution/session_frames.cc; grep -q '\"'\"'span.first == answer.after + 1'\"'\"' src/detent_distribution/session_frames.cc; cmake -S . -B .scratch/mutant -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF >/dev/null; cmake --build .scratch/mutant -j4 --target test_distribution_session_frames >/dev/null; git checkout -- src/detent_distribution/session_frames.cc; if .scratch/mutant/tests/detent_distribution/test_distribution_session_frames; then echo \"mutant survived\"; exit 1; else echo \"mutant killed\"; fi'",
+                  "commit": "135b4afeb0b48c120edbcb5d825611ff10087fe7",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-133133-0d940a",
+                  "level": "light",
+                  "seconds": 72.8,
+                  "state": "done",
+                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'s/const bool whole = at 135b4afeb0b4"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'/session piece after its frame.s target/d'\"'\"' src/detent_distribution/session_frames.cc; ! grep -q '\"'\"'after its frame.s target'\"'\"' src/detent_distribution/session_frames.cc; cmake -S . -B .scratch/mutant -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF >/dev/null; cmake --build .scratch/mutant -j4 --target test_distribution_session_frames >/dev/null; git checkout -- src/detent_distribution/session_frames.cc; if .scratch/mutant/tests/detent_distribution/test_distribution_session_frames; then echo \"mutant survived\"; exit 1; else echo \"mutant killed\"; fi'",
+                  "commit": "135b4afeb0b48c120edbcb5d825611ff10087fe7",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-133136-769cd1",
+                  "level": "light",
+                  "seconds": 76.7,
+                  "state": "done",
+                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'/session piece after at 135b4afeb0b4"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "4b12f6eaaf1bb6b22714df9240322445154d444c",
+          "reviewed": "38434738c0012c230dea434a7043fbbddc45c3dd",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "f5b76ddd39423d6c321ececdbad5db1c8f4dd4c2",
       "branch": "quest/detent/namespace-s6",
@@ -4601,7 +4705,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T13:18:55",
+      "updated": "2026-11-12T13:42:22",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s6-cutover": {
