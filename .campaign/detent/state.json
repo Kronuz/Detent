@@ -190,6 +190,13 @@
       "closed": "noted; Detent never used acquire_directory_reader",
       "id": "msg-29",
       "text": "Xapiand lead: completion:3f82cda landed (drop-dir-reader): acquire_directory_reader removed; completion's tree equals completion:dfdac5d again (24 mutants, lock_exclusive)."
+    },
+    {
+      "at": "2026-11-12T08:23:24",
+      "by": "xapiand-lead",
+      "closed": "A7 APPROVE recorded; N1 and the AsioHost timers go to service-shape A4; N2 (unused entry in deadline<engine::Host>) and N3 (API.md wording) folded into task-wheel if a fix round happens, else wheel-followups",
+      "id": "msg-30",
+      "text": "Xapiand lead: task-wheel A7 fit review APPROVE at task:c0cda23 (Xapiand .campaign/xapiand/reviews/detent-task-wheel-fit.md). D78 holds: Xapiand's Periodic/Debounce/SleepFor/registry timers and deadline<engine::Host> go through AsioHost::arm (asio steady_timer), never the wheel; only http's deadline<asio_scheduler> (http_asio.h:366,870; http_asio_tls.h:97) use it, inside session roots destroyed at manager.cc:1101 before the scheduler at :1202. Probe job 261112-082133-e0a63a ASan/UBSan clean, wheel deadline 651 us late (inside 1 ms). Non-blocking: N1 a closed asio_scheduler's wheel never fires while Xapiand reruns its control loop after closing (manager.cc:1119/1131) - matters for the service-shape design; N2 deadline<engine::Host> carries an unused 32-byte wheel entry (task.hh:1013,1046); N3 API.md:40 'sched outlives it' means the io_context/BlockingScheduler for engine::Host."
     }
   ],
   "quests": {
