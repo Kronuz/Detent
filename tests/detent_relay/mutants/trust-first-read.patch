@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 60105128..5e94c25f 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -510,7 +510,7 @@ std::string MirrorStore::read(const MirrorFile &file, const MirrorFetch &from) {
+ 		throw std::invalid_argument("relay mirror read: a file the table does not reach: " + file.name);
+ 	if (!s.missing.contains(name)) {
+ 		auto bytes = s.slurp(name, file.size);
+-		if (bytes && bytes->size() == file.size && s.verified.contains(name))
++		if (bytes && bytes->size() == file.size)
+ 			return std::move(*bytes);
+ 		if (bytes && bytes->size() == file.size && digest(*bytes) == file.digest) {
+ 			s.verified.insert(name);

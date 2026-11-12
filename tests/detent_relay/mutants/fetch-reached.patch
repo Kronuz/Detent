@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 60105128..f53a46ad 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -415,7 +415,7 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
+ 			if (const auto found = s.reached.find(name); found != s.reached.end()) {
+ 				if (*found->second != file)
+ 					throw FetchRefused("relay mirror: the upstream changed an immutable file: " + file.name);
+-				if (!s.missing.contains(name)) {
++				if (false) {
+ 					++stats.reused_files;
+ 					continue;
+ 				}
