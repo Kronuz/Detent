@@ -29,7 +29,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261111-231503-9f6729 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231503-c6e0f3 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-ab1b64 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-d0ab1d (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-105c4b (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231504-a7001e (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231505-db629f (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md), 261111-231505-46ce45 (passed at 167dbc0340db; ignores docs-only docs/design/stash-niche.md) |
+| A2 | [artifact] `docs/design/stash-niche.md` |
 
 ## Result
 
