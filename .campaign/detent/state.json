@@ -6069,6 +6069,8 @@
       "after": [
         "task-wheel"
       ],
+      "base": "4de16f2754cd4f17c0dba6370dab155c71aad933",
+      "branch": "quest/detent/reactor-on-wheel",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -6093,6 +6095,7 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/reactor-on-wheel",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6100,9 +6103,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Reactor loop timers on the wheel",
-      "updated": "2026-11-12T03:59:27"
+      "updated": "2026-11-12T11:38:04",
+      "worktree": "../reactor-wt/detent/reactor-on-wheel"
     },
     "reactor-task-sessions": {
       "accepted": {},
