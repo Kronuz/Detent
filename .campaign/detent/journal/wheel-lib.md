@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-233420-9245bb 261111-233422-3a6c0b 261111-233426-cba5bf
+State: waiting on jobs 261111-234624-f5cc8e 261111-233420-9245bb 261111-233422-3a6c0b 261111-233426-cba5bf
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -76,6 +76,11 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
+0. Lead decision D75 (Detent:d78a72c5): A1's single row is measured with the harness's
+   candidate wrappers forced inline for every arm alike; A1 is met or missed by that row,
+   261111-234624-f5cc8e (R = 10, WHEEL_BENCH_CXXFLAGS=-DWHEEL_BENCH_FORWARD=[[gnu::always_inline]]).
+   261111-233420-9245bb stays as the default-build row. A6 reports both builds, per-op numbers,
+   the expire residue (+1.2 to +4.3 ns, cause untraced) and each feature's cost.
 1. Read the A1 rows at wheel:1cd7e7a: single 261111-233420-9245bb (R = 10), cross
    261111-233422-3a6c0b, and the fuzz rerun 261111-233426-cba5bf (A5). The rest passed (above).
 2. Write the numbers into docs/timer-wheel.md Cost and README Performance (A6), the Evidence
