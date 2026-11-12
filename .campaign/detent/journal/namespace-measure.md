@@ -1,6 +1,6 @@
 # namespace-measure: journal
 
-State: waiting on jobs 261112-113923-c7fdbf 261112-113417-855a8e 261112-113952-04bb75 261112-113957-f378f9 261112-114001-1829af 261112-113801-4be23d
+State: waiting on jobs 261112-113417-855a8e 261112-113952-04bb75 261112-113957-f378f9 261112-114001-1829af 261112-113801-4be23d
 Quest: .campaign/detent/quests/namespace-measure.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,7 +21,7 @@ Pre-read of the rules on data already in hand (to be confirmed in "## Verdicts")
 
 1. When the jobs finish: read each log's `skip` lines first. Fit T9: `python3 -I docs/perf/namespace-measure-t9-fit.py <round log>`; n=1 per size and no f=1 point if arm 1 is cut, so report R^2 and alpha as an interval; if the interval straddles a threshold, D55 allows one second run with the cut arms. If alpha is not in {0.5, 1, 2}, submit `model wire SHAPE alpha` (light) for the three shapes.
 2. VM flush counts from 261112-113801-4be23d (`flush` lines), batched vs per-file; APFS by construction.
-3. `campaign verify namespace-measure` for pins at the final commit; rerun any evidence job still flagged stale.
+3. Pins passed at ae46477b (261112-113923-c7fdbf, exit 0); rerun `campaign verify namespace-measure` after the last code commit if it is flagged; rerun any evidence job still flagged stale.
 4. Write "## Verdicts" in `docs/perf/namespace-measure.md` (T9 alpha, T4(7) sync-bound, period, flush counts); the Rules text says completion:ab0f551 and flush field 15: say in the verdict that the probe is completion:560c288 (ruling 9) and the counter is field 16 (ruling 10). The design's numbers (outside the file set): report to the lead.
 
 ## Blocked on
