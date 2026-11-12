@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-101934-9835ac 261112-101937-cd3834 261112-101939-91ce7a 261112-101942-4b0fb6 261112-101944-86316f 261112-101946-73c9a9 261112-101949-df1512
+State: waiting on jobs 261112-110335-6a7d98 261112-110339-801f6a 261112-110341-652760 261112-110343-cac79c 261112-110345-af41a7 261112-110347-d3409b 261112-110350-35e70e 261112-110353-94ae31 261112-110357-7089ed 261112-110400-e7b591 261112-101946-73c9a9
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -47,6 +47,17 @@ So change 3 (logger:HEAD, kWakeSlackNs = 8 ms in wake_for) wakes on a push due n
 Change 3 jobs: check-d 261112-101934-9835ac, tsan-d 261112-101937-cd3834, stats p3 P=14
 261112-101939-91ce7a, p3 P=1 261112-101942-4b0fb6, rows p3 P=1 261112-101944-86316f, p3 P=14
 261112-101946-73c9a9, p2 P=1 261112-101949-df1512. If bypass ~0: revert change 1 (heap), re-measure.
+
+Change 3 (logger:3dcc62e, on 1+2): check-d 261112-101934-9835ac, tsan-d 261112-101937-cd3834 passed;
+bypass 0 of 716,800 at p3 P=14 (261112-101939-91ce7a), 0 of 51,200 at P=1 (-101942-4b0fb6); row p3 P=1
+(with heap) median 0.975 p99 0.886 [0.804-1.211], lag 1.08x, log CPU 1.16x (261112-101944-86316f); row
+p3 P=14 with heap 261112-101946-73c9a9 (running at the time); p2 P=1 with-heap row superseded.
+Bypass is 0, so change 1's heap is dropped (logger:a029757 reverts 6c29783): final D = changes 2+3 on
+the sorted batch. Final jobs at a029757: check-d 261112-110335-6a7d98, tsan-d 261112-110339-801f6a,
+stats p3 P=14 261112-110341-652760, P=1 261112-110343-cac79c; rows (all six): p3 P=1
+261112-110345-af41a7, P=14 -110347-d3409b, P=4 -110353-94ae31 (order of submit: p3 1, 14, p2 1, 4, 14,
+p3 4): p2 P=1 261112-110350-35e70e, p2 P=4 -110353-94ae31, p2 P=14 -110357-7089ed, p3 P=4 -110400-e7b591.
+(Check `campaign job show` for each what.) Then "Arm D, fixed" in docs/perf/wheel-ab.md.
 
 ## Next
 
