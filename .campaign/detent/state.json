@@ -4895,7 +4895,6 @@
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/settings-and-flags.md",
         "tests/docs/**",
-        "tests/detent_delivery/scripted_upstream.hh",
         "tests/detent_delivery/probe_fixture.hh",
         "tests/detent_delivery/test_response.cc",
         "tests/detent_agent/test_agent_catch_up.cc",
@@ -4913,7 +4912,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T16:30:04",
+      "updated": "2026-11-11T17:12:50",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
