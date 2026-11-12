@@ -7474,18 +7474,50 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/wheel-lib",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T07:54:01",
+          "commit": "bfd72bc13395e4a232701e752be97ccd236530fc",
+          "criteria": {
+            "A1": "261112-070852-a49c65, 261112-070854-f092b7, 261112-070857-0d1f9a",
+            "A2": "261112-072540-473e5f; fails without: 261111-202912-b5aee7, 261111-202915-2b286a, 261111-204408-d59cd1, 261111-210559-9425eb, 261112-045016-03086f, 261112-045020-d35b49, 261112-045024-2acb3a, 261112-045028-3630df, 261112-045042-c739f7, 261112-045044-6131c7, 261112-045047-01cc0b, 261112-045050-1426c6",
+            "A3": "261112-072540-473e5f",
+            "A4": "261112-072540-1af165, 261112-072540-aa77ce",
+            "A5": "261112-072540-27b165",
+            "A6": "`docs/timer-wheel.md` (Cost (A1), Threading contracts), README Performance, at wheel:45f98eb",
+            "A7": "the Xapiand lead: CHANGES at f540679 (detent-wheel-lib-fit.md); F1, F3, F4, F6 answered at 45f98eb"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+              "commit": "bfd72bc13395e4a232701e752be97ccd236530fc",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-072540-473e5f",
+              "level": "light",
+              "seconds": 11.5,
+              "state": "done",
+              "what": "wheel-lib check suite at bfd72bc13395"
+            }
+          ],
+          "final": true,
+          "from": "7c5ddc7401ac28d5da9557752ed2f1f61e6ab0cc",
+          "reason": "",
+          "tested": "bfd72bc13395e4a232701e752be97ccd236530fc"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../wheel",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
-      "updated": "2026-11-12T07:44:16",
+      "updated": "2026-11-12T07:54:02",
       "worktree": "../wheel-wt/detent/wheel-lib"
     }
   },
