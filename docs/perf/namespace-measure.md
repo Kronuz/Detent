@@ -12,7 +12,7 @@ These rules were committed before any measurement job ran. A verdict follows its
 
 1. **Host.** The reference host is the Intel Core i9-9980HK (16 threads, 32 GiB, macOS, APFS on the internal NVMe). The Linux platform is the local QEMU VM (Ubuntu 24.04, kernel 6.8, 8 vCPUs, 16 GiB, ext4 on virtio, `cache=none`), driven under a host hold with `QUIET_VM` pinning its threads. No AWS and no rented machine.
 2. **Builds.** Release builds (`-O3 -DNDEBUG` on macOS, `-O2` or better on Linux), x86_64, checked with `file` on every binary that times anything. Detent at this quest's branch commit (its `src/` equals `main`'s), completion at `completion:ab0f551` for the probe.
-3. **Repetition.** Every number that decides anything comes from an `exclusive` job on the reference host, or a `strict` job with `QUIET_VM` in the VM, each under 30 minutes. A point is the median of its five runs; its spread is the range (max - min). A difference counts only when it exceeds both arms' spreads.
+3. **Repetition.** Every number that decides anything comes from an `exclusive` job on the reference host, or a `strict` job with `QUIET_VM` in the VM, each under 30 minutes. A point is the median of its runs (T4(7): the rounds of its job, D55; T9: five runs on the 100K corpus, D85); its spread is the range (max - min). A difference counts only when it exceeds both arms' spreads. T9's 5M corpus gets one budgeted `exclusive` round, which confirms the 100K result and decides only when it disagrees with it (T9 rule 6).
 
 ### T9: the cut point, α
 
@@ -32,11 +32,12 @@ T_blocks(x) = x / L + T_apply(x)        T_base = C / L + T_full
 α(L) = x* / C, where T_blocks(x*) = T_base
 ```
 
-1. **Fit.** T_apply(x) = a + b · x by least squares over the 20 runs (4 sizes, 5 runs each). If R² < 0.98 or any size's median lies more than 10% from the line, T_apply is instead the piecewise-linear interpolation of the four medians, extended past the last pair by its slope. Both are reported; the rule picks which one sets α.
+1. **Fit.** T_apply(x) = a + b · x by least squares over the 100K corpus's 20 runs (4 sizes, 5 runs each), and again over the 5M round's points. If R² < 0.98 or any size's median lies more than 10% from the line, T_apply is instead the piecewise-linear interpolation of the four medians, extended past the last pair by its slope. Both are reported; the rule picks which one sets α.
 2. **Solve** for x* at L = 1 Gb/s and 10 Gb/s, with transfer counted on raw bytes (the design's form). The zstd-3 sizes of each answer's frames are recorded and α is also reported with transfer on those sizes, as a sensitivity row that sets nothing.
 3. **Clamp.** If T_blocks stays below T_base up to x = 2C (extrapolating the fit), α = 2, the disk cap's bound (D6 "Cut", rule 2). If T_blocks at the smallest measured x already exceeds T_base, α is the fit's crossing if it is positive, else 1/8.
 4. **The policy value.** α for `Limits` is the smallest α(L) over both links and every platform measured, so no block answer at the cut is slower than the copy on any measured link and platform. It is rounded down to a multiple of 1/8 (at least 1/8) and stated as a ratio of integers (α_num / α_den, D6 "Every input is replicated", NR-2).
 5. **Recorded, deciding nothing:** relay CPU per answer, measured as the CPU of encoding each answer's frames (records to fragments, with today's zstd-3 framing) in the harness, since no block server exists yet; and server bytes read per answer, from the model's `layout` mode at α for the moderate churn (read / sent there) applied to each measured x.
+6. **100K and 5M (D85).** α is computed from each of the five 100K runs (its four block sizes and its full copy give one α; the spread is their range) and from the 5M round (one run per arm, as many arms as its time budget allows). If the 5M α lies inside the 100K range, the 100K median α sets the policy value (rule 4). If it lies outside, the 5M round decides, and the verdict says it has no spread of its own.
 
 ### T4(7): `completion_sync_probe`
 
@@ -59,6 +60,15 @@ Evaluated at T9's α, with period 16 as the baseline, in this order:
 3. **Efficiency.** Otherwise, period 64 is adopted only if in every shape its mean answer / missing is at most 1.05 times period 16's and its mean server read / missing at most 1.25 times period 16's: within those bands the 22-25% fewer bytes written (model `files`: 2.03 / 1.85 / 1.52 against 2.69 / 2.34 / 1.78 times the raw changes) outweigh a dead share of 6% against 3%. If either band fails, the period stays 16.
 
 The verdict names the rule that decided it, and the design's period, files, flushes and wire figures are updated or confirmed to match.
+
+## Rulings that changed the runs
+
+Recorded before any data they govern; the thresholds, the fit and the decision rules above are unchanged.
+
+1. **D55 (short measurements).** One strict or exclusive job of at most 10 minutes per row, so T4(7) runs fewer rounds than rule 3's 15 and 9 (the sync-bound rule reads 64-256 files, which keep 15, 15 and 7-15).
+2. **Probe pin.** The probe is `completion:560c288`, not `ab0f551`: only it honors the 1 KiB file size (journal ruling 9). The batched path is the same code.
+3. **Flush counter.** The kernel counter is `/sys/block/<dev>/stat` field 16 (flush requests completed), not "field 15" (discard ticks), which the first VM run read (journal ruling 10).
+4. **D85 (5M runs confirm).** T9 is five runs on the 100K corpus plus one budgeted 5M round, replacing five runs at 5M (Common rule 3, T9 rules 1 and 6).
 
 ## Verdicts
 
