@@ -1,6 +1,6 @@
 # One knob type: page bytes and read speed (A3)
 
-Main's two-type tree (Detent:555b6379) against the one-knob tree (Detent:b9bf610c) on the
+Main's two-type tree (Detent:555b6379) against the one-knob tree (Detent:ea9d4147, jobs at Detent:dab00c10) on the
 dense-pages corpora (100K and 5M records,
 `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-{100k,5m}.bin`, SHA-256 in each job's
 `inputs.sha256`). The design note ([../design/one-knob-type.md](../design/one-knob-type.md))
@@ -9,7 +9,8 @@ defines the columns and draws the conclusion.
 ## Procedure
 
 `one-knob-type.sh` drives every step as a campaign job; outputs land under
-`/Users/kronuz/code/Kronuz/Detent/.scratch/okt/`.
+`/Users/kronuz/code/Kronuz/Detent/.scratch/okt/ea9d4147/`; the converted corpora are in
+`.scratch/okt/corpora` (`CORPORA` in each job's environment).
 
 1. `corpora OUT` (light): `one-knob-type-corpus.py` rewrites each pinned corpus's bodies as the
    fixed-width and the varint one-knob body; the census JSON counts definitions and body bytes.
@@ -31,8 +32,9 @@ defines the columns and draws the conclusion.
 
 ## Page bytes
 
-Dense model, job 261111-154349-807bef; C++ full builds of both trees and the model again, jobs
-261111-162851-fc6aaf (100K) and 261111-162856-b47db3 (5M).
+Dense model, job 261111-154349-807bef; C++ full builds of both trees and the model again at the
+head, jobs 261111-201652-e744f8 (100K) and 261111-201652-1b9d0e (5M). The varint roots
+(1f457c20… on 100K, 8a2e8747… on 5M) equal those at Detent:b9bf610c and Detent:432d75a4.
 
 | Corpus | Body | Pages | Page bytes | Page B/record | C++ full build |
 | --- | --- | --- | --- | --- | --- |
@@ -45,29 +47,45 @@ Dense model, job 261111-154349-807bef; C++ full builds of both trees and the mod
 
 The C++ full build matches the model byte for byte for both trees at both sizes. The same jobs
 report admission memory, the decoded snapshot before the build: 15,412,448 B (main) against
-17,970,224 B (one-knob) on 100K and 783,597,840 B against 908,076,272 B on 5M: 16% more, about 25 B
-per definition, the size of the added `optional<int64>` rollout value (not isolated); peak 21.8 MB against 23.3 MB and 1.10 GB against
-1.16 GB (+7% and +6%). The same runs report admission at 0.12 s against 0.26 s (100K) and 8.0 s
-against 19.5 s (5M), and full-build CPU at 0.23 s against 0.38 s and 15.2 s against 19.4 s. One run
-each in a light job beside other load: an observation, not a timed result; the build path is not
-one of A3's metrics.
+17,970,224 B (one-knob) on 100K and 783,597,840 B against 908,076,272 B on 5M: 16% more, about
+25 B per definition, the size of the added `optional<int64>` rollout value (not isolated); peak
+21.8 MB against 23.3 MB and 1.10 GB against 1.16 GB (+7% and +6%). The same runs report admission
+at 0.20 s against 0.24 s (100K) and 7.5 s against 8.7 s (5M), and full-build CPU at 0.30 s
+against 0.28 s and 12.7 s against 12.4 s. One run each in a light job beside other load: an
+observation, not a timed result; the build path is not one of A3's metrics.
 
 ## Read speed
 
-Prepared builds and stores, job 261111-162827-7366e8; pairs 0-5, jobs 261111-162829-50dcc0 ..
-261111-162838-020154 (100K) and 261111-162839-4759eb .. 261111-162848-77259b (5M); verdicts, jobs
-261111-183007-d14279 (100K) and 261111-183020-636dd8 (5M). Each arm's statistic per pair is the
+Prepared builds and stores, job 261111-201510-0027ae; pairs 0-5, jobs 261111-201515-c9a550,
+261111-201520-86effa, 261111-201525-efcbe6, 261111-201530-3605db, 261111-201535-254d6a,
+261111-201539-7b4315 (100K) and 261111-201550-b4eb67, 261111-201555-ac7f70, 261111-201600-cbb858,
+261111-201605-e35e36, 261111-201609-b99e4c, 261111-201613-6fb580 (5M); verdicts, jobs
+261111-201545-be6229 (100K) and 261111-201618-c669dd (5M). Each arm's statistic per pair is the
 median of its 60 first reads and the median of its 7 steady passes; the table gives the median
 over the six pairs.
 
 | Corpus | Metric | Main | One-knob | Paired median | Noise floor | Pairs faster | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 100K | first read | 702.9 us | 654.6 us | -78.3 us (-11%) | 90.3 us | 5 of 6 | no worse |
-| 100K | steady read | 1,323 ns | 1,180 ns | -126 ns (-9.5%) | 30 ns | 6 of 6 | no worse |
-| 5M | first read | 703.4 us | 558.5 us | -154.1 us (-22%) | 49.6 us | 6 of 6 | no worse |
-| 5M | steady read | 1,896 ns | 1,720 ns | -133 ns (-7.0%) | 183 ns | 6 of 6 | no worse |
+| 100K | first read | 645.0 us | 600.5 us | -44.4 us (-6.9%) | 87.0 us | 4 of 6 | no worse |
+| 100K | steady read | 1,212 ns | 1,099 ns | -126 ns (-10.4%) | 30 ns | 6 of 6 | no worse |
+| 5M | first read | 716.6 us | 575.5 us | -123.5 us (-17.2%) | 132.0 us | 5 of 6 | no worse |
+| 5M | steady read | 1,929 ns | 1,769 ns | -179 ns (-9.3%) | 212 ns | 5 of 6 | no worse |
 
-The 100K steady read and the 5M first read improve by more than the noise floor; the other two
-are inside it, so they show no regression and no claimed gain. The first read maps, verifies and
-reads one definition from a fresh process; it gains most at 5M, where the varint store is 20%
-smaller (253 MB against 315 MB of pages).
+Per pair, main / one-knob (first read in us, steady read in ns):
+
+| Metric | Pair 0 | Pair 1 | Pair 2 | Pair 3 | Pair 4 | Pair 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 100K first | 645.4 / 606.0 | 667.5 / 591.7 | 580.6 / 648.6 | 673.8 / 574.3 | 558.7 / 626.4 | 644.5 / 595.1 |
+| 100K steady | 1,187 / 1,108 | 1,219 / 1,078 | 1,222 / 1,091 | 1,205 / 1,119 | 1,191 / 1,070 | 1,243 / 1,110 |
+| 5M first | 1,428.5 / 575.0 | 708.2 / 541.5 | 608.6 / 653.9 | 725.0 / 576.0 | 593.0 / 558.0 | 734.1 / 636.1 |
+| 5M steady | 2,117 / 1,686 | 2,046 / 1,899 | 1,774 / 1,889 | 1,812 / 1,631 | 1,809 / 1,632 | 2,073 / 1,851 |
+
+Every metric meets D51's rule (median paired difference at most the noise floor). Only the 100K
+steady read improves by more than the noise floor; the other three are inside it, so they show no
+regression and no claimed gain. Main's 5M first read in pair 0 (1,428.5 us) is an outlier the
+median absorbs; without that pair the paired median is -98.0 us, still inside the floor.
+
+An earlier run of the same procedure on the tree at Detent:b9bf610c (prepare 261111-162827-7366e8,
+verdicts 261111-183007-d14279 and 261111-183020-636dd8) gave the same verdicts: -11% and -9.5% on
+100K, -22% and -7.0% on 5M; its 5M first read crossed the floor (-154.1 us against 49.6 us), which
+this run does not reproduce.

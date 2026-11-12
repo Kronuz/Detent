@@ -127,15 +127,15 @@ The fixed-width body costs 18% (100K) and 19% (5M) more page bytes than main: ev
 override grows from one byte to eight, and a ramped flag carries an eight-byte rollout value. The
 varint body is 20% smaller than main at both sizes and 32% to 33% smaller than fixed width. The paged body is varint.
 
-The read bench and first read, six D51 pairs per size against main (Detent:555b6379), median over
-pairs:
+The read bench and first read, six D51 pairs per size against main (Detent:555b6379), the
+one-knob tree at Detent:ea9d4147, median over pairs:
 
 | Corpus | First read, main / varint | Paired | Steady read, main / varint | Paired |
 | --- | --- | --- | --- | --- |
-| 100K | 702.9 / 654.6 us | -11%, inside noise | 1,323 / 1,180 ns | -9.5% |
-| 5M | 703.4 / 558.5 us | -22% | 1,896 / 1,720 ns | -7.0%, inside noise |
+| 100K | 645.0 / 600.5 us | -6.9%, inside noise | 1,212 / 1,099 ns | -10.4% |
+| 5M | 716.6 / 575.5 us | -17.2%, inside noise | 1,929 / 1,769 ns | -9.3%, inside noise |
 
-Every metric is no worse; two gain beyond the noise floor. The fixed-width body was not timed: its
-18-19% more page bytes than main rule it out before speed. Admission memory, the decoded
+Every metric is no worse; the 100K steady read gains beyond the noise floor. The fixed-width
+body was not timed: its 18-19% more page bytes than main rule it out before speed. Admission memory, the decoded
 snapshot a full build holds, grows 16% (about 25 B per definition, the `optional<int64>` rollout
 value). Per-pair numbers: [../perf/one-knob-type.md](../perf/one-knob-type.md#read-speed).
