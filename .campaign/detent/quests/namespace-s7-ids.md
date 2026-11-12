@@ -12,6 +12,7 @@ Generation, segment, `.read` and `.owner` names are derived as D8.1 says and no 
 - A1 No `StorageIdentity` remains in `.read`, `.owner` or segment ids; every user in src/detent_local and src/detent_testing derives them: a grep job and the suite
 - A2 A rebuild at an unchanged head publishes under ordinal r + 1 and never reuses a name: a test that fails without it
 - A3 A power cut at every storage primitive of publication still recovers to the last acknowledged generation or the one before: the crash model job
+- A4 `PagedSemanticLimits` has no default bounds: every caller passes the store's or the format's bound, `benchmarks/paged_snapshot_bench.cc` included (warm-graph-5m review N2, N3): it compiles only that way, and a grep job finds no `PagedSemanticLimits{}`
 
 ## Contracts
 

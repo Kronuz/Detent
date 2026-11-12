@@ -1064,6 +1064,45 @@
       "updated": "2026-11-11T00:01:57",
       "worktree": ""
     },
+    "delta-plan-scaling": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_delta_plan.*",
+        "src/detent_local/paged_plan.*",
+        "src/detent_local/sparse_plan_finalizer.*",
+        "src/detent_local/paged_warm_validator.*",
+        "src/detent_local/warm_registry_merge.*",
+        "src/detent_local/paged_node_*",
+        "src/detent_local/paged_navigation.*",
+        "tests/detent_local/test_delta_plan_*",
+        "tests/detent_local/CMakeLists.txt",
+        "docs/perf/delta-plan-scaling.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "warm-graph-5m"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "A delta's plan grows superlinearly with the store",
+      "updated": "2026-11-12T15:20:10"
+    },
     "dense-distribution": {
       "accepted": {
         "design": {
@@ -2976,8 +3015,115 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
-    "logger-on-wheel": {
+    "logger-exit-crash": {
       "accepted": {},
+      "after": [
+        "logger-followups"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "logger.cc",
+        "logger.h",
+        "test/**",
+        "docs/ROADMAP.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "normal",
+      "status": "planned",
+      "title": "logger: exit without finish can crash",
+      "updated": "2026-11-12T15:54:37"
+    },
+    "logger-followups": {
+      "accepted": {},
+      "after": [],
+      "base": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+      "branch": "quest/detent/logger-followups",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "logger.cc",
+        "logger.h",
+        "test/**",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md",
+        "bench/wheel_ab/**",
+        "docs/perf/**",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "journal": "../Detent-wt/detent/logger-followups",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "normal",
+      "status": "active",
+      "title": "logger: review follow-ups and the scheduler link",
+      "updated": "2026-11-12T15:40:36",
+      "worktree": "../logger-wt/detent/logger-followups"
+    },
+    "logger-on-wheel": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T14:59:30",
+          "base": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:13369b359041754cc57b6c81c380002c007dd050",
+            "CHANGELOG.md": "100644:35ad74c7731a2592463de1d1f695a61112f353a5",
+            "CMakeLists.txt": "100644:d81760fc360be725b035807d84384649ec309109",
+            "README.md": "100644:e38c540224d68fb434da2741e077faeb30e686fa",
+            "docs/perf/wheel-port.md": "100644:be67f43657458664d0143196a393fd739b2c64cd",
+            "docs/perf/wheel-port.sh": "100755:06b82c8eb40832649748b7f9b3dab9493bc6063a",
+            "logger.cc": "100644:82ee383d6fd9dc9c51b8ae284e31964c6e15c17c",
+            "logger.h": "100644:85379e31d54ed295b0fb9d01ccc7524aa3871426",
+            "test/deferred.cc": "100644:14096619c92a4cbdded629c530451905735366f0",
+            "test/deferred_mutant.sh": "100755:372d42717ce002b8e34898eb54ed9af7d1ff5f41"
+          },
+          "by": "review",
+          "commit": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "criteria": "84c1a837a27a9d24",
+          "diffs": {
+            "ARCHITECTURE.md": "3ef59d7f4c033f0d",
+            "CHANGELOG.md": "9d948d6c82b5a2bd",
+            "CMakeLists.txt": "fc6eaab8aac72278",
+            "README.md": "dd0827316979c9b5",
+            "docs/perf/wheel-port.md": "c1b9e0511940ac57",
+            "docs/perf/wheel-port.sh": "f36d18108f3f11bd",
+            "logger.cc": "8481ff960462cb7c",
+            "logger.h": "29d33c2c469ffe19",
+            "test/deferred.cc": "d1a4e8bebe22d284",
+            "test/deferred_mutant.sh": "4c4ecb0bd3baa9af"
+          },
+          "findings": {},
+          "note": "",
+          "review": "7293a2de13a49dc0d152ba12e350dd6c15bdc52e",
+          "reviewed": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "dce25388ec0487bff2b6e0265b22abb67442c26b",
       "branch": "quest/detent/logger-on-wheel",
@@ -3002,11 +3148,46 @@
         "CHANGELOG.md",
         "docs/**"
       ],
-      "journal": "../Detent-wt/detent/logger-on-wheel",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T14:59:43",
+          "commit": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "criteria": {
+            "A1": "261112-140315-039e6c (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh); fails without: 261112-140328-3415e1",
+            "A2": "261112-140332-797330 (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh)",
+            "A3": "261112-140421-86b4c3 (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140412-ee682f (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140415-a16bfe (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140418-0c17c8 (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md)",
+            "A4": "261112-140334-59109a (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh)",
+            "A5": "`ARCHITECTURE.md`: \"Deferred lines ride the LOG thread's wheel\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "be2106cd8e4334c2350d3696a7de0f757fc3b7f3",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/wheel-port.md",
+                "docs/perf/wheel-port.sh"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-140315-039e6c",
+              "level": "light",
+              "seconds": 72.5,
+              "state": "done",
+              "what": "logger-on-wheel check suite at be2106cd8e43"
+            }
+          ],
+          "final": true,
+          "from": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+          "reason": "",
+          "tested": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "logger-wheel-slim"
@@ -3014,10 +3195,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "The logger's deferred lines on Kronuz/wheel",
-      "updated": "2026-11-12T14:40:27",
-      "worktree": "../logger-wt/detent/logger-on-wheel"
+      "updated": "2026-11-12T14:59:48",
+      "worktree": ""
     },
     "logger-wheel-ab": {
       "accepted": {},
@@ -3325,12 +3506,12 @@
       "milestone": "N1",
       "needs": [],
       "provides": [],
-      "reason": "Waits for warm-graph-5m, then one 5M T9 round (D87)",
+      "reason": "Waits for warm-graph-5m and delta-plan-scaling, then one 5M T9 round (D87)",
       "repo": ".",
       "risk": "low",
       "status": "blocked",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-12T13:32:37",
+      "updated": "2026-11-12T15:20:18",
       "worktree": "../Detent-wt/detent/namespace-measure"
     },
     "namespace-s1-s2": {
@@ -5049,7 +5230,8 @@
         "tests/detent_agent/**",
         "tests/detent_system/**",
         "tests/detent_testing/**",
-        "docs/status/namespace-s7.md"
+        "docs/status/namespace-s7.md",
+        "benchmarks/paged_snapshot_bench.cc"
       ],
       "landed": [],
       "lenses": [
@@ -5058,14 +5240,15 @@
       "milestone": "N1",
       "needs": [
         "warm-graph-5m",
-        "namespace-s7"
+        "namespace-s7",
+        "delta-plan-scaling"
       ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T14:58:38"
+      "updated": "2026-11-12T15:35:47"
     },
     "namespace-s7-store": {
       "accepted": {},
@@ -7106,6 +7289,8 @@
       "after": [
         "namespace-s4"
       ],
+      "base": "48edd11b5a885023ebffc5fde465fef5d4b41781",
+      "branch": "quest/detent/s3b-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7131,9 +7316,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Pack repair follow-ups N1-N5",
-      "updated": "2026-11-11T06:15:36"
+      "updated": "2026-11-12T14:59:19",
+      "worktree": "../Detent-wt/detent/s3b-followups"
     },
     "salvage": {
       "accepted": {},
@@ -8068,9 +8254,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T14:48:07",
+      "updated": "2026-11-12T15:19:28",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
@@ -8140,6 +8326,8 @@
         "task-wheel",
         "wheel-vs-stash"
       ],
+      "base": "bfd72bc13395e4a232701e752be97ccd236530fc",
+      "branch": "quest/detent/wheel-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure",
@@ -8155,6 +8343,7 @@
         "docs/**",
         "test/**"
       ],
+      "journal": "../Detent-wt/detent/wheel-followups",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8162,9 +8351,10 @@
       "provides": [],
       "repo": "../wheel",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T11:05:15"
+      "updated": "2026-11-12T15:49:19",
+      "worktree": "../wheel-wt/detent/wheel-followups"
     },
     "wheel-lib": {
       "accepted": {
@@ -8315,17 +8505,45 @@
         "docs/design/async-drivers-bench/**",
         "docs/perf/wheel-vs-stash.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T15:48:40",
+          "commit": "b5c23575a700041a2614a95f5adbf5ced34a7317",
+          "criteria": {
+            "A1": "261112-131222-a47299 (passed at 43f5dbf16f78; only merges from main since), 261112-134519-339b0d (passed at 2e69b9f16b3c; only merges from main since), 261112-134522-786aad (passed at 2e69b9f16b3c; only merges from main since), 261112-134524-cd4fc1 (passed at 2e69b9f16b3c; only merges from main since), 261112-134528-c24e96 (passed at 2e69b9f16b3c; only merges from main since)",
+            "A2": "`docs/perf/wheel-vs-stash.md`: \"Apples to apples, per row\"",
+            "A3": "`docs/perf/wheel-vs-stash.md`: \"The targets build the fetched library, no copy and no candidate arm\""
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/perf/wheel-vs-stash.md",
+              "commit": "0a7dd550826af7b1ae1738e3a01592a935a6a753",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-140821-e7ce4f",
+              "level": "light",
+              "seconds": 0.9,
+              "state": "done",
+              "what": "wheel-vs-stash check docs at 0a7dd550826a"
+            }
+          ],
+          "final": true,
+          "from": "b4b7d01298034c86625fdcca79eb37732221827c",
+          "reason": "",
+          "tested": "fd5525000e66725ea2b7a0abaaabdca8fcf30abf"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "The landed wheel against stash, same harness",
-      "updated": "2026-11-12T11:05:26",
-      "worktree": "../Detent-wt/detent/wheel-vs-stash"
+      "updated": "2026-11-12T15:48:57",
+      "worktree": ""
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
