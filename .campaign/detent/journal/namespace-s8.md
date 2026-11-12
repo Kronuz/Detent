@@ -1,6 +1,6 @@
 # namespace-s8: journal
 
-State: waiting on jobs 261112-120518-8667ef 261112-120518-a03f29 261112-120534-7e0236 261112-120537-fb5cc7 261112-120540-e6efea 261112-120543-c18350 261112-120546-8f0fcd 261112-120549-f1e18a 261112-120552-fbda3d 261112-120555-5fb518 261112-120558-1bde4c
+State: waiting on jobs 261112-121305-5dbe27 261112-121305-c6bca1 261112-121306-11c4d7 261112-121309-eb786c 261112-120543-c18350 261112-120546-8f0fcd 261112-120549-f1e18a 261112-120552-fbda3d 261112-120555-5fb518 261112-120558-1bde4c
 Quest: .campaign/detent/quests/namespace-s8.md (the lead's; never edit it)
 
 ## Doing
@@ -10,17 +10,21 @@ cases, 475 distinct cuts, 475 re-adopted, 0 violations, 12 s). Jobs queued:
 
 | Job | For | What |
 |---|---|---|
-| 261112-120518-8667ef | A2, A4 | native suite (`test_relay_mirror` restart, follows) |
-| 261112-120518-a03f29 | A2, A4 | pins |
-| 261112-120534-7e0236 | A3 | T7 crash matrix |
-| 261112-120537-fb5cc7 | A3 | mutant rename-before-fsync (fails-without) |
-| 261112-120540-e6efea | A3 | mutant no-sync-group |
+| 261112-121305-5dbe27 | A2, A4 | native suite, --fresh (`test_relay_mirror` restart, follows) |
+| 261112-121305-c6bca1 | A2, A4 | pins, --fresh |
+| 261112-121306-11c4d7 | A3 | T7 crash matrix, --fresh |
+| 261112-121309-eb786c | A3 | mutant rename-before-fsync (fails-without), rerun |
+| 261112-120540-e6efea | A3 | mutant no-sync-group: done, killed (exit 0) |
 | 261112-120543-c18350 | A3 | mutant collect-before-table |
 | 261112-120546-8f0fcd | A3 | mutant keep-orphans (startup sweep) |
 | 261112-120549-f1e18a | A2 | mutant fetch-reached (reuse) |
 | 261112-120552-fbda3d | A2 | mutant trust-first-read (repair) |
 | 261112-120555-5fb518 | A4 | mutant no-collector |
 | 261112-120558-1bde4c | A4 | mutant collect-missing-unlink |
+
+Superseded: 261112-120518-8667ef and -a03f29 failed exit 125 before running (the slot
+`detent-namespace-s8`'s `.git` points to a removed worktree registration; msg-38 to the lead);
+261112-120534-7e0236 and 261112-120537-fb5cc7 lost their runner.
 
 ## Next
 
