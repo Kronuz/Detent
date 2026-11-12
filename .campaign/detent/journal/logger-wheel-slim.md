@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-125532-88d000 261112-125533-5e59c9 261112-131943-f2c342 261112-131943-43cd67
+State: waiting on jobs 261112-131943-f2c342 261112-131943-43cd67
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
