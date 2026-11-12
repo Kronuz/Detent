@@ -9,15 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Writing the harness `bench/wheel_ab/` (ab.cc: backends A and B, three patterns, --check mode;
+run.sh: interleaved AA + 6 AB/BA pairs per row; summarize.py: the rule's verdict).
 
 ## Next
 
-1. <step>
+1. Harness + opt-in CMake target (LOGGER_BUILD_WHEEL_AB, wheel FetchContent at 50665c8).
+2. Correctness: --check per pattern/P/backend (light job), B under TSan (light job).
+3. Smoke (strict), then one exclusive job per pattern (3 P rows each) + the formatted row.
+4. Verdict in docs/perf/wheel-ab.md.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -27,7 +31,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | logger:ce34d2d, `docs/perf/wheel-ab.md` "Rule", committed before any measured run |
 
 ## Result
 
