@@ -1,6 +1,6 @@
 # okt-followups: journal
 
-State: waiting on jobs 261112-132758-bc1392 261112-132801-03b771
+State: ready for review
 Quest: .campaign/detent/quests/okt-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Suite 261112-131901-4e7ea5 (233c39c7) and A2 mutant 261112-131902-b2e1a4 passed. The brief flagged A3's job 261112-115019-543828 (ran at 532c5c27) as other code, so A3 bindings and its mutant are rerun at cf30e069: 261112-132758-bc1392 and 261112-132801-03b771. The A1 and A4 mutants (261112-114417-f899ed, 261112-114429-cba3de) ran at 23559fd2; the brief does not flag them. Their test files (test_paged_definition.cc, test_paged_leaf_body.cc) are unchanged since.
+All jobs done; the brief shows every criterion met (only CI is open: branch not pushed).
 
 ## Next
 
-1. When the two A3 jobs pass: paste the brief's table, State ready for review.
+1. Lead: review, push for CI, land.
 
 ## Blocked on
 
@@ -29,7 +29,7 @@ checked what), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261112-131901-4e7ea5; fails without: 261112-114417-f899ed |
 | A2 | 261112-131901-4e7ea5; fails without: 261112-114424-6f60ca (killed by the invalid fixture row, not the check), 261112-131902-b2e1a4 (killed by "local view invariant failed") |
-| A3 | 261112-132758-bc1392 (rerun of 261112-115019-543828 at cf30e069); fails without: 261112-132801-03b771 |
+| A3 | 261112-132758-bc1392 and 261112-132801-03b771 (killed; MUTANT KILLED in its log) (rerun of 261112-115019-543828 at cf30e069); fails without: 261112-132801-03b771 |
 | A4 | 261112-131901-4e7ea5; fails without: 261112-114429-cba3de |
 
 ## Result
