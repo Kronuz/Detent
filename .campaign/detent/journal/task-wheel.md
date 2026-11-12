@@ -1,6 +1,6 @@
 # task-wheel: journal
 
-State: waiting on jobs 261112-080317-77f500 261112-080318-bdea92 261112-080321-77ecd0 261112-080331-647f35 261112-080334-3404ab
+State: ready for review
 Quest: .campaign/detent/quests/task-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,7 +11,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Quest rewritten for D72: task depends on Kronuz/wheel and keeps only the integration.
 
-At task:c0cda23 (pushed, CI run 43254372787):
+At task:c0cda23 (pushed; CI run 43254372787 green on FreeBSD, Linux gcc/clang/arm64, ASan+UBSan,
+TSan, macOS x86_64; macOS arm64 still queued for a runner when this was written):
 - task:12c0443 CMake fetches Kronuz/wheel at wheel:bfd72bc (full hash), `task` links
   wheel::wheel; task.hh includes wheel.hh and names wheel::timer_wheel / wheel::timer_entry; the
   inline wheel, the wheel-only tests and bench/wheel are gone (they live in Kronuz/wheel). Tests
@@ -33,11 +34,13 @@ Wheel rules checked against task (docs/mechanisms/deadlines.md "The wheel's rule
 3. entries outlive the wheel or are cancelled: refcounted state; drop_timer cancels.
 Exact cancel holds: task never arm_remote()s; off-loop filing/unfiling go through asio::post.
 
+Failed jobs at task:c0cda23, both my commands' faults, superseded: 261112-080318-bdea92 (the grep
+matched sync_test.cc's `queued_`; narrowed in 261112-080531-e445ce), 261112-080321-77ecd0 (the
+mutant was killed, but the command exited 1 instead of 0; inverted in 261112-080533-082edf).
+
 ## Next
 
-1. Read jobs: suite 261112-080317-77f500 (A3), grep 261112-080318-bdea92 (A1), mutant
-   261112-080321-77ecd0 (A3), ASan+UBSan 261112-080331-647f35 and TSan 261112-080334-3404ab
-   (A4), and CI 43254372787; then paste the brief's Evidence table, State ready for review.
+1. Hand to the lead: correctness review, then A7 (the Xapiand lead's review of the diff).
 
 ## Blocked on
 
@@ -52,11 +55,11 @@ pointer per scheduler, plus a bit for "wheel released"). Recommend (a).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending 261112-080318-bdea92 |
-| A3 | pending 261112-080317-77f500, mutant 261112-080321-77ecd0 |
-| A4 | pending 261112-080331-647f35, 261112-080334-3404ab, CI 43254372787 |
-| A6 | docs/mechanisms/deadlines.md at task:c0cda23 |
-| A7 | the Xapiand lead's review, when ready |
+| A1 | 261112-080531-e445ce |
+| A3 | 261112-080317-77f500; fails without: 261112-080533-082edf |
+| A4 | 261112-080331-647f35, 261112-080334-3404ab |
+| A6 | `docs/mechanisms/deadlines.md`: "Deadlines on Kronuz/wheel"; `docs/mechanisms/deadlines.md`: "so the scheduler outlives the deadline" |
+| A7 | pending: the Xapiand lead's review |
 
 ## Result
 
@@ -64,6 +67,8 @@ Pending.
 
 ## Rulings I made
 
+- Since D72 the first three rulings below (harness, far deadlines, fire(e, false)) describe code
+  that now lives in Kronuz/wheel; task keeps only the integration rulings.
 - The harness is ported to task as `bench/wheel/` (Detent's wheel_vs_stash.cc at Detent:5ecbeb4c,
   workload verbatim, stash arms dropped; arms a, a2, f, f2, t). A1's rows run there.
 - Far deadlines (coordinator note via stash-niche): the wheel is hierarchical, as the quest's
