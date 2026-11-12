@@ -5,27 +5,29 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`docs/dev/superseded-libraries.md` lists every unarchived Kronuz repository that is a C++ library
+(the cpp-libraries family; `gh repo list Kronuz`), and for each one that another library or a
+design decision supersedes: its successor, the evidence (a PLAN decision, a README line, a
+measured result), every current user (repository and file, from each repo's `CMakeLists.txt`,
+`cmake/dependencies.json` and `#include`s across `~/code/Kronuz/*`, main checkouts only), and the
+migration each user still needs. stash, scheduler and cluster are rows; the lead archives each
+row whose users list is empty (D73).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] The ledger has one row per superseded library with successor, evidence, users and
+  migration, and names the libraries checked and judged current: `docs/dev/superseded-libraries.md`.
+- A2 [manual] The lead spot-checks three rows' users with `grep` against the repos.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D72, D73. Judging a library superseded without a decision or a README statement saying so is a
+proposal: list it under "Proposed" with the reason; the owner decides.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
