@@ -1,6 +1,6 @@
 # warm-graph-5m: journal
 
-State: waiting on jobs 261112-143906-a7a2bf 261112-143954-efa99b 261112-144015-ab96d3 261112-144057-f1c829
+State: waiting on jobs 261112-143954-efa99b 261112-144015-ab96d3 261112-144057-f1c829
 Quest: .campaign/detent/quests/warm-graph-5m.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,7 +25,7 @@ Instrumented 1M run (local, light hold): `WG5M finalize records 974665 strings 3
    A4 prep 261112-144015-ab96d3 (light: harness Detent:1e8d3285 built at the fix into .scratch/a4/build,
    nm-t9's 5M prepared store cloned to .scratch/a4/corpus-5m) then A4 261112-144057-f1c829 (exclusive,
    `round 1 full 0.5`, budget 540 s).
-2. Delete .scratch/a4/corpus-5m and .scratch/h (1M store, subsets, instrumented build) when A4 is in.
+2. Delete .scratch/a4 (5M store clone, harness build) when A4 is in; .scratch/h's stores are deleted.
 
 ## Blocked on
 
@@ -42,7 +42,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf (MUTANT KILLED, `invalid warm paged graph`, status 134) |
+| A2 | 261112-143954-efa99b (pending); fails without: 261112-143906-a7a2bf |
+| A3 | 261112-143954-efa99b (pending) |
+| A4 | 261112-144057-f1c829 (pending, after prep 261112-144015-ab96d3) |
 
 ## Result
 
