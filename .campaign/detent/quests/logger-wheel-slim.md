@@ -24,6 +24,12 @@ mechanism, D72) or keeps it on numbers.
 - A3 [artifact] The verdict per pattern and P, and one line for the lead: (D) no worse than (A) on
   every deferred row, or which row it loses and by how much: `docs/perf/wheel-ab.md`: "Verdict D".
 
+- A4 [artifact] Owner, 2026-11-12, "Fix D, then decide": the cause of (D)'s P = 1 p99 loss (pattern
+  3 at 1.469, pattern 2 at 1.133) and of its LOG-thread CPU at pattern 3 P = 14 (2.6 times (A)'s)
+  and lateness (13 to 85 ms), from a profile, not inference; up to three changes to (D), each
+  rerun on the losing rows under the same Rule; the final verdict per row, and the lead's line
+  again: `docs/perf/wheel-ab.md`: "Arm D, fixed".
+
 ## Contracts
 
 Consumes `wheel:timer_wheel` at the landed wheel-lib commit. Provides nothing.
