@@ -281,6 +281,25 @@ void repair(const std::filesystem::path &root) {
 	check(store.failed().empty() && mirror_matches(root, store.table()));
 }
 
+// A file missing at startup that the next layout no longer reaches is collected without error.
+void collect_missing(const std::filesystem::path &root) {
+	prepare(root);
+	Script script;
+	auto fetch = script.up.fetch();
+	{
+		r::MirrorStore store(io_at(root), {});
+		store.adopt(script.up.layouts(), script.next(), fetch);
+	}
+	const auto table = r::decode_mirror_table(slurp(root / "mirror"));
+	std::filesystem::remove(root / r::mirror_file_name(table.find("gamma")->files.back().name));
+	r::MirrorStore store(io_at(root), {});
+	check(store.failed().size() == 1 && store.failed()[0] == "gamma");
+	std::vector<std::string> dropped{"gamma"};
+	const auto stats = store.adopt({}, dropped, fetch);
+	check(stats.fetched_files == 0 && store.failed().empty() && !store.table().find("gamma"));
+	check(mirror_matches(root, store.table()));
+}
+
 // A refused or failed fetch publishes nothing and leaves the mirror usable.
 void refused(const std::filesystem::path &root) {
 	prepare(root);
@@ -365,6 +384,7 @@ int main(int argc, char **argv) {
 		follows(scratch / "follows");
 		restart(scratch / "restart");
 		repair(scratch / "repair");
+		collect_missing(scratch / "collect-missing");
 		refused(scratch / "refused");
 		chain(scratch);
 	} catch (const std::exception &error) {

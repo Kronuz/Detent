@@ -486,7 +486,8 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 		// which startup removes.
 		for (const auto &[name, file] : before)
 			if (!s.reached.contains(name)) {
-				s.io->remove(name);
+				if (s.io->inspect_entry(name)) // a file missing at startup has nothing to unlink
+					s.io->remove(name);
 				s.missing.erase(name);
 				s.verified.erase(name);
 				++stats.collected_files;
