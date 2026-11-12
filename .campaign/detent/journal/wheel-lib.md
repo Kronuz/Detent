@@ -13,7 +13,11 @@ Finding (probe 261111-202423-339389, exclusive, pads 0-61440 B, a vs w at n = 1,
 1.36-1.50x a at every pad, with heads and entries at the same addresses mod 64 KiB for both
 arms. Placement is ruled out; the gap is code. Every pass is slower, not only re-arm: arm 6.5
 vs 3.9 ns, re-arm 9.5 vs 5.1, cancel 5.5 vs 4.3, expire 22.5 vs 18.0. Hypothesis: unlink/file
-outlined at -O2 (a call per unlink fits all four deltas); inlining probe 261111-203618-617a41.
+outlined at -O2 (a call per unlink fits all four deltas); disassembly probe 261111-205658-e77a03
+(the earlier 261111-203618-617a41 cancelled for it).
+
+CI green at wheel:01dfcc9 (run 43156701805: ASan+UBSan, TSan, Linux/macOS/FreeBSD); A4 job
+261111-204535-5b0ffc checks that run passed at the commit.
 
 CI caught a real bug (run 43155780729, wheel_test far, deadline never - 1): next() overflowed
 computing the end of the last tick before never and wrapped to a passed time. Fixed at
