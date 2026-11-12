@@ -1,30 +1,38 @@
 # one-knob-type: journal
 
-State: waiting on jobs: suite 261111-155807-cb02cd, docs e2e 261111-155850-5c3022, A4
-261111-155953-49f092, A3 pages 261111-160108-f85bd5 / 261111-160112-7622b7, prepare
-261111-160115-cd686a, measure pairs 100k 261111-160223-33ccf1 .. 261111-160246-89a9b4 and 5m
-261111-160253-8a189d .. 261111-160320-9a6ce7, A2 mutants 261111-160430-003e1d,
-261111-160438-1b4841
+State: blocked on B4 (fixtures outside the set) and waiting on jobs at Detent:b9bf610c: suite
+261111-162754-7422a7, docs e2e 261111-162755-40ef2b, A4 261111-162758-63e456, A2 mutants
+261111-162800-2ee71e / 261111-162803-4b354d, A3 prepare 261111-162827-7366e8, measure pairs 100k
+261111-162829-50dcc0 .. 261111-162838-020154, 5m 261111-162839-4759eb .. 261111-162848-77259b,
+pages 261111-162851-fc6aaf (100k) / 261111-162856-b47db3 (5m)
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Session 2. The tree builds: the keep-going build 261111-153615-1a7748 (examples, benchmarks,
-authority, relay, agent, tests) found only test_paged_leaf_body.cc beyond the protocol.cc member
-order; both fixed. Repaired sed damage in test_model_and_schema.cc (duplicate rollout_value keys,
-shape rejections of valid shapes). A1's differential now compares against main's answers recorded
-by a job (tests/detent/one_knob_main.hex, 57,888 cells, main Detent:2d2fdf67, job
-261111-154846-1d1d38) instead of a frozen copy of the evaluator. Docs-e2e pages and check_docs.py
-on the single type. A3 page bytes from job 261111-154349-807bef in the design note, columns
-defined (lead finding).
+Session 2. The tree builds (keep-going build 261111-153615-1a7748). Suite 261111-155807-cb02cd
+found: the overlay admitted definition bodies from the old 24-byte header only ("overlay leaf
+framing": every delta, managed agent, relay and docs e2e failure), old wire tuples in fixtures,
+sed damage in test_model_and_schema.cc, fixture sizes tied to the fixed width (separate-segment
+reader fixture, trusted-restart stale rows), and integer expectations; all in-set ones fixed at
+Detent:9db7c5fd and Detent:b9bf610c. Out-of-set fixtures: B4.
 
 ## Next
 
-1. Suite result; fix failures. Then the final evidence at the final head (suite, docs e2e, A4,
-   mutants rerun if code moved).
-2. A3: after the 12 pair jobs, `docs/perf/one-knob-type.sh report OUT SIZE` (level none) per
-   size; fill the design note's speed table and docs/perf/one-knob-type.md.
-3. Result, CHANGELOG entry text, Evidence table from `campaign brief`.
+1. Lead rules B4; then convert those four files, merge main (CHANGELOG moved), and rerun every
+   evidence job at the final head (`campaign job rerun` the A3 ones, or resubmit).
+2. Read the suite at b9bf610c for anything left (test_local_dense_reads now names its line).
+3. A3: after the 12 pair jobs, `docs/perf/one-knob-type.sh report OUT SIZE` (level none) per size;
+   fill the design note's speed table and docs/perf/one-knob-type.md.
+4. Result and the Evidence table from `campaign brief`.
+
+## CHANGELOG entry (for the lead)
+
+- One knob type: every knob is a signed 64-bit integer with a default, group overrides (a forced
+  value or a percentage) and an optional rollout serving `rollout_value`; a flag is default 0,
+  rollout value 1. `BoolDef`, `IntDef`, the JSON `type` field, `eval` and `eval_or_panic` are
+  gone; reads are `get`, `get_as<T>` (`get_as<bool>` takes 0 and 1) and `get_or_panic`. A hashed
+  caller outside a percentage gets `default` (D68). JSON, wire, paged body (varint, 20% fewer page
+  bytes than the two-type body), flat image and reader metadata change with no compatibility.
 
 ## Blocked on
 
