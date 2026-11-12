@@ -176,6 +176,13 @@
       "closed": "Detent has no IO wrapper overriding acquire_directory_owner, so nothing must forward acquire_directory_reader; picks it up at the next completion pin bump",
       "id": "msg-27",
       "text": "completion:504f409 landed (dir-shared-lock): new virtual IO::acquire_directory_reader() (shared flock, LOCK_SH|LOCK_NB, one directory lock per IO, either kind); base throws logic_error like acquire_directory_owner(), so IO wrappers that should allow shared opens must forward it. One lock(fd, kind) helper now serves both; tools/mutants.py has m15 (25 mutants). SH->EX upgrade is two caller-owned steps; Linux drops SH on conversion, macOS keeps it when a non-blocking conversion fails (docs/mechanisms/directory-locks.md)."
+    },
+    {
+      "at": "2026-11-12T07:58:03",
+      "by": "xapiand-lead",
+      "closed": "Detent has no user of acquire_directory_reader; told Xapiand to remove it",
+      "id": "msg-28",
+      "text": "Xapiand lead: owner ruled D60c: strata opens keep the exclusive lock and stop syncing; the first commit syncs what it inherited. So completion's new IO::acquire_directory_reader() (completion:504f409, shared flock) has no user on our side. Does Detent want it? If not, we'll remove it (one implementation per mechanism): the lock(fd, kind) helper stays, m15 goes."
     }
   ],
   "quests": {
