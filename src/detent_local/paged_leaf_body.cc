@@ -5,7 +5,8 @@ namespace p = paged;
 LeafBody::LeafBody(std::shared_ptr<distribution::StorageLedger> account, p::Definition definition,
 				   const void *context, std::uint64_t ordinal, OverrideAt callback, std::size_t maximum)
 	: account_(std::move(account)), definition_(definition), context_(context), override_(callback),
-	  ordinal_(ordinal), maximum_(maximum), size_(p::header_size(definition)) {
+	  ordinal_(ordinal), maximum_(maximum), size_(p::header_size(definition)),
+	  ramped_(definition.rollout.has_value()) {
 	std::array<char, p::maximum_header_bytes> header{};
 	p::encode_definition_header(std::span(header).first(size_), definition_);
 	if (!account_ || maximum_ < size_ || (definition_.overrides && (!context_ || !override_)))
@@ -85,6 +86,7 @@ void LeafBody::step(ValidationBudget &budget) {
 													  [](unsigned char a, unsigned char b) { return a < b; }))
 						throw std::invalid_argument("unordered paged leaf overrides");
 					p::encode_override(output_->mutable_bytes().subspan(offset_, size), row);
+					ramped_ = ramped_ || std::holds_alternative<GroupRollout>(row.value);
 					previous_ = {output_->data() + offset_ + size - row.key.size(), row.key.size()};
 					offset_ += size;
 					++index_;
@@ -92,6 +94,8 @@ void LeafBody::step(ValidationBudget &budget) {
 				}
 				if (offset_ != size_)
 					throw std::logic_error("paged leaf body length changed");
+				if (!namespace_ && ramped_ != definition_.rollout_value.has_value())
+					throw std::invalid_argument("paged leaf body percentage and rollout value disagree");
 				output_->seal();
 				phase_ = Phase::Done;
 				break;

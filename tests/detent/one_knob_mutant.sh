@@ -12,6 +12,7 @@ no_verdict() {
 	exit 3
 }
 git apply --check "$patch" && git apply "$patch" || no_verdict "patch does not apply"
+trap 'git apply -R "$patch"' EXIT
 git diff --stat
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= \
@@ -23,7 +24,6 @@ binary=$(find "$build/tests" -type f -name "$target" -perm -u+x | head -1)
 test -n "$binary" || no_verdict "no $target binary"
 "$binary"
 status=$?
-git apply -R "$patch"
 if test "$status" -ne 0; then
 	echo "MUTANT KILLED: $patch by $target (status $status)"
 	exit 0
