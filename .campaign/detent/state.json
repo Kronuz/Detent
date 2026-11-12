@@ -5204,14 +5204,15 @@
       "milestone": "N1",
       "needs": [
         "warm-graph-5m",
-        "namespace-s7"
+        "namespace-s7",
+        "delta-plan-scaling"
       ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T14:58:38"
+      "updated": "2026-11-12T15:20:14"
     },
     "namespace-s7-store": {
       "accepted": {},
