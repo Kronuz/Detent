@@ -3,7 +3,9 @@
 #   stash_niche.sh test                  both arms against the checks, under ASan+UBSan and TSan
 #   stash_niche.sh smoke                 every arm at both horizons, small, with its configuration
 #   stash_niche.sh row HORIZON_MS N [PAIRS]   PAIRS (default 6) interleaved b/f pairs at each
-#                                        P in $PRODUCERS (default "1 4 14"), then the summary
+#                                        P in $PRODUCERS (default "1 4 14"), then the summary;
+#                                        $PAIR_START (default 0) numbers the first pair, so a
+#                                        row split over jobs rotates its arm order as one
 #   stash_niche.sh mem HORIZON_MS N      the structure's heap per key, each arm twice, at P = 1 and 14
 # stash comes from $JOB_REF_STASH (a job's --ref stash=...) or $STASH_DIR. $BUILD_DIR holds the
 # binaries and logs.
@@ -59,11 +61,12 @@ row)
 	h=${2:?horizon ms}
 	n=${3:?keys}
 	pairs=${4:-6}
-	for ((r = 0; r < pairs; ++r)); do
+	start=${PAIR_START:-0}
+	for ((r = start; r < start + pairs; ++r)); do
 		for ((k = 0; k < ${#producers[@]}; ++k)); do
 			p=${producers[$k]}
 			echo "pair=$r"
-			if (((r + k) % 2 == 0)); then order="b f"; else order="f b"; fi
+			if (((r + ${producers[$k]}) % 2 == 0)); then order="b f"; else order="f b"; fi
 			for arm in $order; do run timing niche "$arm" "$p" "$n" "$h"; done
 		done
 	done

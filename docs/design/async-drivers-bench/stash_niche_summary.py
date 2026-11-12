@@ -18,9 +18,10 @@ THRESHOLD = 1.10
 
 def parse(
     paths: list[str],
-) -> tuple[dict[tuple[int, int, int, str], list[dict[str, str]]], dict]:
+) -> tuple[dict[tuple[int, int, int, str], list[dict[str, str]]], dict, dict]:
     runs: dict[tuple[int, int, int, str], list[dict[str, str]]] = defaultdict(list)
     mem: dict[tuple[int, int, int, str], list[float]] = defaultdict(list)
+    total: dict[tuple[int, int, int, str], list[float]] = defaultdict(list)
     for path in paths:
         with open(path) as f:
             for line in f:
@@ -37,7 +38,10 @@ def parse(
                     runs[key].append(fields)
                 elif fields["row"] == "nichemem":
                     mem[key].append(float(fields["heap_per_key"]))
-    return runs, mem
+                    total[key].append(
+                        float(fields["heap_per_key"]) + float(fields["entry_bytes"])
+                    )
+    return runs, mem, total
 
 
 def floor(xs: list[float]) -> float:
@@ -53,7 +57,7 @@ def cell(rs: list[dict[str, str]], metric: str) -> str:
 
 
 def main(paths: list[str]) -> None:
-    runs, mem = parse(paths)
+    runs, mem, total = parse(paths)
     rows = sorted({k[:3] for k in runs})
     for h, n, p in rows:
         b, f = runs[(h, n, p, "b")], runs[(h, n, p, "f")]
@@ -101,7 +105,30 @@ def main(paths: list[str]) -> None:
             mem_ratio = statistics.median(mb) / statistics.median(mf)
             mem_ok = mem_ratio <= THRESHOLD
             gate = f" heap_per_key b={statistics.median(mb):.1f} f={statistics.median(mf):.1f} b/f={mem_ratio:.2f}x gate={'ok' if mem_ok else 'FAIL'}"
+        tb = [
+            v
+            for (hh, nn, pp, a), vs in total.items()
+            if (hh, nn, a) == (h, n, "b")
+            for v in vs
+        ]
+        tf = [
+            v
+            for (hh, nn, pp, a), vs in total.items()
+            if (hh, nn, a) == (h, n, "f")
+            for v in vs
+        ]
+        if tb and tf:
+            gate += f" bytes_per_key(entry+heap) b={statistics.median(tb):.1f} f={statistics.median(tf):.1f}"
         valid = all(x["valid"] == "1" for x in b + f)
+        # Reported beside the rule's outcome: the same row with the memory gate ignored.
+        if not valid:
+            time_only = "invalid"
+        elif r < THRESHOLD:
+            time_only = "stash loss"
+        elif r - 1 > phi:
+            time_only = "stash win"
+        else:
+            time_only = "inconclusive"
         if not valid:
             outcome = "invalid"
         elif r < THRESHOLD or not mem_ok:
@@ -112,7 +139,7 @@ def main(paths: list[str]) -> None:
             outcome = "inconclusive"
         print(
             f"  pairs={len(pairs)} r(f/b cost)={r:.3f} [{min(ratios):.3f}-{max(ratios):.3f}] "
-            f"insert f/b={ins:.3f} drain f/b={drn:.3f} floor={phi:.1%}{gate}: {outcome}"
+            f"insert f/b={ins:.3f} drain f/b={drn:.3f} floor={phi:.1%}{gate}: {outcome} (time only: {time_only})"
         )
 
 

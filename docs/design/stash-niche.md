@@ -89,6 +89,15 @@ row where a run is long; a job lasts at most 30 minutes.
 
 The PLAN.md decision records the verdict; the lead brings it to the owner.
 
+**What the smoke showed about rule 2's memory gate** (261111-200152-81602e, N = 100,000, 24 h,
+P = 4, a smoke and not a decision row). The gate compares structure heap per key, and (f)'s is
+0.7 B (a fixed 70 KiB; its 32-byte entries are intrusive, the harness's) against stash's 470 B
+(levels allocated on first use, the value box, the leaves), so stash fails the gate wherever it
+allocates at all, and the gate alone decides every row against it. The rule stands as written
+and the verdict follows it. Each row also reports the same ratio with the gate ignored ("time
+only") and total bytes per key (entry plus heap), so the owner can weigh the time result
+without the gate; neither enters the verdict.
+
 ## Results
 
 Not yet measured.
