@@ -7899,6 +7899,8 @@
     "warm-graph-5m": {
       "accepted": {},
       "after": [],
+      "base": "257526dd8625bab03c2837dcbd1cd85345dbbf0d",
+      "branch": "quest/detent/warm-graph-5m",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7926,9 +7928,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T13:32:36"
+      "updated": "2026-11-12T14:21:58",
+      "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
       "accepted": {},
