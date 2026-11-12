@@ -1,31 +1,46 @@
-# task-wheel: task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost
+# task-wheel: task::timer_wheel, the one Kronuz wheel
 
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status task-wheel`.
+Risk: high (concurrency, a shared public API). The lead writes this quest; contributors read it and
+never edit it. Machine state: `campaign status task-wheel`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Kronuz/task ships `task::timer_wheel`, candidate (f) of `docs/design/wheel-evidence.md` (D70, D71): a
+single-owner hierarchical wheel with a 64-stripe intrusive inbox for arms from other threads, 32-byte
+intrusive entries, no heap per arm. Its re-arm costs what the prototype's (a) does, so the one wheel
+pays nothing on the single loop. `task::deadline`, `inline_scheduler` and `asio_scheduler` run on it
+(async-drivers quest 1, `docs/design/async-drivers.md` table row 1).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Re-arm gap closed (D70): on macOS, an `exclusive` A/B on the wheel-evidence harness
+  (`docs/design/async-drivers-bench/wheel_vs_stash.sh`, A5's >= 100 ms samples, R = 10) puts the
+  task wheel's single-loop score within 1.10x of (a) at n = 1,000 and n = 1,000,000, and its
+  cross-thread score at P = 1, 4, 14 within 1.10x of (f)'s rows; the A/A band is reported.
+- A2 Correctness: the wheel matches a reference model under random arm, cancel and re-arm,
+  including re-arm and cancel from inside a fire (itself included); deadlines beyond a round never
+  fire early; cross-thread arms of unarmed entries from 1, 4 and 14 threads all fire once; owner-only
+  cancel and re-arm asserted in Debug: tests in the suite.
+- A3 Integration per async-drivers row 1: `deadline<S>` on `S::clock`; `inline_scheduler::advance`
+  expires with no real time; `asio_scheduler::start_timer` on the wheel with the deadline contract
+  unchanged (`asio_test.cc` passes as is; an off-loop create/destroy test); a wheel destroyed with
+  deadlines armed releases them; `scheduler_ref` gains `wheel()` source-compatibly; tests in the suite.
+- A4 TSan and ASan+UBSan builds of the suite pass (CI, or a job; on Linux run TSan under
+  `setarch -R` if the kernel's mmap entropy trips it).
+- A5 No allocation per arm, re-arm, cancel or fire: a counting-allocator test.
+- A6 [artifact] `docs/timer-wheel.md` in task: the shape, the two threading contracts (other threads
+  arm only an unarmed entry; only the owner cancels or re-arms), the A1 numbers.
+- A7 [manual] The Xapiand lead reviews the diff (async-drivers row 1).
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `task:timer_wheel`. Kronuz/scheduler (scheduler-on-wheel) and the async-drivers quests
+consume it.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- D70: (f) is the one wheel; re-arm gap first. D71: it lives in task.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests and the bench harness port, before the API is public.
