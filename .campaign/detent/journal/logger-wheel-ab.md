@@ -1,6 +1,6 @@
 # logger-wheel-ab: journal
 
-State: waiting on jobs 261111-214121-f90ca2 261111-214123-23aa11 261111-214125-385b87 261111-214127-dc777e 261111-214130-4103e4 261111-214132-5d4386 261111-214135-abf741 261111-214137-11d246 261111-214140-2dd32d 261111-214142-0655f8 261111-214145-259bc3 261111-214148-32e29d 261111-214151-0258b9
+State: waiting on jobs 261111-214127-dc777e 261111-214130-4103e4 261111-214132-5d4386 261111-214135-abf741 261111-214137-11d246 261111-214140-2dd32d 261111-214142-0655f8 261111-214145-259bc3 261111-214148-32e29d 261111-214151-0258b9
 Quest: .campaign/detent/quests/logger-wheel-ab.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,8 @@ At logger:91924df (kept-line count made atomic after TSan job 261111-213650-b74b
 harness's own counter across libc++'s std::barrier; no backend race). Check at logger:30790d1
 passed (261111-213647-db2133): all 18 backend/pattern/P cases exactly once, none early, no
 cleared line written. Resubmitted at 91924df (old smoke/rows cancelled):
-- check 261111-214121-f90ca2, tsan 261111-214123-23aa11 (light), smoke 261111-214125-385b87
+- PASSED at 91924df: check 261111-214121-f90ca2 (18/18 ok), tsan 261111-214123-23aa11 ((B) 6/6 ok,
+  no reports), smoke 261111-214125-385b87 (6 runs, config asserted)
 - rows (exclusive): p1 P1 261111-214127-dc777e, p1 P4 261111-214130-4103e4,
   p1 P14 261111-214132-5d4386, p2 P1 261111-214135-abf741, p2 P4 261111-214137-11d246,
   p2 P14 261111-214140-2dd32d, p3 P1 261111-214142-0655f8, p3 P4 261111-214145-259bc3,
@@ -42,6 +43,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
+| A2 (correctness) | check 261111-214121-f90ca2, TSan (B) 261111-214123-23aa11, smoke 261111-214125-385b87, all at logger:91924df; rows pending |
 | A1 | logger:ce34d2d, `docs/perf/wheel-ab.md` "Rule", committed before any measured run |
 
 ## Result
