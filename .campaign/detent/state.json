@@ -3098,9 +3098,38 @@
         "bench/wheel_ab/**",
         "docs/perf/wheel-ab.md"
       ],
-      "journal": "../Detent-wt/detent/logger-wheel-slim",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T13:48:30",
+          "commit": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+          "criteria": {
+            "A1": "`docs/perf/wheel-ab.md`: \"Design: where (C)'s 80 bytes go\"; sizeof at dce2538 261112-125533-5e59c9",
+            "A2": "261112-131943-f2c342, 261112-131943-43cd67",
+            "A3": "`docs/perf/wheel-ab.md`: \"## Verdict D\"",
+            "A4": "`docs/perf/wheel-ab.md`: \"## Arm D, fixed\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
+              "commit": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-125532-88d000",
+              "level": "light",
+              "seconds": 114.0,
+              "state": "done",
+              "what": "logger-wheel-slim check suite at dce25388ec04"
+            }
+          ],
+          "final": true,
+          "from": "c93ace291347d67b2911a52908595dac91b74830",
+          "reason": "",
+          "tested": "dce25388ec0487bff2b6e0265b22abb67442c26b"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "logger-wheel-ab"
@@ -3108,10 +3137,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Measure a slim deferred-line wheel record in logger",
-      "updated": "2026-11-12T06:10:19",
-      "worktree": "../logger-wt/detent/logger-wheel-slim"
+      "updated": "2026-11-12T13:48:33",
+      "worktree": ""
     },
     "m1-pins": {
       "accepted": {},
