@@ -1,6 +1,6 @@
 # task-wheel review: correctness
 
-Commit: task:c0cda2371a54a033c1960324deb474d3fcb4d28a
+Commit: task:9a1bb31
 Verdict: CHANGES
 Date: 2026-11-12
 
@@ -8,58 +8,53 @@ APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: 
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+Round 2. Round 1 reviewed task:c0cda23 and raised F1. This round reviews task:c0cda23..9a1bb31
+(D79: the scheduler's owner-thread `arm`/`cancel`; `scheduler_ref` forwards `now`, `arm` and
+`cancel`; `wheel()` removed), against the quest text at Detent:8b6cd792.
+
 ## Evidence I relied on
 
-- 261112-080317-77f500 (Debug suite at task:c0cda23): `deadline_test` (manual, chain, ref),
-  `deadline_alloc_test`, `deadline_asio_test` (offloop, teardown, idle), `asio_test.cc` unchanged.
-- 261112-080533-082edf (A3 mutant, fails without), 261112-080331-647f35 and 261112-080334-3404ab
-  (TSan, ASan+UBSan of the suite; A4), 261112-080531-e445ce (A1 grep). I did not rerun any of them.
-- Kronuz/wheel at wheel:bfd72bc: `wheel.hh` and `docs/timer-wheel.md` read in full for the four rules.
+- Round 1: the suite, TSan, ASan+UBSan, mutant and grep jobs at task:c0cda23, and my probe job
+  261112-082613-74dd5c. They covered teardown, exactly-once resolution, the asio wake through
+  `start_timer`, and the removed tests. `file`/`unfile` now route through `arm`/`cancel`, with
+  the same wake logic as before, so those conclusions carry over.
+- 9a1bb31's new tests read: `deadline_asio_test direct` and `deadline_test ref`. I did not rerun
+  the suite at 9a1bb31.
 
 ## What I checked myself
 
-Probe job 261112-082613-74dd5c at task:c0cda23, Debug and ASan+UBSan, exit 0. Scripts:
-`.scratch/review-task-wheel-correctness/{run.sh,CMakeLists.txt,probe_inline.cc,probe_asio.cc}`;
-rerun with `campaign job submit --quest task-wheel -- sh <abs>/run.sh`.
+Scripts are in `.scratch/review-task-wheel-correctness/`: `probe_arm.cc`, `run_arm.sh`, and a
+`BUILD_PROBE_ARM` block in `CMakeLists.txt`. The probe arms through `scheduler_ref::arm` where it
+exists and through `wheel().arm` at c0cda23, so the same source builds at both commits.
 
-1. **Owner-thread cancels (risk 1).** Read: every wheel call goes through `file`/`unfile`, which
-   run only when `runs_here()` or from a posted handler; a linked parent's request off the loop
-   touches only the cancel state, never the wheel. Exact for an io_context executor. See N2 for
-   other executors.
-2. **Teardown (risk 2).** A8: 50 rounds of coroutines awaiting armed deadlines (one 60 s, one
-   due around the stop), then stop, join, `close`, `destroy_roots` and destroy. Clean under
-   ASan, `live_frames` back to baseline, no completion after teardown. The wheel's destructor
-   fires each entry `false` once (`wheel.hh` ~timer_wheel), and `on_wheel(false)` only releases.
-   Teardown destroys the awaiting frames, so they never resume and no reason is set, which is correct.
-3. **Fire and cancel in one turn (risk 3).** I1: two deadlines in one slot, where the first's
-   callback destroys the second, in both orders. I2: a parent request, then the fire. I3: a
-   callback destroys its own deadline during the fire. I4: destroyed before its time. Each
-   resolves at most once, with the first reason kept. The wheel unlinks a due entry before its
-   fire, and `disarm` precedes `drop_timer`.
-4. **The asio wake (risk 4).** A1: a later deadline, then an earlier one on the loop and one off
-   it. A2: a new deadline after the wheel emptied by expiry. A3: a new deadline after an unfile
-   emptied it and cancelled the wake. A4: a deadline already past. A5: 4.6 s (upper level,
-   cascade). Each fires once, never early, and 0.5 to 2.2 ms late. A6: `time_point::max()` does
-   not spin (0.1 ms CPU in 300 ms). The re-arm logic is sound by reading too: a stale successful
-   wait runs `on_wake`, which recomputes `next()`. It cannot sleep past a due deadline filed
-   through `start_timer`. The exception is F1.
-5. **Removed tests (risk 5).** None is removed relative to main: the wheel tests were added on
-   this branch. Of the task:5a1e516 tests, `reentry`, `model`, `far`, `cross`, `owner` and the
-   wheel half of the alloc test are wheel-only and live in wheel:bfd72bc `test/`. `manual`,
-   `chain`, `ref`, `offloop`, `teardown`, `idle` and the deadline alloc case stay.
+- F1 confirmation, `run_arm.sh wake`:
+  - 261112-084517-78b633 at c0cda23 fails (count=0).
+  - 261112-084942-3e4b76 at 9a1bb31 passes. The arm fired 1.6 ms late.
+- Q1: can a cancel that empties the wheel race a pending wake? No. The loop is single-threaded.
+  If a stale successful wait runs after `cancel` (and after a new `arm`), `on_wake` recomputes
+  `next()` and re-arms the wake, cancelling the newer wait. 300 rounds of "cancel the only entry
+  near its wake, then arm anew": every new arm fired once, on time (same job).
+- Q2: can an arm earlier than the current wake still be missed? No, for `at` within the clock's
+  range. `wake_by` keeps the minimum. Probes: an earlier arm fired 2.8 ms late, and an arm from a
+  fire for a time already due fired 24 us late (same job). F2 is the exception.
+- Q3: is anything left that arms behind the scheduler's back? No. `git grep` at 9a1bb31 finds
+  `wheel()` private on inline_scheduler and `timers_` private on asio. Every `arm`/`cancel` goes
+  through the scheduler. task never calls `arm_remote`.
+- `run_arm.sh far` at 9a1bb31, job 261112-085006-0064f9, fails. This is F2.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | An entry armed directly on `asio_scheduler::wheel()` (the wheel `scheduler_ref::wheel()` hands out for X14's Driver timers) never wakes the loop. Only `file()` calls `wake_by`, so the entry is stranded until some `task::deadline` happens to wake the loop, and then it rides along. This contradicts the accessor's own comment ("one asio::steady_timer wakes the loop at the wheel's next()"). | Probe A7, job 261112-082613-74dd5c: fired_after_200ms=0 for a 20 ms entry; fired once a 5 ms deadline woke the loop. `task_asio.hh:132-134`, `task.hh:202` | Owner's choice, any of: (a) an owner-thread `arm_timer(entry, at)` on the scheduler (or a `rewake()` after arms) that calls `wake_by`, with scheduler_ref forwarding it; (b) have `on_wake`'s caller re-arm after each loop pass; (c) state in `wheel()`'s comment and API.md that arms on it need a wake, and leave X14 to the scheduler-on-wheel quest. Test: probe A7 as a `deadline_asio_test` case where an entry armed through `scheduler_ref::wheel()`, with no deadline armed, fires within a bound. |
-| N1 | no | nit | deadlines.md:58 says a deadline requests "at most 1 ms after its time". On asio the bound is the slot end plus the loop's wake latency: 2.0 to 2.2 ms in Debug, 0.5 to 1.5 ms under ASan. | Probe A1-A5 late_us | Say "at most one 1 ms tick past its time, plus the loop's wake latency". |
-| N2 | no | gap | `runs_here()` is false for any executor other than `io_context::executor_type` (`task_asio.hh:102`), so every filing is posted. With a strand over a multi-threaded io_context the handlers change threads, and the wheel's Debug owner assert fires. A per-deadline `steady_timer` did not care. No in-tree user passes a strand (grep across Kronuz repos). | Reading `task_asio.hh:102,170,200`; not probed | Document that asio_scheduler needs a single-threaded io_context executor, or keep it as is. |
-| N3 | no | nit | deadlines.md:59 says "created and destroyed on any thread", but `inline_scheduler`'s `drop_timer` and `start_timer` call the wheel in place, so off its thread they hit the owner assert. | Reading `task.hh` inline_scheduler::start_timer/drop_timer | Scope "any thread" to asio_scheduler. |
+| F1 | no | defect | Fixed at 9a1bb31. An entry armed through the scheduler wakes the loop, and `wheel()` is gone. | Fails at c0cda23: 261112-084517-78b633. Passes at 9a1bb31: 261112-084942-3e4b76. Test: `deadline_asio_test direct`. | none |
+| F2 | yes | defect | `asio_scheduler::arm(e, at)` with `at` past INT64_MAX ns spins the loop on a full core. Example: `wheel::timer_wheel::never`, which consensus Core uses as its saturated "never" deadline (`consensus/core.h:281`, `maximum = UINT64_MAX`), the deadlines X14's Driver will arm. `arm` computes `(at / tick + 1) * tick`, which wraps for `never`. `wake_by` then builds `time_point(nanoseconds(at))` from a uint64 past INT64_MAX, which turns negative. The wait completes at once, `expire` finds nothing, `next()` returns the same far value, and the loop repeats. `start_timer` deadlines are capped by `steady_clock`, so only direct arms hit this. | `run_arm.sh far`, job 261112-085006-0064f9: arm at `never` used 308.5 ms CPU in 300 ms, fired 0 times. Code: `task_asio.hh:142`, `task_asio.hh:218`. | In `wake_by`, skip the wake (or clamp it to `clock::time_point::max()`) when `at` exceeds the clock's range; compute the slot end in `arm` without overflow. Test: the `far` mode as a `deadline_asio_test` case (arms at `never` and at 2^63 + 1 ms, CPU bounded, nothing fires). |
+| N1 | no | nit | Round 1's lateness nit is resolved: `arm`'s comment and the docs now say "one tick plus the loop's wake latency". | `task_asio.hh` arm comment | none |
+| N2 | no | gap | Resolved as documentation: asio_scheduler's class comment now requires a single-threaded executor. | `task_asio.hh:50-55` | none |
+| N3 | no | nit | Not rechecked. Round 1: "created and destroyed on any thread" holds for asio_scheduler, not inline_scheduler. | round 1 | Scope the sentence. |
+| N4 | no | nit | `inline_scheduler::cancel` and `asio_scheduler::cancel` dereference the wheel when `e.armed()` but this scheduler never armed anything. That is an entry armed on another scheduler, a caller error; it crashes rather than asserting. | `task.hh` inline_scheduler::cancel; `task_asio.hh` cancel (`*timers_`) | Optional Debug assert. |
 
 ## Not run
 
-- No rebuild or rerun of the suite, TSan, ASan or the mutant: the jobs above cover them.
-- No lateness baseline on main's per-deadline `steady_timer`, so N1 does not say whether lateness grew.
-- No strand or thread_pool executor probe (N2 is from reading the code).
-- Linux and FreeBSD were not probed locally; CI covers them.
+- The suite, TSan and ASan at 9a1bb31: those belong to the contributor's jobs, and I did not check them.
+- Probes under ASan or TSan this round (Debug only).
+- Linux and FreeBSD, which CI covers.

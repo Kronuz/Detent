@@ -7307,7 +7307,64 @@
       "updated": "2026-11-08T15:38:27"
     },
     "task-wheel": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T08:54:26",
+          "base": "d6bce5939385fb8f200d6a8890fba4741a7fd956",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:cf4ce477523180420f9d744274a18dc474106d40",
+            "CMakeLists.txt": "100644:c440594bd41abdeb295850775ddbf07e56add170",
+            "README.md": "100644:cce4389a79bed530648c66fad69ef7412492b4e0",
+            "docs/API.md": "100644:0df5ff13eae58580a3660bdbe02021f1a5676240",
+            "docs/mechanisms/cancellation.md": "100644:28391406a90cc1b478ff5f0a19cf8abe123dcd56",
+            "docs/mechanisms/deadlines.md": "100644:788f6d6fadbf47f1f8f01ed2debcc2e805513449",
+            "task.hh": "100644:262aba5f36ffb41913bd940ba7a4216e9c0d7af4",
+            "task_asio.hh": "100644:03932452460a01107636756e4b3b1f94ed1a1176",
+            "test/deadline_alloc_test.cc": "100644:a624ca98bdb436fc626673353ca9c73c17a031bc",
+            "test/deadline_asio_test.cc": "100644:bafe286b9280b09d83eb5b01a4f434591d22dbca",
+            "test/deadline_test.cc": "100644:388d77e67f9541a0bdf1d49df781b053a7bfad0e"
+          },
+          "by": "review",
+          "commit": "47d50f3384ac195d2e347e10311e885ed7490040",
+          "criteria": "8266289fb19faad9",
+          "diffs": {
+            "ARCHITECTURE.md": "bf446ee98704cd01",
+            "CMakeLists.txt": "f75bfdafca24c049",
+            "README.md": "f50f47827e057b90",
+            "docs/API.md": "1fa2a0bf57a8421d",
+            "docs/mechanisms/cancellation.md": "1c63146adc231a65",
+            "docs/mechanisms/deadlines.md": "c5704b9159e984aa",
+            "task.hh": "9cbd62f2c0dd4849",
+            "task_asio.hh": "6bafd27887b38976",
+            "test/deadline_alloc_test.cc": "7d5a0fc6908c96a6",
+            "test/deadline_asio_test.cc": "e384b059a792550a",
+            "test/deadline_test.cc": "23a106b1293f4e1a"
+          },
+          "findings": {
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "sh /Users/kronuz/code/Kronuz/Detent/.scratch/review-task-wheel-correctness/run_arm.sh far",
+                  "commit": "47d50f3384ac195d2e347e10311e885ed7490040",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-085205-88e172",
+                  "level": "light",
+                  "seconds": 27.6,
+                  "state": "done",
+                  "what": "sh /Users/kronuz/code/Kronuz/Detent/.scratch/review-task-whe at 47d50f3384ac"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": true
+            }
+          },
+          "note": "",
+          "review": "e01d8845e17182feae0a4e8e221428078bc4a23a",
+          "reviewed": "9a1bb31b7f40533049633c958163034af59a6b16",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "wheel-lib"
       ],
@@ -7346,7 +7403,7 @@
       "risk": "high",
       "status": "review",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-12T08:16:42",
+      "updated": "2026-11-12T08:54:26",
       "worktree": "../task-wt/detent/task-wheel"
     },
     "wheel-evidence": {
