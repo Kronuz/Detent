@@ -1,6 +1,6 @@
 # wheel-followups: Wheel review follow-ups: N4, R1, R2
 
-Risk: low. Repo `../wheel`. After task-wheel. The lead writes this quest; contributors read it and
+Risk: low. Repo `../wheel`. After task-wheel and wheel-vs-stash. The lead writes this quest; contributors read it and
 never edit it. Machine state: `campaign status wheel-followups`.
 
 ## Outcome
@@ -17,6 +17,11 @@ are closed, none silently.
 - A3 R2: `producer_cpu_ns` is measured (per-thread CPU time on macOS and Linux) or removed with
   its dead `on_cpu`; the summary's zero-metric skip is gone either way, so a metric that reads 0
   stops the summary.
+
+- A4 [artifact] D83: README "Performance" and `docs/timer-wheel.md` "Cost" give the library's own
+  numbers from wheel-vs-stash (ns per operation, bytes per entry, cross-thread arm) and stash's
+  only where that file calls the row apples to apples; no prototype, candidate letter, or
+  ratio to one: `README.md`: "Performance".
 
 ## Contracts
 
