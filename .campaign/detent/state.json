@@ -2979,6 +2979,8 @@
     "logger-on-wheel": {
       "accepted": {},
       "after": [],
+      "base": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+      "branch": "quest/detent/logger-on-wheel",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -3000,6 +3002,7 @@
         "CHANGELOG.md",
         "docs/**"
       ],
+      "journal": "../Detent-wt/detent/logger-on-wheel",
       "landed": [],
       "lenses": [
         "correctness"
@@ -3011,9 +3014,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "The logger's deferred lines on Kronuz/wheel",
-      "updated": "2026-11-12T12:59:18"
+      "updated": "2026-11-12T13:48:45",
+      "worktree": "../logger-wt/detent/logger-on-wheel"
     },
     "logger-wheel-ab": {
       "accepted": {},
