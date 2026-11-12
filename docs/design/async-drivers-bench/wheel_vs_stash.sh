@@ -35,7 +35,8 @@ test)
 	echo "sanitize=address,undefined"
 	"$build/test-asan" test
 	echo "sanitize=thread"
-	"$build/test-tsan" test
+	# Linux 6.x maps above TSan's address layout under full ASLR; one process runs without it
+	if [ "$(uname -s)" = Linux ]; then setarch "$(uname -m)" -R "$build/test-tsan" test; else "$build/test-tsan" test; fi
 	exit 0
 	;;
 smoke | single | cross)

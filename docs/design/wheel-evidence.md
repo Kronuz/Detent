@@ -256,39 +256,34 @@ macOS, from the same source; not investigated, and memory does not enter the rul
 
 ## The pick
 
-The rule applies to each host on its own rows, unchanged. Rule 3's R = 10 rows (A5 and the VM's
-single loop) decide by the median ratio against 1.10; the cross-thread rows are R = 5.
+**(f) is the one Kronuz timer wheel (PLAN.md D70, the owner's decision on these rows).** The rule
+applies to each host on its own rows, unchanged; rule 3's R = 10 rows (A5 and the VM's single
+loop) decide by the median ratio against 1.10, and the cross-thread rows are R = 5.
 
-**macOS: no candidate passes, so there is no pick.**
+- **Linux VM: (f) passes every bound.** n = 1,000 at 1.04x, n = 1,000,000 at 1.00x (the best),
+  cross-thread 0.04x to 0.08x of stash at P = 1, 4 and 7, and its model and manual-clock tests
+  under ASan+UBSan and TSan on the VM. (b) and (c) fail the single loop (21x to 25x at n = 1,000).
+- **macOS: no candidate passes.** (f) passes the cross-thread bound at every P (0.06x to 0.11x)
+  and n = 1,000,000 (1.00x, the best), and misses n = 1,000 at 1.19x on its re-arm (9.7 ns against
+  (a)'s 5.9, disjoint ranges). (d) fails n = 1,000,000 (1.22x) and P = 14 (4.62x); (e) fails
+  n = 1,000 (1.101x) and P = 4 and 14 (1.37x, 4.73x); (b) and (c) fail the single loop by 1.8x
+  to 30x.
 
-- (b) and (c) fail the single loop by 1.8x to 30x; (c) passes the cross-thread bound (0.74x to
-  0.80x of stash).
-- (d) passes n = 1,000 (1.06x) and fails n = 1,000,000 (1.22x) and the cross-thread bound at
-  P = 14 (4.62x).
-- (e) fails n = 1,000 at 1.101x, passes n = 1,000,000 (1.02x), and fails cross-thread at P = 4
-  and 14 (1.37x, 4.73x).
-- (f) passes the cross-thread bound at every P (0.06x to 0.11x) and n = 1,000,000 (1.00x, the
-  best), and fails n = 1,000 at 1.19x (1.12x in the A2 row), on a re-arm gap that is not noise.
-
-**Linux VM: (f) passes and is the pick for that host.** n = 1,000 at 1.04x, n = 1,000,000 at
-1.00x (the best), cross-thread 0.04x to 0.08x of stash at P = 1, 4 and 7, and its manual-clock
-test (261111-173910-3288f9). (b) and (c) fail the single loop (21x to 25x at n = 1,000).
-
-The gap the lead brings to the owner: on one host the rule picks (f); on the other, (f) misses
-one bound, n = 1,000 single loop on macOS, by 7.1 ns per entry lifecycle (44.4 against 37.3; a
-32-byte entry, no heap). Against stash, (f) is 9 to 23 times cheaper per cross-thread arm on
-both hosts and 2.8x to 25x cheaper on the loop path, with no heap per arm.
+D70 accepts the macOS gap on the condition that it closes first: task-wheel, which builds (f) in
+Kronuz/task, removes the re-arm gap before anything adopts the wheel, proven by an exclusive A/B
+on this harness. Against stash, (f) is 9 to 23 times cheaper per cross-thread arm on both hosts
+and 2.8x to 25x cheaper on the loop path, with no heap per arm.
 
 ## What it means for Kronuz/stash and Kronuz/scheduler
 
-The owner's call, on these numbers:
+D70 settles both: Kronuz/scheduler moves onto (f), and Kronuz/stash is retired as a timer wheel.
+How, on these numbers:
 
 - **stash.** Its multi-producer design is beaten on its own case by a 64-stripe intrusive inbox in
   front of a single-owner wheel, and its leaf-per-slot structure costs the loop path 3.5x to 27x,
   most of it in `expire`. The improved leaf (c) is the smallest change that helps (cross-thread
-  0.74x to 0.80x of stash, single loop 1.7x better at 1,000,000) and does not close the loop gap.
-  Options: retire stash as a timer wheel in favor of (f); or keep it for its non-timer users, if
-  any, and improve it with (c)'s leaf.
+  0.74x to 0.80x of stash, single loop 1.7x better at 1,000,000) and does not close the loop gap,
+  so stash leaves the timer path; its non-timer users, if any, are the owner's separate call.
 - **scheduler.** `SchedulerQueue` can sit on (f): `ThreadedScheduler` and `Debouncer` arm from
   any thread through the stripes, and the scheduler's thread owns the wheel. Two contracts change:
   another thread arms only an unarmed entry, and only the owner cancels or re-arms. A
