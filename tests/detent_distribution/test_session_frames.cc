@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <vector>
@@ -195,6 +196,10 @@ void tiers() {
 			require(frame.pieces[frame.pieces.size() - 11].kind == d::PieceKind::Span &&
 						frame.pieces[frame.pieces.size() - 11].last == 30,
 					"level-0 sections arrive as one merged piece ending at the ring");
+			// Each named span above R is a whole Block; only the span holding R + 1 below it is a trimmed Span.
+			for (std::size_t i = 0; i + 11 < frame.pieces.size(); ++i)
+				require(frame.pieces[i].kind == (frame.pieces[i].first > r ? d::PieceKind::Block : d::PieceKind::Span),
+						"named piece " + std::to_string(i) + " kind at R = " + std::to_string(r));
 		}
 		table << r << ':' << body.size() << '/' << records << ' ';
 	}
@@ -279,6 +284,9 @@ void refusals() {
 						  .nil()
 						  .out),
 			"the hand-built blocks frame decodes");
+	constexpr auto max = std::numeric_limits<std::uint64_t>::max();
+	require(!rejected(head(1).frame("a", 2, max - 2, max, 1).piece(3, max - 1, max).record("a:x", max, 1).nil().out),
+			"a span reaching 2^64-1 decodes");
 	auto checks = std::vector<std::pair<std::string, std::string>>{
 		{"trailing byte", good + "\xc0"},
 		{"truncated", good.substr(0, good.size() - 1)},
@@ -295,6 +303,16 @@ void refusals() {
 		{"whole block not at R + 1", head(1).frame("a", 2, 3, 6, 1).piece(2, 1, 6).record("a:x", 5, 1).nil().out},
 		{"spans not contiguous",
 		 head(1).frame("a", 2, 3, 9, 2).piece(3, 1, 5).record("a:x", 5, 1).nil().piece(2, 7, 9).record("a:x", 9, 1).nil().out},
+		{"piece after the target at 2^64-1",
+		 head(1)
+			 .frame("a", 2, max - 2, max, 2)
+			 .piece(3, max - 1, max)
+			 .record("a:x", max, 1)
+			 .nil()
+			 .piece(3, 0, max)
+			 .record("a:x", max - 1, 1)
+			 .nil()
+			 .out},
 		{"blocks frame starting with an entry", head(1).frame("a", 2, 1, 2, 1).piece(1, 2, 2).record("a:x", 2, 1).nil().out},
 		{"span after an entry", head(1)
 									.frame("a", 2, 1, 4, 3)

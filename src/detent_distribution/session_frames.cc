@@ -165,7 +165,7 @@ FramePlan plan(const NamespaceRequest &request, const Answer &answer) {
 		auto index = answer.span;
 		for (; index < spans.size() && spans[index].named; ++index) {
 			const auto &span = spans[index];
-			const bool whole = span.first == answer.after + 1;
+			const bool whole = span.first > answer.after; // only the span holding R + 1 may be trimmed
 			frame.pieces.push_back({whole ? PieceKind::Block : PieceKind::Span, span.first, span.last, {index}});
 		}
 		if (index < spans.size()) {
@@ -466,6 +466,7 @@ struct SessionFramesDecoder::Impl {
 		wire(first <= last && last <= to.position, "session piece outside its frame");
 		switch (piece_kind) {
 		case PieceKind::Entry:
+			wire(at < to.position, "session piece after its frame's target");
 			wire(first == last && first == at + 1, "session entry is not the next position");
 			wire(kind == FrameKind::Entries || (kind == FrameKind::Blocks ? spans_seen : copy_seen),
 				 "session entry before its frame's first piece");
@@ -473,6 +474,7 @@ struct SessionFramesDecoder::Impl {
 			break;
 		case PieceKind::Block:
 		case PieceKind::Span:
+			wire(at < to.position, "session piece after its frame's target");
 			wire(kind == FrameKind::Blocks && !entries_seen, "session span outside a blocks frame");
 			wire(spans_seen ? first == at + 1 : first <= after + 1 && after + 1 <= last,
 				 "session span is not contiguous");

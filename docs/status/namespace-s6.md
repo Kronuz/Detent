@@ -58,7 +58,8 @@ definition: [default, rollout_pct | nil, rollout_value | nil, [[group, 0, value]
 ```
 
 Frame kinds: 1 entries, 2 blocks, 3 full copy. Piece kinds: 1 entry [p, p]; 2 block, a named span
-sent whole, fetchable by (namespace, incarnation, first, last); 3 span, trimmed or merged; 4 full
+sent whole, fetchable by (namespace, incarnation, first, last): every named span that starts above
+R; 3 span, trimmed (the span holding R + 1 when it starts at or below R) or merged (level-0); 4 full
 copy [0, s], fetchable by (namespace, incarnation, s). Frames come in name order; a piece's records
 in key order, each key once. Records end with nil instead of a count, so a server streams a trimmed
 block or a merged level-0 without reading it twice.
@@ -66,8 +67,8 @@ block or a merged level-0 without reading it twice.
 The decoder checks, before the sink sees the value that completes them: the frame starts after
 `after` (full copy: after 0) and its pieces run contiguously to the target position; the first span
 holds after + 1; a whole block starts at the next position; entries follow spans or the copy and
-each carries its own position; every record lies inside its piece and above `after`, belongs to the
-frame's namespace, and a full copy holds no tombstone; definitions pass `definition_error` and the
+each carries its own position; no piece follows the target; every record lies inside its piece and
+above `after`, belongs to the frame's namespace, and a full copy holds no tombstone; definitions pass `definition_error` and the
 `Limits` bounds. An agent applies a tombstone for a key it lacks as a no-op (D8 "Catch-up input").
 
 Golden answer (`test_session_frames.cc`): x = 1, y = 2, delete x; block [1, 2]; store at 1:
