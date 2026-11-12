@@ -5195,7 +5195,8 @@
         "tests/detent_agent/**",
         "tests/detent_system/**",
         "tests/detent_testing/**",
-        "docs/status/namespace-s7.md"
+        "docs/status/namespace-s7.md",
+        "benchmarks/paged_snapshot_bench.cc"
       ],
       "landed": [],
       "lenses": [
@@ -5212,7 +5213,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T15:20:14"
+      "updated": "2026-11-12T15:35:47"
     },
     "namespace-s7-store": {
       "accepted": {},
