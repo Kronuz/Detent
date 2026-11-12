@@ -532,9 +532,11 @@ void refusals(const fs::path &store, const fs::path &scratch) {
 }
 // Security review SR2: a digest-valid `.live` whose rows are not the set the root reaches. Two shapes over a
 // store of one value changed between two revisions, so the packs of both are on disk with equal lengths.
+// Enough knobs that the packs span more than one 1 MiB segment.
+const int stale_knobs = 60000;
 std::string small_json(int bump) {
 	std::string out = R"({"schema_version":1,"knobs":{)";
-	for (int i = 0; i < 30000; ++i)
+	for (int i = 0; i < stale_knobs; ++i)
 		out += (i ? "," : "") + std::string("\"n") + std::to_string(i % 10) + ":k" + std::to_string(i) +
 			   R"(":{"default":)" + std::to_string(i * 3 + 1 + (i == 7 ? bump : 0)) + "}";
 	return out + "}}";
@@ -560,7 +562,7 @@ void stale_rows(const fs::path &root) {
 		Session session;
 		session.recover(scratch);
 		std::uint64_t ok = 0, failed = 0;
-		for (int i = 0; i < 30000; ++i) {
+		for (int i = 0; i < stale_knobs; ++i) {
 			const auto got = session.generation->view().get("n" + std::to_string(i % 10), "k" + std::to_string(i));
 			if (got.has_value())
 				++ok;
