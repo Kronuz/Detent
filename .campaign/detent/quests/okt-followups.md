@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The non-blocking findings of `reviews/one-knob-type-correctness.md` (C1-C5) are closed: tests that fail without the behavior they claim, and two small cleanups.
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 C1: the non-canonical and past-64-bit varint cases sit in the paged body (not the header) and fail when the body decoder accepts them: suite plus a `--fails-without` mutant.
+- A2 C2: a flat-image record with default != 0 under a percentage evaluates in and out of the bucket (D68), reading the rollout value at its offset: suite plus a mutant.
+- A3 C3: the Python and Rust binding tests check `get_bool` refuses 2 and -1: suite.
+- A4 C4, C5: `LeafBody` refuses a value without any percentage; the export encoder's `flag_` is `definition_`: suite.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D65, D68; the review's findings table.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Everything (tests and internal cleanups).
