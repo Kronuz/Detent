@@ -1,6 +1,6 @@
 # logger-on-wheel: journal
 
-State: working
+State: waiting on jobs 261112-140412-ee682f 261112-140415-a16bfe 261112-140418-0c17c8 261112-140421-86b4c3
 Quest: .campaign/detent/quests/logger-on-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,10 +28,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending> |
-| A2 | <pending> |
-| A3 | <pending> |
-| A4 | <pending> |
+| A1 | 261112-140315-039e6c (suite, 13 tests incl. logger_deferred and logger_deferred_stress, passed at be2106cd8e43); fails without: 261112-140328-3415e1 (early mutant killed: "never early" CHECK; late mutant killed: median lateness 3.498 ms > bound) |
+| A2 | 261112-140332-797330 (TSan RelWithDebInfo, 12 tests incl. deferred stress, 0 TSan reports, passed at be2106cd8e43) |
+| A3 | <261112-140412-ee682f, -140415-a16bfe, -140418-0c17c8 (p2 P=1,4,14), 261112-140421-86b4c3 (p3)> |
+| A4 | 261112-140334-59109a (no heap/set/map/ScheduledTask; 3 `_heap(` calls all on `heads`; one `wheel::timer_wheel` member) |
 | A5 | `ARCHITECTURE.md`: "Deferred lines ride the LOG thread's wheel" |
 
 ## Result
