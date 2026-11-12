@@ -113,7 +113,7 @@ fn health_snapshot() {
     let h = client.health();
     assert!(h.initialized);
     assert_eq!(h.accepted_version, 0); // baked defaults only, no source configured
-    assert_eq!(h.knobs, 4);
+    assert_eq!(h.knobs, 6);
 }
 
 #[test]

@@ -115,7 +115,7 @@ def test_health_snapshot():
         h = client.health()
         assert h["initialized"] is True
         assert h["accepted_version"] == 0  # baked defaults only, no source configured
-        assert h["knobs"] == 4
+        assert h["knobs"] == 6
     finally:
         os.remove(path)
 
