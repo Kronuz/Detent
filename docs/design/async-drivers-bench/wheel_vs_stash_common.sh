@@ -6,6 +6,10 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 build_root=${BUILD_DIR:-$here/build-wheel-vs-stash}
 mkdir -p "$build_root"
 
+# The fetched sources: the job's pinned checkouts, else cmake's own clones.
+wheel_src() { echo "${JOB_REF_WHEEL:-$build_root/deps/wheel-src}"; }
+stash_src() { echo "${JOB_REF_STASH:-$build_root/deps/stash-src}"; }
+
 # NAME FLAGS TARGET...: configures $build_root/NAME with C++ flags FLAGS and builds the targets;
 # prints the pins and the build's file line.
 build() {
@@ -17,13 +21,13 @@ build() {
 	cmake -S "$here" -B "$dir" -DBENCH_WHEEL_VS_STASH=ON -DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_CXX_FLAGS_RELEASE="$flags" -DFETCHCONTENT_BASE_DIR="$build_root/deps" "${args[@]}" >/dev/null
 	cmake --build "$dir" -j4 --target "$@" >/dev/null
-	echo "pin wheel=$(git -C "$build_root/deps/wheel-src" rev-parse HEAD) stash=$(git -C "$build_root/deps/stash-src" rev-parse HEAD)"
+	echo "pin wheel=$(git -C "$(wheel_src)" rev-parse HEAD) stash=$(git -C "$(stash_src)" rev-parse HEAD)"
 	echo "flags=\"$flags\""
 }
 
 # The cmake target's binary in a build directory, and the wheel's paired-summary module.
 bin() { echo "$build_root/$1/$2"; }
-summary_module() { echo "$build_root/deps/wheel-src/bench/wheel_bench_summary.py"; }
+summary_module() { echo "$(wheel_src)/bench/wheel_bench_summary.py"; }
 
 host() {
 	echo "host=$(uname -sm) cpu=\"$(sysctl -n machdep.cpu.brand_string 2>/dev/null || sed -n 's/^model name\t*: //p' /proc/cpuinfo | head -1)\" hw_threads=$(getconf _NPROCESSORS_ONLN) compiler=\"$(c++ --version | head -1)\""
