@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-082040-0cdc5a 261112-082042-93b54d 261112-082045-8dd224 261112-082223-84e56a 261112-082227-45e3b3 261112-082229-26596a 261112-082231-ac506e 261112-082234-9559fb 261112-082236-9714e6
+State: waiting on jobs 261112-082040-0cdc5a 261112-082042-93b54d 261112-082045-8dd224 261112-082231-ac506e 261112-082234-9559fb 261112-082236-9714e6 261112-082650-0b5be2 261112-082652-65999f 261112-082655-1d3288 261112-082706-07b590 261112-082708-f1c86e 261112-082711-f34b89 261112-082714-8d6761
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -26,6 +26,15 @@ P=1 pattern 3 profiles: D 261112-082038-4353a0, A 261112-082042-93b54d (pending)
 Change 1 (logger:HEAD "the due batch is a binary heap"): jobs check-d 261112-082223-84e56a, tsan-d
 261112-082227-45e3b3, stats 261112-082229-26596a, rows p3 P=1 261112-082231-ac506e, p3 P=14
 261112-082234-9559fb, p2 P=1 261112-082236-9714e6.
+
+Change 1 check-d 261112-082223-84e56a and tsan-d 261112-082227-45e3b3 passed. Coordinator: the
+cause is filing, not the structure; change 2 (logger:e7a4f3f) caps the LOG thread's sleep at one tick
+after a pass that filed lines (A has the same wake mechanism, so it files late too; its heap absorbs
+it). Change 2 is on top of change 1. Jobs: check-d 261112-082650-0b5be2, tsan-d 261112-082714-8d6761,
+stats p3 P=14 261112-082652-65999f, p3 P=1 261112-082655-1d3288, rows (c2 with c1, `row-d P P 40`)
+p3 P=1 261112-082706-07b590, p3 P=14 261112-082708-f1c86e, p2 P=1 261112-082711-f34b89. Change 1
+alone rows: 261112-082231-ac506e, -082234-9559fb, -082236-9714e6 (queued before change 2).
+If c2's bypass is near zero: drop c1's heap (revert 6c29783), re-measure c2 alone.
 
 ## Next
 
