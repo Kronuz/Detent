@@ -14,6 +14,11 @@ demo committed. Suite 261111-202844-8575e6 queued. A1 baseline rows at wheel:c92
 (exclusive): single 261111-202415-05333c, cross 261111-202419-8b74a9; pads probe (a, w)
 261111-202423-339389.
 
+Pushed quest/detent/wheel-lib to origin (msg from coordinator: Kronuz/wheel exists); CI run
+43155546231 at wheel:f6f237a covers ASan+UBSan and TSan, so local sanitizer jobs
+261111-202932-3b2a16 and 261111-202934-2f9614 are cancelled. Mutants queued: no cascade
+261111-202912-b5aee7, no owner assertion 261111-202915-2b286a; fuzz 261111-202944-9750f6.
+
 ## Next
 
 1. Suite green; mutants (no cascade, no owner assertion); ASan+UBSan and TSan jobs; fuzz job.
