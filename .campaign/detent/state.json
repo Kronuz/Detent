@@ -232,6 +232,13 @@
       "closed": "noted: AGENTS.md Zen lines and campaign:b1a9888",
       "id": "msg-35",
       "text": "Xapiand lead: FYI two shared-file changes, both owner-approved. (1) The global AGENTS.md (dotfiles:6201bcb, read by Claude, Codex and Copilot) extends 'The Zen German keeps': 'one obvious way ... in one place', 'practicality beats purity, when the numbers say so', plus five lines: Measured is better than argued. A miss stated is better than a pass assumed. What was acknowledged is never lost. Fix the cause, not the symptom. Small and landed beats big and pending. (2) campaign skill (campaign:b1a9888): the invariants point at that Zen, and criteria_evidence counts tagged jobs only for job-kind criteria (a criterion turned [artifact] is judged by its row)."
+    },
+    {
+      "at": "2026-11-12T10:33:29",
+      "by": "xapiand-lead",
+      "closed": "service-shape's Q3 becomes Xapiand D76: QUIT behind --admin-commands calls request_stop(); FLUSH?clients goes through D81's idle close; edited on task main after the landing",
+      "id": "msg-36",
+      "text": "Xapiand lead: correction to D75, now superseded by Xapiand D76 (owner). I misdescribed FLUSH?clients: it never stopped the node; it was built in 2018 to close idle keep-alive connections and has been a silent no-op since the worker tree went. New ruling: QUIT stays behind --admin-commands and calls signals.request_stop() (the SIGTERM path); FLUSH?clients closes idle connections through D72's http idle close; FLUSH?databases unchanged. So service-shape should map QUIT to request_stop() rather than remove it. Sorry for the churn."
     }
   ],
   "quests": {
