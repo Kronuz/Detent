@@ -9,16 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 cause: placement probe 261111-194713-13e696 (`bench/wheel/wheel_bench.sh pads`, a vs f at n=1e3
-with 0-60 KiB between wheel and entries). Suite 261111-200257-79ef5c on the first wheel + integration.
+Wheel, integration, tests and docs are in (task:e0b3bc2 + docs). Suite green 261111-200257-79ef5c
+(at task:29efffaa). Mutants caught: no cascade 261111-200754-54595f, no owner assertion
+261111-200759-d5c797. CI pushed (run 43152858997, ASan/TSan).
+A1 jobs queued exclusive behind light holds: pads probe 261111-194713-13e696, single row
+261111-200732-e12dee, cross row 261111-200735-8e28e4; strict probe with t (not evidence)
+261111-201226-76b3a1.
 
 ## Next
 
-1. Read the pads probe; if the gap follows placement, decide the layout and run the A1 single
-   row (`wheel_bench.sh single 10`, exclusive) and the cross row (`wheel_bench.sh cross 5`).
-2. Fix the suite until green; TSan/ASan via CI on push (A4).
-3. docs/timer-wheel.md (A6), README/API/ARCHITECTURE entries.
-4. Ready for the Xapiand lead's review (A7).
+1. Read the strict probe and the single row: t vs a at n=1e3/1e6 within 1.10x? If not, the
+   pads probe says whether the gap is placement; fix the layout (<= 5 tries).
+2. Cross row: t vs f at P=1/4/14 within 1.10x.
+3. A1 numbers into docs/timer-wheel.md; CI green (A4); paste the brief's table; ready for review.
 
 ## Blocked on
 
