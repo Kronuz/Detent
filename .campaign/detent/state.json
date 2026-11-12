@@ -8178,9 +8178,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T14:48:07",
+      "updated": "2026-11-12T15:19:28",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
