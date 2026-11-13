@@ -1,6 +1,6 @@
 # delta-plan-scaling: journal
 
-State: ready for review
+State: ready for review (evidence jobs A1, A3, A4 predate the comment-only change detent:cd4ecda1 and need `campaign job rerun`; the rerun was denied to me and its corpora in ~/.scratch/dps are deleted)
 Quest: .campaign/detent/quests/delta-plan-scaling.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -49,7 +49,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261112-170345-ea0ce8 (profile at 1M, main's code): TrieOverlay::Impl::remove, a linear std::find over every page removed so far per converted node, 7,828 of 10,346 working samples (76%); O(keys x pages). Details: docs/perf/delta-plan-scaling.md |
-| A5 | `docs/perf/delta-plan-scaling.md`: "Before and after: plan per size (100K 0.782 -> 0.675 s, 1M 23.89 -> 6.919 s, 13.5 and 13.8 us/key after), byte identity, ledger margin, 5M 512.8 -> 34.855 s (13.9 us/key)" |
+| A5 | `docs/perf/delta-plan-scaling.md`: "Plan time per changed key stays flat from 100K to 5M (13.5, 13.8, 13.9 us)" |
 
 ## Result
 
