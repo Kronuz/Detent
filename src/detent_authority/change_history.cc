@@ -82,7 +82,7 @@ class HistoryDraft final : public AppliedChangeDraft {
 			return;
 		}
 		const auto *record = candidate_->find(mutation.key);
-		if (!record || record->revision != entry_->revision)
+		if (!record || record->revision != entry_->position)
 			throw std::logic_error("changed value revision mismatch");
 		const auto prefix = pending_.size();
 		detail::write_wire_definition_head(pending_, *record->value);

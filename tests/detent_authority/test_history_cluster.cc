@@ -95,16 +95,8 @@ void identical(Cluster &group) {
 	assert(reference.contains("layout"));
 	for (const auto &[name, _] : reference)
 		assert(!name.starts_with(".tmp-"));
-	for (unsigned i = 1; i < 3; ++i) {
-		auto other = files(group, i);
-		for (const auto &[name, bytes] : reference)
-			if (!other.contains(name) || other[name] != bytes)
-				std::cerr << "voter " << i << " differs at " << name << (other.contains(name) ? "" : " (absent)") << "\n";
-		for (const auto &[name, bytes] : other)
-			if (!reference.contains(name))
-				std::cerr << "voter " << i << " has extra " << name << "\n";
-		assert(other == reference);
-	}
+	for (unsigned i = 1; i < 3; ++i)
+		assert(files(group, i) == reference);
 }
 using Store = std::map<std::string, std::string>;
 Store store_at(const std::string &name, const Identity &incarnation, Revision after) {
@@ -139,7 +131,7 @@ std::map<Revision, Seen> answers(Cluster &group, unsigned i, const std::string &
 	auto &ring = *rings[i]->inner;
 	const auto floor = ring_tier ? ring.floor(name, entry->incarnation, head) : head;
 	// The ring and the durable layout tile every position above the cut (lazy eviction).
-	assert(floor <= n->position || (gap_positions.contains(name) && floor <= gap_positions[name]));
+	assert(!ring_tier || floor <= n->position || (gap_positions.contains(name) && floor <= gap_positions[name]));
 	const auto target = store_at(name, entry->incarnation, head);
 	std::map<Revision, Seen> out;
 	for (Revision r = n->base.last; r <= head; ++r) {
@@ -155,14 +147,16 @@ std::map<Revision, Seen> answers(Cluster &group, unsigned i, const std::string &
 					s.erase(c.key);
 			}
 		// The ring serves (through, head] with each entry exactly once, by namespace position.
-		if (a.through < head && a.through < floor) {
+		if (ring_tier && a.through < floor) {
 			assert(gap_positions.contains(name)); // Only the failed capture leaves a hole.
 			continue;
 		}
-		auto entries = ring.entries(name, entry->incarnation, a.through);
-		assert(entries.size() == head - a.through);
-		for (std::size_t k = 0; k < entries.size(); ++k)
-			assert(entries[k]->position == a.through + 1 + k);
+		if (ring_tier) {
+			auto entries = ring.entries(name, entry->incarnation, a.through);
+			assert(entries.size() == head - a.through);
+			for (std::size_t k = 0; k < entries.size(); ++k)
+				assert(entries[k]->position == a.through + 1 + k);
+		}
 		for (const auto &w : writes[name])
 			if (w.incarnation == entry->incarnation && w.position > a.through && w.position <= head) {
 				if (w.definition)

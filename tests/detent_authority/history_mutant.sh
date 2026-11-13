@@ -32,6 +32,9 @@ checkpoint-between-seals) file=src/detent_authority/node.cc test=test_authority_
 cut-at-twice-the-cost) file=src/detent_authority/history_layout.cc test=test_authority_history_layout
 	old='			if (Wide{younger} * p.alpha_den >= budget)'
 	new='			if (Wide{younger} * p.alpha_den >= 2 * budget)' ;;
+ring-by-group-revision) file=src/detent_authority/change_history.cc test=test_authority_history_cluster
+	old='		if (!record || record->revision != entry_->position)'
+	new='		if (!record || record->revision != entry_->revision)' ;;
 *) echo "unknown mutant $mutant"; exit 0 ;;
 esac
 OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 0; }

@@ -1,7 +1,9 @@
-// S5.1 A5: a power cut at every storage primitive of a run that writes before
-// the enabling entry, applies it, updates positions, checkpoints and drops a
-// namespace. Recovery, then the same producer retries, must reach the state of
-// the uninterrupted run, and nothing acknowledged before the cut may be lost.
+// S5.1 A5, S5.2 A5: a power cut at every storage primitive of a run that writes
+// before the enabling entry, applies it, updates positions, checkpoints, drops a
+// namespace and changes the roll-up period, with history on the same disk.
+// Recovery, with no peer to fetch from, then the same producer retries, must
+// reach the state and the layout of the uninterrupted run, and nothing
+// acknowledged before the cut may be lost: no checkpoint outran its history.
 #include "namespace_oracle.hh"
 #include "node.hh"
 #include <cassert>
@@ -35,6 +37,7 @@ NodeOptions options() {
 	o.application.state_bytes = 2 * 1024 * 1024;
 	o.application.image_bytes = 4 * 1024 * 1024;
 	o.application.layout.seal_transactions = 1; // Checkpoints are taken at seals: one per change.
+	o.application.layout.period = 4;
 	o.timing.heartbeat = 100;
 	o.timing.rpc_timeout = 200;
 	o.timing.election_min = 1000;
@@ -42,6 +45,11 @@ NodeOptions options() {
 	return o;
 }
 struct Checkpoint {};
+LayoutPolicy period(std::uint64_t p) {
+	auto policy = options().application.layout;
+	policy.period = p;
+	return policy;
+}
 using Step = std::variant<Command, AdministrativeCommand, Checkpoint>;
 Command write(std::uint64_t sequence, std::string name, std::string key, std::optional<int> value) {
 	Command c;
@@ -79,6 +87,7 @@ std::vector<Step> workload() {
 			AdministrativeCommand{context(), AdministrativeKind::DropNamespace, {}, "b",
 								  derive_incarnation(context(), enable.nonce, 2, "b")},
 			Checkpoint{}, // An image holding a tombstone.
+			AdministrativeCommand{context(), AdministrativeKind::SetLayout, {}, {}, {}, period(2)},
 			write(++s, "b", "x", 7), // Re-created under a new incarnation.
 			write(++s, "c", "x", 8),
 			Checkpoint{},
@@ -105,6 +114,7 @@ struct Run {
 	bool created = false, strict = true;
 	void boot(bool recover) {
 		node = std::make_unique<Node>(std::make_unique<mem::MemoryIO>(disk), options());
+		node->attach_history(std::make_shared<mem::MemoryIO>(disk, "history/"));
 		if (recover)
 			node->recover();
 		else {
@@ -153,6 +163,24 @@ struct Run {
 		}
 	}
 };
+// The layout reaches every namespace at its position, through a durable history.
+void same_layout(const State &expected, const Node &node) {
+	const auto *history = node.history();
+	assert(history && history->ready() && node.sealed());
+	assert(history->durable_through(node.sealed()->applied_index()));
+	const auto &table = history->layout().table();
+	const auto &sealed = *node.sealed();
+	assert(table.policy == sealed.policy() &&
+		   (sealed.policy().period == 2 || (sealed.pending_policy() && sealed.pending_policy()->period == 2)));
+	for (const auto &n : table.namespaces) {
+		const auto *entry = node.sealed()->namespace_entry(n.name);
+		assert(entry && entry->live && entry->incarnation == n.incarnation && entry->position == n.position);
+		assert(n.live == entry->bytes);
+	}
+	std::size_t live = 0;
+	expected.for_each_directory_entry(0, [&](auto, auto &, auto &entry) { live += entry.live; });
+	assert(table.namespaces.size() == live);
+}
 } // namespace
 int main() {
 	const auto steps = workload();
@@ -165,6 +193,7 @@ int main() {
 		for (const auto &step : steps)
 			run.run(step);
 		expected = run.node->state();
+		same_layout(expected, *run.node);
 		operations = reference.operations;
 		run.node.reset();
 	}
@@ -220,6 +249,7 @@ int main() {
 		for (const auto &step : steps)
 			run.run(step);
 		detent::authority::testing::same_namespaces(expected, run.node->state());
+		same_layout(expected, *run.node);
 		run.node.reset();
 	}
 	assert(cuts > 50 && enabling_acknowledged > 0);
