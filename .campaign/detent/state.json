@@ -1131,10 +1131,40 @@
         "tests/detent_local/CMakeLists.txt",
         "docs/perf/delta-plan-scaling.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T18:41:26",
+          "commit": "80af544aaa60cd107549b99daa8064a406c3d2b3",
+          "criteria": {
+            "A1": "261112-182157-dbf98d",
+            "A2": "261112-175730-027a84 (passed at cd4ecda18e40; ignores docs-only docs/perf/delta-plan-scaling.md), 261112-175733-62e242 (passed at cd4ecda18e40; ignores docs-only docs/perf/delta-plan-scaling.md)",
+            "A3": "261112-183713-6fac93",
+            "A4": "261112-182156-33d8b7; fails without: 261112-171004-4fde22, 261112-182157-5f3ab3",
+            "A5": "`docs/perf/delta-plan-scaling.md`: \"Plan time per changed key stays flat from 100K to 5M (13.5, 13.8, 13.9 us)\""
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "f34fb5c2ffabea95239929a0033606fdd0d7e3a2",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-182156-33d8b7",
+              "level": "none",
+              "seconds": 5.1,
+              "state": "done",
+              "what": "delta-plan-scaling check pins at f34fb5c2ffab"
+            }
+          ],
+          "final": true,
+          "from": "7f59ad41d1afa56a519c4b62811cf829ef7548d2",
+          "reason": "",
+          "tested": "f34fb5c2ffabea95239929a0033606fdd0d7e3a2"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "warm-graph-5m"
@@ -1142,9 +1172,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "A delta's plan grows superlinearly with the store",
-      "updated": "2026-11-12T18:38:17",
+      "updated": "2026-11-12T18:41:28",
       "worktree": "../Detent-wt/detent/delta-plan-scaling"
     },
     "dense-distribution": {
