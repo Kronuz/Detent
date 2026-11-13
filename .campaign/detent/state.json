@@ -4907,6 +4907,8 @@
     "namespace-s5-2": {
       "accepted": {},
       "after": [],
+      "base": "3b8fbc50766fcf95cd336ed24b4b2c15cfac224e",
+      "branch": "quest/detent/namespace-s5-2",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4996,9 +4998,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-10T13:19:10"
+      "updated": "2026-11-12T19:38:03",
+      "worktree": "../Detent-wt/detent/namespace-s5-2"
     },
     "namespace-s6": {
       "accepted": {
