@@ -5805,6 +5805,8 @@
     "namespace-s6-cutover": {
       "accepted": {},
       "after": [],
+      "base": "868e222f611140829a732b91fdab43059fdace31",
+      "branch": "quest/detent/namespace-s6-cutover",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5843,9 +5845,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-12T22:30:34"
+      "updated": "2026-11-13T08:18:08",
+      "worktree": "../Detent-wt/detent/namespace-s6-cutover"
     },
     "namespace-s7": {
       "accepted": {
