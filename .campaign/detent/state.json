@@ -6469,7 +6469,18 @@
         "tests/detent_agent/**",
         "tests/detent_system/**",
         "tests/detent_testing/**",
-        "docs/status/namespace-s7.md"
+        "docs/status/namespace-s7.md",
+        "tests/detent_delivery/**",
+        "benchmarks/paged_collection_bench.cc",
+        "benchmarks/paged_recovery_bench.cc",
+        "benchmarks/local_image_bench.cc",
+        "tools/check_lineage.sh",
+        "tools/w5/first_read.py",
+        "docs/HOW_IT_WORKS.md",
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "docs/DISK_STORE_INTEGRATION.md",
+        "docs/DISK_LIFECYCLE_ARCHITECTURE.md",
+        "docs/mechanisms/**"
       ],
       "landed": [],
       "lenses": [
@@ -6484,7 +6495,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T02:54:45",
+      "updated": "2026-11-13T04:57:12",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
