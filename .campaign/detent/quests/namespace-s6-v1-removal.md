@@ -14,6 +14,7 @@ v1 is gone: the agent and relays consume namespace-s6's v2 sessions served by na
 - A3 The agent and a relay chain run end to end on v2 sessions against a live authority cluster, readers answering what the authority answers: the system suites
 - A4 namespace-s6's session codecs and client admit their memory through a `StorageLedger`, not the bare heap (S6 ruling R8): a test that a ledger at its bound refuses an answer
 - A5 The authority-fed sink stages a multi-fragment answer and applies nothing when a later fragment is corrupt (namespace-s6 review F3): a test with a corrupt second fragment, plus a mutant applying early, killed
+- A6 A dropped followed namespace is signalled to the session, never silently omitted (namespace-s6-cutover review F5): a test that a follower learns of the drop
 
 ## Contracts
 
