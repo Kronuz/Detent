@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-S8 (`docs/design/namespace-delivery.md` D7): every relay keeps a persisted mirror of each namespace's blocks, base and ring, byte-identical to the authority's, plus the immutable objects, so it answers W6 from its own disk after a restart without re-fetching history.
+S8 (`docs/design/namespace-delivery.md` D7): every relay keeps a persisted mirror of each namespace's blocks and base, byte-identical to the authority's, plus the immutable objects, so it answers W6 from its own disk after a restart without re-fetching history; its ring is memory only and re-read from the upstream after a restart (design D7; review D6).
 
 ## Acceptance criteria
 
