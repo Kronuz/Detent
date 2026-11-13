@@ -1,6 +1,6 @@
 # wheel-followups: journal
 
-State: waiting on jobs 261112-160203-553070 261112-160205-344072 261112-160209-d58469 261112-160212-f11fb7 261112-160216-3b15c9 261112-160219-00e710 261112-160223-638948 261112-160226-68d3da 261112-160243-d839de 261112-160245-27a1ef 261112-160248-bd22ed
+State: waiting on jobs 261112-160933-266ff2 261112-160839-ef94c0 261112-160848-be2b8c 261112-160906-c85f23 261112-160908-f37dd5 261112-160910-a7d660 261112-160913-754337 261112-160916-710092 261112-160920-572262 261112-160923-9ecbc0 261112-160926-aab121
 Quest: .campaign/detent/quests/wheel-followups.md (the lead's; never edit it)
 
 ## Doing
@@ -52,5 +52,10 @@ pending
    decision says README or docs, and those are docs.
 2. N4 is a Debug assert reusing `expiring_` (set in the destructor around the dying fires), so
    the existing re-entrancy assert covers it at no release-build cost.
-3. test/summary_gate_test.py is run as a job (`python3 test/summary_gate_test.py`): CMakeLists.txt
-   is outside the file set, so it is not a CTest. Lead: add `add_test` if CI should run it.
+3. The lead's msg (file set grown): summary_gate_test.py is CTest wheel_summary_gate; `sparse` counts
+   the bitmap words expire() visits (WHEEL_TEST_SCANNED, empty outside tests; at most 65 a wake, a
+   bit-by-bit walk visits 4,096), no wall-clock in the suite; timing stays in the A6 exclusive A/B
+   (261112-160906-c85f23, -160908-f37dd5). A5 is documented as burst arrival vs the owner's filing.
+
+   Next after jobs: fill LATENESS_CAUSE and SPARSE_WAKES in docs/timer-wheel.md from 261112-160910-a7d660
+   and -160906-c85f23, rerun only what changed, paste the Evidence table.
