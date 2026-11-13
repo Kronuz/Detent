@@ -5855,7 +5855,107 @@
       "worktree": ""
     },
     "namespace-s6-cutover": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-13T09:54:27",
+          "base": "29e93c295fa5e6838f809a146b489c8ca70dd69e",
+          "blobs": {
+            "docs/status/namespace-s6-cutover.md": "100644:cd03bcae84af1249f6a5ceb71a5cf71097d4803c",
+            "src/detent_authority/CMakeLists.txt": "100644:0356ad9fbdff4c6d438053721d63d7ed31be8001",
+            "src/detent_authority/frames_export.cc": "100644:2c1c1b49fa59751a2a3d4d9685ce4dcff5011f4f",
+            "src/detent_authority/frames_export.hh": "100644:fc991e0552f7ae7cea3de9773a43b6791d10ebaf",
+            "src/detent_authority/history_layout.cc": "100644:d9797f60dfe6a88011f360022b84fd2053930160",
+            "src/detent_authority/history_layout.hh": "100644:40d38c8d74c8ceddf0727f446f27e293a064c831",
+            "src/detent_authority/namespace_history.cc": "100644:ec11ded2179543ea89d0bfa12a45cfddbc0259e7",
+            "src/detent_authority/namespace_history.hh": "100644:e68f50ebc81be6ca5b5fc9caf7096c642f5a01c3",
+            "src/detent_authority/namespace_sessions.cc": "100644:4975524255b36ea652e2327438ee9d05329091f9",
+            "src/detent_authority/namespace_sessions.hh": "100644:a61376c64e3fea2f407b80e37e48f8880847ced3",
+            "src/detent_authority/node.hh": "100644:80c0cd75a63e206454d3cbd00a54421fb4b8cdad",
+            "src/detent_authority/service.cc": "100644:0029d0d3af78a6969feab92b3ae1c5982a627b78",
+            "src/detent_authority/service.hh": "100644:8854c6d2bbd6d0670c8ba906816eddf921c812ad",
+            "src/detent_authority/state.hh": "100644:6d46137325fff3b6e8e21413d691bc05ebba4ac0",
+            "src/detent_distribution/session_frames.cc": "100644:67827ec40f90a99e04a316397a8662cce311703c",
+            "tests/detent_authority/CMakeLists.txt": "100644:534b43bf7241d92a5ef1bfb83c7b89b5382b12c1",
+            "tests/detent_authority/test_frames_service.cc": "100644:d2709c47c8cbe4c4f6a99de34e42c4986e77e64e",
+            "tests/detent_authority/test_lagging_incarnation.cc": "100644:753e9384b323a9a7a7c02334bf6544d84ca2f2e9",
+            "tests/detent_authority/test_namespace_history.cc": "100644:471f62aa6e1472cf7ff8e0c0e3cfba86133f8a1a",
+            "tests/detent_distribution/test_session_frames.cc": "100644:97f941e7e782e66b90b1ae3f806aa33d1ed4c08b"
+          },
+          "by": "review",
+          "commit": "2a85386aa17d7c9b1d4fc2aa57794d21923e6d15",
+          "criteria": "ce045319b624a2fe",
+          "diffs": {
+            "docs/status/namespace-s6-cutover.md": "317a86d1a4c4b287",
+            "src/detent_authority/CMakeLists.txt": "c0f3a005a59f37bc",
+            "src/detent_authority/frames_export.cc": "12091c969f3e7df1",
+            "src/detent_authority/frames_export.hh": "93bbd30cd1cb32d5",
+            "src/detent_authority/history_layout.cc": "7d10f7ef182b27bc",
+            "src/detent_authority/history_layout.hh": "137635ce91c11598",
+            "src/detent_authority/namespace_history.cc": "e6d7fc7449ab881d",
+            "src/detent_authority/namespace_history.hh": "f7fce66e3a3e7f17",
+            "src/detent_authority/namespace_sessions.cc": "70d31b56cb402a18",
+            "src/detent_authority/namespace_sessions.hh": "48814dcc0da20ccb",
+            "src/detent_authority/node.hh": "cb0d2d95893a3dcb",
+            "src/detent_authority/service.cc": "e1f8b228e5624727",
+            "src/detent_authority/service.hh": "5b8f6d6a447f3d4e",
+            "src/detent_authority/state.hh": "b84c051e39f22111",
+            "src/detent_distribution/session_frames.cc": "33f74f27b9859168",
+            "tests/detent_authority/CMakeLists.txt": "1ea8dbdfcbba7a0e",
+            "tests/detent_authority/test_frames_service.cc": "a4ad9f00b9ea3026",
+            "tests/detent_authority/test_lagging_incarnation.cc": "e7f6567b2a73dbbc",
+            "tests/detent_authority/test_namespace_history.cc": "c592a6e0693d725e",
+            "tests/detent_distribution/test_session_frames.cc": "fe28aeccd3462600"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900'",
+                  "commit": "8d6672698e87280920a0363cc3da6ce0f816fae3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261113-094044-ae3ff3",
+                  "level": "light",
+                  "seconds": 565.8,
+                  "state": "done",
+                  "what": "native suite at the F1/F2 fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900'",
+                  "commit": "8d6672698e87280920a0363cc3da6ce0f816fae3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261113-094044-ae3ff3",
+                  "level": "light",
+                  "seconds": 565.8,
+                  "state": "done",
+                  "what": "native suite at the F1/F2 fix"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "src/detent_distribution/session_frames.cc",
+              "tests/detent_authority/test_lagging_incarnation.cc",
+              "tests/detent_distribution/test_session_frames.cc"
+            ],
+            "reason": "F1 is the reviewer's proposed fix (position before incarnation in select_answer) with its regression tests and mutant; F2 is a test only"
+          },
+          "note": "",
+          "review": "389f0a9af4552571d77c23907db3e23a9a17ec16",
+          "reviewed": "05ec8079219d31c4f0b27067b63ac64c4fde2513",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "868e222f611140829a732b91fdab43059fdace31",
       "branch": "quest/detent/namespace-s6-cutover",
@@ -5902,7 +6002,7 @@
       "risk": "high",
       "status": "review",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-13T09:35:39",
+      "updated": "2026-11-13T09:54:27",
       "worktree": "../Detent-wt/detent/namespace-s6-cutover"
     },
     "namespace-s6-v1-removal": {
