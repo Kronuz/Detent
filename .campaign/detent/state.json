@@ -5342,6 +5342,8 @@
     "namespace-s7-ids": {
       "accepted": {},
       "after": [],
+      "base": "8008610ec31b521bdcf1b1c2eb72b9dcd902737c",
+      "branch": "quest/detent/namespace-s7-ids",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5385,9 +5387,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T15:35:47"
+      "updated": "2026-11-12T18:42:11",
+      "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
       "accepted": {},
