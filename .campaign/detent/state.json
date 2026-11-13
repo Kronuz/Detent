@@ -3032,7 +3032,8 @@
       "files": [
         "logger.cc",
         "logger.h",
-        "test/**"
+        "test/**",
+        "docs/ROADMAP.md"
       ],
       "landed": [],
       "lenses": [],
@@ -3043,7 +3044,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T15:40:37"
+      "updated": "2026-11-12T15:54:37"
     },
     "logger-followups": {
       "accepted": {},
@@ -8221,7 +8222,51 @@
       "worktree": "../task-wt/detent/task-wheel"
     },
     "warm-graph-5m": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T16:07:59",
+          "base": "b4b7d01298034c86625fdcca79eb37732221827c",
+          "blobs": {
+            "src/detent_local/sparse_plan_finalizer.cc": "100644:8588441d7fddc16c44322abaa7b51dbee71d53c2",
+            "tests/detent_local/CMakeLists.txt": "100644:f699964064fcf9fa41927cf948e0b0e37445db59",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "100644:393a21b0dc15a9dff88fb78950469e7f6bab6f7f",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "100644:3a00d773eabb44c66cc04f4bf423308a76db9640"
+          },
+          "by": "review",
+          "commit": "132ac1a612d0a39d634ad12bbad828b5b33a242a",
+          "criteria": "2b5fd6fff33e1010",
+          "diffs": {
+            "": "fec9073bcaee2f6b",
+            "src/detent_local/sparse_plan_finalizer.cc": "b75d9f5e382e44ec",
+            "tests/detent_local/CMakeLists.txt": "fa33f3eec95920ee",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "4f2b3a10804cca10",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "7ba47f457f8267b7"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.scratch/f1/mutant.sh",
+                  "commit": "6c52a2b3dea0ba671bc64d198484fd7fda0d060c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-154129-2cdfff",
+                  "level": "light",
+                  "seconds": 50.9,
+                  "state": "done",
+                  "what": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.sc at 6c52a2b3dea0"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "1867c20d4d46724f719308ced28db62e697b0c9f",
+          "reviewed": "c486f4ed2b65e4a6ed60cf82c51620047f656264",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "257526dd8625bab03c2837dcbd1cd85345dbbf0d",
       "branch": "quest/detent/warm-graph-5m",
@@ -8255,7 +8300,7 @@
       "risk": "high",
       "status": "review",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T15:19:28",
+      "updated": "2026-11-12T16:07:59",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
@@ -8325,6 +8370,8 @@
         "task-wheel",
         "wheel-vs-stash"
       ],
+      "base": "bfd72bc13395e4a232701e752be97ccd236530fc",
+      "branch": "quest/detent/wheel-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure",
@@ -8338,8 +8385,13 @@
         "wheel.hh",
         "bench/**",
         "docs/**",
-        "test/**"
+        "test/**",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/wheel-followups",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8347,9 +8399,10 @@
       "provides": [],
       "repo": "../wheel",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T11:05:15"
+      "updated": "2026-11-12T16:07:41",
+      "worktree": "../wheel-wt/detent/wheel-followups"
     },
     "wheel-lib": {
       "accepted": {
@@ -8500,17 +8553,45 @@
         "docs/design/async-drivers-bench/**",
         "docs/perf/wheel-vs-stash.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T15:48:40",
+          "commit": "b5c23575a700041a2614a95f5adbf5ced34a7317",
+          "criteria": {
+            "A1": "261112-131222-a47299 (passed at 43f5dbf16f78; only merges from main since), 261112-134519-339b0d (passed at 2e69b9f16b3c; only merges from main since), 261112-134522-786aad (passed at 2e69b9f16b3c; only merges from main since), 261112-134524-cd4fc1 (passed at 2e69b9f16b3c; only merges from main since), 261112-134528-c24e96 (passed at 2e69b9f16b3c; only merges from main since)",
+            "A2": "`docs/perf/wheel-vs-stash.md`: \"Apples to apples, per row\"",
+            "A3": "`docs/perf/wheel-vs-stash.md`: \"The targets build the fetched library, no copy and no candidate arm\""
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/perf/wheel-vs-stash.md",
+              "commit": "0a7dd550826af7b1ae1738e3a01592a935a6a753",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-140821-e7ce4f",
+              "level": "light",
+              "seconds": 0.9,
+              "state": "done",
+              "what": "wheel-vs-stash check docs at 0a7dd550826a"
+            }
+          ],
+          "final": true,
+          "from": "b4b7d01298034c86625fdcca79eb37732221827c",
+          "reason": "",
+          "tested": "fd5525000e66725ea2b7a0abaaabdca8fcf30abf"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "The landed wheel against stash, same harness",
-      "updated": "2026-11-12T11:05:26",
-      "worktree": "../Detent-wt/detent/wheel-vs-stash"
+      "updated": "2026-11-12T15:48:57",
+      "worktree": ""
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
