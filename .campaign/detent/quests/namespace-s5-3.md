@@ -5,27 +5,24 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The authority's persisted history is usable in production before namespace-s6-cutover proposes the enabling entry: a voter installed from a snapshot fetches the history files it lacks from a peer over a real endpoint, and history I/O no longer runs synchronously inside apply's seal, with `durable_through` still exact. The non-blocking findings of namespace-s5-2's durability review (`.campaign/detent/reviews/namespace-s5-2-durability.md`) are each fixed or dropped with a reason.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 F2: production peer fetch has an endpoint; a snapshot install on a voter with an empty history directory fetches every file from a peer and answers the same bytes: a cluster test over the real transport
+- A2 F3, F4: history writes leave apply's seal (apply returns before the history I/O completes), and `durable_through` advances only behind synced history; a crash matrix over the asynchronous path recovers the same bytes: jobs, and the crash-model job
+- A3 F1: a corrupted local `layout` table is repaired from a peer instead of stopping recovery, never serving wrong bytes: a test that fails without it
+- A4 F6, F7: the retained-bounds check counts the node's own consensus limits (a test that fails without it), and `test_authority_history_cluster` runs well inside its timeout under sanitizers (CI green on every sanitizer job)
+- A5 `tests/detent_authority/history_mutant.sh` exits 0 on a kill, as `--fails-without` expects, and its comment says so: the seven S5.2 mutants rerun through it unwrapped
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `namespace-blocks` (the peer fetch endpoint is part of it). F5 (an answer can fall in a ring gap with no signal) is namespace-s6-cutover's contract, not this quest's.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D90. Runs before namespace-s6-cutover's enabling proposal.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+A5, and A4's F7 test-time change.
