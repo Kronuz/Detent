@@ -1,6 +1,6 @@
 # namespace-s7-store: journal
 
-State: waiting on jobs (native 261113-052843-16886a and the criteria jobs below) at Detent:1bcdab05
+State: waiting on jobs 261113-052843-16886a 261113-052745-a0b1a8 261113-052759-b162ba 261113-052802-4165a0 261113-052806-da03ca 261113-052809-87f71f 261113-052813-b190fd 261113-052816-abaf97 261113-052820-12513f 261113-052823-734a00 at Detent:1bcdab05 (queued behind an exclusive hold; A3 2d2540 and pins cb33c9 done exit 0)
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
