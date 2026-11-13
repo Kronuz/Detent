@@ -5568,7 +5568,16 @@
         "tests/detent_system/**",
         "tests/detent_testing/**",
         "docs/status/namespace-s7.md",
-        "benchmarks/paged_snapshot_bench.cc"
+        "benchmarks/paged_snapshot_bench.cc",
+        "benchmarks/local_image_bench.cc",
+        "benchmarks/paged_collection_bench.cc",
+        "benchmarks/paged_recovery_bench.cc",
+        "tests/detent_delivery/mutants/s3b-m5-*.patch",
+        "tests/detent_delivery/mutants/s4-a1-*.patch",
+        "tests/detent_delivery/test_bootstrap_retention.cc",
+        "tests/detent_delivery/test_bundle_maintenance.cc",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_delivery/test_repair.cc"
       ],
       "landed": [],
       "lenses": [
@@ -5585,7 +5594,7 @@
       "risk": "high",
       "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T18:42:11",
+      "updated": "2026-11-12T21:19:40",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
