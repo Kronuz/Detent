@@ -1,6 +1,6 @@
 # namespace-s7-ids: journal
 
-State: working
+State: waiting on jobs 261112-210758-40d6a2 261112-210808-4881bd 261112-210812-89eb23 261112-210816-a5eb16 261112-210819-bb52c5
 Quest: .campaign/detent/quests/namespace-s7-ids.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -35,7 +35,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261112-210758-04a7c0 (pins); native 261112-210758-40d6a2 queued |
+| A2 | <261112-210816-a5eb16 queued; mutant 261112-210819-bb52c5 queued> |
+| A3 | <261112-210812-89eb23 queued> |
+| A4 | <261112-210808-4881bd queued> |
 
 ## Result
 
