@@ -9,6 +9,7 @@ Three tests that failed once in CI today and passed on rerun pass every time, ea
 1. `test_system_managed_relay` on macos-x86_64 (okt-followups' CI, 2026-11-12).
 2. `test_system_authority_writer_failover` on linux-x86_64-clang (CI run 43355759936, namespace-measure).
 3. `test_authority_service` on macos-x86_64, aborted on an uncaught `http::RequestRejected {"error":"admission_full"}` (CI run 43346413800 attempt 6, coordinator-idle-flake).
+4. `test_authority_dns_voters_names` on native macOS: node-2 `bind: Address already in use` on a port picked free (job 261112-230929-531cef, namespace-s5-2 at b6161f57); a free-port race in `test_dns_voters.py`.
 An uncaught product exception in a test (3) is a finding about the product until shown otherwise.
 
 ## Acceptance criteria
