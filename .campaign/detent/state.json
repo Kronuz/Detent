@@ -5890,9 +5890,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-13T08:18:08",
+      "updated": "2026-11-13T09:22:26",
       "worktree": "../Detent-wt/detent/namespace-s6-cutover"
     },
     "namespace-s6-v1-removal": {
