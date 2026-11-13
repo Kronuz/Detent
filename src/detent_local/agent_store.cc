@@ -41,6 +41,16 @@ std::string read_name(const GenerationId &id) {
 	return std::string(detail::GenerationName(id, detail::GenerationFile::ReaderMetadata).view());
 }
 std::string live_name(const GenerationId &id) { return std::string(detail::GenerationName(id, detail::GenerationFile::Live).view()); }
+// True when `error` says the name is gone (ENOENT); any other failure to open a lease may hide a reader.
+bool missing(std::exception_ptr error) noexcept {
+	try {
+		std::rethrow_exception(error);
+	} catch (const std::system_error &failure) {
+		return failure.code() == std::errc::no_such_file_or_directory;
+	} catch (...) {
+		return false;
+	}
+}
 std::string lease_name(const GenerationId &id) { return std::string(detail::GenerationName(id, detail::GenerationFile::Lease).view()); }
 bool is_lease(std::string_view name) {
 	const auto parsed = detail::parse_generation_name(name);
@@ -341,8 +351,10 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		std::unique_ptr<c::File> lease;
 		try {
 			lease = s.io->open_existing_read_only(file.name);
-		} catch (const std::exception &) {
-			continue; // not a file a reader could lease; the link step replaces it
+		} catch (...) {
+			if (missing(std::current_exception()))
+				continue;
+			throw LeaseHeld(file.name); // a lease that does not open may be held: the cycle waits
 		}
 		if (!lease->try_lease(c::LeaseMode::Exclusive))
 			throw LeaseHeld(file.name);
@@ -501,26 +513,28 @@ StoreUsage AgentStore::collect() {
 			segments[segment->segment].push_back(std::move(*name));
 	}
 	const auto before = s.usage;
-	// A generation a reader holds keeps the segments its `.live` names; one whose `.live` does not
-	// decode keeps every segment until the reader lets go.
+	// A generation a reader holds, or whose `.lease` does not open, keeps the segments its `.live` names;
+	// one whose `.live` does not read keeps every segment until a later collection.
 	std::set<SegmentId> held;
 	bool keep_segments = false;
 	for (const auto &[id, names] : generations) {
 		const auto lease = lease_name(id);
 		if (std::find(names.begin(), names.end(), lease) != names.end()) {
 			std::unique_ptr<c::File> file;
+			bool unknown = false; // a lease that does not open may be held: it is kept as a held one
 			try {
 				file = s.io->open_existing_read_only(lease);
-			} catch (const std::exception &) {
+			} catch (...) {
+				unknown = !missing(std::current_exception());
 			}
-			if (file && !file->try_lease(c::LeaseMode::Exclusive)) {
+			if (unknown || (file && !file->try_lease(c::LeaseMode::Exclusive))) {
 				try {
 					const auto live = s.slurp(live_name(id), detail::live_record_size(s.options.maximum_segments));
 					if (!live)
 						throw std::invalid_argument("agent store: a held generation has no .live");
 					for (const auto &row : detail::decode_live_record(*live, s.options.maximum_segments).rows)
 						held.insert(row.segment);
-				} catch (const std::invalid_argument &) {
+				} catch (...) {
 					keep_segments = true;
 				}
 				continue;

@@ -10,9 +10,15 @@
 #include "paged_delta_plan.hh"
 #include "paged_plan.hh"
 #include "paged_snapshot_plan.hh"
+#include <cerrno>
+#include <chrono>
+#include <fcntl.h>
 #include <map>
 #include <optional>
 #include <spawn.h>
+#include <sys/file.h>
+#include <thread>
+#include <unistd.h>
 #include <sys/wait.h>
 extern char **environ;
 
@@ -169,6 +175,24 @@ std::shared_ptr<const d::ValidatedSnapshot> base_copy() {
 std::shared_ptr<const d::ValidatedSnapshot> target_copy(std::shared_ptr<d::StorageLedger> account = {}) {
 	return full_copy(h, h, {{"app:b", {14, 21}}, {"app:c", {13, 30}}, {"app:d", {11, 4}}}, std::move(account));
 }
+// Waits until no reader holds `generation`'s `.lease` (a dropped view closes it on the retirement
+// thread), or until it is gone, so the collection that follows removes it.
+void released(const std::filesystem::path &root, const l::GenerationId &generation) {
+	const auto path = root / (l::generation_name(generation) + ".lease");
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	for (;;) {
+		const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+		if (fd < 0 && errno == ENOENT)
+			return;
+		require(fd >= 0);
+		const bool free = ::flock(fd, LOCK_EX | LOCK_NB) == 0;
+		::close(fd);
+		if (free)
+			return;
+		require(std::chrono::steady_clock::now() < deadline);
+		std::this_thread::yield();
+	}
+}
 // The agent's store, opened as the agent opens it, with what it needs to build and publish.
 struct Agent {
 	std::shared_ptr<d::StorageLedger> account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
@@ -215,7 +239,9 @@ struct Agent {
 		store->begin(builder.take());
 		drive_store();
 		require(store->publication_status() == l::DiskPublicationStatus::Published);
+		const auto base = selected->descriptor().generation;
 		selected.reset();
+		released(directory, base);
 		auto recovered = recover(directory);
 		store->confirm_recovered(recovered);
 		drive_store();

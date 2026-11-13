@@ -3,7 +3,10 @@
 #include "agent_store_fixture.hh"
 #include "change_file.hh"
 #include <cerrno>
+#include <cstdarg>
 #include <cstdio>
+#include <cstring>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <system_error>
 #include <sys/file.h>
@@ -12,6 +15,28 @@
 
 using namespace fixture;
 namespace c = kronuz::io::completion;
+namespace {
+int g_lease_error = 0; // while set, opening a name ending in `.lease` fails with this errno
+}
+extern "C" int openat(int fd, const char *path, int flags, ...) {
+	unsigned mode = 0;
+	if (flags & O_CREAT) {
+		va_list arguments;
+		va_start(arguments, flags);
+		mode = va_arg(arguments, unsigned);
+		va_end(arguments);
+	}
+	using Real = int (*)(int, const char *, int, ...);
+	static const Real real = reinterpret_cast<Real>(::dlsym(RTLD_NEXT, "openat"));
+	if (g_lease_error && path) {
+		const auto length = std::strlen(path);
+		if (length > 6 && std::strcmp(path + length - 6, ".lease") == 0) {
+			errno = g_lease_error;
+			return -1;
+		}
+	}
+	return real(fd, path, flags, mode);
+}
 namespace {
 const d::Profile profile{};
 std::filesystem::path g_root;
@@ -351,6 +376,38 @@ void held_lease() {
 		  store->usage() == census(root));
 }
 
+// A `.lease` that does not open (descriptor exhaustion, EACCES) may hide a reader: collect() keeps its
+// generation and the segments its `.live` names, and a revisiting cycle waits (LeaseHeld). Only a missing
+// name proceeds.
+void lease_open_failure() {
+	for (const int error : {EMFILE, EACCES}) {
+		const auto root = fresh("lease-open-failure-" + std::to_string(error));
+		auto store = open(root);
+		const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
+		const auto b = generation(profile, "alpha", cursor('b', 4), {}, 0, {}, 1, 'b');
+		store->publish({}, one(a));
+		Reader reader(root / generation_file(a.id, ".lease"));
+		store->publish({}, one(b));
+		const auto names = listing(root);
+		g_lease_error = error;
+		const auto removed = store->collect();
+		g_lease_error = 0;
+		check(removed == l::StoreUsage{} && listing(root) == names && links(root / generation_file(a.id, ".lease")) == 1);
+		g_lease_error = error;
+		try {
+			store->publish({}, one(a));
+			check(false);
+		} catch (const l::LeaseHeld &held) {
+			check(held.name == generation_file(a.id, ".lease"));
+		}
+		g_lease_error = 0;
+		check(listing(root) == names && store->table().find("alpha")->generation == b.id);
+		::close(std::exchange(reader.fd, ::open(root.c_str(), O_RDONLY)));
+		check(store->collect().generations == 1 && listing(root) == expected_names({&b}) &&
+			  store->usage() == census(root));
+	}
+}
+
 // A `change` cut short at its creation (a kill between create and size, a failed fchmod, or a power cut
 // that kept its name but not its size) opens, with or without `selected` (D59, F1).
 void short_change() {
@@ -438,6 +495,7 @@ int main(int argc, char **argv) {
 		failed_sync();
 		collection();
 		held_lease();
+		lease_open_failure();
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_agent_store: %s\n", error.what());
 		return 1;

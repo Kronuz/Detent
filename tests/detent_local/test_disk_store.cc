@@ -223,6 +223,22 @@ void cancellation_and_admission(d::RetirementRuntime &runtime, const std::shared
 	}
 	check(pressure && s.store->publication_ready() && s.store->stats().reserved == l::DiskUsage{});
 	check(!s.store->work());
+	// A flat publication's `.live` is charged to the store's account: with no room for it, begin refuses
+	// before queueing anything.
+	auto heap = std::make_shared<d::StorageLedger>(account, account->limit() - account->used());
+	Store charged(runtime, heap, fresh(root, "live-charge"), l::StoreOpenMode::FreshEmpty);
+	auto flat = build(heap, 'a', 42);
+	auto exhausted = heap->admit(heap->limit() - heap->used());
+	pressure = false;
+	try {
+		charged.store->begin(*flat);
+	} catch (const d::StoragePressure &) {
+		pressure = true;
+	}
+	check(pressure && charged.store->publication_ready() && charged.store->stats().reserved == l::DiskUsage{});
+	check(!charged.store->work() && charged.store->publication_status() == l::DiskPublicationStatus::Idle);
+	exhausted.reset();
+	charged.publish(*flat);
 }
 void close_while_running(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
 						 const std::filesystem::path &root) {

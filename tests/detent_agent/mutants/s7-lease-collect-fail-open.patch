@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
+index a3d9aa24..b58991d6 100644
+--- a/src/detent_local/agent_store.cc
++++ b/src/detent_local/agent_store.cc
+@@ -525,7 +525,7 @@ StoreUsage AgentStore::collect() {
+ 			try {
+ 				file = s.io->open_existing_read_only(lease);
+ 			} catch (...) {
+-				unknown = !missing(std::current_exception());
++				unknown = false;
+ 			}
+ 			if (unknown || (file && !file->try_lease(c::LeaseMode::Exclusive))) {
+ 				try {
