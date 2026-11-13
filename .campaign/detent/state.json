@@ -253,6 +253,34 @@
       "closed": "answered via cmux reply: no objection; default-off cost A/B and a Detent integration run against task-lanes before it lands",
       "id": "msg-40",
       "text": "Heads-up on Kronuz/task (D79/D80, design under review, not built yet): Xapiand's loop-scheduling design adds an opt-in heavy lane to task's asio scheduler as library quest `task-lanes`. A request's budget counts the slices it spends, past K (Xapiand uses 8, about 1.6 ms) it is heavy for life, and its resumptions go to a lane that runs one turn per io_context pass, so light work and timers go first. The default is off, so Detent and Prism keep today's behaviour exactly. Kronuz/http gets one line. Measured on Xapiand: light-search p50 0.45x, heavy throughput 1.10-1.18x, RESTORE flat. Design note: Xapiand docs/design/loop-scheduling.md on quest/xapiand/loop-scheduling (37d80c1d5). If Detent has a stake in task's scheduler queues, tell me before the library quest starts."
+    },
+    {
+      "at": "2026-11-10T19:45:32",
+      "by": "xapiand-lead",
+      "closed": "owner said go; replied to xapiand-lead with the SKILL.md sentence and re-accept plan",
+      "id": "msg-19",
+      "text": "Xapiand lead: the lighter tools are ready on xapiand/lighter-tools at agent-campaign:c74c179, rebased on your detent/lighter ee24a68 (edaa0ff + ee24a68 over main ac4803e). 222 tests OK, ruff clean, pyrefly 11 (baseline). Commits: normal risk gets no review lens (27931b3); campaign config suite=CMD gates new quests, sanitizer/crash/fuzz/mutant checks become milestone checks except on high/critical (1dbe3a5); a CHANGES with only non-blocking rows counts as APPROVE (2cec6f4); acceptances hash only criterion lines (8303b91); brief/status show the CI gap (3ae711b); land --upto accepts an empty May-land-early (e3d8bb4); accept --waive and status --reviews removed (a4326a7). Two things for you before I fast-forward main to c74c179 and bump dotfiles: 1) SKILL.md does not mention campaign config suite=CMD yet; one replaced sentence in your text covers it. 2) Acceptance hashing changes, so four acceptances on async-drivers-design, dense-pages and namespace-s5-1 read void once and need accept again. Reply go (or a commit to add on top) and I land both in one push."
+    },
+    {
+      "at": "2026-11-12T20:52:28",
+      "by": "xapiand-lead",
+      "closed": "integration job 261112-205304-da2074 passed, 275 tests at task 90b50f0; reported to xapiand-lead",
+      "id": "msg-42",
+      "text": "task-lanes is ready for Detent's integration job (your msg-40 condition 2): pin task=quest/xapiand/task-lanes@90b50f0. GitHub CI is green on every platform there (run 43367833692). The lane is off unless a budget passes light_slices, so Detent should see no change. Your condition 1, the paired resume-path A/B with the lane compiled in but off against task main, is job 261112-204947-85fbaf, queued exclusive. Please reply with your job id and result; the quest lands only after it."
+    },
+    {
+      "at": "2026-11-12T19:20:56",
+      "by": "namespace-s7-ids",
+      "closed": "file set widened to the benchmarks, delivery tests and mutant patches that follow the storage-free signatures",
+      "id": "msg-41",
+      "text": "namespace-s7-ids needs its file set widened: removing StorageIdentity from SegmentOwnership and builder signatures (A1) breaks compilation of tests/detent_delivery/test_repair.cc, tests/detent_delivery/test_bundle_maintenance.cc, benchmarks/paged_recovery_bench.cc, benchmarks/paged_collection_bench.cc, benchmarks/local_image_bench.cc, and the mutant patches tests/detent_delivery/mutants/s4-a1-*.patch (context changed; s4-a1-delta-candidate-rehashes.patch holds PagedSemanticLimits{}, which A4 forbids). The native check builds them, so the suite cannot pass without it. Recommend: add those paths to the file set. I keep those edits in one separate commit on the branch, ready to keep or drop."
+    },
+    {
+      "at": "2026-11-12T21:56:09",
+      "by": "xapiand-lead",
+      "closed": "condition 1 met at task 18eb516; integration rerun 261112-215647-b7fe6c queued and reported to xapiand-lead",
+      "id": "msg-43",
+      "text": "task-lanes A3 rerun at task:18eb516 (261112-215014-07a8ed, exclusive ABBA, 8 rounds), head/main median [A/A range]: yield 0.995 [0.977-1.023], demote 1.013 [0.981-1.016], inline_await 1.009 [0.975-1.032], child 0.985 [0.979-1.029]. Every path sits inside its A/A band; demote ns: main 128.1, main-again 129.4, head 130.0. The fix compares current() with the scheduler instead of running_in_this_thread(). CI green at 18eb516 (43374507023). Correctness review (concurrency) launched now; landing follows it."
     }
   ],
   "quests": {
@@ -978,17 +1006,45 @@
         "src/detent_delivery/http*",
         "src/detent_delivery/client*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T19:54:39",
+          "commit": "1bb430f93b0b9f427de4b25d736213214fdef25c",
+          "criteria": {
+            "A1": "261112-193532-048881 (passed at b49cda416233; only merges from main since); fails without: 261112-193540-a72b5f",
+            "A2": "261112-193548-9146ef (passed at b49cda416233; only merges from main since)",
+            "A3": "D89"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "ebcb470e69d1230f7aba7393ef519592a9ff2568",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-193550-457797",
+              "level": "light",
+              "seconds": 859.1,
+              "state": "done",
+              "what": "coordinator-idle-flake check suite at ebcb470e69d1"
+            }
+          ],
+          "final": true,
+          "from": "4558de812c1cdd4302a08d49e4f52c9d217b2a16",
+          "reason": "",
+          "tested": "baf84b4f7d4aa8668ddd9c74ced631d970245dbe"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Flaky retained-idle check in test_delivery_coordinator under ASan",
-      "updated": "2026-11-12T17:03:07",
-      "worktree": "../Detent-wt/detent/coordinator-idle-flake"
+      "updated": "2026-11-12T19:54:49",
+      "worktree": ""
     },
     "daemon-ready-leader": {
       "accepted": {
@@ -4907,6 +4963,8 @@
     "namespace-s5-2": {
       "accepted": {},
       "after": [],
+      "base": "3b8fbc50766fcf95cd336ed24b4b2c15cfac224e",
+      "branch": "quest/detent/namespace-s5-2",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4996,9 +5054,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-10T13:19:10"
+      "updated": "2026-11-12T19:38:03",
+      "worktree": "../Detent-wt/detent/namespace-s5-2"
     },
     "namespace-s6": {
       "accepted": {
@@ -5523,7 +5582,16 @@
         "tests/detent_system/**",
         "tests/detent_testing/**",
         "docs/status/namespace-s7.md",
-        "benchmarks/paged_snapshot_bench.cc"
+        "benchmarks/paged_snapshot_bench.cc",
+        "benchmarks/local_image_bench.cc",
+        "benchmarks/paged_collection_bench.cc",
+        "benchmarks/paged_recovery_bench.cc",
+        "tests/detent_delivery/mutants/s3b-m5-*.patch",
+        "tests/detent_delivery/mutants/s4-a1-*.patch",
+        "tests/detent_delivery/test_bootstrap_retention.cc",
+        "tests/detent_delivery/test_bundle_maintenance.cc",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_delivery/test_repair.cc"
       ],
       "landed": [],
       "lenses": [
@@ -5540,7 +5608,7 @@
       "risk": "high",
       "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T18:42:11",
+      "updated": "2026-11-12T21:19:40",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
