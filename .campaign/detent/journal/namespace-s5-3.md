@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: fixing F1, F2
+State: ready for review (jobs at e3ac4162 pending: 261113-042535-90d7d4 261113-042539-b20470 261113-042553-f1580d 261113-042559-520ab7 261113-042612-0c0406 261113-042617-126409)
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,8 +32,28 @@ Before the review (at 42dc0361): suite 261113-033810-0c0530, history tests
 
 ## Next
 
-1. Build and run the history tests locally; commit; submit history tests, suite, pins and
-   mutants at the fixed commit; journal the confirm mapping; State "ready for review".
+1. Read the jobs at e3ac4162; fix what fails; then the lead runs
+   `campaign accept namespace-s5-3 durability --confirm F1=261113-042553-f1580d F2=261113-042553-f1580d`.
+
+## Fix jobs at e3ac4162 (code; later commits are journal only)
+
+Local first (Release, this worktree): history cluster, names, power cut (3 entries),
+transport 2.6 s (18 fetched, 6 rotten copies passed over, unservable file ended: "voter 1
+Input/output error, voter 2 none"), large base 7.3 s (73,260,051-byte base through a
+134,217,975-byte lane; refused at 64 MiB): all pass.
+
+- Pins 261113-042535-90d7d4.
+- Full native suite 261113-042553-f1580d.
+- History tests (with `test_authority_history_large_base`) 261113-042539-b20470.
+- Review mutants (`--fails-without`): first-bytes-win, same-order, retry-failed-forever
+  (transport), unchecked-fetch (power cut), old-fetch-bound, accept-low-fetch-bound (large
+  base) 261113-042559-520ab7.
+- S5.3 six mutants rerun 261113-042612-0c0406; A5, S5.2's seven unwrapped 261113-042617-126409.
+
+Confirm mapping: F1 = 261113-042553-f1580d (suite; tests transport and power cut `installs
+rot`, mutants first-bytes-win, same-order, unchecked-fetch in 261113-042559-520ab7);
+F2 = 261113-042553-f1580d (suite; test large base and transport's unservable file, mutants
+old-fetch-bound, accept-low-fetch-bound, retry-failed-forever in 261113-042559-520ab7).
 
 ## Review findings not blocking
 
