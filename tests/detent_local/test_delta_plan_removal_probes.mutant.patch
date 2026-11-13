@@ -1,0 +1,18 @@
+diff --git a/src/detent_local/paged_trie_overlay.cc b/src/detent_local/paged_trie_overlay.cc
+--- a/src/detent_local/paged_trie_overlay.cc
++++ b/src/detent_local/paged_trie_overlay.cc
+@@ -175,9 +175,11 @@
+ 			n,		  reference};
+ 	}
+ 	void remove(const p::Reference &reference) {
+-		// A page's nodes share its reference: it is removed once, found by its placement.
+-		if (!removed_set.emplace(reference.segment, reference.offset).second)
+-			return;
++		for (const auto &extent : removed_extents) {
++			++probes;
++			if (extent == reference)
++				return;
++		}
+ 		removed_extents.push_back(reference);
+ 		const auto index = find_segment(segments, reference.segment);
+ 		++removed[index].pages;

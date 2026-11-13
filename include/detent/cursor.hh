@@ -15,6 +15,21 @@ struct Cursor {
 			   scope == other.scope;
 	}
 };
+// W1: a consumer's place in one namespace, under one incarnation of it; position 0 is empty.
+struct NamespaceCursor {
+	Identity cluster{}, incarnation{};
+	std::uint64_t position = 0;
+	bool operator==(const NamespaceCursor &) const = default;
+	bool same_identity(const NamespaceCursor &other) const noexcept {
+		return cluster == other.cluster && incarnation == other.incarnation;
+	}
+};
+// D5: a consumer's place in the namespace directory stream.
+struct DirectoryCursor {
+	Identity cluster{};
+	std::uint64_t position = 0;
+	bool operator==(const DirectoryCursor &) const = default;
+};
 struct Profile {
 	std::uint32_t semantic_id = 1;
 	std::uint64_t required_capabilities = 1;

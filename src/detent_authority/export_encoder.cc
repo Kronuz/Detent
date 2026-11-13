@@ -15,13 +15,13 @@ class AuthoritySnapshotSource final : public d::SnapshotSource {
 	}
 	void reset_records() noexcept override {
 		group_.reset();
-		flag_ = nullptr;
+		definition_ = nullptr;
 		records_.reset();
 		namespace_ = 0;
 	}
 	d::SnapshotRecordStep next_record() override {
 		group_.reset();
-		flag_ = nullptr;
+		definition_ = nullptr;
 		if (!records_) {
 			if (namespace_ == namespace_count())
 				return {{}, true};
@@ -33,14 +33,15 @@ class AuthoritySnapshotSource final : public d::SnapshotSource {
 			records_.reset();
 			return {};
 		}
-		flag_ = row->definition;
-		group_ = flag_->overrides.begin();
-		d::WireDefinition definition{flag_->default_value, {0, static_cast<std::uint64_t>(flag_->overrides.size())},
-									 flag_->rollout_pct, flag_->rollout_value};
+		definition_ = row->definition;
+		group_ = definition_->overrides.begin();
+		d::WireDefinition definition{definition_->default_value,
+									 {0, static_cast<std::uint64_t>(definition_->overrides.size())},
+									 definition_->rollout_pct, definition_->rollout_value};
 		return {d::Record{row->namespace_index, row->key, row->revision, definition}, false};
 	}
 	std::optional<d::OverrideRow> next_override() override {
-		if (!flag_ || !group_ || *group_ == flag_->overrides.end())
+		if (!definition_ || !group_ || *group_ == definition_->overrides.end())
 			return {};
 		const auto &row = **group_;
 		++*group_;
@@ -51,7 +52,7 @@ class AuthoritySnapshotSource final : public d::SnapshotSource {
 	std::shared_ptr<ExportCapture> capture_;
 	std::optional<ExportCapture::RecordCursor> records_;
 	std::optional<decltype(KnobDef::overrides)::const_iterator> group_;
-	const KnobDef *flag_ = nullptr;
+	const KnobDef *definition_ = nullptr;
 	std::uint64_t namespace_ = 0;
 };
 std::shared_ptr<d::SnapshotSource> source(std::shared_ptr<ExportCapture> capture) {

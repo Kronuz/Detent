@@ -17,18 +17,9 @@
 // generation and segment files under names derived from what they hold.
 namespace detent::local {
 inline constexpr std::uint32_t agent_store_layout = 1;
-// W1: a namespace's position under one incarnation of it.
-struct NamespaceCursor {
-	distribution::Identity cluster{}, incarnation{};
-	std::uint64_t position = 0;
-	bool operator==(const NamespaceCursor &) const = default;
-};
-// The directory stream's position (S5's directory of namespaces).
-struct DirectoryPosition {
-	distribution::Identity cluster{};
-	std::uint64_t position = 0;
-	bool operator==(const DirectoryPosition &) const = default;
-};
+using distribution::NamespaceCursor;
+using distribution::DirectoryCursor;
+using DirectoryPosition = DirectoryCursor; // agent_store.cc's spelling until namespace-s6-cutover
 struct TableEntry {
 	std::string name;
 	NamespaceCursor cursor;
@@ -42,7 +33,7 @@ struct TableEntry {
 // `selected`: replaced atomically, read whole. Entries are sorted by name.
 struct StoreTable {
 	std::uint64_t sequence = 0;
-	DirectoryPosition directory;
+	DirectoryCursor directory;
 	distribution::Profile profile;
 	std::vector<TableEntry> entries;
 	const TableEntry *find(std::string_view name) const noexcept;
@@ -122,7 +113,7 @@ class AgentStore {
 	// fsynced, renamed over `selected` and the directory synced; then `change`. A reused name is kept
 	// when its bytes verify, and unlinked and relinked when they do not and the table does not reach it.
 	// Returns the new table's sequence. Throws ReachedNameMismatch, leaving the table as it was.
-	std::uint64_t publish(const DirectoryPosition &, std::span<const PreparedGeneration>);
+	std::uint64_t publish(const DirectoryCursor &, std::span<const PreparedGeneration>);
 
   private:
 	struct Impl;

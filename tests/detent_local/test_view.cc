@@ -18,7 +18,7 @@ void check(bool value) {
 }
 std::shared_ptr<std::string> image() {
 	l::Header h;
-	h.layout = l::calculate_layout(1, 2, 2, 3 + 8 + 5 + 4 + 9);
+	h.layout = l::calculate_layout(1, 3, 2, 3 + 8 + 5 + 4 + 9 + 9);
 	h.cursor.cluster.fill('c');
 	h.cursor.group.fill('g');
 	h.cursor.restore_epoch.fill('e');
@@ -56,6 +56,14 @@ std::shared_ptr<std::string> image() {
 	set(r + 16, 9, 8);
 	set(r + 24, std::uint64_t(-17), 8);
 	set(r + 32, 2, 8);
+	r += l::record_bytes;
+	name(r, "app:ramp7");
+	set(r + 16, 9, 8);
+	set(r + 24, 1, 8);
+	set(r + 32, 2, 8);
+	set(r + 44, 3, 1);
+	set(r + 45, 50, 1);
+	set(r + 48, 7, 8);
 	check(used == h.layout.strings);
 	return bytes;
 }
@@ -121,7 +129,7 @@ int main() {
 		}
 		auto bytes = image();
 		auto view = validate(bytes);
-		check(view.size() == 2 && view.cursor().revision == 9);
+		check(view.size() == 3 && view.cursor().revision == 9);
 		bytes.reset();
 		check(view.get("app", "count").value() == -17);
 		check(view.get("app", "bool").value() == 0);
@@ -129,6 +137,16 @@ int main() {
 		check(view.get("app", "bool", {}, "ramp").value() == 0);
 		check(view.get("app", "bool", "host", "ramp").value() == 1);
 		check(view.get("app", "bool", "host").value() == (detent::stable_bucket("app:bool", "host") < 50));
+		// Default 1 with a 50% ramp to 7: no hash serves the default, a hash serves 7 in the bucket and 1 out.
+		check(view.get("app", "ramp7").value() == 1);
+		int in = 0, out = 0;
+		for (int i = 0; i != 64; ++i) {
+			const auto hash = "host" + std::to_string(i);
+			const bool inside = detent::stable_bucket("app:ramp7", hash) < 50;
+			check(view.get("app", "ramp7", hash).value() == (inside ? 7 : 1));
+			(inside ? in : out)++;
+		}
+		check(in && out);
 		check(view.get("other", "count").error().category == detent::ErrorCategory::MissingKnob);
 		check(!l::ReadView{}.get("app", "count"));
 		auto copy = view;

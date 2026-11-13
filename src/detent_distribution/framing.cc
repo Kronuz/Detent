@@ -26,7 +26,7 @@ std::uint64_t get(std::span<const char> header, std::size_t offset, unsigned byt
 }
 void check_fragment(const Fragment &fragment) {
 	require(fragment.kind == UpdateKind::Snapshot || fragment.kind == UpdateKind::Delta ||
-				fragment.kind == UpdateKind::Progress,
+				fragment.kind == UpdateKind::Progress || fragment.kind == UpdateKind::Frames,
 			"unknown distribution frame kind");
 	require(fragment.update != Identity{} && fragment.bytes.size() <= fragment_bytes &&
 				fragment.offset <= fragment.total &&
@@ -91,7 +91,8 @@ struct FragmentDecoder::Impl {
 		: kind(expected), maximum(maximum_bytes), compression(allow),
 		  account(storage_account ? std::move(storage_account)
 								  : std::make_shared<StorageLedger>(1024 * 1024)) {
-		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress,
+		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress ||
+					kind == UpdateKind::Frames,
 				"unknown expected distribution kind");
 	}
 	void parse_header() {

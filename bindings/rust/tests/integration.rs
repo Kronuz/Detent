@@ -11,6 +11,8 @@ fn write_defaults() -> tempfile_path::TempFile {
         "knobs": {
             "checkout:killswitch_new_path": { "default": 0 },
             "search:max_results": { "default": 25 },
+            "search:two": { "default": 2 },
+            "search:minus_one": { "default": -1 },
             "payments:new_processor": { "default": 0, "rollout_pct": 10, "rollout_value": 1, "overrides": { "internal_employees": 1 } },
             "search:batch_size": { "default": 25, "rollout_pct": 100, "rollout_value": 50, "overrides": { "beta": 7, "canary": { "rollout_pct": 0 } } }
         }
@@ -57,10 +59,12 @@ fn missing_and_conversion_errors() {
     assert!(missing.is_err());
     assert!(missing.unwrap_err().to_string().contains("MissingKnob"));
 
-    // 25 is not 0 or 1.
-    let not_bool = client.get_bool("search:max_results", None, None);
-    assert!(not_bool.is_err());
-    assert!(not_bool.unwrap_err().to_string().contains("ConversionFailed"));
+    // None of 25, 2 and -1 is 0 or 1.
+    for name in ["search:max_results", "search:two", "search:minus_one"] {
+        let not_bool = client.get_bool(name, None, None);
+        assert!(not_bool.is_err());
+        assert!(not_bool.unwrap_err().to_string().contains("ConversionFailed"));
+    }
 }
 
 #[test]
@@ -109,7 +113,7 @@ fn health_snapshot() {
     let h = client.health();
     assert!(h.initialized);
     assert_eq!(h.accepted_version, 0); // baked defaults only, no source configured
-    assert_eq!(h.knobs, 4);
+    assert_eq!(h.knobs, 6);
 }
 
 #[test]

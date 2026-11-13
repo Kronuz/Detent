@@ -1,105 +1,80 @@
-"""Summarize wheel_vs_stash.sh logs by docs/design/wheel-evidence.md's rule.
+"""Summarize wheel_vs_stash.sh logs: Kronuz/wheel (w) against stash (b), the A/A twin b2.
 
-Per row, size and arm: the median over rounds of each metric with its min-max; the A/A band
-(a against a2 for single, b against b2 for cross); and each unified candidate's ratio, with
-pass, fail or inconclusive (within the band of the 1.10 threshold).
+Per row and size: each arm's median over rounds of each metric with its min-max. Arms are compared
+round by round (each round runs every arm once): a ratio is the median over rounds of arm / b in
+that round, with a distribution-free 95% interval from order statistics; the A/A band is b2 / b the
+same way, the farther end of its interval from 1.00 on the deciding metric. The statistics are the
+wheel's (bench/wheel_bench_summary.py, loaded by path). Memory rows (`mem`) print each arm's median.
+
+usage: wheel_vs_stash_summary.py WHEEL_BENCH_SUMMARY.py LOG...
 """
 
 from __future__ import annotations
 
+import importlib.util
 import statistics
 import sys
 from collections import defaultdict
+from types import ModuleType
 
-THRESHOLD = 1.10
-METRICS: dict[str, list[str]] = {
-    "single": ["arm_ns", "rearm_ns", "cancel_ns", "expire_ns", "score"],
-    "cross": ["producer_ns", "span_ms", "max_late_ms", "last_after_deadline_ms"],
-    "mem": [
-        "entry_bytes",
-        "bytes_per_entry",
-        "heap_per_armed_entry",
-        "heap_per_rearm",
-        "heap_after_expire",
-    ],
-}
-SIZE = {"single": "n", "cross": "p", "mem": "n"}
-PAIR = {"single": ("a", "a2", "score"), "cross": ("b", "b2", "producer_ns")}
+DECIDING = {"single": "score", "cross": "producer_ns"}
+MEM = ["entry_bytes", "bytes_per_entry", "heap_per_armed_entry", "heap_per_rearm", "heap_after_expire"]
 
 
-def parse(paths: list[str]) -> dict[tuple[str, int, str], list[dict[str, str]]]:
-    runs: dict[tuple[str, int, str], list[dict[str, str]]] = defaultdict(list)
-    for path in paths:
-        with open(path) as f:
-            for line in f:
-                if not line.startswith("row="):
-                    continue
-                fields = dict(kv.split("=", 1) for kv in line.split())
-                row = fields["row"]
-                runs[(row, int(fields[SIZE[row]]), fields["arm"])].append(fields)
-    return runs
+def load(path: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location("wheel_bench_summary", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def spread(values: list[float]) -> float:
-    m = statistics.median(values)
-    return (max(values) - min(values)) / m if m else 0.0
-
-
-def main(paths: list[str]) -> None:
-    runs = parse(paths)
-    by_size: dict[tuple[str, int], dict[str, list[dict[str, str]]]] = defaultdict(dict)
-    for (row, size, arm), rs in runs.items():
-        by_size[(row, size)][arm] = rs
-    for (row, size), arms in sorted(by_size.items()):
-        print(f"\n{row} {SIZE[row]}={size}")
-        medians: dict[str, float] = {}
-        values: dict[str, list[float]] = {}
+def timing(lib: ModuleType, logs: list[str]) -> None:
+    for (row, size, _), arms in sorted(lib.parse(logs).items()):
+        decide = DECIDING[row]
+        rounds = len({r for rs in arms.values() for r in rs})
+        print(f"\n{row} {lib.SIZE[row]}={size} rounds={rounds}")
         for arm in sorted(arms):
             cells = []
-            for metric in METRICS[row]:
-                xs = [float(r[metric]) for r in arms[arm]]
-                cells.append(
-                    f"{metric}={statistics.median(xs):.2f} [{min(xs):.2f}-{max(xs):.2f}]"
-                )
+            for metric in lib.METRICS[row] + ["ghz0", "ghz1"]:
+                if metric in next(iter(arms[arm].values())):
+                    xs = lib.column(arms, arm, metric)
+                    cells.append(f"{metric}={statistics.median(xs):.2f} [{min(xs):.2f}-{max(xs):.2f}]")
             if row == "cross":
-                cells.append(f"valid={all(r['valid'] == '1' for r in arms[arm])}")
+                cells.append(f"valid={all(r['valid'] == '1' for r in arms[arm].values())}")
             print(f"  {arm:3} runs={len(arms[arm])} " + " ".join(cells))
-            if row in PAIR:
-                key = PAIR[row][2]
-                values[arm] = [float(r[key]) for r in arms[arm]]
-                medians[arm] = statistics.median(values[arm])
-        if row not in PAIR:
-            continue
-        first, second, key = PAIR[row]
-        if first not in medians or second not in medians:
-            continue
-        band = max(
-            abs(medians[first] - medians[second]) / medians[first],
-            spread(values[first]),
-            spread(values[second]),
-        )
-        print(
-            f"  A/A band on {key}: {band:.1%} ({first} {medians[first]:.2f}, {second} {medians[second]:.2f})"
-        )
-        candidates = [a for a in ("a", "b", "c", "d", "e", "f") if a in medians]
-        if row == "single":
-            best = min(candidates, key=lambda a: medians[a])
-            reference, label = medians[best], f"best ({best})"
-            unified = [a for a in ("b", "c", "d", "e", "f") if a in medians]
-        else:
-            reference, label = medians["b"], "stash (b)"
-            unified = [a for a in ("c", "d", "e", "f") if a in medians]
-        for arm in unified:
-            ratio = medians[arm] / reference
-            if abs(ratio - THRESHOLD) < band:
-                verdict = "inconclusive"
-            elif ratio <= THRESHOLD:
-                verdict = "pass"
-            else:
-                verdict = "fail"
-            print(
-                f"  {arm}: {key} {medians[arm]:.2f} = {ratio:.3f}x {label}: {verdict}"
-            )
+        metrics = [m for m in lib.PAIRED[row] if m in next(iter(arms["b"].values()))]
+        for arm in ("b2", "w"):
+            cells = []
+            for metric in metrics:
+                m, lo, hi = lib.median_interval(lib.paired(arms, arm, "b", metric))
+                cells.append(f"{metric} {lib.fmt(m, lo, hi)}")
+                if arm == "b2" and metric == decide:
+                    band = max(abs(lo - 1), abs(hi - 1))
+            print(f"  {arm}/b " + ", ".join(cells) + (f"  (A/A band on {decide} {band:.1%})" if arm == "b2" else ""))
+
+
+def memory(logs: list[str]) -> None:
+    runs: dict[tuple[int, str], list[dict[str, str]]] = defaultdict(list)
+    for path in logs:
+        with open(path) as f:
+            for line in f:
+                if line.startswith("row=mem "):
+                    fields = dict(kv.split("=", 1) for kv in line.split())
+                    runs[(int(fields["n"]), fields["arm"])].append(fields)
+    for (n, arm), rs in sorted(runs.items()):
+        cells = " ".join(f"{m}={statistics.median(float(r[m]) for r in rs):.2f}" for m in MEM)
+        print(f"mem n={n} arm={arm} runs={len(rs)} {cells}")
+
+
+def main(argv: list[str]) -> None:
+    lib, logs = load(argv[0]), argv[1:]
+    # a log holds either the timing rows or the mem rows
+    mem = [p for p in logs if any(line.startswith("row=mem ") for line in open(p))]
+    if other := [p for p in logs if p not in mem]:
+        timing(lib, other)
+    if mem:
+        memory(mem)
 
 
 if __name__ == "__main__":

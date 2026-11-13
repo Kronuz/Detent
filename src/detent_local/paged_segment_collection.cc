@@ -266,6 +266,10 @@ void PagedSegmentCollection::fail(std::exception_ptr error) noexcept {
 			proof_failed = true;
 		} catch (const std::invalid_argument &) {
 			proof_failed = true;
+		} catch (const std::system_error &failure) {
+			// A pack the root names is missing or unreadable: its marks come from the root's .live record.
+			proof_failed = failure.code() == std::errc::no_such_file_or_directory ||
+						   failure.code() == std::errc::io_error;
 		} catch (...) {
 		}
 		if (proof_failed) {

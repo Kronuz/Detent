@@ -1,30 +1,24 @@
-// The timer-wheel candidates of docs/design/wheel-evidence.md on one workload:
-//   (a)  the prototype wheel (wheel.hh), owner thread only
+// Kronuz/wheel's timer_wheel (the library, fetched) and stash on one workload, in one build:
 //   (b)  stash as it is (stash.h), Xapiand's four levels, entry* values; cancel clears a flag
-//   (c)  stash with an intrusive leaf (wheel_vs_stash_leaf.hh): no box, O(1) cancel
-//   (d)  the prototype wheel plus an intrusive lock-free inbox: any thread re-arms any entry
-//   (e)  the prototype wheel, its inbox linked through the entry's own `next`: any thread arms
-//        an unarmed entry, only the owner re-arms or cancels ((c)'s contract), 32-byte entry
-//   (f)  (e) with its inbox striped per producer thread, so producers never share a head
+//        (b2 runs b again: the A/A twin)
+//   (w)  wheel::timer_wheel (wheel.hh): intrusive 32-byte entries, any thread arms with arm_remote
 // Modes, one line of results each:
 //   single ARM N        arm, re-arm, cancel and expire on one thread, on a manual clock
 //   cross ARM P TOTAL   P producer threads arm TOTAL entries (default 1,000,000), one owner
 //                       fires on steady_clock
 //   mem ARM N           (the COUNT_HEAP build) bytes per entry and heap per arm
-//   test                every candidate against a reference model on a manual clock, and
+//   test                both arms against a reference model on a manual clock, and
 //                       cross-thread runs checked for exactly-once, never-early fires
-// ARM is a, b, c, d, e or f; a2 and b2 run a and b again (the A/A pair).
+// ARM is b, b2 or w.
 #ifdef COUNT_HEAP
 #include "probe.hh"
 PROBE_ALLOCATOR
 #endif
 
-#include "wheel.hh"
-#include "wheel_vs_stash_leaf.hh"
+#include <wheel.hh>  // the fetched library: angle brackets, so no copy beside this file can shadow it
 #include "stash.h"
 
 #include <algorithm>
-#include <bit>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -63,143 +57,34 @@ std::string utc() {
 	return b;
 }
 
-// ---- (a) ----------------------------------------------------------------------------------
-struct cand_a {
-	using entry = bench::wheel_entry;
-	static constexpr bool cross = false;
-	static constexpr const char* shape = "intrusive wheel, 4096 x 1 ms, owner thread only";
-	std::unique_ptr<bench::wheel> w;
-	explicit cand_a(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
-	static u64 deadline(const entry& e) { return e.deadline; }
-	void arm(entry& e, u64 d) { w->arm(e, d); }
-	void cancel(entry& e) { w->cancel(e); }
-	template <class F>
-	std::size_t expire(u64 now, F&& f) { return w->expire(now, [&](bench::wheel_entry& e) { f(e); }); }
-};
-
-// ---- (d) ----------------------------------------------------------------------------------
-struct dentry {
-	bench::wheel_entry w;  // first: the wheel's entry is the dentry's address
-	std::atomic<u64> requested{0};
-	dentry* inbox_next = nullptr;
-	std::atomic<bool> queued{false};
-};
-struct cand_d {
-	using entry = dentry;
-	static constexpr bool cross = true;
-	static constexpr const char* shape = "intrusive wheel + intrusive Treiber inbox";
-	std::unique_ptr<bench::wheel> w;
-	alignas(64) std::atomic<dentry*> inbox{nullptr};
-	explicit cand_d(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
-	static u64 deadline(const entry& e) { return e.w.deadline; }
-	void arm(entry& e, u64 d) { w->arm(e.w, d); }
-	void cancel(entry& e) { w->cancel(e.w); }
-	// Any thread: the owner files the latest requested deadline at its next expire.
-	void arm_from(entry& e, u64 d) {
-		e.requested.store(d, std::memory_order_relaxed);
-		if (e.queued.exchange(true, std::memory_order_acq_rel)) { return; }
-		dentry* head = inbox.load(std::memory_order_relaxed);
-		do { e.inbox_next = head; } while (!inbox.compare_exchange_weak(head, &e, std::memory_order_release, std::memory_order_relaxed));
+// The core clock in GHz: 8 dependent one-cycle adds per iteration, 4 ms or so.
+double core_ghz() {
+	constexpr u64 iterations = 1'000'000;
+	u64 x = 0;
+	const u64 t0 = now_ns();
+	for (u64 i = 0; i < iterations; ++i) {
+#if defined(__x86_64__)
+		asm volatile("add $1, %0\n\tadd $1, %0\n\tadd $1, %0\n\tadd $1, %0\n\tadd $1, %0\n\tadd $1, %0\n\tadd $1, %0\n\tadd $1, %0" : "+r"(x));
+#elif defined(__aarch64__)
+		asm volatile("add %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1\n\tadd %0, %0, #1" : "+r"(x));
+#else
+		return 0;
+#endif
 	}
-	void drain() {
-		if (!inbox.load(std::memory_order_relaxed)) { return; }
-		for (dentry* e = inbox.exchange(nullptr, std::memory_order_acquire); e;) {
-			dentry* following = e->inbox_next;
-			e->queued.exchange(false, std::memory_order_acq_rel);
-			w->arm(e->w, e->requested.load(std::memory_order_acquire));
-			e = following;
-		}
-	}
-	template <class F>
-	std::size_t expire(u64 now, F&& f) {
-		drain();
-		return w->expire(now, [&](bench::wheel_entry& e) { f(*reinterpret_cast<dentry*>(&e)); });
-	}
-};
-
-// ---- (e) ----------------------------------------------------------------------------------
-struct cand_e {
-	using entry = bench::wheel_entry;
-	static constexpr bool cross = true;
-	static constexpr const char* shape = "intrusive wheel + inbox through the entry's next";
-	std::unique_ptr<bench::wheel> w;
-	alignas(64) std::atomic<entry*> inbox{nullptr};
-	explicit cand_e(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
-	static u64 deadline(const entry& e) { return e.deadline; }
-	void arm(entry& e, u64 d) { w->arm(e, d); }
-	void cancel(entry& e) { w->cancel(e); }
-	// Any thread, an unarmed entry: `next` links the inbox until the owner files it.
-	void arm_from(entry& e, u64 d) {
-		e.deadline = d;
-		entry* head = inbox.load(std::memory_order_relaxed);
-		do { e.next = head; } while (!inbox.compare_exchange_weak(head, &e, std::memory_order_release, std::memory_order_relaxed));
-	}
-	template <class F>
-	std::size_t expire(u64 now, F&& f) {
-		if (inbox.load(std::memory_order_relaxed)) {
-			for (entry* e = inbox.exchange(nullptr, std::memory_order_acquire); e;) {
-				entry* following = e->next;
-				e->next = nullptr;
-				w->arm(*e, e->deadline);
-				e = following;
-			}
-		}
-		return w->expire(now, [&](bench::wheel_entry& e) { f(e); });
-	}
-};
-
-// ---- (f) ----------------------------------------------------------------------------------
-// Each producer thread pushes on its own stripe (64, by first use); the push that finds its
-// stripe empty sets the stripe's bit, and the owner drains only the stripes whose bits it took.
-inline unsigned inbox_stripe() noexcept {
-	static std::atomic<unsigned> seq{0};
-	static thread_local unsigned stripe = seq.fetch_add(1, std::memory_order_relaxed) % 64;
-	return stripe;
+	return static_cast<double>(8 * iterations) / static_cast<double>(now_ns() - t0);
 }
-struct cand_f {
-	using entry = bench::wheel_entry;
-	static constexpr bool cross = true;
-	static constexpr const char* shape = "intrusive wheel + 64-stripe inbox through the entry's next";
-	struct alignas(64) stripe { std::atomic<entry*> head{nullptr}; };
-	std::unique_ptr<bench::wheel> w;
-	std::unique_ptr<stripe[]> stripes = std::make_unique<stripe[]>(64);
-	alignas(64) std::atomic<u64> pending{0};
-	explicit cand_f(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
-	static u64 deadline(const entry& e) { return e.deadline; }
-	void arm(entry& e, u64 d) { w->arm(e, d); }
-	void cancel(entry& e) { w->cancel(e); }
-	// Any thread, an unarmed entry: `next` links its stripe until the owner files it.
-	void arm_from(entry& e, u64 d) {
-		e.deadline = d;
-		const unsigned s = inbox_stripe();
-		auto& head = stripes[s].head;
-		entry* first = head.load(std::memory_order_relaxed);
-		do { e.next = first; } while (!head.compare_exchange_weak(first, &e, std::memory_order_release, std::memory_order_relaxed));
-		if (!first) { pending.fetch_or(u64{1} << s, std::memory_order_release); }
-	}
-	template <class F>
-	std::size_t expire(u64 now, F&& f) {
-		if (pending.load(std::memory_order_relaxed)) {
-			for (u64 bits = pending.exchange(0, std::memory_order_acquire); bits; bits &= bits - 1) {
-				auto& head = stripes[static_cast<unsigned>(std::countr_zero(bits))].head;
-				for (entry* e = head.exchange(nullptr, std::memory_order_acquire); e;) {
-					entry* following = e->next;
-					e->next = nullptr;
-					w->arm(*e, e->deadline);
-					e = following;
-				}
-			}
-		}
-		return w->expire(now, [&](bench::wheel_entry& e) { f(e); });
-	}
-};
 
-// ---- stash, (b) and (c) -------------------------------------------------------------------
-// Xapiand's configuration (scheduler.h:226-230), over a given leaf.
+// ---- (b) stash ----------------------------------------------------------------------------
+// Xapiand's configuration (scheduler.h:226-230).
 template <class Leaf>
 using levels = StashSlots<StashSlots<StashSlots<StashSlots<Leaf, 10, 1 * ms, 50>, 10, 50 * ms, 10>, 12, 500 * ms, 36>,
 	4800, 18000 * ms, 4800>;
 
+struct bentry {
+	std::atomic<bool> armed{false};
+	u64 deadline = 0;
+	explicit operator bool() const noexcept { return armed.load(std::memory_order_relaxed); }
+};
 template <class Leaf, class Entry>
 struct stash_wheel {
 	std::unique_ptr<levels<Leaf>> q = std::make_unique<levels<Leaf>>();
@@ -229,11 +114,6 @@ struct stash_wheel {
 	}
 };
 
-struct bentry {
-	std::atomic<bool> armed{false};
-	u64 deadline = 0;
-	explicit operator bool() const noexcept { return armed.load(std::memory_order_relaxed); }
-};
 struct cand_b {
 	using entry = bentry;
 	static constexpr bool cross = true;
@@ -260,43 +140,26 @@ struct cand_b {
 	}
 };
 
-struct centry {
-	std::atomic<centry*>* slot = nullptr;
-	u64 deadline = 0;
-};
-struct cand_c {
-	using entry = centry;
-	using leaf = StashEntries<centry, 10>;
+// ---- (w) the library ----------------------------------------------------------------------
+struct cand_w {
+	using entry = wheel::timer_entry;
 	static constexpr bool cross = true;
-	static constexpr const char* shape = "stash levels + intrusive leaf (no box, O(1) owner cancel)";
-	stash_wheel<leaf, centry> s;
-	explicit cand_c(u64 base) : s(base) {}
+	static constexpr const char* shape = "wheel::timer_wheel: 4,096 x 1 ms + six upper levels, 64-stripe inbox";
+	std::unique_ptr<wheel::timer_wheel> w;
+	explicit cand_w(u64 base) : w(std::make_unique<wheel::timer_wheel>(base)) {}
 	static u64 deadline(const entry& e) { return e.deadline; }
-	void arm(entry& e, u64 d) {
-		leaf::cancel(e);
-		e.deadline = d;
-		s.add(d, &e);
-	}
-	void arm_from(entry& e, u64 d) {  // an unarmed entry
-		e.deadline = d;
-		s.add(d, &e);
-	}
-	void cancel(entry& e) { leaf::cancel(e); }
+	void arm(entry& e, u64 d) { w->arm(e, d); }
+	void arm_from(entry& e, u64 d) { w->arm_remote(e, d); }
+	void cancel(entry& e) { w->cancel(e); }
 	template <class F>
-	std::size_t expire(u64 now, F&& f) {
-		return s.walk(now, [&](centry* e) -> std::size_t { f(*e); return 1; });
-	}
+	std::size_t expire(u64 now, F&& f) { return w->expire(now, [&](entry& e) { f(e); }); }
 };
 
 template <class F>
 auto dispatch(std::string_view arm, F&& f) {
-	if (arm == "a" || arm == "a2") { return f(static_cast<cand_a*>(nullptr)); }
 	if (arm == "b" || arm == "b2") { return f(static_cast<cand_b*>(nullptr)); }
-	if (arm == "c") { return f(static_cast<cand_c*>(nullptr)); }
-	if (arm == "d") { return f(static_cast<cand_d*>(nullptr)); }
-	if (arm == "e") { return f(static_cast<cand_e*>(nullptr)); }
-	if (arm == "f") { return f(static_cast<cand_f*>(nullptr)); }
-	std::fprintf(stderr, "unknown arm %.*s\n", int(arm.size()), arm.data());
+	if (arm == "w") { return f(static_cast<cand_w*>(nullptr)); }
+	std::fprintf(stderr, "unknown arm %.*s (b, b2 or w)\n", int(arm.size()), arm.data());
 	std::exit(2);
 }
 
@@ -319,6 +182,7 @@ void single(std::string_view arm, std::size_t n) {
 	std::printf("config row=single arm=%.*s n=%zu min_reps=%zu min_timed_ms=%llu shape=\"%s\" entry_bytes=%zu clock=manual base_ns=%llu\n",
 		int(arm.size()), arm.data(), n, min_reps, static_cast<unsigned long long>(min_timed_ns / ms), C::shape, sizeof(typename C::entry), static_cast<unsigned long long>(manual_base));
 	std::printf("start=%s\n", utc().c_str());
+	const double ghz0 = core_ghz();
 	C c(manual_base);
 	std::vector<typename C::entry> entries(n);
 	u64 t_arm = 0, t_rearm = 0, t_cancel = 0, t_expire = 0;
@@ -346,8 +210,9 @@ void single(std::string_view arm, std::size_t n) {
 	const double ops = static_cast<double>(n * reps);
 	const double arm_ns = t_arm / ops, rearm_ns = t_rearm / ops, cancel_ns = t_cancel / ops, expire_ns = t_expire / ops;
 	std::printf("timed_s=%.3f\n", (now_ns() - started) / 1e9);
-	std::printf("row=single arm=%.*s n=%zu reps=%zu arm_ns=%.2f rearm_ns=%.2f cancel_ns=%.2f expire_ns=%.2f score=%.2f fired=%zu\n",
-		int(arm.size()), arm.data(), n, reps, arm_ns, rearm_ns, cancel_ns, expire_ns, arm_ns + rearm_ns + cancel_ns + expire_ns, fired);
+	const double ghz1 = core_ghz();
+	std::printf("row=single arm=%.*s n=%zu reps=%zu arm_ns=%.2f rearm_ns=%.2f cancel_ns=%.2f expire_ns=%.2f score=%.2f fired=%zu ghz0=%.2f ghz1=%.2f\n",
+		int(arm.size()), arm.data(), n, reps, arm_ns, rearm_ns, cancel_ns, expire_ns, arm_ns + rearm_ns + cancel_ns + expire_ns, fired, ghz0, ghz1);
 	std::printf("end=%s\n", utc().c_str());
 }
 
@@ -424,12 +289,14 @@ void cross(std::string_view arm, std::size_t producers, std::size_t total) {
 		std::printf("config row=cross arm=%.*s producers=%zu total=%zu window_ms=1000 shape=\"%s\" entry_bytes=%zu clock=steady hw_threads=%u\n",
 			int(arm.size()), arm.data(), producers, total, C::shape, sizeof(typename C::entry), std::thread::hardware_concurrency());
 		std::printf("start=%s\n", utc().c_str());
+		const double ghz0 = core_ghz();
 		const u64 started = now_ns();
 		const auto r = cross_run<C>(producers, total, 1'000);
 		std::printf("timed_s=%.3f\n", (now_ns() - started) / 1e9);
+		const double ghz1 = core_ghz();
 		const bool valid = r.early == 0 && r.twice == 0 && r.missing == 0 && r.last_after_deadline_ms <= 100.0;
-		std::printf("row=cross arm=%.*s p=%zu producer_ns=%.2f span_ms=%.1f last_after_deadline_ms=%.2f max_late_ms=%.2f fired=%zu early=%zu twice=%zu missing=%zu valid=%d\n",
-			int(arm.size()), arm.data(), producers, r.producer_ns, r.span_ms, r.last_after_deadline_ms, r.max_late_ms, r.fired, r.early, r.twice, r.missing, int(valid));
+		std::printf("row=cross arm=%.*s p=%zu producer_ns=%.2f span_ms=%.1f last_after_deadline_ms=%.2f max_late_ms=%.2f fired=%zu early=%zu twice=%zu missing=%zu valid=%d ghz0=%.2f ghz1=%.2f\n",
+			int(arm.size()), arm.data(), producers, r.producer_ns, r.span_ms, r.last_after_deadline_ms, r.max_late_ms, r.fired, r.early, r.twice, r.missing, int(valid), ghz0, ghz1);
 		std::printf("end=%s\n", utc().c_str());
 		CHECK(r.early == 0 && r.twice == 0 && r.missing == 0);
 	}
@@ -511,35 +378,11 @@ void cross_check(const char* name) {
 		std::printf("test cross arm=%s p=%zu fired=%zu ok\n", name, p, r.fired);
 	}
 }
-// (d)'s inbox when one entry is armed again from another thread before the owner drains it:
-// the owner files the latest deadline, once.
-void inbox_rearm() {
-	cand_d c(manual_base);
-	dentry e;
-	std::thread t([&] {
-		c.arm_from(e, manual_base + 10 * ms);
-		c.arm_from(e, manual_base + 20 * ms);
-	});
-	t.join();
-	std::size_t fired = c.expire(manual_base + 15 * ms, [](dentry&) {});
-	CHECK(fired == 0);
-	fired = c.expire(manual_base + 20 * ms, [](dentry&) {});
-	CHECK(fired == 1 && !e.queued.load());
-	std::printf("test inbox-rearm ok\n");
-}
 void test() {
-	model<cand_a>("a");
 	model<cand_b>("b");
-	model<cand_c>("c");
-	model<cand_d>("d");
-	model<cand_e>("e");
-	model<cand_f>("f");
-	inbox_rearm();
+	model<cand_w>("w");
 	cross_check<cand_b>("b");
-	cross_check<cand_c>("c");
-	cross_check<cand_d>("d");
-	cross_check<cand_e>("e");
-	cross_check<cand_f>("f");
+	cross_check<cand_w>("w");
 	std::printf("test all ok\n");
 }
 }  // namespace

@@ -94,13 +94,19 @@ int main() {
 	auto lone = encode(detent::KnobDef{0, {}, 50, 1});
 	lone[8] = char(255);
 	CHECK(refused(lone));                                             // value with no percentage left
-	auto overlong = encode(detent::KnobDef{0});
-	overlong.insert(overlong.begin() + 10, char(0x80));
-	CHECK(overlong.size() == 13 && refused(overlong));                // non-canonical varint
-	overlong = encode(detent::KnobDef{0});
-	overlong.insert(overlong.begin() + 10, 9, char(0xff));
-	overlong[10 + 9] = char(0x7f);
-	CHECK(refused(overlong));                                         // varint past 64 bits
+	// A forced row {"g", 0}: length 1, kind 0, value varint at byte 14, key at byte 15.
+	detent::KnobDef zero{0};
+	zero.overrides.emplace("g", std::int64_t(0));
+	auto overlong = encode(zero);
+	CHECK(!refused(overlong) && overlong.size() == 16 && overlong[14] == 0 && overlong[15] == 'g');
+	overlong[14] = char(0x80);
+	overlong.insert(overlong.begin() + 15, char(0x00));
+	CHECK(refused(overlong));                                         // non-canonical varint in a row
+	overlong = encode(zero);
+	overlong.erase(overlong.begin() + 14);
+	overlong.insert(overlong.begin() + 14, 9, char(0xff));
+	overlong.insert(overlong.begin() + 14 + 9, char(0x7f));
+	CHECK(refused(overlong));                                         // row varint past 64 bits
 	bad = good;
 	bad.push_back(0);
 	CHECK(refused(bad));                                              // trailing bytes

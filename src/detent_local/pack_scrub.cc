@@ -2,6 +2,7 @@
 #include "segment_names.hh"
 #include "verified_pages.hh"
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
@@ -10,6 +11,10 @@
 #include <unistd.h>
 
 namespace detent::local::detail {
+namespace {
+// Resource exhaustion says nothing about the pack: the step throws and the pass stays where it is.
+bool transient(int error) noexcept { return error == EMFILE || error == ENFILE || error == ENOMEM; }
+} // namespace
 PackScrub::PackScrub(std::uint64_t bytes_per_second, std::size_t slice_bytes)
 	: rate_(bytes_per_second), slice_(slice_bytes), buffer_(slice_bytes) {
 	if (!rate_ || !slice_)
@@ -26,6 +31,22 @@ void PackScrub::close_file() noexcept {
 	file_ = -1;
 }
 void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now,
+					  const std::filesystem::path &directory) {
+	verified_.clear();
+	start(packs, now, directory);
+}
+void PackScrub::rebase(std::span<const SegmentInput> packs, Clock::time_point now,
+					   const std::filesystem::path &directory) {
+	std::map<StorageIdentity, std::array<char, 32>> kept;
+	if (running_)
+		for (const auto &pack : packs)
+			if (auto found = verified_.find(pack.ownership.segment);
+				found != verified_.end() && found->second == pack.ownership.checksum)
+				kept.insert(*found);
+	verified_ = std::move(kept);
+	start(packs, now, directory);
+}
+void PackScrub::start(std::span<const SegmentInput> packs, Clock::time_point now,
 					  const std::filesystem::path &directory) {
 	close_file();
 	found_.clear();
@@ -44,8 +65,6 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
 	credit_ = 0;
 	last_ = now;
 	hash_.reset();
-	found_.clear();
-	completed_.clear();
 	running_ = !packs.empty();
 	if (!running_)
 		++passes_;
@@ -60,8 +79,14 @@ bool PackScrub::open_file() {
 	const auto name = std::string(names.payload_name());
 	file_ = ::openat(directory_, name.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	struct stat info{};
-	if (file_ < 0 || ::fstat(file_, &info) != 0 || !S_ISREG(info.st_mode) ||
-		std::uint64_t(info.st_size) != pack.bytes.size()) {
+	int error = file_ < 0 ? errno : 0;
+	if (!error && ::fstat(file_, &info) != 0)
+		error = errno;
+	if (transient(error)) {
+		close_file();
+		throw std::system_error(error, std::generic_category(), "open scrub pack");
+	}
+	if (error || !S_ISREG(info.st_mode) || std::uint64_t(info.st_size) != pack.bytes.size()) {
 		close_file();
 		return false;
 	}
@@ -69,6 +94,11 @@ bool PackScrub::open_file() {
 	::fcntl(file_, F_NOCACHE, 1);
 #endif
 	return true;
+}
+// True when this pass already hashed the pack, byte for byte, against the same record.
+bool PackScrub::verified(const SegmentInput &pack) const {
+	const auto found = verified_.find(pack.ownership.segment);
+	return found != verified_.end() && found->second == pack.ownership.checksum;
 }
 // The current pack failed: report it, withdraw its verified pages and move on.
 void PackScrub::damaged() {
@@ -100,6 +130,10 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 	std::uint64_t done = 0;
 	while (running_) {
 		const auto &pack = packs_[next_];
+		if (file_ < 0 && offset_ == 0 && verified(pack)) {
+			next_pack();
+			continue;
+		}
 		if (file_ < 0 && offset_ == 0 && !open_file() && !open_file()) {
 			damaged();
 			next_pack();
@@ -113,10 +147,16 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 		if (!count && remaining)
 			break;
 		if (count) {
-			auto got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
-			if (got != static_cast<ssize_t>(count))
-				got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
-			if (got != static_cast<ssize_t>(count)) {
+			const auto read = [&] {
+				const auto got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
+				return got == static_cast<ssize_t>(count) ? 0 : got < 0 ? errno : EIO;
+			};
+			int error = read();
+			if (error && !transient(error))
+				error = read();
+			if (transient(error))
+				throw std::system_error(error, std::generic_category(), "read scrub pack");
+			if (error) {
 				damaged();
 				next_pack();
 				continue;
@@ -136,6 +176,8 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 		hash_.getHash(digest);
 		if (std::memcmp(digest, pack.ownership.checksum.data(), 32) != 0)
 			damaged();
+		else
+			verified_.emplace(pack.ownership.segment, pack.ownership.checksum);
 		next_pack();
 	}
 	return done;
