@@ -4,6 +4,11 @@
 #include "paged_disk_fixture.hh"
 #include "paged_maintenance_plan.hh"
 #include "paged_compaction_plan.hh"
+#include <chrono>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <thread>
+#include <unistd.h>
 void drive(const std::shared_ptr<l::DiskStore> &store) {
 	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
 	for (unsigned turns = 0;; ++turns) {
@@ -24,6 +29,24 @@ l::DiskUsage census(const std::filesystem::path &root) {
 			++usage.generations;
 	}
 	return usage;
+}
+// Waits until no reader holds `generation`'s `.lease` (a dropped view closes it on the retirement
+// thread), or until it is gone.
+void released(const std::filesystem::path &root, const l::GenerationId &generation) {
+	const auto path = root / (l::generation_name(generation) + ".lease");
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	for (;;) {
+		const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+		if (fd < 0 && errno == ENOENT)
+			return; // already collected
+		require(fd >= 0);
+		const bool free = ::flock(fd, LOCK_EX | LOCK_NB) == 0;
+		::close(fd);
+		if (free)
+			return;
+		require(std::chrono::steady_clock::now() < deadline);
+		std::this_thread::yield();
+	}
 }
 // Publishes one paged intent over an installed base, or cancels it before its work is taken.
 void run(const std::filesystem::path &root, const l::detail::PagedImage &image, unsigned intent, bool cancel) {
@@ -99,6 +122,8 @@ void run(const std::filesystem::path &root, const l::detail::PagedImage &image, 
 	}
 	// Once confirmed and let go, the replaced base is collected.
 	base.reset();
+	if (!cancel)
+		released(root, image.descriptor().generation);
 	store->request_collection();
 	drive(store);
 	require(store->stats().used == census(root) && store->stats().used.generations == 1);
