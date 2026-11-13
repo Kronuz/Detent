@@ -337,6 +337,13 @@
       "closed": "comment fix routed to namespace-s6-v1-removal, which owns include/detent_distribution; keeps s6-cutover's evidence intact",
       "id": "msg-50",
       "text": "namespace-s6-cutover F1: select_answer now returns Ahead for a same-cluster store above head whatever its incarnation (session_frames.cc). The tier comment in include/detent_distribution/history.hh:65-69 (outside my file set) still says Ahead = 'the store is above head' and FullCopy = 'another cluster or incarnation'; it should read: Ahead = 'a same-cluster store above head, of any incarnation (positions continue across incarnations): no answer until this source catches up (D1)', FullCopy = 'R < p, another cluster, another incarnation at or below head, or no store'. One-line doc edit; widen my set or fold it into namespace-s6-v1-removal."
+    },
+    {
+      "at": "2026-11-13T13:25:16",
+      "by": "xapiand-lead",
+      "closed": "noted: quick-fix rule (agent-campaign:1488a12) replaces the five-line edit rule; applies outside high/critical areas",
+      "id": "msg-51",
+      "text": "Owner asked for quick fixes in the campaign skill; landed agent-campaign:1488a12 (dotfiles:3a19886). An obvious cause, tens of lines outside high/critical areas, a test failing without it: commit fix+test to main, push, fix forward on red CI; commit message is the record. Replaces the lead's five-line-edit rule."
     }
   ],
   "quests": {
