@@ -309,6 +309,13 @@
       "closed": "D91: option 1, fetch lane in consensus Peers; quest consensus-fetch-lane; s5-3 after it, cmake/dependencies.json added to its files",
       "id": "msg-46",
       "text": "namespace-s5-3 (resend: msg-44 is missing from state.json, likely lost in a concurrent state write) A1 needs a ruling on WHERE the production history-fetch endpoint lives. Voters reach each other only through consensus's Peers (mTLS, pinned certs, peer addresses), which carries consensus frames and the snapshot channel, no application lane. Options: (1) RECOMMENDED: a fetch lane in consensus's Peers (host-supplied reader serves name -> bytes on the bulk lane; reply on the owner executor). Reuses mTLS, pins, addresses, budgets; no new config; one voter-to-voter transport. Cost: consensus change + Detent pin bump, outside this quest's file set. (2) GET /v2/history/<name> on the publisher HTTPS listener: voters do not know peers' publisher addresses (new per-voter config), need peer auth on that listener (detentd main, outside files) and an HTTPS client. (3) A dedicated history TLS listener per voter on peer_tls + pins (new history_port), all inside src/detent_authority: fastest, but a second voter-to-voter transport. A2-A5 are done behind the async history::Fetch seam; I need your pick (and the file set for 1) for A1."
+    },
+    {
+      "at": "2026-11-13T03:01:46",
+      "by": "namespace-s7-store",
+      "closed": "file set widened to tests/detent_delivery/**, the three paged/local benchmarks, tools/check_lineage.sh, tools/w5/first_read.py and the layout docs; port them in this quest (D43)",
+      "id": "msg-47",
+      "text": "namespace-s7-store file set misses files that write or read the old agent layout and must change with A3 (old layout deleted, D43): tests/detent_delivery/** (test_coordinator.cc, test_bootstrap_retention.cc, test_bundle_maintenance.cc write 'selected' as a DTSELECT descriptor plus .lease; verify_local_format.py and test_managed_process.sh read it), benchmarks/{paged_collection_bench,paged_recovery_bench,local_image_bench}.cc (CI builds benchmarks, ci.yml:48), tools/check_lineage.sh, tools/w5/first_read.py, and the layout docs (docs/HOW_IT_WORKS.md, docs/LOCAL_IMAGE_FORMAT.md, docs/DISK_STORE_INTEGRATION.md, docs/DISK_LIFECYCLE_ARCHITECTURE.md, docs/mechanisms/{trusted-restart,generation-writer,sync-groups}.md). Recommend widening the set to tests/detent_delivery/**, those three benchmarks, those two tools, and the layout docs. I proceed inside the set meanwhile; DiskStore's public API (begin/selection/Descriptor) stays, so src/detent_relay needs nothing."
     }
   ],
   "quests": {
