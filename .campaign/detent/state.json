@@ -5395,7 +5395,8 @@
         "include/detent_authority/**",
         "tests/detent_authority/**",
         "docs/status/namespace-s5.md",
-        "cmake/dependencies.json"
+        "cmake/dependencies.json",
+        "docs/design/namespace-delivery.md"
       ],
       "history": [
         {
@@ -5428,7 +5429,7 @@
       "risk": "high",
       "status": "review",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-13T03:39:06",
+      "updated": "2026-11-13T04:30:02",
       "worktree": "../Detent-wt/detent/namespace-s5-3"
     },
     "namespace-s6": {
