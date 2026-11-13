@@ -1,50 +1,40 @@
 # consensus-fetch-lane: journal
 
-State: blocked on lead: A2 on slow CI runners (append supersede livelock, below); jobs at consensus:ce205c6: 261113-024645-d214ac 261113-024647-753d21 261113-024649-d90224 261113-024704-6e0b23 261113-024707-ff768c 261113-024710-f17f16 261113-024713-b5e0f8 261113-024715-24d7f0
+State: ready for review (jobs queued at consensus:a197efb: 261113-025143-f37c46 261113-025148-7981de 261113-025207-111b68 261113-025208-55a754 261113-025208-07d1bb 261113-025208-49c443 261113-025208-043844)
 Quest: .campaign/detent/quests/consensus-fetch-lane.md (the lead's; never edit it)
 
 ## Doing
 
-CI red on macos-x86_64 at consensus:07077b9 (run 43409164420): `fetch-alongside-consensus`
-commit failed at 2 s. Investigated; the lead's hypothesis (F1 closing a slow lane) is killed.
+D92 (lead) applied in consensus:a197efb: A2 runs under the `loaded` timing; jobs queued there.
 
 ## Next
 
-1. Lead decides the A2 option under "Blocked on".
-2. Read the jobs at consensus:ce205c6 and update the Evidence table from `campaign brief`.
+1. Read the jobs at consensus:a197efb and paste `campaign brief`'s table.
+2. The lead pushes for CI (macos-x86_64, linux-tsan).
 
 ## Blocked on
 
-Lead: what A2 asserts on slow runners. Findings:
+Nothing. CI needs the lead's push.
 
-- F1 is not involved. A2 runs with the default `fetch_deadline` (30 s), so the close needs 60 s,
-  and the CI counters show all lanes intact: connections 4/4/4, admitted 4, rejected 0,
-  reconnects 4/2/0 (the startup dials, same as local). CI at consensus:947a502 (before F1, run
-  43406908950) failed too: linux-tsan saw the leader's term change during the fetches (commits up
-  to 388 ms), macos-x86_64's A2 passed with commits up to 218 ms and round trips in the 64 ms
-  bucket, then `fetch-failures` failed (that ordering changed in 07077b9).
-- The CI failure: the leader and voter three committed index 12; voter two stayed at 11 for 2 s
-  with its lanes up. Cause, reproduced locally without any fetch: the probe
-  `~/.scratch/fetch-ci/probe-hog.patch` (job 261113-024715-24d7f0, not evidence) spins N ms per
-  executor cycle. Commits: N=0 20 ms; N=1 ~65 ms; N=2 75-130 ms; N=5 none in 4 s, with 0
-  append responses, 194 superseded and 194 unmatched. Once an append round trip exceeds
-  `rpc_timeout` (40 ms in the test's `compact` timing), the Core re-sends, which supersedes the
-  flight, and drops the late response as unmatched: no append ever completes. That is a
-  livelock in the Core and transport's append matching, and it predates this quest. Fetch load
-  on a slow runner only pushes round trips past 40 ms: all three voters, and the TLS for
-  128 MiB, share one test thread.
-- Options:
-  (a) Fix the livelock in the Core: accept a late response that still matches the log (index
-      and term), not only the current flight. That is core.h, outside this file set; a separate
-      quest.
-  (b) Run A2 under a timing whose rpc_timeout fits a slow runner, for example
-      `{20, 200, 400, 800}`, and keep the 2 s commit bound, the no-timeout check and the
-      unchanged-term check.
-  (c) Pace the fetch lane across lanes: write a fetch frame only while no control lane of the
-      voter has queued frames. This shortens but does not bound the cycle in a one-thread,
-      three-voter test, and it gives up throughput.
-  Recommendation: (a) as its own quest, since any slow executor livelocks consensus, and (b)
-  here, so A2 measures what the fetch lane costs and not that cliff.
+## D92 (lead): A2 timing; consensus-late-append
+
+The CI failure on macos-x86_64 at consensus:07077b9 (run 43409164420) was not F1: the
+counters showed every lane intact. Its cause is a livelock that predates this quest. Once an
+append round trip passes `rpc_timeout`, the Core re-sends, which supersedes the flight, and
+drops the late response as unmatched. Probe job 261113-024715-24d7f0 (not evidence; patch
+`~/.scratch/fetch-ci/probe-hog.patch`) spins N ms per executor cycle with no fetch: at 5 ms,
+commits stop, with 0 responses, 194 superseded and 194 unmatched.
+
+D92 option 2, here, in consensus:a197efb (test and doc only):
+- `fetch-alongside-consensus` runs with `loaded = {20, 200, 400, 800}`.
+- It keeps the 2 s commit bound, the no-timeout and unchanged-term checks, and the 64/256 ms
+  bucket bounds.
+- The Cluster takes a Timing and derives each voter's election delay from it. For compact
+  that is the same 100/140/180 ms as before.
+
+Local runs at a197efb: commits up to 42 ms and round trips within the 16 ms bucket. Under a
+5 ms hog plus the four fetches, the `loaded` timing commits in about 260 ms with no supersede,
+where `compact` commits nothing. Option 1 is the new quest consensus-late-append.
 
 ## Review findings (correctness, CHANGES at consensus:947a502)
 
@@ -58,8 +48,9 @@ Lead: what A2 asserts on slow runners. Findings:
   frame deadline closed the lane at 2 s anyway. Fixed in consensus:ce205c6: voter two now hangs
   before the request reaches it. Checked locally: the fix closes the lane at 600 ms, and the
   mutant fails at the wait for the freed slot.
-  Confirm mapping: F1 -> suite 261113-024645-d214ac (runs `fetch-hung-peer`), job
-  261113-024647-753d21, mutant 261113-024649-d90224, all at consensus:ce205c6.
+  Confirm mapping: F1 -> suite 261113-025143-f37c46 (runs `fetch-hung-peer`), job
+  261113-025207-111b68, mutant 261113-025208-49c443, all at consensus:a197efb. At ce205c6 all
+  three passed and the mutant was killed: 261113-024645-d214ac, 024647-753d21, 024649-d90224.
   `fetch-failures` now resumes its frozen peer before the second deadline (deadline 500 ms).
 - F4 done: under TSan (`__has_feature(thread_sanitizer)` / `__SANITIZE_THREAD__`) the A2 bound
   is the 256 ms bucket; Release keeps 64 ms. The unchanged leader term carries the election bound
@@ -80,12 +71,15 @@ Lead: what A2 asserts on slow runners. Findings:
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261113-024704-6e0b23 (codec + `fetch-exact`), suite 261113-024645-d214ac |
-| A2 | 261113-024707-ff768c (`fetch-alongside-consensus`, local); red on CI macos-x86_64, see Blocked on |
-| A3 | 261113-024647-753d21 (`fetch-failures`, `fetch-hung-peer`); fails without: 261113-024710-f17f16 (leak-pending-fetch), 261113-024649-d90224 (keep-hung-lane, F1) |
-| A4 | 261113-024713-b5e0f8 (local macOS TSan); `ci:linux-tsan` red at 947a502 (term change, same cause) |
+| A1 | 261113-025208-55a754 (codec + `fetch-exact`), suite 261113-025143-f37c46 |
+| A2 | 261113-025148-7981de (`fetch-alongside-consensus`, loaded timing, D92) |
+| A3 | 261113-025207-111b68 (`fetch-failures`, `fetch-hung-peer`); fails without: 261113-025208-043844 (leak-pending-fetch), 261113-025208-49c443 (keep-hung-lane, F1) |
+| A4 | 261113-025208-07d1bb (local macOS TSan); `ci:linux-tsan` after the lead's push |
 | A5 | [artifact] `CHANGELOG.md` 2026-11-13 "Added": the fetch lane entry |
 
+At consensus:ce205c6 all passed, and both mutants were killed: suite 261113-024645-d214ac,
+A1 024704-6e0b23, A2 024707-ff768c, A3 024647-753d21, mutants 024649-d90224 and
+024710-f17f16, TSan 024713-b5e0f8.
 At consensus:07077b9, all passed locally: suite 261113-022554-e164e1, A1 022615-385856,
 A2 022622-b5fc07, A3 022555-f957a0, TSan 022602-a85d8e. The keep-hung-lane mutant
 022558-188050 survived, and the leak mutant 022626-75ca1c was skipped.
