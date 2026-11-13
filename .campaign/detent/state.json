@@ -6987,7 +6987,10 @@
         "docs/mechanisms/**",
         "benchmarks/CMakeLists.txt",
         "benchmarks/paged_snapshot_bench.cc",
-        "docs/USAGE.md"
+        "docs/USAGE.md",
+        "website/src/content/docs/operations/upgrading.md",
+        "website/src/content/docs/guides/managed-delivery.md",
+        "website/src/content/docs/reference/cli/detent-agent.md"
       ],
       "history": [
         {
@@ -7020,7 +7023,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T07:08:05",
+      "updated": "2026-11-13T07:43:17",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
