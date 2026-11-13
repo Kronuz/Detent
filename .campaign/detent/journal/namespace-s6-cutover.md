@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1: an authority `NamespaceHistory` over S5.2's layout table, history files, ring and the newest
+seal's state (`src/detent_authority/namespace_history.{hh,cc}`), then the v2 session endpoints in
+`service.cc` on it.
 
 ## Next
 
-1. <step>
+1. A1 adapter + test (bytes per answer vs `Layout::answer` and an oracle).
+2. v2 open/next/close in the authority over `NamespaceGrants` (A3), W7 full copy (A2).
+3. A4-A7 per the lead's answer to msg-49.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Lead (msg-49): A4-A7 need files outside the set (delivery, distribution, distribution_http, relay,
+detent, testing, system tests, docs); split (recommended) or widen. A1-A3 proceed in set.
 
 ## Evidence
 
