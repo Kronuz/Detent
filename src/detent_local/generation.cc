@@ -77,13 +77,13 @@ std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &d) {
 	std::copy(d.cursor.scope.begin(), d.cursor.scope.end(), bytes.begin() + 120);
 	write_integer(bytes, 152, d.cursor.revision, 8);
 	write_integer(bytes, 160, d.profile.semantic_id, 4);
+	write_integer(bytes, 164, d.ordinal, 4);
 	write_integer(bytes, 168, d.profile.required_capabilities, 8);
 	return bytes;
 }
 Descriptor decode_descriptor(std::span<const char> bytes) {
 	require(bytes.size() == descriptor_bytes && std::equal(magic.begin(), magic.end(), bytes.begin()) &&
-			read_integer(bytes, 8, 4) == 1 && read_integer(bytes, 12, 4) == descriptor_bytes &&
-			read_integer(bytes, 164, 4) == 0);
+			read_integer(bytes, 8, 4) == 1 && read_integer(bytes, 12, 4) == descriptor_bytes);
 	Descriptor d;
 	std::copy_n(bytes.begin() + 16, 16, d.generation.begin());
 	d.length = read_integer(bytes, 32, 8);
@@ -94,9 +94,14 @@ Descriptor decode_descriptor(std::span<const char> bytes) {
 	std::copy_n(bytes.begin() + 120, 32, d.cursor.scope.begin());
 	d.cursor.revision = read_integer(bytes, 152, 8);
 	d.profile.semantic_id = read_integer(bytes, 160, 4);
+	d.ordinal = read_integer(bytes, 164, 4);
 	d.profile.required_capabilities = read_integer(bytes, 168, 8);
 	encode_descriptor(d);
 	return d;
+}
+bool same_generation(const Descriptor &a, const Descriptor &b) noexcept {
+	return a.generation == b.generation && a.length == b.length && a.checksum == b.checksum &&
+		   a.cursor == b.cursor && a.profile == b.profile;
 }
 std::string generation_name(const GenerationId &id) {
 	std::array<char, 43> bytes;
@@ -360,14 +365,13 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
 						(!expected || (expected->same_identity(root.cursor) &&
 									   root.cursor.revision >= expected->revision)));
-				const auto storage = generation_ownership->storage;
 				auto account = context.heap;
 				const DirectoryIdentity identity{std::uint64_t(directory_info.st_dev),
 												 std::uint64_t(directory_info.st_ino)};
 				if (context.admission)
-					context.admission->bind(descriptor, identity, storage);
+					context.admission->bind(descriptor, identity);
 				const bool warm =
-					detail::eligible_warm_recovery(prior, root, identity, storage, account, mapping_account);
+					detail::eligible_warm_recovery(prior, root, identity, account, mapping_account);
 				if (context.admission)
 					require(context.admission->warm() == warm);
 				const bool progress = warm && detail::reuses_paged_state(prior->root(), root);
@@ -383,7 +387,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				std::optional<detail::TrustedGeneration> trusted;
 				if (context.trusted_start && !progress)
 					trusted = detail::TrustedRestart::open(
-						dir->fd, directory_info.st_uid, descriptor, root, storage, bounds, limits, factory, account,
+						dir->fd, directory_info.st_uid, descriptor, root, bounds, limits, factory, account,
 						mapping_account, context.metrics.get(),
 						{context.admission.get(), warm ? prior->registry().get() : nullptr});
 				if (trusted) {
@@ -396,7 +400,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 							registry->physical_bytes() <= bounds.bytes);
 				} else {
 					discovery.emplace(
-						account, factory, root, storage, bounds,
+						account, factory, root, bounds,
 						warm ? prior->registry() : distribution::RetirementHandle<detail::SegmentRegistry>{},
 						context.admission ? (warm ? context.admission->fresh_registry()
 												  : context.admission->target_registry())
@@ -413,7 +417,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 							std::array<char, segment_ownership_bytes> record_bytes;
 							read_record(record.fd, record_bytes);
 							const auto ownership = decode_segment_ownership(record_bytes);
-							require(ownership.storage == storage && ownership.segment == *missing);
+							require(ownership.segment == *missing);
 							File payload(
 								::openat(dir->fd, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 							auto segment =
@@ -466,7 +470,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				auto capability = context.admission
 									  ? context.admission->capability()
 									  : factory.make<detail::LeasedPagedRoot>(
-											dir, root_lease, registry, descriptor, identity, storage, root);
+											dir, root_lease, registry, descriptor, identity, root);
 				using Capability = distribution::RetirementHandle<detail::LeasedPagedRoot>;
 				std::optional<detail::GraphValidator> validator;
 				if (!warm && !trusted) {
@@ -475,7 +479,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 							? context.admission->capability_owner()
 							: std::allocate_shared<Capability>(
 								  distribution::StorageAllocator<Capability>(account), capability);
-					validator.emplace(account, owner, registry->inputs(), root, storage, bounds,
+					validator.emplace(account, owner, registry->inputs(), root, bounds,
 									  detail::PagedSemanticLimits{limits.strings, limits.overrides},
 									  registry.get());
 					while (!validator->done()) {
@@ -521,7 +525,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				trusted_file(final_storage.fd, directory_info.st_uid, storage_identity_bytes);
 				std::array<char, storage_identity_bytes> final_identity;
 				read_record(final_storage.fd, final_identity);
-				require(decode_storage_identity(final_identity) == storage);
+				require(decode_storage_identity(final_identity) == generation_ownership->storage);
 				if (progress)
 					capability->seal_progress(*prior);
 				else

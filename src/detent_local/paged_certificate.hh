@@ -15,7 +15,6 @@ class PagedDependencyCertificate final : public distribution::RetirementNode {
 	const Descriptor &descriptor() const;
 	const paged::Root &root() const;
 	DirectoryIdentity directory_identity() const;
-	StorageIdentity storage_identity() const;
 	std::span<const SegmentOwnership> dependencies() const;
 
   protected:
@@ -29,7 +28,6 @@ class PagedDependencyCertificate final : public distribution::RetirementNode {
 	Descriptor descriptor_;
 	paged::Root root_;
 	DirectoryIdentity directory_;
-	StorageIdentity storage_;
 	std::shared_ptr<const void> capture_owner_;
 	distribution::RetirementHandle<SegmentRegistry> capture_registry_;
 	std::span<const SegmentInput> capture_inputs_;

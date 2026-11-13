@@ -14,10 +14,10 @@ class PagedImage;
 class PagedSnapshotBuilder {
   public:
 	// Retain decoded input separately for its budgeted disposal after this builder.
-	PagedSnapshotBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>, StorageIdentity,
-						 GenerationId, paged::Limits = {});
-	PagedSnapshotBuilder(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>, StorageIdentity,
-						 GenerationId, paged::Limits = {});
+	PagedSnapshotBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>, GenerationId,
+						 paged::Limits = {});
+	PagedSnapshotBuilder(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>, GenerationId,
+						 paged::Limits = {});
 	~PagedSnapshotBuilder();
 	PagedSnapshotBuilder(PagedSnapshotBuilder &&) noexcept;
 	PagedSnapshotBuilder(const PagedSnapshotBuilder &) = delete;

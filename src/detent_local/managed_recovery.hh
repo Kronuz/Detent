@@ -7,7 +7,6 @@ struct StoreCore;
 struct ManagedRecoveryContext {
 	RecoveryContext legacy, paged;
 	std::weak_ptr<StoreCore> owner;
-	StorageIdentity storage;
 	DirectoryIdentity directory;
 };
 class ManagedRecovery {

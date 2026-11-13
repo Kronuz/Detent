@@ -5,7 +5,6 @@
 namespace detent::local::detail {
 inline constexpr std::size_t reader_metadata_bytes = prepared_metadata_bytes;
 struct ReaderMetadata {
-	StorageIdentity storage{};
 	GenerationId generation{};
 	paged::Digest root_checksum{};
 	PagedStateCounts counts;

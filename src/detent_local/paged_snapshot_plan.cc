@@ -4,12 +4,12 @@ namespace detent::local::detail {
 namespace d = distribution;
 PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::ValidatedSnapshot> source,
 												   std::optional<RecoveredGeneration> base,
-												   DirectoryIdentity directory, StorageIdentity storage,
+												   DirectoryIdentity directory,
 												   GenerationId generation, d::RetirementFactory factory,
 												   std::shared_ptr<d::StorageLedger> heap, ViewLimits limits,
 												   bool repair)
 	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), directory_(directory),
-	  storage_(storage), limits_(limits), repair_(repair) {
+	  limits_(limits), repair_(repair) {
 	if (!source || source->storage_account() != heap_ || !factory_.uses_account(heap_) ||
 		(base_ &&
 		 (base_->directory_identity() != directory_ || base_->descriptor().generation == generation)) ||
@@ -17,7 +17,7 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 		throw std::invalid_argument("snapshot plan requires actual bindings and exact resources");
 	limits_.retirement_domain = nullptr;
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
-	encoder_.emplace(std::move(source), storage_, generation, bounds);
+	encoder_.emplace(std::move(source), generation, bounds);
 }
 bool PagedSnapshotPlanBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)
@@ -42,7 +42,7 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 			encoder_->step(budget);
 			if (!encoder_->done())
 				return;
-			validator_.emplace(encoder_->take(), factory_, heap_, storage_, limits_);
+			validator_.emplace(encoder_->take(), factory_, heap_, limits_);
 			encoder_.reset();
 		}
 		if (!state_) {
@@ -57,7 +57,7 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 								: target.cursor.same_identity(base_->descriptor().cursor)
 									? PagedPlanIntent::Forward
 									: PagedPlanIntent::TrustedReset;
-			state_ = factory_.make<PagedPlanState>(heap_, base_, validator_->image(), storage_, directory_,
+			state_ = factory_.make<PagedPlanState>(heap_, base_, validator_->image(), directory_,
 												   intent);
 			state_->counts_ = validator_->counts();
 		}

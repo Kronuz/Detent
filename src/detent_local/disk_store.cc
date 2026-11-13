@@ -1,4 +1,5 @@
 #include "detent_local/disk_store.hh"
+#include "detent_local/derived_ids.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/collector.hh"
 #include "detent_local/inventory.hh"
@@ -616,17 +617,33 @@ class PublicationOperation final : public c::Operation {
 					++close_index_; // a failed close consumes its handle
 				std::rethrow_exception(result.error);
 			}
-			if (phase_ == Phase::Preflight) {
-				if (result.inspection) {
-					data_->failure =
-						std::make_exception_ptr(std::invalid_argument("generation name already exists"));
+			if (phase_ == Phase::Preflight && result.inspection &&
+				(reached(child_name(index_)) || !safe(*result.inspection, *data_->core))) {
+				// D8.4: a reached name is corruption for repair, and an unsafe entry is never unlinked.
+				data_->failure = std::make_exception_ptr(
+					std::invalid_argument("a derived name is reached by the selected generation or unsafe"));
+				if (started_)
+					data_->core->ledger.settle(data_->permit, {}, orphans_);
+				else
 					data_->core->ledger.cancel_unstarted(data_->permit);
-					finish(DiskPublicationStatus::Rejected);
-				} else if (cancelled_ || data_->core->closing)
+				finish(DiskPublicationStatus::Rejected);
+			} else if (phase_ == Phase::Preflight && result.inspection) {
+				// An orphan a crash or a cancel left under this derived name (D8.4): it is unlinked and
+				// written again, never trusted. The Replace's directory barrier makes the unlink durable.
+				const auto &entry = *result.inspection;
+				orphans_.bytes += entry.footprint.logical_bytes;
+				++orphans_.entries;
+				const auto parsed = detail::parse_generation_name(child_name(index_));
+				orphans_.generations += parsed && parsed->kind == detail::GenerationFile::Lease;
+				phase_ = Phase::RemoveOrphan;
+				prepare(c::Kind::Remove);
+			} else if (phase_ == Phase::Preflight || phase_ == Phase::RemoveOrphan) {
+				if (cancelled_ || data_->core->closing)
 					cancel_healthy();
-				else if (++index_ < child_count())
+				else if (++index_ < child_count()) {
+					phase_ = Phase::Preflight;
 					prepare(c::Kind::InspectEntry);
-				else {
+				} else {
 					index_ = 0;
 					phase_ = Phase::Prepare;
 				}
@@ -663,8 +680,12 @@ class PublicationOperation final : public c::Operation {
 				// Durability lives here, independent of coordinator acknowledgement.
 				data_->core->selection = {SelectionKnowledge::Known, data_->descriptor};
 				data_->core->change->publish(store_slots);
-				data_->core->ledger.settle(data_->permit, peak(),
-										   old_selected_ ? DiskUsage{descriptor_bytes, 1, 0} : DiskUsage{});
+				auto credit = orphans_;
+				if (old_selected_) {
+					credit.bytes += descriptor_bytes;
+					++credit.entries;
+				}
+				data_->core->ledger.settle(data_->permit, peak(), credit);
 				if (data_->artifacts) {
 					data_->core->pending_paged_recovery = data_->artifacts;
 					data_->core->recovery_attempt = data_->artifacts->recovery_admission().get();
@@ -708,7 +729,18 @@ class PublicationOperation final : public c::Operation {
 	std::exception_ptr error() const noexcept { return data_->failure; }
 
   private:
-	enum class Phase { Dependencies, Preflight, Prepare, SyncGroup, CloseGroup, Abort, Replace, Barrier, Done };
+	enum class Phase {
+		Dependencies,
+		Preflight,
+		RemoveOrphan,
+		Prepare,
+		SyncGroup,
+		CloseGroup,
+		Abort,
+		Replace,
+		Barrier,
+		Done
+	};
 	using Staged = std::vector<std::shared_ptr<c::File>, c::OwnedAllocator<std::shared_ptr<c::File>>>;
 	std::size_t child_count() const {
 		return data_->artifacts ? data_->artifacts->artifacts().size() : children_.size();
@@ -729,7 +761,7 @@ class PublicationOperation final : public c::Operation {
 		++request_.token.step;
 		token_ = request_.token;
 		request_.kind = kind;
-		if (kind == c::Kind::InspectEntry)
+		if (kind == c::Kind::InspectEntry || kind == c::Kind::Remove)
 			request_.source = child_name(index_);
 		if (kind == c::Kind::SyncFiles)
 			request_.files = staged_;
@@ -741,6 +773,21 @@ class PublicationOperation final : public c::Operation {
 	void prepare_close() {
 		prepare(c::Kind::CloseFile);
 		request_.file = staged_[close_index_];
+	}
+	// A name the selected generation reaches: its own files, or a segment its registry holds. Without
+	// the verified registry of a selected generation every segment name counts as reached.
+	bool reached(std::string_view name) const {
+		const auto &core = *data_->core;
+		const auto &selected = core.selection.descriptor;
+		if (const auto parsed = detail::parse_generation_name(name))
+			return selected && parsed->generation == selected->generation;
+		if (const auto parsed = detail::parse_segment_name(name)) {
+			if (!core.verified_paged)
+				return bool(selected);
+			const auto inputs = core.verified_paged->registry()->inputs();
+			return detail::find_segment(inputs, parsed->segment) != inputs.size();
+		}
+		return true;
 	}
 	void check_final_credit() const {
 		const auto used = data_->core->ledger.stats().used;
@@ -785,7 +832,7 @@ class PublicationOperation final : public c::Operation {
 					++observed.entries;
 				}
 			}
-			data_->core->ledger.settle(data_->permit, observed);
+			data_->core->ledger.settle(data_->permit, observed, orphans_);
 		}
 		finish(DiskPublicationStatus::Cancelled);
 	}
@@ -808,6 +855,7 @@ class PublicationOperation final : public c::Operation {
 	SyncCounters sync_at_admit_;
 	Phase phase_ = Phase::Preflight;
 	std::size_t index_ = 0, sealed_ = 0, group_end_ = 0, window_ = 1, close_index_ = 0;
+	DiskUsage orphans_; // the orphans unlinked before the files are written
 	bool submitted_ = false, started_ = false, window_open_ = false, cancelled_ = false,
 		 old_selected_ = false;
 };
@@ -1259,10 +1307,11 @@ class ReclaimOperation final : public c::Operation {
 		write_integer(expected, 0, length, 8);
 		return matches_prefix(bytes, offset, expected);
 	}
-	static bool supported_profile(std::span<const char> bytes, std::size_t offset) noexcept {
+	// A descriptor holds its build ordinal in the four bytes after the semantic id.
+	static bool supported_profile(std::span<const char> bytes, std::size_t offset, bool ordinal = false) noexcept {
 		constexpr std::array<char, 8> profile{0, 0, 0, 1, 0, 0, 0, 0};
 		constexpr std::array<char, 7> capability_prefix{};
-		return matches_prefix(bytes, offset, profile) &&
+		return matches_prefix(bytes, offset, std::span(profile).first(ordinal ? 4 : 8)) &&
 			   matches_prefix(bytes, offset + 8, capability_prefix) &&
 			   (bytes.size() < offset + 16 || (static_cast<unsigned char>(bytes[offset + 15]) & ~1u) == 0);
 	}
@@ -1325,10 +1374,13 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_descriptor_prefix(std::span<const char> bytes) {
 		if (slot().image_scope) {
+			// The image does not hold the build ordinal (bytes 164-167), so they are not compared.
 			const auto expected =
 				encode_descriptor({slot().generation, slot().proof.image_length, slot().proof.image_checksum,
 								   slot().image_scope->first, slot().image_scope->second});
-			if (!std::equal(bytes.begin(), bytes.end(), expected.begin()))
+			const auto ordinal = std::min<std::size_t>(bytes.size(), 164), after = std::min<std::size_t>(bytes.size(), 168);
+			if (!std::equal(bytes.begin(), bytes.begin() + ordinal, expected.begin()) ||
+				!std::equal(bytes.begin() + after, bytes.end(), expected.begin() + after))
 				throw std::runtime_error("partial descriptor conflicts with image header");
 			return;
 		}
@@ -1346,7 +1398,7 @@ class ReclaimOperation final : public c::Operation {
 			!std::equal(bytes.begin() + 40, bytes.begin() + std::min<std::size_t>(72, bytes.size()),
 						slot().proof.image_checksum.begin()))
 			throw std::runtime_error("partial descriptor checksum conflicts with ownership");
-		if (!supported_profile(bytes, 160))
+		if (!supported_profile(bytes, 160, true))
 			throw std::runtime_error("unsupported partial descriptor profile or capabilities");
 		if (!valid_identity(bytes, 72, 16) || !valid_identity(bytes, 88, 16) ||
 			!valid_identity(bytes, 104, 16) || !valid_identity(bytes, 120, 32))
@@ -1357,7 +1409,7 @@ class ReclaimOperation final : public c::Operation {
             throw std::runtime_error("reader metadata requires a paged generation");
         if (!current_layout(slot().proof.layout_version))
             return;
-        detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
+        detail::validate_reader_metadata_prefix(bytes, {slot().generation,
                                                        slot().proof.image_checksum, {}, paged::root_bytes});
     }
 
@@ -1691,7 +1743,7 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 						  : descriptor.cursor.revision <= base->cursor.revision))))
 			throw std::invalid_argument("managed paged publication requires authorized intent");
 		if (plan.directory_identity() != core.directory_identity ||
-			plan.storage_identity() != core.identity || plan.bytes()->account() != core.account ||
+			plan.bytes()->account() != core.account ||
 			descriptor.length != paged::root_bytes ||
 			descriptor.length > core.options.recovery_limits.bytes ||
 			plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||
@@ -1702,8 +1754,11 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			plan.counts().strings > core.options.recovery_limits.strings ||
 			plan.counts().maximum_overrides > core.options.recovery_limits.overrides)
 			throw std::invalid_argument("managed paged publication exact base or admission mismatch");
+		if (next_generation(base, descriptor.cursor, descriptor.profile, plan.snapshot()) !=
+			DerivedGeneration{descriptor.generation, descriptor.ordinal})
+			throw std::invalid_argument("managed paged publication name is not derived");
 		auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
-		artifacts->populate(plan);
+		artifacts->populate(plan, core.identity);
 		if (artifacts->target_physical_bytes() > core.options.recovery_limits.bytes)
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
@@ -1783,6 +1838,9 @@ void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distributi
 		if (bytes->account() != core.account || bytes->size() != descriptor.length ||
 			descriptor.length > core.options.recovery_limits.bytes)
 			throw std::invalid_argument("managed image account or extent mismatch");
+		if (next_generation(core.selection.descriptor, descriptor.cursor, descriptor.profile,
+							!builder.base_descriptor()) != DerivedGeneration{descriptor.generation, descriptor.ordinal})
+			throw std::invalid_argument("managed publication name is not derived");
 		impl_->publication.reset();
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(c::OwnedAllocator<PublicationData>(context),
@@ -1930,8 +1988,7 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
 	paged.trusted_start = true;
-	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.identity,
-			core.directory_identity};
+	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.directory_identity};
 }
 RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
 													 ManagedRecoveryContext context) {

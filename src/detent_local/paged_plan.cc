@@ -1,5 +1,6 @@
 #include "paged_root_prefix.hh"
 #include "paged_plan.hh"
+#include "detent_local/derived_ids.hh"
 #include <algorithm>
 #include <stdexcept>
 namespace detent::local::detail {
@@ -28,7 +29,8 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 		source.profile() != base_->descriptor().profile || generation == base_->descriptor().generation)
 		throw std::invalid_argument("invalid exact-base paged delta");
 	registry_ = base_->registry();
-	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile()};
+	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile(),
+				   build_ordinal(base_->descriptor(), source.target())};
 	encode_descriptor(descriptor_);
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
@@ -39,13 +41,15 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	if (!base_ || !base_->registry()->uses_account(account) || generation == base_->descriptor().generation)
 		throw std::invalid_argument("physical maintenance requires actual paged base and common admission");
 	registry_ = base_->registry();
-	descriptor_ = {generation, p::root_bytes, {}, base_->descriptor().cursor, base_->descriptor().profile};
+	descriptor_ = {generation, p::root_bytes, {}, base_->descriptor().cursor, base_->descriptor().profile,
+				   build_ordinal(base_->descriptor(), base_->descriptor().cursor)};
 	encode_descriptor(descriptor_);
 }
 void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::Cursor target) {
 	root_ = base_->root();
 	root_.cursor = target;
-	descriptor_ = {descriptor_.generation, p::root_bytes, {}, root_.cursor, root_.profile};
+	descriptor_ = {descriptor_.generation, p::root_bytes, {}, root_.cursor, root_.profile,
+				   build_ordinal(base_->descriptor(), root_.cursor)};
 	encode_descriptor(descriptor_);
 	encoded_ = p::encode_root(root_, paged_format_limits());
 	counts_ = base_->counts();
@@ -53,21 +57,23 @@ void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::Cur
 	bytes_ = d::make_owned_buffer(account, p::root_bytes);
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account, RecoveredGeneration base,
-							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage)
+							   d::RetirementHandle<PagedImageOwner> replacement)
 	: PagedPlanState(std::move(account), std::optional<RecoveredGeneration>(base), std::move(replacement),
-					 storage, base.directory_identity(), PagedPlanIntent::Maintenance) {}
+					 base.directory_identity(), PagedPlanIntent::Maintenance) {}
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   std::optional<RecoveredGeneration> base,
-							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage,
-							   DirectoryIdentity directory, PagedPlanIntent intent)
+							   d::RetirementHandle<PagedImageOwner> replacement, DirectoryIdentity directory,
+							   PagedPlanIntent intent)
 	: construction_base_(std::move(base)), replacement_(std::move(replacement)),
-	  replacement_storage_(storage), construction_directory_(directory), intent_(intent),
+	  construction_directory_(directory), intent_(intent),
 	  base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!replacement_ || replacement_->image().bytes()->account() != account)
 		throw std::invalid_argument("snapshot image account mismatch");
 	root_ = replacement_->image().root();
 	descriptor_ = replacement_->image().descriptor();
+	descriptor_.ordinal = build_ordinal(
+		construction_base_ ? std::optional(construction_base_->descriptor()) : std::nullopt, descriptor_.cursor);
 	if ((intent == PagedPlanIntent::Fresh) != !construction_base_)
 		throw std::invalid_argument("snapshot intent and actual base mismatch");
 	if (construction_base_) {
@@ -124,10 +130,6 @@ const Descriptor &PagedPlanState::base_descriptor() const {
 DirectoryIdentity PagedPlanState::directory_identity() const {
 	descriptor();
 	return base_ ? base_->directory_identity() : construction_directory_;
-}
-StorageIdentity PagedPlanState::storage_identity() const {
-	descriptor();
-	return base_ ? base_->storage_identity() : replacement_storage_;
 }
 const d::RetirementHandle<SegmentRegistry> &PagedPlanState::registry() const {
 	descriptor();

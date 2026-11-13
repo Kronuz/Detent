@@ -12,7 +12,7 @@ struct PagedCompactionBuilder::Work final : d::RetirementNode {
 	std::size_t relocated = 0;
 	bool finalizing = false, failed = false;
 	Work(d::RetirementHandle<PagedPlanState> state, const RecoveredGeneration &generation,
-		 std::shared_ptr<d::StorageLedger> heap, std::span<const StorageIdentity> selected,
+		 std::shared_ptr<d::StorageLedger> heap, std::span<const SegmentId> selected,
 		 CompactionLimits compaction, p::Limits limits)
 		: plan(std::move(state)), base(generation),
 		  finalizer(plan, heap, limits, compaction.maximum_output_bytes,
@@ -65,7 +65,7 @@ struct PagedCompactionBuilder::Work final : d::RetirementNode {
 	}
 };
 PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
-											   std::span<const StorageIdentity> selected,
+											   std::span<const SegmentId> selected,
 											   GenerationId generation, d::RetirementDomain &domain,
 											   CompactionLimits compaction, p::Limits limits) {
 	if (!base.paged_ || selected.empty() || selected.size() > compaction.maximum_packs ||
@@ -78,7 +78,7 @@ PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 }
 PagedCompactionBuilder::~PagedCompactionBuilder() = default;
 PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
-											   std::span<const StorageIdentity> selected,
+											   std::span<const SegmentId> selected,
 											   GenerationId generation,
 											   d::RetirementFactory factory,
 											   std::shared_ptr<d::StorageLedger> heap,

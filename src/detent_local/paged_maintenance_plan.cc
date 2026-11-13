@@ -4,17 +4,15 @@ namespace detent::local::detail {
 PagedMaintenanceBuilder::PagedMaintenanceBuilder(RecoveredGeneration base,
 												 distribution::RetirementFactory factory,
 												 std::shared_ptr<distribution::StorageLedger> heap,
-												 StorageIdentity storage, GenerationId generation,
-												 ViewLimits limits)
-	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), storage_(storage),
-	  limits_(limits) {
+												 GenerationId generation, ViewLimits limits)
+	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), limits_(limits) {
 	if (!heap_ || !factory_.uses_account(heap_) || generation == base_.descriptor().generation)
 		throw std::invalid_argument("maintenance requires exact resources and a fresh generation");
 	limits_.retirement_domain = nullptr;
 	if (limits_.bytes < paged::root_bytes)
 		throw std::invalid_argument("maintenance manifest exceeds limit");
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
-	encoder_.emplace(base_, heap_, storage_, generation, bounds);
+	encoder_.emplace(base_, heap_, generation, bounds);
 }
 bool PagedMaintenanceBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)
@@ -39,14 +37,14 @@ void PagedMaintenanceBuilder::step(ValidationBudget &budget) {
 			encoder_->step(budget);
 			if (!encoder_->done())
 				return;
-			validator_.emplace(encoder_->take(), factory_, heap_, storage_, limits_);
+			validator_.emplace(encoder_->take(), factory_, heap_, limits_);
 			encoder_.reset();
 		}
 		if (!state_) {
 			validator_->step(budget);
 			if (!validator_->done())
 				return;
-			state_ = factory_.make<PagedPlanState>(heap_, base_, validator_->image(), storage_);
+			state_ = factory_.make<PagedPlanState>(heap_, base_, validator_->image());
 			state_->counts_ = validator_->counts();
 		}
 		const auto segments = state_->replacement_->image().segments();

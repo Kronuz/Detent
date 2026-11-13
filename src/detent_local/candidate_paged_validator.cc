@@ -6,10 +6,8 @@ namespace detent::local::detail {
 namespace d = distribution;
 namespace {
 d::RetirementHandle<PagedImageOwner> adopt(PagedImage &&image, d::RetirementFactory factory,
-										   const std::shared_ptr<d::StorageLedger> &heap,
-										   StorageIdentity storage, ViewLimits limits) {
-	if (!heap || !factory.uses_account(heap) || limits.bytes < paged::root_bytes ||
-		!std::any_of(storage.begin(), storage.end(), [](char value) { return value != 0; }))
+										   const std::shared_ptr<d::StorageLedger> &heap, ViewLimits limits) {
+	if (!heap || !factory.uses_account(heap) || limits.bytes < paged::root_bytes)
 		throw std::invalid_argument("paged candidate requires exact resources");
 	const auto bytes = image.bytes();
 	const auto descriptor = image.descriptor();
@@ -25,7 +23,7 @@ d::RetirementHandle<PagedImageOwner> adopt(PagedImage &&image, d::RetirementFact
 		throw std::invalid_argument("paged candidate bytes differ from manifest");
 	std::uint64_t physical = 0;
 	for (const auto &segment : image.segments()) {
-		if (!segment.bytes || segment.bytes->account() != heap || segment.ownership.storage != storage ||
+		if (!segment.bytes || segment.bytes->account() != heap ||
 			segment.ownership.length > limits.bytes - descriptor.length - physical)
 			throw std::invalid_argument("paged candidate pack ownership or extent mismatch");
 		physical += segment.ownership.length;
@@ -34,13 +32,10 @@ d::RetirementHandle<PagedImageOwner> adopt(PagedImage &&image, d::RetirementFact
 }
 } // namespace
 CandidatePagedValidator::CandidatePagedValidator(PagedImage &&image, d::RetirementFactory factory,
-												 std::shared_ptr<d::StorageLedger> heap,
-												 StorageIdentity storage, ViewLimits limits)
+												 std::shared_ptr<d::StorageLedger> heap, ViewLimits limits)
 	: factory_(factory), heap_(std::move(heap)), limits_(limits),
-	  image_(adopt(std::move(image), factory_, heap_, storage, limits_)),
-	  inputs_(factory_, heap_, storage, image_->image().root().segments,
-			  limits_.bytes - image_->image().descriptor().length),
-	  storage_(storage) {
+	  image_(adopt(std::move(image), factory_, heap_, limits_)),
+	  inputs_(factory_, heap_, image_->image().root().segments, limits_.bytes - image_->image().descriptor().length) {
 	limits_.retirement_domain = nullptr;
 }
 void CandidatePagedValidator::step(ValidationBudget &budget) {
@@ -69,7 +64,7 @@ void CandidatePagedValidator::step(ValidationBudget &budget) {
 		if (next_ == segments.size()) {
 			inputs_.freeze();
 			const auto limits = paged_limits(limits_, image_->image().descriptor().length);
-			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), storage_, limits,
+			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), limits,
 						   PagedSemanticLimits{limits_.strings, limits_.overrides}, nullptr, true);
 			break;
 		}
@@ -92,7 +87,7 @@ SegmentReachability CandidatePagedValidator::segment_reachability(std::size_t in
 		throw std::logic_error("paged candidate validation incomplete");
 	return graph_->segment_reachability(index);
 }
-SegmentReachability CandidatePagedValidator::segment_reachability(const StorageIdentity &identity) const {
+SegmentReachability CandidatePagedValidator::segment_reachability(const SegmentId &identity) const {
 	if (!done())
 		throw std::logic_error("paged candidate validation incomplete");
 	const auto inputs = inputs_.inputs();

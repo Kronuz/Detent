@@ -6,7 +6,7 @@ namespace detent::local::detail {
 // Reads an explicitly named root and retains its shared lease through marking.
 class PagedNamedRoot final : public kronuz::io::completion::Operation {
   public:
-	PagedNamedRoot(distribution::RetirementFactory, std::shared_ptr<StorageSession>, StorageIdentity storage,
+	PagedNamedRoot(distribution::RetirementFactory, std::shared_ptr<StorageSession>, StorageIdentity lease_storage,
 				   GenerationId generation, std::uint64_t trusted_owner,
 				   distribution::RetirementHandle<PagedDependencyCertificate> cached = {});
 	~PagedNamedRoot();
@@ -20,9 +20,9 @@ class PagedNamedRoot final : public kronuz::io::completion::Operation {
 	bool paged() const;
 	bool legacy_anchor() const;
 	const paged::Root &root() const;
+	// The generation as its lease and root hold it; neither holds the build ordinal, which is 0 here.
 	const Descriptor &descriptor() const;
 	DirectoryIdentity directory_identity() const;
-	StorageIdentity storage_identity() const;
 	distribution::RetirementHandle<PagedDependencyCertificate> certificate() const;
 	void read_live(std::shared_ptr<distribution::StorageLedger>, std::size_t maximum_segments);
 	std::span<const LiveRow> live_dependencies() const;

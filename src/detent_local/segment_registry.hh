@@ -7,7 +7,7 @@ namespace detent::local::detail {
 // Immutable admitted mappings; sealing metadata does not validate the graph.
 class SegmentRegistry final : public distribution::RetirementNode {
   public:
-	SegmentRegistry(std::shared_ptr<distribution::StorageLedger>, StorageIdentity, paged::Limits = {});
+	SegmentRegistry(std::shared_ptr<distribution::StorageLedger>, paged::Limits = {});
 	void append(distribution::RetirementHandle<SegmentMapping>);
 	void seal();
 	std::span<const SegmentInput> inputs() const;
@@ -44,7 +44,6 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	std::optional<paged::Root> validated_root_, compared_root_;
 	std::array<std::uint32_t, 257> override_histogram_{};
 	std::shared_ptr<const void> identity_;
-	StorageIdentity storage_;
 	paged::Limits limits_;
 	std::uint64_t physical_bytes_ = 0;
 	bool sealed_ = false;

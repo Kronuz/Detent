@@ -22,7 +22,8 @@ struct ReusedDependency {
 class PagedPublicationArtifacts final : public distribution::RetirementNode {
   public:
 	explicit PagedPublicationArtifacts(std::shared_ptr<distribution::StorageLedger>);
-	void populate(const PagedPlan &);
+	// `lease_storage` is the store's identity, which the `.lease` still records.
+	void populate(const PagedPlan &, const StorageIdentity &lease_storage);
 	void attach(PagedPlan &&);
 	void attach_recovery(distribution::RetirementHandle<MappedRecoveryAdmission>);
 	distribution::RetirementHandle<MappedRecoveryAdmission> recovery_admission() const;
@@ -50,7 +51,6 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	Descriptor descriptor_;
 	std::optional<Descriptor> base_descriptor_;
 	DirectoryIdentity directory_;
-	StorageIdentity storage_;
 	std::size_t first_group_ = 0;
 	bool populated_ = false, failed_ = false;
 	void append(std::string_view, std::span<const char>, std::shared_ptr<const distribution::OwnedBuffer>,

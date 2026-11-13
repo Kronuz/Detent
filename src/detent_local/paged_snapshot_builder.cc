@@ -19,7 +19,7 @@ void require(bool value) {
 	if (!value)
 		throw std::invalid_argument("invalid paged snapshot construction");
 }
-bool nonzero(const StorageIdentity &value) {
+bool nonzero(const GenerationId &value) {
 	return std::any_of(value.begin(), value.end(), [](char byte) { return byte != 0; });
 }
 std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> destination) {
@@ -64,7 +64,6 @@ struct PagedSnapshotBuilder::Impl {
 	std::shared_ptr<const d::ValidatedSnapshot> source;
 	std::shared_ptr<const BorrowedSnapshotSource> borrowed;
 	std::shared_ptr<d::StorageLedger> account;
-	StorageIdentity storage;
 	GenerationId generation;
 	p::Limits limits;
 	PagedImage output;
@@ -80,12 +79,9 @@ struct PagedSnapshotBuilder::Impl {
 	Phase phase = Phase::Cursor, after_pack = Phase::Page;
 	bool finishing = false;
 	bool failed = false, discarding = false;
-	Impl(std::shared_ptr<const d::ValidatedSnapshot> input, StorageIdentity identity,
-		 GenerationId id, p::Limits bounds)
-		: source(std::move(input)), account(source->storage_account()), storage(identity),
-		  generation(id), limits(bounds), output(account, 0), packer(account, limits) {
-		require(nonzero(storage) && nonzero(generation) &&
-				source->records().size() <= limits.records &&
+	Impl(std::shared_ptr<const d::ValidatedSnapshot> input, GenerationId id, p::Limits bounds)
+		: source(std::move(input)), account(source->storage_account()), generation(id), limits(bounds), output(account, 0), packer(account, limits) {
+		require(nonzero(generation) && source->records().size() <= limits.records &&
 				source->namespaces().size() <= limits.namespaces);
 		const auto count = source->records().size() + source->namespaces().size();
 		require(!count ||
@@ -98,11 +94,9 @@ struct PagedSnapshotBuilder::Impl {
 		cursor.emplace(account, source, key, source->records().size() + source->namespaces().size(),
 					   limits);
 	}
-	Impl(std::shared_ptr<const BorrowedSnapshotSource> input, StorageIdentity identity,
-		 GenerationId id, p::Limits bounds)
-		: borrowed(std::move(input)), account(borrowed->storage_account()), storage(identity),
-		  generation(id), limits(bounds), output(account, 0), packer(account, limits) {
-		require(nonzero(storage) && nonzero(generation) && borrowed->records() <= limits.records &&
+	Impl(std::shared_ptr<const BorrowedSnapshotSource> input, GenerationId id, p::Limits bounds)
+		: borrowed(std::move(input)), account(borrowed->storage_account()), generation(id), limits(bounds), output(account, 0), packer(account, limits) {
+		require(nonzero(generation) && borrowed->records() <= limits.records &&
 				borrowed->namespaces() <= limits.namespaces);
 		const auto count = std::uint64_t(borrowed->records()) + borrowed->namespaces();
 		require(!count ||
@@ -166,18 +160,16 @@ struct PagedSnapshotBuilder::Impl {
 	}
 };
 PagedSnapshotBuilder::PagedSnapshotBuilder(std::shared_ptr<const d::ValidatedSnapshot> source,
-										   StorageIdentity storage, GenerationId generation,
-										   p::Limits limits)
+										   GenerationId generation, p::Limits limits)
 	: impl_([&] {
 		  if (!source)
 			  throw std::invalid_argument("missing validated paged snapshot");
 		  return d::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free,
-											 source, storage, generation, limits);
+											 source, generation, limits);
 	  }()) {}
 PagedSnapshotBuilder::PagedSnapshotBuilder(RecoveredGeneration generation,
 										   std::shared_ptr<d::StorageLedger> account,
-										   StorageIdentity storage, GenerationId id,
-										   p::Limits limits)
+										   GenerationId id, p::Limits limits)
 	: impl_([&] {
 		  if (!account)
 			  throw std::invalid_argument("borrowed snapshot account missing");
@@ -185,7 +177,7 @@ PagedSnapshotBuilder::PagedSnapshotBuilder(RecoveredGeneration generation,
 			  d::StorageAllocator<BorrowedSnapshotSource>(account), std::move(generation), account);
 		  return d::make_storage_owner<Impl>(
 			  account, std::malloc, std::free,
-			  std::shared_ptr<const BorrowedSnapshotSource>(std::move(source)), storage, id,
+			  std::shared_ptr<const BorrowedSnapshotSource>(std::move(source)), id,
 			  limits);
 	  }()) {}
 PagedSnapshotBuilder::~PagedSnapshotBuilder() = default;
@@ -233,7 +225,7 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 						state.phase = Impl::Phase::Finish;
 				} else if (state.packer.ready()) {
 					if (!state.segment)
-						state.segment.emplace(state.account, state.storage, state.generation,
+						state.segment.emplace(state.account, state.generation,
 											  image.segments.size());
 					const auto page = state.packer.page();
 					if (!state.segment->fits(page)) {

@@ -16,9 +16,11 @@ struct PagedStateCounts {
 	std::uint64_t overrides = 0, strings = 0;
 	std::uint32_t maximum_overrides = 0;
 };
+// The string and override bounds a validation enforces: the store's or the format's, never a default.
 struct PagedSemanticLimits {
-	std::uint64_t strings = 128ull * 1024 * 1024;
-	std::uint32_t overrides = 256;
+	constexpr PagedSemanticLimits(std::uint64_t strings, std::uint32_t overrides) : strings(strings), overrides(overrides) {}
+	std::uint64_t strings;
+	std::uint32_t overrides;
 };
 struct SegmentReachability {
 	std::uint64_t pages = 0, bytes = 0;
@@ -30,8 +32,8 @@ struct SegmentReachability {
 class GraphValidator {
   public:
 	GraphValidator(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> owner,
-				   std::span<const SegmentInput>, paged::Root, StorageIdentity, paged::Limits = {},
-				   PagedSemanticLimits = {}, const SegmentRegistry *compared = nullptr, bool own_build = false);
+				   std::span<const SegmentInput>, paged::Root, paged::Limits, PagedSemanticLimits,
+				   const SegmentRegistry *compared = nullptr, bool own_build = false);
 	~GraphValidator();
 	GraphValidator(GraphValidator &&) noexcept;
 	GraphValidator(const GraphValidator &) = delete;

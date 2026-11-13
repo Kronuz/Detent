@@ -8,9 +8,9 @@ struct CompactionLimits {
 // Physical replacement retains actual base authority and preserves the complete cursor.
 class PagedCompactionBuilder {
   public:
-	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const StorageIdentity>, GenerationId,
+	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const SegmentId>, GenerationId,
 						   distribution::RetirementDomain &, CompactionLimits = {}, paged::Limits = {});
-	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const StorageIdentity>, GenerationId,
+	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const SegmentId>, GenerationId,
 						   distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>,
 						   CompactionLimits = {}, paged::Limits = {});
 	~PagedCompactionBuilder();

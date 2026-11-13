@@ -24,7 +24,6 @@ struct PagedDependencyWalk::Impl {
 	Lookup lookup;
 	Frontier frontier;
 	p::Root root;
-	StorageIdentity storage;
 	p::Limits limits;
 	std::array<Frame, 203> frames{};
 	std::optional<PageValidator> page;
@@ -32,9 +31,9 @@ struct PagedDependencyWalk::Impl {
 	std::uint64_t pages = 0, extents = 0;
 	bool waiting = false, complete = false, failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> account, std::shared_ptr<const void> source, Lookup lookup,
-		 p::Root root, StorageIdentity storage, p::Limits limits, Frontier frontier)
-		: account(std::move(account)), source(std::move(source)), lookup(lookup), root(root),
-		  storage(storage), limits(limits), frontier(frontier) {
+		 p::Root root, p::Limits limits, Frontier frontier)
+		: account(std::move(account)), source(std::move(source)), lookup(lookup), root(root), limits(limits),
+		  frontier(frontier) {
 		require(this->source && lookup);
 		p::encode_root(root, limits);
 		if (root.pages)
@@ -63,9 +62,9 @@ struct PagedDependencyWalk::Impl {
 };
 PagedDependencyWalk::PagedDependencyWalk(std::shared_ptr<d::StorageLedger> account,
 										 std::shared_ptr<const void> source, Lookup lookup, p::Root root,
-										 StorageIdentity storage, p::Limits limits, Frontier frontier)
+										 p::Limits limits, Frontier frontier)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(source), lookup,
-										root, storage, limits, frontier)) {}
+										root, limits, frontier)) {}
 PagedDependencyWalk::~PagedDependencyWalk() = default;
 PagedDependencyWalk::PagedDependencyWalk(PagedDependencyWalk &&) noexcept = default;
 void PagedDependencyWalk::step(ValidationBudget &budget) {
@@ -98,8 +97,7 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 						s.waiting = true;
 						return;
 					}
-					require(input->ownership.storage == s.storage &&
-							input->ownership.segment == frame.reference.segment &&
+					require(input->ownership.segment == frame.reference.segment &&
 							input->ownership.length == input->bytes.size() &&
 							input->bytes.size() <= p::segment_bytes);
 					frame.bytes = checked_page_bytes(*input, frame.reference);
@@ -133,7 +131,7 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 		throw;
 	}
 }
-std::optional<StorageIdentity> PagedDependencyWalk::missing() const {
+std::optional<SegmentId> PagedDependencyWalk::missing() const {
 	if (!impl_ || impl_->failed || impl_->discarding)
 		throw std::logic_error("dependency walk unavailable");
 	if (!impl_->waiting)
