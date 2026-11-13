@@ -8,13 +8,13 @@ mutant=${1:?usage: history_mutant.sh MUTANT}
 build=.scratch/history-mutant-build
 case "$mutant" in
 table-before-outputs) file=src/detent_authority/history.cc test=test_authority_history_power_cut
-	old='			directory_.publish(step.written);
-			if (step.table) {
-				directory_.publish({{std::string(table_name), encode(*step.table)}});'
-	new='			if (step.table)
-				directory_.publish({{std::string(table_name), encode(*step.table)}});
-			directory_.publish(step.written);
-			if (step.table) {' ;;
+	old='		directory_.publish(step.written);
+		if (step.table) {
+			directory_.publish({{std::string(table_name), encode(*step.table)}});'
+	new='		if (step.table)
+			directory_.publish({{std::string(table_name), encode(*step.table)}});
+		directory_.publish(step.written);
+		if (step.table) {' ;;
 collect-above-table) file=src/detent_authority/history.cc test=test_authority_history_power_cut
 	old='		if (name.starts_with("seal-") && seal_index(name) > durable_.index) {'
 	new='		if (false) {' ;;
