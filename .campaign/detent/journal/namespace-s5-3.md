@@ -21,7 +21,7 @@ A1's transport is waiting on the lead (msg-44 to the lead: where the peer fetch 
 
 ## Blocked on
 
-A1's endpoint: msg-44 to the lead (options: a fetch lane in consensus's peer transport,
+A1's endpoint: msg-46 to the lead (a resend: msg-44 is gone from state.json; options: a fetch lane in consensus's peer transport,
 recommended; `GET /v2/history/<name>` on the publisher listener; a dedicated history TLS listener).
 
 ## Evidence
@@ -63,7 +63,8 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
    else recovery stops.
 7. F6: `check_retained_bounds` refuses when `consensus_limits.log_entries/log_bytes` are below the
    policy's, beside the retained bounds.
-8. F7: the history cluster test keeps journals in `MemoryIO` and stubs history syncs
-   (`testing::cached_storage`); crash safety is the power-cut tests'. 52 s to 0.6 s locally.
+8. F7: the history cluster test keeps journals and history directories in `MemoryIO`
+   (`testing::memory_storage`); crash safety is the power-cut tests'. 52 s to 0.1 s locally
+   (stubbing syncs alone left it at 25-47 s on this loaded host: unlink, rename and create).
 9. The power-cut test splits into three ctest entries (`cuts`, `lagged`, `installs rot`) so each
    stays well inside a sanitizer job's per-test budget.

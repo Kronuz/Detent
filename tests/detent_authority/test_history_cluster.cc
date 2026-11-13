@@ -76,20 +76,19 @@ void commit(Cluster &group, std::string name, std::string key, std::optional<int
 	writes[name].push_back({state.namespace_entry(name)->incarnation, result.namespace_revision, name + ":" + key,
 							def ? std::optional(encode_definition(*def)) : std::nullopt});
 }
-void settle(Cluster &group) {
+void settle(Cluster &group, std::source_location where = std::source_location::current()) {
 	group.until([&] {
 		return std::all_of(group.nodes.begin(), group.nodes.end(), [&](const auto &node) {
 			return node->state().applied_index() == group.nodes[0]->state().applied_index() &&
 				   !node->worker().busy() && node->state().applied_index() == node->worker().committed();
 		});
-	});
+	}, 20000, where);
 }
 std::map<std::string, std::string> files(Cluster &group, unsigned i) {
 	std::map<std::string, std::string> out;
-	for (const auto &entry : std::filesystem::directory_iterator(group.history_directory(i))) {
-		std::ifstream in(entry.path(), std::ios::binary);
-		out[entry.path().filename().string()] = std::string(std::istreambuf_iterator<char>(in), {});
-	}
+	h::Directory directory(group.history_io(i), {});
+	for (const auto &name : directory.names())
+		out[name] = directory.read(name);
 	return out;
 }
 void identical(Cluster &group) {
@@ -127,7 +126,7 @@ std::map<Revision, Seen> answers(Cluster &group, unsigned i, const std::string &
 	const auto head = entry->position;
 	const auto *history = group.nodes[i]->history();
 	assert(history && history->ready());
-	h::Directory directory(std::make_shared<kronuz::journal::PosixIO>(group.history_directory(i)), state.limits());
+	h::Directory directory(group.history_io(i), state.limits());
 	const auto *n = history->layout().table().find(name);
 	assert(n && n->incarnation == entry->incarnation);
 	auto &ring = *rings[i]->inner;
@@ -190,7 +189,7 @@ int main() {
 	policy.alpha_num = 1;
 	policy.alpha_den = 2;
 	testing::history_policy = policy;
-	testing::cached_storage = true;
+	testing::memory_storage = true;
 	testing::ring = [](unsigned i) { return rings[i] = std::make_shared<Ring>(); };
 	Cluster group;
 	group.until([&] { return group.nodes[0]->worker().role() == Role::Leader; });
@@ -236,7 +235,9 @@ int main() {
 
 	// Apply's seal returns before its history is written: voter 1 seals past held writes,
 	// and its checkpoints and ring stay at the newest durable seal until they land.
+	group.step(); // Settles the writes the last step drove.
 	const auto durable = group.nodes[1]->durable_seal()->applied_index();
+	assert(durable == group.nodes[1]->sealed()->applied_index());
 	group.held_history[1] = true;
 	for (unsigned salt = 20; group.nodes[1]->sealed()->applied_index() == durable; ++salt)
 		churn(group, 1, salt);
@@ -286,10 +287,10 @@ int main() {
 	group.until([&] { return !group.fetches.empty(); });
 	for (unsigned k = 0; k < 50; ++k)
 		group.step();
-	assert(group.nodes[1]->history()->restoring() && group.nodes[1]->worker().base_index() < snapshot);
+	assert(group.nodes[1]->history()->restoring() && group.nodes[1]->state().applied_index() < snapshot);
 	group.until([&] {
 		group.answer_fetches();
-		return group.nodes[1]->worker().base_index() >= snapshot;
+		return group.nodes[1]->state().applied_index() >= snapshot;
 	});
 	group.deferred = false;
 	churn(group, 12, 9);
@@ -344,8 +345,12 @@ int main() {
 	const unsigned follower = leader == 2 ? 1 : 2;
 	churn(group, 12, 10);
 	settle(group);
-	group.until([&] { return group.nodes[follower]->checkpoint(); });
-	group.until([&] { return !group.nodes[follower]->checkpoint_busy(); });
+	group.until([&] { // A checkpoint at its newest durable seal, its own or one it took itself.
+		auto &node = *group.nodes[follower];
+		if (!node.checkpoint_busy())
+			node.checkpoint();
+		return !node.checkpoint_busy() && node.worker().base_index() == node.durable_seal()->applied_index();
+	});
 	assert(group.nodes[follower]->state().positions_enabled());
 	for (unsigned i = 0; i < 3; ++i)
 		if (i != follower)
