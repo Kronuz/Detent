@@ -32,11 +32,13 @@ void check_shape(const NamespaceHistory &history) {
 Answer select_answer(const NamespaceHistory &history, const std::optional<NamespaceCursor> &store) {
 	check_shape(history);
 	const auto head = history.head();
+	// Positions continue across incarnations (D1): a store above head, of any incarnation, is ahead of
+	// a source still behind a drop and re-creation.
+	if (store && store->cluster == head.cluster && store->position > head.position)
+		return {AnswerKind::Ahead, store->position};
 	if (!store || !store->same_identity(head))
 		return {AnswerKind::FullCopy};
 	const auto r = store->position;
-	if (r > head.position)
-		return {AnswerKind::Ahead, r};
 	if (r == head.position)
 		return {AnswerKind::Current, r};
 	if (r >= history.ring_start())

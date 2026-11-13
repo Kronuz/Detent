@@ -216,6 +216,23 @@ void tiers() {
 	}
 }
 
+// A store of another incarnation is behind head (a full copy) or above it (Ahead: this source has
+// not yet seen the re-creation, and positions continue across incarnations, D1).
+void other_incarnation() {
+	TestHistory history(churn(), 8, {{9, 16, true}, {17, 24, true}, {25, 28, false}, {29, 30, false}}, 30);
+	for (std::uint64_t r : {0, 9, 30, 39, 40, 41, 90}) {
+		const auto renewed = d::select_answer(history, d::NamespaceCursor{id(1), id(3), r});
+		require(renewed.kind == (r > 40 ? d::AnswerKind::Ahead : d::AnswerKind::FullCopy),
+				"another incarnation at R = " + std::to_string(r));
+		d::NamespaceRequest request{"pay", &history, d::NamespaceCursor{id(1), id(3), r}};
+		const auto body = d::encode_session_frames({}, std::span(&request, 1));
+		require((r > 40) == (body == std::string("\x93\x01\xc0\x00", 4)), "no frame only above head");
+		// Another cluster's positions say nothing about this one: always a full copy.
+		require(d::select_answer(history, d::NamespaceCursor{id(4), id(2), r}).kind == d::AnswerKind::FullCopy,
+				"another cluster at R = " + std::to_string(r));
+	}
+}
+
 void chunking_and_directory() {
 	const auto txs = churn();
 	TestHistory pay(txs, 8, {{9, 16, true}, {17, 24, true}, {25, 30, false}}, 30);
@@ -414,6 +431,7 @@ int main() {
 	try {
 		golden();
 		tiers();
+		other_incarnation();
 		chunking_and_directory();
 		refusals();
 		source_failures();

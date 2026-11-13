@@ -4,7 +4,7 @@
 // table. For every store cursor of a namespace (none, another incarnation, each R from 0 to h + 1)
 // the HTTP body, defragmented, is byte for byte what an oracle built from the voter's own table,
 // files and the producer's writes encodes; the tier follows the cut. Grants are W13 patterns:
-// `d.*` reaches `d.x`, an exact grant does not, `*` follows the directory with `all`. Session
+// `d.*` reaches `d.x`, an exact grant does not, and `all` brings only granted names. Session
 // errors keep version 1's statuses.
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/session_frames.hh"
@@ -401,6 +401,11 @@ int main(int argc, char **argv) {
 		const auto at = all.update->to.position;
 		check(next(watcher, wid, "[]", 0, ",\"cluster\":\"" + hex(context.cluster) + "\",\"all\":" + std::to_string(at))
 				  .status == 204);
+		// `all` under a narrow grant: neither the directory nor a full copy names d.x.
+		const auto nid = session(reader, "[]," "\"all\":0");
+		auto narrow = decode(frames_body(next(reader, nid, "[]", 0, ",\"all\":0"), nid, false));
+		check(narrow.update && narrow.update->entries.size() == 1 && narrow.update->entries[0].name == "ns" &&
+			  narrow.frames.size() == 1 && narrow.frames[0].first == "ns" && narrow.update->to.position == at);
 		// Sessions: another principal's is forbidden, a closed one has expired.
 		check(next(reader, id, "[[\"ns\"]]", 0).status == 403);
 		check(request(endpoint, cert, "/v2/distribution/session/close", "{\"version\":2,\"session\":\"" + id + "\"}",
