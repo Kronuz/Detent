@@ -6403,6 +6403,8 @@
     "namespace-s7-store": {
       "accepted": {},
       "after": [],
+      "base": "e15c75d9644ac8020a1e9d3576fb6dc149d90d49",
+      "branch": "quest/detent/namespace-s7-store",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -6443,9 +6445,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-12T14:58:41"
+      "updated": "2026-11-13T02:54:45",
+      "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
       "accepted": {},
