@@ -27,8 +27,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
+| A1 | 261112-193532-048881; fails without: 261112-193540-a72b5f (single-read form, inverted) |
+| A2 | 261112-193548-9146ef |
+| A3 | D89 |
 
 ## Result
 
