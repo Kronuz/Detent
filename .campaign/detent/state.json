@@ -302,6 +302,13 @@
       "closed": "slot registration lost again; --fresh rerun stands; root cause of lost slot registrations is a campaign tool issue for the lead to chase",
       "id": "msg-45",
       "text": "namespace-s8: job slot ~/.scratch/campaign/jobs/slots/detent-namespace-s8 is broken again (.git points to a missing worktree registration); native/pins 261113-003635-* failed exit 125 before running. Resubmitted with --fresh: 261113-003843-d3ad47, 261113-003844-6e5e22."
+    },
+    {
+      "at": "2026-11-13T01:26:28",
+      "by": "namespace-s5-3",
+      "closed": "D91: option 1, fetch lane in consensus Peers; quest consensus-fetch-lane; s5-3 after it, cmake/dependencies.json added to its files",
+      "id": "msg-46",
+      "text": "namespace-s5-3 (resend: msg-44 is missing from state.json, likely lost in a concurrent state write) A1 needs a ruling on WHERE the production history-fetch endpoint lives. Voters reach each other only through consensus's Peers (mTLS, pinned certs, peer addresses), which carries consensus frames and the snapshot channel, no application lane. Options: (1) RECOMMENDED: a fetch lane in consensus's Peers (host-supplied reader serves name -> bytes on the bulk lane; reply on the owner executor). Reuses mTLS, pins, addresses, budgets; no new config; one voter-to-voter transport. Cost: consensus change + Detent pin bump, outside this quest's file set. (2) GET /v2/history/<name> on the publisher HTTPS listener: voters do not know peers' publisher addresses (new per-voter config), need peer auth on that listener (detentd main, outside files) and an HTTPS client. (3) A dedicated history TLS listener per voter on peer_tls + pins (new history_port), all inside src/detent_authority: fastest, but a second voter-to-voter transport. A2-A5 are done behind the async history::Fetch seam; I need your pick (and the file set for 1) for A1."
     }
   ],
   "quests": {
