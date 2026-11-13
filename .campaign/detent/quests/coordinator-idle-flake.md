@@ -27,4 +27,4 @@ D54, D55.
 
 ## May land early
 
-Everything: tests and client close behavior behind tests.
+The diagnostic: `peer_closed` reading until the close, and both fixture waits failing exactly where main fails while printing the stray bytes (`STRAY <checkpoint> count= hex= text=`), so the next CI hit on any branch names the sender. Six CI attempts at Detent:ebcb470e (12 sanitizer jobs) did not reproduce it.
