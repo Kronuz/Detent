@@ -5,27 +5,23 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The non-blocking findings of the namespace-s5-3, namespace-s8 and namespace-s7-store reviews are closed: history enforces its derived file bounds when it writes, a count-cut seal survives a restart and a power cut, the relay reports no disk fields that nothing feeds, and a relay staging I/O error does not poison reads until restart.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A seal that would write a file above its kind's bound fails before writing (s5-3 review F8): a test plus a mutant that skips the check, killed
+- A2 A restart and a power cut at every primitive of a count-cut seal recover byte-identically (s5-3 review F9): the crash-model job
+- A3 The relay's `disk_*` status fields, which nothing feeds since namespace-s7-store, are removed with every reader (D43): a grep job and the suite
+- A4 A staging I/O error on the relay (a full disk) fails that adoption and later reads recover without a restart (s8 review D3): a test
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+The relay status JSON loses its `disk_*` fields; no format change otherwise.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Collected by the lead (2026-11-13) from reviews namespace-s5-3-durability (F8, F9), namespace-s8-durability (D3) and namespace-s7-store's contributor report (dead relay disk fields).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
