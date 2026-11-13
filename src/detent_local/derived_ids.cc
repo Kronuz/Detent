@@ -56,8 +56,12 @@ SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal) 
 }
 
 distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &cursor) {
-	const auto incarnation =
-		Input("detent.agent-store.incarnation").add(cursor.group).add(cursor.restore_epoch).add(cursor.scope).id();
+	const auto incarnation = Input("detent.agent-store.incarnation")
+								 .add(cursor.cluster)
+								 .add(cursor.group)
+								 .add(cursor.restore_epoch)
+								 .add(cursor.scope)
+								 .id();
 	return {cursor.cluster, incarnation, cursor.revision};
 }
 

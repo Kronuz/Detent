@@ -44,6 +44,15 @@ void ordinals() {
 	next.ordinal = again.ordinal;
 	check(again.ordinal == 5 && l::next_generation(next, next.cursor, next.profile, true).id != again.id);
 	check(l::next_generation(selected, selected.cursor, selected.profile, false).id != again.id);
+	// A trusted reset may change the cluster alone; at the selected revision it must not derive the
+	// selected generation's name.
+	auto first = selected;
+	const auto from_copy = l::next_generation(std::nullopt, first.cursor, first.profile, true);
+	first.generation = from_copy.id;
+	first.ordinal = from_copy.ordinal;
+	auto other_cluster = first.cursor;
+	other_cluster.cluster.fill('c');
+	check(l::next_generation(first, other_cluster, first.profile, true).id != first.generation);
 	selected.ordinal = UINT32_MAX;
 	bool exhausted = false;
 	try {

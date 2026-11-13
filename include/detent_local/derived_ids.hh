@@ -20,7 +20,8 @@ inline constexpr std::string_view segment_domain = "detent.agent-store.segment";
 inline constexpr std::size_t segment_derivation_bytes = segment_domain.size() + sizeof(GenerationId) + 8;
 SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal);
 // D88: the old cursor as a namespace cursor until namespace-s6-cutover. The incarnation digests the
-// group, restore epoch and scope; the position is the revision.
+// cluster, group, restore epoch and scope, so a reset changing any of them derives new names; the
+// position is the revision.
 distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &);
 // The build ordinal over `selected`: r + 1 for a build at its unchanged head (r its ordinal), else 0.
 std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::Cursor &target);
