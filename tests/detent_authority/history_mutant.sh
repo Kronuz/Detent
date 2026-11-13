@@ -78,10 +78,10 @@ unchecked-fetch) file=src/detent_authority/history.cc test=test_authority_histor
 	old='			throw Wanted{{{std::string(name), std::move(good)}}};'
 	new='			throw Wanted{{{std::string(name), [](std::string_view) { return true; }}}};' ;;
 old-fetch-bound) file=src/detent_authority/service.cc test=test_authority_history_large_base
-	old='		peers.fetch_bytes = history::file_bytes(o.node.application);'
+	old='		peers.fetch_bytes = history::fetch_bytes(o.node.application);'
 	new='' ;;
 accept-low-fetch-bound) file=src/detent_authority/service.cc test=test_authority_history_large_base
-	old='	check(!options_.peers || options_.peers->fetch_bytes >= history::file_bytes(options_.node.application),'
+	old='	check(!options_.peers || options_.peers->fetch_bytes >= history::fetch_bytes(options_.node.application),'
 	new='	check(true,' ;;
 drop-block-bound|drop-seal-bound|drop-table-bound) file=src/detent_authority/history_format.cc test=test_authority_history_large_base
 	old='	return std::max({b.base, b.block, b.seal, b.table});'
