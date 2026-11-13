@@ -44,8 +44,8 @@ std::uint64_t block_limit(const LayoutPolicy &p, std::uint64_t live) noexcept {
 	return static_cast<std::uint64_t>(Wide{live} * p.alpha_num / (Wide{4} * p.alpha_den));
 }
 
-Changes Layout::changes(const TableNamespace &n, const TableBlock &block, Files &files,
-						const SealFile *current) const {
+Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
+				  const SealFile *current) {
 	if (!block.first && !block.bytes)
 		return {}; // An empty base has no file.
 	std::string bytes;
@@ -53,21 +53,25 @@ Changes Layout::changes(const TableNamespace &n, const TableBlock &block, Files 
 		SealFile holder;
 		const SealFile *seal = current && current->index == block.seal ? current : nullptr;
 		if (!seal) {
-			holder = decode_seal(files.read(seal_name(block.seal)), limits_);
+			holder = decode_seal(files.read(seal_name(block.seal)), limits);
 			seal = &holder;
 		}
-		auto found = section_in(*seal, n.name, block.first, block.last, limits_);
+		auto found = section_in(*seal, n.name, block.first, block.last, limits);
 		require(found, "a layout section is missing from its seal file");
 		bytes = *found;
 	} else
 		bytes = files.read(block.first ? block_name(n.name, n.incarnation, block.first, block.last)
 									   : base_name(n.name, n.incarnation, block.last));
 	require(sha256(bytes) == block.digest, "history file digest mismatch");
-	auto decoded = block.first ? decode_block(bytes, limits_) : decode_base(bytes, limits_);
+	auto decoded = block.first ? decode_block(bytes, limits) : decode_base(bytes, limits);
 	require(decoded.name_space == n.name && decoded.incarnation == n.incarnation && decoded.first == block.first &&
 				decoded.last == block.last,
 			"history file names another range");
 	return std::move(decoded.changes);
+}
+Changes Layout::changes(const TableNamespace &n, const TableBlock &block, Files &files,
+						const SealFile *current) const {
+	return read_tier(n, block, files, limits_, current);
 }
 
 Step Layout::seal(const State &s, Files &files) {

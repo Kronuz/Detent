@@ -60,6 +60,10 @@ class Layout {
 	Table table_;
 	std::map<std::string, std::array<std::uint64_t, 3>> cuts_;
 };
+// One tier of `n`: its base, a block or a level-0 section (read from its seal file, or from
+// `current` when that is the seal holding it), checked against the table's digest and range.
+Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
+				  const SealFile *current = nullptr);
 // L = ⌊|st| · α / 4⌋, exact in integers (D6 "Every input is replicated").
 std::uint64_t block_limit(const LayoutPolicy &policy, std::uint64_t live) noexcept;
 } // namespace detent::authority::history

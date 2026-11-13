@@ -252,6 +252,10 @@ class State {
 		while (auto row = cursor.next())
 			f(*row->first, *row->second, *namespaces_.find(*row->second));
 	}
+	// Namespace `name`'s records in key order; the cursor retains the root it reads.
+	auto namespace_records(std::string_view name) const {
+		return records_.cursor_from(std::string(name) + ':');
+	}
 	NamespaceCursor namespace_cursor(std::string_view name) const;
 	CursorAnswer answer(std::string_view name, const NamespaceCursor &cursor) const;
 	const Producer *producer(std::string_view name) const;

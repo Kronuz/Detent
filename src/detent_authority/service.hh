@@ -2,8 +2,10 @@
 #include <atomic>
 #include "../detent_cli/config.hh"
 #include "detent/owner_loop.hh"
+#include "detent_distribution/grants.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
+#include "namespace_sessions.hh"
 #include "node.hh"
 #include "subscription.hh"
 #include "subscription_admission.hh"
@@ -23,10 +25,12 @@
 namespace detent::authority {
 struct Credential {
 	std::string token, producer;
+	// W13 patterns: exact names, whole-component prefixes `p.*` and `*`.
 	std::set<std::string> namespaces;
 	std::string principal;
 	std::uint64_t policy_epoch = 1;
 	bool publish = true;
+	distribution::NamespaceGrants grants; // The service builds it from `namespaces`.
 };
 struct ServiceOptions {
 	NodeOptions node;
@@ -110,6 +114,14 @@ class Service final : public http::HttpHandler {
 		std::optional<Reply> outcome;
 		std::chrono::steady_clock::time_point deadline;
 		std::chrono::steady_clock::time_point poll_deadline;
+		// W5 (version 2): the followed namespaces and their stores, `all`'s directory cursor, and
+		// the group revision of the last look for changes.
+		bool frames = false, bound = false, compressed = false;
+		std::vector<std::pair<std::string, std::optional<distribution::NamespaceCursor>>> follows;
+		std::optional<distribution::DirectoryCursor> all;
+		std::uint64_t looked = UINT64_MAX;
+		SessionPrincipal frames_principal;
+		std::optional<Reply> refused;
 	};
 	ServiceOptions options_;
 	std::shared_ptr<Accounting> accounting_;
@@ -117,6 +129,7 @@ class Service final : public http::HttpHandler {
 	std::deque<std::shared_ptr<Task>> queue_;
 	std::deque<std::shared_ptr<Task>> subscription_queue_;
 	std::deque<std::shared_ptr<Task>> subscription_close_queue_;
+	std::deque<std::shared_ptr<Task>> frames_queue_;
 	std::set<std::string> busy_producers_;
 	bool stopping_ = false;
 	std::optional<std::string> failure_;
@@ -130,6 +143,7 @@ class Service final : public http::HttpHandler {
 	task::task<void> run(std::promise<void> ready);
 	void distribute(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
 	void subscription(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
+	void frames_request(const distribution_http::SessionRequest &, http::ResponseWriter &, std::shared_ptr<Task>);
 	struct Extension;
 	struct Outcome;
 	struct Prepared;

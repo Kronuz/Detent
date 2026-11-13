@@ -1,5 +1,7 @@
 #include "service.hh"
 #include "delivery_export.hh"
+#include "frames_export.hh"
+#include "history_format.hh"
 #include "peer_history.hh"
 #include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
@@ -153,6 +155,13 @@ Identity identity(std::string_view hex) {
 	}
 	check(id != Identity{}, "zero identity");
 	return id;
+}
+// W13: a credential's patterns as one matcher; a malformed pattern is a request error.
+distribution::NamespaceGrants grants_of(const std::set<std::string> &patterns) {
+	check(!patterns.empty() && patterns.size() <= distribution::NamespaceGrants::maximum_patterns,
+		  "namespace authorization bound");
+	std::vector<std::string_view> views(patterns.begin(), patterns.end());
+	return distribution::NamespaceGrants(views);
 }
 std::string hex(Identity id) {
 	constexpr char digits[] = "0123456789abcdef";
@@ -489,11 +498,9 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		auto &spaces = field(value, "namespaces");
 		check(spaces.IsArray() && !spaces.Empty() && spaces.Size() <= o.node.application.namespaces,
 			  "namespace authorization bound");
-		for (const auto &name : spaces.GetArray()) {
-			auto s = text(name);
-			check(detent::is_valid_knob_name(s + ":x") && c.namespaces.insert(s).second,
-				  "invalid namespace authorization");
-		}
+		for (const auto &name : spaces.GetArray())
+			check(c.namespaces.insert(text(name)).second, "invalid namespace authorization");
+		c.grants = grants_of(c.namespaces);
 		o.credentials.push_back(std::move(c));
 	}
 	(void)State(o.node.context, o.node.application);
@@ -598,9 +605,10 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		distribution::StorageAllocator<Accounting::GrantView>(accounting_->delivery_account));
 	accounting_->credential_grants->reserve(accounting_->credentials.size());
 	accounting_->credential_hashes.reserve(accounting_->credentials.size());
-	for (const auto &credential : accounting_->credentials) {
+	for (auto &credential : accounting_->credentials) {
 		check(credential.policy_epoch && credential.principal.size() <= 128,
 			  "invalid authorization identity");
+		credential.grants = grants_of(credential.namespaces);
 		class SHA256 hash;
 		hash.add(credential.token.data(), credential.token.size());
 		Digest digest{};
@@ -611,7 +619,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		check(credential.namespaces.size() <= 4096, "credential grant count bound");
 		grants.names.reserve(credential.namespaces.size());
 		for (const auto &name : credential.namespaces)
-			grants.names.push_back(name);
+			if (distribution::valid_namespace_name(name)) // Version 1 follows exact names only.
+				grants.names.push_back(name);
 		grants.digest =
 			distribution::canonical_scope_identity("detent-subscription-grants-v1", 1, grants.names);
 	}
@@ -841,7 +850,7 @@ Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr
 		c.sequence = number(field(d, "sequence"));
 		c.name_space = text(field(d, "namespace"));
 		c.expected_namespace = optional(d, "expected_namespace");
-		check(task->admission->credential->namespaces.contains(c.name_space), "unauthorized namespace");
+		check(task->admission->credential->grants.allows(c.name_space), "unauthorized namespace");
 		auto &operations = field(d, "operations");
 		check(operations.IsArray() && operations.Size() <= options_.node.application.mutations,
 			  "operation count bound");
@@ -863,7 +872,7 @@ Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr
 		request_fields(d, {"namespace", "keys"});
 		task->kind = Task::Kind::Read;
 		task->name_space = text(field(d, "namespace"));
-		check(task->admission->credential->namespaces.contains(task->name_space), "unauthorized namespace");
+		check(task->admission->credential->grants.allows(task->name_space), "unauthorized namespace");
 		auto &keys = field(d, "keys");
 		check(keys.IsArray() && keys.Size() <= options_.node.application.mutations, "read key count bound");
 		std::set<std::string> unique;
@@ -997,6 +1006,10 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 	auto task = std::allocate_shared<Task>(distribution::StorageAllocator<Task>(account));
 	task->admission = std::move(admission);
 	const auto &credential = *task->admission->credential;
+	if (command.version == 2) {
+		frames_request(command, response, std::move(task));
+		return;
+	}
 	task->principal = {distribution::canonical_scope_identity(
 						   credential.principal.empty() ? credential.producer : credential.principal, 1, {}),
 					   credential.policy_epoch};
@@ -1030,6 +1043,57 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 			subscription_close_queue_.push_back(std::move(task));
 		else
 			subscription_queue_.push_back(std::move(task));
+	} catch (...) {
+		delivery->reply->abandon();
+	}
+}
+
+// W5: a session request of version 2, answered on the owner from history (W6).
+void Service::frames_request(const distribution_http::SessionRequest &command, http::ResponseWriter &response,
+							 std::shared_ptr<Task> task) {
+	const auto &credential = *task->admission->credential;
+	task->frames = true;
+	const auto principal = credential.principal.empty() ? credential.producer : credential.principal;
+	task->frames_principal.identity = history::sha256(principal);
+	task->frames_principal.policy_epoch = credential.policy_epoch;
+	task->deadline = Clock::now() + options_.timeout;
+	task->compressed = command.compressed;
+	task->session = command.session;
+	if (command.kind != distribution_http::RequestKind::Close) {
+		// W13: every followed name is granted, and `all` needs a grant.
+		bool granted = !command.all || !credential.grants.empty();
+		for (const auto &position : command.positions)
+			granted = granted && credential.grants.allows(position.name);
+		if (!granted)
+			task->refused = Reply{403, "{\"error\":\"scope_forbidden\"}"};
+		task->follows.reserve(command.positions.size());
+		for (const auto &position : command.positions)
+			task->follows.emplace_back(std::string(position.name), position.cursor);
+		task->all = command.all;
+	}
+	switch (command.kind) {
+	case distribution_http::RequestKind::Open:
+		task->kind = Task::Kind::SessionOpen;
+		check(RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) == 1,
+			  "session identity entropy");
+		break;
+	case distribution_http::RequestKind::Next:
+		task->kind = Task::Kind::SessionNext;
+		task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout) +
+						 std::chrono::milliseconds(command.wait_ms);
+		task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
+		break;
+	default:
+		task->kind = Task::Kind::SessionClose;
+	}
+	auto account = accounting_->delivery_account;
+	task->delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
+	auto delivery = task->delivery;
+	std::lock_guard lock(mutex_);
+	check(!stopping_, "authority is stopping");
+	stream_task(response, task);
+	try {
+		frames_queue_.push_back(std::move(task));
 	} catch (...) {
 		delivery->reply->abandon();
 	}
@@ -1393,6 +1457,18 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	std::optional<DeliverySlot> delivering;
 	std::shared_ptr<ChangeHistory> history;
 	std::optional<Subscriptions> subscriptions;
+	// W5/W6 sessions (version 2): their table, the requests on the owner, and the one answer in flight.
+	std::optional<NamespaceSessions> frames_sessions;
+	std::vector<std::shared_ptr<Task>> frames_tasks;
+	struct FramesSlot {
+		std::shared_ptr<Task> task;
+		std::optional<FramesExport> exporter;
+		std::shared_ptr<const distribution::OwnedBuffer> pending;
+		bool retiring = false;
+	};
+	std::optional<FramesSlot> framing;
+	Clock::time_point enabling_at{};
+	kronuz::metrics::Counter frames_answers, frames_idle, frames_held_back, frames_errors;
 	using SessionTasks =
 		std::vector<std::shared_ptr<Task>, distribution::StorageAllocator<std::shared_ptr<Task>>>;
 	SessionTasks session_tasks(
@@ -1570,6 +1646,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
 			accounting_->delivery_account);
 		subscriptions.emplace(accounting_->delivery_account, options_.subscriptions);
+		frames_sessions.emplace(accounting_->delivery_account,
+								SessionLimits{options_.subscriptions.sessions, options_.subscriptions.per_principal,
+											  options_.subscriptions.idle_lifetime,
+											  options_.subscriptions.maximum_lifetime});
+		frames_tasks.reserve(options_.subscription_requests.opens + options_.subscription_requests.polls +
+							 options_.subscription_requests.closes);
 		legacy_deliveries.resize(options_.requests);
 		session_tasks.resize(options_.subscription_requests.opens + options_.subscription_requests.polls +
 							 options_.subscription_requests.closes);
@@ -1740,6 +1822,11 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				",\"distribution_export_wire\":" + std::to_string(export_progress.wire_bytes) +
 				",\"distribution_export_counted\":" + std::string(export_progress.counted ? "true" : "false") +
 				",\"subscription_idle_responses\":" + std::to_string(subscription_idle.get()) +
+				",\"frames_sessions\":" + std::to_string(frames_sessions->size()) +
+				",\"frames_answers\":" + std::to_string(frames_answers.get()) +
+				",\"frames_idle\":" + std::to_string(frames_idle.get()) +
+				",\"frames_held_back\":" + std::to_string(frames_held_back.get()) +
+				",\"frames_errors\":" + std::to_string(frames_errors.get()) +
 				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
 				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
 				",\"owner_cpu_clock_errors\":" + std::to_string(cpu_clock_errors.get()) +
@@ -2383,6 +2470,238 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					--read_count;
 				}
 			}
+			// W5/W6 sessions (version 2): every next answers from history (D6), or waits for a change.
+			{
+				const auto capacity = options_.subscription_requests.opens + options_.subscription_requests.polls +
+									  options_.subscription_requests.closes;
+				{
+					std::lock_guard lock(mutex_);
+					while (!service.frames_queue_.empty() && frames_tasks.size() < capacity) {
+						frames_tasks.push_back(std::move(service.frames_queue_.front()));
+						service.frames_queue_.pop_front();
+					}
+				}
+				auto session_reply = [](SessionResult result) -> Reply {
+					switch (result) {
+					case SessionResult::Expired:
+						return {410, "{\"error\":\"session_expired\"}"};
+					case SessionResult::Forbidden:
+						return {403, "{\"error\":\"scope_forbidden\"}"};
+					case SessionResult::IdentityChanged:
+						return {409, "{\"error\":\"identity_changed\"}"};
+					case SessionResult::Busy:
+						return {409, "{\"error\":\"session_busy\"}"};
+					default:
+						return {503, "{\"error\":\"admission_full\"}"};
+					}
+				};
+				bool wanted = false; // A next found positions not yet enabled.
+				// The answer for a next: every followed namespace and, with `all`, the directory's
+				// changes and the namespaces they bring; none while nothing changed for it.
+				auto answer = [&](Task &task, std::optional<FramesExport> &out) {
+					const auto &state = node.state();
+					if (!state.positions_enabled()) {
+						wanted = true;
+						return;
+					}
+					auto *files = node.history_files();
+					if (!files || !node.history()->ready() || !node.sealed()) {
+						task.looked = UINT64_MAX; // Looks again once history is ready.
+						return;
+					}
+					const auto &cluster = options_.node.context.cluster;
+					const auto &table = node.history()->layout().table();
+					auto freeze = [&](std::string_view name) {
+						return AuthorityHistory::freeze(name, cluster, state, *node.sealed(), table, *files, *history);
+					};
+					std::vector<FramesRequest> requests;
+					for (const auto &[name, store] : task.follows)
+						if (auto frozen = freeze(name))
+							requests.push_back({name, std::move(frozen), store});
+					std::optional<distribution::DirectoryUpdate> directory;
+					if (task.all) {
+						distribution::DirectoryUpdate update;
+						update.from = task.all->cluster == cluster ? task.all->position : 0;
+						update.to = {cluster, state.directory_position()};
+						if (update.from < update.to.position) {
+							const auto &grants = task.admission->credential->grants;
+							state.for_each_directory_entry(
+								update.from, [&](std::uint64_t, const std::string &name, const Namespace &entry) {
+									if (!grants.allows(name))
+										return;
+									update.entries.push_back({name, entry.incarnation, entry.live});
+									const bool followed = std::any_of(task.follows.begin(), task.follows.end(),
+																	  [&](const auto &f) { return f.first == name; });
+									if (entry.live && !followed)
+										if (auto frozen = freeze(name))
+											requests.push_back({name, std::move(frozen), std::nullopt});
+								});
+							directory = std::move(update);
+						}
+					}
+					std::sort(requests.begin(), requests.end(),
+							  [](const auto &a, const auto &b) { return a.name < b.name; });
+					for (const auto &request : requests)
+						if (request.history->held_back())
+							frames_held_back.add();
+					distribution::Identity update{};
+					check(RAND_bytes(reinterpret_cast<unsigned char *>(update.data()), update.size()) == 1,
+						  "distribution update entropy");
+					out.emplace(std::move(requests), std::move(directory), update, task.compressed,
+								accounting_->delivery_account, options_.delivery.bytes);
+					if (out->empty())
+						out.reset();
+				};
+				for (std::size_t i = 0; i < frames_tasks.size();) {
+					auto held = frames_tasks[i];
+					auto &task = *held;
+					auto &delivery = *task.delivery;
+					if (!task.settled && !task.exporting && (now >= task.deadline || delivery.settled.load()))
+						complete(held, {503, "{\"error\":\"outcome_unknown\"}"});
+					if (task.settled) {
+						delivery.pump_control();
+						if (!task.exporting && delivery.settled.load()) {
+							if (task.bound)
+								frames_sessions->end(task.session, now);
+							frames_tasks[i] = std::move(frames_tasks.back());
+							frames_tasks.pop_back();
+							continue;
+						}
+						++i;
+						continue;
+					}
+					++i;
+					if (task.exporting)
+						continue;
+					try {
+						if (task.refused) {
+							complete(held, *task.refused);
+							continue;
+						}
+						if (task.kind == Task::Kind::SessionOpen) {
+							const auto result =
+								frames_sessions->open(task.session, task.frames_principal, task.compressed, now);
+							if (result != SessionResult::Accepted)
+								complete(held, session_reply(result));
+							else
+								complete(held, {200, "{\"version\":2,\"session\":\"" + hex(task.session) +
+														 "\",\"wait_ms\":" +
+														 std::to_string(options_.subscription_wait.count()) + "}"});
+							continue;
+						}
+						if (task.kind == Task::Kind::SessionClose) {
+							const auto result = frames_sessions->close(task.session, task.frames_principal);
+							complete(held, result == SessionResult::Accepted ? Reply{204, {}} : session_reply(result));
+							continue;
+						}
+						if (!task.bound) {
+							const auto result =
+								frames_sessions->begin(task.session, task.frames_principal, now, task.compressed);
+							if (result != SessionResult::Accepted) {
+								complete(held, session_reply(result));
+								continue;
+							}
+							task.bound = true;
+						}
+						// Every applied entry may change an answer: a write, a seal, the enabling entry.
+						if (!framing && task.looked != node.state().applied_index()) {
+							task.looked = node.state().applied_index();
+							framing.emplace();
+							try {
+								answer(task, framing->exporter);
+							} catch (...) {
+								framing.reset();
+								throw;
+							}
+							if (framing->exporter) {
+								framing->task = held;
+								task.exporting = true;
+								continue;
+							}
+							framing.reset();
+						}
+						if (now >= task.poll_deadline) {
+							frames_idle.add();
+							complete(held, {204, {}});
+						}
+					} catch (const std::exception &) {
+						frames_errors.add();
+						complete(held, {503, "{\"error\":\"distribution_unavailable\"}"});
+					}
+				}
+				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.
+				if (wanted && node.worker().role() == kronuz::consensus::Role::Leader &&
+					!node.state().positions_enabled() && now >= enabling_at) {
+					enabling_at = now + std::chrono::seconds(1);
+					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
+												 {}, {}};
+					check(RAND_bytes(reinterpret_cast<unsigned char *>(enable.nonce.data()), enable.nonce.size()) ==
+							  1,
+						  "positions seed entropy");
+					enable.nonce[0] |= 1;
+					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
+					(void)node.propose_administrative(++next, enable);
+				}
+				if (framing) {
+					auto &slot = *framing;
+					auto &delivery = *slot.task->delivery;
+					distribution::WorkBudget wire{256 * 1024, 16};
+					auto terminate = [&] {
+						if (delivery.started)
+							delivery.reply->abandon();
+						complete(slot.task, {503, "{\"error\":\"distribution_unavailable\"}"});
+						slot.retiring = true;
+					};
+					if (!slot.retiring) {
+						try {
+							if (delivery.settled.load() || now >= slot.task->deadline) {
+								(delivery.settled.load() ? export_disconnected : export_expired).add();
+								terminate();
+							} else {
+								if (!slot.pending && delivery.writable.load())
+									slot.exporter->step(wire);
+								if (slot.exporter->counted() && !delivery.started) {
+									http::Response metadata;
+									metadata.status = 200;
+									metadata.content_type = "application/vnd.detent.frames";
+									metadata.headers.emplace_back("X-Detent-Session-Version", "2");
+									metadata.headers.emplace_back("X-Detent-Session", hex(slot.task->session));
+									metadata.headers.emplace_back("X-Detent-Coding",
+																  slot.task->compressed ? "zstd" : "raw");
+									if (delivery.reply->start_chunked(metadata, true) != http::StreamSubmit::Accepted)
+										throw std::runtime_error("distribution stream closed");
+									delivery.started = true;
+								}
+								if (!slot.pending && slot.exporter->frame_ready())
+									slot.pending = slot.exporter->take_frame();
+								if (slot.pending) {
+									const auto result = delivery.publish(slot.pending);
+									if (result != http::StreamSubmit::Accepted && result != http::StreamSubmit::Busy)
+										throw std::runtime_error("distribution stream refused frame");
+								}
+								if (slot.exporter->done() && !slot.pending) {
+									if (delivery.reply->finish() != http::StreamSubmit::Accepted)
+										throw std::runtime_error("distribution stream refused finish");
+									frames_answers.add();
+									complete(slot.task, {200, {}});
+									slot.retiring = true;
+								}
+							}
+						} catch (const std::length_error &) {
+							export_limits.add();
+							terminate();
+						} catch (const std::exception &) {
+							frames_errors.add();
+							terminate();
+						}
+					}
+					if (slot.retiring && delivery.settled.load()) {
+						slot.task->exporting = false;
+						framing.reset();
+					}
+				}
+				frames_sessions->collect(now, 4);
+			}
 			if (delivering) {
 				auto &slot = *delivering;
 				auto &delivery = *slot.task->delivery;
@@ -2714,6 +3033,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				cpu_clock_errors.add();
 			}
 			if (node.application_work_pending() || retired_count || (read_count && !reading && !delivering) ||
+				(framing && !framing->retiring && framing->task->delivery->writable.load()) ||
 				(delivering && ((!delivering->retiring && delivering->task->delivery->writable.load()) ||
 								(delivering->retiring && !delivering->source_drained))) ||
 				(reading && (reading->retiring || !reading->quota_blocked)) ||
@@ -2747,6 +3067,23 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		}
 	}
 	accounting_->subscription_requests->close();
+	if (framing && !framing->retiring) {
+		if (framing->task->delivery->started)
+			framing->task->delivery->reply->abandon();
+		framing->task->exporting = false;
+	}
+	framing.reset();
+	{
+		std::lock_guard lock(mutex_);
+		for (auto &task : service.frames_queue_)
+			frames_tasks.push_back(std::move(task));
+		service.frames_queue_.clear();
+	}
+	for (auto &task : frames_tasks) {
+		task->exporting = false;
+		complete(task, {503, "{\"error\":\"stopping\"}"});
+		task->delivery->reply->abandon();
+	}
 	if (subscriptions)
 		subscriptions->close_all();
 	close_authorization.reset();
@@ -2886,6 +3223,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			co_await task::yield();
 		}
 	}
+	for (auto &task : frames_tasks) {
+		while (!task->delivery->settled.load())
+			co_await task::yield();
+		task.reset();
+	}
+	frames_tasks.clear();
 	std::deque<std::shared_ptr<Task>> remaining_sessions;
 	std::deque<std::shared_ptr<Task>> remaining_closes;
 	{

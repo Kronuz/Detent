@@ -65,6 +65,8 @@ class Node {
 	// reads a history file from a peer for repair and install.
 	void attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch = {});
 	const history::History *history() const noexcept { return history_ ? &*history_ : nullptr; }
+	// History's files as answers read them: queued writes first, then the directory.
+	history::Files *history_files() noexcept { return history_ ? &*history_ : nullptr; }
 	// History's next write, for the host to drive like the worker's storage jobs; service()
 	// settles it. Apply waits while history_backlog writes are queued.
 	std::shared_ptr<kronuz::journal::IOOperation> take_history_operation();
