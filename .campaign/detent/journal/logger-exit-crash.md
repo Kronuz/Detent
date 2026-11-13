@@ -27,7 +27,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A5 | `docs/ROADMAP.md`: "stash bundles a no-op `L_*` stub (`L_EXC`) so it builds without a logger." |
 
 ## Result
 
@@ -55,6 +55,3 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Evidence
 
-| Criterion | Evidence |
-|---|---|
-| A5 | `docs/ROADMAP.md`: "stash bundles a no-op `L_*` stub (`L_EXC`) so it builds without a logger." |
