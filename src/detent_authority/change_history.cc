@@ -113,6 +113,10 @@ class HistoryDraft final : public AppliedChangeDraft {
 			throw std::invalid_argument("invalid changed transaction shape");
 		entry_ = std::allocate_shared<CachedChange>(d::StorageAllocator<CachedChange>(account_));
 		entry_->revision = candidate.revision();
+		entry_->position = candidate.namespace_revision(command.name_space);
+		if (const auto *n = candidate.namespace_entry(command.name_space))
+			entry_->incarnation = n->incarnation;
+		entry_->wire = entry_->position == entry_->revision;
 		entry_->strings = command.name_space.size();
 		for (auto value : changed)
 			if (value)
@@ -213,7 +217,10 @@ struct ChangeHistory::Impl {
 	Slots live, retired;
 	std::array<Entry, 64> staged{};
 	Context context{};
-	std::uint64_t floor = 0, through = 0, batch_index = 0, batch_base = 0, batch_gap = 0;
+	// `floor` bounds the delta wire; entries at or below `dead` go; eviction at the
+	// bound takes only entries at or below `durable`, which the durable layout covers.
+	std::uint64_t floor = 0, through = 0, dead = 0, durable = UINT64_MAX, batch_index = 0, batch_base = 0,
+				  batch_gap = 0;
 	std::size_t head = 0, count = 0, bytes = 0, retired_head = 0, retired_count = 0, staged_count = 0,
 				credit = 0;
 	bool batch = false, clearing = false;
@@ -279,10 +286,6 @@ std::shared_ptr<AppliedChangeDraft> ChangeHistory::capture(const State &state, c
 	if (!p.batch || p.staged_count == p.staged.size() || !p.options.transactions ||
 		!p.options.payload_capacity || state.context() != p.context)
 		return {};
-	// The delta wire gives each record the group revision; a namespace whose
-	// position differs from it is delivered by snapshot until cursors are per namespace.
-	if (state.namespace_revision(command.name_space) != state.revision())
-		return {};
 	return std::allocate_shared<HistoryDraft>(d::StorageAllocator<HistoryDraft>(p.account), state, command,
 											  changed, p.account, p.options.transaction_bytes, &p);
 }
@@ -306,8 +309,11 @@ void ChangeHistory::gap(std::uint64_t revision) noexcept {
 void ChangeHistory::publish(const Context &context, std::uint64_t index, std::uint64_t revision) noexcept {
 	auto &p = *impl_;
 	if (!p.batch) {
-		if (context != p.context || revision != p.through)
+		// A change with no entry (a drop) ends the wire's continuity; other namespaces keep theirs.
+		if (context != p.context || revision < p.through)
 			reset(context, revision);
+		else if (revision != p.through)
+			p.floor = p.through = revision;
 		return;
 	}
 	if (context != p.context || index != p.batch_index || revision < p.batch_base) {
@@ -327,6 +333,10 @@ void ChangeHistory::publish(const Context &context, std::uint64_t index, std::ui
 		}
 		if (entry->revision - previous != 1)
 			p.floor = std::max(p.floor, entry->revision - 1);
+		// The delta wire gives each record the group revision; a namespace whose
+		// position differs from it is delivered by snapshot until cursors are per namespace.
+		if (!entry->wire)
+			p.floor = std::max(p.floor, entry->revision);
 		previous = entry->revision;
 	}
 	if (previous < revision)
@@ -336,12 +346,13 @@ void ChangeHistory::publish(const Context &context, std::uint64_t index, std::ui
 		if (!entry)
 			continue;
 		const auto capacity = entry->body->storage_capacity();
-		if (entry->revision <= p.floor || capacity > p.options.payload_capacity) {
+		if (entry->revision <= p.dead || capacity > p.options.payload_capacity) {
 			p.floor = std::max(p.floor, entry->revision);
 			p.retire(entry);
 			continue;
 		}
-		while (p.count && (p.count == p.live.size() || capacity > p.options.payload_capacity - p.bytes))
+		while (p.count && (p.count == p.live.size() || capacity > p.options.payload_capacity - p.bytes) &&
+			   p.live[p.head]->revision <= std::max(p.durable, p.dead))
 			if (!p.evict())
 				break;
 		if (!p.live.size() || p.count == p.live.size() || capacity > p.options.payload_capacity - p.bytes) {
@@ -374,13 +385,14 @@ void ChangeHistory::reset(const Context &context, std::uint64_t revision) noexce
 		++p.generation;
 	p.abandon();
 	p.context = context;
-	p.floor = p.through = revision;
+	p.floor = p.through = p.dead = revision;
 	p.clearing = p.count || p.staged_count;
 }
+void ChangeHistory::covered(std::uint64_t revision) noexcept { impl_->durable = revision; }
 bool ChangeHistory::pending() const noexcept {
 	const auto &p = *impl_;
 	return p.retired_count || (!p.batch && p.staged_count) || p.clearing ||
-		   (p.count && p.live[p.head]->revision <= p.floor);
+		   (p.count && p.live[p.head]->revision <= p.dead);
 }
 void ChangeHistory::collect(CommandWorkBudget &budget) noexcept {
 	auto &p = *impl_;
@@ -393,7 +405,7 @@ void ChangeHistory::collect(CommandWorkBudget &budget) noexcept {
 				continue;
 			}
 		}
-		if (p.count && (p.clearing || p.live[p.head]->revision <= p.floor) && p.evict()) {
+		if (p.count && (p.clearing || p.live[p.head]->revision <= p.dead) && p.evict()) {
 			--budget.receipts;
 			continue;
 		}
@@ -454,7 +466,37 @@ std::shared_ptr<const CachedChange> ChangeHistory::find(std::uint64_t revision) 
 	if (low == p.count)
 		return {};
 	const auto &entry = p.live[(p.head + low) % p.live.size()];
-	return entry->revision == revision ? entry : Impl::Entry{};
+	return entry->revision == revision && entry->wire ? entry : Impl::Entry{};
+}
+std::uint64_t ChangeHistory::floor(std::string_view name, const Identity &incarnation,
+								   std::uint64_t position) const noexcept {
+	const auto &p = *impl_;
+	auto expected = position;
+	if (p.clearing)
+		return expected;
+	for (std::size_t i = p.count; i-- > 0;) {
+		const auto &e = p.live[(p.head + i) % p.live.size()];
+		if (e->revision <= p.dead)
+			break;
+		if (e->name_space() != name)
+			continue;
+		if (e->incarnation != incarnation || e->position != expected)
+			break;
+		--expected;
+	}
+	return expected;
+}
+std::vector<std::shared_ptr<const CachedChange>> ChangeHistory::entries(std::string_view name,
+																		const Identity &incarnation,
+																		std::uint64_t after) const {
+	const auto &p = *impl_;
+	std::vector<std::shared_ptr<const CachedChange>> out;
+	for (std::size_t i = 0; !p.clearing && i < p.count; ++i) {
+		const auto &e = p.live[(p.head + i) % p.live.size()];
+		if (e->revision > p.dead && e->name_space() == name && e->incarnation == incarnation && e->position > after)
+			out.push_back(e);
+	}
+	return out;
 }
 std::size_t ChangeHistory::size() const noexcept { return impl_->count; }
 std::size_t ChangeHistory::payload_capacity() const noexcept { return impl_->bytes; }

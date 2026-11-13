@@ -1485,9 +1485,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	};
 	try {
 		// Provision the parent directory explicitly; newly created final directory
-		// receives a durable parent namespace barrier before Journal creation.
-		if (std::filesystem::create_directory(options_.directory)) {
-			check(::chmod(options_.directory.c_str(), 0700) == 0, "authority directory permissions");
+		// receives a durable parent namespace barrier before Journal creation. History
+		// (D6) lives beside the journal, so the journal's inventory never meets it.
+		auto history_directory = options_.directory;
+		history_directory += ".history";
+		bool created = false;
+		for (const auto &directory : {options_.directory, history_directory})
+			if (std::filesystem::create_directory(directory)) {
+				check(::chmod(directory.c_str(), 0700) == 0, "authority directory permissions");
+				created = true;
+			}
+		if (created) {
 			auto parent = options_.directory.parent_path();
 			if (parent.empty()) {
 				parent = ".";
@@ -1512,6 +1520,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
 											node_options);
 		auto &node = *owned_node;
+		node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
 		history = std::allocate_shared<ChangeHistory>(
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
 			accounting_->delivery_account);
@@ -1717,6 +1726,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			}
 			last_health = captured_at;
 		};
+		// The ring is attached before replay, which refills it above the checkpoint (D6).
+		node.attach_change_recorder(history);
 		if (std::filesystem::exists(options_.directory / "manifest")) {
 			node.recover();
 		} else {
@@ -1746,7 +1757,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		node.service({0, election_delay()});
 		node.start();
 		// Storage readiness precedes incremental committed application replay.
-		// Finish that replay before admitting live requests or optional history.
+		// Finish that replay before admitting live requests.
 		while (node.state().applied_index() < node.worker().committed() || node.application_work_pending()) {
 			node.service({0, election_delay()});
 			dispatch(owned_node);
@@ -1758,7 +1769,6 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				co_await detent::transport::await_timer(timer);
 			}
 		}
-		node.attach_change_recorder(history);
 		if (options_.peers) {
 			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node,
 													 peer_configuration(node_options), *options_.peers);

@@ -9,8 +9,9 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 1: the layout policy in `Limits`, the set-limits entry (`AdministrativeKind::SetLayout`), and
-the seal in apply (ordinal, counters, accumulator, last seal index) carried by the image.
+Steps 4-7 written, building: history files over `journal::IO` (`history.hh/.cc`), the node's
+checkpoint at the seal, the ring keyed by namespace position with lazy eviction, the cluster
+identity test (A1, A2, A4) and the history crash matrix (A5).
 
 ## Proposed split (for the lead)
 
@@ -29,12 +30,10 @@ I keep going on both in this branch unless the lead splits it; each step is its 
 
 ## Next
 
-1. Step 2: history formats (record, section, block, base, seal file, table), SHA-256 names.
-2. Step 3: the layout engine and answers, with an oracle over every position (A3, A6).
-3. Step 4: history files over `journal::IO`, commit, collector, recovery; checkpoint at the seal.
-4. Step 5: the ring keyed by namespace position, lazy eviction, no reset at restart (A2).
-5. Step 6: install and repair from a peer (A4).
-6. Step 7: crash matrix (A5) and the cluster identity job (A1).
+1. Build; run the authority suite; fix what breaks.
+2. Docs: S5.2 section in `docs/status/namespace-s5.md`.
+3. Jobs: `campaign verify` per criterion, mutants for the commit order, the checkpoint gate,
+   lazy eviction and the cost cut.
 
 ## Blocked on
 
@@ -58,4 +57,29 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Log-progress thresholds (log_entries, log_bytes) travel in the replicated policy, filled
+   from the proposer's consensus limits on the enabling and SetLayout entries, instead of a new
+   consensus configuration entry; a node whose retained bounds are below them refuses to start
+   or keep applying (`check_retained_bounds`).
+2. The layout policy is not in the semantic profile: the policy in force is replicated state
+   (image `DTAIMG03` carries it, the pending one and the seal counters).
+3. The enabling entry is seal 0; its first bases are its outputs and its table the first
+   table. An empty base is not a file. A drop is a seal entry flagged dropped.
+4. History lives in a sibling directory `<directory>.history` (the journal's inventory treats
+   subdirectories as incomplete).
+5. A seal commits its seal file, then its outputs as one sync group, then the table at a
+   period seal; all three before `seal()` returns (stronger than RU-3). A name that exists
+   with the same bytes is reused; with other bytes it is an orphan and is replaced.
+6. History IO is synchronous inside apply's seal (open: move it to IO operations). A history
+   failure stalls history and checkpoints, never apply.
+7. The checkpoint is captured from the latest seal's state, and only when history is durable
+   through it; any index stays a valid image (the accumulator is in it).
+8. A table past the checkpoint's seal is adopted; seals at or below it fold nothing.
+9. The ring captures every transaction with its namespace position and incarnation; the
+   delta wire still serves only entries whose position is the group revision. It evicts at
+   its bound only entries at or below the newest durable seal's revision (`covered`), else
+   refuses the new entry (a ring gap, never a block gap). A drop raises the wire floor and no
+   longer resets the ring. The service attaches the ring before recovery, so replay refills it.
+10. Answer "unchanged after a restart" (A2) is checked as: the same blocks answer, byte for
+   byte, and every R from the cut delivers exactly the head store; ring answers below the
+   checkpoint's seal become block answers (the ring restarts at the checkpoint).

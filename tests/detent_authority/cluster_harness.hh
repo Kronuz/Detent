@@ -7,7 +7,9 @@
 #include <cassert>
 #include <deque>
 #include <filesystem>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <optional>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -15,6 +17,10 @@
 namespace detent::authority::testing {
 using namespace kronuz::consensus;
 inline bool completion_storage = false;
+// When set, each voter keeps D6 history under this policy in `<root>/<i>.history`,
+// fetching what it lacks from its peers' directories, and gets the ring `ring(i)`.
+inline std::optional<LayoutPolicy> history_policy;
+inline std::function<std::shared_ptr<AppliedChangeRecorder>(unsigned)> ring;
 struct Cluster {
 	std::filesystem::path root;
 	std::array<std::unique_ptr<Node>, 3> nodes;
@@ -59,6 +65,8 @@ struct Cluster {
 		o.timing.rpc_timeout = 200;
 		o.timing.election_min = 1000;
 		o.timing.election_max = 2000;
+		if (history_policy)
+			o.application.layout = *history_policy;
 		return o;
 	}
 	void launch(unsigned i, bool recover) {
@@ -66,6 +74,15 @@ struct Cluster {
 		std::filesystem::create_directories(directory);
 		chmod(directory.c_str(), 0700);
 		nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
+		if (history_policy) {
+			auto files = history_directory(i);
+			std::filesystem::create_directories(files);
+			chmod(files.c_str(), 0700);
+			nodes[i]->attach_history(std::make_shared<kronuz::journal::PosixIO>(files),
+									 [this, i](std::string_view name) { return fetch(i, name); });
+		}
+		if (ring)
+			nodes[i]->attach_change_recorder(ring(i));
 		if (recover) {
 			nodes[i]->recover();
 		} else {
@@ -82,6 +99,16 @@ struct Cluster {
 		}
 		assert(nodes[i]->worker().ready());
 		nodes[i]->start();
+	}
+	std::filesystem::path history_directory(unsigned i) const { return root / (std::to_string(i) + ".history"); }
+	// A peer serves a history file by name (D6 "Recovery"); every voter holds the same bytes.
+	std::optional<std::string> fetch(unsigned i, std::string_view name) const {
+		for (unsigned j = 0; j < 3; ++j) {
+			std::ifstream in(history_directory(j) / std::string(name), std::ios::binary);
+			if (j != i && in)
+				return std::string(std::istreambuf_iterator<char>(in), {});
+		}
+		return std::nullopt;
 	}
 	void link(unsigned a, unsigned b, bool enabled) {
 		connected[a][b] = connected[b][a] = enabled;

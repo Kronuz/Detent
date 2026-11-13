@@ -204,6 +204,19 @@ Result read_result(Reader &r) {
 	require(status >= 1 && status <= static_cast<unsigned>(Status::Exhausted), "invalid receipt status");
 	return {static_cast<Status>(status), r.number(), r.number(), r.number(), r.number()};
 }
+void write_policy(Writer &w, const LayoutPolicy &p) {
+	for (auto n : {p.seal_transactions, p.seal_bytes, p.period, p.carry_bytes, p.carry_count, p.ratio,
+				   p.alpha_num, p.alpha_den, p.cap, p.log_entries, p.log_bytes})
+		w.number(n);
+}
+LayoutPolicy read_policy(Reader &r) {
+	LayoutPolicy p;
+	for (auto *n : {&p.seal_transactions, &p.seal_bytes, &p.period, &p.carry_bytes, &p.carry_count, &p.ratio,
+					&p.alpha_num, &p.alpha_den, &p.cap, &p.log_entries, &p.log_bytes})
+		*n = r.number();
+	validate(p);
+	return p;
+}
 void write_limits(Writer &w, Limits l) {
 	for (auto n : {l.keys, l.namespaces, l.producers, l.mutations, l.request_bytes, l.state_bytes,
 				   l.image_bytes, l.definition_bytes, l.overrides, l.results}) {
@@ -212,8 +225,38 @@ void write_limits(Writer &w, Limits l) {
 }
 } // namespace
 
+std::string encode_policy(const LayoutPolicy &policy) {
+	Writer w{{}, 88};
+	write_policy(w, policy);
+	return std::move(w.bytes);
+}
+LayoutPolicy decode_policy(std::string_view bytes) {
+	Reader r{bytes};
+	auto policy = read_policy(r);
+	r.end();
+	return policy;
+}
+std::string encode_definition(const KnobDef &value, const Limits &limits) {
+	Writer w{{}, limits.definition_bytes};
+	definition(w, value, limits);
+	return std::move(w.bytes);
+}
+KnobDef decode_definition(std::string_view bytes, const Limits &limits) {
+	Reader r{bytes};
+	auto value = definition(r, limits);
+	r.end();
+	return value;
+}
+void validate(const LayoutPolicy &p) {
+	// Bounds keep every product of the layout's arithmetic inside 128 bits.
+	require(p.seal_transactions && p.seal_bytes && p.period && p.period <= (1u << 20) &&
+				p.carry_bytes <= (std::uint64_t{1} << 32) && p.carry_count <= 256 && p.ratio >= 2 &&
+				p.ratio <= 256 && p.alpha_num && p.alpha_num <= 65536 && p.alpha_den && p.alpha_den <= 65536 &&
+				p.cap && p.cap <= 256 && p.log_entries >= 8 && p.log_bytes >= 8,
+			"invalid layout policy");
+}
 std::string semantic_profile(Limits limits) {
-	Writer writer{{}, 80};
+	Writer writer{{}, 256};
 	write_limits(writer, limits);
 	return std::move(writer.bytes);
 }
@@ -731,7 +774,7 @@ State::State(Context c, Limits l) : context_(c), limits_(l) {
 				l.image_bytes <= std::uint64_t(INT64_MAX),
 			"authority resource ceiling");
 	auto metadata =
-		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 240 +
+		std::uint64_t{1024} + static_cast<std::uint64_t>(l.namespaces) * 248 +
 		static_cast<std::uint64_t>(l.producers) * (177 + static_cast<std::uint64_t>(l.results) * 80);
 	require(metadata <= l.image_bytes && l.state_bytes <= l.image_bytes - metadata,
 			"application image cannot hold configured state and receipts");
@@ -753,6 +796,9 @@ std::shared_ptr<const KnobDef> move_definition(detail::DeferredValues<KnobDef> &
 	value->rollout_value = source.rollout_value;
 	value->overrides.swap(source.overrides);
 	return value;
+}
+std::size_t canonical_bytes(std::string_view key, const Record *record) {
+	return key.size() + (record ? detail::DeferredValues<KnobDef>::encoded_size(*record->value) : 0) + 16;
 }
 std::size_t stored_footprint(std::string_view key, const Record &record) {
 	return key.size() + detail::DeferredValues<KnobDef>::encoded_size(*record.value) + 16;
@@ -887,9 +933,48 @@ Namespace State::changed_namespace(std::string_view name) const {
 		// A first write, or one after a drop, creates a new incarnation; positions continue.
 		next.directory = directory_head_ + 1;
 		next.incarnation = derive_incarnation(context_, seed_, next.directory, name);
+		next.origin = next.position - 1;
 		next.live = true;
 	}
 	return next;
+}
+void State::count_change(std::uint64_t bytes) noexcept {
+	if (!positions_enabled())
+		return;
+	++seal_.transactions;
+	seal_.bytes += bytes;
+}
+bool State::close_entry(std::uint64_t payload_bytes) {
+	sealed_ = {};
+	if (!positions_enabled())
+		return false;
+	auto &c = seal_;
+	const auto &p = policy_;
+	if (!c.forced) {
+		++c.entries;
+		c.log_bytes += payload_bytes;
+		const bool due = c.transactions >= p.seal_transactions || c.bytes >= p.seal_bytes ||
+						 c.entries >= std::max<std::uint64_t>(1, p.log_entries / 8) ||
+						 c.log_bytes >= std::max<std::uint64_t>(1, p.log_bytes / 8);
+		if (!due)
+			return false;
+		++c.ordinal;
+	}
+	// A new policy takes effect here; a new period only where the old one divides the ordinal.
+	if (pending_) {
+		auto next = *pending_;
+		if (next.period != policy_.period && c.ordinal % policy_.period) {
+			next.period = policy_.period;
+			policy_ = next;
+		} else {
+			policy_ = next;
+			pending_.reset();
+		}
+	}
+	sealed_ = std::move(touched_);
+	touched_ = {};
+	c = {c.ordinal, applied_};
+	return true;
 }
 void State::store_namespace(const std::string &name, std::uint64_t previous_directory, const Namespace &next) {
 	namespaces_ = namespaces_.set(name, next);
@@ -1030,18 +1115,24 @@ Result State::apply(std::uint64_t index, const Command &c, std::uint64_t term) {
 				auto previous = namespaces_.find(c.name_space);
 				auto entry = changed_namespace(c.name_space);
 				entry.bytes = entry.bytes + total - bytes_;
+				std::uint64_t changes = 0;
 				for (const auto &op : c.mutations) {
 					auto old = find(op.key);
-					if (op.value && (!old || *old->value != *op.value)) {
+					const bool set = op.value && (!old || *old->value != *op.value);
+					if (set) {
+						auto amount = footprint(op.key, *op.value, limits_);
 						candidate = candidate.set(
-							op.key,
-							Record{entry.position, copy_definition(*next.definitions_, *op.value,
-																  footprint(op.key, *op.value, limits_) -
-																	  op.key.size() - 16)});
+							op.key, Record{entry.position, copy_definition(*next.definitions_, *op.value,
+																		   amount - op.key.size() - 16)});
+						changes += amount;
 					} else if (!op.value && old) {
 						candidate = candidate.erase(op.key);
+						changes += canonical_bytes(op.key, nullptr);
 					}
+					if (positions_enabled() && (set || (!op.value && old)))
+						next.touched_ = next.touched_.set(op.key, entry.position);
 				}
+				next.count_change(changes);
 				next.records_ = std::move(candidate);
 				next.bytes_ = total;
 				next.revision_ = revision_ + 1;
@@ -1212,6 +1303,7 @@ struct CommandApplication::Impl {
 	Result result;
 	Phase phase = Phase::Session;
 	std::size_t row = 0, receipt = 0, total = 0, count = 0;
+	std::uint64_t changed_bytes = 0; // Canonical bytes of the changes, for the seal trigger.
 	Namespace entry;
 	std::uint64_t previous_directory = 0;
 	std::vector<unsigned char> changes;
@@ -1503,6 +1595,9 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					auto i = d.row++;
 					auto &op = c.mutations[i];
 					if (d.changes[i]) {
+						d.changed_bytes += op.key.size() + (op.value ? d.validated.sizes_[i] : 0) + 16;
+						if (d.source.positions_enabled())
+							d.candidate.touched_ = d.candidate.touched_.set(op.key, d.entry.position);
 						if (op.value)
 							d.candidate.records_ = d.candidate.records_.set(
 								op.key, Record{d.entry.position,
@@ -1520,6 +1615,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				d.candidate.revision_ = d.source.revision_ + 1;
 				d.entry.bytes = d.entry.bytes + d.total - d.source.bytes_;
 				d.candidate.store_namespace(c.name_space, d.previous_directory, d.entry);
+				d.candidate.count_change(d.changed_bytes);
 				d.result.revision = d.candidate.revision_;
 				d.result.namespace_revision = d.entry.position;
 				if (d.recorder)
@@ -1693,12 +1789,18 @@ void validate_administrative(const AdministrativeCommand &c) {
 	if (c.kind == AdministrativeKind::EnablePositions)
 		require(c.nonce != Identity{} && c.name_space.empty() && c.incarnation == Identity{},
 				"invalid enabling entry");
+	else if (c.kind == AdministrativeKind::SetLayout)
+		require(c.nonce == Identity{} && c.name_space.empty() && c.incarnation == Identity{},
+				"invalid layout entry");
 	else
 		require(c.kind == AdministrativeKind::DropNamespace && c.nonce == Identity{} &&
 					c.incarnation != Identity{} && !c.name_space.empty() &&
-					c.name_space.size() < 200 && is_valid_knob_name(c.name_space + ":x"),
+					c.name_space.size() < 200 && is_valid_knob_name(c.name_space + ":x") &&
+					c.policy == LayoutPolicy{},
 				"invalid namespace drop");
+	validate(c.policy);
 }
+bool carries_policy(AdministrativeKind kind) { return kind != AdministrativeKind::DropNamespace; }
 } // namespace
 bool is_administrative(std::string_view payload) noexcept { return payload.starts_with("DTAADM01"); }
 std::string encode(const AdministrativeCommand &c, Limits l) {
@@ -1711,6 +1813,8 @@ std::string encode(const AdministrativeCommand &c, Limits l) {
 	w.identity(c.nonce);
 	w.text(c.name_space);
 	w.identity(c.incarnation);
+	if (carries_policy(c.kind))
+		write_policy(w, c.policy);
 	return std::move(w.bytes);
 }
 AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
@@ -1722,11 +1826,13 @@ AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
 	AdministrativeCommand c;
 	c.context = decode_context(r);
 	auto kind = r.number();
-	require(kind >= 1 && kind <= 2, "unknown administrative kind");
+	require(kind >= 1 && kind <= 3, "unknown administrative kind");
 	c.kind = static_cast<AdministrativeKind>(kind);
 	c.nonce = r.identity();
 	c.name_space = r.text(199);
 	c.incarnation = r.identity();
+	if (carries_policy(c.kind))
+		c.policy = read_policy(r);
 	r.end();
 	validate_administrative(c);
 	return c;
@@ -1763,10 +1869,21 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 				result_.status = Status::NoChange;
 				return complete();
 			}
-			// Each namespace keeps its stored revision as its starting position.
+			// Each namespace keeps its stored revision as its starting position;
+			// the entry is seal 0, where every namespace's first base is taken.
 			candidate_.seed_ = command_.nonce;
+			candidate_.policy_ = command_.policy;
+			candidate_.seal_ = {0, 0, 0, 0, 0, 0, true};
 			cursor_.emplace(source_.namespaces_.cursor());
 			phase_ = Phase::Assign;
+		} else if (command_.kind == AdministrativeKind::SetLayout) {
+			if (!source_.positions_enabled())
+				result_.status = Status::Conflict;
+			else if (command_.policy == (source_.pending_ ? *source_.pending_ : source_.policy_))
+				result_.status = Status::NoChange;
+			else
+				candidate_.pending_ = command_.policy;
+			return complete();
 		} else {
 			auto entry = source_.namespaces_.find(name);
 			if (!source_.positions_enabled())
@@ -1781,6 +1898,8 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 				// The drop is one change at the next position: every key goes, the
 				// tombstone keeps the position so a re-creation never reuses one.
 				candidate_.records_ = source_.records_.erase_range(name + ":", name + ";");
+				candidate_.touched_ = source_.touched_.erase_range(name + ":", name + ";");
+				candidate_.count_change(0);
 				candidate_.bytes_ = source_.bytes_ - entry->bytes;
 				candidate_.revision_ = source_.revision_ + 1;
 				auto next = *entry;
@@ -1803,6 +1922,7 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 		}
 		auto next = *row->second;
 		next.directory = candidate_.directory_head_ + 1;
+		next.origin = next.position;
 		next.incarnation = derive_incarnation(candidate_.context_, candidate_.seed_, next.directory, *row->first);
 		candidate_.store_namespace(*row->first, 0, next);
 	}
@@ -1849,12 +1969,12 @@ Snapshot State::snapshot(std::string_view name_space) const {
 }
 ImageEncoder::ImageEncoder(State state)
 	: state_(std::move(state)), records_(state_.records_.cursor()), namespaces_(state_.namespaces_.cursor()),
-	  producers_(state_.producers_.cursor()) {}
+	  producers_(state_.producers_.cursor()), touched_(state_.touched_.cursor()) {}
 void ImageEncoder::row() {
 	Writer w{{}, state_.limits_.image_bytes};
 	for (;;) {
 		if (stage_ == 0) {
-			w.raw("DTAIMG02");
+			w.raw("DTAIMG03");
 			encode_context(w, state_.context_);
 			write_limits(w, state_.limits_);
 			w.number(state_.applied_);
@@ -1863,6 +1983,14 @@ void ImageEncoder::row() {
 			w.number(state_.records_.size());
 			w.identity(state_.seed_);
 			w.number(state_.directory_head_);
+			write_policy(w, state_.policy_);
+			w.flag(state_.pending_.has_value());
+			if (state_.pending_)
+				write_policy(w, *state_.pending_);
+			const auto &c = state_.seal_;
+			for (auto n : {c.ordinal, c.index, c.transactions, c.bytes, c.entries, c.log_bytes})
+				w.number(n);
+			w.flag(c.forced);
 			++stage_;
 		} else if (stage_ == 1) {
 			if (auto item = records_.next()) {
@@ -1882,6 +2010,7 @@ void ImageEncoder::row() {
 				w.text(*item->first);
 				w.number(item->second->position);
 				w.number(item->second->directory);
+				w.number(item->second->origin);
 				w.flag(item->second->live);
 				w.identity(item->second->incarnation);
 			} else {
@@ -1906,7 +2035,18 @@ void ImageEncoder::row() {
 					write_result(w, receipt.result);
 				}
 			} else {
-				stage_ = 7;
+				++stage_;
+				continue;
+			}
+		} else if (stage_ == 6) {
+			w.number(state_.touched_.size());
+			++stage_;
+		} else if (stage_ == 7) {
+			if (auto item = touched_.next()) {
+				w.text(*item->first);
+				w.number(*item->second);
+			} else {
+				stage_ = 9;
 				continue;
 			}
 		} else {
@@ -1972,7 +2112,7 @@ struct ImageDecoder::Impl {
 		auto &s = state;
 		auto &l = s.limits_;
 		if (stage == 0) {
-			require(r.raw(8) == "DTAIMG02" && decode_context(r) == s.context_, "foreign application image");
+			require(r.raw(8) == "DTAIMG03" && decode_context(r) == s.context_, "foreign application image");
 			Writer lw{{}, 1024};
 			write_limits(lw, l);
 			require(r.raw(lw.bytes.size()) == lw.bytes, "changed semantic limits");
@@ -1982,6 +2122,16 @@ struct ImageDecoder::Impl {
 			s.seed_ = r.identity();
 			s.directory_head_ = r.number();
 			require(s.positions_enabled() || !s.directory_head_, "invalid namespace directory");
+			s.policy_ = read_policy(r);
+			if (r.flag())
+				s.pending_ = read_policy(r);
+			auto &c = s.seal_;
+			for (auto *n : {&c.ordinal, &c.index, &c.transactions, &c.bytes, &c.entries, &c.log_bytes})
+				*n = r.number();
+			c.forced = r.flag();
+			require(c.index <= applied && (s.positions_enabled() || c == SealCounters{}) &&
+						(!c.forced || !c.ordinal),
+					"invalid seal counters");
 			s.applied_ = applied;
 			s.applied_term_ = term;
 			s.revision_ = revision;
@@ -2027,10 +2177,11 @@ struct ImageDecoder::Impl {
 			Namespace entry;
 			entry.position = r.number();
 			entry.directory = r.number();
+			entry.origin = r.number();
 			entry.live = r.flag();
 			entry.incarnation = r.identity();
 			require(is_valid_knob_name(name + ":x") && (!position || previous < name) && entry.position &&
-						entry.position <= s.revision_,
+						entry.position <= s.revision_ && entry.origin <= entry.position,
 					"invalid namespace record");
 			if (s.positions_enabled()) {
 				require(entry.directory && entry.directory <= s.directory_head_ &&
@@ -2115,11 +2266,35 @@ struct ImageDecoder::Impl {
 			previous = std::move(name);
 			--remaining;
 			++position;
+		} else if (stage == 7) {
+			auto count = r.number();
+			require(count <= l.keys + s.seal_.transactions * l.mutations, "accumulator count bound");
+			require(s.positions_enabled() || !count, "accumulator before positions");
+			remaining = count;
+			position = 0;
+			previous.clear();
+			stage = 8;
+		} else if (stage == 8) {
+			if (!remaining) {
+				stage = 9;
+				return;
+			}
+			auto key = r.text(200);
+			auto at = r.number();
+			auto name = std::string_view(key).substr(0, key.find(':'));
+			auto entry = s.namespaces_.find(name);
+			require(is_valid_knob_name(key) && (!position || previous < key) && entry && entry->live &&
+						at > entry->origin && at <= entry->position,
+					"invalid accumulator key");
+			s.touched_ = s.touched_.set(key, at);
+			previous = std::move(key);
+			--remaining;
+			++position;
 		} else {
 			require(r.bytes.empty(), "trailing authority bytes");
 			if (!final)
 				throw Incomplete{};
-			stage = 8;
+			stage = 10;
 		}
 	}
 };
@@ -2129,7 +2304,7 @@ ImageDecoder::ImageDecoder(ImageDecoder &&) noexcept = default;
 ImageDecoder &ImageDecoder::operator=(ImageDecoder &&) noexcept = default;
 void ImageDecoder::feed(std::string_view bytes, bool final) {
 	auto &d = *impl_;
-	require(!d.released && d.waiting && !d.final && d.stage != 8, "image decoder input state");
+	require(!d.released && d.waiting && !d.final && d.stage != 10, "image decoder input state");
 	require(bytes.size() <= 65536 && bytes.size() <= d.state.limits_.image_bytes - d.received,
 			"application image bound");
 	// A producer row is the largest variable item; no whole-image buffering.
@@ -2152,7 +2327,7 @@ void ImageDecoder::step(std::size_t rows) {
 		if (d.state.reclamation_pending())
 			return;
 	}
-	if (d.stage == 8) {
+	if (d.stage == 10) {
 		d.complete = true;
 		return;
 	}
@@ -2161,7 +2336,7 @@ void ImageDecoder::step(std::size_t rows) {
 	std::size_t consumed = 0;
 	auto allocations = d.state.allocations();
 	try {
-		for (std::size_t i = 0; i < rows && d.stage != 8; ++i) {
+		for (std::size_t i = 0; i < rows && d.stage != 10; ++i) {
 			Reader r{std::string_view(d.buffer).substr(consumed)};
 			auto before = r.bytes.size();
 			try {
@@ -2180,7 +2355,7 @@ void ImageDecoder::step(std::size_t rows) {
 	}
 	d.buffer.erase(0, consumed);
 	d.state.collect(d.state.allocations() - allocations + 128);
-	d.complete = d.stage == 8 && !d.state.reclamation_pending();
+	d.complete = d.stage == 10 && !d.state.reclamation_pending();
 }
 bool ImageDecoder::needs_input() const noexcept {
 	return !impl_->released && !impl_->complete && impl_->waiting && !impl_->state.reclamation_pending();

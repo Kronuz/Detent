@@ -34,6 +34,7 @@ NodeOptions options() {
 	o.application.results = 64;
 	o.application.state_bytes = 2 * 1024 * 1024;
 	o.application.image_bytes = 4 * 1024 * 1024;
+	o.application.layout.seal_transactions = 1; // Checkpoints are taken at seals: one per change.
 	o.timing.heartbeat = 100;
 	o.timing.rpc_timeout = 200;
 	o.timing.election_min = 1000;
