@@ -1,6 +1,6 @@
 # namespace-s7-store: journal
 
-State: waiting on jobs 261113-044509-c22720 261113-044510-08f77b 261113-044511-bfb064 261113-044512-76bfe6 261113-044512-6794a6
+State: ready for review; jobs 261113-044509-c22720 (suite) and 261113-044510-08f77b (T7) still running; native check blocked on msg-47/msg-48
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
@@ -12,7 +12,9 @@ configuration, job 261113-042437-89be6e: got 1746, want 1129).
 
 ## Next
 
-1. Read the jobs; fill Evidence; set "ready for review" unless one fails.
+1. Read jobs 261113-044509-c22720 and 261113-044510-08f77b; fix and rerun if either fails.
+   Passed at the head: A3 261113-044510-384de8, A4 261113-044511-bfb064, counters 261113-044512-76bfe6,
+   pins 261113-044512-6794a6.
 2. When the lead widens the file set (msg-47/48): port tests/detent_delivery's test_coordinator,
    test_repair, test_bootstrap_retention, test_bundle_maintenance and test_managed_process.sh to
    trusted_records and the table, then `campaign verify` for a green native check.
