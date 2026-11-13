@@ -1,37 +1,60 @@
 # namespace-s8: journal
 
-State: ready for review; waiting on jobs 261113-003843-d3ad47 261113-003844-6e5e22 261113-003647-1556e1 261113-003650-50d7ee
+State: ready for review; waiting on jobs 261113-014108-9248b2 261113-014110-061ecc 261113-014119-1dd450 261113-014123-bc39b0
 Quest: .campaign/detent/quests/namespace-s8.md (the lead's; never edit it)
 
 ## Doing
 
-Session 2 (after namespace-s5-2 landed): main merged (Detent:728fe958); layout gets an explicit
-cut (a voter's empty base is no file); `plan_answer` replaced by `NamespaceRelay` (W8 reader and
-W6 source over S6's `NamespaceHistory`); `test_relay_chain` over three real voters.
+Durability review CHANGES at cf28f3f2 (`.campaign/detent/reviews/namespace-s8-durability.md`).
+Fixed at Detent:2b4bb2f2, mutants and docs at Detent:ec1c3148:
 
-Local (Detent:0b09208c): `test_relay_chain` ok in 46 s wall (0.3 s user; the cluster's syncs):
-14 steps, 2,349 file comparisons byte-identical, 1,674 cursors with identical W6 bytes per hop,
-C restarted with 0 files fetched; `test_relay_mirror` ok; T7 mirror 14,860 cases, 0 violations.
-Mutant smoke, locally: copy-keeps-tombstones, sections-named, keep-dropped killed.
+- D1: adoption's EEXIST branch now fsyncs the staged file and renames it over the existing name
+  ("sync replacement", "rename replacement"), as repair does, instead of unlink + relink before
+  the sync group. Test: `test_relay_mirror_crash` step 4 ("replace", 24 events): a reached file
+  of the wrong size at startup, the same layout adopted again, a power cut after every event;
+  every cut opens with the namespace failed or the upstream's bytes in place, and re-adopts to
+  the uninterrupted mirror. Mutant relink-unsynced (the old branch) fails at the "never trusts
+  zero-filled bytes" check, locally.
+- D2: `NamespaceRelay::layouts` offers a namespace failed at startup. Test: `test_relay_chain`
+  restarts B with one file lost; C syncs from B first: 0 collected, 0 fetched, ring kept; after
+  B re-adopts, C fetches 0. Mutant hide-failed (the old filter) fails there, locally.
 
 | Job | For | What |
 |---|---|---|
-| 261113-003843-d3ad47 | A1, A2, A4, A5 | native suite, --fresh (`test_relay_chain`, `test_relay_mirror`) |
-| 261113-003844-6e5e22 | A1, A2, A4, A5 | pins, --fresh |
-| 261113-003637-27c63b | A3 | T7 crash matrix: done, exit 0 (82 s) |
-| 261113-003639-930a27 | A5 | mutant copy-keeps-tombstones: done, killed ("a full copy holds a tombstone") |
-| 261113-003647-1556e1 | A5 | mutant sections-named (fails-without) |
-| 261113-003650-50d7ee | A1 | mutant keep-dropped (fails-without) |
+| 261113-014108-9248b2 | A1, A2, A4, A5 | native suite at ec1c3148, --fresh |
+| 261113-014108-5c54ac | A1, A2, A4, A5 | pins at ec1c3148: done, exit 0 |
+| 261113-014110-061ecc | A3 | T7 crash matrix with the D1 run, --fresh |
+| 261113-014119-1dd450 | A3 | mutant relink-unsynced (D1), fails-without |
+| 261113-014123-bc39b0 | A2 | mutant hide-failed (D2), fails-without |
 
-Superseded: 261113-003635-494354 and -834187 failed exit 125 before running (the slot's `.git`
-points to a removed worktree registration again; msg-45 to the lead).
-Earlier mutant jobs (A2-A4, at 5afd10fb/89157642) stand; collect-missing-unlink (261112-120558-1bde4c)
-is retired as equivalent (ruling 7).
+Mutant jobs run `tests/detent_relay/mirror_mutant.sh`, which already exits 0 when the mutant is
+killed (1 survived, 3 no verdict), so they carry no `!`.
+
+Confirm mapping for `campaign accept namespace-s8 durability --confirm`: D1=261113-014108-9248b2,
+D2=261113-014108-9248b2 (the suite job; the crash matrix job 261113-014110-061ecc also shows D1).
+
+Before the review (Detent:0b09208c): native 261113-003843-d3ad47 and pins 261113-003844-6e5e22
+passed; crash 261113-003637-27c63b; mutants copy-keeps-tombstones 261113-003639-930a27,
+sections-named 261113-003647-1556e1, keep-dropped 261113-003650-50d7ee killed. Superseded:
+261113-003635-* (broken slot, msg-45).
+
+## Review findings for a follow-up (no code here)
+
+- D3: an I/O error while staging poisons the store until restart without removing the `.tmp-`
+  files; fix: `clean()` and rethrow, poison only once linking or the table has begun; test with
+  an injected write failure. Suits namespace-s8-wiring.
+- D4: `MirrorStore` and `NamespaceRelay` are single-threaded (now said in the status doc); the
+  wiring serializes calls or snapshots the table.
+- D5 (nit): `RingSink` should refuse an entry outside (after, to] as UpstreamMoved.
+- D6 (nit): the ring is memory only; the quest's Outcome says "persisted mirror of ... ring". The
+  lead rules on the wording.
+- D7 (nit): one namespace refused (FetchRefused) stops the whole adoption; per-namespace adoption
+  is the owner's call.
 
 ## Next
 
 1. Read the jobs; paste `campaign brief`'s table.
-2. Durability review (the lead launches it).
+2. `campaign accept namespace-s8 durability --confirm D1=... D2=...` (the lead).
 3. The lead rules on Blocked on 1.
 
 ## Blocked on
@@ -51,11 +74,11 @@ is retired as equivalent (ruling 7).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending 261113-003843-d3ad47, 261113-003844-6e5e22; fails without: 261113-003650-50d7ee |
+| A1 | 261113-003843-d3ad47, 261113-003844-6e5e22 (rerun 261113-014108-9248b2, 261113-014108-5c54ac); fails without: 261113-003650-50d7ee |
 | A2 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120549-f1e18a, 261112-120552-fbda3d (rerun at the new head pending) |
-| A3 | 261112-121306-11c4d7, 261113-003637-27c63b; fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c |
+| A3 | 261112-121306-11c4d7, 261113-003637-27c63b, 261113-014110-061ecc (D1); fails without: 261113-014119-1dd450 (D1), 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c |
 | A4 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120555-5fb518 (rerun pending) |
-| A5 | pending 261113-003843-d3ad47, 261113-003844-6e5e22; fails without: 261113-003639-930a27, 261113-003647-1556e1 |
+| A5 | 261113-003843-d3ad47, 261113-003844-6e5e22 (rerun 261113-014108-9248b2, 261113-014108-5c54ac); fails without: 261113-003639-930a27, 261113-003647-1556e1 |
 
 ## Result
 
@@ -72,6 +95,7 @@ repairs and plans answers; what each test shows).
 - msg-37 (closed by the lead): S5.2 landed; main merged, A1's voter half proven on real blocks
   in `test_relay_chain`.
 - msg-38 (closed by the lead): slot rebuilt; jobs resubmitted.
+- msg-45 (to the lead): the slot broke again; gate jobs resubmitted with --fresh.
 
 ## Rulings I made
 
@@ -103,3 +127,6 @@ repairs and plans answers; what each test shows).
     reset on a new incarnation is also implied by D3 (positions are never reused under a name,
     so a new incarnation's s is above the old ring's head); the explicit incarnation check stays
     and its mutant is equivalent against real voters, so it is not in the set.
+13. Review D2: a failed namespace is offered downstream but still not answered by `frames` until
+    adopted again (an answer would read through a missing file); downstream rings are kept, as an
+    upstream with no frame for a namespace means Current.
