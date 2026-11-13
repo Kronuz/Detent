@@ -1,6 +1,6 @@
 # delta-plan-scaling: journal
 
-State: waiting on jobs 261112-170932-ee31ea 261112-170935-8c7bb4 261112-171004-4fde22 261112-170947-1b9b23 261112-170951-9c408e 261112-170955-436de9 261112-170958-40ef49
+State: waiting on jobs 261112-175730-027a84 261112-175733-62e242 (5M prep, exclusive round)
 Quest: .campaign/detent/quests/delta-plan-scaling.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,11 +32,8 @@ sha256 b7f66891adadebd7da65c09f36b93251bd8f37d9343423a447adbe276b1f6284).
 
 ## Next
 
-1. Wait for the jobs; the 100K/1M strict rounds (170955, 170958) follow their prep jobs (170947, 170951).
-   Scripts and corpora are in ~/.scratch/dps (a2.sh prep|round SIZE CORPUS SHA ARMS).
-2. After 100K and 1M pass: one exclusive 5M round, `a2.sh prep 5m` (light) then `round 5m ... full 0.5` with
-   T9_BUDGET_S ~300, --for A2.
-3. Fill docs/perf/delta-plan-scaling.md's after table from the jobs; replace the A5 row; Result; delete stores.
+1. Wait for 5M: prep 261112-175730-027a84, then exclusive round 261112-175733-62e242 (T9_BUDGET_S 420, full 0.5).
+2. Fill the 5M row of docs/perf/delta-plan-scaling.md and the A5 row; Result; rm -rf ~/.scratch/dps/{store,build}-*.
 
 Committed: fix 2396a240, merged main d660a78a. File set widened by the lead (overlay).
 
@@ -53,6 +50,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261112-170345-ea0ce8 (profile at 1M, main's code): TrieOverlay::Impl::remove, a linear std::find over every page removed so far per converted node, 7,828 of 10,346 working samples (76%); O(keys x pages). Details: docs/perf/delta-plan-scaling.md |
+| A5 | `docs/perf/delta-plan-scaling.md`: "Before and after: plan per size (100K 0.782 -> 0.675 s, 1M 23.89 -> 6.919 s, 13.5 and 13.8 us/key after), byte identity, ledger margin; 5M row pending job 261112-175733-62e242" |
 
 ## Result
 

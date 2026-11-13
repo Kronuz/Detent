@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-12). Cause found and a candidate fix screened; the confirming jobs are pending.
+> Status: 100K and 1M measured (2026-11-12); the 5M round is pending.
 
 # A delta's plan, linear in the keys it changes
 
@@ -40,16 +40,26 @@ store (20 and 320 pages removed) and counts the extent comparisons per changed k
 
 The test requires growth of at most 4x.
 
-## Screen (local, light hold, one run each; not evidence)
+## Before and after
 
-Main's harness against the fix's, the same answer (0.5 C, seed 1009) on clones of one prepared store:
+Plan phase of the 0.5 C delta (seed 1009), per size. Before is main's code, after the fix's; the 100K and 1M
+before figures come from the identity job (261112-170932-ee31ea: main and the fix on clones of one prepared
+store, light hold), the after figures from the strict rounds, and the 5M before from job 261112-144057-f1c829.
 
-| Corpus | Keys changed | Plan, main | Plan, fix | Per key, fix |
-| --- | --- | --- | --- | --- |
-| 100K | 50,035 | 0.749 s | 0.656 s | 13.1 µs |
-| 1M | 499,922 | 24.05 s | 6.92 s | 13.8 µs |
+| Corpus | Keys changed | Plan before | Per key before | Plan after (strict) | Per key after | vs 100K |
+| --- | --- | --- | --- | --- | --- | --- |
+| 100K | 50,035 | 0.782 s | 15.6 us | 0.675 s (261112-170955-436de9) | 13.5 us | 1.0x |
+| 1M | 499,922 | 23.89 s | 47.8 us | 6.919 s (261112-170958-40ef49) | 13.8 us | 1.03x |
+| 5M | 2,499,245 | 512.8 s | 205 us | pending | pending | |
 
-The 100K and 1M stores published by main's and the fix's harness are byte-identical, every file of them.
+Apply wall (plan, decode, encode, publish) after the fix: 0.788 s at 100K, 7.394 s at 1M. Per-key plan cost
+at 1M is within 3% of 100K, inside the 2x bound. Other phases are unchanged within noise (1M: decode 0.32 s,
+publish 0.15 s; the full copy plans in 0.21 s at 100K and 2.14 s at 1M). Peak RSS at 1M: 820 MB before,
+817-828 MB after. Each removed page now charges about 56 bytes to the storage ledger (about 8 MB at 1M, and
+about 40 MB at 5M); the margin is noted, not consumed.
+
+Byte identity (job 261112-170932-ee31ea): every file of the published store is identical between main and
+the fix at 100K (f 0.05, 0.5, 1; 30, 32, 32 files) and 1M (f 0.5; 206 files).
 
 ## Method
 
