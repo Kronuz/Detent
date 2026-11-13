@@ -25,19 +25,18 @@ int main() {
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mappings;
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::GenerationId flat_id{}, paged_id{};
-		flat_id.fill('f');
+		l::GenerationId paged_id{};
 		paged_id.fill('p');
 		l::StorageIdentity storage{};
 		storage.fill('s');
-		l::ImageBuilder builder(source, flat_id);
+		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
 		std::filesystem::create_directories(directory);
 		check(::chmod(directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(flat_id);
+		const auto name = l::generation_name(builder.descriptor().generation);
 		write(directory / (name + ".image"), *builder.bytes());
 		write(directory / (name + ".lease"), {});
 		write(directory / "selected", l::encode_descriptor(builder.descriptor()));
@@ -50,7 +49,7 @@ int main() {
 		bundle.authenticated();
 		bundle.selected(flat);
 		const auto before = bundle.offer(cursor());
-		l::detail::PagedSnapshotBuilder replacement(flat, heap, storage, paged_id);
+		l::detail::PagedSnapshotBuilder replacement(flat, heap, paged_id);
 		while (!replacement.done()) {
 			l::ValidationBudget budget;
 			replacement.step(budget);
