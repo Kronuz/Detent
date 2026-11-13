@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: ready for review (jobs at 887a97a5 pending: 261113-050345-3cc679 261113-050349-8092b0 261113-050356-89edba 261113-050403-ee2963 261113-050411-f57264 261113-050418-a797ea)
+State: ready for review (jobs at b7f621e3 pending: 261113-052355-f37215 261113-052356-6966f1 261113-052400-cfef61 261113-052403-7aca58 261113-052406-041cb0 261113-052410-390ee0)
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,38 +32,42 @@ Before the review (at 42dc0361): suite 261113-033810-0c0530, history tests
 
 ## Next
 
-1. Read the jobs at 887a97a5; fix what fails; then the lead runs
-   `campaign accept namespace-s5-3 durability --confirm F1=261113-050356-89edba F2=261113-050356-89edba`.
+1. Read the jobs at b7f621e3; fix what fails; then the lead runs
+   `campaign accept namespace-s5-3 durability --confirm F1=261113-052400-cfef61 F2=261113-052400-cfef61`.
+   The F2 mechanism (file_bounds, policy refusal at encode/decode/apply, count cut) is for
+   the reviewer's re-review, per the lead.
 
-## Fix jobs at 887a97a5 (code; later commits are journal only)
+## Fix jobs at b7f621e3 (code; later commits are journal only)
 
-Lead rulings folded in after e3ac4162: F6 (design doc token), and write-side file bounds per
-kind (rulings 16-18). The e3ac4162 jobs are superseded: pins 261113-042535-90d7d4 and history
-tests 261113-042539-b20470 passed there; its suite and mutant jobs were cancelled.
+Lead rulings folded in after e3ac4162: F6 (design doc token), write-side file bounds per
+kind, and the count cut kept at 32 blocks with a reaching test (rulings 16-18). Superseded:
+e3ac4162 (pins 261113-042535-90d7d4, history tests 261113-042539-b20470 passed) and
+887a97a5 (pins 261113-050345-3cc679, history tests 261113-050349-8092b0 passed; suite and
+mutant jobs 261113-050356-89edba, -050403-ee2963, -050411-f57264, -050418-a797ea cancelled).
 
-Local (Release, this worktree, at 3960cd76 code): every `authority|history` ctest entry
-passes; large base prints a 73,260,051-byte base, an 8,411,523-byte seal file and an
-8,411,195-byte block installed through a 268,435,456-byte lane, default-policy bounds base
-134,217,975, block 29,491,454, seal file 49,692,847, table 52,797,592.
-`test_authority_snapshot_catchup` timed out twice in the first local run, under load (four
-light jobs and a VM build); it passed twice alone at the same code, and twice at e3ac4162 in
-261113-045723-04c9e0. A run with the lane at 64 MiB also passed. I read it as a load timing
-flake; the suite job decides.
+Local (Release, this worktree): every `authority|history` ctest entry passes at 887a97a5
+code; at b7f621e3 the cluster test's count cut fired after 33 seals on all three voters,
+byte-identical, and the layout oracle matched. Large base: 73,260,051-byte base,
+8,411,523-byte seal file, 8,411,195-byte block through a 268,435,456-byte lane;
+default-policy bounds base 134,217,975, block 29,491,454, seal file 49,692,847, table
+44,277,912. `test_authority_snapshot_catchup` timed out under load once locally and passed
+alone twice and in 261113-045723-04c9e0; the suite job decides.
 
-- Pins 261113-050345-3cc679.
-- Full native suite 261113-050356-89edba.
+- Pins 261113-052355-f37215.
 - History tests (transport, large base, names, power cut, node power cut, cluster, change
-  history, layout) 261113-050349-8092b0.
+  history, layout) 261113-052356-6966f1.
+- Full native suite 261113-052400-cfef61.
 - Review mutants (`--fails-without`): first-bytes-win, same-order, retry-failed-forever
   (transport), unchecked-fetch (power cut), old-fetch-bound, accept-low-fetch-bound,
-  drop-block-bound, drop-seal-bound, drop-table-bound (large base) 261113-050403-ee2963.
-- S5.3 six mutants 261113-050411-f57264; A5, S5.2's seven unwrapped 261113-050418-a797ea.
+  drop-block-bound, drop-seal-bound, drop-table-bound (large base), no-count-cut (cluster)
+  261113-052403-7aca58.
+- S5.3 six mutants 261113-052406-041cb0; A5, S5.2's seven unwrapped 261113-052410-390ee0.
 
-Confirm mapping: F1 = 261113-050356-89edba (suite: transport, power cut `installs rot`;
-mutants first-bytes-win, same-order, unchecked-fetch in 261113-050403-ee2963); F2 =
-261113-050356-89edba (suite: large base, transport's unservable file; mutants
-old-fetch-bound, accept-low-fetch-bound, retry-failed-forever and the three drop-*-bound in
-261113-050403-ee2963).
+Confirm mapping: F1 = 261113-052400-cfef61 (suite: transport, power cut `installs rot`;
+mutants first-bytes-win, same-order, unchecked-fetch in 261113-052403-7aca58); F2 =
+261113-052400-cfef61 (suite: large base, transport's unservable file, cluster count cut;
+mutants old-fetch-bound, accept-low-fetch-bound, retry-failed-forever, the three
+drop-*-bound and no-count-cut in 261113-052403-7aca58).
 
 ## Review findings not blocking
 
