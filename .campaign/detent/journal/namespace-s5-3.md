@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: waiting on jobs 261113-013222-0492b8 261113-013224-9d40a2 261113-013247-78f1d4 261113-013251-a8f47b 261113-013300-94782d
+State: waiting on jobs 261113-013247-78f1d4 261113-013251-a8f47b 261113-013300-94782d
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,6 +21,8 @@ A2-A5 are in at e67233f0; jobs queued there:
 Local at e67233f0 (quiet light): authority suite 50/51, the one failure
 `test_authority_snapshot_catchup` (detentd TLS read timeout under the parallel run) passing alone
 in 51.7 s, as in S5.2's journal; the native job decides. The cluster test runs in 0.1 s.
+
+Passed: pins 261113-013222-0492b8, history tests 261113-013224-9d40a2.
 
 A4's "CI green on every sanitizer job" needs the branch pushed, which is the lead's.
 
