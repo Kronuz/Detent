@@ -5234,7 +5234,9 @@
     },
     "namespace-s5-3": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-fetch-lane"
+      ],
       "base": "430f3c5da7fbaeb519b9eafad808fa74fb2b552d",
       "branch": "quest/detent/namespace-s5-3",
       "checks": [
@@ -5250,7 +5252,8 @@
         "src/detent_authority/**",
         "include/detent_authority/**",
         "tests/detent_authority/**",
-        "docs/status/namespace-s5.md"
+        "docs/status/namespace-s5.md",
+        "cmake/dependencies.json"
       ],
       "history": [
         {
@@ -5283,7 +5286,7 @@
       "risk": "high",
       "status": "active",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-13T00:05:55",
+      "updated": "2026-11-13T01:40:35",
       "worktree": "../Detent-wt/detent/namespace-s5-3"
     },
     "namespace-s6": {
