@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: working (lead rulings: F6, write-side file bounds)
+State: ready for review (jobs at 887a97a5 pending: 261113-050345-3cc679 261113-050349-8092b0 261113-050356-89edba 261113-050403-ee2963 261113-050411-f57264 261113-050418-a797ea)
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,28 +32,38 @@ Before the review (at 42dc0361): suite 261113-033810-0c0530, history tests
 
 ## Next
 
-1. Read the jobs at e3ac4162; fix what fails; then the lead runs
-   `campaign accept namespace-s5-3 durability --confirm F1=261113-042553-f1580d F2=261113-042553-f1580d`.
+1. Read the jobs at 887a97a5; fix what fails; then the lead runs
+   `campaign accept namespace-s5-3 durability --confirm F1=261113-050356-89edba F2=261113-050356-89edba`.
 
-## Fix jobs at e3ac4162 (code; later commits are journal only)
+## Fix jobs at 887a97a5 (code; later commits are journal only)
 
-Local first (Release, this worktree): history cluster, names, power cut (3 entries),
-transport 2.6 s (18 fetched, 6 rotten copies passed over, unservable file ended: "voter 1
-Input/output error, voter 2 none"), large base 7.3 s (73,260,051-byte base through a
-134,217,975-byte lane; refused at 64 MiB): all pass.
+Lead rulings folded in after e3ac4162: F6 (design doc token), and write-side file bounds per
+kind (rulings 16-18). The e3ac4162 jobs are superseded: pins 261113-042535-90d7d4 and history
+tests 261113-042539-b20470 passed there; its suite and mutant jobs were cancelled.
 
-- Pins 261113-042535-90d7d4.
-- Full native suite 261113-042553-f1580d.
-- History tests (with `test_authority_history_large_base`) 261113-042539-b20470.
+Local (Release, this worktree, at 3960cd76 code): every `authority|history` ctest entry
+passes; large base prints a 73,260,051-byte base, an 8,411,523-byte seal file and an
+8,411,195-byte block installed through a 268,435,456-byte lane, default-policy bounds base
+134,217,975, block 29,491,454, seal file 49,692,847, table 52,797,592.
+`test_authority_snapshot_catchup` timed out twice in the first local run, under load (four
+light jobs and a VM build); it passed twice alone at the same code, and twice at e3ac4162 in
+261113-045723-04c9e0. A run with the lane at 64 MiB also passed. I read it as a load timing
+flake; the suite job decides.
+
+- Pins 261113-050345-3cc679.
+- Full native suite 261113-050356-89edba.
+- History tests (transport, large base, names, power cut, node power cut, cluster, change
+  history, layout) 261113-050349-8092b0.
 - Review mutants (`--fails-without`): first-bytes-win, same-order, retry-failed-forever
-  (transport), unchecked-fetch (power cut), old-fetch-bound, accept-low-fetch-bound (large
-  base) 261113-042559-520ab7.
-- S5.3 six mutants rerun 261113-042612-0c0406; A5, S5.2's seven unwrapped 261113-042617-126409.
+  (transport), unchecked-fetch (power cut), old-fetch-bound, accept-low-fetch-bound,
+  drop-block-bound, drop-seal-bound, drop-table-bound (large base) 261113-050403-ee2963.
+- S5.3 six mutants 261113-050411-f57264; A5, S5.2's seven unwrapped 261113-050418-a797ea.
 
-Confirm mapping: F1 = 261113-042553-f1580d (suite; tests transport and power cut `installs
-rot`, mutants first-bytes-win, same-order, unchecked-fetch in 261113-042559-520ab7);
-F2 = 261113-042553-f1580d (suite; test large base and transport's unservable file, mutants
-old-fetch-bound, accept-low-fetch-bound, retry-failed-forever in 261113-042559-520ab7).
+Confirm mapping: F1 = 261113-050356-89edba (suite: transport, power cut `installs rot`;
+mutants first-bytes-win, same-order, unchecked-fetch in 261113-050403-ee2963); F2 =
+261113-050356-89edba (suite: large base, transport's unservable file; mutants
+old-fetch-bound, accept-low-fetch-bound, retry-failed-forever and the three drop-*-bound in
+261113-050403-ee2963).
 
 ## Review findings not blocking
 
