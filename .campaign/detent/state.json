@@ -4016,6 +4016,44 @@
       "title": "Namespace delivery design",
       "updated": "2026-11-08T15:38:06"
     },
+    "namespace-followups": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-cutover"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/history*",
+        "tests/detent_authority/test_history*",
+        "src/detent_relay/**",
+        "include/detent_relay/**",
+        "tests/detent_relay/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
+      "updated": "2026-11-13T08:18:30"
+    },
     "namespace-measure": {
       "accepted": {},
       "after": [],
