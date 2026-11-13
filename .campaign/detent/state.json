@@ -5128,6 +5128,39 @@
       "updated": "2026-11-12T22:28:56",
       "worktree": "../Detent-wt/detent/namespace-s5-2"
     },
+    "namespace-s5-3": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "include/detent_authority/**",
+        "tests/detent_authority/**",
+        "docs/status/namespace-s5.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "namespace-s5-2"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
+      "updated": "2026-11-12T22:30:31"
+    },
     "namespace-s6": {
       "accepted": {
         "correctness": {
