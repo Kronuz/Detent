@@ -5986,10 +5986,38 @@
         "include/detent_distribution/session_frames.hh",
         "tests/detent_distribution/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T12:17:32",
+          "commit": "78952bf8dd6983ee28625e31a83ab50c908d3a77",
+          "criteria": {
+            "A1": "261113-110844-ce6ed4; fails without: 261113-091251-d1a00c, 261113-091258-d2d9be, 261113-091559-6bf109, 261113-094032-0c4de6, 261113-094036-8d045d",
+            "A2": "261113-110844-ce6ed4; fails without: 261113-094023-df33a1, 261113-111916-9d2378",
+            "A3": "261113-110908-1667b8, 261113-110844-ce6ed4; fails without: 261113-091305-4832aa, 261113-094027-e8afb8, 261113-094041-4f9f7d"
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "10dd82f4168b1da1a7813dfab93b2f09fd319284",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-110911-9ff8f5",
+              "level": "none",
+              "seconds": 52.0,
+              "state": "done",
+              "what": "namespace-s6-cutover check pins at 10dd82f4168b"
+            }
+          ],
+          "final": true,
+          "from": "f550f5d5f6751bf9b0a867b579ec3a41357649ed",
+          "reason": "",
+          "tested": "2ab7466d1d2f6b69d3b50bb6667d4e9f08a8bc0f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s6",
@@ -6000,10 +6028,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-13T11:20:23",
-      "worktree": "../Detent-wt/detent/namespace-s6-cutover"
+      "updated": "2026-11-13T12:17:39",
+      "worktree": ""
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
