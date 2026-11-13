@@ -646,6 +646,60 @@ int main(int argc, char **argv) {
 		++cases;
 		beat(what + " at event " + std::to_string(index));
 	};
+	// D8.4: a republication over a cut publication's durable orphans (its generation files and segments),
+	// cut at every event in every mode and killed at every boundary, each orphan Remove among them.
+	auto orphan_cuts = [&](const Run &run) {
+		std::size_t at = 0;
+		for (std::size_t i = 0; i < run.history.size(); ++i) {
+			if (run.labels[i].starts_with("replace ") && run.labels[i].ends_with("-> selected"))
+				break;
+			if (run.boundary[i])
+				at = i;
+		}
+		const auto orphaned = after_cut(run.history[at], EntryMode::Durable, DataMode::Truncate);
+		const auto derived = l::generation_name(run.after.generation);
+		auto named = [](const std::vector<std::string> &names, std::string_view prefix) {
+			return std::any_of(names.begin(), names.end(), [&](const auto &name) { return name.starts_with(prefix); });
+		};
+		std::vector<std::string> durable;
+		for (const auto &[name, id] : orphaned.durable_entries)
+			durable.push_back(name);
+		check(named(durable, derived) && named(durable, "segment-"));
+		const auto root = directory / "orphans";
+		materialize(root, orphaned, true, EntryMode::Durable, DataMode::Truncate);
+		auto rerun = publish(root, orphaned, 2);
+		check(rerun.before == run.before && rerun.after == run.after);
+		check(named(rerun.removed, derived) && named(rerun.removed, "segment-"));
+		std::size_t removes = 0;
+		for (std::size_t j = 0; j < rerun.history.size(); ++j) {
+			const bool remove = j >= rerun.startup_events && rerun.labels[j] == "remove";
+			const bool after_remove = j > 0 && rerun.labels[j - 1] == "remove";
+			if (j % stride && !remove && !after_remove)
+				continue;
+			const auto probe = directory / "probe";
+			for (const auto &[entries, data] : modes) {
+				materialize(probe, rerun.history[j], false, entries, data);
+				verify(rerun, j, probe, "orphans " + rerun.labels[j]);
+			}
+			if (rerun.boundary[j]) {
+				materialize(probe, rerun.history[j], true, EntryMode::All, DataMode::Zeros);
+				verify(rerun, j, probe, "orphans kill");
+			}
+			removes += remove;
+		}
+		check(removes == rerun.removed.size());
+		std::filesystem::remove_all(root);
+		return removes;
+	};
+	// T7_GROUP=orphans runs only the orphan sweep.
+	if (const char *group = std::getenv("T7_GROUP"); group && std::string_view(group) == "orphans") {
+		const auto root = directory / "run-2";
+		materialize(root, start, true, EntryMode::Durable, DataMode::Truncate);
+		const auto removes = orphan_cuts(publish(root, start, 2));
+		std::cout << cases << " orphan republication cases passed, cutting at all " << removes
+				  << " orphan Removes\n";
+		return 0;
+	}
 	for (const std::size_t window : {std::size_t(1), std::size_t(2), std::size_t(128)}) {
 		const auto root = directory / ("run-" + std::to_string(window));
 		std::filesystem::remove_all(root);
@@ -701,6 +755,9 @@ int main(int argc, char **argv) {
 		// Restart-then-republish cycles: cut or kill at a boundary, restart, publish again, cut again.
 		if (window != 2)
 			continue;
+		const auto removes = orphan_cuts(run);
+		std::cout << "orphan republication: cut at all " << removes << " orphan Removes\n";
+		progress("window 2 orphan sweep");
 		unsigned cycle = 0, orphaned = 0;
 		for (std::size_t i = 0; i < run.history.size(); ++i) {
 			// Every fifth boundary, and always the one completing a Replace (rename visible, not yet durable).
