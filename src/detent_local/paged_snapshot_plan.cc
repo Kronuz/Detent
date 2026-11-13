@@ -18,7 +18,7 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 	// A snapshot is a full copy, so its name has a zero base (D8.1).
 	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->cursor(),
 									  source->profile(), true);
-	encoder_.emplace(std::move(source), name.id, bounds);
+	encoder_.emplace(std::move(source), name, bounds);
 }
 bool PagedSnapshotPlanBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)

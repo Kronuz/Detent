@@ -11,8 +11,7 @@ namespace l = detent::local;
 namespace c = l::completion;
 std::unique_ptr<l::ImageBuilder> candidate(std::uint64_t revision, char id) {
 	auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24, 25, revision)));
-	l::GenerationId generation;
-	generation.fill(id);
+	const auto generation = l::next_generation(std::nullopt, snapshot->cursor(), snapshot->profile(), true).id;
 	auto builder = std::make_unique<l::ImageBuilder>(snapshot);
 	while (!builder->done()) {
 		l::ValidationBudget budget;

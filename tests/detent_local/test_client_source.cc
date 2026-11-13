@@ -32,8 +32,7 @@ void write(const std::filesystem::path &path, std::span<const char> bytes) {
 }
 void publish(const std::filesystem::path &directory, std::shared_ptr<const d::ValidatedSnapshot> snapshot,
 			 char id) {
-	l::GenerationId generation;
-	generation.fill(id);
+	const auto generation = l::next_generation(std::nullopt, snapshot->cursor(), snapshot->profile(), true).id;
 	l::ImageBuilder builder(std::move(snapshot));
 	while (!builder.done()) {
 		l::ValidationBudget budget;

@@ -35,7 +35,7 @@ struct SegmentBuilder::Impl {
 	Impl(std::shared_ptr<distribution::StorageLedger> account, GenerationId publication, std::uint64_t ordinal) {
 		require(nonzero(publication));
 		ownership.segment = derive_segment(publication, ordinal);
-		p::count_hash(p::HashKind::Metadata, 1, publication.size() + 8);
+		p::count_hash(p::HashKind::Metadata, 1, segment_derivation_bytes);
 		output = distribution::make_owned_buffer(std::move(account), p::segment_bytes);
 	}
 };

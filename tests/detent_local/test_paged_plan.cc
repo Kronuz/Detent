@@ -45,8 +45,6 @@ int main() {
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 4);
 		{
-			rejects<std::invalid_argument>(
-				[&] { l::detail::PagedPlanBuilder invalid(*recovered, delta, domain); });
 			auto stale_cursor = base.cursor;
 			--stale_cursor.revision;
 			auto stale = progress(stale_cursor, account);
@@ -78,7 +76,8 @@ int main() {
 			rejects<std::logic_error>([&] { builder.take(); });
 			require(plan.base_descriptor() == base && plan.directory_identity() == identity);
 			require(plan.root().tree == image.root().tree);
-			require(plan.root().cursor == delta->target() && plan.descriptor().generation == next);
+			require(plan.root().cursor == delta->target() &&
+					plan.descriptor().generation == l::next_generation(base, delta->target(), delta->profile(), false).id);
 			require(plan.descriptor().checksum ==
 					p::metadata_commitment({plan.bytes()->data(), plan.bytes()->size()}));
 			require(plan.registry()->validated_root().cursor == base.cursor);

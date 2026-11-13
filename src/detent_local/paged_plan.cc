@@ -67,8 +67,10 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 		throw std::invalid_argument("snapshot image account mismatch");
 	root_ = replacement_->image().root();
 	descriptor_ = replacement_->image().descriptor();
-	descriptor_.ordinal = build_ordinal(
-		construction_base_ ? std::optional(construction_base_->descriptor()) : std::nullopt, descriptor_.cursor);
+	if (descriptor_.ordinal != build_ordinal(construction_base_ ? std::optional(construction_base_->descriptor())
+															   : std::nullopt,
+											 descriptor_.cursor))
+		throw std::invalid_argument("snapshot image ordinal is not derived over its base");
 	if ((intent == PagedPlanIntent::Fresh) != !construction_base_)
 		throw std::invalid_argument("snapshot intent and actual base mismatch");
 	if (construction_base_) {

@@ -120,8 +120,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			return decoder.finish();
 		};
 		auto source = std::make_shared<const d::ValidatedSnapshot>(input(25));
-		l::GenerationId flat_id{}, paged_id{}, changed_id{};
-		flat_id.fill('f');
+		l::GenerationId paged_id{}, changed_id{};
 		paged_id.fill('p');
 		changed_id.fill('x');
 		l::StorageIdentity storage{};
@@ -134,7 +133,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		auto flat_directory = directory / "flat";
 		std::filesystem::create_directories(flat_directory);
 		state_check(::chmod(flat_directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(flat_id);
+		const auto name = l::generation_name(flat_builder.descriptor().generation);
 		write(flat_directory / (name + ".image"), *flat_builder.bytes());
 		write(flat_directory / (name + ".lease"), {});
 		write(flat_directory / "selected", l::encode_descriptor(flat_builder.descriptor()));
@@ -187,8 +186,6 @@ void run(bool nul_key, unsigned namespace_count) {
 				}
 				state_check(refused && mappings->used() == before);
 			}
-			l::GenerationId candidate_id{};
-			candidate_id.fill('c');
 			std::optional<l::ImageBuilder> staged(std::in_place, source);
 			while (!staged->done()) {
 				l::ValidationBudget budget{1, 1};
@@ -218,8 +215,6 @@ void run(bool nul_key, unsigned namespace_count) {
 		if (namespace_count) {
 			for (unsigned change = 1; change <= 4; ++change) {
 				auto altered = std::make_shared<const d::ValidatedSnapshot>(input(25, change));
-				l::GenerationId candidate_id{};
-				candidate_id.fill('d' + change);
 				l::ImageBuilder output(altered);
 				while (!output.done()) {
 					l::ValidationBudget budget{1, 1};

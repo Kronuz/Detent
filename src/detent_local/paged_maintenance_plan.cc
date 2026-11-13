@@ -14,7 +14,7 @@ PagedMaintenanceBuilder::PagedMaintenanceBuilder(RecoveredGeneration base,
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	// A full copy at the base's own cursor: a zero base and the base's ordinal + 1 (D8.2).
 	const auto &head = base_.descriptor();
-	encoder_.emplace(base_, heap_, next_generation(head, head.cursor, head.profile, true).id, bounds);
+	encoder_.emplace(base_, heap_, next_generation(head, head.cursor, head.profile, true), bounds);
 }
 bool PagedMaintenanceBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)

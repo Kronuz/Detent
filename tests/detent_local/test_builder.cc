@@ -2,8 +2,8 @@
 int main() {
 	try {
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		detent::local::GenerationId generation;
-		generation.fill('a');
+		detent::local::GenerationId generation{};
+		generation.fill(1);
 		detent::local::ImageBuilder builder(snapshot);
 		std::size_t turns = 0;
 		require(!builder.done());

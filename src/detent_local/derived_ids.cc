@@ -52,7 +52,7 @@ GenerationId derive_generation(const distribution::Profile &profile, const distr
 }
 
 SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal) {
-	return Input("detent.agent-store.segment").add(generation).add(ordinal, 8).id();
+	return Input(segment_domain).add(generation).add(ordinal, 8).id();
 }
 
 distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &cursor) {

@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
+#include "detent_local/derived_ids.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
 #include "detent_local/paged_layout.hh"
@@ -14,9 +15,9 @@ class PagedImage;
 class PagedSnapshotBuilder {
   public:
 	// Retain decoded input separately for its budgeted disposal after this builder.
-	PagedSnapshotBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>, GenerationId,
+	PagedSnapshotBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>, DerivedGeneration,
 						 paged::Limits = {});
-	PagedSnapshotBuilder(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>, GenerationId,
+	PagedSnapshotBuilder(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>, DerivedGeneration,
 						 paged::Limits = {});
 	~PagedSnapshotBuilder();
 	PagedSnapshotBuilder(PagedSnapshotBuilder &&) noexcept;

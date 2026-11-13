@@ -98,6 +98,7 @@ int main() {
 	}
 	auto pinned = std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
 	store->confirm_recovered(*pinned);
+	next = pinned->descriptor().generation;
 	base.reset();
 	{
 		l::detail::PagedPlanBuilder builder(*pinned, progress(pinned->descriptor().cursor, account),
@@ -112,6 +113,7 @@ int main() {
 	{
 		auto current = l::recover_generation(root, options.recovery_limits, {}, &*pinned);
 		store->confirm_recovered(current);
+		last = current.descriptor().generation;
 	}
 	unpinned(root / (l::generation_name(generation) + ".lease"));
 	store->request_collection();

@@ -55,8 +55,7 @@ int main() {
 		if (variant == 17)
 			require(std::filesystem::remove(missing));
 		if (variant == 10) {
-			l::GenerationId legacy{};
-			legacy.fill('v');
+			const auto legacy = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 			l::ImageBuilder flat(source);
 			while (!flat.done()) {
 				l::ValidationBudget budget;

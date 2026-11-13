@@ -62,10 +62,10 @@ int main() {
 			}
 			auto plan = builder.take();
 			const auto descriptor = plan.descriptor();
-			const auto name = l::generation_name(next);
+			const auto name = l::generation_name(descriptor.generation);
 			write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership({storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
+				  l::encode_generation_ownership({storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 			write(directory / "selected", l::encode_descriptor(descriptor));
 		}
 		std::optional<l::RecoveredGeneration> current;
@@ -116,11 +116,11 @@ int main() {
 			{
 				auto plan = builder.take();
 				const auto descriptor = plan.descriptor();
-				const auto name = l::generation_name(later);
+				const auto name = l::generation_name(descriptor.generation);
 				write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, later, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
+						  {storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 			}
 			const auto installed_bytes = mappings->used();

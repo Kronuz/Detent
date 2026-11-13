@@ -774,18 +774,21 @@ class PublicationOperation final : public c::Operation {
 		prepare(c::Kind::CloseFile);
 		request_.file = staged_[close_index_];
 	}
-	// A name the selected generation reaches: its own files, or a segment its registry holds. Without
-	// the verified registry of a selected generation every segment name counts as reached.
+	// A name the selected generation reaches: its own files, or a segment its verified registry holds.
+	// A verified flat head reaches no segment; any other head without its registry reaches every one.
 	bool reached(std::string_view name) const {
 		const auto &core = *data_->core;
 		const auto &selected = core.selection.descriptor;
 		if (const auto parsed = detail::parse_generation_name(name))
 			return selected && parsed->generation == selected->generation;
 		if (const auto parsed = detail::parse_segment_name(name)) {
-			if (!core.verified_paged)
-				return bool(selected);
-			const auto inputs = core.verified_paged->registry()->inputs();
-			return detail::find_segment(inputs, parsed->segment) != inputs.size();
+			if (!selected)
+				return false;
+			if (core.verified_paged && same_generation(core.verified_paged->descriptor(), *selected)) {
+				const auto inputs = core.verified_paged->registry()->inputs();
+				return detail::find_segment(inputs, parsed->segment) != inputs.size();
+			}
+			return core.verified_paged || core.verified != selected;
 		}
 		return true;
 	}

@@ -52,8 +52,7 @@ int main() {
 					progress.string_bytes == 24 && progress.wire_bytes == encoded.size());
 		}
 		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
-		l::GenerationId generation;
-		generation.fill('p');
+		const auto generation = l::next_generation(std::nullopt, snapshot->cursor(), snapshot->profile(), true).id;
 		l::ImageBuilder builder(snapshot);
 		while (!builder.done()) {
 			l::ValidationBudget budget;

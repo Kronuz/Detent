@@ -6,23 +6,24 @@
 #include <iostream>
 #include <limits>
 #include <sha256.h>
+#include <source_location>
 #include <stdexcept>
 #include <string_view>
 
 namespace l = detent::local;
 namespace {
-void check(bool value) {
+void check(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("storage ownership invariant failed");
+		throw std::runtime_error("storage ownership invariant failed at line " + std::to_string(at.line()));
 }
-template <class Action> void rejected(Action action) {
+template <class Action> void rejected(Action action, std::source_location at = std::source_location::current()) {
 	bool failed = false;
 	try {
 		action();
 	} catch (const std::invalid_argument &) {
 		failed = true;
 	}
-	check(failed);
+	check(failed, at);
 }
 template <std::size_t N> std::array<char, N> unhex(std::string_view hex) {
 	check(hex.size() == N * 2);
@@ -166,7 +167,7 @@ int main() {
 		}
 		for (auto length : {0u, 191u}) {
 			auto broken = lease;
-			l::write_integer(broken, 32, length, 8);
+			l::write_integer(broken, 48, length, 8);
 			reseal(broken);
 			rejected([&] { l::decode_generation_ownership(broken); });
 			ownership.image_length = length;

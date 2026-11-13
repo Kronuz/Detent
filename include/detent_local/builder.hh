@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
+#include "derived_ids.hh"
 #include "generation.hh"
 namespace detent::local {
 // Build-worker capability: borrows sealed semantic input through all work.

@@ -130,8 +130,7 @@ int main() {
 	require(navigator.discard(disposal));
 	require(account->used() == baseline);
 	{
-		l::GenerationId flat_id{};
-		flat_id.fill('f');
+		const auto flat_id = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 		l::ImageBuilder flat(source);
 		while (!flat.done()) {
 			l::ValidationBudget b;

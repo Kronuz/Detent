@@ -48,7 +48,7 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					break;
 				}
 				assembly.emplace(account, *overlay, plan->registry_->inputs(), old_live,
-								 plan->base_->root(), plan->descriptor_.generation, plan->descriptor_.cursor, limits,
+								 plan->base_->root(), DerivedGeneration{plan->descriptor_.generation, plan->descriptor_.ordinal}, plan->descriptor_.cursor, limits,
 								 maximum_output_bytes);
 				position = 0;
 				phase = Phase::Assemble;

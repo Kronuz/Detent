@@ -98,13 +98,13 @@ int main() {
             {id, image.descriptor().checksum, {}, l::paged::root_bytes});
         std::size_t length = 0;
         switch (variant) {
-            case 0: metadata[119] = 2; length = 120; break;
-            case 1: metadata[120] = 1; length = 121; break;
-            case 2: l::write_integer(metadata, 112, 1, 4); length = 116; break;
+            case 0: metadata[103] = 2; length = 104; break;
+            case 1: metadata[104] = 1; length = 105; break;
+            case 2: l::write_integer(metadata, 96, 1, 4); length = 100; break;
             case 3:
-                l::write_integer(metadata, 80, UINT32_MAX, 4);
-                l::write_integer(metadata, 84, 1, 4);
-                length = 88;
+                l::write_integer(metadata, 64, UINT32_MAX, 4);
+                l::write_integer(metadata, 68, 1, 4);
+                length = 72;
                 break;
         }
         write(root / (name + ".read"), std::span(metadata).first(length));

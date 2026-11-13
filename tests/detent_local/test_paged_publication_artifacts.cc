@@ -62,6 +62,9 @@ int main() {
 					}
 					plan.emplace(construction.take());
 				}
+				next = l::next_generation(recovered.descriptor(), plan->descriptor().cursor, plan->descriptor().profile,
+										  false)
+						   .id;
 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
 				if (pressure) {
 					auto admission = account->admit(account->limit() - account->used());

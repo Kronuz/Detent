@@ -228,8 +228,7 @@ int main() {
 			require(::close(fd) == 0 && limits.mapping_account->used() == 0);
 		}
 		{
-			l::GenerationId legacy;
-			legacy.fill('v');
+			const auto legacy = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 			l::ImageBuilder builder(source);
 			while (!builder.done()) {
 				l::ValidationBudget budget;

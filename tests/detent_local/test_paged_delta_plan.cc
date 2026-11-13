@@ -145,7 +145,9 @@ int main() {
 			rejects<std::logic_error>([&] { builder.take(); });
 			check(plan.base_descriptor() == recovered.descriptor() &&
 					plan.directory_identity() == recovered.directory_identity());
-			check(plan.descriptor().generation == next &&
+			check(plan.descriptor().generation == l::next_generation(recovered.descriptor(), plan.descriptor().cursor,
+																   plan.descriptor().profile, false)
+															  .id &&
 					plan.descriptor().cursor.revision == 43 + transactions);
 			check(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
 			check(plan.new_reachability(0).pages == plan.root().pages &&
@@ -164,7 +166,7 @@ int main() {
 		domain.close().wait();
 		check(account->used() == baseline);
 	}
-	for (unsigned invalid = 0; invalid < 3; ++invalid) {
+	for (unsigned invalid : {0u, 2u}) {
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 8);

@@ -23,8 +23,7 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::GenerationId generation;
-		generation.fill('g');
+		const auto generation = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
