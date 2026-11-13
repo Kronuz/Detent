@@ -1,6 +1,6 @@
 # logger-exit-crash: journal
 
-State: waiting on jobs 261112-163559-b2eff5 (A1,A3), 261112-163606-ae7ad9 (A2), 261112-163610-8588d1 (A4), suite 261112-163551-3a803c
+State: waiting on jobs 261112-164721-1f7329 (A1,A3 pass), 261112-163559-b2eff5 (mutant), 261112-163606-ae7ad9 (A2), 261112-163610-8588d1 (A4), suite 261112-164723-6777b6
 Quest: .campaign/detent/quests/logger-exit-crash.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -57,4 +57,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 | Criterion | Evidence |
 |---|---|
-| A5 | `docs/ROADMAP.md`: "stash bundles a no-op `L_*` stub (`L_EXC`) ..."; no mention of scheduler (grep -ci = 0) |
+| A5 | `docs/ROADMAP.md`: "stash bundles a no-op `L_*` stub (`L_EXC`) so it builds without a logger." |
