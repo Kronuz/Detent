@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: waiting on jobs 261113-032549-708552 261113-032551-c8c730 261113-032554-b6d693 261113-032601-1a5622 261113-032609-b2cea0
+State: waiting on jobs 261113-033825-96867a 261113-033810-0c0530 261113-033759-fee988 261113-032601-1a5622 261113-033814-67ea69
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Every criterion is in code at d52bbc1b (main merged at e4a7e81d, consensus pinned at a197efb).
-Jobs there:
+Every criterion is in code at 42dc0361 (main merged at e4a7e81d, consensus pinned at a197efb).
+The history-tests job at d52bbc1b (261113-032554-b6d693) failed only in
+`test_authority_history_layout`, which pinned the old block-name format; 42dc0361 pins the token
+name. Jobs:
 
-- Gate: pins 261113-032549-708552; full native suite 261113-032551-c8c730.
+- Gate: pins 261113-033825-96867a; full native suite 261113-033810-0c0530.
 - A1-A4: history tests (transport install, names, power cut, node power cut, cluster, change
-  history, layout) 261113-032554-b6d693.
-- A1-A4 mutants (`--fails-without`): reader-serves-nothing, durable-at-seal, trust-rotten-table,
+  history, layout) 261113-033759-fee988.
+- A1-A4 mutants (`--fails-without`, at d52bbc1b; 42dc0361 changes only the layout test, which
+  none of them runs): reader-serves-nothing, durable-at-seal, trust-rotten-table,
   retained-bounds-only, serve-any-name, namespace-in-file-names 261113-032601-1a5622.
-- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-032609-b2cea0.
+- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-033814-67ea69 (after the history
+  tests).
 
 Earlier, at e67233f0: pins, history tests, suite, both mutant runs passed (261113-013222-0492b8,
 -013224-9d40a2, -013247-78f1d4, -013251-a8f47b, -013300-94782d).
@@ -44,11 +48,11 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
-| A2 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
-| A3 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
-| A4 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 (sanitizer CI needs a push) |
-| A5 | fails without: 261113-032609-b2cea0 |
+| A1 | 261113-033759-fee988; fails without: 261113-032601-1a5622 |
+| A2 | 261113-033759-fee988; fails without: 261113-032601-1a5622 |
+| A3 | 261113-033759-fee988; fails without: 261113-032601-1a5622 |
+| A4 | 261113-033759-fee988; fails without: 261113-032601-1a5622 (sanitizer CI needs a push) |
+| A5 | fails without: 261113-033814-67ea69 |
 
 ## Result
 
