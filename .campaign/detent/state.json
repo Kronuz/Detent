@@ -6570,9 +6570,27 @@
         "docs/mechanisms/**",
         "benchmarks/CMakeLists.txt"
       ],
+      "history": [
+        {
+          "at": "2026-11-13T06:35:32",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk (agent publish path, crash model, reclaim); one reviewer by that lens, as namespace-s7-ids, s5-3 and s8 have",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "N1",
       "needs": [
@@ -6583,7 +6601,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T06:35:31",
+      "updated": "2026-11-13T06:35:32",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
