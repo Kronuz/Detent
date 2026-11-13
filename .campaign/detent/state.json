@@ -6396,7 +6396,117 @@
       "worktree": "../Detent-wt/detent/namespace-s7-wire"
     },
     "namespace-s8": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-13T01:56:05",
+          "base": "179b7185521d702741035557467209a3da0e34bd",
+          "blobs": {
+            "docs/status/namespace-s8.md": "100644:1acec6a6c3480b0e97b6d54a76a2455510e79310",
+            "include/detent_relay/mirror.hh": "100644:99b80536b685663f7d8e31f0eb4d53186f5957ea",
+            "include/detent_relay/namespace_relay.hh": "100644:507ed724fb15c15b8afb6a3c591a136edfb25f6a",
+            "src/detent_relay/CMakeLists.txt": "100644:4fc3f7f217f9dbd13c4ef333c64a1de01d30717a",
+            "src/detent_relay/mirror.cc": "100644:13d76ef3a31dca5afe8dc25fad21faf69e707e0a",
+            "src/detent_relay/namespace_relay.cc": "100644:a5656750692e6e432da0ec4f5db3ab4c6f9f33df",
+            "tests/CMakeLists.txt": "100644:52921dc71d0db4a01473cb1d4d4b1973521024c5",
+            "tests/detent_relay/CMakeLists.txt": "100644:eff69055d0ce0fa9edaac59fa3f317dfe5316478",
+            "tests/detent_relay/mirror_fixture.hh": "100644:b5f66f0f739993ffd7f32980732008551b8662ea",
+            "tests/detent_relay/mirror_mutant.sh": "100755:c4d589c75353d9636434edd934d49a05c62f8d51",
+            "tests/detent_relay/mutants/collect-before-table.patch": "100644:96a82e79709cf17a680ea41f0f583017120c1efd",
+            "tests/detent_relay/mutants/copy-keeps-tombstones.patch": "100644:f6552c34d616d93df793c7f3e169918a50b2f137",
+            "tests/detent_relay/mutants/fetch-reached.patch": "100644:21ce5164d9eddd41bda5ef10d538ec058616d9bb",
+            "tests/detent_relay/mutants/hide-failed.patch": "100644:e0f6250acedf60b11edba5d42de260fe009e1419",
+            "tests/detent_relay/mutants/keep-dropped.patch": "100644:6340f6651ffc196dd8ebdc21d00c4c35a1916d4b",
+            "tests/detent_relay/mutants/keep-orphans.patch": "100644:87074ecad51a52d2829881e47c2de30a84615c3f",
+            "tests/detent_relay/mutants/no-collector.patch": "100644:3090eb6adfdaefc09da1589be8ae791940a1b17d",
+            "tests/detent_relay/mutants/no-sync-group.patch": "100644:aaac65edd64a324d88cfca4564c7ac963e5052b9",
+            "tests/detent_relay/mutants/relink-unsynced.patch": "100644:cbe4f1deff9d13ac429ae3c2da786825b2ca5e28",
+            "tests/detent_relay/mutants/rename-before-fsync.patch": "100644:1525eb9498f6275895217dbc9c02c3b036579347",
+            "tests/detent_relay/mutants/sections-named.patch": "100644:9046fd107ab35740c317477496ff0e7c84955ad2",
+            "tests/detent_relay/mutants/trust-first-read.patch": "100644:64f3c1696b8414e05e02a9b7e76423a54c6196a4",
+            "tests/detent_relay/test_relay_chain.cc": "100644:71ca6736313ab6c7b2aec9ac8b65a61e4c47222e",
+            "tests/detent_relay/test_relay_mirror.cc": "100644:63fc6a60c537cfe376bcf1f97ef0cc9edb883655",
+            "tests/detent_relay/test_relay_mirror_crash.cc": "100644:d88ca0843e5490947b720c736b39b2ace897f6cc"
+          },
+          "by": "review",
+          "commit": "9bf4c2d3c18444eee1620c97871ca342a3f5ff9a",
+          "criteria": "e321377b59fa2356",
+          "diffs": {
+            "": "174cc01d3b227f42",
+            "docs/status/namespace-s8.md": "3d130cc4ee9a9851",
+            "include/detent_relay/mirror.hh": "9bead4c326f05655",
+            "include/detent_relay/namespace_relay.hh": "a1222c54ccce4ae3",
+            "src/detent_relay/CMakeLists.txt": "06282ab967717187",
+            "src/detent_relay/mirror.cc": "cec64598e5ca1912",
+            "src/detent_relay/namespace_relay.cc": "0a7ffefe2f8b8a72",
+            "tests/CMakeLists.txt": "13e3297d01da6b70",
+            "tests/detent_relay/CMakeLists.txt": "63c98cdcd6f4168e",
+            "tests/detent_relay/mirror_fixture.hh": "d5fa0cb41d4a1f02",
+            "tests/detent_relay/mirror_mutant.sh": "10d7c47a7c2663d5",
+            "tests/detent_relay/mutants/collect-before-table.patch": "8f4794ce2fc6c785",
+            "tests/detent_relay/mutants/copy-keeps-tombstones.patch": "235d30b5c0d4ce5d",
+            "tests/detent_relay/mutants/fetch-reached.patch": "871348df304c99ce",
+            "tests/detent_relay/mutants/hide-failed.patch": "a54f525a57564bdd",
+            "tests/detent_relay/mutants/keep-dropped.patch": "ef97691835fde8be",
+            "tests/detent_relay/mutants/keep-orphans.patch": "3972fe66d83d7729",
+            "tests/detent_relay/mutants/no-collector.patch": "45884b87a9ccb0e1",
+            "tests/detent_relay/mutants/no-sync-group.patch": "908a86e61dfd2325",
+            "tests/detent_relay/mutants/relink-unsynced.patch": "46409b5130f8646b",
+            "tests/detent_relay/mutants/rename-before-fsync.patch": "337bac9959436383",
+            "tests/detent_relay/mutants/sections-named.patch": "61be8f8475204666",
+            "tests/detent_relay/mutants/trust-first-read.patch": "9a388ec62af191f7",
+            "tests/detent_relay/test_relay_chain.cc": "a88ba71e07b86ffe",
+            "tests/detent_relay/test_relay_mirror.cc": "ffedd00019f87b74",
+            "tests/detent_relay/test_relay_mirror_crash.cc": "f3b64a62f91fee27"
+          },
+          "findings": {
+            "D1": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "ec1c314876a7420937e4298a25f2b01309173f6c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261113-014108-9248b2",
+                  "level": "light",
+                  "seconds": 886.3,
+                  "state": "done",
+                  "what": "namespace-s8 check native at ec1c314876a7"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "D2": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "ec1c314876a7420937e4298a25f2b01309173f6c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261113-014108-9248b2",
+                  "level": "light",
+                  "seconds": 886.3,
+                  "state": "done",
+                  "what": "namespace-s8 check native at ec1c314876a7"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "tests/detent_relay/mutants/hide-failed.patch",
+              "tests/detent_relay/mutants/relink-unsynced.patch"
+            ],
+            "reason": "the files the review never saw are the D1/D2 mutant patches and the status doc; they add no mechanism"
+          },
+          "note": "",
+          "review": "c060b5ca5f78b793f1f9d6faaae82613114c54a5",
+          "reviewed": "cf28f3f233a7185bbcc9e33c343238c4c114a796",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "namespace-s6",
         "namespace-s5-2"
@@ -6495,7 +6605,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-13T00:39:52",
+      "updated": "2026-11-13T01:56:05",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s8-wiring": {
