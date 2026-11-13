@@ -45,7 +45,16 @@ struct TrieOverlay::Impl {
 	std::vector<SegmentReachability, d::StorageAllocator<SegmentReachability>> removed;
 	std::vector<p::Reference, d::StorageAllocator<p::Reference>> removed_extents;
 	using ExtentKey = std::pair<StorageIdentity, std::uint32_t>;
-	std::set<ExtentKey, std::less<ExtentKey>, d::StorageAllocator<ExtentKey>> removed_set;
+	// Counts its comparisons: TrieOverlay::removal_probes.
+	struct ExtentLess {
+		std::uint64_t *probes;
+		bool operator()(const ExtentKey &a, const ExtentKey &b) const {
+			++*probes;
+			return a < b;
+		}
+	};
+	std::uint64_t probes = 0;
+	std::set<ExtentKey, ExtentLess, d::StorageAllocator<ExtentKey>> removed_set;
 	std::array<char, 202> key{};
 	std::array<Frame, 203> frames{};
 	std::size_t key_length = 0, offset = 0, depth = 0, charge = 0, copy = 0, common = 0,
@@ -83,7 +92,7 @@ struct TrieOverlay::Impl {
 		: account_(account), owner(std::move(lifetime)), segments(input), limits(bounds),
 		  arena(*account, 8192), removed(d::StorageAllocator<SegmentReachability>(account)),
 		  removed_extents(d::StorageAllocator<p::Reference>(account)),
-		  removed_set(std::less<ExtentKey>{}, d::StorageAllocator<ExtentKey>(account)) {
+		  removed_set(ExtentLess{&probes}, d::StorageAllocator<ExtentKey>(account)) {
 		if (!owner || segments.size() != base.segments)
 			throw std::invalid_argument("missing checked overlay input");
 		p::encode_root(base, limits);
@@ -166,10 +175,10 @@ struct TrieOverlay::Impl {
 			n,		  reference};
 	}
 	void remove(const p::Reference &reference) {
-		const auto &key = reference;
-		if (std::find(removed_extents.begin(), removed_extents.end(), key) != removed_extents.end())
+		// A page's nodes share its reference: it is removed once, found by its placement.
+		if (!removed_set.emplace(reference.segment, reference.offset).second)
 			return;
-		removed_extents.push_back(key);
+		removed_extents.push_back(reference);
 		const auto index = find_segment(segments, reference.segment);
 		++removed[index].pages;
 		removed[index].bytes += reference.length;
@@ -358,6 +367,9 @@ void TrieOverlay::begin_relocation(std::span<const StorageIdentity> selected,
 		s.relocation->depth = 1;
 	} else
 		s.phase = Impl::Phase::Done;
+}
+std::uint64_t TrieOverlay::removal_probes() const noexcept {
+	return impl_ ? impl_->probes : 0;
 }
 std::uint64_t TrieOverlay::visited_pages() const {
 	if (!impl_ || !impl_->relocation || impl_->failed)
