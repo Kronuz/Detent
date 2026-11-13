@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 0e1772df..22a86049 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -111,7 +111,7 @@ class MirrorHistory final : public d::NamespaceHistory {
+ 		for (const auto &file : layout.files)
+ 			if (file.kind == MirrorFile::Kind::Block || file.kind == MirrorFile::Kind::Section) {
+ 				tiers_.push_back(&file);
+-				spans_.push_back({file.first, file.last, file.kind == MirrorFile::Kind::Block});
++				spans_.push_back({file.first, file.last, true});
+ 			}
+ 	}
+ 	d::NamespaceCursor head() const noexcept override { return {cluster_, layout_.incarnation, ring_.head}; }

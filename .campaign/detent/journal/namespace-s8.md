@@ -1,62 +1,43 @@
 # namespace-s8: journal
 
-State: waiting on jobs 261112-121305-5dbe27 261112-121305-c6bca1 261112-121306-11c4d7 261112-121309-eb786c 261112-120543-c18350 261112-120546-8f0fcd 261112-120549-f1e18a 261112-120552-fbda3d 261112-120555-5fb518 261112-120558-1bde4c
+State: building test_relay_chain (A1 voter half, A5) locally
 Quest: .campaign/detent/quests/namespace-s8.md (the lead's; never edit it)
 
 ## Doing
 
-Mirror store built and tested locally at Detent:5afd10fb (`test_relay_mirror` ok; T7 mirror 14,860
-cases, 475 distinct cuts, 475 re-adopted, 0 violations, 12 s). Jobs queued:
-
-| Job | For | What |
-|---|---|---|
-| 261112-121305-5dbe27 | A2, A4 | native suite, --fresh (`test_relay_mirror` restart, follows) |
-| 261112-121305-c6bca1 | A2, A4 | pins, --fresh |
-| 261112-121306-11c4d7 | A3 | T7 crash matrix, --fresh |
-| 261112-121309-eb786c | A3 | mutant rename-before-fsync (fails-without), rerun |
-| 261112-120540-e6efea | A3 | mutant no-sync-group: done, killed (exit 0) |
-| 261112-120543-c18350 | A3 | mutant collect-before-table |
-| 261112-120546-8f0fcd | A3 | mutant keep-orphans (startup sweep) |
-| 261112-120549-f1e18a | A2 | mutant fetch-reached (reuse) |
-| 261112-120552-fbda3d | A2 | mutant trust-first-read (repair) |
-| 261112-120555-5fb518 | A4 | mutant no-collector |
-| 261112-120558-1bde4c | A4 | mutant collect-missing-unlink |
-
-Superseded: 261112-120518-8667ef and -a03f29 failed exit 125 before running (the slot
-`detent-namespace-s8`'s `.git` points to a removed worktree registration; msg-38 to the lead);
-261112-120534-7e0236 and 261112-120537-fb5cc7 lost their runner.
+Session 2 (after namespace-s5-2 landed): main merged (Detent:728fe958); layout gets an explicit
+cut (a voter's empty base is no file); `plan_answer` replaced by `NamespaceRelay` (W8 reader and
+W6 source over S6's `NamespaceHistory`); `test_relay_chain` over three real voters.
 
 ## Next
 
-1. Read the jobs; paste `campaign brief`'s table.
-2. Durability review (the lead launches it; the quest's lens).
-3. After S6 lands: A5 (W8) against its W5/W6 types; the mirror implements S6's history interface
-   and `plan_answer` goes.
-4. After S5.2 lands: A1's voter half and the service wiring (upstream layout and file-by-name).
+1. Build and run `test_relay_chain`, `test_relay_mirror`, `test_relay_mirror_crash`; commit.
+2. Jobs: native and pins (`campaign verify`), A1 and A5 (`test_relay_chain`), A3 crash matrix,
+   the mutants rerun.
+3. Durability review (the lead launches it).
 
 ## Blocked on
 
-1. **A1 needs S5.2 (namespace-blocks).** The quest consumes `namespace-blocks`, which
-   namespace-s5-2 provides; it is `planned`, behind namespace-measure. No voter writes a seal
-   file, block, base or `layout` on `main`, so "byte-identical to the voters'" has nothing to
-   compare against, and the layout's wire (fetch the upstream's layout, a file by name) is not
-   served. The brief only names namespace-s6. Options: (a) S8 builds the mirror against an
-   abstract upstream layout now (names, digests, sizes, ranges, cut, opaque policy), proves A2-A4
-   and the relay-chain half of A1 over a scripted upstream, and the voter half of A1 plus the
-   wiring into `service.cc` land after S5.2 as a follow-up task; (b) hold S8 until S5.2 lands.
-   Recommendation (a), which I am doing: the mirror's durability (A3) does not depend on the
-   block format, only on names and digests. Lead decides whether S8 needs S5.2 before landing.
-2. A5 waits for namespace-s6 (D84).
+1. **HTTP wiring of the relay service** (journal "Left open" 1 in docs/status/namespace-s8.md).
+   The relay's reading and answering is `NamespaceRelay` (library, tested in process over real
+   voters). Wiring it into `service.cc` needs the authority to export its layout and serve
+   history files and W5/W6 over HTTP: files by name are namespace-s5-3's peer endpoint, W5/W6
+   are namespace-s6-cutover's, and no quest exports the layout. Options: (a) land S8 as the
+   library plus in-process proof, and a follow-up quest after s5-3 and the cutover adds the
+   relay routes (`layouts` as a `DTMIRR01` table body, files by name, W5 sessions) and an HTTP
+   `Upstream`, with the authority's layout export in s5-3 or the cutover; (b) S8 adds the relay
+   routes now and tests relay-to-relay over HTTP, the authority upstream waiting. Recommend (a):
+   one HTTP shape for authority and relay, decided where the authority's endpoints are.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
-| A5 | <no evidence yet> |
+| A1 | <pending: test_relay_chain> |
+| A2 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120549-f1e18a, 261112-120552-fbda3d (rerun at the new head pending) |
+| A3 | 261112-121306-11c4d7; fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c (rerun pending) |
+| A4 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120555-5fb518 (rerun pending) |
+| A5 | <pending: test_relay_chain> |
 
 ## Result
 
@@ -67,6 +48,12 @@ repairs and plans answers; what each test shows).
 
 - D84 (Detent:86704b50, merged at quest/detent/namespace-s8 7f2c16ce): A5 added (W8); S8 lands
   after namespace-s6. Build A1-A4 now, A5 against S6's quest file.
+
+## Messages
+
+- msg-37 (closed by the lead): S5.2 landed; main merged, A1's voter half proven on real blocks
+  in `test_relay_chain`.
+- msg-38 (closed by the lead): slot rebuilt; jobs resubmitted.
 
 ## Rulings I made
 
@@ -82,5 +69,19 @@ repairs and plans answers; what each test shows).
    a file's first read in the process, which re-fetches a rotted file by name (D6 Recovery).
 6. A refused or failed fetch publishes nothing and leaves the mirror usable; only an I/O error
    after staging needs a restart. An adoption that changes nothing writes nothing.
-7. A1 is not tagged on any job: the relay-chain half is shown by `test_relay_mirror` `chain` (in
-   the suite), the voter half waits for S5.2.
+7. The mutant collect-missing-unlink (job 261112-120558-1bde4c survived) is equivalent:
+   completion's `PosixIO::remove` ignores ENOENT, so the existence check before the collector's
+   unlink did nothing. The check and the mutant are removed; `collect_missing` stays as a test.
+8. A layout names its cut; the base is optional (a voter writes no file for an empty base).
+9. `plan_answer` goes: S6's `select_answer` and encoder answer from `MirrorHistory`, the mirror
+   as a `NamespaceHistory`, so relay answers are the authority's bytes by construction.
+10. The relay library links `detent::authority` (state and S5.2's block codec, no consensus) to
+    decode blocks for answers; relays stay readers (W8).
+12. Relay mutants for the reader: copy-keeps-tombstones, sections-named, keep-dropped. A ring
+    reset on a new incarnation is also implied by D3 (positions are never reused under a name,
+    so a new incarnation's s is above the old ring's head); the explicit incarnation check stays
+    and its mutant is equivalent against real voters, so it is not in the set.
+11. A1 and A5 run over real voters through the cluster harness (tests/detent_authority's
+    `cluster_harness.hh`); the authority's `Upstream` (layout from `Layout::table()`, files from
+    its directory, frames from an oracle that replays every write) is test-side until the
+    authority exports them (Blocked on 1).

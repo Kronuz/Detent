@@ -6,7 +6,10 @@ set -uo pipefail
 
 patch=${1:?mutant patch}
 target=${2:?test target}
-build=${MIRROR_MUTANT_BUILD:-.scratch/build-mirror-mutant}
+# test_relay_chain runs real voters, so it builds the authority; the mirror's own tests do not.
+authority=OFF
+test "$target" = test_relay_chain && authority=ON
+build=${MIRROR_MUTANT_BUILD:-.scratch/build-mirror-mutant-$authority}
 no_verdict() {
     echo "NO VERDICT: $patch: $1"
     exit 3
@@ -15,7 +18,7 @@ git apply --check "$patch" && git apply "$patch" || no_verdict "patch does not a
 git diff --stat
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
-    -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF \
+    -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=$authority \
     -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF \
     -DDETENT_BUILD_TESTS=ON > /dev/null || no_verdict "configure failed"
 cmake --build "$build" -j4 --target "$target" > /dev/null || no_verdict "mutant does not build"

@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 0e1772df..32a4f533 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -185,7 +185,7 @@ SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
+ 	std::vector<std::string> dropped;
+ 	for (const auto &name : names)
+ 		if (std::none_of(layouts.begin(), layouts.end(), [&](const auto &layout) { return layout.name == name; }))
+-			dropped.push_back(name);
++			continue;
+ 	for (const auto &layout : layouts)
+ 		if (!std::binary_search(names.begin(), names.end(), layout.name))
+ 			throw std::runtime_error("relay: the upstream sent a namespace it was not asked for");

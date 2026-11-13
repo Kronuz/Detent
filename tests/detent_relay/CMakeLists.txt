@@ -9,3 +9,12 @@ if(TARGET detent::relay_mirror)
   add_test(NAME test_relay_mirror_crash COMMAND test_relay_mirror_crash ${CMAKE_CURRENT_BINARY_DIR}/relay-mirror-crash)
   set_tests_properties(test_relay_mirror_crash PROPERTIES TIMEOUT 900)
 endif()
+
+# A1 and A5 over real voters: the relay chain reads S5.2's history through its layout and W6.
+if(TARGET detent::relay_mirror AND TARGET detent::authority_node)
+  add_executable(test_relay_chain test_relay_chain.cc)
+  target_include_directories(test_relay_chain PRIVATE ${PROJECT_SOURCE_DIR}/tests/detent_authority)
+  target_link_libraries(test_relay_chain PRIVATE detent::relay_mirror detent::authority_node detent::authority_export)
+  add_test(NAME test_relay_chain COMMAND test_relay_chain ${CMAKE_CURRENT_BINARY_DIR}/relay-chain)
+  set_tests_properties(test_relay_chain PROPERTIES TIMEOUT 120)
+endif()
