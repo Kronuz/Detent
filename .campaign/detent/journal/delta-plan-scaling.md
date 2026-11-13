@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1: profiling the 0.5 delta's plan at 1M. Harness: namespace-measure's T9 (docs/perf/namespace-measure-t9.* on
+quest/detent/namespace-measure), copied to .scratch/h; 1M corpus derived from corpus-5m.bin by
+.scratch/h/subcorpus.py (definitions with local number < 1,000,000: 1,000,004 records, sha256 b7f66891...6284).
+Hypothesis from reading: TrieOverlay::Impl::remove (paged_trie_overlay.cc:168) dedupes each removed page
+with a linear std::find over removed_extents, so each converted node costs O(pages touched so far);
+removed_set (declared, erased in discard) is never filled. The assembler's touch() uses an index for the same key.
 
 ## Next
 
-1. <step>
+1. Profile job at 1M (A1); then the fix and its counting probe.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
