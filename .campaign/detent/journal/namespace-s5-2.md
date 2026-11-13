@@ -1,6 +1,6 @@
 # namespace-s5-2: journal
 
-State: waiting on jobs 261112-220407-bcf0f5 261112-220407-64f2e5 261112-220409-a2488f 261112-220413-0e34b3 261112-220417-d8a94e 261112-220422-eb1426 261112-220445-848938 261112-220450-f5e9a0 261112-220456-df8763 261112-220505-41157f 261112-220512-56ad47 261112-220517-95cd37 261112-220521-ca11db
+State: waiting on jobs 261112-220407-bcf0f5 261112-220517-95cd37 261112-221626-7487a8 261112-221630-939181 261112-221634-e3740a 261112-221638-00d2bb 261112-221642-2dcc98
 Quest: .campaign/detent/quests/namespace-s5-2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,6 +21,14 @@ Steps 1-7 done at eb37a84a (merged with main at a81ccd79); jobs queued at the br
   261112-220456-df8763, checkpoint-between-seals 261112-220505-41157f; A2 eager-eviction
   261112-220512-56ad47, ring-by-group-revision 261112-220517-95cd37; A3/A6 cut-at-twice-the-cost
   261112-220521-ca11db.
+
+Results so far: pins passed; the A1/A2/A4 cluster, A2 ring, A3/A6 layout and A5 crash jobs
+passed; mutant collect-above-table killed (261112-220450-f5e9a0). Five mutants lost their
+runner (stale heartbeat on a loaded host, not a test result) and were resubmitted with
+`--retries 2` at e5103e4b: table-before-outputs 261112-221626-7487a8, trust-local-files
+261112-221630-939181, checkpoint-between-seals 261112-221634-e3740a, eager-eviction
+261112-221638-00d2bb, cut-at-twice-the-cost 261112-221642-2dcc98. Still running: native
+261112-220407-bcf0f5, ring-by-group-revision 261112-220517-95cd37.
 
 Local runs at e121df71 (quiet light): authority suite 48/49, the one failure
 `test_authority_snapshot_catchup` under a loaded parallel run, passing alone (51 s); the gate
