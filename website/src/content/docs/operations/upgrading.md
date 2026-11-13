@@ -18,15 +18,6 @@ deployment built from `main`.
 
 ---
 
-## Managed Generations and Readers
-
-Managed publication uses lease files that old SDK readers don't understand.
-Upgrade every reader to a version with dual legacy/managed support **before**
-enabling managed publication on a host. Use `--upgrade-managed` to adopt a
-compatible legacy generation directory explicitly.
-
----
-
 ## C++ ABI
 
 Detent is consumed from source. Public structs such as `InitOptions` and
