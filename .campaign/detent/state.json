@@ -5426,9 +5426,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-13T01:40:35",
+      "updated": "2026-11-13T03:39:06",
       "worktree": "../Detent-wt/detent/namespace-s5-3"
     },
     "namespace-s6": {
