@@ -23,6 +23,8 @@ inline bool completion_storage = false;
 // fetching what it lacks from its peers' directories, and gets the ring `ring(i)`.
 inline std::optional<LayoutPolicy> history_policy;
 inline std::function<std::shared_ptr<AppliedChangeRecorder>(unsigned)> ring;
+// Adjusts voter i's options before it launches.
+inline std::function<void(unsigned, NodeOptions &)> configure;
 // Journals live in memory (journal's MemoryIO, kept across restarts) and history syncs
 // reach the page cache only, so a run waits on no device flush; power cuts are the
 // crash model's.
@@ -88,6 +90,8 @@ struct Cluster {
 		o.timing.election_max = 2000;
 		if (history_policy)
 			o.application.layout = *history_policy;
+		if (configure)
+			configure(i, o);
 		return o;
 	}
 	void launch(unsigned i, bool recover) {

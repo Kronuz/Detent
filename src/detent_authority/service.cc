@@ -1186,23 +1186,27 @@ struct Service::Runtime {
 		Clock::time_point admitted;
 	};
 	std::optional<Flight> storage_flight;
+	// History's writes (D6) run on their own queue, beside the journal's storage jobs.
+	bool history_active = false;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
-	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue;
-	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>> driver;
+	using Driver = kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>;
+	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue, history_queue;
+	std::shared_ptr<Driver> driver, history_driver;
 	Runtime(const ServiceOptions &options, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {
+		for (auto *each : {&queue, &history_queue}) {
 #ifdef __linux__
-		using Policy = kronuz::journal::LinuxCompletionPolicy;
-		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>(
-			options.storage_backend == "native"		? Policy::RequireNative
-			: options.storage_backend == "fallback" ? Policy::Fallback
-													: Policy::Automatic);
+			using Policy = kronuz::journal::LinuxCompletionPolicy;
+			*each = std::make_shared<kronuz::journal::NativeCompletionQueue>(
+				options.storage_backend == "native"		? Policy::RequireNative
+				: options.storage_backend == "fallback" ? Policy::Fallback
+														: Policy::Automatic);
 #else
-		(void)options;
-		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>();
+			(void)options;
+			*each = std::make_shared<kronuz::journal::NativeCompletionQueue>();
 #endif
-		driver =
-			std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>>(
-				scheduler, queue, true);
+		}
+		driver = std::make_shared<Driver>(scheduler, queue, true);
+		history_driver = std::make_shared<Driver>(scheduler, history_queue, true);
 	}
 
 #else
@@ -1249,8 +1253,29 @@ struct Service::Runtime {
 				throw;
 			}
 		}
+		if (auto operation = history_active ? nullptr : node.take_history_operation()) {
+			history_active = true;
+			try {
+				task::spawn(task::scheduler_ref::of(scheduler), history_driver->run(operation),
+							[this, operation](std::exception_ptr error) {
+								// A dead driver leaves the write unsettled: fail-stop, as storage does.
+								if (error) {
+									if (operation->in_flight())
+										std::terminate();
+									failure = error;
+								}
+								history_active = false;
+							});
+			} catch (...) {
+				history_active = false;
+				if (operation->in_flight())
+					std::terminate();
+				throw;
+			}
+		}
 #else
-		(void)node;
+		if (auto operation = node.take_history_operation())
+			kronuz::journal::drive_synchronously(*operation);
 #endif
 	}
 	task::task<void> run(Service &service, std::promise<void> &ready);
@@ -2779,7 +2804,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	}
 	if (peers)
 		peers->stop();
-	while (active || (storage_flight && storage_flight->operation->done()) ||
+	while (active || history_active || (storage_flight && storage_flight->operation->done()) ||
 		   (owned_node && !owned_node->drained()) ||
 		   (peers && (!peers->drained() || !owned_node->channel().drained()))) {
 		if (owned_node) {
@@ -2787,7 +2812,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (owned_node && !owned_node->drained() && !active) {
+		if (owned_node && !owned_node->drained() && !active && !history_active) {
 			co_await task::yield();
 		} else {
 			timer.expires_after(std::chrono::milliseconds(1));

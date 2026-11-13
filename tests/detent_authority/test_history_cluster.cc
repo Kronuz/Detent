@@ -3,7 +3,9 @@
 // mid-run, a voter restarted mid-period and one installed mid-period; the installed
 // voter answers the same bytes; after every voter restarts, every answer at or above
 // the cut still delivers the store's changes, and the ring never drops an entry the
-// durable layout does not cover.
+// durable layout does not cover. S5.3: apply seals past history writes still queued,
+// an install waits for its peer's files, and a voter whose consensus log limits are
+// below the group's policy refuses to start.
 #include "change_history.hh"
 #include "cluster_harness.hh"
 #include "history.hh"
@@ -232,6 +234,22 @@ int main() {
 	identical(group);
 	assert(group.nodes[0]->state().policy().period == 8);
 
+	// Apply's seal returns before its history is written: voter 1 seals past held writes,
+	// and its checkpoints and ring stay at the newest durable seal until they land.
+	const auto durable = group.nodes[1]->durable_seal()->applied_index();
+	group.held_history[1] = true;
+	for (unsigned salt = 20; group.nodes[1]->sealed()->applied_index() == durable; ++salt)
+		churn(group, 1, salt);
+	group.until([&] { return group.nodes[1]->sealed()->applied_index() > durable && bool(group.held[1]); });
+	const auto pending = group.nodes[1]->sealed()->applied_index();
+	assert(!files(group, 1).contains(h::seal_name(pending)) && !group.nodes[1]->history()->durable_through(pending) &&
+		   group.nodes[1]->durable_seal()->applied_index() == durable);
+	group.held_history[1] = false;
+	group.release_history(1);
+	settle(group);
+	group.until([&] { return group.nodes[1]->durable_seal()->applied_index() == group.nodes[1]->sealed()->applied_index(); });
+	identical(group);
+
 	// Voter 2 restarts mid-period and replays above its checkpoint.
 	while (group.nodes[2]->state().seal().ordinal % group.nodes[2]->state().policy().period == 0)
 		churn(group, 1, 3);
@@ -261,8 +279,19 @@ int main() {
 	group.until([&] { return !group.nodes[0]->checkpoint_busy(); });
 	churn(group, 3, 8);
 	assert(group.nodes[0]->worker().base_index() > missed);
+	// The activation waits while the install's peer fetches are outstanding.
+	group.deferred = true;
 	group.link(0, 1, true);
 	group.link(1, 2, true);
+	group.until([&] { return !group.fetches.empty(); });
+	for (unsigned k = 0; k < 50; ++k)
+		group.step();
+	assert(group.nodes[1]->history()->restoring() && group.nodes[1]->worker().base_index() < snapshot);
+	group.until([&] {
+		group.answer_fetches();
+		return group.nodes[1]->worker().base_index() >= snapshot;
+	});
+	group.deferred = false;
 	churn(group, 12, 9);
 	settle(group);
 	assert(group.nodes[1]->worker().base_index() >= snapshot);
@@ -311,6 +340,38 @@ int main() {
 			kept += a.tier == h::Tier::Ring && b.tier == h::Tier::Ring;
 		}
 	}
+	// A voter whose consensus log limits are below the group's policy refuses to start (F6).
+	const unsigned follower = leader == 2 ? 1 : 2;
+	churn(group, 12, 10);
+	settle(group);
+	group.until([&] { return group.nodes[follower]->checkpoint(); });
+	group.until([&] { return !group.nodes[follower]->checkpoint_busy(); });
+	assert(group.nodes[follower]->state().positions_enabled());
+	for (unsigned i = 0; i < 3; ++i)
+		if (i != follower)
+			group.link(follower, i, false);
+	group.nodes[follower].reset();
+	group.messages[follower].clear();
+	testing::configure = [&](unsigned i, NodeOptions &o) {
+		if (i == follower)
+			o.consensus.log_entries = group.nodes[leader]->state().policy().log_entries / 2;
+	};
+	bool refused = false;
+	try {
+		group.launch(follower, true);
+	} catch (const std::runtime_error &error) {
+		refused = std::string_view(error.what()).find("consensus_limits") != std::string_view::npos;
+	}
+	assert(refused);
+	testing::configure = {};
+	group.nodes[follower].reset();
+	group.launch(follower, true);
+	for (unsigned i = 0; i < 3; ++i)
+		if (i != follower)
+			group.link(follower, i, true);
+	settle(group);
+	identical(group);
+
 	const auto &state = group.nodes[leader]->state();
 	std::cout << "seal " << state.seal().ordinal << " at index " << state.seal().index << ", "
 			  << files(group, 0).size() << " history files identical on three voters; ring answers kept "
