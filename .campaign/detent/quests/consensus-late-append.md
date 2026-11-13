@@ -5,27 +5,23 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A leader whose append round trips run past `rpc_timeout` still makes progress: a late append response that matches the follower's log (term, and an index the leader can account for) advances the follower's match index instead of being dropped as unmatched, and re-sending never discards progress a late response proves. Consensus then commits under a slow or loaded event loop instead of livelocking.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 With N ms of CPU burned per executor cycle (the probe in consensus-fetch-lane'''s journal, D92), a three-voter cluster with rpc_timeout 40 ms commits at N = 5 ms within 2 s, where it commits nothing in 4 s today: a test, and a job showing it fails without the fix
+- A2 A stale response (an older term, or an index the follower has since truncated) is still rejected and never advances match or commit: a test plus a mutant that accepts it, killed
+- A3 The existing consensus suite and recovery tests pass unchanged, and TSan is clean: the suite and tsan checks
+- A4 [artifact] `CHANGELOG.md`: "late"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+No API or wire change: the Core'''s handling of append responses only.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D92 (lead): split from consensus-fetch-lane, whose CI exposed it; that quest runs its A2 with a slow-runner timing meanwhile.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
