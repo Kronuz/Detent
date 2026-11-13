@@ -1,43 +1,47 @@
 # namespace-s7-store: journal
 
-State: ready for review; jobs 261113-044509-c22720 (suite) and 261113-044510-08f77b (T7) still running; native check blocked on msg-47/msg-48
+State: waiting on jobs (native 261113-052843-16886a and the criteria jobs below) at Detent:1bcdab05
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
 
-Evidence jobs at Detent:518f6147 (the head's code). Earlier runs found two issues, fixed:
-test_paged_publication_intents collected before the base view's `.lease` closed on the retirement
-thread (flaky; it now waits), and the reader's table bytes were counted twice (CI's counters
-configuration, job 261113-042437-89be6e: got 1746, want 1129).
+msg-47/msg-48 closed by the lead (file set widened). Ported at Detent:a712310d: the four delivery tests
+(trusted_records installs; `migrate` modes are `from-flat` over an installed flat store, D43),
+test_managed_process.sh (a store mark: `change`'s inode and the table sequence, never going back) and
+verify_local_format.py (reads the table), the three benchmarks, check_lineage.sh, first_read.py, docs.
+Durability review (CHANGES at 518f6147) folded in at Detent:f6d59fae: F1 fixed, F2 and F3 tested, F6
+done, F7 ported.
 
 ## Next
 
-1. Read jobs 261113-044509-c22720 and 261113-044510-08f77b; fix and rerun if either fails.
-   Passed at the head: A3 261113-044510-384de8, A4 261113-044511-bfb064, counters 261113-044512-76bfe6,
-   pins 261113-044512-6794a6.
-2. When the lead widens the file set (msg-47/48): port tests/detent_delivery's test_coordinator,
-   test_repair, test_bootstrap_retention, test_bundle_maintenance and test_managed_process.sh to
-   trusted_records and the table, then `campaign verify` for a green native check.
+1. Read the jobs; fix and rerun what fails. On green set "ready for review".
+2. A test_relay_chain timeout in the native suite is reported, not chased (lead, F5).
 
 ## Blocked on
 
-- msg-47 and msg-48 (to the lead, unanswered): the file set lacks tests/detent_delivery/**. Four tests
-  there do not compile against the deleted layout (test_coordinator, test_repair,
-  test_bootstrap_retention, test_bundle_maintenance) and test_managed_process.sh cmp's `storage.meta`
-  (8 ctest entries); plus benchmarks/*_bench.cc, tools/check_lineage.sh, tools/w5/first_read.py,
-  docs/mechanisms/change-file.md (says a fresh `change` is 16 bytes; it is 8 until the first
-  publication) and the layout docs. The native check cannot be green until they move.
-  Recommendation: widen to tests/detent_delivery/** and those files; this quest ports them.
+Nothing.
+
+## Review findings (durability, 518f6147)
+
+| Finding | What changed | Test, and the job that kills its mutant |
+|---|---|---|
+| F1 | `collect()` keeps a generation whose `.lease` fails to open for any reason but ENOENT (and the segments its `.live` names, or all when `.live` does not read); `publish()` throws LeaseHeld | `test_agent_store` `lease_open_failure` (EMFILE, EACCES via an interposed `openat`): job 261113-052759-b162ba; mutants s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f; final suite 261113-052843-16886a |
+| F2 | The catch-up child waits for the base's lease before its collection, so cuts land in it | `test_agent_catch_up`, suite 261113-052843-16886a |
+| F3 | none (test only) | `test_local_disk_store` live-charge case; mutant s7-flat-live-private-ledger 261113-052823-734a00 |
+| F5 | not chased (lead) | native suite 261113-052843-16886a |
+| F6 | `collection_retry_at()` back on DiskStore (a collection that leaves a generation the table does not reach is deferred) and in the coordinator's `wait_disk` | `test_delivery_repair_heal` / `lease-close` (deferred passes, backoff, release without a request), suite |
+| F7 | verify_local_format.py, test_managed_process.sh, benches ported | suite; benches 261113-052745-a0b1a8 |
+| F4, F8 | not done (optional nit; outside the lens) | |
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261113-044509-c22720: the suite at the head, less the 12 entries outside the file set (msg-47, msg-48); test_system_managed_* run authority, relay and agent and compare readers' answers |
-| A2 | job 261113-044510-08f77b: T7, a cut at every primitive of publish, repair, collect (each removal) and startup; mutant n6 (table renamed before its fsync) killed: job 261113-042432-0f33ed |
-| A3 | job 261113-044510-384de8 (`tests/detent_agent/agent_store_sole_writer.sh`) and the suite, job 261113-044509-c22720 |
-| A4 | job 261113-044511-bfb064 (test_agent_store: `collection`, `held_lease`); mutants a4-collect-ignores-lease and a4-publish-ignores-lease killed: jobs 261113-042414-b3c4fb, 261113-042418-606cb1 |
-| A5 | job 261113-044509-c22720 (test_agent_catch_up: a kill at each of 33 primitives, 29 recovered at R and caught up by ring, block and base) |
+| A1 | job 261113-052843-16886a: the native check, no exclusions (test_system_managed_*, test_managed_*_process, test_delivery_coordinator*) |
+| A2 | job 261113-052802-4165a0: T7; mutant n6 killed: job 261113-052820-12513f |
+| A3 | job 261113-052825-2d2540 (`agent_store_sole_writer.sh`) and the suite, 261113-052843-16886a |
+| A4 | job 261113-052759-b162ba (test_agent_store: `collection`, `held_lease`, `lease_open_failure`); mutants killed: a4-collect-ignores-lease 261113-052813-b190fd, a4-publish-ignores-lease 261113-052816-abaf97, s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f |
+| A5 | job 261113-052843-16886a (test_agent_catch_up: a kill at every primitive, collection included) |
 | A6 | [artifact] `docs/status/namespace-s7.md`: "## Wiring" |
 
 ## Result
@@ -69,7 +73,8 @@ configuration, job 261113-042437-89be6e: got 1746, want 1129).
   as bytes hashed (read_record already counts their bytes); job 261113-044512-76bfe6 runs CI's
   counters configuration.
 - Collection skips a generation whose `.lease` a view still holds; a dropped view closes it on the
-  retirement thread, so a superseded base may wait for the next publication's collection.
+  retirement thread. A collection that leaves such a generation reruns after 1 s doubling to 30 s
+  (`collection_retry_at`, as main's DiskStore did), so a released base goes without a new publication.
 - The prepared reader fixture writes no `owner.lock` (its callers do, as before).
 - Tests of deleted modules are deleted (collector, inventory, record_reader, storage_session, publication,
   paged_certificate, paged_segment_{marks,read,collection}, segment_mark_hash, paged_named_root,
@@ -88,3 +93,17 @@ configuration, job 261113-042437-89be6e: got 1746, want 1129).
   s3b-fu-a3-rebase-restarts do not apply on main either (pre-existing, the lead's).
 - Deleted mutants of deleted code: s7-f2-orphan-remove-selected, a12-no-barrier, a12-no-refusal,
   s3b-fu-a2-missing-pack-fails-pass.
+- The `migrate` coordinator modes become `from-flat`: the store holds an installed flat generation and the
+  paged publications replace it (no UpgradeLegacy, D43). The failed-startup case fences on a table naming a
+  missing generation; the reader-pressure limit is 4096 bytes (two flat generations of 1376 bytes fit, a
+  third's 1864-byte reservation does not while a reader pins the first).
+- The coordinator fences instead of terminating when its scrub state cannot be admitted (storage pressure at
+  startup): `test_delivery_coordinator`'s pressure case aborted on it once the store no longer freed startup
+  objects into that account.
+- test_managed_process.sh proves the store continues (it compared `storage.meta`): the `change` file's inode
+  is unchanged and the table's sequence never goes back across restarts and the trusted reset.
+- The collection benchmark measures `AgentStore::collect` through GenerationWriter (a repair supersedes a
+  generation sharing no pack, then an idle pass); PagedSegmentCollection is gone.
+- DISK_LIFECYCLE_ARCHITECTURE.md and DISK_STORE_INTEGRATION.md now describe the agent store and DiskStore
+  in a page each; the old blueprints describe deleted code. diagrams/11_how_store.png still draws
+  `storage.meta` (diagrams/ is outside the file set; the caption no longer names it).
