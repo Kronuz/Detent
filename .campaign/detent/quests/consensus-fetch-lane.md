@@ -5,27 +5,24 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus's `Peers` carries a fetch lane beside consensus frames and the snapshot channel: a host registers a reader (name to bytes, or not-found), and any member asks a peer for a name and gets its bytes back on the owner executor, over the same mTLS connections, pins, addresses and bulk-lane budgets. Detent's namespace-s5-3 uses it for history files (D91).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A fetch for a name the peer's reader holds returns its exact bytes, and not-found for one it lacks, over real TLS peers; replies complete on the owner executor: a transport test
+- A2 A large fetch shares the bulk lane's budget and never delays consensus frames past their existing bound; concurrent fetches from several peers complete: a test with frame latency measured during a bulk fetch
+- A3 A peer closing or timing out mid-fetch fails that fetch with an error and leaves the connection usable for consensus: a test, plus a mutant that leaks the pending fetch, killed
+- A4 TSan clean on the transport tests: the tsan check
+- A5 [artifact] `CHANGELOG.md`: "fetch"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `consensus:fetch`: a host-registered reader `(name) -> optional<bytes>` and an async `fetch(peer, name, completion)` on `Peers`, with a new frame kind on the bulk lane. The frame is additive; peers on older consensus need not interoperate (Detent is greenfield, D43). Detent bumps its pin in `cmake/dependencies.json` within namespace-s5-3.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D91 (lead): history fetch rides Peers, not a second voter transport.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None: it is a wire change.
