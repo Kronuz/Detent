@@ -1,40 +1,41 @@
 # namespace-s7-store: journal
 
-State: working
+State: waiting on jobs 261113-042346-a967f7 261113-042357-242f17 261113-042403-028fd2 261113-042414-b3c4fb 261113-042418-606cb1 261113-042432-0f33ed 261113-042437-89be6e 261113-042444-419220
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
 
-Migrating tests/detent_local to the agent-store layout: hand-built stores go through
-`tests/detent_local/trusted_records.hh` `install` (table, empty `.lease`, `.read`/`.live`
-derived by one recovery); DiskStore drivers use `work()->run()` + `advance()`.
+Evidence jobs at Detent:03ef11d2 (the whole migration; the head adds only the doc and this journal).
+Locally at that commit the suite passes but for the 12 out-of-set entries (msg-47, msg-48);
+`test_system_managed_*` (authority, relay, agent) pass.
 
 ## Next
 
-1. Fix the remaining tests/detent_local, detent_agent, detent_testing, detent_system compile errors
-   (`.scratch/build-all.log`); keep root_reclaim, partial_reclaim and prepared_collection as DiskStore-level
-   collection tests (A4).
-2. Run test_agent_store, T7 (`test_agent_store_crash`, with collect() after each cycle) and the suite.
-3. A5 catch-up on an AgentStore recovered from a mid-publish cut; A3 grep job; A4 mutant jobs.
-4. docs/status/namespace-s7.md "## Wiring" (A6).
+1. Read the jobs; fill Evidence; set "ready for review" unless one fails.
+2. When the lead widens the file set (msg-47/48): port tests/detent_delivery's test_coordinator,
+   test_repair, test_bootstrap_retention, test_bundle_maintenance and test_managed_process.sh to
+   trusted_records and the table, then `campaign verify` for a green native check.
 
 ## Blocked on
 
-msg-47 (to the lead): the file set lacks tests/detent_delivery/** (test_coordinator, bootstrap_retention,
-bundle_maintenance, repair write DTSELECT/`.lease`/storage.meta or use UpgradeLegacy/operation()),
-benchmarks/{paged_collection,paged_recovery,local_image,paged_snapshot}_bench.cc, tools/check_lineage.sh,
-tools/w5/first_read.py and the layout docs. Without them the native check cannot be green.
+- msg-47 and msg-48 (to the lead, unanswered): the file set lacks tests/detent_delivery/**. Four tests
+  there do not compile against the deleted layout (test_coordinator, test_repair,
+  test_bootstrap_retention, test_bundle_maintenance) and test_managed_process.sh cmp's `storage.meta`
+  (8 ctest entries); plus benchmarks/*_bench.cc, tools/check_lineage.sh, tools/w5/first_read.py,
+  docs/mechanisms/change-file.md (says a fresh `change` is 16 bytes; it is 8 until the first
+  publication) and the layout docs. The native check cannot be green until they move.
+  Recommendation: widen to tests/detent_delivery/** and those files; this quest ports them.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
-| A5 | <no evidence yet> |
-| A6 | <no evidence yet> |
+| A1 | job 261113-042346-a967f7 (suite minus the 12 out-of-set entries; test_system_managed_* run authority, relay and agent) |
+| A2 | job 261113-042357-242f17 (T7, cut at every primitive of publish, repair, collect, startup); mutant n6 job 261113-042432-0f33ed |
+| A3 | job 261113-042400-8844d3 (`tests/detent_agent/agent_store_sole_writer.sh`, exit 0) plus the suite job |
+| A4 | job 261113-042403-028fd2 (test_agent_store); mutants 261113-042414-b3c4fb, 261113-042418-606cb1 |
+| A5 | job 261113-042346-a967f7 (test_agent_catch_up: 33 kills, 29 recovered at R and caught up locally) |
+| A6 | [artifact] docs/status/namespace-s7.md "## Wiring" |
 
 ## Result
 
@@ -57,6 +58,13 @@ tools/w5/first_read.py and the layout docs. Without them the native check cannot
 - The ledger's `used` is the AgentStore census (exact); a reservation settles against it.
 - The old collector, inventory, storage session, certificates and segment marks are deleted; collection
   is AgentStore::collect() over `.live` reachability, with no directory sync.
+- A paged publication is reserved before its plan moves (a refusal leaves the plan whole); a flat `.live`
+  is charged to the store's account (pressure refuses before queueing).
+- `change` grows a slot with the namespace's first publication (AgentStore's rule for any entry); the
+  change file test follows it rather than AgentStore reserving slot 0 at creation.
+- The reader's first open counts the table read and the image peek (record opens, table bytes, the
+  table's digest as bytes hashed); job 261113-042437-89be6e runs CI's counters configuration.
+- The prepared reader fixture writes no `owner.lock` (its callers do, as before).
 - Tests of deleted modules are deleted (collector, inventory, record_reader, storage_session, publication,
   paged_certificate, paged_segment_{marks,read,collection}, segment_mark_hash, paged_named_root,
   paged_collection_{shutdown,crash,publication}); T7 with collect() covers collection cuts.
