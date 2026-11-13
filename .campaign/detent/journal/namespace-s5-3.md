@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: waiting on jobs 261113-033825-96867a 261113-033810-0c0530 261113-033759-fee988 261113-032601-1a5622 261113-033814-67ea69
+State: fixing F1, F2
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,33 +9,45 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Every criterion is in code at 42dc0361 (main merged at e4a7e81d, consensus pinned at a197efb).
-The history-tests job at d52bbc1b (261113-032554-b6d693) failed only in
-`test_authority_history_layout`, which pinned the old block-name format; 42dc0361 pins the token
-name. Jobs:
+Durability review CHANGES at 33576164 (`.campaign/detent/reviews/namespace-s5-3-durability.md`;
+its probes failed as expected: 261113-034724-30bd1b, 261113-040148-932628). Fixing:
 
-- Gate: pins 261113-033825-96867a; full native suite 261113-033810-0c0530.
-- A1-A4: history tests (transport install, names, power cut, node power cut, cluster, change
-  history, layout) 261113-033759-fee988.
-- A1-A4 mutants (`--fails-without`, at d52bbc1b; 42dc0361 changes only the layout test, which
-  none of them runs): reader-serves-nothing, durable-at-seal, trust-rotten-table,
-  retained-bounds-only, serve-any-name, namespace-in-file-names 261113-032601-1a5622.
-- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-033814-67ea69 (after the history
-  tests).
+- F1: `Fetch` carries a `Check` (digest, or the seal file's or table's own); `PeerHistory`
+  passes over rotten bytes like none, starts each fetch at the next voter in rotation, and
+  ends a fetch once every voter is passed over with their answers (`Answer::why`).
+- F2: `history::file_bytes(limits)` (base of `state_bytes` + 247-byte header); the config
+  loader sets `peers.fetch_bytes` to it; `Service` refuses peers below it; `io_error` and
+  `message_size` answers are lasting, so a file no voter can serve ends the restore with a
+  reported error instead of a 200 ms retry forever.
+- Tests: transport (voter two serves every file rotten, asked first for some; a file voter
+  one fails to read ends its fetch), power cut `rot` (rotten first peer, good second, for a
+  seal file and the table), new `test_authority_history_large_base` (73,260,051-byte base
+  installs through the configured lane; 64 MiB ends the install).
+- Mutants (history_mutant.sh): first-bytes-win, same-order, retry-failed-forever,
+  unchecked-fetch, old-fetch-bound, accept-low-fetch-bound.
 
-Earlier, at e67233f0: pins, history tests, suite, both mutant runs passed (261113-013222-0492b8,
--013224-9d40a2, -013247-78f1d4, -013251-a8f47b, -013300-94782d).
-
-Local at d52bbc1b: `test_authority_history_transport` passes in 2.5 s (voter three installed at
-index 37 with an empty history directory, 12 files fetched, 11 files identical, 15 answers
-equal); `test_authority_history_names --measure`: serving 64 MiB from the page cache, 16 ms mean,
-18 ms slowest over eight reads.
-
-A4's "CI green on every sanitizer job" needs the branch pushed, which is the lead's.
+Before the review (at 42dc0361): suite 261113-033810-0c0530, history tests
+261113-033759-fee988, mutants 261113-032601-1a5622 and 261113-033814-67ea69, pins
+261113-033825-96867a, all passed.
 
 ## Next
 
-1. Read the jobs; fix what fails; paste the evidence table; State "ready for review".
+1. Build and run the history tests locally; commit; submit history tests, suite, pins and
+   mutants at the fixed commit; journal the confirm mapping; State "ready for review".
+
+## Review findings not blocking
+
+- F3 (cold read, executor bound): not measured; F2 raises the bound to 128 MiB + 247 by
+  default, so the serving cost scales with it. Status doc Left open 5 says so.
+- F4 (restore rounds re-verify everything): left as is; cheap at test sizes.
+- F5 (stall then same-process restore skips a directory sync): left; needs an fsync error
+  then an install in one process.
+- F6 (design doc names files by namespace): `docs/design/namespace-delivery.md:157` is
+  outside this quest's file set; the lead's to fix (name the namespace token there).
+- F7 (service write path untested on PosixIO): before S6 enables positions.
+- `file_bytes` covers a base; an extreme policy (huge `seal_bytes`, α or `carry_bytes`)
+  could write a block or seal file above it. Its fetch now ends, reported. Status doc
+  Left open 8; ranged fetches would lift it.
 
 ## Blocked on
 
@@ -105,3 +117,15 @@ Left open 5-6).
    cache costs 16-18 ms here. Serving off the executor needs an asynchronous reader in consensus
    (Left open 5). F6: names outside `history_name` are refused before the disk, with a test and
    the serve-any-name mutant.
+14. Review F1: History hands `Fetch` a check per name, so a fetcher passes a rotten copy over
+   and asks the next voter; History still verifies what it adopts. `PeerHistory` starts each
+   fetch (and each retry round) at the next voter in rotation, spreading load and keeping one
+   bad voter from always answering first.
+15. Review F2 (the lead's ruling, no consensus change): the lane's `fetch_bytes` is
+   `history::file_bytes(application limits)`, set by the config loader; `Service` refuses
+   peers below it, and `file_bytes` refuses limits no size holds. `io_error` (the peer's
+   reader threw, or the file is above its bound) and `message_size` are lasting answers: a
+   fetch that every voter answered without a transient error ends with their answers, and
+   the restore fails with a message naming the file and each voter's answer.
+16. No write-side cap: refusing to write a file above `file_bytes` would stop every voter at
+   the same seal; under an extreme policy a fetch now ends, reported (Left open 8).

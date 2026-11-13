@@ -1,6 +1,7 @@
 #include "history.hh"
 #include <algorithm>
 #include <coroutine>
+#include <limits>
 #include <set>
 #include <stdexcept>
 
@@ -209,6 +210,14 @@ class Operation final : public kronuz::journal::IOOperation {
 };
 } // namespace
 
+std::size_t file_bytes(const Limits &limits) {
+	// "DTABAS01", the namespace (a length and at most 199 bytes), the incarnation, the
+	// position and the change count; each change then takes its live footprint.
+	constexpr std::size_t header = 8 + 8 + 199 + 16 + 8 + 8;
+	if (limits.state_bytes > std::numeric_limits<std::size_t>::max() - header)
+		throw std::invalid_argument("history files above any fetch bound");
+	return limits.state_bytes + header;
+}
 std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes) {
 	if (!history_name(name))
 		return std::nullopt;
@@ -281,36 +290,44 @@ std::string History::read(std::string_view name) {
 	return std::move(*bytes);
 }
 
-std::string History::verified(std::string_view name, const std::optional<Digest> &digest) {
-	auto good = [&](const std::string &bytes) {
+// A file with a digest matches it; a seal file without one verifies its own.
+Check History::check(const std::optional<Digest> &digest) const {
+	return [digest, limits = limits_](std::string_view bytes) {
 		if (digest)
 			return sha256(bytes) == *digest;
 		try {
-			decode_seal(bytes, limits_);
+			decode_seal(bytes, limits);
 			return true;
 		} catch (const std::invalid_argument &) {
 			return false;
 		}
 	};
+}
+std::string History::verified(std::string_view name, const std::optional<Digest> &digest) {
+	auto good = check(digest);
 	if (auto local = find(name); local && good(*local))
 		return std::move(*local);
 	// A peer holds the same bytes under the same name.
+	std::string why;
 	if (fetch_) {
 		auto fetched = fetched_.find(name);
 		if (fetched == fetched_.end())
-			throw Wanted{{std::string(name)}};
-		if (fetched->second && good(*fetched->second)) {
+			throw Wanted{{{std::string(name), std::move(good)}}};
+		const auto &bytes = fetched->second.bytes;
+		if (bytes && good(*bytes)) {
 			// Fetched files are independent: one sync group, before anything derived from them.
 			if (!fetched_group_) {
 				fetched_group_ = plan_.groups.size();
 				plan_.groups.emplace_back();
 			}
-			plan_.groups[*fetched_group_].emplace_back(name, *fetched->second);
-			planned_[std::string(name)] = *fetched->second;
-			return *fetched->second;
+			plan_.groups[*fetched_group_].emplace_back(name, *bytes);
+			planned_[std::string(name)] = *bytes;
+			return *bytes;
 		}
+		why = ": " + fetched->second.why;
 	}
-	throw std::runtime_error("history file " + std::string(name) + " is missing or rotten and no peer holds it");
+	throw std::runtime_error("history file " + std::string(name) + " is missing or rotten and no peer holds it" +
+							 why);
 }
 
 namespace {
@@ -331,8 +348,10 @@ std::optional<Table> History::peer_table() {
 		return std::nullopt;
 	auto fetched = fetched_.find(table_name);
 	if (fetched == fetched_.end())
-		throw Wanted{{std::string(table_name)}};
-	return decoded(fetched->second, limits_);
+		throw Wanted{{{std::string(table_name), [limits = limits_](std::string_view bytes) {
+						   return decoded(std::string(bytes), limits).has_value();
+					   }}}};
+	return decoded(fetched->second.bytes, limits_);
 }
 
 void History::recover(const State &state) { begin(state, false); }
@@ -362,7 +381,7 @@ void History::attempt() {
 		planned_.clear();
 		above_.clear();
 		fetched_group_.reset();
-		std::vector<std::string> wanted;
+		std::vector<std::pair<std::string, Check>> wanted;
 		try {
 			restore();
 			break;
@@ -377,15 +396,15 @@ void History::attempt() {
 			break;
 		}
 		outstanding_ += wanted.size();
-		for (const auto &name : wanted)
-			fetch_(name, [self = std::weak_ptr<History *>(self_), epoch = epoch_, name](std::optional<std::string> bytes) {
+		for (auto &[name, good] : wanted)
+			fetch_(name, std::move(good), [self = std::weak_ptr<History *>(self_), epoch = epoch_, name](Reply reply) {
 				auto alive = self.lock();
 				if (!alive)
 					return;
 				auto &history = **alive;
 				if (history.epoch_ != epoch || !history.target_)
 					return; // A newer restore superseded this one.
-				history.fetched_[name] = std::move(bytes);
+				history.fetched_[name] = std::move(reply);
 				if (!--history.outstanding_ && !history.attempting_)
 					history.attempt();
 			});
@@ -414,9 +433,13 @@ void History::restore() {
 	if (!table)
 		table = peer_table();
 	if (!table) {
-		require(!install_, "no peer holds a history table");
+		auto fetched = fetched_.find(table_name);
+		auto why = fetched == fetched_.end() ? std::string() : ": " + fetched->second.why;
+		if (install_)
+			throw std::runtime_error("no peer holds a history table" + why);
 		// A checkpoint at the enabling entry may precede its table: take the first bases again.
-		require(!state.seal().ordinal, "the history table is missing and no peer holds it");
+		if (state.seal().ordinal)
+			throw std::runtime_error("the history table is missing and no peer holds it" + why);
 		auto sealed = state;
 		complete(0);
 		return seal(sealed);
@@ -428,12 +451,12 @@ void History::restore() {
 // through the state's seal. A table past the state's seal already holds the seals
 // that replay re-applies; those fold nothing (D6 "Recovery").
 void History::adopt(Table table, const State &state) {
-	std::vector<std::string> wanted;
+	std::vector<std::pair<std::string, Check>> wanted;
 	for (const auto &[name, digest] : reached(table))
 		try {
 			verified(name, digest);
-		} catch (const Wanted &) {
-			wanted.push_back(name);
+		} catch (Wanted &missing) {
+			wanted.push_back(std::move(missing.names.front()));
 		}
 	if (!wanted.empty())
 		throw Wanted{std::move(wanted)};

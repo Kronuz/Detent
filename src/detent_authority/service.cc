@@ -446,6 +446,8 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 												std::move(host), static_cast<std::uint16_t>(port)});
 		}
 		check(peers.listen.port(), "local voter missing");
+		// The fetch lane carries the largest history file these limits let a voter write.
+		peers.fetch_bytes = history::file_bytes(o.node.application);
 		o.peers = std::move(peers);
 		// Production elections cover durable vote/term barriers and network latency.
 		o.node.timing.heartbeat = 100;
@@ -573,6 +575,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 	check(!options_.delivery_timeout || (options_.delivery_timeout->count() > 0 &&
 			  *options_.delivery_timeout <= std::chrono::hours(24)),
 		  "invalid authority delivery timeout");
+	check(!options_.peers || options_.peers->fetch_bytes >= history::file_bytes(options_.node.application),
+		  "authority peers' fetch_bytes is below the largest history file the application limits allow");
 	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
 			  options_.delivery_heap_bytes <= SIZE_MAX && options_.delivery.bytes &&
 			  options_.delivery.bytes <= SIZE_MAX && options_.delivery.namespaces &&

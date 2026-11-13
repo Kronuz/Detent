@@ -92,11 +92,11 @@ struct Cluster {
 			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
 		if (history_policy) {
 			nodes[i]->attach_history(history_io(i),
-									 [this, i](const std::string &name, history::Fetched done) {
+									 [this, i](const std::string &name, history::Check, history::Fetched done) {
 										 if (deferred)
 											 fetches.emplace_back(i, name, std::move(done));
 										 else
-											 done(fetch(i, name));
+											 done({fetch(i, name), "none"});
 									 });
 		}
 		if (ring)
@@ -136,7 +136,7 @@ struct Cluster {
 		auto pending = std::move(fetches);
 		fetches.clear();
 		for (auto &[i, name, done] : pending)
-			done(fetch(i, name));
+			done({fetch(i, name), "none"});
 	}
 	// A voter whose history writes wait in `held` until released.
 	std::array<bool, 3> held_history{};

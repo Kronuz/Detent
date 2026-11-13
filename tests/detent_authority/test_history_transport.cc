@@ -3,7 +3,8 @@
 // voter whose transport starts only after the others enabled positions, wrote and took
 // checkpoints is installed from a snapshot with an empty history directory: it fetches
 // every file from its peers over the fetch lane, and its files and answers are the
-// same bytes as theirs. Journals and history directories live in memory (journal's
+// same bytes as theirs. Voter two serves every file rotten, so voter three passes over it
+// whenever it asks it first (F1), and asks it first for some files. Journals and history directories live in memory (journal's
 // MemoryIO), so the run waits on the transport, not a device; crash safety is the power-cut tests'.
 #include "peer_history.hh"
 #include "consensus/transport/tls.h"
@@ -102,7 +103,9 @@ int main(int argc, char **argv) {
 	reservations.clear();
 	// Each voter's reader is the production one, timed: its run time lands on the owner executor.
 	double slowest_read_ms = 0;
-	std::size_t largest = 0;
+	std::size_t largest = 0, rotten = 0;
+	// Voter one's reader fails on this name and voter two holds none: a fetch of it ends.
+	const auto failing = h::seal_name(std::uint64_t{1} << 40);
 	std::vector<std::shared_ptr<AuthorityPeers>> peers(3);
 	auto start_peers = [&](unsigned i) {
 		PeerOptions options;
@@ -115,9 +118,15 @@ int main(int argc, char **argv) {
 			if (i != j)
 				options.addresses.emplace(j + 1, PeerAddress{endpoints[j].address().to_string(), endpoints[j].port()});
 		options.reader = [read = history_reader(std::make_shared<mem::MemoryIO>(histories[i]), options.fetch_bytes),
-						  &slowest_read_ms, &largest](std::string_view name) {
+						  &slowest_read_ms, &largest, &rotten, &failing, i](std::string_view name) {
+			if (i == 0 && name == failing)
+				throw std::runtime_error("unreadable history file");
 			const auto started = std::chrono::steady_clock::now();
 			auto bytes = read(name);
+			if (i == 1 && bytes && !bytes->empty()) {
+				(*bytes)[bytes->size() / 2] ^= 1;
+				++rotten;
+			}
 			slowest_read_ms = std::max(
 				slowest_read_ms,
 				std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
@@ -250,7 +259,7 @@ int main(int argc, char **argv) {
 
 	const auto fetched = peers[2]->stats().fetched;
 	const auto served = peers[0]->stats().served + peers[1]->stats().served;
-	assert(fetched > 0 && served >= fetched);
+	assert(fetched > 0 && served >= fetched && rotten > 0);
 	const auto reference = files(histories[0]);
 	assert(reference.contains("layout"));
 	for (unsigned i = 1; i != 3; ++i)
@@ -272,6 +281,14 @@ int main(int argc, char **argv) {
 			++compared;
 		}
 	}
+	// A file no voter can serve ends the fetch with every voter's answer, not a retry forever.
+	std::optional<h::Reply> unserved;
+	fetchers[2]->fetch()(failing, [](std::string_view) { return true; }, [&](h::Reply reply) {
+		unserved = std::move(reply);
+	});
+	until([&] { return unserved.has_value(); }, "a fetch no voter can serve to end");
+	assert(!unserved->bytes && unserved->why.find("voter 1 ") != std::string::npos &&
+		   unserved->why.find("voter 2 none") != std::string::npos);
 	for (auto &fetcher : fetchers)
 		fetcher->stop();
 	for (auto &runtime : peers)
@@ -284,6 +301,7 @@ int main(int argc, char **argv) {
 	}, "the transports to drain");
 	std::cout << "voter three installed at index " << snapshot << " with an empty history directory: " << fetched
 			  << " files fetched over the fetch lane, " << reference.size() << " history files identical on three voters, "
-			  << compared << " answers equal; slowest reader run " << slowest_read_ms << " ms for files up to " << largest
+			  << compared << " answers equal, " << rotten << " rotten copies passed over; an unservable file ended ("
+			  << unserved->why << "); slowest reader run " << slowest_read_ms << " ms for files up to " << largest
 			  << " bytes\n";
 }

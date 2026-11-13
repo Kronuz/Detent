@@ -46,13 +46,24 @@ struct Write {
 // Runs one write as the primitives a completion driver issues, one at a time.
 std::shared_ptr<kronuz::journal::IOOperation> write_operation(std::shared_ptr<kronuz::journal::IO> io,
 															  std::shared_ptr<const Write> write);
+// The largest file history writes under `limits`, which a peer fetch must carry: a base
+// holding one namespace of `state_bytes` live bytes. Throws when no size holds it.
+std::size_t file_bytes(const Limits &limits);
 // Serves a peer's fetch: nullopt for a name history never writes (checked before the disk) or
 // a file it lacks; a file above `bytes` throws unread.
 std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes);
-// Asks a peer for a history file by name; `done` runs on the owner with the bytes, or
-// with nothing when no peer holds them. Every voter holds the same bytes (D6 "Recovery").
-using Fetched = std::function<void(std::optional<std::string>)>;
-using Fetch = std::function<void(const std::string &name, Fetched done)>;
+// Whether a peer's bytes are the file wanted: its digest, or a seal file's or table's own.
+using Check = std::function<bool(std::string_view bytes)>;
+// A fetch's outcome: bytes that passed the check, or what each voter answered instead.
+struct Reply {
+	std::optional<std::string> bytes;
+	std::string why;
+};
+// Asks the peers for a history file by name; `done` runs on the owner once with the first
+// bytes that pass `good`, or with none once no peer can give them. Every voter holds the
+// same bytes (D6 "Recovery").
+using Fetched = std::function<void(Reply)>;
+using Fetch = std::function<void(const std::string &name, Check good, Fetched done)>;
 class History final : public Files {
   public:
 	History(std::shared_ptr<kronuz::journal::IO> io, Limits limits, Fetch fetch = {});
@@ -89,13 +100,14 @@ class History final : public Files {
 
   private:
 	struct Wanted {
-		std::vector<std::string> names;
+		std::vector<std::pair<std::string, Check>> names;
 	};
 	struct Queued {
 		std::string bytes;
 		unsigned writes = 0;
 	};
 	std::optional<std::string> find(std::string_view name);
+	Check check(const std::optional<Digest> &digest) const;
 	std::string verified(std::string_view name, const std::optional<Digest> &digest);
 	std::optional<Table> local_table();
 	std::optional<Table> peer_table();
@@ -118,7 +130,7 @@ class History final : public Files {
 	std::uint64_t durable_ = 0, epoch_ = 0;
 	bool ready_ = false, install_ = false, attempting_ = false;
 	std::optional<State> target_; // The state a restore reaches.
-	std::map<std::string, std::optional<std::string>, std::less<>> fetched_;
+	std::map<std::string, Reply, std::less<>> fetched_;
 	std::size_t outstanding_ = 0;
 	Write plan_; // A restore's writes, queued once it completes.
 	std::map<std::string, std::string, std::less<>> planned_;

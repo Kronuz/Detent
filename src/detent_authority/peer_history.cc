@@ -25,14 +25,14 @@ void PeerHistory::stop() noexcept {
 	timer_.cancel();
 }
 history::Fetch PeerHistory::fetch() {
-	return [self = shared_from_this()](const std::string &name, history::Fetched done) {
-		self->want(name, std::move(done));
+	return [self = shared_from_this()](const std::string &name, history::Check good, history::Fetched done) {
+		self->want(name, std::move(good), std::move(done));
 	};
 }
-void PeerHistory::want(std::string name, history::Fetched done) {
+void PeerHistory::want(std::string name, history::Check good, history::Fetched done) {
 	if (stopped_)
 		return;
-	queue_.push_back({std::move(name), std::move(done)});
+	queue_.push_back({std::move(name), std::move(good), std::move(done), turn_++ % voters_.size()});
 	pump();
 }
 // Issues each queued round's next ask while its voter has a free slot, oldest first.
@@ -41,7 +41,7 @@ void PeerHistory::pump() {
 	if (stopped_ || !peers)
 		return;
 	for (auto it = queue_.begin(); it != queue_.end();) {
-		const auto voter = voters_[it->next];
+		const auto voter = voters_[(it->first + it->asked) % voters_.size()];
 		if (busy_[voter] >= slots_) {
 			++it;
 			continue;
@@ -54,38 +54,46 @@ void PeerHistory::pump() {
 					 [self = shared_from_this(), voter, wanted = std::move(wanted)](
 						 std::error_code error, std::optional<std::string> bytes) mutable {
 						 --self->busy_[voter];
-						 self->answered(std::move(wanted), error, std::move(bytes));
+						 self->answered(std::move(wanted), voter, error, std::move(bytes));
 					 });
 	}
 }
-void PeerHistory::answered(Wanted wanted, std::error_code error, std::optional<std::string> bytes) {
+void PeerHistory::answered(Wanted wanted, kronuz::consensus::NodeId voter, std::error_code error,
+						   std::optional<std::string> bytes) {
 	if (stopped_)
 		return;
-	if (!error && bytes) {
-		wanted.done(std::move(bytes));
+	if (!error && bytes && wanted.good(*bytes)) {
+		wanted.done({std::move(bytes), {}});
+		return pump();
+	}
+	// A failed reply or one above the bound fails again; anything else may pass.
+	const bool lasting = !error || error == std::errc::io_error || error == std::errc::message_size;
+	wanted.transient |= !lasting;
+	wanted.why += (wanted.why.empty() ? "voter " : ", voter ") + std::to_string(voter) + " " +
+				  (error ? error.message() : bytes ? "rotten" : "none");
+	if (++wanted.asked < voters_.size()) {
+		queue_.push_back(std::move(wanted));
+	} else if (!wanted.transient) {
+		wanted.done({std::nullopt, std::move(wanted.why)});
 	} else {
-		wanted.missing += !error;
-		if (++wanted.next < voters_.size()) {
-			queue_.push_back(std::move(wanted));
-		} else if (wanted.missing == voters_.size()) {
-			wanted.done(std::nullopt);
-		} else {
-			wanted.next = wanted.missing = 0;
-			waiting_.push_back(std::move(wanted));
-			if (!timing_) {
-				timing_ = true;
-				timer_.expires_after(retry_);
-				timer_.async_wait([weak = weak_from_this()](const asio::error_code &) {
-					auto self = weak.lock();
-					if (!self || self->stopped_)
-						return;
-					self->timing_ = false;
-					for (auto &waiting : self->waiting_)
-						self->queue_.push_back(std::move(waiting));
-					self->waiting_.clear();
-					self->pump();
-				});
-			}
+		wanted.first = turn_++ % voters_.size();
+		wanted.asked = 0;
+		wanted.transient = false;
+		wanted.why.clear();
+		waiting_.push_back(std::move(wanted));
+		if (!timing_) {
+			timing_ = true;
+			timer_.expires_after(retry_);
+			timer_.async_wait([weak = weak_from_this()](const asio::error_code &) {
+				auto self = weak.lock();
+				if (!self || self->stopped_)
+					return;
+				self->timing_ = false;
+				for (auto &waiting : self->waiting_)
+					self->queue_.push_back(std::move(waiting));
+				self->waiting_.clear();
+				self->pump();
+			});
 		}
 	}
 	pump();

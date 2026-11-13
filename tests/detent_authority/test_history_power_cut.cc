@@ -34,12 +34,16 @@ Files files(const mem::Disk &disk) {
 	return out;
 }
 std::shared_ptr<mem::MemoryIO> io(mem::Disk &disk) { return std::make_shared<mem::MemoryIO>(disk, std::string(prefix)); }
-h::Fetch peer(const Files &source) {
-	return [&source](const std::string &name, h::Fetched done) {
-		auto found = source.find(name);
-		done(found == source.end() ? std::nullopt : std::optional(found->second));
+// Peers asked in order, as `PeerHistory` asks them: the first bytes that pass the check win.
+h::Fetch peers(std::vector<const Files *> sources) {
+	return [sources](const std::string &name, h::Check good, h::Fetched done) {
+		for (const auto *source : sources)
+			if (auto found = source->find(name); found != source->end() && good(found->second))
+				return done({found->second, {}});
+		done({std::nullopt, "none"});
 	};
 }
+h::Fetch peer(const Files &source) { return peers({&source}); }
 // Drives one queued write; a cut ends the run at the primitive it falls on.
 bool drive(h::History &history, const mem::Disk &disk) {
 	auto operation = history.take_io_operation();
@@ -276,11 +280,17 @@ int main(int argc, char **argv) {
 				rotted = k;
 		assert(rotted);
 		auto name = h::seal_name(log.seals[rotted].applied_index());
-		for (bool with_peer : {false, true}) {
+		// The first peer asked may hold the same rot (F1): the next one's copy repairs it.
+		auto rotten = expected;
+		rotten.at(name)[20] ^= 1;
+		rotten.at("layout")[rotten.at("layout").size() / 2] ^= 1;
+		for (unsigned peered = 0; peered != 3; ++peered) {
+			const bool with_peer = peered;
 			mem::Disk disk = reference;
 			auto inode = disk.names.at(std::string(prefix) + name);
 			disk.inodes.at(inode).durable[20] ^= 1;
-			h::History history(io(disk), {}, with_peer ? peer(expected) : h::Fetch{});
+			h::History history(io(disk), {},
+							   peered == 2 ? peers({&rotten, &expected}) : with_peer ? peer(expected) : h::Fetch{});
 			bool failed = false;
 			try {
 				history.recover(log.seals[rotted]);
@@ -294,11 +304,13 @@ int main(int argc, char **argv) {
 		}
 		// A rotted `layout` table is fetched from a peer too, and never adopted (F1); with
 		// no peer, recovery stops instead of serving other bytes.
-		for (bool with_peer : {false, true}) {
+		for (unsigned peered = 0; peered != 3; ++peered) {
+			const bool with_peer = peered;
 			mem::Disk disk = reference;
 			auto &table = disk.inodes.at(disk.names.at(std::string(prefix) + "layout")).durable;
 			table[table.size() / 2] ^= 1;
-			h::History history(io(disk), {}, with_peer ? peer(expected) : h::Fetch{});
+			h::History history(io(disk), {},
+							   peered == 2 ? peers({&rotten, &expected}) : with_peer ? peer(expected) : h::Fetch{});
 			bool failed = false;
 			try {
 				history.recover(log.seals[rotted]);
