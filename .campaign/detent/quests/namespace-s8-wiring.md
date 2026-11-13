@@ -5,27 +5,23 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+detent-relay serves namespace history to its clients from its `NamespaceRelay` mirror (namespace-s8): it reads layouts, files by name (namespace-s5-3's peer fetch) and W5/W6 frames (namespace-s6-cutover) from the authority or an upstream relay over HTTP, keeps the mirror durable across restarts, and answers W5/W6 the same as the authority would.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A relay process fed by a live authority cluster mirrors every block, base and section byte-identically and answers W5/W6 byte-identically to the authority, also behind an upstream relay: an end-to-end test over HTTP
+- A2 A relay process restart fetches nothing the mirror holds and answers every R at or above the cut unchanged: the same test with bytes fetched
+- A3 The relay never joins consensus and refuses member endpoints (W8): a test
+- A4 [artifact] `docs/status/namespace-s8.md`: "service"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes `NamespaceRelay`/`Upstream` (namespace-s8), the peer fetch endpoint (namespace-s5-3) and W5/W6 (namespace-s6-cutover). Provides the relay's namespace HTTP endpoints, identical in bytes to the authority's.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Split from namespace-s8 by the lead (2026-11-13): the authority had no layout export, files by name or W5/W6 to read when S8 landed its mirror.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
