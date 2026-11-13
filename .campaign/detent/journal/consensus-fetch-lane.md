@@ -1,30 +1,37 @@
 # consensus-fetch-lane: journal
 
-State: waiting on jobs 261113-020036-ac250b 261113-020105-c7fbc8 261113-020109-c7e16e 261113-020113-47b337 261113-020124-cd1754 261113-020129-4b9750
+State: ready for review
 Quest: .campaign/detent/quests/consensus-fetch-lane.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs at consensus:6c3018e: suite, A1-A3 scenarios, A3 mutant, local TSan (A4 support).
+Nothing: every job passed at consensus:6c3018e (the head, consensus:f51bf15, adds only the doc's
+job numbers).
 
 ## Next
 
-1. Read the jobs; paste `campaign brief`'s table; set "ready for review".
-2. A4 proper is `ci:linux-tsan` on GitHub CI: needs the branch pushed (the lead's call; I never push).
+1. Correctness review (the lead launches it).
+2. A4's gate is `ci:linux-tsan` on GitHub CI: it needs quest/detent/consensus-fetch-lane pushed,
+   which is the lead's call. The local TSan job passed meanwhile.
 
 ## Blocked on
 
-Nothing. A4's CI check needs the lead to push quest/detent/consensus-fetch-lane.
+Nothing of mine. The tsan gate and CI need the branch pushed (lead).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261113-020105-c7fbc8 (codec + `peers_test fetch-exact`), suite 261113-020036-ac250b |
-| A2 | job 261113-020109-c7e16e (`peers_test fetch-alongside-consensus`) |
-| A3 | job 261113-020113-47b337 (`peers_test fetch-failures`); mutant 261113-020124-cd1754 (drop the connection_aborted fail in close(): passes iff killed) |
-| A4 | `ci:linux-tsan` (needs push); local macOS TSan job 261113-020129-4b9750 |
+| A1 | 261113-020105-c7fbc8 (passed at 6c3018eb6a6a; ignores docs-only docs/mechanisms/peer-fetch.md) |
+| A2 | 261113-020109-c7e16e (passed at 6c3018eb6a6a; ignores docs-only docs/mechanisms/peer-fetch.md) |
+| A3 | 261113-020113-47b337 (passed at 6c3018eb6a6a; ignores docs-only docs/mechanisms/peer-fetch.md); fails without: 261113-020124-cd1754 |
+| A4 | 261113-020129-4b9750 (passed at 6c3018eb6a6a; ignores docs-only docs/mechanisms/peer-fetch.md); `ci:linux-tsan` pending a push |
 | A5 | [artifact] `CHANGELOG.md` 2026-11-13 "Added": the fetch lane entry |
+
+Suite: 261113-020036-ac250b passed (24/24 tests, peers 16.8 s of its 30 s ctest timeout).
+Mutant: removing `fail(fetching, std::errc::connection_aborted)` from `close()` aborts at
+peers_test.cc:1181 (the closed fetch never completes): killed.
+Local TSan (llvm clang, macOS): 8/8 transport tests clean, peers 18.6 s.
 
 ## Result
 
@@ -34,9 +41,11 @@ magic beside RFTXFR01 transfer frames; replies chunked at one lane frame (64 KiB
 charged to the shared byte budgets one frame at a time; fetch and snapshot frames alternate.
 How it works and the numbers: consensus `docs/mechanisms/peer-fetch.md`.
 
-Local run (not evidence, i9-9980HK, release): 4 rounds of 4 x 8 MiB fetches in 511 ms through
-1 MiB budgets (high water 133 KiB); append round trips quiet 64 / fetching 62, both within the
-16 ms bucket, 0 timeouts, leader term unchanged. Whole peers test ~16 s (ctest TIMEOUT 30).
+A2 job 261113-020109-c7e16e: 4 rounds of 4 x 8 MiB fetches (128 MiB) in 540 ms through 1 MiB
+budgets (high water 133 KiB); append round trips quiet 64 / fetching 64, all within the 16 ms
+bucket, 0 timeouts; slowest commit 23 ms quiet, 41 ms fetching; leader term unchanged. A1 job:
+24 concurrent fetches between three voters answered in 9 ms. A3 job: frozen peer fails at 300 ms
+(the deadline), closed peer at 13 ms; the same lanes then fetch and commit.
 
 Open: no fuzz target for `decode_fetch` (fuzz/ is outside the file set); no cancel frame (a
 timed-out fetch drains its reply instead); Detent's pin bump is namespace-s5-3's.
