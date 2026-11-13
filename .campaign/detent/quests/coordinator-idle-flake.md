@@ -5,17 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-`test_delivery_coordinator`'s retained-idle check (tests/detent_delivery/test_coordinator.cc:1117) passes every time. After the coordinator closes, the fixture server's `read_some` on the idle keep-alive connection reliably sees the close. It failed once under ASan+UBSan in CI run 43002602154 (attempt 1, Detent:06770a7e) and passed on rerun at the same commit. Whether the race is in the test or in the delivery client's close is to be found and fixed at its cause.
+`test_delivery_coordinator`'s two fixture close waits (retained idle, session close) read until the peer's close reaches the stream instead of trusting one `read_some` after `poll`, and fail exactly where main failed, printing any bytes that arrived before the close (`STRAY <checkpoint> count= hex= text=`). The flake (CI runs 43002602154, 43332392043, 43332885078) did not recur in six CI attempts or 620 local runs, so its sender is named by coordinator-idle-cause at the first STRAY line (D89).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 The cause is named with a deterministic reproduction (a forced interleaving or a delay injection), and the reproduction fails before the fix: a job tagged --fails-without
-- A2 The check passes 200 repeats under ASan+UBSan at the fix: one light job of at most 10 min
+- A1 `peer_closed` counts a byte that precedes the close and reports the close after it: test_delivery_peer_close passes, and with `PEER_CLOSE_SINGLE_READ` it fails: jobs, `--fails-without`
+- A2 The coordinator test passes 200 repeats under ASan+UBSan at the diagnostic: one light job
+- A3 [decision] The cause moves to coordinator-idle-cause: D89
 
 ## Contracts
 
@@ -27,4 +23,4 @@ D54, D55.
 
 ## May land early
 
-The diagnostic: `peer_closed` reading until the close, and both fixture waits failing exactly where main fails while printing the stray bytes (`STRAY <checkpoint> count= hex= text=`), so the next CI hit on any branch names the sender. Six CI attempts at Detent:ebcb470e (12 sanitizer jobs) did not reproduce it.
+Nothing.
