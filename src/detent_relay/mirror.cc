@@ -425,23 +425,28 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 		stats.fetched_bytes += bytes.size();
 	}
 	try {
-		// Link: an existing name is not one the durable table holds, so it is unlinked and relinked.
+		// Link. An existing name may be one the durable table reaches (failed at startup), so its
+		// replacement is synced before it is renamed over it, as a repair is.
 		for (auto &want : wanted) {
 			for (;;) {
 				if (::linkat(s.directory(), want.temporary.c_str(), s.directory(), want.name.c_str(), 0) == 0) {
 					primitive("link");
+					s.io->remove(want.temporary);
+					primitive("unlink temporary");
 					break;
 				}
 				if (errno == EINTR)
 					continue;
 				if (errno != EEXIST)
 					throw std::system_error(errno, std::generic_category(), "relay mirror link");
-				s.io->remove(want.name);
-				primitive("unlink orphan");
+				c::File *sync[] = {want.handle.get()};
+				s.io->sync_files(sync);
+				primitive("sync replacement");
+				s.io->replace(want.temporary, want.name);
+				primitive("rename replacement");
+				break;
 			}
-			s.io->remove(want.temporary);
 			want.temporary.clear();
-			primitive("unlink temporary");
 		}
 		if (!wanted.empty()) {
 			std::vector<c::File *> group;

@@ -1,7 +1,7 @@
 // A3, T7 on the relay mirror (namespace-delivery D6 "Commit" and "Recovery", D7): the disk is modelled
 // from completion's sync seam, which records what each fsync and device flush made durable. A power cut
 // after every primitive of an adoption (fetch, stage, link, the sync group, the table, the collector), a
-// repair by name and a startup keeps only that; a process kill keeps every name and byte, and its
+// repair by name, a replacement of a reached file failed at startup and a startup keeps only that; a process kill keeps every name and byte, and its
 // restart adopts again, cut at every step. Each recovered mirror must open with no namespace failed,
 // reach only files that exist with the upstream's bytes, hold nothing else, never revert a table it
 // served, and adopt the upstream's layout again to the uninterrupted mirror.
@@ -436,6 +436,33 @@ int main(int argc, char **argv) {
 				}
 		check(repaired > 0);
 		progress("repair", run3.events.size());
+
+		// 4. A reached file of the wrong size at startup fails its namespace; adopting the same layout
+		// replaces it. Every cut opens with the namespace failed or the upstream's bytes in place, never
+		// a zero-filled reached file taken as healthy, and adopts again to the uninterrupted mirror.
+		const auto &shrunk_file = first.layouts[0].files[1];
+		const auto shrunk_name = r::mirror_file_name(shrunk_file.name);
+		auto shrunk = adopted;
+		shrunk[shrunk_name].pop_back();
+		materialize(root, shrunk);
+		const auto run4 = record_run(root, durable_disk(shrunk), std::span(&first, 1), base.lineage);
+		for (std::size_t i = 0; i < run4.events.size(); ++i)
+			for (auto entries : {Entries::Durable, Entries::All})
+				for (auto data : {Data::Truncate, Data::Zeros}) {
+					const auto files = after_power_cut(run4.events[i], entries, data);
+					materialize(scratch / "cut", files);
+					r::MirrorStore store(unrecorded(scratch / "cut"), {});
+					++counts.cases;
+					check(store.table().entries == first.layouts);
+					if (store.failed().empty())
+						check(slurp(scratch / "cut" / shrunk_name) == bytes_of(shrunk_file.name));
+					else
+						check(store.failed().size() == 1 && store.failed()[0] == first.layouts[0].name);
+					store.adopt(first.layouts, {}, upstream_fetch());
+					check(store.failed().empty() && mirror_matches(scratch / "cut", store.table()));
+				}
+		check(std::count(run4.labels.begin(), run4.labels.end(), "rename replacement") == 1);
+		progress("replace", run4.events.size());
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_relay_mirror_crash: %s\n", error.what());
 		return 1;

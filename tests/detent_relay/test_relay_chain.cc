@@ -419,6 +419,35 @@ int main(int argc, char **argv) {
 		b->sync(names);
 		c->sync(names);
 		compare(group, voter, relays, roots, totals);
+
+		// B restarts with one file of a namespace lost, so that namespace fails; C syncs from B before
+		// B does and keeps everything it holds: B still offers the layout, C deletes and fetches nothing.
+		std::string lost;
+		const auto *victim = &b->mirror().table().entries.front();
+		for (const auto &e : b->mirror().table().entries)
+			if (!e.files.empty()) {
+				victim = &e;
+				break;
+			}
+		CHECK(!victim->files.empty());
+		lost = victim->name;
+		const auto victim_file = r::mirror_file_name(victim->files.back().name);
+		b.reset();
+		std::filesystem::remove(roots[1] / victim_file);
+		b = std::make_unique<r::NamespaceRelay>(io_at(roots[1]), group.context.cluster, from_a);
+		from_b.inner = b.get();
+		relays[1] = b.get();
+		CHECK(b->mirror().failed().size() == 1 && b->mirror().failed()[0] == lost);
+		const auto c_head = c->head(lost);
+		const auto served_to_c = from_b.fetched_files;
+		const auto cascade = c->sync(names);
+		CHECK(cascade.files.collected_files == 0 && cascade.files.fetched_files == 0 && from_b.fetched_files == served_to_c);
+		CHECK(c->mirror().table().find(lost) && c->head(lost) == c_head);
+		b->sync(names);
+		CHECK(b->mirror().failed().empty());
+		const auto after = c->sync(names);
+		CHECK(after.files.collected_files == 0 && after.files.fetched_files == 0 && from_b.fetched_files == served_to_c);
+		compare(group, voter, relays, roots, totals);
 		std::cout << "relay chain: " << totals.steps << " steps over 3 voters and 3 relays, " << totals.files
 				  << " file comparisons byte-identical, " << totals.answers << " cursors answered with identical W6 bytes ("
 				  << totals.answer_bytes << " bytes per hop); voter files fetched " << voter.fetched_files << " ("

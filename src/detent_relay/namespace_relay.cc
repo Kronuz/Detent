@@ -257,10 +257,12 @@ std::optional<d::NamespaceCursor> NamespaceRelay::head(std::string_view name) co
 	return d::NamespaceCursor{impl_->cluster, ring->second.incarnation, ring->second.head};
 }
 
+// A namespace failed at startup is still offered: its missing files are fetched by name from this
+// relay's upstream when a downstream reads them, so the downstream keeps what it holds.
 std::vector<NamespaceLayout> NamespaceRelay::layouts(std::span<const std::string> names) {
 	std::vector<NamespaceLayout> out;
 	for (const auto &name : names)
-		if (const auto *layout = impl_->store.table().find(name); layout && impl_->serves(*layout))
+		if (const auto *layout = impl_->store.table().find(name))
 			out.push_back(*layout);
 	return out;
 }
