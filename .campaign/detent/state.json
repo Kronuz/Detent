@@ -6193,10 +6193,50 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T01:28:10",
+          "commit": "e6471f48d32810817a5d2eff83267f11b90a7cfd",
+          "criteria": {
+            "A1": "261113-004036-f9accd, 261113-000956-055b90, 261113-001020-04ed45",
+            "A2": "261113-000957-3d187f; fails without: 261112-210819-bb52c5, 261112-235326-77c70c, 261113-001005-818ab0",
+            "A3": "261113-000957-3d187f; fails without: 261112-235330-8a834b, 261113-001011-ad723b",
+            "A4": "261113-001020-04ed45"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "bd8c0d1b8163891f236b259647f65d6485020379",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-004036-f9accd",
+              "level": "light",
+              "seconds": 667.6,
+              "state": "done",
+              "what": "namespace-s7-ids check native at bd8c0d1b8163"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b124642c92bb412ceebf3bd04e0b6a0e5d64351a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-000956-055b90",
+              "level": "none",
+              "seconds": 6.5,
+              "state": "done",
+              "what": "namespace-s7-ids check pins at b124642c92bb"
+            }
+          ],
+          "final": true,
+          "from": "f8f38e7622246acb005a4ef9180a8b50d08ae727",
+          "reason": "",
+          "tested": "bd8c0d1b8163891f236b259647f65d6485020379"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "warm-graph-5m",
@@ -6206,9 +6246,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-13T01:27:53",
+      "updated": "2026-11-13T01:31:13",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
