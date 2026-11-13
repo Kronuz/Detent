@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: working
+State: waiting on jobs 261113-013222-0492b8 261113-013224-9d40a2 261113-013247-78f1d4 261113-013251-a8f47b 261113-013300-94782d
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,27 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A2-A5 code is in (async history writes, F1 table rot, F6, F7, mutant script); local runs pass.
-A1's transport is waiting on the lead (msg-44 to the lead: where the peer fetch endpoint lives).
+A2-A5 are in at e67233f0; jobs queued there:
+
+- Gate: pins 261113-013222-0492b8; full native suite 261113-013247-78f1d4 (not a quest check).
+- A2, A3, A4: history tests (power cut cuts/lagged/installs/rot, node power cut, cluster,
+  change history, layout) 261113-013224-9d40a2.
+- A2, A3, A4 mutants (`--fails-without`): durable-at-seal, trust-rotten-table,
+  retained-bounds-only 261113-013251-a8f47b.
+- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-013300-94782d.
+
+Local at e67233f0 (quiet light): authority suite 50/51, the one failure
+`test_authority_snapshot_catchup` (detentd TLS read timeout under the parallel run) passing alone
+in 51.7 s, as in S5.2's journal; the native job decides. The cluster test runs in 0.1 s.
+
+A4's "CI green on every sanitizer job" needs the branch pushed, which is the lead's.
 
 ## Next
 
-1. Local authority suite; then jobs for A2-A5 at the branch head.
-2. A1 once the lead rules: the production `history::Fetch` and its endpoint, a cluster test over
-   the real transport (three nodes, `AuthorityPeers`-style TLS, empty history directory installs).
-3. docs/status/namespace-s5.md S5.3 section; the seven S5.2 mutants and the new ones unwrapped.
+1. Read the jobs; fix what fails.
+2. A1 once the lead rules (msg-46): the production `history::Fetch` and its endpoint, a cluster
+   test over the real transport (an empty history directory installs and answers the same bytes),
+   docs Left open item 5.
 
 ## Blocked on
 
