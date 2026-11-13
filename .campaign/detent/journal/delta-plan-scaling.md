@@ -1,6 +1,6 @@
 # delta-plan-scaling: journal
 
-State: waiting on jobs 261112-175730-027a84 261112-175733-62e242 (5M prep, exclusive round)
+State: ready for review
 Quest: .campaign/detent/quests/delta-plan-scaling.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,8 +32,7 @@ sha256 b7f66891adadebd7da65c09f36b93251bd8f37d9343423a447adbe276b1f6284).
 
 ## Next
 
-1. Wait for 5M: prep 261112-175730-027a84, then exclusive round 261112-175733-62e242 (T9_BUDGET_S 420, full 0.5).
-2. Fill the 5M row of docs/perf/delta-plan-scaling.md and the A5 row; Result; rm -rf ~/.scratch/dps/{store,build}-*.
+Review.
 
 Committed: fix 2396a240, merged main d660a78a. File set widened by the lead (overlay).
 
@@ -50,13 +49,24 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261112-170345-ea0ce8 (profile at 1M, main's code): TrieOverlay::Impl::remove, a linear std::find over every page removed so far per converted node, 7,828 of 10,346 working samples (76%); O(keys x pages). Details: docs/perf/delta-plan-scaling.md |
-| A5 | `docs/perf/delta-plan-scaling.md`: "Before and after: plan per size (100K 0.782 -> 0.675 s, 1M 23.89 -> 6.919 s, 13.5 and 13.8 us/key after), byte identity, ledger margin; 5M row pending job 261112-175733-62e242" |
+| A5 | `docs/perf/delta-plan-scaling.md`: "Before and after: plan per size (100K 0.782 -> 0.675 s, 1M 23.89 -> 6.919 s, 13.5 and 13.8 us/key after), byte identity, ledger margin, 5M 512.8 -> 34.855 s (13.9 us/key)" |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Cause: `TrieOverlay::Impl::remove` deduped removed pages by a linear `std::find` over `removed_extents`,
+O(keys x pages). Fix (detent:2396a240, comment detent:cd4ecda1): look the page up in `removed_set`, keyed by
+(segment, offset); order and bytes unchanged. Plan phase of the 0.5 delta (docs/perf/delta-plan-scaling.md):
+
+| Corpus | Plan before | Plan after | Per key after |
+|---|---|---|---|
+| 100K | 0.782 s | 0.675 s | 13.5 us |
+| 1M | 23.89 s | 6.919 s | 13.8 us |
+| 5M | 512.8 s | 34.855 s | 13.9 us |
+
+Jobs: A2 261112-170955-436de9, 261112-170958-40ef49, 261112-175733-62e242 (5M); A3 261112-170932-ee31ea
+(byte-identical at 100K and 1M); A4 pins 261112-170935-8c7bb4 and mutant 261112-171004-4fde22. Leaves open: a 0.5
+delta at 5M still costs 2.5x a full copy's apply (36.986 vs 14.864 s), T9's question. Ledger charge about 56 bytes
+per removed page (about 40 MB at 5M).
 
 ## Rulings I made
 
