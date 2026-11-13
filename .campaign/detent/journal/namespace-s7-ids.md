@@ -9,32 +9,32 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Durability review CHANGES (88987d54) folded in at e101c49f: F1, F2, F4 fixed; F3, F5 noted.
-Jobs queued at e101c49f (lead resumes on them): native 261112-235321-9e6f06, pins
-261112-235321-c15cca, A2+A3 261112-235323-bfa303, F1 mutant 261112-235326-77c70c, F2 mutant
-261112-235330-8a834b; flake probe at main 261112-235559-3c947d. Locally: test_derived_names
-passes; `T7_GROUP=orphans` 718 cases, all 7 orphan Removes cut; both mutants killed (F1 at the
-new check, F2 at `open_and_recover`'s selected check: a cut, not the publication, kills it).
+All four criteria met at 1c45e219 (lead). Main merged (b124642c, namespace-s5-2; no
+src/detent_local, include/detent_local or tests/detent_local change; the three mutant patches
+still apply). Evidence rerun at b124642c: native 261113-000920-1404af, pins
+261113-000956-055b90, A2+A3 261113-000957-3d187f, F1 mutant 261113-001005-818ab0, F2 mutant
+261113-001011-ad723b, A1/A4 grep 261113-001020-04ed45 (duplicate native 261113-000956-7e039c
+cancelled).
 
-Suspected flake, not this quest's: native 261112-232904-0ca1be (at 2641202d, the first fix
-commit) failed only `test_local_paged_publication_artifacts` ("invalid paged artifact operation
-accepted", the pressure path's `rejects<StoragePressure>`). It passed at 88987d54 (40d6a2) and
-passes 60/60 serially here; under 40-way contention it aborts 3 of 200 runs with that message.
-None of its inputs depend on the derivation's bytes. Probe 261112-235559-3c947d runs the same
-contention at main 8d07ecad; if it fails, the flake is main's (the lead's).
+Native 261112-235321-9e6f06 failed on test_authority_snapshot_catchup (test_multivoter.py:304,
+connection read failed); this branch changes no authority code. If it fails again at the merge,
+record it here for the lead, not chased.
+
+The paged-artifacts flake predates this quest: probe 261112-235559-3c947d failed 4 of 400 at main
+8d07ecad; the lead tracks it in ci-test-flakes.
 
 ## Next
 
-1. When the jobs finish, paste `campaign brief`'s Evidence table below; then
-   `campaign accept namespace-s7-ids durability --confirm F1=261112-235321-9e6f06
-   F2=261112-235321-9e6f06` (the lead's). On a failure, fix it and rerun only that job.
+1. When the jobs finish, paste `campaign brief`'s Evidence table below; then the lead runs
+   `campaign accept namespace-s7-ids durability --confirm F1=261113-000920-1404af
+   F2=261113-000920-1404af`.
 
 ## Confirm mapping (durability review)
 
 | Finding | Suite job | Fails without the fix |
 |---|---|---|
-| F1 | 261112-235321-9e6f06 (and A2 job 261112-235323-bfa303) | 261112-235326-77c70c (`s7-f1-cluster-omitted.patch`, killed by `test_local_derived_names`) |
-| F2 | 261112-235321-9e6f06 (and A3 job 261112-235323-bfa303) | 261112-235330-8a834b (`s7-f2-orphan-remove-selected.patch`, killed by the orphan sweep alone, `T7_GROUP=orphans`) |
+| F1 | 261113-000920-1404af (and A2 job 261113-000957-3d187f) | 261113-001005-818ab0 (`s7-f1-cluster-omitted.patch`, killed by `test_local_derived_names`) |
+| F2 | 261113-000920-1404af (and A3 job 261113-000957-3d187f) | 261113-001011-ad723b (`s7-f2-orphan-remove-selected.patch`, killed by the orphan sweep alone, `T7_GROUP=orphans`) |
 
 ## Review findings (durability, 88987d54)
 
@@ -78,13 +78,14 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <native 261112-235321-9e6f06 queued>, pins 261112-235321-c15cca; <grep 261112-235647-3a2d0a queued> |
-| A2 | <261112-235323-bfa303 queued>; mutants 261112-210819-bb52c5 (ordinal reused), <261112-235326-77c70c queued> (F1) |
-| A3 | <261112-235323-bfa303 queued>; mutant <261112-235330-8a834b queued> (F2) |
-| A4 | <261112-235647-3a2d0a queued> (rerun of 261112-210808-4881bd at the fixed head) |
+| A1 | <native 261113-000920-1404af queued>, <pins 261113-000956-055b90 queued>, <grep 261113-001020-04ed45 queued> |
+| A2 | <261113-000957-3d187f queued>; mutants 261112-210819-bb52c5 (ordinal reused), <261113-001005-818ab0 queued> (F1) |
+| A3 | <261113-000957-3d187f queued>; mutant <261113-001011-ad723b queued> (F2) |
+| A4 | <261113-001020-04ed45 queued> |
 
-Superseded: 261112-210812-89eb23 and 261112-210816-a5eb16 (built without configuring), replaced
-by 261112-235323-bfa303.
+At 1c45e219 (before the merge) all four were met: 261112-235323-bfa303, 261112-235326-77c70c,
+261112-235330-8a834b, 261112-235647-3a2d0a, pins 261112-235321-c15cca. Superseded:
+261112-210812-89eb23 and 261112-210816-a5eb16 (built without configuring).
 
 ## Result
 
