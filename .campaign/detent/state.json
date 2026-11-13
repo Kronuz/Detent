@@ -1074,6 +1074,42 @@
       "updated": "2026-11-11T00:01:57",
       "worktree": ""
     },
+    "delta-plan-fixed-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "campaign verify",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_delta_plan.*",
+        "src/detent_local/paged_plan.*",
+        "src/detent_local/paged_trie_overlay.*",
+        "src/detent_local/paged_warm_validator.*",
+        "src/detent_local/paged_navigation.*",
+        "src/detent_local/paged_node_*",
+        "tests/detent_local/test_delta_plan_*",
+        "tests/detent_local/CMakeLists.txt",
+        "docs/perf/delta-plan-scaling.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "namespace-s7-ids"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "A delta's plan has a store-sized fixed cost",
+      "updated": "2026-11-12T18:58:21"
+    },
     "delta-plan-scaling": {
       "accepted": {
         "correctness": {
