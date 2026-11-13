@@ -1077,32 +1077,32 @@
     "delta-plan-scaling": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-12T18:22:06",
+          "at": "2026-11-12T18:38:17",
           "base": "8aa24cebae4d985693dc0d1a6bca9f0a9b0ace5e",
           "blobs": {
-            "docs/perf/delta-plan-scaling.md": "100644:0cbf2c12f25c36e2e53554a18d492f95c7f5f39b",
+            "docs/perf/delta-plan-scaling.md": "100644:fbf24c96b992ff7211409cce591352201bd87a1b",
             "src/detent_local/paged_trie_overlay.cc": "100644:9dfe0b32294bf9a81f4cedb5961b201d0102af51",
-            "src/detent_local/paged_trie_overlay.hh": "100644:1b6087d176ff1b75c36cb9e28c1444581ba49c8d",
+            "src/detent_local/paged_trie_overlay.hh": "100644:ce454fbaf4c07af277f92c8e4a834aa9e844fd03",
             "tests/detent_local/CMakeLists.txt": "100644:584523374a684d32261135010a9a60acfa86b13d",
             "tests/detent_local/test_delta_plan_removal_probes.cc": "100644:1e155ce049cadad9e1b3ce019d70983306f80b4a",
             "tests/detent_local/test_delta_plan_removal_probes.mutant.patch": "100644:2ad26adac3bb3ddc48b4b6a2ef710c957cc335f3"
           },
           "by": "review",
-          "commit": "64546993251a0506c2b39f650a4f065f3b0bfc64",
+          "commit": "f34fb5c2ffabea95239929a0033606fdd0d7e3a2",
           "criteria": "1f5416aa3fdf2885",
           "diffs": {
             "": "925cb7da3ec2f2b3",
-            "docs/perf/delta-plan-scaling.md": "c86428e9019d8ada",
+            "docs/perf/delta-plan-scaling.md": "169944e9522a2e75",
             "src/detent_local/paged_trie_overlay.cc": "33413b68edfdd69d",
-            "src/detent_local/paged_trie_overlay.hh": "d16d879780560295",
+            "src/detent_local/paged_trie_overlay.hh": "4724d533186358e0",
             "tests/detent_local/CMakeLists.txt": "1c5724d7a353b0f9",
             "tests/detent_local/test_delta_plan_removal_probes.cc": "4898060eb2423f4a",
             "tests/detent_local/test_delta_plan_removal_probes.mutant.patch": "903e3256a50be743"
           },
           "findings": {},
           "note": "",
-          "review": "a2fdf3c97f0fa769fed88d236104392bd6ed0631",
-          "reviewed": "64546993251a0506c2b39f650a4f065f3b0bfc64",
+          "review": "d2a55e150f94cb30b475b1e62ae2abb789ed1f50",
+          "reviewed": "f34fb5c2ffabea95239929a0033606fdd0d7e3a2",
           "verdict": "APPROVE"
         }
       },
@@ -1144,7 +1144,7 @@
       "risk": "high",
       "status": "active",
       "title": "A delta's plan grows superlinearly with the store",
-      "updated": "2026-11-12T18:22:06",
+      "updated": "2026-11-12T18:38:17",
       "worktree": "../Detent-wt/detent/delta-plan-scaling"
     },
     "dense-distribution": {

@@ -1,12 +1,15 @@
 # delta-plan-scaling review: correctness
 
-Commit: 64546993251a
+Commit: f34fb5c2ffab
 Verdict: APPROVE
 Date: 2026-11-12
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+Re-review 64546993251a..f34fb5c2ffab: the only change under src/, include/ and tests/ is the
+`removal_probes()` comment (C1, Detent:cd4ecda1), plus journal and docs/perf; the verdict stands.
 
 Scope: `git log main..64546993251a` without merges; the code change is
 `src/detent_local/paged_trie_overlay.{cc,hh}` (Detent:2396a240) plus
