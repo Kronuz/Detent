@@ -78,7 +78,7 @@ static std::string hex(std::span<const char> bytes) {
 		out << std::hex << std::setfill('0') << std::setw(2) << unsigned(c);
 	return out.str();
 }
-static l::StorageIdentity model_segment(std::size_t index) {
+static l::GenerationId model_segment(std::size_t index) {
 	SHA256 hash;
 	constexpr std::string_view domain = "model segment";
 	hash.add(domain.data(), domain.size());
@@ -87,7 +87,7 @@ static l::StorageIdentity model_segment(std::size_t index) {
 	hash.add(ordinal.data(), ordinal.size());
 	p::Digest digest;
 	hash.getHash(reinterpret_cast<unsigned char *>(digest.data()));
-	l::StorageIdentity result;
+	l::GenerationId result;
 	std::copy_n(digest.begin(), result.size(), result.begin());
 	return result;
 }
@@ -202,8 +202,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 	limits.namespaces = source->namespaces().size();
 	limits.pages = rows->size() * 2;
 	limits.bytes = 4ull * 1024 * 1024 * 1024;
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	p::reset_hash_counts();
 	start = std::chrono::steady_clock::now();
@@ -219,7 +218,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 	const auto hashes = p::hash_counts();
 	auto image = builder.take();
 	std::uint64_t pack_bytes = 0, page_bytes = 0, page_hash_bytes = 0;
-	std::map<l::StorageIdentity, l::StorageIdentity> model_ids;
+	std::map<l::GenerationId, l::GenerationId> model_ids;
 	for (std::size_t i = 0; i < image.segments().size(); ++i)
 		model_ids.emplace(model_segment(i), image.segments()[i].ownership.segment);
 	if (!model.empty()) {
@@ -296,21 +295,10 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 		lookup_pages(*rows, image);
 		require(std::filesystem::create_directories(output));
 		std::filesystem::permissions(output, std::filesystem::perms::owner_all);
-		trusted_records::put(output / "storage.meta", l::encode_storage_identity(storage));
-		const auto name = l::generation_name(generation);
-		trusted_records::put(output / (name + ".image"), root_bytes->view());
-		trusted_records::put(output / (name + ".lease"), l::encode_generation_ownership(
-			{storage, generation, image.descriptor().length, image.descriptor().checksum,
-			 p::format_version}));
-		const auto descriptor = l::encode_descriptor(image.descriptor());
-		trusted_records::put(output / (name + ".descriptor"), descriptor);
-		for (const auto &segment : image.segments()) {
-			const x::SegmentNames names(segment.ownership.segment);
-			trusted_records::put(output / names.payload_name(), segment.bytes->view());
-			trusted_records::put(output / names.owner_name(),
-							 l::encode_segment_ownership(segment.ownership));
-		}
-		trusted_records::put(output / "selected", descriptor);
+		std::vector<trusted_records::Segment> segments;
+		for (const auto &segment : image.segments())
+			segments.push_back({segment.ownership, segment.bytes->view()});
+		trusted_records::install(output, image.descriptor(), root_bytes->view(), segments);
 		const int directory = ::open(output.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		require(directory >= 0);
 		{

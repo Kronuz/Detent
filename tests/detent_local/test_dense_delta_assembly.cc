@@ -22,7 +22,7 @@ static bool segment_less(const x::SegmentInput &a, const x::SegmentInput &b) {
 					   a.ownership.segment.size()) < 0;
 }
 static std::size_t segment_index(std::span<const x::SegmentInput> inputs,
-								 const l::StorageIdentity &id) {
+								 const l::GenerationId &id) {
 	const auto i = x::find_segment(inputs, id);
 	require(i != inputs.size());
 	return i;
@@ -213,8 +213,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		for (const auto &[key, body] : changes)
 			change(overlay, key, body, quantum);
 	overlay.seal();
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('n');
 	x::OverlayAssembler assembler(account, overlay, base->inputs, base->live, base->root,
 								  generation, base->root.cursor, limits);
@@ -249,7 +248,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	require(p::state_commitment(image.root()) == p::state_commitment(expected.root));
 	require(image.root().pages == expected.root.pages && image.root().bytes == expected.root.bytes);
 	require(actual.size() == expected.occurrences.size());
-	std::set<std::pair<l::StorageIdentity, std::uint32_t>> extents;
+	std::set<std::pair<l::GenerationId, std::uint32_t>> extents;
 	std::set<std::string> fresh_paths;
 	std::uint64_t fresh_bytes = 0, offpath_pages = 0, offpath_bytes = 0;
 	for (const auto &[path, r] : actual) {

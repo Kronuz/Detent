@@ -1,5 +1,6 @@
 #include "pinned_source.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include "snapshot_source.hh"
 #include <fcntl.h>
 #include <filesystem>
@@ -52,16 +53,12 @@ int main() {
 					progress.string_bytes == 24 && progress.wire_bytes == encoded.size());
 		}
 		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
-		const auto generation = l::next_generation(std::nullopt, snapshot->cursor(), snapshot->profile(), true).id;
 		l::ImageBuilder builder(snapshot);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		const auto name = l::generation_name(generation);
-		write(directory / (name + ".image"), {builder.bytes()->data(), builder.bytes()->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+		trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 		auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto heap = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto mappings = std::make_shared<d::StorageLedger>(1024 * 1024);
@@ -116,7 +113,7 @@ int main() {
 			rejects([&] { source->override_value(std::numeric_limits<std::uint64_t>::max()); });
 			require(heap->used() == heap->limit() && mappings->used() == mapped);
 		}
-		const auto lease = ::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC);
+		const auto lease = ::open((directory / (l::generation_name(builder.descriptor().generation) + ".lease")).c_str(), O_RDONLY | O_CLOEXEC);
 		require(lease >= 0 && ::flock(lease, LOCK_EX | LOCK_NB) < 0 &&
 				(errno == EWOULDBLOCK || errno == EAGAIN));
 		{

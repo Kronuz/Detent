@@ -11,21 +11,18 @@ void check(bool value, std::source_location at = std::source_location::current()
         throw std::runtime_error("partial reclamation invariant at line " + std::to_string(at.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
 	for (unsigned turns = 0;; ++turns) {
-		check(turns < 1000000);
+		check(turns < 100000);
 		store->advance();
-		auto job = store->operation();
-        if (!job) {
-            if (store->needs_work())
-                continue;
-            break;
-        }
-		job->submitted();
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
-l::StorageIdentity identity(unsigned value) {
-	l::StorageIdentity result{};
+l::GenerationId identity(unsigned value) {
+	l::GenerationId result{};
 	result[0] = 'p';
 	result[14] = static_cast<char>(value >> 8);
 	result[15] = static_cast<char>(value);
@@ -50,8 +47,7 @@ int main() {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{root};
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	l::detail::PagedSnapshotBuilder builder(source, generation);
@@ -60,62 +56,28 @@ int main() {
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	install(root, image, storage);
-	write(root / "owner.lock", {});
+	install(root, image);
+	// What cut publications leave: generations the table does not reach, their files cut short.
 	const auto bytes = std::span<const char>(image.bytes()->data(), image.bytes()->size());
 	for (unsigned length = 0; length <= l::paged::root_bytes; ++length) {
 		const auto id = identity(length);
 		const auto name = l::generation_name(id);
-		write(root / (name + ".lease"),
-			  l::encode_generation_ownership(
-				  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
+		write(root / (name + ".lease"), {});
 		write(root / (name + ".image"), bytes.first(length));
-        const auto metadata = l::detail::encode_reader_metadata(
-            {id, image.descriptor().checksum, {}, l::paged::root_bytes});
-        write(root / (name + ".read"), std::span(metadata).first(std::min<std::size_t>(length, metadata.size())));
+		const auto metadata = l::detail::encode_reader_metadata(
+			{id, image.descriptor().checksum, {}, l::paged::root_bytes});
+		write(root / (name + ".read"), std::span(metadata).first(std::min<std::size_t>(length, metadata.size())));
 	}
 	const auto pinned_name = l::generation_name(identity(159));
 	const int pinned = ::open((root / (pinned_name + ".lease")).c_str(), O_RDWR | O_CLOEXEC);
 	check(pinned >= 0 && ::flock(pinned, LOCK_SH | LOCK_NB) == 0);
-	for (unsigned variant = 0; variant < 2; ++variant) {
-		const auto id = identity(400 + variant);
-		const auto name = l::generation_name(id);
-		write(root / (name + ".lease"),
-			  l::encode_generation_ownership(
-				  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
-		std::array<char, l::paged::root_bytes> invalid{};
-		std::copy(bytes.begin(), bytes.end(), invalid.begin());
-		invalid[variant ? 0 : 56] ^= 1;
-		write(root / (name + ".image"), std::span<const char>(invalid).first(variant ? 80 : 320));
-	}
-    for (unsigned variant = 0; variant != 4; ++variant) {
-        const auto id = identity(500 + variant);
-        const auto name = l::generation_name(id);
-        write(root / (name + ".lease"), l::encode_generation_ownership(
-                  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
-        write(root / (name + ".image"), bytes);
-        auto metadata = l::detail::encode_reader_metadata(
-            {id, image.descriptor().checksum, {}, l::paged::root_bytes});
-        std::size_t length = 0;
-        switch (variant) {
-            case 0: metadata[103] = 2; length = 104; break;
-            case 1: metadata[104] = 1; length = 105; break;
-            case 2: l::write_integer(metadata, 96, 1, 4); length = 100; break;
-            case 3:
-                l::write_integer(metadata, 64, UINT32_MAX, 4);
-                l::write_integer(metadata, 68, 1, 4);
-                length = 72;
-                break;
-        }
-        write(root / (name + ".read"), std::span(metadata).first(length));
-    }
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 	d::RetirementRuntime runtime(baseline, 1);
 	auto domain = runtime.domain(account, 64);
 	const auto initial = account->used();
 	l::DiskStoreOptions options;
-	options.limits = {64 * l::paged::segment_bytes, 1000, 400};
+	options.limits = {64 * l::paged::segment_bytes, 2000, 400};
 	options.recovery_limits.retirement_domain = &domain;
 	options.recovery_limits.mapping_account =
 		std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
@@ -124,20 +86,11 @@ int main() {
 	store->request_collection();
 	drive(store);
 	check(store->status() == l::StoreStatus::Ready && store->stats().used == census(root));
+	// Collection removes every unreached generation but the one a reader holds, whatever its files hold.
 	for (unsigned length = 0; length <= l::paged::root_bytes; ++length)
-		check(std::filesystem::exists(root / (l::generation_name(identity(length)) + ".lease")) ==
-				(length == 159));
-    for (unsigned length = 0; length <= l::paged::root_bytes; ++length)
-        check(std::filesystem::exists(root / (l::generation_name(identity(length)) + ".read")) == (length == 159));
-	for (unsigned variant = 0; variant < 2; ++variant)
-		check(std::filesystem::exists(root / (l::generation_name(identity(400 + variant)) + ".lease")));
-	for (unsigned variant = 0; variant != 4; ++variant) {
-        const auto name = l::generation_name(identity(500 + variant));
-        check(std::filesystem::exists(root / (name + ".lease")) &&
-                std::filesystem::exists(root / (name + ".image")) &&
-                std::filesystem::exists(root / (name + ".read")));
-    }
-    check(store->stats().used.generations == 8);
+		for (const auto *suffix : {".lease", ".image", ".read"})
+			check(std::filesystem::exists(root / (l::generation_name(identity(length)) + suffix)) == (length == 159));
+	check(store->stats().used.generations == 2);
 	check(::flock(pinned, LOCK_UN) == 0 && ::close(pinned) == 0);
 	store->request_collection();
 	drive(store);
@@ -147,7 +100,7 @@ int main() {
         throw std::runtime_error("unpinned partial root retained with " + std::to_string(store->stats().used.generations) + " generations");
     }
 
-	check(store->stats().used == census(root) && store->stats().used.generations == 7);
+	check(store->stats().used == census(root) && store->stats().used.generations == 1);
 	for (const auto &segment : image.segments())
 		check(std::filesystem::exists(root /
 										l::detail::SegmentNames(segment.ownership.segment).payload_name()));

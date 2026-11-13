@@ -21,8 +21,7 @@ static void drain(x::SegmentBuilder &segment, std::size_t quantum = 1) {
 }
 int main() {
 	auto account = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
-	l::StorageIdentity storage{}, publication{};
-	storage.fill('s');
+	l::GenerationId publication{};
 	publication.fill('g');
 	std::size_t admitted = 0;
 	{

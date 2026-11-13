@@ -13,7 +13,7 @@ void require(bool condition) {
 	if (!condition)
 		throw std::invalid_argument("invalid local storage ownership record");
 }
-bool nonzero(const StorageIdentity &identity) {
+bool nonzero(const SegmentId &identity) {
 	return std::any_of(identity.begin(), identity.end(), [](char value) { return value != 0; });
 }
 void seal(std::span<char> bytes, std::size_t prefix) {
@@ -35,64 +35,6 @@ void validate(std::span<const char> bytes, std::string_view magic, std::size_t l
 	require(std::memcmp(bytes.data() + length - 32, digest, sizeof digest) == 0);
 }
 } // namespace
-std::array<char, storage_identity_bytes> encode_storage_identity(const StorageIdentity &identity) {
-	require(nonzero(identity));
-	std::array<char, storage_identity_bytes> bytes{};
-	constexpr std::string_view magic = "DTSTORE1";
-	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 1, 4);
-	write_integer(bytes, 12, bytes.size(), 4);
-	std::copy(identity.begin(), identity.end(), bytes.begin() + 16);
-	seal(bytes, 32);
-	return bytes;
-}
-StorageIdentity decode_storage_identity(std::span<const char> bytes) {
-	validate(bytes, "DTSTORE1", storage_identity_bytes);
-	StorageIdentity identity;
-	std::copy_n(bytes.begin() + 16, identity.size(), identity.begin());
-	require(nonzero(identity));
-	return identity;
-}
-std::array<char, generation_ownership_bytes>
-encode_generation_ownership(const GenerationOwnership &ownership) {
-	// Admission quotas are absent; older owned generations can exceed them.
-	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
-			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == paged::format_version &&
-			  ownership.image_length == paged::root_bytes)));
-	std::array<char, generation_ownership_bytes> bytes{};
-	constexpr std::string_view magic = "DTLEASE1";
-	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 1, 4);
-	write_integer(bytes, 12, bytes.size(), 4);
-	std::copy(ownership.storage.begin(), ownership.storage.end(), bytes.begin() + 16);
-	std::copy(ownership.generation.begin(), ownership.generation.end(), bytes.begin() + 32);
-	write_integer(bytes, 48, ownership.image_length, 8);
-	write_integer(bytes, 56, ownership.layout_version, 4);
-	write_integer(bytes, 60, 1, 4);
-	std::copy(ownership.image_checksum.begin(), ownership.image_checksum.end(), bytes.begin() + 64);
-	seal(bytes, 96);
-	return bytes;
-}
-GenerationOwnership decode_generation_ownership(std::span<const char> bytes) {
-	validate(bytes, "DTLEASE1", generation_ownership_bytes);
-	require(read_integer(bytes, 60, 4) == 1);
-	GenerationOwnership ownership;
-	std::copy_n(bytes.begin() + 16, 16, ownership.storage.begin());
-	std::copy_n(bytes.begin() + 32, 16, ownership.generation.begin());
-	ownership.image_length = read_integer(bytes, 48, 8);
-	ownership.layout_version = read_integer(bytes, 56, 4);
-	std::copy_n(bytes.begin() + 64, 32, ownership.image_checksum.begin());
-	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
-			(!current_layout(ownership.layout_version) ||
-			 (ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == paged::format_version &&
-			  ownership.image_length == paged::root_bytes)));
-	return ownership;
-}
-bool current_layout(std::uint32_t layout_version) noexcept {
-	return layout_version == 1 || layout_version == paged::format_version;
-}
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {
 	require(nonzero(ownership.segment) && ownership.length >= paged::page_header_bytes &&
 			ownership.length <= paged::segment_bytes);

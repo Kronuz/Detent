@@ -9,9 +9,10 @@ store/                       one directory; the only one the startup barrier syn
   selected                   the table, replaced by rename
   change                     store word, then one sequence per namespace slot; never replaced
   owner.lock                 held exclusively (flock) by the one writer
-  generation-<id>.image      the 320-byte paged root
-  generation-<id>.read       reader metadata
-  generation-<id>.live       segment rows, live counts, histogram; binds .read and the root
+  generation-<id>.image      the 320-byte paged root, or a flat image
+  generation-<id>.lease      empty; a reader holds it shared while it reads the generation
+  generation-<id>.read       reader metadata (empty for a flat image)
+  generation-<id>.live       segment rows, live counts, histogram; binds the whole .read and the root
   segment-<id>.pack/.owner   pages and the owner record
   .tmp-<random>              a file being written; startup removes it
 ```
@@ -33,7 +34,7 @@ The generation id is the first 16 bytes of SHA-256 over `detent.agent-store.gene
 1. Validation. The store derives each generation's id, checks that its `.live` binds that id, the root's and `.read`'s digests, that every new pack matches its row, and that every row it does not write is a segment the durable table reaches. Nothing is written for a cycle that fails.
 2. Staging. Every file is written under a fresh `.tmp-` name, unsynced.
 3. Linking. Each `.tmp-` name is linked to its final name with `linkat`, which fails on an existing name. An existing name the durable table reaches is reused in place when its bytes hash to what the cycle holds; when they differ it is corruption: `ReachedNameMismatch` names it and its namespace, the table stays, and the caller builds a repair at the next ordinal (D10). Any other existing name is an orphan, unlinked and linked again (N1), even with the right bytes: a killed process may have linked it unsynced, or its fsync may have failed (EIO) while the page cache keeps the bytes and a later fsync reports success. Then the `.tmp-` name is unlinked.
-4. Groups (D11). The new owner records sync as one group, with the directory; the new payloads (packs, roots, `.read`, `.live`) as a second. A reused name needs neither: the durable table reaches it, so its bytes were synced before that table was renamed.
+4. Groups (D11). The new owner records and `.lease` files sync as one group, with the directory; the new payloads (packs, roots, `.read`, `.live`) as a second. A reused name needs neither: the durable table reaches it, so its bytes were synced before that table was renamed.
 5. The table, written under a `.tmp-` name, fsynced, renamed over `selected`, then the directory synced. The fsync comes before the rename (N6).
 6. `change`: the changed slots, then the store word.
 
@@ -74,16 +75,37 @@ Mutants (`tests/detent_agent/mutants/`, run by `agent_store_mutant.sh`): `n6-ren
 The managed store (`DiskStore`) names its generations and segments by the same derivation, from one place: `next_generation` in `include/detent_local/derived_ids.hh` (D8.1, D8.2). Each builder derives its own name (`ImageBuilder`, `PagedSnapshotPlanBuilder`, `PagedMaintenanceBuilder`, `PagedPlanBuilder`, `PagedDeltaPlanBuilder`, `PagedCompactionBuilder`); no caller passes an id. Until namespace-s6-cutover (D88) the old cursor maps to a namespace cursor: the incarnation is the first 16 bytes of SHA-256 over `detent.agent-store.incarnation`, the cluster, the group, the restore epoch and the scope, so a trusted reset that changes only the cluster derives new names; the position is the revision.
 
 - Base. A snapshot, a repair, a trusted reset and a migration are full copies (zero base); a delta, progress and a compaction name the selected generation as their base.
-- Ordinal. A build at the selected head's cursor takes the head's ordinal plus one, any other build 0. The descriptor carries it in bytes 164..168 (formerly reserved), so a rebuild of a rebuild keeps counting.
+- Ordinal. A build at the selected head's cursor takes the head's ordinal plus one, any other build 0. The table entry carries it.
 - Check. `DiskStore::begin` refuses a publication whose generation and ordinal are not the derivation over the selected generation.
-- Orphans (D8.4). Preflight inspects each derived name. One the selected generation does not reach (its own files, or a segment its registry holds) is what a cut or cancelled publication left: it is unlinked, its usage credited to the ledger, and written again. One it reaches, or an entry that is not a safe regular file, refuses the publication.
-- Records. `.owner` (`DTSGOWN2`: segment, length, checksum) and `.read` (`DTREAD02`) hold no storage identity. `.lease` and `storage.meta` keep it until namespace-s7-store.
+- Records. `.owner` (`DTSGOWN2`: segment, length, checksum) and `.read` (`DTREAD02`) hold no storage identity; `.lease` is empty.
 - `PagedSemanticLimits` has no default bounds: callers pass the store's recovery limits or `paged_format_semantics`, the format's.
-- A `PagedNamedRoot` without a cached certificate carries ordinal 0 (the image and lease do not hold it); a builder based on it at a selected ordinal above 0 is refused by `begin`'s derivation check, never published under a colliding name.
 
-Tests: `test_derived_names` (rebuilds at one head take ordinals 1, 2, 3 under distinct names; a cluster-only reset derives a new name; mutants `tests/detent_local/mutants/s7-a2-ordinal-reused.patch`, `s7-f1-cluster-omitted.patch`), `test_publication_power_cut` (a republication over a cut publication's durable orphans is cut at every event, each orphan Remove included, in every mode and killed at every boundary, `T7_GROUP=orphans` alone; mutant `s7-f2-orphan-remove-selected.patch`; its republish cycles derive the cut publication's name and unlink its orphans), `test_ownership` and `test_reader_metadata` (the record layouts, pinned).
+Tests: `test_derived_names` (rebuilds at one head take ordinals 1, 2, 3 under distinct names; a cluster-only reset derives a new name; mutants `tests/detent_local/mutants/s7-a2-ordinal-reused.patch`, `s7-f1-cluster-omitted.patch`), `test_ownership` and `test_reader_metadata` (the record layouts, pinned).
+
+## Wiring
+
+The agent publishes and serves through the agent store; nothing else writes its directory (D43: the old layout, `storage.meta`, `DTSELECT` descriptors, ownership records and their collector are gone, with no migration).
+
+```text
+coordinator (owner thread)          worker thread              disk
+  DiskStore::begin  -> prepare cycle
+  DiskStore::work() -> AgentWork ---> run(): AgentStore::publish / collect ---> store/
+  DiskStore::advance() <- settle (census, selection, errors)
+readers: table -> image peek -> flock(.lease, SH) -> same inode as the name -> map
+```
+
+- Publication. `DiskStore::begin` checks the build as before (derived name, cursor, intent, admission) and prepares one cycle: the generation as the store's one namespace, named after the configured scope (D88, until s6-cutover), every other entry dropped. A flat image publishes an empty `.read` and a `.live` without rows, charged to the store's account. The cycle views the builder's bytes; the store holds them until it settles. The cycle is reserved before a paged plan moves into the store, so a refusal (`DiskPressure`, `StoragePressure`) leaves the caller's plan whole. `work()` hands the cycle to the coordinator's worker; `advance()` on the owner settles it: the selection, the ledger against the store's census, and the paged recovery the caller confirms. `ReachedNameMismatch` and `LeaseHeld` reject the publication and leave the table; any other error fences the store.
+- Profile. The table holds the store's profile. A publication adopts its own (`AgentStore::adopt`); the cycle that writes it drops every entry of the other.
+- Startup. `make_disk_store` opens the agent store (`owner.lock`, the one barrier, the table checked), reads the profile from the table, and recovers the selected generation. A fresh store needs an empty directory; an existing one needs its `owner.lock`. A generation that does not recover fences the store and keeps every file.
+- Readers. `read_selected` reads the table (exactly one entry), peeks the image for its cursor (the paged root's prefix or the flat header), and requires the table's profile and the namespace cursor the cursor maps to. A reader opens the empty `.lease`, locks it shared, and maps the image only when the locked inode is still the name's.
+- Collection. After each publication settles (and its paged recovery is confirmed), the next work is `AgentStore::collect()`: every generation the table does not reach goes, `.lease` first under an exclusive non-blocking lock, except one a reader holds, or whose `.lease` does not open for any reason but a missing name, and the segments its `.live` names. A collection that leaves such a generation runs again after a backoff (1 s doubling to 30 s, `collection_retry_at`, which the coordinator's disk loop waits for). Collection syncs nothing; a cut keeps any subset of its removals, all of names no table reaches.
+- Revisited cursor. A cycle that derives a name the table no longer reaches but a reader still holds, or whose `.lease` does not open, throws `LeaseHeld` before writing anything; the publication is retried.
+- Accounting. The ledger's `used` is the store's census (every name, one generation per `.lease`); a reservation covers the cycle's peak (its files, the `.lease` and the staged table) until it settles against the census the cycle left.
+- Change file. `change` holds the store word from the store's creation; a namespace's slot appears with its first publication, so a fresh store's file is one word.
+- Catch-up. The ring entries, a trimmed block and a base all build on the recovered selected generation; from a store recovered after a process kill at every agent-store primitive of a publication they reach the full copy's commitment (`test_agent_catch_up`).
+
+Tests: `test_disk_store` (startup modes, census settlement, cancellation, admission, collection around a reader's lease, a close while work runs), `test_paged_publication_intents` (delta, progress, maintenance and compaction published and collected), `test_paged_disk_store`, `test_paged_store_startup` (one barrier; damage fences), `test_foreign_generation` (another format's generation fences and keeps its files), `test_paged_root_partial_reclaim` (cut leftovers collected around a held lease), `test_managed_reader` (the reader's table, lease and image binding), `test_agent_store` (`collection`, `held_lease`, `lease_open_failure`), `test_delivery_repair` (deferred collection and its backoff), `test_delivery_coordinator` (a store holding a flat generation published over, a fenced startup, storage pressure), `test_agent_store_crash` (T7, each cycle followed by a collection, cut at every removal).
 
 ## Open
 
-- The store lands as a module (`detent::agent_store`, built in `src/detent_local/CMakeLists.txt`); namespace-s7-wire wires the agent's publication and readers through it.
-- `.lease` files (created at adoption, S9) and the collector of unreached names are not part of S7.
+- The non-local filesystem warning for `owner.lock` (s7 F5) is not done.

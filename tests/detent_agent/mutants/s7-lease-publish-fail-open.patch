@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
+index a3d9aa24..e6fce2ce 100644
+--- a/src/detent_local/agent_store.cc
++++ b/src/detent_local/agent_store.cc
+@@ -354,7 +354,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
+ 		} catch (...) {
+ 			if (missing(std::current_exception()))
+ 				continue;
+-			throw LeaseHeld(file.name); // a lease that does not open may be held: the cycle waits
++			continue;
+ 		}
+ 		if (!lease->try_lease(c::LeaseMode::Exclusive))
+ 			throw LeaseHeld(file.name);

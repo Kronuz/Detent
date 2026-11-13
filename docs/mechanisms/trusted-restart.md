@@ -6,9 +6,9 @@ A generation is verified once, by the build that writes it. A cold start (no pri
 
 ```text
 build (publication)                          cold start (RecoveryEngine::recover)
-  segments, .owner, .pack                      selected -> lease -> storage.meta -> .image   (root: 320 B hashed)
-  .lease .image .live .read .descriptor        .live present?  no  -> full verified recovery (walk, 3 hashes/pack)
-  all synced, then `selected` replaced                         yes -> TrustedRestart::open
+  segments, .owner, .pack                      selected -> lease -> .image   (root: 320 B hashed)
+  .lease .image .live .read                    .live present?  no  -> full verified recovery (walk, 3 hashes/pack)
+  all synced, then the table replaced                           yes -> TrustedRestart::open
                                                   .read  (digest, bindings)   .live (digest, bindings)
                                                   per row: open .pack, mmap, no read, first-touch bits
                                                   adopt rows -> sealed registry; counts from .read
@@ -28,7 +28,7 @@ Fields, big-endian, `live_record.hh`:
 | 12 | 4 | total length, equal to the file size |
 | 16 | 16 | reserved, zero; the decoder refuses anything else (the record holds nothing host-specific, so two builds of one input write the same bytes) |
 | 32 | 16 | generation id |
-| 48 | 32 | root checksum, equal to the descriptor's and the lease's image checksum |
+| 48 | 32 | root checksum, equal to the table entry's root checksum |
 | 80 | 32 | the `.read` file's own trailing SHA-256 (bytes 160-191) |
 | 112 | 4 | row count n, equal to the root's `segments` |
 | 116 | 4 | zero |
@@ -39,7 +39,7 @@ Fields, big-endian, `live_record.hh`:
 
 Rows are strictly ascending by segment id, so they are the registry's order. A row needs a nonzero id, a length of at most one segment, at least one live page and no more live bytes than its length. The decoder refuses any other shape (`decode_live_record`).
 
-**Binding.** The trailing digest covers the file. The header binds it to the generation (id and root checksum) and to the exact `.read` file by that file's own digest, so a record or `.read` copied from another generation or another build of the same generation is refused; `.read` (`DTREAD02`) carries no storage identity; the lease is the record checked against `storage.meta`. Three further checks run at the open, none needing I/O:
+**Binding.** The trailing digest covers the file. The header binds it to the generation (id and root checksum) and to the exact `.read` file by that file's own digest, so a record or `.read` copied from another generation or another build of the same generation is refused; the table entry binds `.read` by its SHA-256. Three further checks run at the open, none needing I/O:
 
 1. The sum of the row lengths plus the root equals `.read`'s physical bytes, and the row count equals the root's `segments`.
 2. The derived counts add up to what the root and `.read` authenticate: the rows' live pages sum to `root.pages` and their live bytes to `root.bytes`; the histogram sums to `root.records`, its weighted sum equals `.read`'s override count and its highest nonzero bucket equals `.read`'s maximum overrides.
@@ -49,12 +49,12 @@ The per-segment loop at the end of `recover` then reads each `.owner` record and
 
 **What the counts drive, and what is not caught.** The live pages and bytes decide which base segments a successor registry carries (`WarmRegistryMerge`) and which packs compaction picks; the histogram sets the successor's maximum overrides, which readers enforce. The sums above are the totals a builder defect or a damaged record can be caught on for free. A pair of rows whose pages were shifted between segments with the sums kept passes every check at the restart and is refused by the successor's warm validation at the next update (`invalid warm paged graph`), which then fails every update until the store is replaced. No read returns a wrong value on that path.
 
-**Order against the table.** `.live` is one more artifact of the generation, appended between `.image` and `.read` and written, synced and renamed with the others before `selected` is replaced, so no durable `selected` reaches a generation without it. The collector removes it with the generation's other files (part 4 of its pass, inspected and rechecked like the rest, removed before the lease).
+**Order against the table.** `.live` is one more artifact of the generation, appended between `.image` and `.read` and written, synced and linked with the others before the table names it, so no durable table reaches a generation without it. Collection removes it with the generation's other files, after the generation's `.lease`.
 
 **Missing or damaged.**
 
 - Missing, or present and wrong (digest, binding, shape, size, an unsafe file, a missing `.read`, `.read` differing from the root or limits): the store is refused (`recover` throws). There is no second restart path; a refused store is repaired the way a corrupt one is, by a fresh copy (lead ruling 2026-11-04). The test suite's hand-installed stores derive both records once (`tests/detent_local/trusted_records.hh`).
-- A corrupt `selected`, root image or lease refuses the store exactly as before: those are checked first.
+- A corrupt `selected`, root image or lease refuses the store: those are checked first.
 - The refusal applies wherever `RecoveryContext::trusted_start` is set, which `ManagedRecovery::capture` does for the agent's and the relay's cold start and for the recovery after their own publications ("A tier's own build" below). The full verified recovery stays for tools (`recover_generation`) and for tests that call the engine without the flag.
 
 ## Fuzzing
@@ -63,7 +63,7 @@ The per-segment loop at the end of `recover` then reads each `.owner` record and
 
 ## What startup does and does not do
 
-Reads and hashes: `selected`, the lease, `storage.meta`, the 320-byte root (hashed against the descriptor), `.read` (its own digest), `.live` (its own digest), and per segment an `.owner` record and a stat. Per segment it opens the pack, checks owner, mode, link count and length, and `mmap`s it; it reads none of the pack. A counter proves it: `RecoveryMetrics::segment_hash_bytes` is 0, `root_hash_bytes` is 320, and `paged::hash_counts().page_calls` (a process-wide count of page digests) does not move (`test_testing_trusted_restart`).
+Reads and hashes: `selected`, the empty lease, the 320-byte root (hashed against the table entry), `.read` (its own digest), `.live` (its own digest), and per segment an `.owner` record and a stat. Per segment it opens the pack, checks owner, mode, link count and length, and `mmap`s it; it reads none of the pack. A counter proves it: `RecoveryMetrics::segment_hash_bytes` is 0, `root_hash_bytes` is 320, and `paged::hash_counts().page_calls` (a process-wide count of page digests) does not move (`test_testing_trusted_restart`).
 
 ## First touch
 
@@ -102,7 +102,7 @@ Each worker slice retains its scrub state and leased root until the worker sets 
 
 ## Repair of a damaged pack
 
-A store has one generation today, so "a namespace fails alone" means the coordinator keeps running and readers keep serving what they can read; a damaged page fails the reads that reach it with `SourceFailure` and nothing else. Code: `coordinator.cc` (`request_repair`, the candidate loop, `bind_base`), `paged_snapshot_plan.cc`, `paged_plan.cc`, `disk_store.cc` (`begin_paged`, `capture`), `paged_segment_collection.cc`, `bundle.cc`.
+A store has one generation today, so "a namespace fails alone" means the coordinator keeps running and readers keep serving what they can read; a damaged page fails the reads that reach it with `SourceFailure` and nothing else. Code: `coordinator.cc` (`request_repair`, the candidate loop, `bind_base`), `paged_snapshot_plan.cc`, `paged_plan.cc`, `disk_store.cc` (`begin_paged`, `capture`), `agent_store.cc` (`collect`), `bundle.cc`.
 
 ```text
 scrub report ----+                                       +--> Replace at the selected cursor or later
@@ -110,7 +110,7 @@ first-touch      +--> request_repair --> pending ------> | force_snapshot, sessi
 failure (update) +                                       +--> PagedSnapshotPlanBuilder(repair): intent Repair
                                                               begin_paged --> fresh packs, selected replaced
    recovery: no prior (admission and capture) --> full walk of the new generation
-   bind_base: pending off, completed + 1, request_collection --> collector removes the damaged packs
+   bind_base: pending off, completed + 1, request_collection --> collection removes the damaged packs
 ```
 
 **Trigger.** `Coordinator::Impl::request_repair` sets `diagnostic.repair.pending` (`CoordinatorStatus::repair`: `requested`, `completed`, `pending`). Two things call it: the scrub loop when a completed pass found a damaged pack (it also ends a network wait in progress, `repair_woke`, which is not counted as a failure), and the candidate loop when building an update throws `ReadSourceFailure` (a first-touch failure in a delta, progress or compaction plan). While a repair is pending the round skips compaction, sets `force_snapshot`, closes a session that was not opened for a Replace and opens the next one with `force_snapshot`, and in poll mode sends no base. The state is the coordinator's, not durable: a restart during a pending repair finds the damage again at the first scrub pass.
@@ -121,9 +121,9 @@ failure (update) +                                       +--> PagedSnapshotPlanB
 
 A repair at the selected cursor accepts a state that differs from the selected generation. It cannot use damaged base pages for a state-equality comparison. It still requires the selected base's identity and profile and refuses an older revision.
 
-**Collection.** `PagedSegmentRead` takes `tolerate_mismatch` for unmarked sweep candidates: the collector proves the owner record and the file's ownership, mode, link count, length and identity, then removes the pack even if its payload checksum differs. The dependency walk refuses a mismatching pack. If a protected root's walk fails proof, the collector reads its `.live` record through completion I/O, checks the record's digest, generation, root checksum, row count and tree membership, and conservatively marks every row. A pack of a protected root that is missing or unreadable (ENOENT, EIO) takes the same path. It retains the failure in `DiskStore::collection_error()` while sweeping other unreachable packs. Invalid or unavailable metadata stops the sweep. Conservative rows never enter the dependency-certificate cache.
+**Collection.** `AgentStore::collect()` removes every pack no remaining `.live` names without reading it, so a damaged pack goes like any other once no table entry and no held generation reaches it. A generation a reader holds keeps the packs its `.live` names; one whose `.live` does not read keeps every segment until a later collection. A `.lease` that does not open, for any reason but a missing name, counts as held.
 
-**Deferred collection.** A pass that retains a non-selected root, or conservatively marks a failed root, leaves collection pending. A cached certificate can protect a damaged root without reading its packs, so retry depends on retained roots as well as proof failures. `DiskStore::advance` schedules one retry after a completed deferred pass; the coordinator includes `collection_retry_at()` in its existing disk deadline. The delay doubles from one second to a 30-second cap. File leases have no release notification, so the cap bounds the post-release wait while backoff limits repeated scans during a long lease. A successful pass clears the deadline and resets the delay. Close hides the deadline and admits no retry. No timer or thread is added. `test_delivery_repair_heal` retains every damaged extent through two passes, checks backoff, and releases the reader without requesting collection again; `lease-close` closes with deferred work.
+**Deferred collection.** A collection that leaves a generation the table does not reach (one a reader holds) is deferred: `DiskStore` schedules one retry, and the coordinator includes `collection_retry_at()` in its disk deadline. The delay doubles from one second to a 30-second cap. File leases have no release notification, so the cap bounds the post-release wait while backoff limits repeated scans during a long lease. A collection that leaves nothing clears the deadline and resets the delay. Close hides the deadline. `test_delivery_repair_heal` keeps every damaged pack through two deferred passes, checks the backoff, and sees the packs go once the reader lets go without another request; `lease-close` closes with deferred work.
 
 **What a reader sees.** The agent never fences for this. A reader process maps `selected` itself: before the repair it serves what it can read and gets `SourceFailure` for the damaged pages; after the repair its next open maps the new generation. `test_delivery_repair heal` runs a reader that mapped the damaged generation through the whole repair: no read returned a wrong value and none that worked stopped working.
 

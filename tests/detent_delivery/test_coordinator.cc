@@ -8,6 +8,7 @@
 #include "detent_relay/sessions.hh"
 #include "peer_close.hh"
 #include "task_support.hh"
+#include "trusted_records.hh"
 #include <asio/buffers_iterator.hpp>
 #include <asio/read.hpp>
 #include <asio/read_until.hpp>
@@ -539,9 +540,9 @@ int main(int argc, char **argv) {
 			paged && std::string_view(argv[2]).find("compaction-pressure") != std::string_view::npos;
 		const bool worker_cancel =
 			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
-		const bool migration = paged && std::string_view(argv[2]).find("migrate") != std::string_view::npos;
+		const bool from_flat = paged && std::string_view(argv[2]).find("from-flat") != std::string_view::npos;
 		const bool maintenance_failure =
-			migration && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
+			from_flat && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
 		const auto original_maintenance_failure =
 			std::make_exception_ptr(std::runtime_error("original maintenance recovery failure"));
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
@@ -598,9 +599,11 @@ int main(int argc, char **argv) {
 			disk_options.recovery_limits.mapping_account = mapping;
 			disk_options.recovery_limits.retirement_domain = &domain;
 		}
-		disk_options.limits = {pressure ? 1072ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
+		// Under reader pressure the store holds two flat generations (1376 bytes each with their `.live`)
+		// and a third's reservation (1864) does not fit beside them while a reader pins the first.
+		disk_options.limits = {pressure ? 4096ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
 		std::optional<l::ReadView> pinned_flat;
-		if (migration) {
+		if (from_flat) {
 			const auto reply = response(count);
 			d::Limits input_limits;
 			input_limits.storage_account = account;
@@ -623,24 +626,13 @@ int main(int argc, char **argv) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
-			auto write = [&](const auto &path, std::span<const char> contents) {
-				std::ofstream file(path, std::ios::binary);
-				file.write(contents.data(), contents.size());
-				file.close();
-				check(bool(file));
-				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
-													   std::filesystem::perms::owner_write);
-			};
-			const auto name = l::generation_name(builder.descriptor().generation);
-			write(directory / (name + ".image"), builder.bytes()->view());
-			write(directory / (name + ".lease"), {});
-			write(directory / "owner.lock", {});
-			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			// A store holding a flat generation, which the paged publications replace.
+			trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 			pinned_flat = l::recover_generation(directory, disk_options.recovery_limits).view();
-			disk_options.mode = l::StoreOpenMode::UpgradeLegacy;
+			disk_options.mode = l::StoreOpenMode::ExistingManaged;
 		}
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
-		checkpoint("legacy-image-ready");
+		checkpoint("flat-image-ready");
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*server_tls,
@@ -1221,17 +1213,23 @@ int main(int argc, char **argv) {
 		auto failed_directory = directory / "failed-startup";
 		std::filesystem::create_directory(failed_directory);
 		std::filesystem::permissions(failed_directory, std::filesystem::perms::owner_all);
+		{
+			// A table naming a generation the directory lacks: startup recovery fails and fences the store.
+			l::StoreTable table;
+			table.sequence = 1;
+			l::TableEntry entry;
+			entry.name = l::namespace_name(cursor());
+			entry.cursor = l::namespace_cursor(cursor());
+			entry.generation.fill('f');
+			table.entries.push_back(entry);
+			trusted_records::put(failed_directory / "owner.lock", {});
+			trusted_records::put(failed_directory / "selected", l::encode_table(table));
+		}
+		auto failed_disk_options = disk_options;
+		failed_disk_options.mode = l::StoreOpenMode::ExistingManaged;
 		auto failed_store =
-			l::make_disk_store(domain, failed_directory, std::make_shared<int>(1), disk_options);
-		auto failed_original = failed_store->operation();
-		check(static_cast<bool>(failed_original));
-		failed_original->submitted();
-		auto completion =
-			kronuz::journal::detail::execute_primitive(failed_original->io(), failed_original->request());
-		completion.error = std::make_exception_ptr(std::runtime_error("injected startup original failure"));
-		check(failed_original->complete(std::move(completion)));
-		failed_original.reset();
-		check(failed_store->status() == l::StoreStatus::Fenced);
+			l::make_disk_store(domain, failed_directory, std::make_shared<int>(1), failed_disk_options);
+		check(failed_store->status() == l::StoreStatus::Fenced && failed_store->error());
 		auto failed_options = options;
 		failed_options.directory = failed_directory;
 		failed_options.publication_sink.reset();
@@ -1256,15 +1254,6 @@ int main(int argc, char **argv) {
 		std::filesystem::permissions(pressure_directory, std::filesystem::perms::owner_all);
 		auto pressure_store =
 			l::make_disk_store(pressure_domain, pressure_directory, std::make_shared<int>(1), pressure_disk_options);
-		for (unsigned turn = 0; pressure_store->operation() || pressure_store->needs_work(); ++turn) {
-			check(turn < 10000);
-			if (auto operation = pressure_store->operation()) {
-				operation->submitted();
-				check(operation->complete(
-					kronuz::journal::detail::execute_primitive(operation->io(), operation->request())));
-			}
-			pressure_store->advance();
-		}
 		check(pressure_store->status() == l::StoreStatus::Ready);
 		auto pressure_options = options;
 		pressure_options.directory = pressure_directory;

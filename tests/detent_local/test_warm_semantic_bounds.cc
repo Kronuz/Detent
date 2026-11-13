@@ -72,8 +72,7 @@ int main() {
 		}
 	} cleanup{directory};
 	auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder original(snapshot, generation);
@@ -81,7 +80,7 @@ int main() {
 		l::ValidationBudget work;
 		original.step(work);
 	}
-	install(directory, original.take(), storage);
+	install(directory, original.take());
 	write(directory / "owner.lock", {});
 	auto recovered = l::recover_generation(directory);
 	auto account = std::make_shared<d::StorageLedger>(4ull << 30);
@@ -122,16 +121,7 @@ int main() {
 		options.recovery_limits.retirement_domain = &domain;
 		options.recovery_limits.mapping_account = std::make_shared<d::StorageLedger>(1ull << 30);
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
-		while (store->operation() || store->needs_work()) {
-			auto job = store->operation();
-			if (!job) {
-				store->advance();
-				continue;
-			}
-			job->submitted();
-			require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
-			store->advance();
-		}
+		store->advance();
 		require(store->status() == l::StoreStatus::Ready && store->publication_ready());
 		const auto wanted = plan.descriptor();
 		try {

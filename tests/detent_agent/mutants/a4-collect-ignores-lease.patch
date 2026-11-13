@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
+index a3d9aa24..1572a2b4 100644
+--- a/src/detent_local/agent_store.cc
++++ b/src/detent_local/agent_store.cc
+@@ -527,7 +527,7 @@ StoreUsage AgentStore::collect() {
+ 			} catch (...) {
+ 				unknown = !missing(std::current_exception());
+ 			}
+-			if (unknown || (file && !file->try_lease(c::LeaseMode::Exclusive))) {
++			if (false && (unknown || (file && !file->try_lease(c::LeaseMode::Exclusive)))) {
+ 				try {
+ 					const auto live = s.slurp(live_name(id), detail::live_record_size(s.options.maximum_segments));
+ 					if (!live)

@@ -16,15 +16,14 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("compaction invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(
-				kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 l::DiskUsage census(const std::filesystem::path &directory) {
@@ -52,8 +51,6 @@ void run(std::size_t choice) {
 	auto domain = runtime.domain(heap, 512);
 	{
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(many(500)));
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::GenerationId generation{}, split_generation{}, next{};
 		generation.fill('g');
 		split_generation.fill('x');
@@ -71,23 +68,10 @@ void run(std::size_t choice) {
 		const auto encoded = l::paged::encode_root(split->root, l::paged::Limits{});
 		l::Descriptor descriptor{generation, encoded.size(), l::paged::metadata_commitment(encoded),
 								 split->root.cursor, split->root.profile};
-		std::filesystem::create_directories(directory);
-		check(::chmod(directory.c_str(), 0700) == 0);
-		write(directory / "storage.meta", l::encode_storage_identity(storage));
-		write(directory / "owner.lock", {});
-		const auto name = l::generation_name(generation);
-		write(directory / (name + ".image"), encoded);
-		write(directory / (name + ".lease"),
-			  l::encode_generation_ownership(
-				  {storage, generation, descriptor.length, descriptor.checksum, p::format_version}));
-		write(directory / (name + ".descriptor"), l::encode_descriptor(descriptor));
-		write(directory / "selected", l::encode_descriptor(descriptor));
-		for (const auto &segment : split->packs) {
-			const l::detail::SegmentNames names(segment.ownership.segment);
-			write(directory / names.payload_name(), *segment.bytes);
-			write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-		}
-		trusted_records::derive(directory);
+		std::vector<trusted_records::Segment> segments;
+		for (const auto &segment : split->packs)
+			segments.push_back({segment.ownership, *segment.bytes});
+		trusted_records::install(directory, descriptor, encoded, segments);
 		l::DiskStoreOptions options;
 		options.limits = {64 * l::paged::segment_bytes, 1000, 10};
 		options.recovery_limits.retirement_domain = &domain;
@@ -101,8 +85,8 @@ void run(std::size_t choice) {
 		const std::array selected{split->packs[0].ownership.segment,
 								  split->packs[1].ownership.segment};
 		const auto selection = choice == 2
-								   ? std::span<const l::StorageIdentity>(selected)
-								   : std::span<const l::StorageIdentity>(&selected[choice], 1);
+								   ? std::span<const l::GenerationId>(selected)
+								   : std::span<const l::GenerationId>(&selected[choice], 1);
 		for (const auto limits : {l::detail::CompactionLimits{8, 1, 16 * 1024 * 1024},
 								  l::detail::CompactionLimits{8, 32768, 1}}) {
 			if (limits.maximum_recipes == 1 && choice == 0) continue;
@@ -180,7 +164,7 @@ void run(std::size_t choice) {
 		check(std::filesystem::exists(directory / evacuated.payload_name()));
 		base.reset();
 		const auto lease =
-			::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+			::open((directory / (l::generation_name(generation) + ".lease")).c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		check(lease >= 0);
 		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
 		while (::flock(lease, LOCK_EX | LOCK_NB) != 0) {

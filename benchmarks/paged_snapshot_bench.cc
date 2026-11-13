@@ -38,8 +38,6 @@ int main(int argc, char **argv) {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 		auto account = source->storage_account();
 		auto source_bytes = account->used();
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::GenerationId generation{};
 		generation.fill('a');
 		auto start = Clock::now();

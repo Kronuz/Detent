@@ -4,6 +4,7 @@
 #include "recovery_context.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -105,8 +106,7 @@ int main(int argc, char **argv) {
 		} cleanup{directory};
 		std::filesystem::create_directories(directory);
 		check(::chmod(directory.c_str(), 0700) == 0);
-		l::StorageIdentity storage{}, generation{};
-		storage.fill('s');
+		l::GenerationId generation{};
 		generation.fill('g');
 		l::Descriptor original;
 		{
@@ -125,18 +125,10 @@ int main(int argc, char **argv) {
 			}
 			auto image = builder.take();
 			original = image.descriptor();
-			write(directory / "storage.meta", l::encode_storage_identity(storage));
-			write(directory / "selected", l::encode_descriptor(original));
-			const auto name = l::generation_name(generation);
-			write(directory / (name + ".image"), {image.bytes()->data(), image.bytes()->size()});
-			write(
-				directory / (name + ".lease"),
-				l::encode_generation_ownership({storage, generation, original.length, original.checksum, l::paged::format_version}));
-			for (const auto &segment : image.segments()) {
-				const l::detail::SegmentNames names(segment.ownership.segment);
-				write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-				write(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
-			}
+			std::vector<trusted_records::Segment> segments;
+			for (const auto &segment : image.segments())
+				segments.push_back({segment.ownership, segment.bytes->view()});
+			trusted_records::stage(directory, original, image.bytes()->view(), segments);
 		}
 		auto controls = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 		auto heap = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
@@ -177,19 +169,13 @@ int main(int argc, char **argv) {
 				admission->populate(*plan, core.verified_paged);
 				const auto reserved = admission->reserved_bytes();
 				std::uint64_t fresh_bytes = 0;
-				const auto next = plan->descriptor().generation;
-				const auto name = l::generation_name(next);
-				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
-				write(directory / (name + ".lease"),
-					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, l::paged::format_version}));
+				std::vector<trusted_records::Segment> segments;
 				for (const auto &segment : plan->segments()) {
-					const l::detail::SegmentNames names(segment.ownership.segment);
-					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-					write(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
+					segments.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 					fresh_bytes += segment.bytes->size();
 				}
-				write(directory / "selected", l::encode_descriptor(plan->descriptor()));
+				trusted_records::stage(directory, plan->descriptor(), {plan->bytes()->data(), plan->bytes()->size()},
+									   segments);
 				std::optional<l::RecoveredGeneration> warm, cold;
 				for (bool reuse : {true, false}) {
 					auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
@@ -249,7 +235,7 @@ int main(int argc, char **argv) {
 						}
 					}
 				}
-				write(directory / "selected", l::encode_descriptor(original));
+				trusted_records::select(directory, original);
 				warm.reset();
 				cold.reset();
 				admission.reset();

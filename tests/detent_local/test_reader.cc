@@ -1,5 +1,6 @@
 #include "detent_local/reader.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <thread>
@@ -23,18 +24,15 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		const auto generation = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
 		auto descriptor = builder.descriptor();
-		auto name = l::generation_name(generation);
 		auto image = builder.bytes();
-		write(directory / (name + ".image"), {image->data(), image->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(descriptor));
+		trusted_records::install(directory, descriptor, image->view());
+		const auto table = trusted_records::slurp(directory / "selected");
 		l::ViewLimits limits;
 		const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
 		const auto capacity = (image->size() + page - 1) / page * page;
@@ -73,7 +71,7 @@ int main() {
 		std::filesystem::rename(directory, moved);
 		std::filesystem::create_directory(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-		write(directory / "selected", l::encode_descriptor(descriptor));
+		write(directory / "selected", table);
 		bool replaced_rejected = false;
 		try {
 			reader.refresh();

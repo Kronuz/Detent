@@ -156,16 +156,18 @@ void agent_store(const std::filesystem::path &root) {
 	    &order);
 	{
 		detent::testing::GenerationWriter writer(store);
-		// Created with the store before any selected, then bumped once at startup.
+		// Created with the store before any selected, then bumped once at startup; slot 0 comes with the
+		// namespace's first publication.
 		CHECK(!std::filesystem::exists(store / "selected"));
-		CHECK(on_disk(store / "change") == W({1, 1}));
+		CHECK(on_disk(store / "change") == W({1}));
 		Directory d(store);
 		x::ChangeMapping mapping;
 		CHECK(x::ChangeMapping::open(d.fd, uid, mapping) == x::ChangeMapping::Open::Mapped);
 		order.mapping = &mapping;
 		for (std::int64_t rev = 1; rev <= 3; ++rev) {
 			CHECK(writer.publish_json(knobs(rev)) == std::uint64_t(rev));
-			CHECK(mapping.store().load() == std::uint64_t(rev) + 1 && mapping.sequence(0)->load() == std::uint64_t(rev) + 1);
+			CHECK(mapping.store().load() == std::uint64_t(rev) + 1 &&
+			      on_disk(store / "change") == W({std::uint64_t(rev) + 1, std::uint64_t(rev)}));
 		}
 		CHECK(order.selected == W({1, 2, 3}) && order.store_word == W({1, 2, 3}));
 		// The store holds owner.lock exclusively while it is open.
@@ -178,7 +180,7 @@ void agent_store(const std::filesystem::path &root) {
 			second = false;
 		}
 		CHECK(!second);
-		CHECK(on_disk(store / "change") == W({4, 4}));
+		CHECK(on_disk(store / "change") == W({4, 3}));
 		::close(lock);
 		order.mapping = nullptr;
 	}
@@ -190,9 +192,9 @@ void agent_store(const std::filesystem::path &root) {
 	{
 		// A restart bumps every word once more before ready, even with nothing published.
 		detent::testing::GenerationWriter writer(store);
-		CHECK(on_disk(store / "change") == W({5, 5}));
+		CHECK(on_disk(store / "change") == W({5, 4}));
 		CHECK(writer.publish_json(knobs(4)) == 4);
-		CHECK(on_disk(store / "change") == W({6, 6}));
+		CHECK(on_disk(store / "change") == W({6, 5}));
 		CHECK(order.selected.back() == 4);
 	}
 	x::ChangeTesting::install(nullptr, nullptr);

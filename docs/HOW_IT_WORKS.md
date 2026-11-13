@@ -11,11 +11,11 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 | Piece | State | Where it is recorded |
 | --- | --- | --- |
 | Authority, relay, managed agent | On `main` | [ACTORS.md](ACTORS.md) |
-| Paged store: packs, `.read`, `.live`, `selected`, `change`, `storage.meta` | On `main`; one generation holds every namespace, so `change` has one slot | [change-file.md](mechanisms/change-file.md), [trusted-restart.md](mechanisms/trusted-restart.md) |
+| The agent store: packs, `.read`, `.live`, `.lease`, the `selected` table, `change` | On `main`; until step S6 the table has one entry, named after the configured scope, which holds every namespace | [status/namespace-s7.md](status/namespace-s7.md) "Wiring", [change-file.md](mechanisms/change-file.md), [trusted-restart.md](mechanisms/trusted-restart.md) |
 | Trusted restart, first-touch checks, the paced scrub | On `main` (namespace step S3) | [status/namespace-s3.md](status/namespace-s3.md) |
 | Damaged-pack repair | In progress (step S3b) | [status/namespace-s3.md](status/namespace-s3.md), "Blocked on" |
 | `libdetent_reader`, the lock-free reader core | Built on branch `reader/s6`, not on `main` (reader step S6) | [design/reader.md](design/reader.md), [status/reader-s5-s6.md](status/reader-s5-s6.md) |
-| A `selected` table with one entry and one `change` slot per namespace | Designed (namespace delivery D8, step S7) | [design/namespace-delivery.md](design/namespace-delivery.md) |
+| One table entry and one `change` slot per namespace | Designed (namespace delivery D8, step S6) | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](status/legacy-wave2.md) |
@@ -37,28 +37,27 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 
 ## 2. The store on disk
 
-![The store directory: selected names a generation, whose files reference packs; change and storage.meta beside them](../diagrams/11_how_store.png)
+![The store directory: the selected table names a generation, whose files reference packs; change beside them](../diagrams/11_how_store.png)
 
 The store is one directory. A *generation* is one complete, immutable copy of the knob state, made of a few small records and the packs they reference.
 
 | File | What it holds | Size |
 | --- | --- | --- |
 | `segment-<id>.pack` | A segment: pages packed end to end | At most 1 MiB (`include/detent_local/paged_layout.hh:15`) |
-| `segment-<id>.owner` | The segment's owner record (`DTSGOWN2`): id, length, SHA-256; no storage identity | 128 B |
+| `segment-<id>.owner` | The segment's owner record (`DTSGOWN2`): id, length, SHA-256 | 128 B |
 | `generation-<id>.image` | The root of the trie | 320 B |
 | `generation-<id>.read` | Reader metadata (`DTREAD02`): exact counts, bound to the generation and the root checksum, with a trailing SHA-256 | 192 B |
 | `generation-<id>.live` | Per segment, the live page and byte counts; the segment list; the override histogram; a trailing SHA-256 | 1,152 B plus 72 B per segment plus 32 B |
-| `generation-<id>.lease` | The generation's ownership record | 128 B |
-| `selected` | Which generation is current: its id, root length and SHA-256, cursor and profile | 176 B |
+| `generation-<id>.lease` | Empty; a reader holds it shared while it reads the generation | Empty |
+| `selected` | The table (`DTTABLE1`): the store's profile and, per namespace, its cursor, `change` slot, generation, ordinal, and the SHA-256 of its root and `.read` | 96 B plus 137 B and the name per entry |
 | `change` | Sequence words that tell readers `selected` moved | 8 B per word |
-| `storage.meta` | The store's host identity | 64 B |
 | `owner.lock` | The agent's exclusive lock | Empty |
 
-Sizes come from `include/detent_local/ownership.hh:8-9`, [LOCAL_IMAGE_FORMAT.md](LOCAL_IMAGE_FORMAT.md) and [trusted-restart.md](mechanisms/trusted-restart.md).
+Sizes come from `include/detent_local/ownership.hh:8-9`, `src/detent_local/store_table.cc`, [LOCAL_IMAGE_FORMAT.md](LOCAL_IMAGE_FORMAT.md) and [trusted-restart.md](mechanisms/trusted-restart.md). Every name is derived from what it holds (D8), and only `AgentStore` writes the directory.
 
-**Files are immutable.** A new generation is new files: new packs for the pages that changed, a new root, new `.read`, `.live` and `.lease`. Packs that did not change are not copied; the new generation references them where they are. Two names are the exception: `selected`, replaced by an atomic rename, and `change`, whose words are incremented in place and which only grows. The collector removes an old generation's files once no selected, staged or reader-held generation reaches them.
+**Files are immutable.** A new generation is new files: new packs for the pages that changed, a new root, new `.read`, `.live` and `.lease`. Packs that did not change are not copied; the new generation references them where they are. Two names are the exception: `selected`, replaced by an atomic rename, and `change`, whose words are incremented in place and which only grows. After each publication `AgentStore::collect()` removes every generation the table does not reach, `.lease` first under an exclusive lock, and every segment no remaining `.live` names; a generation whose `.lease` a reader holds stays, and the collection runs again after a backoff.
 
-**The `change` file** is an array of 8-byte words. Word 0 is the store word, incremented after every replacement of `selected`. Word 1 + *slot* is one table entry's sequence, incremented after every replacement that changes that entry. Today the store has one entry, the generation that holds every namespace, so the file is 16 bytes ([change-file.md](mechanisms/change-file.md)). A slot per namespace comes with the namespace table (D8, step S7).
+**The `change` file** is an array of 8-byte words. Word 0 is the store word, incremented after every replacement of `selected`. Word 1 + *slot* is one table entry's sequence, incremented after every replacement that changes that entry. An entry takes its slot with its namespace's first publication: a fresh store's file is 8 bytes, and 16 once the agent's one entry is published ([change-file.md](mechanisms/change-file.md)).
 
 **`.read` and `.live`** are what make a restart cheap. `.read` carries the counts a reader needs before it touches a page. `.live` carries what a full walk of the pages would otherwise compute: which segments are live and how full, and the override histogram. Both are written and synced with the generation's other files before `selected` names it.
 
@@ -122,7 +121,7 @@ The reader core works in four steps ([reader.md](design/reader.md) D2-D5). It is
 
 **What the agent writes.** From a delta and the generation it already has, the agent repacks only the changed paths: the pages that hold changed leaves, the pages above them up to a new root page, and any clean sibling the repacking seals into a page of its own. A page that packs to the same bytes at the same path keeps its base extent; untouched references pass through without visiting what is under them ([deltas and relocation](mechanisms/dense-pages.md#deltas-and-relocation)). The new pages go into new packs; every unchanged pack is reused by reference. Validation of the result checks the new pages only.
 
-**How it publishes.** The new packs, their owner records and the generation's records are written and synced first. Then the agent replaces `selected` with a rename, syncs the directory, and only then bumps `change`: the entry's sequence, then the store word ([change-file.md](mechanisms/change-file.md)). A reader sees the whole old generation or the whole new one. A crash between the rename and the bump hides nothing, because every agent start bumps every word.
+**How it publishes.** The new packs, their owner records and the generation's records are staged under `.tmp-` names, linked to their derived names and synced first. Then the agent writes the new table under a `.tmp-` name, syncs it, replaces `selected` with a rename, syncs the directory, and only then bumps `change`: the entry's sequence, then the store word ([change-file.md](mechanisms/change-file.md)). A reader sees the whole old generation or the whole new one. A crash between the rename and the bump hides nothing, because every agent start bumps every word.
 
 **Compaction.** Reuse leaves packs with dead pages over time. Every `compaction_interval` (60 s by default, `include/detent_delivery/coordinator.hh:31`) the agent checks for sparse packs and rewrites them into new ones. Pages move with their digests unchanged, since placement is outside every digest, so only placement entries are rewritten, no page is rehashed, and the root digest stays the same. This is local maintenance and sends nothing upstream.
 
@@ -142,9 +141,9 @@ The cut sits where serving history would cost more than the full copy. **Compact
 
 ![The agent adopts the read-only image layer, writes only its own small files, and fetches (R, h] upstream](../diagrams/15_how_seed.png)
 
-`detent-image build --source managed.json --out DIR` asks upstream for each namespace's full copy and writes the store: the generation files and packs, `selected` and `change`, but no `storage.meta` and no `.lease`. It runs the agent's own full-copy build, so its files are byte-identical to the files an agent would write from the same copy.
+`detent-image build --source managed.json --out DIR` asks upstream for each namespace's full copy and writes the store: the generation files and packs, `selected` and `change`, but no `.lease`. It runs the agent's own full-copy build, so its files are byte-identical to the files an agent would write from the same copy.
 
-The image ships those files in a read-only layer at the agent's `generation_dir`. The agent **adopts** them read-only: it opens every seeded file `O_RDONLY`, so a container never copies the store up into its own layer, and containers on one host share the same page-cache pages. What the agent writes is small or new: `storage.meta`, a `.lease` per seeded generation, its own `selected` by rename, new generations, and `change`, the one seeded file it writes (8 bytes per namespace plus 8, copied up once).
+The image ships those files in a read-only layer at the agent's `generation_dir`. The agent **adopts** them read-only: it opens every seeded file `O_RDONLY`, so a container never copies the store up into its own layer, and containers on one host share the same page-cache pages. What the agent writes is small or new: a `.lease` per seeded generation, its own `selected` by rename, new generations, and `change`, the one seeded file it writes (8 bytes per namespace plus 8, copied up once).
 
 After adoption the agent asks each namespace for **(R, h]**: the changes after the image's position R up to the upstream's head h. A week-old image costs the changes made since it was built, as long as they cost less than a full copy.
 
@@ -158,15 +157,15 @@ An image owned by another account is not adopted, and the agent reports `seed_ow
 
 **A generation is verified once, by the build that writes it** ([trusted-restart.md](mechanisms/trusted-restart.md)). After that, nothing rehashes it wholesale.
 
-**Trusted restart.** A cold start reads `selected`, the lease, `storage.meta`, the 320-byte root (hashed against `selected`), `.read` and `.live` (each against its own digest and its bindings), and per segment its `.owner` record and a `stat`. It maps every pack and reads none of them. A test counter proves it: zero pack bytes hashed at startup (`test_testing_trusted_restart_oracle`). A store whose `.live` or `.read` is missing or wrong is refused, and the operator bootstraps a fresh one.
+**Trusted restart.** A cold start reads the `selected` table, the empty lease, the 320-byte root (hashed against the table's entry), `.read` (hashed against the entry) and `.live` (against its own digest and its bindings), and per segment its `.owner` record and a `stat`. It maps every pack and reads none of them. A test counter proves it: zero pack bytes hashed at startup (`test_testing_trusted_restart_oracle`). A store whose `.live` or `.read` is missing or wrong is refused, and the operator bootstraps a fresh one.
 
-**Format refusal.** A generation whose authenticated ownership names any layout other than the current one makes startup persist an absent selection before it becomes Ready; no byte of it is decoded. The agent then requests a full record copy and builds the current format. Interrupted copies remain accounted and restart through the same absent-selection path. A reader reports `GenerationUnavailable` for such a generation. Damage and conflicting ownership fence the store; they cannot authorize selection removal ([refusal and reclamation](mechanisms/dense-pages.md#refusal-and-reclamation)).
+**Format refusal.** A table of another layout, or another profile, refuses the store before it reads a generation. A table entry whose files do not verify against it (another format's root, damage, an extra byte in the `.lease`) fences the store and keeps every file; there is no migration from an older layout (D43), and the operator bootstraps a fresh store. A reader reports `GenerationUnavailable` for such a generation ([refusal and reclamation](mechanisms/dense-pages.md#refusal-and-reclamation)).
 
 **First touch.** Every page the agent reads from a trusted mapping is checked against its parent's reference the first time any read reaches it, with the same bitmap readers use. A damaged page fails that read with `SourceFailure`; it never returns a wrong value.
 
 **The scrub.** A task on the agent's owner loop hashes whole packs against their owner records, paced at `scrub_bytes_per_second`: 524,288 by default, 0 disables it ([LOCAL_IMAGE_FORMAT.md](LOCAL_IMAGE_FORMAT.md)). It catches damage on pages nobody reads, and in the padding between pages, which no page digest covers. A damaged pack shows up in the coordinator status, as a warning in the agent's log, and in the relay's `/v1/health` (`scrub_damaged_packs`, `scrub_source_failure`).
 
-**Repair is in progress** (step S3b). The design fails only the damaged namespace, asks upstream for a full copy, publishes a fresh generation under new names that share no damaged pack, and lets the collector remove the damaged packs (D10.3). Today, reads of damaged pages fail, the scrub reports the pack, and the operator bootstraps a fresh store.
+**Repair is in progress** (step S3b). The design fails only the damaged namespace, asks upstream for a full copy, publishes a fresh generation under new names that share no damaged pack, and lets the store's collection remove the damaged packs (D10.3). Today, reads of damaged pages fail, the scrub reports the pack, and the operator bootstraps a fresh store.
 
 **Limits.** A page checked before it was damaged stays checked for the life of its mapping. Trust ends at the store's own files: an account that can write the store can forge them.
 

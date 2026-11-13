@@ -65,8 +65,7 @@ int main() {
 			decoder.feed(input, budget);
 		}
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-		l::StorageIdentity storage{}, generation{};
-		storage.fill('s');
+		l::GenerationId generation{};
 		generation.fill('g');
 		l::detail::PagedSnapshotBuilder builder(source, generation, paging);
 		while (!builder.done()) {
@@ -74,7 +73,7 @@ int main() {
 			builder.step(b);
 		}
 		auto image = builder.take();
-		install(directory, image, storage, viewing);
+		install(directory, image, viewing);
 		auto recovered =
 			std::optional<l::RecoveredGeneration>(l::recover_generation(directory, viewing));
 		const auto baseline = source->storage_account()->used();

@@ -40,7 +40,7 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 void PagedPlanState::derive(const d::Cursor &target, const d::Profile &profile) {
 	const auto name = next_generation(base_->descriptor(), target, profile, false);
 	descriptor_ = {name.id, p::root_bytes, {}, target, profile, name.ordinal};
-	encode_descriptor(descriptor_);
+	validate_descriptor(descriptor_);
 }
 void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::Cursor target) {
 	root_ = base_->root();

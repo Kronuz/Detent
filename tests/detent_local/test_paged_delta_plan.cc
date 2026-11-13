@@ -111,8 +111,7 @@ int main() {
 		}
 	} cleanup{directory};
 	auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder original(snapshot, generation);
@@ -121,7 +120,7 @@ int main() {
 		original.step(work);
 	}
 	auto image = original.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto recovered = l::recover_generation(directory);
 	for (unsigned transactions : {1u, 2u, 17u}) {
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
@@ -307,7 +306,7 @@ int main() {
 	}
 	{
 		const auto detached = directory / "detached";
-		install(detached, image, storage);
+		install(detached, image);
 		auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(detached));
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
 		d::RetirementRuntime runtime(account, 1);

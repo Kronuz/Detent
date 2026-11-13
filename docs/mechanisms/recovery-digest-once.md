@@ -6,7 +6,7 @@ A full paged recovery runs discovery and semantic graph validation over the same
 | --- | --- | --- |
 | Pack checksum | Every file byte, including placement and padding | The owned segment record's checksum |
 | Page digest | Header outside its digest field, nodes and external-child content | The parent reference's digest |
-| Root checksum | Every byte of DTROOT03 | The selected descriptor's checksum |
+| Root checksum | Every byte of DTROOT03 | The table entry's root checksum |
 
 Each page has one placement-free digest. Its reference also binds length, key count and height to the reached header. Page relocation preserves that digest. Pack checksums cover the placement bytes outside page commitments.
 
@@ -24,4 +24,4 @@ The proof assumes that pack bytes remain unchanged between discovery and graph v
 
 An intact owner record makes a flipped pack byte fail the pack checksum. If the owner checksum is rewritten, page content changes fail their page commitment or structural checks. Padding with a matching rewritten pack checksum is outside the state commitment. Page, pack and metadata hash counters record their input separately.
 
-Authenticated ownership in a layout that is not current produces managed startup's [full-refetch path](dense-pages.md#refusal-and-reclamation) without decoding the generation. Bytes in another framing under current ownership are damage and cannot authorize selection removal. Trusted restart reads its authenticated root and derived records, then maps packs without a graph scan. Page first touch and scrub supply its subsequent integrity checks.
+A root in another framing than its table entry's fences managed startup ([refusal and reclamation](dense-pages.md#refusal-and-reclamation)). Bytes in another framing are damage and cannot authorize selection removal. Trusted restart reads its authenticated root and derived records, then maps packs without a graph scan. Page first touch and scrub supply its subsequent integrity checks.

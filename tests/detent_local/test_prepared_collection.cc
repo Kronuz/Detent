@@ -14,22 +14,15 @@ namespace x = l::detail;
 using prepared_test::check;
 namespace {
 void drive(const std::shared_ptr<l::DiskStore> &store) {
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
 	for (unsigned turns = 0;; ++turns) {
-		check(turns < 1000000);
+		check(turns < 100000);
 		store->advance();
-		auto job = store->operation();
-		if (!job) {
-			if (store->needs_work())
-				continue;
+		auto work = store->work();
+		if (!work)
 			break;
-		}
-		job->submitted();
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		work->run();
 	}
-	if (store->error())
-		std::rethrow_exception(store->error());
-	if (store->collection_error())
-		std::rethrow_exception(store->collection_error());
 }
 void wait_unpinned(const std::filesystem::path &path) {
 	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);

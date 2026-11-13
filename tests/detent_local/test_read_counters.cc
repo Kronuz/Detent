@@ -33,11 +33,11 @@ int main() {
 		EXPECT(c::snapshot(), ({}));
 		return 0;
 	}
-	// selected, lease, storage.meta, image, reader metadata: five records, one directory walk.
-	const std::uint64_t table = l::descriptor_bytes + l::generation_ownership_bytes + l::storage_identity_bytes +
-	                            l::paged::root_bytes + x::reader_metadata_bytes;
-	const std::uint64_t hashed = (l::generation_ownership_bytes - 32) + (l::storage_identity_bytes - 32) +
-	                             l::paged::root_bytes + 160;
+	// The table, the image's leading bytes (its cursor), the lease, the image, the reader metadata: five
+	// records, one directory walk; the table's, the image's and the metadata's digests are checked.
+	const auto selected = std::filesystem::file_size(fixture->path / "selected");
+	const std::uint64_t table = selected + 2 * l::paged::root_bytes + x::reader_metadata_bytes;
+	const std::uint64_t hashed = (selected - 32) + l::paged::root_bytes + 160;
 	EXPECT(opened, ({1, 5, table, 0, 0, hashed}));
 	// Dense packs this four-row tree into one root page in one pack: the first lookup opens that
 	// pack and verifies that page, hashing all of it but its 32-byte digest field.

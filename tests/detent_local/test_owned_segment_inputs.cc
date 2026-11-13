@@ -2,8 +2,7 @@
 #include "paged_disk_fixture.hh"
 int main() {
 	auto input = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(input, generation);
 	while (!builder.done()) {
@@ -19,7 +18,7 @@ int main() {
 	{
 		l::detail::OwnedSegmentInputs inputs(domain.factory(), account, 4, 240);
 		for (char label : {'c', 'b', 'a'}) {
-			l::StorageIdentity id;
+			l::GenerationId id;
 			id.fill(label);
 			const std::string value(80, label);
 			auto bytes = d::make_owned_buffer(account, value.size());
@@ -40,7 +39,7 @@ int main() {
 		auto bytes = d::make_owned_buffer(account, value.size());
 		bytes->append(value);
 		bytes->seal();
-		l::StorageIdentity id;
+		l::GenerationId id;
 		id.fill('d');
 		bool refused = false;
 		try {

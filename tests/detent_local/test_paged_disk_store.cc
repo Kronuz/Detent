@@ -5,10 +5,8 @@
 #include "paged_disk_fixture.hh"
 #include "prepared_reader.hh"
 #include <chrono>
-#include <completion/native_completion.h>
 #include <source_location>
 #include <thread>
-namespace c = kronuz::io::completion;
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("paged disk invariant at line " + std::to_string(where.line()));
@@ -31,27 +29,16 @@ l::DiskUsage census(const std::filesystem::path &directory) {
 	}
 	return usage;
 }
-void drive(const std::shared_ptr<l::DiskStore> &store, bool cancel_create = false) {
-	unsigned turns = 0;
-	while (store->operation() || store->needs_work()) {
-		auto job = store->operation();
-		if (!job) {
-			store->advance();
-			continue;
-		}
-		check(++turns < 100000);
-		const auto kind = job->request().kind;
-		job->submitted();
-		if (kind == c::Kind::Replace)
-			check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
-		if (cancel_create && kind == c::Kind::CreateInto) {
-			store->cancel_publication();
-			cancel_create = false;
-		}
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+void drive(const std::shared_ptr<l::DiskStore> &store) {
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
-	store->advance();
 }
 int main() {
 	const auto directory =
@@ -64,8 +51,7 @@ int main() {
 		}
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder construction(source, generation);
@@ -79,8 +65,7 @@ int main() {
 			if (scenario == 6 && progress)
 				continue;
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
-			install(root, image, storage);
-			write(root / "owner.lock", {});
+			install(root, image);
 			auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 			auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 			d::RetirementRuntime runtime(baseline, 1);
@@ -194,12 +179,26 @@ int main() {
 				rejects<std::logic_error>([&] { plan->root(); });
 				if (scenario == 1)
 					store->cancel_publication();
-				drive(store, scenario == 2);
-				if (scenario == 1 || scenario == 2) {
+				if (scenario == 2) {
+					// A cancellation after the work is taken changes nothing: the cycle runs to its end.
+					auto work = store->work();
+					store->cancel_publication();
+					work->run();
+				}
+				drive(store);
+				if (scenario == 1) {
 					check(store->publication_status() == l::DiskPublicationStatus::Cancelled);
 					check(store->selection().descriptor == image.descriptor());
 				} else if (scenario == 4 && progress) {
-					check(store->publication_status() == l::DiskPublicationStatus::Fenced);
+					// The store reuses a reached segment without reading it; recovery refuses its damage.
+					check(store->publication_status() == l::DiskPublicationStatus::Published);
+					bool refused = false;
+					try {
+						l::detail::ManagedRecovery::recover(root, l::detail::ManagedRecovery::capture(*store));
+					} catch (const std::exception &) {
+						refused = true;
+					}
+					check(refused);
 				} else {
 					check(store->publication_status() == l::DiskPublicationStatus::Published);
 					check(store->selection().descriptor == wanted && !store->publication_ready());

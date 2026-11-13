@@ -1,8 +1,8 @@
 diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
-index 7a4cad30..b9c486fa 100644
+index cfe7c238..3f959806 100644
 --- a/src/detent_local/agent_store.cc
 +++ b/src/detent_local/agent_store.cc
-@@ -499,11 +499,11 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
+@@ -447,13 +447,13 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
  		for (std::size_t done = 0; done < bytes.size();)
  			done += table->write_at(done, std::string_view(bytes).substr(done));
  		primitive("write table");
@@ -10,9 +10,11 @@ index 7a4cad30..b9c486fa 100644
 +		primitive("rename table");
  		c::File *sync[] = {table.get()};
  		s.io->sync_files(sync);
+ 		++s.synced.files;
+ 		++s.synced.device_flushes;
  		primitive("sync table");
 -		s.io->replace(name, selected);
 -		primitive("rename table");
- 		s.io->sync_directory();
- 		primitive("sync directory");
- 		s.change->reserve(slots);
+ 		if (s.table_size)
+ 			s.usage.bytes -= s.table_size;
+ 		else

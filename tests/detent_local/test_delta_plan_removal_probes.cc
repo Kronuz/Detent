@@ -70,8 +70,7 @@ struct Probe {
 // Changes every definition of a `count`-definition store, as a 100% block answer does.
 Probe change_all(unsigned count) {
 	auto source = snapshot(count);
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {

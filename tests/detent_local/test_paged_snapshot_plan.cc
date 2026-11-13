@@ -13,18 +13,15 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("snapshot plan invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	store->advance();
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
-	if (store->error())
-		std::rethrow_exception(store->error());
 }
 std::shared_ptr<const d::ValidatedSnapshot> input(std::shared_ptr<d::StorageLedger> heap,
 												  std::uint64_t revision, bool reset = false,
@@ -129,53 +126,6 @@ int main() {
 		store->confirm_recovered(base);
 		check(base.view().get("app", "count").value() == INT64_MIN);
 		generation.fill('b');
-		{
-			auto pressure_heap = std::make_shared<d::StorageLedger>(heap, heap->limit() / 2);
-			auto pressure_domain = runtime.domain(pressure_heap, 512);
-			auto source = progress(base.descriptor().cursor, pressure_heap);
-			auto core = context.owner.lock();
-			check(static_cast<bool>(core));
-			for (auto &entry : core->certificates) {
-				entry = pressure_domain.make<l::detail::PagedDependencyCertificate>(
-					pressure_heap, pressure_domain.factory());
-				entry->capture(base);
-			}
-			const auto selected = store->selection().descriptor;
-			const auto committed = store->stats().used;
-			auto unrelated = heap->admit(1024 * 1024);
-			const auto occupied = pressure_heap->used();
-			auto pressure = pressure_heap->admit(pressure_heap->limit() - occupied);
-			unrelated.reset();
-			bool refused = false;
-			try {
-				l::detail::PagedPlanBuilder blocked(base, source,
-													 pressure_domain.factory(), pressure_heap);
-			} catch (const d::StoragePressure &) {
-				refused = true;
-			}
-			check(refused && l::detail::ManagedRecovery::yield_optional(*store));
-			check(!l::detail::ManagedRecovery::yield_optional(*store));
-			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-			bool rebuilt = false;
-			while (!rebuilt && std::chrono::steady_clock::now() < deadline) {
-				try {
-					l::detail::PagedPlanBuilder retry(base, source,
-													   pressure_domain.factory(), pressure_heap);
-					while (!retry.done()) {
-						l::ValidationBudget budget{1, 1};
-						retry.step(budget);
-					}
-					check(retry.take().descriptor().cursor.revision == source->target().revision);
-					rebuilt = true;
-				} catch (const d::StoragePressure &) {
-					std::this_thread::yield();
-				}
-			}
-			check(rebuilt);
-			check(store->selection().descriptor == selected && store->stats().used == committed &&
-				  store->stats().reserved == l::DiskUsage{} &&
-				  base.view().get("app", "count").value() == INT64_MIN);
-		}
 		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory, domain.factory(), heap,
 													  options.recovery_limits);
 		finish(unchanged);

@@ -24,7 +24,7 @@ report "product name" "$(files | tr '\n' '\0' | xargs -0 grep -InHiE 'just[ _-]?
 report "metric prefix" "$(files | grep -v '\.png$' | tr '\n' '\0' | xargs -0 grep -InHIE '\bjk_' 2>/dev/null)"
 
 # Meta as a company: "Meta's", "Meta Platforms" (any case), or the capitalized
-# word. Words such as metadata, storage.meta and import.meta never match.
+# word. Words such as metadata and import.meta never match.
 report "Meta as a company" "$(files | tr '\n' '\0' | xargs -0 grep -InHiE \
 	"meta['’]s |meta platforms" 2>/dev/null)"
 report "Meta as a company (word)" "$(files | tr '\n' '\0' | xargs -0 grep -InHP \

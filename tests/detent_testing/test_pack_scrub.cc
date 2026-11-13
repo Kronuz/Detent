@@ -227,7 +227,7 @@ void real_store(const std::filesystem::path &root) {
 	}
 	// 100 single-byte flips at random offsets: every damaged pack is reported once, no other pack is.
 	std::mt19937 random(7);
-	std::set<l::StorageIdentity> damaged;
+	std::set<l::SegmentId> damaged;
 	for (int flip = 0; flip != 100; ++flip) {
 		const auto &pack = packs[random() % packs.size()];
 		flip_in_file(writer.store(), pack, random() % pack.bytes.size(), static_cast<char>(1 << (random() % 8)));
@@ -239,7 +239,7 @@ void real_store(const std::filesystem::path &root) {
 	scrub.begin(list, t0, writer.store());
 	scrub.step(t0 + 1s);
 	CHECK(scrub.passes() == 1);
-	const std::set<l::StorageIdentity> found(scrub.failures().begin(), scrub.failures().end());
+	const std::set<l::SegmentId> found(scrub.failures().begin(), scrub.failures().end());
 	CHECK(found == damaged && scrub.failures().size() == damaged.size());
 }
 // A pack that is missing, shorter, longer, a directory or unreadable is damaged, not skipped; a store

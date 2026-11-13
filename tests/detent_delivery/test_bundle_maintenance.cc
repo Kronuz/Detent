@@ -27,19 +27,12 @@ int main() {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 		l::GenerationId paged_id{};
 		paged_id.fill('p');
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		std::filesystem::create_directories(directory);
-		check(::chmod(directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(builder.descriptor().generation);
-		write(directory / (name + ".image"), *builder.bytes());
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+		install(directory, builder.descriptor(), builder.bytes()->view());
 		auto flat = l::recover_generation(directory, limits);
 		r::BundleOptions options;
 		options.configured = cursor();
@@ -54,7 +47,7 @@ int main() {
 			l::ValidationBudget budget;
 			replacement.step(budget);
 		}
-		install(directory, replacement.take(), storage);
+		install(directory, replacement.take());
 		auto paged = l::recover_generation(directory, limits);
 		{
 			d::WorkBudget budget{97, 1};

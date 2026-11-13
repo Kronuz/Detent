@@ -1,6 +1,6 @@
 // T7 on the agent store (namespace-delivery D8, D11): the disk is modelled from completion's sync seam,
 // which records what each fsync and device flush made durable. A power cut after every primitive of a
-// publication, a repair and a startup keeps only that; a process kill keeps every name and byte, whose
+// publication, a repair, a collection (each removal) and a startup keeps only that; a process kill keeps every name and byte, whose
 // restart then publishes again and is cut at every step. `change` is never synced, so a cut keeps it
 // empty or at its size. Each recovered store must open, reach only files that exist and verify, never
 // revert a table it served, and publish again (no wedge).
@@ -175,6 +175,7 @@ struct Cycle {
 	std::string label;
 	std::vector<l::PreparedGeneration> generations;
 	std::vector<l::PreparedGeneration> repair; // the same namespaces, ordinal + 1
+	std::vector<std::shared_ptr<Bytes>> bytes;  // what the prepared generations view
 };
 struct Lineage {
 	std::vector<l::StoreTable> tables; // every table published so far
@@ -186,7 +187,8 @@ struct Counts {
 	std::size_t cases = 0, distinct = 0, republished = 0, repaired = 0;
 } counts;
 
-// Publishes `cycle`, falling back to its repair when a reached name holds other bytes (D10).
+// Publishes `cycle`, falling back to its repair when a reached name holds other bytes (D10), then collects
+// what the new table no longer reaches.
 void publish(l::AgentStore &store, const Cycle &cycle, Lineage &lineage) {
 	try {
 		store.publish({identity('c'), 1}, cycle.generations);
@@ -195,6 +197,7 @@ void publish(l::AgentStore &store, const Cycle &cycle, Lineage &lineage) {
 		store.publish({identity('c'), 1}, cycle.repair);
 	}
 	lineage.tables.push_back(store.table());
+	store.collect();
 }
 // Opens a recovered directory and checks T7's invariant, then (optionally) publishes `cycle` again.
 std::string fingerprint(const std::map<std::string, std::string> &files) {
@@ -401,11 +404,15 @@ void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &a
 }
 
 Cycle cycle_of(std::string label, std::vector<Generation> generations, std::vector<Generation> repair) {
-	Cycle cycle{std::move(label), {}, {}};
-	for (auto &g : generations)
+	Cycle cycle{std::move(label), {}, {}, {}};
+	for (auto &g : generations) {
 		cycle.generations.push_back(std::move(g.prepared));
-	for (auto &g : repair)
+		cycle.bytes.push_back(g.bytes);
+	}
+	for (auto &g : repair) {
 		cycle.repair.push_back(std::move(g.prepared));
+		cycle.bytes.push_back(g.bytes);
+	}
 	return cycle;
 }
 } // namespace

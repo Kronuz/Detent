@@ -11,4 +11,4 @@ index 5403db9..3cda4cf 100644
 +	return a.ownership.segment < b.ownership.segment;
  }
  static std::size_t segment_index(std::span<const x::SegmentInput> inputs,
- 								 const l::StorageIdentity &id) {
+ 								 const l::GenerationId &id) {

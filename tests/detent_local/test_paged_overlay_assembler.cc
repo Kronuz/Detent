@@ -15,8 +15,7 @@ void check(bool value, std::source_location location = std::source_location::cur
 int main() {
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000)));
 	auto account = source->storage_account();
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder original(source, generation);
@@ -51,7 +50,7 @@ int main() {
 			std::filesystem::remove_all(directory, error);
 		}
 	} cleanup{directory};
-	install(directory, *image, storage);
+	install(directory, *image);
 	auto recovered = l::recover_generation(directory);
 	l::detail::TrieOverlay overlay(account, image, segments, image->root());
 	std::array<char, 202> key{};

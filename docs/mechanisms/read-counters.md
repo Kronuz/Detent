@@ -18,11 +18,11 @@ Every translation unit of a program must agree on the flag, because `Cells` is a
 | Counter | Moves in | By |
 | --- | --- | --- |
 | `directory_trust` | `open_publisher_directory` (`generation_file_access.hh`) | 1 per call |
-| `record_opens` | `open_record` (`prepared_reader.cc`): `selected`, lease, `storage.meta`, image, `.read` | 1 per open |
+| `record_opens` | `open_record` (`prepared_reader.cc`): `selected`, the image peek, lease, image, `.read` | 1 per open |
 | `table_bytes` | `read_generation_record` | the bytes asked for |
 | `segment_opens` | `LazyPageAccess::open_mapping` | 1 per segment payload opened |
 | `pages_verified` | `LazyPageAccess::resolve`, after `verify_page` passes | 1 per page |
-| `bytes_hashed` | `page_commitment`, called by `verify_page` (the digest input: the page's length minus its 32-byte digest field and its 20-byte placement entries), `checksum` in `prepared_reader.cc` (the image), `decode_reader_metadata` (160), the ownership `validate` (record length minus 32) | bytes given to SHA-256 on the read path |
+| `bytes_hashed` | `page_commitment`, called by `verify_page` (the digest input: the page's length minus its 32-byte digest field and its 20-byte placement entries), `checksum` in `prepared_reader.cc` (the image), `decode_reader_metadata` (160), the table's digest (its length minus 32) | bytes given to SHA-256 on the read path |
 
 `table_bytes` counts every generation record today (there is no table yet); when the store table lands it counts that read.
 

@@ -103,8 +103,7 @@ int main() {
 	for (unsigned i = 0; i < 500; ++i)
 		original["app:filler" + std::to_string(i)] = {detent::KnobDef{std::int64_t(i)}, 42};
 	auto source = oracle(original);
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {

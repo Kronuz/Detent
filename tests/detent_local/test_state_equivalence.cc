@@ -123,20 +123,13 @@ void run(bool nul_key, unsigned namespace_count) {
 		l::GenerationId paged_id{}, changed_id{};
 		paged_id.fill('p');
 		changed_id.fill('x');
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::ImageBuilder flat_builder(source);
 		while (!flat_builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			flat_builder.step(budget);
 		}
 		auto flat_directory = directory / "flat";
-		std::filesystem::create_directories(flat_directory);
-		state_check(::chmod(flat_directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(flat_builder.descriptor().generation);
-		write(flat_directory / (name + ".image"), *flat_builder.bytes());
-		write(flat_directory / (name + ".lease"), {});
-		write(flat_directory / "selected", l::encode_descriptor(flat_builder.descriptor()));
+		trusted_records::install(flat_directory, flat_builder.descriptor(), flat_builder.bytes()->view());
 		auto flat = l::recover_generation(flat_directory, limits);
 		l::detail::PagedSnapshotBuilder builder(source, paged_id);
 		while (!builder.done()) {
@@ -144,7 +137,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			builder.step(budget);
 		}
 		auto paged_image = builder.take();
-		install(directory / "paged", paged_image, storage);
+		install(directory / "paged", paged_image);
 		auto paged = l::recover_generation(directory / "paged", limits);
 		const auto mapping_baseline = mappings->used();
 		compare(flat, flat, heap, true);
@@ -272,7 +265,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			}
 			state_check(equality.equal());
 			auto evidence = equality.take_proof();
-			install(output, owner->image(), storage);
+			install(output, owner->image());
 			auto recovered = l::recover_generation(output, limits);
 			state_check(evidence.binds(*base, recovered));
 			compare(*base, recovered, heap, true);
@@ -321,16 +314,16 @@ void run(bool nul_key, unsigned namespace_count) {
 			changed_builder.step(budget);
 		}
 		auto changed_image = changed_builder.take();
-		install(directory / "changed", changed_image, storage);
+		install(directory / "changed", changed_image);
 		auto changed = l::recover_generation(directory / "changed", limits);
 		compare(flat, changed, heap, namespace_count == 0);
 		compare(paged, changed, heap, namespace_count == 0);
 		l::GenerationReader reader(flat_directory, limits);
 		state_check(reader.refresh());
 		auto pinned = reader.read_view();
-		install(flat_directory, paged_image, storage);
+		install(flat_directory, paged_image);
 		state_check(reader.refresh() && reader.descriptor() == paged.descriptor());
-		install(flat_directory, changed_image, storage);
+		install(flat_directory, changed_image);
 		bool rejected = false;
 		try {
 			reader.refresh();

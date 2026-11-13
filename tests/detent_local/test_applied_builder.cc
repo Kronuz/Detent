@@ -3,6 +3,7 @@
 #include "paged_snapshot_builder.hh"
 #include "pinned_source.hh"
 #include "segment_names.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -36,9 +37,7 @@ int main() {
 		l::ImageBuilder original(source);
 		complete(original);
 		const auto name = l::generation_name(id);
-		write(directory / (name + ".image"), {original.bytes()->data(), original.bytes()->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(original.descriptor()));
+		trusted_records::install(directory, original.descriptor(), original.bytes()->view());
 		for (bool progress : {false, true})
 			for (unsigned tx : {1u, 2u, 17u}) {
 				auto input = delta(progress, tx);
@@ -82,10 +81,7 @@ int main() {
 						copy.profile == selected.profile);
 				require(std::equal(oracle.bytes()->data(), oracle.bytes()->data() + oracle.bytes()->size(),
 								   builder.bytes()->data()));
-				const auto next_name = l::generation_name(selected.generation);
-				write(directory / (next_name + ".image"), {builder.bytes()->data(), builder.bytes()->size()});
-				write(directory / (next_name + ".lease"), {});
-				write(directory / "selected", l::encode_descriptor(selected));
+				trusted_records::install(directory, selected, builder.bytes()->view());
 				{
 					l::detail::PinnedImageSource result(l::recover_generation(directory));
 					require(result.descriptor().cursor == input->target());
@@ -112,32 +108,20 @@ int main() {
 					rejected = true;
 				}
 				require(rejected);
-				write(directory / "selected", l::encode_descriptor(original.descriptor()));
+				trusted_records::install(directory, original.descriptor(), original.bytes()->view());
 			}
 
 		{
 			const auto paged_directory = directory / "paged";
 			std::filesystem::create_directories(paged_directory);
 			std::filesystem::permissions(paged_directory, std::filesystem::perms::owner_all);
-			l::StorageIdentity storage{};
-			storage.fill('s');
 			l::detail::PagedSnapshotBuilder encoder(source, id);
 			while (!encoder.done()) {
 				l::ValidationBudget budget{1, 1};
 				encoder.step(budget);
 			}
 			auto image = encoder.take();
-			write(paged_directory / "storage.meta", l::encode_storage_identity(storage));
-			write(paged_directory / (name + ".image"), image.bytes()->view());
-			write(paged_directory / (name + ".lease"),
-				  l::encode_generation_ownership(
-					  {storage, image.descriptor().generation, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
-			for (const auto &segment : image.segments()) {
-				const l::detail::SegmentNames names(segment.ownership.segment);
-				write(paged_directory / names.payload_name(), segment.bytes->view());
-				write(paged_directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-			}
-			write(paged_directory / "selected", l::encode_descriptor(image.descriptor()));
+			trusted_records::install(paged_directory, image);
 			auto paged_base = l::recover_generation(paged_directory);
 			for (bool progress : {false, true})
 				for (unsigned tx : {1u, 2u, 17u}) {

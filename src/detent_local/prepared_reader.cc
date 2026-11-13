@@ -54,8 +54,10 @@ GenerationSelection PreparedReader::selection(const std::filesystem::path &path,
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};
     require(::fstat(directory.fd, &info) == 0);
-    const auto bytes = record<descriptor_bytes>(directory.fd, "selected", publisher);
-    return {decode_descriptor(bytes), {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+    for (unsigned attempt = 0; attempt != 3; ++attempt)
+        if (const auto selected = read_selected(directory.fd, publisher))
+            return {selected->descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+    throw GenerationUnavailable("selected generation changed while reading it");
 }
 ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	if (!generation.paged_)
@@ -101,8 +103,12 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		require(::fstat(files->directory.fd, &directory) == 0);
 		const DirectoryIdentity directory_identity{std::uint64_t(directory.st_dev),
 		                                           std::uint64_t(directory.st_ino)};
-		const auto selected = record<descriptor_bytes>(files->directory.fd, "selected", publisher);
-		const auto descriptor = decode_descriptor(selected);
+		const auto selected = read_selected(files->directory.fd, publisher);
+		if (!selected)
+			continue;
+		if (!selected->paged)
+			throw GenerationUnavailable("publisher has not prepared a current paged generation");
+		const auto &descriptor = selected->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
 			        descriptor.cursor.revision >= expected->revision);
@@ -110,7 +116,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		files->lease.fd = open_record(files->directory.fd, lease_name.view());
 		if (files->lease.fd < 0 && errno == ENOENT)
 			continue;
-		check_generation_file(files->lease.fd, publisher, generation_ownership_bytes);
+		check_generation_file(files->lease.fd, publisher, 0);
 		require(internal::mode_only_acl(files->lease.fd));
 		int locked;
 		do {
@@ -132,17 +138,6 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		}
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
-		std::array<char, generation_ownership_bytes> lease{};
-		read_generation_record(files->lease.fd, lease);
-		const auto ownership = decode_generation_ownership(lease);
-		const auto storage = decode_storage_identity(
-		    record<storage_identity_bytes>(files->directory.fd, "storage.meta", publisher));
-        require(ownership.storage == storage &&
-		        ownership.generation == descriptor.generation &&
-		        ownership.image_length == descriptor.length &&
-		        ownership.image_checksum == descriptor.checksum);
-        if (ownership.layout_version != paged::format_version)
-            throw GenerationUnavailable("publisher has not prepared a current paged generation");
         require(descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
 		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);

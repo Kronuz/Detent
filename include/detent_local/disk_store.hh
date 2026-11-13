@@ -1,13 +1,16 @@
 #pragma once
 #include "builder.hh"
+#include "detent_distribution/retirement.hh"
 #include "disk_ledger.hh"
 #include "identity_reset.hh"
-#include "storage_session.hh"
 #include "sync_counters.hh"
 #include <chrono>
+#include <exception>
+#include <filesystem>
+#include <memory>
 
 namespace detent::local {
-enum class StoreOpenMode { FreshEmpty, ExistingManaged, UpgradeLegacy };
+enum class StoreOpenMode { FreshEmpty, ExistingManaged };
 enum class StoreStatus { Starting, Ready, Fenced, Closing, Closed };
 enum class SelectionKnowledge { Absent, Known, Uncertain };
 enum class DiskPublicationStatus { Idle, Preparing, Published, Rejected, Cancelled, Fenced };
@@ -18,13 +21,15 @@ struct SelectionSnapshot {
 struct DiskStoreOptions {
 	StoreOpenMode mode = StoreOpenMode::ExistingManaged;
 	DiskLimits limits;
-	std::uint64_t census_work_limit = 1'000'000;
-	std::size_t gc_scan_slice = 256;
 	unsigned artifact_mode = 0600;
 	ViewLimits recovery_limits;
-	// A publication writes its files in sync groups of at most this many open descriptors; each group
-	// is one SyncFiles (on macOS one device flush). Descriptors are the bound, not the file count.
-	std::size_t sync_group_files = 128;
+};
+// The store's disk work (a publication or a collection): run() once, on any thread but never beside
+// another work of the same store, then advance() on the owner settles it.
+class DiskWork {
+  public:
+	virtual ~DiskWork() = default;
+	virtual void run() noexcept = 0;
 };
 namespace detail {
 struct StoreCore;
@@ -41,7 +46,7 @@ class DiskStore {
 														  const std::filesystem::path &,
 														  std::shared_ptr<void>, DiskStoreOptions);
 	};
-	DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core);
+	explicit DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core);
 	~DiskStore();
 	DiskStore(const DiskStore &) = delete;
 	StoreStatus status() const noexcept;
@@ -49,11 +54,11 @@ class DiskStore {
 	SyncStats sync_stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
-	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
+	// The next disk work, or null. Taking it starts it: the store waits for its run() before any other.
+	std::shared_ptr<DiskWork> work();
 	void advance();
-	bool needs_work() const noexcept;
 	void request_collection() noexcept;
-	// The owner wakes at this deadline to retry conservatively retained roots.
+	// When a collection that left a reader's generation runs again; max() when none waits.
 	std::chrono::steady_clock::time_point collection_retry_at() const noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;

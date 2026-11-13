@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <sys/stat.h>
 #include <vector>
 
@@ -31,6 +32,14 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 		offset += static_cast<std::size_t>(count);
 	}
 }
+// `selected` is the agent store's table (docs/status/namespace-s7.md); until namespace-s6-cutover its one
+// entry names the selected generation, whose cursor its image holds (D88). Absent, GenerationUnavailable;
+// nullopt when the image it names is gone, so the table moved on and the caller reads it again.
+struct Selected {
+	Descriptor descriptor;
+	bool paged = false; // a paged root, else a flat image
+};
+std::optional<Selected> read_selected(int directory, uid_t owner);
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
 	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)

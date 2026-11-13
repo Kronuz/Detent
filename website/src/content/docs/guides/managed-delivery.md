@@ -69,8 +69,7 @@ Later starts omit `--initialize-managed` and require an existing store:
 detent-agent --managed managed.json --generation-dir ./agent-state
 ```
 
-`--upgrade-managed` explicitly adopts a compatible legacy generation directory.
-Neither mode silently discards unreadable state.
+A start never silently discards unreadable state.
 
 ---
 

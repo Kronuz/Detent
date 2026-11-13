@@ -31,13 +31,12 @@ struct Descriptor {
 	std::uint32_t ordinal = 0; // D8.2's build ordinal: r + 1 for a rebuild at r's unchanged head
 	bool operator==(const Descriptor &) const = default;
 };
-inline constexpr std::size_t descriptor_bytes = 176;
 inline constexpr std::size_t prepared_metadata_bytes = 192;
-std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &descriptor);
+// A nonzero generation over a valid cursor and profile; throws otherwise.
+void validate_descriptor(const Descriptor &descriptor);
 // One generation: equal but for the build ordinal, which its derived id binds (D8.1) and which a
 // generation read by name (its lease and root) does not hold.
 bool same_generation(const Descriptor &, const Descriptor &) noexcept;
-Descriptor decode_descriptor(std::span<const char> bytes);
 std::string generation_name(const GenerationId &generation);
 std::string_view generation_name(const GenerationId &generation, std::span<char> destination);
 struct DirectoryIdentity {

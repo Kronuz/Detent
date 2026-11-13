@@ -6,7 +6,7 @@ struct Source {
 	bool available = false;
 	mutable unsigned lookups = 0;
 	explicit Source(l::detail::PagedImage image) : image(std::move(image)) {}
-	static std::optional<l::detail::SegmentInput> lookup(const void *owner, const l::StorageIdentity &id) {
+	static std::optional<l::detail::SegmentInput> lookup(const void *owner, const l::GenerationId &id) {
 		const auto &source = *static_cast<const Source *>(owner);
 		++source.lookups;
 		if (!source.available)
@@ -21,8 +21,7 @@ struct Source {
 };
 int main() {
 	auto input = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(input, generation);
 	while (!builder.done()) {

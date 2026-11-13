@@ -1,10 +1,9 @@
 #include "applied_delta_fixture.hh"
 #include "paged_delta_plan.hh"
-#include "paged_dependency_check.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_publication_artifacts.hh"
 #include "reader_metadata.hh"
-#include <completion/native_completion.h>
+#include "live_record.hh"
 template <class Error, class Call> void rejects(Call call) {
 	try {
 		call();
@@ -24,8 +23,7 @@ int main() {
 		}
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder builder(source, generation);
@@ -34,7 +32,7 @@ int main() {
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto recovered = l::recover_generation(directory);
 	for (bool progress : {false, true}) {
 		for (bool pressure : {false, true}) {
@@ -68,76 +66,37 @@ int main() {
 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
 				if (pressure) {
 					auto admission = account->admit(account->limit() - account->used());
-					rejects<d::StoragePressure>([&] { artifacts->populate(*plan, storage); });
+					rejects<d::StoragePressure>([&] { artifacts->populate(*plan); });
 					rejects<std::logic_error>([&] { artifacts->artifacts(); });
 					require(plan->descriptor().generation == next);
 				} else {
-					artifacts->populate(*plan, storage);
+					artifacts->populate(*plan);
 					const auto rows = artifacts->artifacts();
-					require(rows.size() == (progress ? 5 : 7));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
-					// Owners then the lease, then packs, image, live, read and descriptor: five rows follow
-					// the packs, and the first sync group is the owners plus the lease.
-					const auto segments = (rows.size() - 5) / 2;
-					require(plan->segments().size() == segments && artifacts->first_group() == segments + 1);
-					const auto &lease = rows[artifacts->first_group() - 1];
-					require(lease.filename().ends_with(".lease"));
+					// Owner records, packs, then the image, `.live` and `.read`: the agent store's files.
+					const auto segments = (rows.size() - 3) / 2;
+					require(plan->segments().size() == segments && rows.size() == 2 * segments + 3);
 					for (std::size_t i = 0; i < segments; ++i) {
 						require(rows[i].filename().ends_with(".owner"));
-						require(rows[artifacts->first_group() + i].filename().ends_with(".pack"));
+						require(rows[segments + i].filename().ends_with(".pack"));
 					}
-					const auto ownership =
-						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
-					require(ownership.layout_version == l::paged::format_version && ownership.storage == storage &&
-							ownership.generation == next);
-					std::vector<std::uint64_t> lengths;
-					for (const auto &segment : plan->segments())
-						lengths.push_back(segment.bytes->size());
-					require(artifacts->usage() ==
-							l::DiskLedger::paged_peak(
-								lengths, l::detail::live_record_size(artifacts->reused().size() + lengths.size())));
-					const auto &record = rows[rows.size() - 2];
+					const auto &image_row = rows[2 * segments], &live_row = rows[2 * segments + 1], &read_row = rows.back();
+					require(image_row.filename().ends_with(".image") && live_row.filename().ends_with(".live") &&
+							read_row.filename().ends_with(".read"));
+					require(artifacts->usage().entries == rows.size() && artifacts->usage().generations == 1);
 					const auto metadata =
-					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
+					    l::detail::decode_reader_metadata({read_row.bytes().data(), read_row.bytes().size()});
 					require(metadata.generation == next &&
 					        metadata.root_checksum == plan->descriptor().checksum &&
 					        metadata.counts.records == plan->counts().records &&
 					        metadata.physical_bytes == artifacts->target_physical_bytes());
-					require(artifacts->prefix_usage(0) == l::DiskUsage{});
-					require(artifacts->prefix_usage(rows.size()) == artifacts->usage());
-					require(artifacts->prefix_usage(rows.size() - 2).generations == 1);
-					rejects<std::out_of_range>([&] { artifacts->prefix_usage(rows.size() + 1); });
+					// `.live` binds the generation, its root and the whole `.read`, and rows every segment it reaches.
+					const auto live = l::detail::decode_live_record({live_row.bytes().data(), live_row.bytes().size()}, 1024);
+					require(live.generation == next && live.root_checksum == plan->descriptor().checksum &&
+							live.read_digest == l::detail::reader_metadata_digest({read_row.bytes().data(), read_row.bytes().size()}) &&
+							live.rows.size() == segments + artifacts->reused().size());
 					artifacts->attach(std::move(*plan));
 					rejects<std::logic_error>([&] { plan->root(); });
-					if (progress) {
-						auto session =
-							l::make_owned_storage_session(domain, directory, std::make_shared<int>(1), true);
-						const auto injected = std::make_exception_ptr(
-							std::runtime_error("dependency read failed during cancellation"));
-						bool fired = false, closed = false;
-						{
-							l::detail::PagedDependencyCheck check(domain.factory(), session, artifacts,
-																  ::getuid());
-							while (!check.done()) {
-								const auto &request = check.request();
-								check.submitted();
-								kronuz::io::completion::Result result;
-								if (!fired && request.kind == kronuz::io::completion::Kind::Read) {
-									check.cancel();
-									result.token = request.token;
-									result.error = injected;
-									fired = true;
-								} else {
-									result = kronuz::journal::detail::execute_primitive(check.io(), request);
-									closed |=
-										fired && request.kind == kronuz::io::completion::Kind::CloseFile;
-								}
-								require(check.complete(std::move(result)));
-							}
-							require(fired && closed && check.error() == injected && !check.in_flight());
-						}
-						session->close();
-					}
 				}
 			}
 			domain.close().wait();
