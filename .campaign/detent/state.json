@@ -978,17 +978,45 @@
         "src/detent_delivery/http*",
         "src/detent_delivery/client*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T19:54:39",
+          "commit": "1bb430f93b0b9f427de4b25d736213214fdef25c",
+          "criteria": {
+            "A1": "261112-193532-048881 (passed at b49cda416233; only merges from main since); fails without: 261112-193540-a72b5f",
+            "A2": "261112-193548-9146ef (passed at b49cda416233; only merges from main since)",
+            "A3": "D89"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "ebcb470e69d1230f7aba7393ef519592a9ff2568",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-193550-457797",
+              "level": "light",
+              "seconds": 859.1,
+              "state": "done",
+              "what": "coordinator-idle-flake check suite at ebcb470e69d1"
+            }
+          ],
+          "final": true,
+          "from": "4558de812c1cdd4302a08d49e4f52c9d217b2a16",
+          "reason": "",
+          "tested": "baf84b4f7d4aa8668ddd9c74ced631d970245dbe"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Flaky retained-idle check in test_delivery_coordinator under ASan",
-      "updated": "2026-11-12T17:03:07",
-      "worktree": "../Detent-wt/detent/coordinator-idle-flake"
+      "updated": "2026-11-12T19:54:49",
+      "worktree": ""
     },
     "daemon-ready-leader": {
       "accepted": {
