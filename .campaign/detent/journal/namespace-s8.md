@@ -1,6 +1,6 @@
 # namespace-s8: journal
 
-State: ready for review; waiting on jobs 261113-003635-494354 261113-003635-834187 261113-003637-27c63b 261113-003639-930a27 261113-003647-1556e1 261113-003650-50d7ee
+State: ready for review; waiting on jobs 261113-003843-d3ad47 261113-003844-6e5e22 261113-003647-1556e1 261113-003650-50d7ee
 Quest: .campaign/detent/quests/namespace-s8.md (the lead's; never edit it)
 
 ## Doing
@@ -16,13 +16,15 @@ Mutant smoke, locally: copy-keeps-tombstones, sections-named, keep-dropped kille
 
 | Job | For | What |
 |---|---|---|
-| 261113-003635-494354 | A1, A2, A4, A5 | native suite (`test_relay_chain`, `test_relay_mirror`) |
-| 261113-003635-834187 | A1, A2, A4, A5 | pins |
-| 261113-003637-27c63b | A3 | T7 crash matrix |
-| 261113-003639-930a27 | A5 | mutant copy-keeps-tombstones (fails-without) |
+| 261113-003843-d3ad47 | A1, A2, A4, A5 | native suite, --fresh (`test_relay_chain`, `test_relay_mirror`) |
+| 261113-003844-6e5e22 | A1, A2, A4, A5 | pins, --fresh |
+| 261113-003637-27c63b | A3 | T7 crash matrix: done, exit 0 (82 s) |
+| 261113-003639-930a27 | A5 | mutant copy-keeps-tombstones: done, killed ("a full copy holds a tombstone") |
 | 261113-003647-1556e1 | A5 | mutant sections-named (fails-without) |
 | 261113-003650-50d7ee | A1 | mutant keep-dropped (fails-without) |
 
+Superseded: 261113-003635-494354 and -834187 failed exit 125 before running (the slot's `.git`
+points to a removed worktree registration again; msg-45 to the lead).
 Earlier mutant jobs (A2-A4, at 5afd10fb/89157642) stand; collect-missing-unlink (261112-120558-1bde4c)
 is retired as equivalent (ruling 7).
 
@@ -49,11 +51,11 @@ is retired as equivalent (ruling 7).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending 261113-003635-494354, 261113-003635-834187; fails without: 261113-003650-50d7ee |
+| A1 | pending 261113-003843-d3ad47, 261113-003844-6e5e22; fails without: 261113-003650-50d7ee |
 | A2 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120549-f1e18a, 261112-120552-fbda3d (rerun at the new head pending) |
-| A3 | 261112-121306-11c4d7 (rerun 261113-003637-27c63b); fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c |
+| A3 | 261112-121306-11c4d7, 261113-003637-27c63b; fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c |
 | A4 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120555-5fb518 (rerun pending) |
-| A5 | pending 261113-003635-494354, 261113-003635-834187; fails without: 261113-003639-930a27, 261113-003647-1556e1 |
+| A5 | pending 261113-003843-d3ad47, 261113-003844-6e5e22; fails without: 261113-003639-930a27, 261113-003647-1556e1 |
 
 ## Result
 
