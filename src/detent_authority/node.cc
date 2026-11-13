@@ -89,6 +89,8 @@ void validate_node_options(const NodeOptions &o) {
 	}
 	validate_retained_state(o);
 	validate_replacement_funding(o);
+	if (history::file_bytes(o.application, o.application.layout) > history::fetch_bytes(o.application))
+		throw std::invalid_argument("authority layout policy writes history files above a peer fetch");
 }
 
 Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)

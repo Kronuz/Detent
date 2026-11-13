@@ -117,4 +117,20 @@ struct Table {
 };
 std::string encode(const Table &table);
 Table decode_table(std::string_view bytes, const Limits &limits);
+
+// A namespace holds at most this many blocks above its base; a roll-up cuts the oldest past it.
+inline constexpr std::size_t max_blocks = 64;
+// The largest file of each kind history writes under `policy` (docs/status/namespace-s5.md
+// "File bounds"), saturating at UINT64_MAX.
+struct FileBounds {
+	std::uint64_t base = 0, block = 0, seal = 0, table = 0;
+};
+FileBounds file_bounds(const Limits &limits, const LayoutPolicy &policy);
+// The largest file history writes under `policy`, also right after a change from `previous`.
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy);
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous);
+// What a peer fetch carries: the image bound, or the default policy's files when larger, so the
+// default policy is always accepted. A policy whose files exceed it is refused, so every file
+// history writes can be fetched.
+std::uint64_t fetch_bytes(const Limits &limits);
 } // namespace detent::authority::history

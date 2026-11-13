@@ -1,11 +1,14 @@
-// The fetch lane carries the largest history file (durability review F2): under the default
-// Limits one namespace may hold every live byte, so its base is above consensus's default
-// 64 MiB `fetch_bytes`. A configuration's peers take `history::file_bytes`, a service refuses
-// peers below it, and a voter installs a 73 MB base through a lane of that bound, served by
-// `history_reader`. A file the lane cannot carry ends the install with a reported error.
+// Every history file fits a peer fetch (durability review F2). The lane carries
+// `history::fetch_bytes` (the image bound): a configuration's peers take it and a service
+// refuses less. A policy whose base, block, seal file or table bound exceeds it is refused,
+// each kind alone. Under the default Limits one namespace may hold every live byte, so its base
+// is above consensus's default 64 MiB `fetch_bytes`: a voter installs a 73 MB base, an 8 MB
+// seal file and the block it rolls up through the configured lane, served by `history_reader`.
+// A file the lane cannot carry ends the install with a reported error.
 #include "service.hh"
 #include "peer_history.hh"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -86,15 +89,50 @@ int main() {
 			refused = std::string(error.what()).find("fetch_bytes") != std::string::npos;
 		}
 		assert(refused);
-		auto huge = limits;
-		huge.state_bytes = std::numeric_limits<std::size_t>::max();
-		refused = false;
-		try {
-			h::file_bytes(huge);
-		} catch (const std::invalid_argument &) {
-			refused = true;
+	}
+	{
+		// Under the default policy the base is the largest file, and it fits the lane.
+		const auto bounds = h::file_bounds(limits, LayoutPolicy{});
+		assert(h::file_bytes(limits, LayoutPolicy{}) == bounds.base && bounds.base <= h::fetch_bytes(limits));
+		assert(bounds.block < bounds.base && bounds.seal < bounds.base && bounds.table < bounds.base);
+		// One kind at a time outgrows the lane: α (a block), carry_bytes (a seal file), P (the table).
+		auto big_block = LayoutPolicy{}, big_seal = LayoutPolicy{}, big_table = LayoutPolicy{};
+		big_block.alpha_num = 65536;
+		big_block.alpha_den = 1;
+		big_seal.carry_bytes = std::uint64_t{1} << 32;
+		big_table.period = 1u << 20;
+		const auto lane = h::fetch_bytes(limits);
+		const std::array<std::pair<LayoutPolicy, int>, 3> oversized{
+			{{big_block, 1}, {big_seal, 2}, {big_table, 3}}};
+		for (const auto &[policy, kind] : oversized) {
+			const auto b = h::file_bounds(limits, policy);
+			assert((b.block > lane) == (kind == 1) && (b.seal > lane) == (kind == 2) && (b.table > lane) == (kind == 3));
+			// The enabling or layout entry carrying it is refused, and a node configured with it.
+			Context context;
+			context.cluster[0] = 'c';
+			context.group[0] = 'g';
+			context.epoch[0] = 'e';
+			AdministrativeCommand enable{context, AdministrativeKind::EnablePositions, {}, {}, {}, policy};
+			enable.nonce[0] = 's';
+			bool refused = false;
+			try {
+				encode(enable, limits);
+			} catch (const std::invalid_argument &error) {
+				refused = std::string(error.what()).find("peer fetch") != std::string::npos;
+			}
+			assert(refused);
+			NodeOptions options = loaded.node;
+			options.application.layout = policy;
+			refused = false;
+			try {
+				validate_node_options(options);
+			} catch (const std::invalid_argument &error) {
+				refused = std::string(error.what()).find("peer fetch") != std::string::npos;
+			}
+			assert(refused);
+			// Across a change the wider parameters bound what is written.
+			assert(h::file_bytes(limits, LayoutPolicy{}, policy) >= h::file_bytes(limits, policy));
 		}
-		assert(refused);
 	}
 
 	// One namespace of 330,000 keys at 197 bytes each: 73,260,000 live bytes, 55% of state_bytes.
@@ -136,22 +174,49 @@ int main() {
 	}
 	assert(sealed && s.positions_enabled() && s.seal().index == s.applied_index());
 
-	// The source voter writes the base; the table reaches it.
+	// The source voter writes the base at seal 0, then a seal of about seal_bytes of rewrites,
+	// whose level-0 passes L, so the namespace rolls up into a block.
 	mem::Disk source_disk;
 	auto source = std::make_shared<mem::MemoryIO>(source_disk, "history/");
-	{
-		h::History history(source, limits);
-		history.recover(start);
-		drain(history);
-		history.seal(s);
-		drain(history);
-		assert(history.durable_through(s.applied_index()));
+	h::History writer(source, limits);
+	writer.recover(start);
+	drain(writer);
+	writer.seal(s);
+	drain(writer);
+	sealed = false;
+	for (std::size_t k = 0; !sealed;) {
+		Command c;
+		c.context = context;
+		c.producer = "p";
+		c.generation = 1;
+		c.sequence = ++sequence;
+		c.name_space = "big";
+		for (unsigned m = 0; m < 128; ++m, ++k)
+			c.mutations.push_back({"big:" + pad + std::to_string(1000000 + k), detent::KnobDef{2}, {}, {}});
+		assert(s.apply(++index, c).status == Status::Applied);
+		sealed = s.close_entry(64);
 	}
+	writer.seal(s);
+	drain(writer);
+	assert(writer.durable_through(s.applied_index()));
 	h::Directory directory(source, limits);
-	std::size_t largest = 0;
-	for (const auto &name : directory.names())
-		largest = std::max(largest, directory.read(name).size());
-	assert(largest == 73260051 && largest > std::size_t{64} * 1024 * 1024);
+	const auto bounds = h::file_bounds(limits, LayoutPolicy{});
+	std::size_t largest = 0, seal_file = 0, block = 0;
+	for (const auto &name : directory.names()) {
+		const auto size = directory.read(name).size();
+		largest = std::max(largest, size);
+		if (name.starts_with("base-"))
+			assert(size == 73260051 && size > std::size_t{64} * 1024 * 1024 && size <= bounds.base);
+		else if (name.starts_with("seal-")) {
+			assert(size <= bounds.seal);
+			seal_file = std::max(seal_file, size);
+		} else if (name.starts_with("block-")) {
+			assert(size <= bounds.block);
+			block = std::max(block, size);
+		} else
+			assert(name == "layout" && size <= bounds.table);
+	}
+	assert(largest == 73260051 && seal_file > 8000000 && block > 8000000);
 
 	// A voter with an empty history directory installs it through the configured lane.
 	mem::Disk disk;
@@ -173,7 +238,7 @@ int main() {
 			return 1;
 		}
 	}
-	assert(served == largest && fetch_bytes == h::file_bytes(limits) && fetch_bytes > limits.state_bytes);
+	assert(served == largest && fetch_bytes == h::fetch_bytes(limits) && fetch_bytes >= bounds.base);
 	h::Directory installed(target, limits);
 	assert(installed.names() == directory.names());
 	for (const auto &name : directory.names())
@@ -195,6 +260,8 @@ int main() {
 		assert(why.find("base-") != std::string::npos && why.find("io_error") != std::string::npos &&
 			   !history.ready() && !history.restoring());
 	}
-	std::cout << "a " << largest << "-byte base (55% of state_bytes " << limits.state_bytes
-			  << ") installed through a lane of " << fetch_bytes << " bytes; refused at 64 MiB\n";
+	std::cout << "a " << largest << "-byte base (55% of state_bytes " << limits.state_bytes << "), a " << seal_file
+			  << "-byte seal file and a " << block << "-byte block installed through a lane of " << fetch_bytes
+			  << " bytes; bounds under the default policy: base " << bounds.base << ", block " << bounds.block
+			  << ", seal file " << bounds.seal << ", table " << bounds.table << "; the base refused at 64 MiB\n";
 }

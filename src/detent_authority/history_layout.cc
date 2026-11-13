@@ -256,6 +256,8 @@ Step Layout::apply(SealFile input, Files &files, const std::map<std::string, Cha
 				rule = Cut::Cost;
 			else if (Wide{younger + items.front().meta.bytes} * p.alpha_den > budget * p.cap)
 				rule = Cut::Cap;
+			else if (items.size() > max_blocks)
+				rule = Cut::Count;
 			else
 				break;
 			++cuts_[n.name][static_cast<unsigned>(rule)];

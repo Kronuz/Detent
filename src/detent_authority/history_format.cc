@@ -460,4 +460,61 @@ Table decode_table(std::string_view bytes, const Limits &limits) {
 	r.end();
 	return t;
 }
+
+namespace {
+using Wide = unsigned __int128;
+std::uint64_t saturated(Wide n) noexcept {
+	return n > Wide{UINT64_MAX} ? UINT64_MAX : static_cast<std::uint64_t>(n);
+}
+// Each parameter at its larger value: files written across a change from one to the other.
+LayoutPolicy widest(LayoutPolicy a, const LayoutPolicy &b) noexcept {
+	a.seal_bytes = std::max(a.seal_bytes, b.seal_bytes);
+	a.carry_bytes = std::max(a.carry_bytes, b.carry_bytes);
+	a.period = std::max(a.period, b.period);
+	if (Wide{b.alpha_num} * a.alpha_den > Wide{a.alpha_num} * b.alpha_den) {
+		a.alpha_num = b.alpha_num;
+		a.alpha_den = b.alpha_den;
+	}
+	return a;
+}
+} // namespace
+FileBounds file_bounds(const Limits &l, const LayoutPolicy &p) {
+	const Wide namespaces = l.namespaces;
+	// An entry holds at most 64 transactions, each changing at most request_bytes of keys and
+	// definitions plus 16 per mutation; a seal closes at the entry that reaches seal_bytes.
+	const Wide entry = Wide{64} * (Wide{l.request_bytes} + Wide{16} * l.mutations);
+	const Wide sealed = (p.seal_bytes ? Wide{p.seal_bytes} - 1 : 0) + entry;
+	// A roll-up merges level-0 below L of the previous seal plus one seal's changes; a squash
+	// stays within L or the larger input. L is at most α · state_bytes / 4.
+	const Wide limit = Wide{l.state_bytes} * p.alpha_num / (Wide{4} * p.alpha_den);
+	// Name text (8 + 199), incarnation 16; a block adds magic, range and count, a base magic,
+	// position and count.
+	constexpr std::uint64_t block_header = 8 + 207 + 16 + 8 + 8 + 8, base_header = 8 + 207 + 16 + 8 + 8;
+	FileBounds out;
+	out.base = saturated(Wide{base_header} + l.state_bytes);
+	out.block = saturated(Wide{block_header} + limit + sealed);
+	// Header and digest; per namespace changed or dropped (two per name: live and held), its
+	// entry and a section header; the seal's changes; carried sections under carry_bytes;
+	// a block and a base output per namespace.
+	constexpr std::uint64_t entry_bytes = 207 + 16 + 32 + 1, output_bytes = 1 + 207 + 16 + 24 + 32;
+	out.seal = saturated(Wide{128} + 32 + 2 * namespaces * (entry_bytes + 8 + block_header) + sealed + 8 +
+						 namespaces * (8 + block_header + (p.carry_bytes ? p.carry_bytes - 1 : 0)) + 8 +
+						 2 * namespaces * output_bytes);
+	// Header and digest; per namespace its entry, base, at most max_blocks blocks and its
+	// level-0 sections: at most 2P + 1 across a period change, each 65 bytes.
+	constexpr std::uint64_t table_entry = 207 + 16 + 40 + 1 + 65 + 8 + 8, described = 65;
+	out.table = saturated(Wide{120} + 32 +
+						  namespaces * (table_entry + described * (max_blocks + 2 * Wide{p.period} + 1)));
+	return out;
+}
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy) {
+	const auto b = file_bounds(limits, policy);
+	return std::max({b.base, b.block, b.seal, b.table});
+}
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous) {
+	return file_bytes(limits, widest(policy, previous));
+}
+std::uint64_t fetch_bytes(const Limits &limits) {
+	return std::max<std::uint64_t>(limits.image_bytes, file_bytes(limits, LayoutPolicy{}));
+}
 } // namespace detent::authority::history

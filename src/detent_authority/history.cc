@@ -1,7 +1,6 @@
 #include "history.hh"
 #include <algorithm>
 #include <coroutine>
-#include <limits>
 #include <set>
 #include <stdexcept>
 
@@ -210,14 +209,6 @@ class Operation final : public kronuz::journal::IOOperation {
 };
 } // namespace
 
-std::size_t file_bytes(const Limits &limits) {
-	// "DTABAS01", the namespace (a length and at most 199 bytes), the incarnation, the
-	// position and the change count; each change then takes its live footprint.
-	constexpr std::size_t header = 8 + 8 + 199 + 16 + 8 + 8;
-	if (limits.state_bytes > std::numeric_limits<std::size_t>::max() - header)
-		throw std::invalid_argument("history files above any fetch bound");
-	return limits.state_bytes + header;
-}
 std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes) {
 	if (!history_name(name))
 		return std::nullopt;

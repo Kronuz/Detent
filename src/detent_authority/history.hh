@@ -46,9 +46,6 @@ struct Write {
 // Runs one write as the primitives a completion driver issues, one at a time.
 std::shared_ptr<kronuz::journal::IOOperation> write_operation(std::shared_ptr<kronuz::journal::IO> io,
 															  std::shared_ptr<const Write> write);
-// The largest file history writes under `limits`, which a peer fetch must carry: a base
-// holding one namespace of `state_bytes` live bytes. Throws when no size holds it.
-std::size_t file_bytes(const Limits &limits);
 // Serves a peer's fetch: nullopt for a name history never writes (checked before the disk) or
 // a file it lacks; a file above `bytes` throws unread.
 std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes);

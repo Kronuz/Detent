@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: ready for review (jobs at e3ac4162 pending: 261113-042535-90d7d4 261113-042539-b20470 261113-042553-f1580d 261113-042559-520ab7 261113-042612-0c0406 261113-042617-126409)
+State: working (lead rulings: F6, write-side file bounds)
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -62,12 +62,9 @@ old-fetch-bound, accept-low-fetch-bound, retry-failed-forever in 261113-042559-5
 - F4 (restore rounds re-verify everything): left as is; cheap at test sizes.
 - F5 (stall then same-process restore skips a directory sync): left; needs an fsync error
   then an install in one process.
-- F6 (design doc names files by namespace): `docs/design/namespace-delivery.md:157` is
-  outside this quest's file set; the lead's to fix (name the namespace token there).
+- F6: fixed (design doc names the token), once the lead added the design doc to the file set.
 - F7 (service write path untested on PosixIO): before S6 enables positions.
-- `file_bytes` covers a base; an extreme policy (huge `seal_bytes`, α or `carry_bytes`)
-  could write a block or seal file above it. Its fetch now ends, reported. Status doc
-  Left open 8; ranged fetches would lift it.
+- Left open 8 closed by the lead's ruling: write-side bounds per file kind (rulings 16-18).
 
 ## Blocked on
 
@@ -147,5 +144,19 @@ Left open 5-6).
    reader threw, or the file is above its bound) and `message_size` are lasting answers: a
    fetch that every voter answered without a transient error ends with their answers, and
    the restore fails with a message naming the file and each voter's answer.
-16. No write-side cap: refusing to write a file above `file_bytes` would stop every voter at
-   the same seal; under an extreme policy a fetch now ends, reported (Left open 8).
+16. Lead ruling (write-side bound): `history::file_bounds(limits, policy)` bounds base,
+   block, seal file and table from the policy and Limits; `file_bytes` is their maximum (also
+   across a change: the wider of each parameter). The enabling and layout entries are refused
+   at encode, decode and apply (`validate_administrative` with the limits), a SetLayout whose
+   widened bound exceeds the lane applies as Conflict, and `validate_node_options` refuses a
+   configured layout above it. Derivations: status doc "File bounds".
+17. The lane, `history::fetch_bytes(limits)`, is max(image_bytes, the default policy's
+   `file_bytes`): semantic (voters agree on validation), never below the base, and the default
+   policy is always accepted. image_bytes alone refused the default policy in the 4 MiB-image
+   test configurations: one entry may carry 64 x (request_bytes + 16 x mutations) = 16.9 MB
+   of changes, which a seal file or block bound has to include.
+18. The table bound needs a block count: the ratio keeps O(log) blocks but nothing proves a
+   bound, so a roll-up also cuts the oldest block while a namespace holds more than
+   `max_blocks` = 64 (`Cut::Count`). Under the ratio it should not fire; no test reaches it.
+   Level-0 is bounded by 2P + 1 (a period change), assuming a namespace's directory position
+   is fixed per incarnation.

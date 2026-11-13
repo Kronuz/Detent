@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
-# Applies one history mutant (S5.2's seven, S5.3's six, the S5.3 review's six) to the source, builds the test
+# Applies one history mutant (S5.2's seven, S5.3's six, the S5.3 review's nine) to the source, builds the test
 # that must kill it and runs it.
 # Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
 # or its build does not apply, as `campaign job submit --fails-without` expects.
@@ -83,6 +83,13 @@ old-fetch-bound) file=src/detent_authority/service.cc test=test_authority_histor
 accept-low-fetch-bound) file=src/detent_authority/service.cc test=test_authority_history_large_base
 	old='	check(!options_.peers || options_.peers->fetch_bytes >= history::file_bytes(options_.node.application),'
 	new='	check(true,' ;;
+drop-block-bound|drop-seal-bound|drop-table-bound) file=src/detent_authority/history_format.cc test=test_authority_history_large_base
+	old='	return std::max({b.base, b.block, b.seal, b.table});'
+	case "$mutant" in
+	drop-block-bound) new='	return std::max({b.base, b.seal, b.table});' ;;
+	drop-seal-bound) new='	return std::max({b.base, b.block, b.table});' ;;
+	*) new='	return std::max({b.base, b.block, b.seal});' ;;
+	esac ;;
 *) echo "unknown mutant $mutant"; exit 1 ;;
 esac
 OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }
