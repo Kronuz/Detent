@@ -5,27 +5,26 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Three tests that failed once in CI today and passed on rerun pass every time, each fixed at its cause (test or product), never by a wider timeout:
+1. `test_system_managed_relay` on macos-x86_64 (okt-followups' CI, 2026-11-12).
+2. `test_system_authority_writer_failover` on linux-x86_64-clang (CI run 43355759936, namespace-measure).
+3. `test_authority_service` on macos-x86_64, aborted on an uncaught `http::RequestRejected {"error":"admission_full"}` (CI run 43346413800 attempt 6, coordinator-idle-flake).
+An uncaught product exception in a test (3) is a finding about the product until shown otherwise.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Each cause named in the journal with a reproduction forced by an interleaving, a delay injection or a resource limit (the slow macos-x86_64 runner's timing is the first suspect), failing before its fix: jobs, `--fails-without`
+- A2 Each test passes 200 repeats under load at the fix: one light job per test
+- A3 The suite passes: a job
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None, unless (3) changes the authority service's admission behavior; then name it here before building.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D54, D55.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Each test's fix, once its A1 and A2 rows are met.
