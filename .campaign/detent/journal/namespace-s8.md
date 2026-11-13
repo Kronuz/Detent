@@ -1,6 +1,6 @@
 # namespace-s8: journal
 
-State: building test_relay_chain (A1 voter half, A5) locally
+State: ready for review; waiting on jobs 261113-003635-494354 261113-003635-834187 261113-003637-27c63b 261113-003639-930a27 261113-003647-1556e1 261113-003650-50d7ee
 Quest: .campaign/detent/quests/namespace-s8.md (the lead's; never edit it)
 
 ## Doing
@@ -9,12 +9,28 @@ Session 2 (after namespace-s5-2 landed): main merged (Detent:728fe958); layout g
 cut (a voter's empty base is no file); `plan_answer` replaced by `NamespaceRelay` (W8 reader and
 W6 source over S6's `NamespaceHistory`); `test_relay_chain` over three real voters.
 
+Local (Detent:0b09208c): `test_relay_chain` ok in 46 s wall (0.3 s user; the cluster's syncs):
+14 steps, 2,349 file comparisons byte-identical, 1,674 cursors with identical W6 bytes per hop,
+C restarted with 0 files fetched; `test_relay_mirror` ok; T7 mirror 14,860 cases, 0 violations.
+Mutant smoke, locally: copy-keeps-tombstones, sections-named, keep-dropped killed.
+
+| Job | For | What |
+|---|---|---|
+| 261113-003635-494354 | A1, A2, A4, A5 | native suite (`test_relay_chain`, `test_relay_mirror`) |
+| 261113-003635-834187 | A1, A2, A4, A5 | pins |
+| 261113-003637-27c63b | A3 | T7 crash matrix |
+| 261113-003639-930a27 | A5 | mutant copy-keeps-tombstones (fails-without) |
+| 261113-003647-1556e1 | A5 | mutant sections-named (fails-without) |
+| 261113-003650-50d7ee | A1 | mutant keep-dropped (fails-without) |
+
+Earlier mutant jobs (A2-A4, at 5afd10fb/89157642) stand; collect-missing-unlink (261112-120558-1bde4c)
+is retired as equivalent (ruling 7).
+
 ## Next
 
-1. Build and run `test_relay_chain`, `test_relay_mirror`, `test_relay_mirror_crash`; commit.
-2. Jobs: native and pins (`campaign verify`), A1 and A5 (`test_relay_chain`), A3 crash matrix,
-   the mutants rerun.
-3. Durability review (the lead launches it).
+1. Read the jobs; paste `campaign brief`'s table.
+2. Durability review (the lead launches it).
+3. The lead rules on Blocked on 1.
 
 ## Blocked on
 
@@ -33,11 +49,11 @@ W6 source over S6's `NamespaceHistory`); `test_relay_chain` over three real vote
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending: test_relay_chain> |
+| A1 | pending 261113-003635-494354, 261113-003635-834187; fails without: 261113-003650-50d7ee |
 | A2 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120549-f1e18a, 261112-120552-fbda3d (rerun at the new head pending) |
-| A3 | 261112-121306-11c4d7; fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c (rerun pending) |
+| A3 | 261112-121306-11c4d7 (rerun 261113-003637-27c63b); fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c |
 | A4 | 261112-121305-5dbe27, 261112-121305-c6bca1; fails without: 261112-120555-5fb518 (rerun pending) |
-| A5 | <pending: test_relay_chain> |
+| A5 | pending 261113-003635-494354, 261113-003635-834187; fails without: 261113-003639-930a27, 261113-003647-1556e1 |
 
 ## Result
 
@@ -77,11 +93,11 @@ repairs and plans answers; what each test shows).
    as a `NamespaceHistory`, so relay answers are the authority's bytes by construction.
 10. The relay library links `detent::authority` (state and S5.2's block codec, no consensus) to
     decode blocks for answers; relays stay readers (W8).
-12. Relay mutants for the reader: copy-keeps-tombstones, sections-named, keep-dropped. A ring
-    reset on a new incarnation is also implied by D3 (positions are never reused under a name,
-    so a new incarnation's s is above the old ring's head); the explicit incarnation check stays
-    and its mutant is equivalent against real voters, so it is not in the set.
 11. A1 and A5 run over real voters through the cluster harness (tests/detent_authority's
     `cluster_harness.hh`); the authority's `Upstream` (layout from `Layout::table()`, files from
     its directory, frames from an oracle that replays every write) is test-side until the
     authority exports them (Blocked on 1).
+12. Relay mutants for the reader: copy-keeps-tombstones, sections-named, keep-dropped. A ring
+    reset on a new incarnation is also implied by D3 (positions are never reused under a name,
+    so a new incarnation's s is above the old ring's head); the explicit incarnation check stays
+    and its mutant is equivalent against real voters, so it is not in the set.
