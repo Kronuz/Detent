@@ -7348,17 +7348,46 @@
         "tests/detent_delivery/test_repair.cc",
         "tests/detent_testing/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T17:02:41",
+          "commit": "7172a412a992667026bcee46210ced49a451f2a4",
+          "criteria": {
+            "A1": "261112-152830-3d7cba (passed at 0115d6a88add; only merges from main since); fails without: 261112-151506-1a27b3, 261112-153139-d7786b",
+            "A2": "261112-152830-3d7cba (passed at 0115d6a88add; only merges from main since); fails without: 261112-151509-3df73a, 261112-153143-a458f6",
+            "A3": "261112-152830-3d7cba (passed at 0115d6a88add; only merges from main since); fails without: 261112-153147-8762a3, 261112-153151-81a394",
+            "A4": "`docs/mechanisms/trusted-restart.md`: \"The scrub withdraws only the agent's own bits\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "5746f25c4c85aa09ff38450424957afce64d45bc",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-154056-4f72f4",
+              "level": "light",
+              "seconds": 857.1,
+              "state": "done",
+              "what": "s3b-followups check suite at 5746f25c4c85"
+            }
+          ],
+          "final": true,
+          "from": "e6e7bed6d8acf3cd52d2e09ca9b81328d4144a44",
+          "reason": "",
+          "tested": "e9023a8f97a762b4be1ccafd7f45d0de5b1631e7"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Pack repair follow-ups N1-N5",
-      "updated": "2026-11-12T14:59:19",
-      "worktree": "../Detent-wt/detent/s3b-followups"
+      "updated": "2026-11-12T17:02:47",
+      "worktree": ""
     },
     "salvage": {
       "accepted": {},
