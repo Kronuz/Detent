@@ -7019,10 +7019,52 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T08:17:08",
+          "commit": "c28e8b0c49b09d5d88d9d2e3b3c9a08735c650cb",
+          "criteria": {
+            "A1": "261113-074337-363869, 261113-074337-b96ab4",
+            "A2": "261113-074334-9ca78a; fails without: 261113-042432-0f33ed, 261113-052820-12513f",
+            "A3": "261113-074334-1fe216",
+            "A4": "261113-074334-b3924e; fails without: 261113-042414-b3c4fb, 261113-042418-606cb1, 261113-052806-da03ca, 261113-052809-87f71f, 261113-052813-b190fd, 261113-052816-abaf97",
+            "A5": "261113-074337-363869, 261113-074337-b96ab4",
+            "A6": "[artifact] `docs/status/namespace-s7.md`: \"## Wiring\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "c060c652d8e44d126657dd93fe98b9ad6d129200",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-074337-b96ab4",
+              "level": "light",
+              "seconds": 526.8,
+              "state": "done",
+              "what": "namespace-s7-store check native at c060c652d8e4"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "c060c652d8e44d126657dd93fe98b9ad6d129200",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-074337-363869",
+              "level": "none",
+              "seconds": 5.2,
+              "state": "done",
+              "what": "namespace-s7-store check pins at c060c652d8e4"
+            }
+          ],
+          "final": true,
+          "from": "ab58af2744f54e42ad78ae1f3e2a8b8aac56b2b9",
+          "reason": "",
+          "tested": "c060c652d8e44d126657dd93fe98b9ad6d129200"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s7-ids"
@@ -7030,10 +7072,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T07:52:38",
-      "worktree": "../Detent-wt/detent/namespace-s7-store"
+      "updated": "2026-11-13T08:17:18",
+      "worktree": ""
     },
     "namespace-s7-wire": {
       "accepted": {},
