@@ -165,8 +165,22 @@ Left open 5-6).
    policy is always accepted. image_bytes alone refused the default policy in the 4 MiB-image
    test configurations: one entry may carry 64 x (request_bytes + 16 x mutations) = 16.9 MB
    of changes, which a seal file or block bound has to include.
-18. The table bound needs a block count: the ratio keeps O(log) blocks but nothing proves a
-   bound, so a roll-up also cuts the oldest block while a namespace holds more than
-   `max_blocks` = 64 (`Cut::Count`). Under the ratio it should not fire; no test reaches it.
-   Level-0 is bounded by 2P + 1 (a period change), assuming a namespace's directory position
-   is fixed per incarnation.
+18. Lead ruling on the count cut (derive the bound from the ratio rule, or keep the cut with
+   a test that reaches it and a mutant): the ratio rule does not bound it usefully, so the cut
+   stays, at `max_blocks` = 32. Derivation, for the blocks after the front at a roll-up:
+   - A pair that breaks on ratio has older >= r x younger, so a ratio chain is at most
+     log_r(max block / 19) long.
+   - A pair that breaks on L was formed at a roll-up t with L_t < merged <= b_i + b_(i+1); the
+     cost rule at t kept P = the younger blocks' bytes below alpha x live_t = 4 L_t, so
+     P < 4(b_i + b_(i+1)) <= 4(r + 1) b_(i+1): each L-break grows P by at least 20/19 (r 4).
+   - So the count is logarithmic, but with base about 20/19: hundreds per namespace, times
+     4,096 namespaces, far above the lane.
+   - It is reachable: insert-only roll-ups growing 1.17x per seal under alpha 1 keep every
+     block (each merge passes L and grows; the blocks sum below live, so cost never fires).
+     A simulation of the layout rules (`.scratch/countcut*.py`, this worktree) gives 93 blocks
+     at alpha 1, 41 at alpha 2, 11 at 1/2 and 9 at 1/8 for geometric insert growth.
+   Test: `test_authority_history_cluster`'s last phase grows a namespace that way after a
+   SetLayout (alpha 1, period 1, no carry, one transaction a seal); the count cut fires after
+   33 seals on every voter, files byte-identical; mutant no-count-cut. The layout test's
+   oracle models the count rule too. Level-0 is bounded by 2P + 1 (a period change), assuming
+   a namespace's directory position is fixed per incarnation.

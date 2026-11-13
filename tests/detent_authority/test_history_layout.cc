@@ -349,7 +349,8 @@ struct Model {
 				younger += blocks[i].bytes();
 			unsigned __int128 budget = (unsigned __int128)policy.alpha_num * live;
 			if (!((unsigned __int128)younger * policy.alpha_den >= budget ||
-				  (unsigned __int128)(younger + blocks[0].bytes()) * policy.alpha_den > budget * policy.cap))
+				  (unsigned __int128)(younger + blocks[0].bytes()) * policy.alpha_den > budget * policy.cap ||
+				  blocks.size() > h::max_blocks))
 				break;
 			auto oldest = blocks.front();
 			blocks.erase(blocks.begin());

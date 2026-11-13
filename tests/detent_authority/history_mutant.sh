@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
-# Applies one history mutant (S5.2's seven, S5.3's six, the S5.3 review's nine) to the source, builds the test
+# Applies one history mutant (S5.2's seven, S5.3's six, the S5.3 review's ten) to the source, builds the test
 # that must kill it and runs it.
 # Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
 # or its build does not apply, as `campaign job submit --fails-without` expects.
@@ -90,6 +90,11 @@ drop-block-bound|drop-seal-bound|drop-table-bound) file=src/detent_authority/his
 	drop-seal-bound) new='	return std::max({b.base, b.block, b.table});' ;;
 	*) new='	return std::max({b.base, b.block, b.seal});' ;;
 	esac ;;
+no-count-cut) file=src/detent_authority/history_layout.cc test=test_authority_history_cluster
+	old='			else if (items.size() > max_blocks)
+				rule = Cut::Count;
+'
+	new='' ;;
 *) echo "unknown mutant $mutant"; exit 1 ;;
 esac
 OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }

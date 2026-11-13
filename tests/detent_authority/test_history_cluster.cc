@@ -5,10 +5,12 @@
 // the cut still delivers the store's changes, and the ring never drops an entry the
 // durable layout does not cover. S5.3: apply seals past history writes still queued,
 // an install waits for its peer's files, and a voter whose consensus log limits are
-// below the group's policy refuses to start.
+// below the group's policy refuses to start. File bounds: a growing namespace keeps a
+// block per roll-up until the count cut takes the oldest, on every voter alike.
 #include "change_history.hh"
 #include "cluster_harness.hh"
 #include "history.hh"
+#include <algorithm>
 #include <iostream>
 #include <map>
 
@@ -183,6 +185,7 @@ void churn(Cluster &group, unsigned count, unsigned salt) {
 int main() {
 	LayoutPolicy policy;
 	policy.seal_transactions = 6;
+	policy.seal_bytes = 64 * 1024; // Keeps the later layout changes within the fetch bound.
 	policy.period = 4;
 	policy.carry_bytes = 64;
 	policy.carry_count = 2;
@@ -377,8 +380,51 @@ int main() {
 	settle(group);
 	identical(group);
 
+	// α 1, a roll-up every seal and no carry: a namespace whose seals grow by 1.17 times keeps
+	// every block (each merge passes L and grows), until the count cut takes the oldest.
+	auto grow = group.nodes[leader]->state().policy();
+	grow.seal_transactions = 1;
+	grow.period = 1;
+	grow.carry_count = 0;
+	grow.alpha_num = grow.alpha_den = 1;
+	AdministrativeCommand regrow{group.context, AdministrativeKind::SetLayout, {}, {}, {}, grow};
+	assert(group.administer(0, ++request, regrow).results[0].status == Status::Applied);
+	for (unsigned salt = 30; group.nodes[0]->state().policy() != grow; ++salt)
+		churn(group, 1, salt); // The period changes where the old one divides the ordinal.
+	auto counted = [&](unsigned i) {
+		const auto &cuts = group.nodes[i]->history()->layout().cuts();
+		auto found = cuts.find("grow");
+		return found == cuts.end() ? std::uint64_t{0} : found->second[static_cast<unsigned>(h::Cut::Count)];
+	};
+	double target = 40;
+	unsigned seals = 0;
+	for (; !counted(0) && seals < 40; ++seals, target *= 1.17) {
+		Command c;
+		c.context = group.context;
+		c.producer = "writer";
+		c.generation = 1;
+		c.sequence = ++sequence;
+		c.name_space = "grow";
+		const auto keys = std::max<std::size_t>(1, static_cast<std::size_t>(target / 220) + 1);
+		const auto stem = "grow:s" + std::to_string(seals) + "k";
+		const auto each = static_cast<std::size_t>(target / keys);
+		for (std::size_t k = 0; k < keys; ++k) {
+			auto key = stem + std::to_string(k);
+			key.resize(std::clamp<std::size_t>(each > 24 + key.size() ? each - 24 : key.size(), key.size(), 199), 'x');
+			c.mutations.push_back({key, detent::KnobDef{1}, {}, {}});
+		}
+		assert(group.request(0, ++request, c).results.front().status == Status::Applied);
+	}
+	settle(group);
+	identical(group);
+	for (unsigned i = 0; i < 3; ++i) {
+		const auto *grown = group.nodes[i]->history()->layout().table().find("grow");
+		assert(counted(i) && grown && grown->blocks.size() <= h::max_blocks);
+	}
+
 	const auto &state = group.nodes[leader]->state();
 	std::cout << "seal " << state.seal().ordinal << " at index " << state.seal().index << ", "
 			  << files(group, 0).size() << " history files identical on three voters; ring answers kept "
-			  << kept << " of " << ring_answers << "\n";
+			  << kept << " of " << ring_answers << "; the count cut fired after " << seals
+			  << " seals of a growing namespace\n";
 }

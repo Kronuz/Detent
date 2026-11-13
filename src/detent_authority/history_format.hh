@@ -119,7 +119,9 @@ std::string encode(const Table &table);
 Table decode_table(std::string_view bytes, const Limits &limits);
 
 // A namespace holds at most this many blocks above its base; a roll-up cuts the oldest past it.
-inline constexpr std::size_t max_blocks = 64;
+// The ratio rule alone keeps one block per roll-up while a namespace grows (status doc
+// "File bounds"), so the table needs this bound.
+inline constexpr std::size_t max_blocks = 32;
 // The largest file of each kind history writes under `policy` (docs/status/namespace-s5.md
 // "File bounds"), saturating at UINT64_MAX.
 struct FileBounds {
