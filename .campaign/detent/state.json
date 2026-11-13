@@ -1089,6 +1089,7 @@
         "src/detent_local/warm_registry_merge.*",
         "src/detent_local/paged_node_*",
         "src/detent_local/paged_navigation.*",
+        "src/detent_local/paged_trie_overlay.*",
         "tests/detent_local/test_delta_plan_*",
         "tests/detent_local/CMakeLists.txt",
         "docs/perf/delta-plan-scaling.md"
@@ -1106,7 +1107,7 @@
       "risk": "high",
       "status": "active",
       "title": "A delta's plan grows superlinearly with the store",
-      "updated": "2026-11-12T16:42:49",
+      "updated": "2026-11-12T17:07:18",
       "worktree": "../Detent-wt/detent/delta-plan-scaling"
     },
     "dense-distribution": {
