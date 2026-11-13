@@ -200,7 +200,9 @@ struct Fixture {
     std::vector<trusted_records::Segment> installed;
     for (const auto &segment : segments)
       installed.push_back({segment.ownership, segment.bytes});
-    trusted_records::install(path, descriptor, image, installed);
+    // The generation's files without `owner.lock`: a test that opens a store writes it.
+    trusted_records::stage(path, descriptor, image, installed);
+    trusted_records::derive(path, descriptor, {});
   }
   ~Fixture() {
     if (directory >= 0)

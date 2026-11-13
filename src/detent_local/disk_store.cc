@@ -79,8 +79,7 @@ struct DiskStore::Impl {
 	std::shared_ptr<AgentWork> pending, running;
 	// What a pending or running publication views, and settles with.
 	distribution::RetirementHandle<detail::PagedPublicationArtifacts> artifacts;
-	std::shared_ptr<const distribution::OwnedBuffer> image;
-	std::string live;
+	std::shared_ptr<const distribution::OwnedBuffer> image, live;
 	Descriptor descriptor;
 	DiskLedger::Permit permit;
 	SyncCounters before;
@@ -106,7 +105,7 @@ struct DiskStore::Impl {
 	void release_publication() noexcept {
 		artifacts.reset();
 		image.reset();
-		live.clear();
+		live.reset();
 	}
 	void settle(AgentWork &work) {
 		auto &core = *this->core;
@@ -285,9 +284,15 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 	for (const auto &[id, segment] : segments)
 		generation.segments.push_back(segment);
 	const auto peak = DiskLedger::paged_peak(packs, generation.live.size());
-	artifacts->attach(std::move(plan));
+	// Queued before the plan moves: a refused reservation leaves the caller's plan whole.
 	impl_->descriptor = descriptor;
 	impl_->queue(std::move(generation), peak);
+	try {
+		artifacts->attach(std::move(plan));
+	} catch (...) {
+		cancel_publication();
+		throw;
+	}
 	impl_->artifacts = std::move(artifacts);
 }
 void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
@@ -339,19 +344,22 @@ void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distributi
 	record.generation = descriptor.generation;
 	std::copy(descriptor.checksum.begin(), descriptor.checksum.end(), record.root_checksum.begin());
 	record.read_digest = sha({});
-	std::string live(detail::live_record_size(0), '\0');
-	detail::encode_live_record(record, live);
+	// Charged to the store's account, as a paged publication's artifacts are.
+	auto live = distribution::make_owned_buffer(core.account, detail::live_record_size(0));
+	live->append(std::string(detail::live_record_size(0), '\0'));
+	detail::encode_live_record(record, live->mutable_bytes());
+	live->seal();
 	PreparedGeneration generation;
 	generation.name = namespace_name(descriptor.cursor);
 	generation.cursor = namespace_cursor(descriptor.cursor);
 	generation.base = full_copy ? GenerationId{} : core.selection.descriptor->generation;
 	generation.ordinal = descriptor.ordinal;
-	const auto peak = DiskLedger::generation_peak(descriptor.length, 0, live.size());
+	const auto peak = DiskLedger::generation_peak(descriptor.length, 0, live->size());
 	impl_->descriptor = descriptor;
 	impl_->live = std::move(live);
 	impl_->image = std::move(bytes);
 	generation.image = impl_->image->view();
-	generation.live = impl_->live;
+	generation.live = impl_->live->view();
 	try {
 		impl_->queue(std::move(generation), peak);
 	} catch (...) {

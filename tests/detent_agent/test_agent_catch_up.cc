@@ -44,7 +44,8 @@ void put_definition(std::string &out, std::int64_t value) {
 }
 // A full copy of namespace "app" at `revision`: its records are (key, revision, value).
 std::shared_ptr<const d::ValidatedSnapshot> full_copy(std::uint64_t revision, std::uint64_t namespace_revision,
-													  const std::map<std::string, std::pair<std::uint64_t, std::int64_t>> &records) {
+													  const std::map<std::string, std::pair<std::uint64_t, std::int64_t>> &records,
+													  std::shared_ptr<d::StorageLedger> account = {}) {
 	std::string out;
 	std::uint64_t strings = 3;
 	for (const auto &[key, record] : records)
@@ -73,7 +74,18 @@ std::shared_ptr<const d::ValidatedSnapshot> full_copy(std::uint64_t revision, st
 		m::unsigned_integer(out, record.first);
 		put_definition(out, record.second);
 	}
-	return std::make_shared<const d::ValidatedSnapshot>(decode(out, at(revision)));
+	if (!account)
+		return std::make_shared<const d::ValidatedSnapshot>(decode(out, at(revision)));
+	// Charged to `account`: a snapshot plan builds only from a copy its own heap holds.
+	d::Limits limits;
+	limits.storage_account = std::move(account);
+	d::SnapshotDecoder decoder(at(revision), {"app"}, limits);
+	auto input = std::span<const char>(out);
+	while (!input.empty()) {
+		d::WorkBudget budget;
+		decoder.feed(input, budget);
+	}
+	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
 // Changes after `base` up to `target`, one transaction per revision, keys sorted within it: the ring
 // entries are such a delta, and so is a block (each key's last change, grouped by its revision).
@@ -154,8 +166,8 @@ const std::vector<Change> block{
 std::shared_ptr<const d::ValidatedSnapshot> base_copy() {
 	return full_copy(R, 7, {{"app:a", {3, 1}}, {"app:b", {5, 2}}, {"app:c", {7, 3}}});
 }
-std::shared_ptr<const d::ValidatedSnapshot> target_copy() {
-	return full_copy(h, h, {{"app:b", {14, 21}}, {"app:c", {13, 30}}, {"app:d", {11, 4}}});
+std::shared_ptr<const d::ValidatedSnapshot> target_copy(std::shared_ptr<d::StorageLedger> account = {}) {
+	return full_copy(h, h, {{"app:b", {14, 21}}, {"app:c", {13, 30}}, {"app:d", {11, 4}}}, std::move(account));
 }
 // The agent's store, opened as the agent opens it, with what it needs to build and publish.
 struct Agent {
@@ -277,7 +289,7 @@ void after_cuts(const std::string &self, const std::filesystem::path &root, cons
 						}
 						require(l::paged::state_commitment(builder.take().root()) == expected);
 					}
-					l::detail::PagedSnapshotPlanBuilder copy(target_copy(), recovered, agent.store->directory_identity(),
+					l::detail::PagedSnapshotPlanBuilder copy(target_copy(agent.account), recovered, agent.store->directory_identity(),
 															 agent.domain.factory(), agent.account,
 															 agent.options.recovery_limits);
 					while (!copy.done()) {
