@@ -1,12 +1,18 @@
 # namespace-s5-2 review: durability
 
-Commit: d13c7054874c (quest/detent/namespace-s5-2; code identical to eb37a84a, the later commits are journal only)
+Commit: b6161f571f79 (re-review of d13c7054874c; b6161f57 changes only tests/detent_authority/test_history_layout.cc)
 Verdict: APPROVE
 Date: 2026-11-12
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+Re-review (b6161f57): the A3 model `compare` still runs after every seal in `churn`'s `follow()`,
+and the cut-at-twice-the-cost mutant was killed there (`test_history_layout.cc:362`), not in
+`check()`. Only the A6 answer check is sampled, at power-of-two seals, every 32nd and at the end
+(`~Run`), about 13 full checks per churn run over every R, all three tiers asserted. That is enough
+for A6. F8 (nit) notes that each namespace is always sampled at the same roll-up phase.
 
 ## Evidence I relied on
 
@@ -90,6 +96,7 @@ Risk 4, scope rulings:
 | F4 | no | nit | `durable_through` reads the in-memory layout's index (`history.hh:43`), advanced by `layout_.seal` before the publishes; correct only because the IO is synchronous and a throw clears `ready_`. | `history.hh:43`, `history.cc:225-233` | When F3 moves IO off apply, track the last durable seal index separately. |
 | F5 | no | gap | `Layout::answer` returns a Blocks answer whose `through` is below the ring floor when a capture gap sits above the latest seal; the caller gets no signal and the test skips those R (`test_history_cluster.cc:150`). Not reachable until S6 serves. | `history_layout.cc:295-299` | State in the `namespace-blocks` contract that such an R has no answer until the next seal, or return a distinct tier; namespace-s6-cutover. |
 | F6 | no | gap | `check_retained_bounds` compares only `scheduling.retained`; the leader's LogFull also uses its own consensus `log_entries`/`log_bytes` (`consensus/core.h:725-729`), not replicated (ruling 1 put them in the policy, not the configuration). A node configured below the policy's thresholds can reach LogFull before a seal. Liveness only. | `node.cc:63-72` | Also refuse when `options_.consensus` limits are below the policy's, or carry them in the configuration as D6 "Seal" says. |
+| F8 | no | nit | With period 4 or 64 dividing the 32-seal stride, each namespace is sampled at one fixed phase of its periodic roll-up; only the power-of-two and end checks vary it. | `test_history_layout.cc:151-152` | Use a stride coprime to the period (for example 31) |
 | F7 | no | nit | `test_authority_history_cluster` took 177.9 s of its 180 s timeout in the native gate; sanitizer CI will likely time out. | gate log, `tests/detent_authority/CMakeLists.txt:53` | Raise the timeout or shrink the run. |
 
 ## Not run

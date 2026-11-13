@@ -4963,7 +4963,7 @@
     "namespace-s5-2": {
       "accepted": {
         "durability": {
-          "at": "2026-11-12T22:28:56",
+          "at": "2026-11-12T23:10:49",
           "base": "1f7dd51ab122cc4ffd019df10095c9f606c15562",
           "blobs": {
             "docs/status/namespace-s5.md": "100644:f6edb59fae12e66c1c0e3170669c7d919e9a6ed9",
@@ -4989,12 +4989,12 @@
             "tests/detent_authority/test_change_history.cc": "100644:d7d2a1a056aff534cd6af3f448465d74d00e00b9",
             "tests/detent_authority/test_distribution_service.cc": "100644:69d8ff7947cf07e1cfb90966a1049ed58c14ee32",
             "tests/detent_authority/test_history_cluster.cc": "100644:acffca77534f2005220775fc482617cf3539f983",
-            "tests/detent_authority/test_history_layout.cc": "100644:e4a2f6d498dc47fa2240001876648429ded01629",
+            "tests/detent_authority/test_history_layout.cc": "100644:a7ef1631836b1bdadd95ffa783f13395d5777bb8",
             "tests/detent_authority/test_history_power_cut.cc": "100644:e5b0374f7bcf4e5d1edaffd5ce22a00973b3d00a",
             "tests/detent_authority/test_namespace_power_cut.cc": "100644:278c419082c9e69bc1ecfd4d56cd53584d605db3"
           },
           "by": "review",
-          "commit": "d13c7054874c597d894ead86c37ebfc55547937a",
+          "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
           "criteria": "8d4aea60a34a61cb",
           "diffs": {
             "docs/status/namespace-s5.md": "2849539bf450a9b9",
@@ -5020,14 +5020,14 @@
             "tests/detent_authority/test_change_history.cc": "cc17bf81e58d735d",
             "tests/detent_authority/test_distribution_service.cc": "02ea238c13307708",
             "tests/detent_authority/test_history_cluster.cc": "44fecdd77074203e",
-            "tests/detent_authority/test_history_layout.cc": "d617554cec0c62be",
+            "tests/detent_authority/test_history_layout.cc": "46bfb8dde4ecda1a",
             "tests/detent_authority/test_history_power_cut.cc": "45237f21b9ac4d3f",
             "tests/detent_authority/test_namespace_power_cut.cc": "57275eadc5df7713"
           },
           "findings": {},
           "note": "",
-          "review": "d1c7534d14b3a6d1fd2d52783f2984d0caa797f8",
-          "reviewed": "d13c7054874c597d894ead86c37ebfc55547937a",
+          "review": "f7e1a441f2e1a2e0060eb9f82e529059a88c3fd0",
+          "reviewed": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
           "verdict": "APPROVE"
         }
       },
@@ -5125,7 +5125,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-12T22:28:56",
+      "updated": "2026-11-12T23:10:49",
       "worktree": "../Detent-wt/detent/namespace-s5-2"
     },
     "namespace-s5-3": {
