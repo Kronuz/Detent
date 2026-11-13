@@ -3072,18 +3072,47 @@
         "README.md",
         "AGENTS.md"
       ],
-      "journal": "../Detent-wt/detent/logger-followups",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T16:32:22",
+          "commit": "2bafea114d59e713eb6e055a2d721a9d66964644",
+          "criteria": {
+            "A1": "261112-162247-3c16de, 261112-162247-219244",
+            "A2": "261112-161458-af4825, 261112-162248-78ca6c, 261112-162248-a68768",
+            "A3": "261112-161458-af4825; fails without: 261112-153648-ec9876, 261112-153825-06b388, 261112-161449-b3e0b7",
+            "A4": "`ARCHITECTURE.md`: \"so the batch rarely takes an insert\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "2bafea114d59e713eb6e055a2d721a9d66964644",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-161458-af4825",
+              "level": "light",
+              "seconds": 49.5,
+              "state": "done",
+              "what": "logger-followups check suite at 2bafea114d59"
+            }
+          ],
+          "final": true,
+          "from": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "reason": "",
+          "tested": "2bafea114d59e713eb6e055a2d721a9d66964644"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "logger: review follow-ups and the scheduler link",
-      "updated": "2026-11-12T15:40:36",
-      "worktree": "../logger-wt/detent/logger-followups"
+      "updated": "2026-11-12T16:32:24",
+      "worktree": ""
     },
     "logger-on-wheel": {
       "accepted": {
