@@ -525,6 +525,33 @@
       "updated": "2026-11-11T16:20:35",
       "worktree": ""
     },
+    "ci-test-flakes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/**",
+        "tests/detent_authority/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Three CI test flakes: managed relay, writer failover, authority admission",
+      "updated": "2026-11-12T19:37:21"
+    },
     "client-local-source": {
       "accepted": {},
       "after": [],
