@@ -22,7 +22,7 @@ Consumes `namespace-session` (v2, from namespace-s6-cutover). Removes the v1 wir
 
 ## Decisions
 
-D93 (lead): split from namespace-s6-cutover (msg-49), which lands A1-A3. Open, decided before building by a design review: the agent keeps one table entry named after its scope (D88's interim shape) or holds one entry per followed namespace (D8: a coordinator generation and reader per namespace). The lead leans to D8, since D88 framed the scope-named entry as lasting only until the cutover; the design review settles it with the cost of each.
+D93 (lead): split from namespace-s6-cutover (msg-49), which lands A1-A3. Open, decided before building by a design review: the agent keeps one table entry named after its scope (D88's interim shape) or holds one entry per followed namespace (D8: a coordinator generation and reader per namespace). The lead leans to D8, since D88 framed the scope-named entry as lasting only until the cutover; the design review settles it with the cost of each. Also fix the tier comment in `include/detent_distribution/history.hh`, stale since namespace-s6-cutover's F1 fix (msg-50).
 
 ## May land early
 
