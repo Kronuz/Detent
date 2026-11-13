@@ -323,6 +323,13 @@
       "closed": "file set widened to tests/detent_delivery/**, the three paged/local benchmarks, tools/check_lineage.sh, tools/w5/first_read.py and the layout docs; port them in this quest (D43)",
       "id": "msg-48",
       "text": "namespace-s7-store, adds to msg-47: tests/detent_delivery/test_managed_process.sh (8 ctest entries: test_managed_{delivery,subscription,paged-v2,paged-to-flat}_process, test_relay_{paged_shared,paged_isolated,delivery,isolated}_process) cmp's generations/storage.meta, which D43 deletes; it also needs the file set. In-set suite otherwise green locally (test_system_managed_* pass: authority+relay+agent). Recommend widening to tests/detent_delivery/** so I port the 4 non-compiling tests and this script to trusted_records/the table; alternative: a follow-up quest owns them and this one lands with those 12 entries excluded."
+    },
+    {
+      "at": "2026-11-13T08:24:29",
+      "by": "namespace-s6-cutover",
+      "closed": "D93: split; s6-cutover lands A1-A3 (A3 reworded to v2 paths); A4-A7 plus AuthorizedScope removal are namespace-s6-v1-removal, with a design review on the table-entry shape first",
+      "id": "msg-49",
+      "text": "namespace-s6-cutover: the file set reaches A1-A3 only. Outside it: A4 poll mode = src/detent_delivery/{configuration,coordinator}.cc + include/detent_delivery/coordinator.hh, src/detent_relay/configuration.cc; A5 old Cursor = include|src/detent_distribution/{protocol,update_cache,session_table,publication_window,encoded_update,delta_encoder,snapshot_encoder,delta_source,snapshot_source}, include|src/detent_distribution_http/{session_request,reply_pump}, include|src/detent_delivery/{client,response,coordinator}, include|src/detent_relay/{bundle,sessions,registry}, src/detent/read_view.cc, src/detent_testing/**, tests/detent_system/{mixed_oracle,local_oracle,first_read_export}.cc; A6 codecs = src/detent_distribution/session_frames.cc, src/detent_delivery/namespace_session.cc; A7 sink must be wired into src/detent_delivery/coordinator.cc (agent builds from ValidatedSnapshot/ValidatedDelta). Coupling: deleting v1 sessions and the old Cursor (A4, A5) breaks the agent and the old relay (v1 consumer and server) unless they move in the same landing, so A4-A7 is the survey's option A (est. 3-5K lines, five libraries) and also needs tests/detent_{delivery,distribution,relay}/** and docs ACTORS/AUTHORITY_EXPORT/RELAY/USAGE/*_ARCHITECTURE.md. Open sub-question for A4-A7: the agent keeps one table entry (D88, a scope-named entry) or goes one entry per followed namespace (D8, multi-generation coordinator + reader per namespace). Options: (1) RECOMMENDED split: this quest lands A1-A3 in its set (authority serves W5/W6 from S5.2 history next to v1, W7 full copy, W13 grants; unblocks namespace-s8-wiring), and a follow-on quest takes A4-A7 with the wider set above, deleting v1, the old Cursor and the old relay's v1 path (D43; s8-wiring rebuilds relay HTTP). (2) Widen this quest to all of the above and land once. I am proceeding with A1-A3 now (in set either way)."
     }
   ],
   "quests": {
@@ -4016,6 +4023,44 @@
       "title": "Namespace delivery design",
       "updated": "2026-11-08T15:38:06"
     },
+    "namespace-followups": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-cutover"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/history*",
+        "tests/detent_authority/test_history*",
+        "src/detent_relay/**",
+        "include/detent_relay/**",
+        "tests/detent_relay/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
+      "updated": "2026-11-13T08:18:30"
+    },
     "namespace-measure": {
       "accepted": {},
       "after": [],
@@ -5805,6 +5850,8 @@
     "namespace-s6-cutover": {
       "accepted": {},
       "after": [],
+      "base": "868e222f611140829a732b91fdab43059fdace31",
+      "branch": "quest/detent/namespace-s6-cutover",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5827,7 +5874,10 @@
         "tests/detent_local/**",
         "tests/detent_agent/**",
         "benchmarks/**",
-        "docs/status/namespace-s6-cutover.md"
+        "docs/status/namespace-s6-cutover.md",
+        "src/detent_distribution/session_frames.cc",
+        "include/detent_distribution/session_frames.hh",
+        "tests/detent_distribution/**"
       ],
       "landed": [],
       "lenses": [
@@ -5843,9 +5893,77 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-12T22:30:34"
+      "updated": "2026-11-13T09:35:39",
+      "worktree": "../Detent-wt/detent/namespace-s6-cutover"
+    },
+    "namespace-s6-v1-removal": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "include/detent_authority/**",
+        "tests/detent_authority/**",
+        "include/detent/**",
+        "src/detent/**",
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_agent/**",
+        "tests/detent_local/**",
+        "tests/detent_agent/**",
+        "src/detent_delivery/**",
+        "include/detent_delivery/**",
+        "tests/detent_delivery/**",
+        "src/detent_distribution/**",
+        "include/detent_distribution/**",
+        "tests/detent_distribution/**",
+        "src/detent_distribution_http/**",
+        "include/detent_distribution_http/**",
+        "src/detent_relay/**",
+        "include/detent_relay/**",
+        "tests/detent_relay/**",
+        "src/detent_testing/**",
+        "include/detent_testing/**",
+        "tests/detent_system/**",
+        "benchmarks/**",
+        "docs/ACTORS.md",
+        "docs/AUTHORITY_EXPORT.md",
+        "docs/RELAY.md",
+        "docs/USAGE.md",
+        "docs/*_ARCHITECTURE.md",
+        "docs/status/namespace-s6-cutover.md",
+        "website/src/content/docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s6-cutover"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
+      "updated": "2026-11-13T09:21:45"
     },
     "namespace-s7": {
       "accepted": {
