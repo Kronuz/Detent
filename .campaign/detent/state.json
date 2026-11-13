@@ -6687,10 +6687,51 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T02:52:54",
+          "commit": "7c519a13c96b299f4579c68ea15240048257aae1",
+          "criteria": {
+            "A1": "261113-014108-9248b2 (passed at 9bf4c2d3c184; only merges from main since), 261113-014108-5c54ac (passed at 9bf4c2d3c184; only merges from main since); fails without: 261113-003650-50d7ee",
+            "A2": "261113-014108-9248b2 (passed at 9bf4c2d3c184; only merges from main since), 261113-014108-5c54ac (passed at 9bf4c2d3c184; only merges from main since); fails without: 261112-120549-f1e18a, 261112-120552-fbda3d, 261113-014123-bc39b0",
+            "A3": "261113-014110-061ecc (passed at 9bf4c2d3c184; only merges from main since); fails without: 261112-120540-e6efea, 261112-120543-c18350, 261112-120546-8f0fcd, 261112-121309-eb786c, 261113-014119-1dd450",
+            "A4": "261113-014108-9248b2 (passed at 9bf4c2d3c184; only merges from main since), 261113-014108-5c54ac (passed at 9bf4c2d3c184; only merges from main since); fails without: 261112-120555-5fb518",
+            "A5": "261113-014108-9248b2 (passed at 9bf4c2d3c184; only merges from main since), 261113-014108-5c54ac (passed at 9bf4c2d3c184; only merges from main since); fails without: 261113-003639-930a27, 261113-003647-1556e1"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "ec1c314876a7420937e4298a25f2b01309173f6c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-014108-9248b2",
+              "level": "light",
+              "seconds": 886.3,
+              "state": "done",
+              "what": "namespace-s8 check native at ec1c314876a7"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "ec1c314876a7420937e4298a25f2b01309173f6c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-014108-5c54ac",
+              "level": "none",
+              "seconds": 8.2,
+              "state": "done",
+              "what": "namespace-s8 check pins at ec1c314876a7"
+            }
+          ],
+          "final": true,
+          "from": "48431eec13727f7a7acb8e6a41de254ff9da79c8",
+          "reason": "",
+          "tested": "723ac7da108fc577ad5bb63be9042d6891dd4192"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s4"
@@ -6698,10 +6739,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-13T02:10:22",
-      "worktree": "../Detent-wt/detent/namespace-s8"
+      "updated": "2026-11-13T02:54:01",
+      "worktree": ""
     },
     "namespace-s8-wiring": {
       "accepted": {},
