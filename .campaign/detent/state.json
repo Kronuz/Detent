@@ -5174,6 +5174,8 @@
     "namespace-s5-3": {
       "accepted": {},
       "after": [],
+      "base": "430f3c5da7fbaeb519b9eafad808fa74fb2b552d",
+      "branch": "quest/detent/namespace-s5-3",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5218,9 +5220,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-12T22:30:42"
+      "updated": "2026-11-13T00:05:55",
+      "worktree": "../Detent-wt/detent/namespace-s5-3"
     },
     "namespace-s6": {
       "accepted": {
