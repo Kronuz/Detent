@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <system_error>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -46,15 +47,16 @@ void overwrite(const std::filesystem::path &path, std::string_view bytes) {
 std::vector<std::string> expected_names(std::initializer_list<const Generation *> generations) {
 	std::vector<std::string> names{"change", "owner.lock", "selected"};
 	for (const auto *g : generations) {
-		for (auto suffix : {".image", ".live", ".read"})
+		for (auto suffix : {".image", ".lease", ".live", ".read"})
 			names.push_back(generation_file(g->id, suffix));
-		for (const auto &segment : g->prepared.segments) {
+		for (const auto &segment : g->segments) {
 			const l::detail::SegmentNames segment_names(segment.id);
 			names.emplace_back(segment_names.owner_name());
 			names.emplace_back(segment_names.payload_name());
 		}
 	}
 	std::sort(names.begin(), names.end());
+	names.erase(std::unique(names.begin(), names.end()), names.end());
 	return names;
 }
 
@@ -255,6 +257,98 @@ void publication() {
 	check(store->failed().empty());
 }
 
+// The census the store keeps: every name but `.tmp-` ones, and one generation per `.lease`.
+l::StoreUsage census(const std::filesystem::path &root) {
+	l::StoreUsage usage;
+	for (const auto &name : listing(root)) {
+		check(!name.starts_with(".tmp-"));
+		usage.bytes += std::filesystem::file_size(root / name);
+		++usage.entries;
+		usage.generations += name.starts_with("generation-") && name.ends_with(".lease");
+	}
+	return usage;
+}
+// A reader's shared lease on a generation, held until it goes out of scope.
+struct Reader {
+	explicit Reader(const std::filesystem::path &lease) : fd(::open(lease.c_str(), O_RDONLY | O_CLOEXEC)) {
+		check(fd >= 0 && ::flock(fd, LOCK_SH | LOCK_NB) == 0);
+	}
+	~Reader() { ::close(fd); }
+	Reader(const Reader &) = delete;
+	int fd;
+};
+
+// A4: collect() removes every generation and segment the table does not reach, except a generation a
+// reader leases and the segments its `.live` names; the census follows every cycle.
+void collection() {
+	const auto root = fresh("collection");
+	auto store = open(root);
+	check(store->usage() == census(root));
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 2, 'a');
+	const auto b = generation(profile, "beta", cursor('b', 9), {}, 0, {}, 1, 'b');
+	store->publish({}, std::array{a.prepared, b.prepared});
+	check(store->usage() == census(root) && store->usage().generations == 2);
+	check(store->collect() == l::StoreUsage{} && listing(root) == expected_names({&a, &b}));
+
+	// alpha catches up keeping its first segment; its old generation and second segment are superseded.
+	const auto next = generation(profile, "alpha", cursor('a', 6), a.id, 0, std::span(a.segments).first(1), 1, 'n');
+	store->publish({}, one(next));
+	check(store->usage() == census(root));
+	const auto superseded = expected_names({&a, &b, &next});
+	check(listing(root) == superseded);
+	{
+		// A reader still holds alpha's old generation: it stays, with every segment its `.live` names.
+		Reader reader(root / generation_file(a.id, ".lease"));
+		check(store->collect() == l::StoreUsage{} && listing(root) == superseded);
+	}
+	const auto before = store->usage();
+	const auto removed = store->collect();
+	check(listing(root) == expected_names({&b, &next}) && store->usage() == census(root));
+	check(removed.generations == 1 && removed.entries == 4 + 2 && removed.bytes == before.bytes - store->usage().bytes);
+	check(table_verifies(root, store->table()));
+
+	// Orphans of a cut cycle (no lease, or a lease nobody holds) go too; names the store does not own stay.
+	const auto stray = generation(profile, "gamma", cursor('g', 2), {}, 0, {}, 1, 'g');
+	overwrite(root / generation_file(stray.id, ".image"), stray.prepared.image);
+	overwrite(root / std::string(l::detail::SegmentNames(stray.prepared.segments[0].id).payload_name()), "partial");
+	overwrite(root / "unrelated", "kept");
+	store.reset();
+	store = open(root);
+	check(store->usage() == census(root));
+	store->collect();
+	auto kept = expected_names({&b, &next});
+	kept.push_back("unrelated");
+	std::sort(kept.begin(), kept.end());
+	check(listing(root) == kept && store->usage() == census(root));
+	store.reset();
+	store = open(root);
+	check(store->failed().empty() && table_verifies(root, store->table()));
+}
+
+// A cycle that derives an unreached generation a reader still leases (a revisited cursor) waits for it:
+// LeaseHeld, nothing written; once the reader lets go the cycle relinks every name.
+void held_lease() {
+	const auto root = fresh("held-lease");
+	auto store = open(root);
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
+	const auto b = generation(profile, "alpha", cursor('b', 4), {}, 0, {}, 1, 'b');
+	store->publish({}, one(a));
+	Reader reader(root / generation_file(a.id, ".lease"));
+	store->publish({}, one(b));
+	const auto names = listing(root);
+	try {
+		store->publish({}, one(a));
+		check(false);
+	} catch (const l::LeaseHeld &held) {
+		check(held.name == generation_file(a.id, ".lease"));
+	}
+	check(listing(root) == names && store->table().find("alpha")->generation == b.id);
+	::close(std::exchange(reader.fd, ::open(root.c_str(), O_RDONLY)));
+	store->publish({}, one(a));
+	check(store->table().find("alpha")->generation == a.id && table_verifies(root, store->table()) &&
+		  store->usage() == census(root));
+}
+
 // A `change` cut short at its creation (a kill between create and size, a failed fchmod, or a power cut
 // that kept its name but not its size) opens, with or without `selected` (D59, F1).
 void short_change() {
@@ -340,6 +434,8 @@ int main(int argc, char **argv) {
 		publication();
 		short_change();
 		failed_sync();
+		collection();
+		held_lease();
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_agent_store: %s\n", error.what());
 		return 1;

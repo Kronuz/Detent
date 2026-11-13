@@ -13,7 +13,8 @@
 
 // The agent store (docs/design/namespace-delivery.md D8, W9, W11; docs/status/namespace-s7.md): one
 // directory holding `selected` (the namespace table), `change`, `owner.lock`, and every namespace's
-// generation and segment files under names derived from what they hold.
+// generation and segment files under names derived from what they hold. A generation's `.lease` is
+// empty; readers hold it shared while they read the generation, and `collect()` takes it exclusively.
 namespace detent::local {
 using distribution::NamespaceCursor;
 using distribution::DirectoryCursor;
@@ -72,6 +73,20 @@ class StoreRefused : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
+// A reader holds the `.lease` of a generation the table no longer reaches but the cycle derives again
+// (a revisited cursor). Nothing is written; the cycle is retried once the reader lets go.
+class LeaseHeld : public std::runtime_error {
+  public:
+	explicit LeaseHeld(std::string name)
+		: std::runtime_error("agent store: a reader holds an unreached lease: " + name), name(std::move(name)) {}
+	std::string name;
+};
+// The named files of the store (`.tmp-` names aside): their bytes, their count, and the generations
+// among them (one `.lease` each).
+struct StoreUsage {
+	std::uint64_t bytes = 0, entries = 0, generations = 0;
+	bool operator==(const StoreUsage &) const = default;
+};
 
 // Qualification hook: runs after every primitive of startup and publication, naming it. Install before
 // opening a store, never concurrently with one.
@@ -103,8 +118,15 @@ class AgentStore {
 	// and reused names synced as one group, payloads as another; the table written under `.tmp-`,
 	// fsynced, renamed over `selected` and the directory synced; then `change`. A reused name is kept
 	// when its bytes verify, and unlinked and relinked when they do not and the table does not reach it.
-	// Returns the new table's sequence. Throws ReachedNameMismatch, leaving the table as it was.
+	// Returns the new table's sequence. Throws ReachedNameMismatch or LeaseHeld, leaving the table as it
+	// was.
 	std::uint64_t publish(const DirectoryCursor &, std::span<const PreparedGeneration>);
+	// Removes every generation and segment the table does not reach, except a generation whose `.lease`
+	// a reader holds and the segments its `.live` names. A generation's `.lease` goes first, under an
+	// exclusive lease, so a reader either holds it (and keeps it) or finds it gone. Syncs nothing: a cut
+	// keeps any subset of its removals, all of names no table reaches. Returns what it removed.
+	StoreUsage collect();
+	StoreUsage usage() const noexcept;
 
   private:
 	struct Impl;

@@ -65,6 +65,11 @@ std::string read_name(const GenerationId &id) {
 	return std::string(detail::GenerationName(id, detail::GenerationFile::ReaderMetadata).view());
 }
 std::string live_name(const GenerationId &id) { return std::string(detail::GenerationName(id, detail::GenerationFile::Live).view()); }
+std::string lease_name(const GenerationId &id) { return std::string(detail::GenerationName(id, detail::GenerationFile::Lease).view()); }
+bool is_lease(std::string_view name) {
+	const auto parsed = detail::parse_generation_name(name);
+	return parsed && parsed->kind == detail::GenerationFile::Lease;
+}
 bool valid_name(std::string_view name) {
 	return !name.empty() && name.size() <= 255 && name.find('\0') == std::string_view::npos;
 }
@@ -175,9 +180,33 @@ struct AgentStore::Impl {
 	std::map<std::string, std::vector<SegmentId>, std::less<>> segments; // what each entry's `.live` names
 	std::set<std::string, std::less<>> reached;
 	std::mt19937_64 random{std::random_device{}()};
+	StoreUsage usage;
+	std::uint64_t change_size = 0, table_size = 0;
 	bool poisoned = false;
 
 	int directory() const { return io->native_directory_handle(); }
+	std::uint64_t size_of(std::string_view name) const {
+		const auto entry = io->inspect_entry(name);
+		return entry ? entry->footprint.logical_bytes : 0;
+	}
+	void added(std::string_view name, std::uint64_t bytes) {
+		usage.bytes += bytes;
+		++usage.entries;
+		usage.generations += is_lease(name);
+	}
+	// Unlinks a named file, keeping the census.
+	void unlink(std::string_view name) {
+		const auto bytes = size_of(name);
+		io->remove(name);
+		usage.bytes -= bytes;
+		--usage.entries;
+		usage.generations -= is_lease(name);
+	}
+	void resize_change() {
+		const auto now = size_of(detail::change_name);
+		usage.bytes = usage.bytes - change_size + now;
+		change_size = now;
+	}
 	// The whole file, or nothing when it is absent or not a singly linked file of ours.
 	std::optional<std::string> slurp(std::string_view name, std::uint64_t limit) {
 		std::unique_ptr<c::File> file;
@@ -214,6 +243,7 @@ struct AgentStore::Impl {
 		const auto image = slurp(image_name(entry.generation), entry.root_length);
 		const auto read = slurp(read_name(entry.generation), 1u << 16);
 		const auto live = slurp(live_name(entry.generation), detail::live_record_size(options.maximum_segments));
+		const auto lease = io->inspect_entry(lease_name(entry.generation));
 		if (!live)
 			return false;
 		detail::LiveRecord record;
@@ -232,7 +262,8 @@ struct AgentStore::Impl {
 			present = present && pack && pack->footprint.kind == c::EntryKind::Regular &&
 					  pack->footprint.logical_bytes == row.length && io->inspect_entry(names.owner_name());
 		}
-		return present && image && read && image->size() == entry.root_length && digest(*image) == entry.root &&
+		return present && lease && lease->footprint.kind == c::EntryKind::Regular && !lease->footprint.logical_bytes &&
+			   image && read && image->size() == entry.root_length && digest(*image) == entry.root &&
 			   digest(*read) == entry.read && record.root_checksum == entry.root && record.read_digest == entry.read;
 	}
 	// The names the durable table reaches: each entry's generation files and its `.live` segments.
@@ -242,6 +273,7 @@ struct AgentStore::Impl {
 			reached.insert(image_name(entry.generation));
 			reached.insert(read_name(entry.generation));
 			reached.insert(live_name(entry.generation));
+			reached.insert(lease_name(entry.generation));
 			for (const auto &segment : segments[entry.name]) {
 				const detail::SegmentNames names(segment);
 				reached.emplace(names.payload_name());
@@ -262,9 +294,18 @@ struct AgentStore::Impl {
 		io->sync_directory();
 		primitive("startup barrier");
 		std::vector<std::string> leftovers;
-		for (auto cursor = io->scan_directory(); auto name = cursor->next();)
-			if (name->starts_with(temporary))
+		for (auto cursor = io->scan_directory(); auto name = cursor->next();) {
+			if (name->starts_with(temporary)) {
 				leftovers.push_back(std::move(*name));
+				continue;
+			}
+			const auto bytes = size_of(*name);
+			added(*name, bytes);
+			if (*name == detail::change_name)
+				change_size = bytes;
+			else if (*name == selected)
+				table_size = bytes;
+		}
 		for (const auto &name : leftovers) {
 			io->remove(name);
 			primitive("remove temporary");
@@ -286,6 +327,7 @@ struct AgentStore::Impl {
 		}
 		rebuild_reached();
 		change->reserve(slots);
+		resize_change();
 		change->bump_all();
 		primitive("bump change");
 	}
@@ -302,6 +344,7 @@ AgentStore::~AgentStore() = default;
 const StoreTable &AgentStore::table() const noexcept { return impl_->table; }
 std::span<const std::string> AgentStore::failed() const noexcept { return impl_->failed; }
 std::uint64_t AgentStore::change_word(std::size_t index) const noexcept { return impl_->change->word(index); }
+StoreUsage AgentStore::usage() const noexcept { return impl_->usage; }
 
 std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<const PreparedGeneration> cycle) {
 	auto &s = *impl_;
@@ -364,6 +407,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		if (!fresh.empty())
 			throw std::invalid_argument("agent store publication: a segment its .live does not name");
 		const auto id = b.entry.generation;
+		files.push_back({lease_name(id), {}, generation.name, {}, digest({}), true, {}});
 		files.push_back({image_name(id), {}, generation.name, generation.image, b.entry.root, false, {}});
 		files.push_back({read_name(id), {}, generation.name, generation.read, b.entry.read, false, {}});
 		files.push_back({live_name(id), {}, generation.name, generation.live, digest(generation.live), false, {}});
@@ -374,6 +418,22 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 			if (files[i].name == files[j].name)
 				throw std::invalid_argument("agent store publication: a name published twice");
 
+	// An unreached lease the cycle relinks stays exclusively leased until the cycle ends: a reader that
+	// holds it keeps its generation, so the cycle waits for it (LeaseHeld) instead.
+	std::vector<std::unique_ptr<c::File>> leases;
+	for (const auto &file : files) {
+		if (!is_lease(file.name) || s.reached.contains(file.name) || !s.io->inspect_entry(file.name))
+			continue;
+		std::unique_ptr<c::File> lease;
+		try {
+			lease = s.io->open_existing_read_only(file.name);
+		} catch (const std::exception &) {
+			continue; // not a file a reader could lease; the link step replaces it
+		}
+		if (!lease->try_lease(c::LeaseMode::Exclusive))
+			throw LeaseHeld(file.name);
+		leases.push_back(std::move(lease));
+	}
 	auto clean = [&] {
 		for (auto &file : files)
 			if (!file.temporary.empty())
@@ -394,6 +454,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		for (auto &file : files) {
 			for (;;) {
 				if (::linkat(s.directory(), file.temporary.c_str(), s.directory(), file.name.c_str(), 0) == 0) {
+					s.added(file.name, file.bytes.size());
 					primitive("link");
 					break;
 				}
@@ -409,7 +470,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 					primitive("verify reused name");
 					break;
 				}
-				s.io->remove(file.name);
+				s.unlink(file.name);
 				primitive("unlink orphan");
 			}
 			s.io->remove(file.temporary);
@@ -470,9 +531,15 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		primitive("sync table");
 		s.io->replace(name, selected);
 		primitive("rename table");
+		if (s.table_size)
+			s.usage.bytes -= s.table_size;
+		else
+			++s.usage.entries;
+		s.usage.bytes += s.table_size = bytes.size();
 		s.io->sync_directory();
 		primitive("sync directory");
 		s.change->reserve(slots);
+		s.resize_change();
 		std::sort(changed.begin(), changed.end());
 		s.change->publish(changed);
 		primitive("change");
@@ -488,5 +555,67 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		throw;
 	}
 	return s.table.sequence;
+}
+} // namespace detent::local
+
+namespace detent::local {
+StoreUsage AgentStore::collect() {
+	auto &s = *impl_;
+	if (s.poisoned)
+		throw std::logic_error("agent store needs a restart after a failed publication");
+	std::map<GenerationId, std::vector<std::string>> generations;
+	std::map<SegmentId, std::vector<std::string>> segments;
+	for (auto cursor = s.io->scan_directory(); auto name = cursor->next();) {
+		if (s.reached.contains(*name))
+			continue;
+		if (const auto parsed = detail::parse_generation_name(*name))
+			generations[parsed->generation].push_back(std::move(*name));
+		else if (const auto segment = detail::parse_segment_name(*name))
+			segments[segment->segment].push_back(std::move(*name));
+	}
+	const auto before = s.usage;
+	// A generation a reader holds keeps the segments its `.live` names; one whose `.live` does not
+	// decode keeps every segment until the reader lets go.
+	std::set<SegmentId> held;
+	bool keep_segments = false;
+	for (const auto &[id, names] : generations) {
+		const auto lease = lease_name(id);
+		if (std::find(names.begin(), names.end(), lease) != names.end()) {
+			std::unique_ptr<c::File> file;
+			try {
+				file = s.io->open_existing_read_only(lease);
+			} catch (const std::exception &) {
+			}
+			if (file && !file->try_lease(c::LeaseMode::Exclusive)) {
+				try {
+					const auto live = s.slurp(live_name(id), detail::live_record_size(s.options.maximum_segments));
+					if (!live)
+						throw std::invalid_argument("agent store: a held generation has no .live");
+					for (const auto &row : detail::decode_live_record(*live, s.options.maximum_segments).rows)
+						held.insert(row.segment);
+				} catch (const std::invalid_argument &) {
+					keep_segments = true;
+				}
+				continue;
+			}
+			s.unlink(lease);
+			primitive("collect lease");
+		}
+		for (const auto &name : names)
+			if (name != lease) {
+				s.unlink(name);
+				primitive("collect generation file");
+			}
+	}
+	for (const auto &[id, names] : segments) {
+		if (keep_segments || held.contains(id))
+			continue;
+		for (const auto &name : names) {
+			s.unlink(name);
+			primitive("collect segment file");
+		}
+	}
+	return {before.bytes - s.usage.bytes, before.entries - s.usage.entries,
+			before.generations - s.usage.generations};
 }
 } // namespace detent::local
