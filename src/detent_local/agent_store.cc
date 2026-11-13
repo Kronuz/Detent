@@ -250,6 +250,7 @@ const StoreTable &AgentStore::table() const noexcept { return impl_->table; }
 std::span<const std::string> AgentStore::failed() const noexcept { return impl_->failed; }
 std::uint64_t AgentStore::change_word(std::size_t index) const noexcept { return impl_->change->word(index); }
 StoreUsage AgentStore::usage() const noexcept { return impl_->usage; }
+void AgentStore::adopt(const distribution::Profile &profile) { impl_->options.profile = profile; }
 SyncCounters AgentStore::sync_counters() const noexcept { return impl_->synced; }
 
 std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<const PreparedGeneration> cycle,
@@ -270,6 +271,11 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		std::vector<SegmentId> segments;
 	};
 	// Validation: nothing is written for a cycle whose files disagree with their derived names.
+	if (s.options.profile != s.table.profile)
+		for (const auto &entry : s.table.entries)
+			if (std::find(dropped.begin(), dropped.end(), entry.name) == dropped.end() &&
+				std::none_of(cycle.begin(), cycle.end(), [&](const auto &g) { return g.name == entry.name; }))
+				throw std::invalid_argument("agent store publication keeps an entry of another profile");
 	std::vector<Staged> files;
 	std::vector<Built> built;
 	std::set<std::string, std::less<>> names;
@@ -408,6 +414,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 
 		StoreTable next = s.table;
 		next.sequence = s.table.sequence + 1;
+		next.profile = s.options.profile;
 		next.directory = directory;
 		std::uint32_t slots = 0;
 		for (const auto &entry : next.entries)

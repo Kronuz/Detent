@@ -283,7 +283,7 @@ int main() {
 		check(flexible.refresh());
 		auto larger = std::make_shared<Fixture>(3);
 		for (const auto &entry : std::filesystem::directory_iterator(larger->path)) {
-			if (entry.path().filename() != "selected" && entry.path().filename() != "storage.meta")
+			if (entry.path().filename() != "selected" && entry.path().filename() != "owner.lock")
 				std::filesystem::copy_file(entry.path(), fixture->path / entry.path().filename());
 		}
 		std::filesystem::copy_file(larger->path / "selected", fixture->path / "selected.next");

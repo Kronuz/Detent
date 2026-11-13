@@ -1,7 +1,7 @@
 // Exports a 5M corpus (DTCORP01) as a managed paged store of 1 or 1,000 namespaces, written with
 // the tree's own builder, so one source builds the baseline and the Dense store. The cursor and
 // scope match the agent configuration the first-read gate writes (docs/perf/first-read-gate.md).
-// Usage: first_read_export CORPUS OUTPUT NAMESPACES LAYOUT_VERSION
+// Usage: first_read_export CORPUS OUTPUT NAMESPACES
 #include "change_file.hh"
 #include "detent/scope.hh"
 #include "detent_distribution/snapshot_encoder.hh"
@@ -171,41 +171,7 @@ std::shared_ptr<const d::ValidatedSnapshot> admit(const std::shared_ptr<Rows> &r
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
-// The agent's cold start opens the existing owner lock and requires `.read` and `.live`; both are
-// derived from one full recovery, as trusted_records::derive does, with limits sized to the corpus.
-void agent_records(const std::filesystem::path &output, std::uint32_t records) {
-	auto heap = std::make_shared<d::StorageLedger>(4ull << 30);
-	d::RetirementRuntime runtime(heap, 1);
-	auto domain = runtime.domain(heap, 16384);
-	{
-		l::ViewLimits limits;
-		limits.records = records;
-		limits.bytes = limits.strings = 4ull << 30;
-		limits.pages = limits.bytes / p::page_header_bytes;
-		limits.retirement_domain = &domain;
-		limits.mapping_account = std::make_shared<d::StorageLedger>(4ull << 30);
-		const auto generation = l::recover_generation(output, limits);
-		const auto &registry = *x::RecoveredTesting::root(generation).registry();
-		const auto metadata = x::encode_reader_metadata(x::PreparedReader::describe(generation));
-		x::LiveRecord live;
-		live.generation = generation.descriptor().generation;
-		live.root_checksum = generation.descriptor().checksum;
-		std::copy(metadata.end() - x::live_digest_bytes, metadata.end(), live.read_digest.begin());
-		std::copy(registry.override_histogram().begin(), registry.override_histogram().end(), live.histogram.begin());
-		for (std::size_t i = 0; i < registry.inputs().size(); ++i) {
-			const auto &ownership = registry.inputs()[i].ownership;
-			live.rows.push_back({ownership.segment, ownership.length, ownership.checksum, registry.reachability(i)});
-		}
-		std::vector<char> bytes(x::live_record_size(live.rows.size()));
-		x::encode_live_record(live, bytes);
-		const auto id = generation.descriptor().generation;
-		trusted_records::put(output / std::string(x::GenerationName(id, x::GenerationFile::ReaderMetadata).view()),
-							 metadata);
-		trusted_records::put(output / std::string(x::GenerationName(id, x::GenerationFile::Live).view()), bytes);
-	}
-	domain.close().wait();
-}
-void run(const std::string &path, const std::filesystem::path &output, unsigned namespaces, std::uint32_t version) {
+void run(const std::string &path, const std::filesystem::path &output, unsigned namespaces) {
 	auto rows = corpus(path);
 	reshape(*rows, namespaces);
 	auto account = std::make_shared<d::StorageLedger>(8ull * 1024 * 1024 * 1024);
@@ -215,9 +181,7 @@ void run(const std::string &path, const std::filesystem::path &output, unsigned 
 	limits.namespaces = std::max<std::uint32_t>(limits.namespaces, snapshot->namespaces().size());
 	limits.pages = std::max<std::uint64_t>(limits.pages, 2 * rows->size());
 	limits.bytes = 4ull * 1024 * 1024 * 1024;
-	l::StorageIdentity storage{};
 	l::GenerationId generation{};
-	storage.fill('s');
 	generation.fill('g');
 	x::PagedSnapshotBuilder builder(snapshot, generation, limits);
 	while (!builder.done()) {
@@ -225,22 +189,13 @@ void run(const std::string &path, const std::filesystem::path &output, unsigned 
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	require(std::filesystem::create_directories(output), "output exists");
-	std::filesystem::permissions(output, std::filesystem::perms::owner_all);
-	trusted_records::put(output / "storage.meta", l::encode_storage_identity(storage));
-	const auto name = l::generation_name(generation);
-	trusted_records::put(output / (name + ".image"), image.bytes()->view());
-	trusted_records::put(output / (name + ".lease"),
-						 l::encode_generation_ownership({storage, generation, image.descriptor().length,
-														 image.descriptor().checksum, version}));
-	const auto descriptor = l::encode_descriptor(image.descriptor());
-	trusted_records::put(output / (name + ".descriptor"), descriptor);
-	for (const auto &segment : image.segments()) {
-		const x::SegmentNames names(segment.ownership.segment);
-		trusted_records::put(output / names.payload_name(), segment.bytes->view());
-		trusted_records::put(output / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-	}
-	trusted_records::put(output / "selected", descriptor);
+	require(!std::filesystem::exists(output), "output exists");
+	// Limits sized to the corpus for the recovery that derives `.read` and `.live`.
+	l::ViewLimits view;
+	view.records = snapshot->records().size();
+	view.bytes = view.strings = 4ull << 30;
+	view.pages = view.bytes / p::page_header_bytes;
+	trusted_records::install(output, image, view);
 	const int directory = ::open(output.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	require(directory >= 0, "cannot open output");
 	{
@@ -248,18 +203,16 @@ void run(const std::string &path, const std::filesystem::path &output, unsigned 
 		change.bump_all();
 	}
 	require(::close(directory) == 0, "close output");
-	trusted_records::put(output / "owner.lock", {});
-	agent_records(output, snapshot->records().size());
 	std::cout << "{\"records\":" << snapshot->records().size() << ",\"namespaces\":" << snapshot->namespaces().size()
-			  << ",\"segments\":" << image.segments().size() << ",\"layout_version\":" << version << "}\n";
+			  << ",\"segments\":" << image.segments().size() << "}\n";
 	l::ValidationBudget disposal{SIZE_MAX, SIZE_MAX};
 	require(image.discard(disposal), "image discard");
 }
 } // namespace
 
 int main(int argc, char **argv) try {
-	require(argc == 5, "usage: first_read_export CORPUS OUTPUT NAMESPACES LAYOUT_VERSION");
-	run(argv[1], argv[2], unsigned(std::stoul(argv[3])), std::uint32_t(std::stoul(argv[4])));
+	require(argc == 4, "usage: first_read_export CORPUS OUTPUT NAMESPACES");
+	run(argv[1], argv[2], unsigned(std::stoul(argv[3])));
 	return 0;
 } catch (const std::exception &e) {
 	std::cerr << "first_read_export: " << e.what() << '\n';

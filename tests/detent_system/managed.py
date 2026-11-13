@@ -31,6 +31,21 @@ def scope_identity(producers: int, namespaces: list[str] | None = None) -> str:
     return digest.hexdigest()
 
 
+def table_position(table: bytes) -> int | None:
+    """The position of the agent store's one namespace (D88), from `selected` (DTTABLE1)."""
+    if (
+        len(table) < 64 + 32
+        or table[:8] != b"DTTABLE1"
+        or hashlib.sha256(table[:-32]).digest() != table[-32:]
+    ):
+        return None
+    if int.from_bytes(table[12:16], "big") != 1:
+        return None
+    name = table[64]
+    at = 64 + 1 + name + 16 + 16
+    return int.from_bytes(table[at : at + 8], "big")
+
+
 class ManagedCohort:
     def __init__(
         self,
@@ -264,13 +279,8 @@ class ManagedCohort:
                         f"managed agent {index} exited before convergence"
                     )
                 try:
-                    with (directory / "selected").open("rb") as stream:
-                        selected = stream.read(177)
-                    if (
-                        len(selected) == 176
-                        and selected[:8] == b"DTSELECT"
-                        and int.from_bytes(selected[152:160], "big") >= revision
-                    ):
+                    position = table_position((directory / "selected").read_bytes())
+                    if position is not None and position >= revision:
                         break
                 except FileNotFoundError:
                     pass

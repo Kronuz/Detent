@@ -43,15 +43,14 @@ class CleanupPause {
 	~CleanupPause() { resume(); }
 };
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
 		check(turns < 100000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(
-				kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 template <class F> void wait_for(F predicate) {
@@ -73,8 +72,7 @@ void run(std::uint64_t available, bool close_during_worker, bool grown_pack = fa
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{directory};
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
@@ -84,7 +82,7 @@ void run(std::uint64_t available, bool close_during_worker, bool grown_pack = fa
 		snapshot.step(budget);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	write(directory / "owner.lock", {});
 	auto heap = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);

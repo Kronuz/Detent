@@ -1,6 +1,7 @@
 #include "detent/hashing.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/view.hh"
+#include "trusted_records.hh"
 #include <algorithm>
 #include <chrono>
 #include <fcntl.h>
@@ -199,20 +200,8 @@ int main() {
 		unsigned char digest[32];
 		sha.getHash(digest);
 		std::copy_n(reinterpret_cast<char *>(digest), 32, descriptor.checksum.begin());
-		auto raw = l::encode_descriptor(descriptor);
-		check(l::decode_descriptor(raw).cursor == descriptor.cursor);
-		auto name = l::generation_name(descriptor.generation);
-		{
-			std::ofstream file(directory / (name + ".image"), std::ios::binary);
-			file.write(good->data(), good->size());
-		}
-		{
-			std::ofstream file(directory / (name + ".lease"));
-		}
-		{
-			std::ofstream file(directory / "selected", std::ios::binary);
-			file.write(raw.data(), raw.size());
-		}
+		trusted_records::install(directory, descriptor, {good->data(), good->size()});
+		const auto name = l::generation_name(descriptor.generation);
 		for (const auto &entry : std::filesystem::directory_iterator(directory))
 			std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_read |
 														   std::filesystem::perms::owner_write);

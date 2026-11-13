@@ -31,8 +31,7 @@ int main() {
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder snapshot(source, generation);
@@ -41,7 +40,7 @@ int main() {
 		snapshot.step(budget);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto heap = std::make_shared<d::StorageLedger>(32 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 	d::RetirementRuntime runtime(heap, 2);
@@ -225,17 +224,10 @@ int main() {
 					}
 				}
 				auto pressure = mappings->admit(mappings->limit() - mappings->used());
-				const auto name = l::generation_name(plan->descriptor().generation);
-				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
-				write(directory / (name + ".lease"),
-					  l::encode_generation_ownership(
-						  {storage, plan->descriptor().generation, plan->descriptor().length, plan->descriptor().checksum, detent::local::paged::format_version}));
-				for (const auto &segment : plan->segments()) {
-					const l::detail::SegmentNames names(segment.ownership.segment);
-					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-					write(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
-				}
-				write(directory / "selected", l::encode_descriptor(plan->descriptor()));
+				std::vector<trusted_records::Segment> segments;
+				for (const auto &segment : plan->segments())
+					segments.push_back({segment.ownership, segment.bytes->view()});
+				trusted_records::stage(directory, plan->descriptor(), plan->bytes()->view(), segments);
 				{
 					l::detail::RecoveryContext context{
 						pressure_domain.factory(),
@@ -261,7 +253,7 @@ int main() {
 										 : 1));
 					require(mappings->used() == mappings->limit());
 				}
-				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));
+				trusted_records::select(directory, recovered.descriptor());
 				admission.reset();
 				residents.clear();
 				pressure_domain.close().wait();
@@ -278,12 +270,7 @@ int main() {
 				const auto bytes = l::paged::encode_root(invalid, l::paged::Limits{});
 				auto descriptor = plan->descriptor();
 				descriptor.checksum = l::paged::metadata_commitment(bytes);
-				const auto name = l::generation_name(descriptor.generation);
-				write(directory / (name + ".image"), bytes);
-				write(directory / (name + ".lease"),
-					  l::encode_generation_ownership(
-						  {storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
-				write(directory / "selected", l::encode_descriptor(descriptor));
+				trusted_records::stage(directory, descriptor, bytes);
 				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,
 												   core.verified_paged, {}};
@@ -294,7 +281,7 @@ int main() {
 				require(recovered.view().get("app", "count").value() ==
 						std::numeric_limits<std::int64_t>::min());
 				wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
-				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));
+				trusted_records::select(directory, recovered.descriptor());
 			}
 		}
 	}

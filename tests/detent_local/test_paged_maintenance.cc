@@ -14,14 +14,14 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("maintenance invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 void run(bool paged_base) {
@@ -42,32 +42,20 @@ void run(bool paged_base) {
 		l::GenerationId original{}, next{};
 		original.fill('f');
 		next.fill('p');
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		if (paged_base) {
 			l::detail::PagedSnapshotBuilder builder(source, original);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
-			install(directory, builder.take(), storage);
+			install(directory, builder.take());
 		} else {
 			l::ImageBuilder builder(source);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
-			std::filesystem::create_directories(directory);
-			check(::chmod(directory.c_str(), 0700) == 0);
-			const auto flat = builder.descriptor().generation;
-			const auto name = l::generation_name(flat);
-			write(directory / (name + ".image"), *builder.bytes());
-			write(directory / "storage.meta", l::encode_storage_identity(storage));
-			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership(
-					  {storage, flat, builder.descriptor().length, builder.descriptor().checksum, 1}));
-			write(directory / (name + ".descriptor"), l::encode_descriptor(builder.descriptor()));
-			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 		}
 		write(directory / "owner.lock", {});
 		l::DiskStoreOptions options;

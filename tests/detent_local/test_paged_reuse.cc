@@ -35,8 +35,7 @@ int main() {
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	auto account = source->storage_account();
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
@@ -44,7 +43,7 @@ int main() {
 		builder.step(b);
 	}
 	auto image = builder.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto recovered = std::optional<l::RecoveredGeneration>(l::recover_generation(directory));
 	const auto descriptor = recovered->descriptor();
 	const auto identity = recovered->directory_identity();
@@ -130,18 +129,12 @@ int main() {
 	require(navigator.discard(disposal));
 	require(account->used() == baseline);
 	{
-		const auto flat_id = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 		l::ImageBuilder flat(source);
 		while (!flat.done()) {
 			l::ValidationBudget b;
 			flat.step(b);
 		}
-		auto name = l::generation_name(flat_id);
-		write(directory / (name + ".image"), *flat.bytes());
-		l::GenerationOwnership ownership{storage, flat_id, flat.descriptor().length,
-										 flat.descriptor().checksum};
-		write(directory / (name + ".lease"), l::encode_generation_ownership(ownership));
-		write(directory / "selected", l::encode_descriptor(flat.descriptor()));
+		trusted_records::install(directory, flat.descriptor(), flat.bytes()->view());
 		auto legacy = l::recover_generation(directory);
 		rejects<std::invalid_argument>([&] { l::detail::PagedPlanBuilder::reuse(legacy, account, target); });
 	}
@@ -157,7 +150,7 @@ int main() {
 		auto image = build.take();
 		require(image.segments().size() > 1);
 		auto path = directory / "multi";
-		install(path, image, storage);
+		install(path, image);
 		auto base = l::recover_generation(path);
 		auto length = p::encode_definition_key(key, "app:k019999");
 		auto navigation =

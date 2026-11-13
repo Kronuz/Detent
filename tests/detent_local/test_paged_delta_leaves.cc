@@ -19,8 +19,7 @@ int main() {
 		}
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
@@ -28,7 +27,7 @@ int main() {
 		builder.step(work);
 	}
 	auto image = std::make_shared<l::detail::PagedImage>(builder.take());
-	install(directory, *image, storage);
+	install(directory, *image);
 	auto recovered = l::recover_generation(directory);
 	std::vector<l::detail::SegmentInput> segments;
 	for (const auto &segment : image->segments())

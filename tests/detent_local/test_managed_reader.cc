@@ -1,5 +1,5 @@
-#include "detent_local/ownership.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -32,78 +32,65 @@ int main() {
 		require(std::filesystem::create_directories(directory));
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		const auto generation = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		auto descriptor = builder.descriptor();
-		auto name = l::generation_name(generation);
-		auto image = builder.bytes();
-		write(directory / (name + ".image"), {image->data(), image->size()});
-		write(directory / "selected", l::encode_descriptor(descriptor));
-		write(directory / (name + ".lease"), {});
-		require(l::open_generation(directory).cursor() == cursor()); // Existing empty leases remain readable.
-		l::StorageIdentity storage;
-		storage.fill('s');
-		l::GenerationOwnership ownership{storage, generation, descriptor.length, descriptor.checksum};
-		auto lease = l::encode_generation_ownership(ownership);
-		write(directory / (name + ".lease"), lease);
-		rejects(directory); // Managed leases require a trusted storage identity.
-		write(directory / "storage.meta", l::encode_storage_identity(storage));
+		const auto descriptor = builder.descriptor();
+		const auto image = builder.bytes()->view();
+		const auto name = l::generation_name(descriptor.generation);
+		trusted_records::install(directory, descriptor, image);
 		require(l::open_generation(directory).cursor() == cursor());
-		for (unsigned field = 0; field < 4; ++field) {
-			auto wrong = ownership;
-			if (field == 0)
-				wrong.storage[0] ^= 1;
-			if (field == 1)
-				wrong.generation[0] ^= 1;
-			if (field == 2)
-				++wrong.image_length;
-			if (field == 3)
-				wrong.image_checksum[0] ^= 1;
-			write(directory / (name + ".lease"), l::encode_generation_ownership(wrong));
-			rejects(directory);
-		}
-		write(directory / (name + ".lease"), lease);
-		for (auto length : {0u, 63u}) {
-			auto record = l::encode_storage_identity(storage);
-			write(directory / "storage.meta", std::span(record).first(length));
-			rejects(directory);
-		}
-		auto broken_storage = l::encode_storage_identity(storage);
-		broken_storage.back() ^= 1;
-		write(directory / "storage.meta", broken_storage);
+		const auto table = trusted_records::slurp(directory / "selected");
+		// The `.lease` is an empty regular file, singly linked: a reader locks it and nothing else.
+		write(directory / (name + ".lease"), std::string_view("x"));
 		rejects(directory);
-		write(directory / "storage.meta", l::encode_storage_identity(storage));
-		std::filesystem::permissions(directory / "storage.meta", std::filesystem::perms::others_write,
+		std::filesystem::remove(directory / (name + ".lease"));
+		rejects(directory);
+		write(directory / "other", {});
+		std::filesystem::create_symlink("other", directory / (name + ".lease"));
+		rejects(directory);
+		std::filesystem::remove(directory / (name + ".lease"));
+		std::filesystem::create_hard_link(directory / "other", directory / (name + ".lease"));
+		rejects(directory);
+		std::filesystem::remove(directory / (name + ".lease"));
+		std::filesystem::remove(directory / "other");
+		write(directory / (name + ".lease"), {});
+		require(l::open_generation(directory).cursor() == cursor());
+		// The table: whole, trusted, and naming the image's cursor and profile.
+		for (const auto at : {std::size_t(0), std::size_t(70), table.size() - 1}) {
+			auto broken = table;
+			broken[at] ^= 1;
+			write(directory / "selected", broken);
+			rejects(directory);
+		}
+		write(directory / "selected", std::span(table).first(table.size() - 1));
+		rejects(directory);
+		write(directory / "selected", table);
+		std::filesystem::permissions(directory / "selected", std::filesystem::perms::others_write,
 									 std::filesystem::perm_options::add);
 		rejects(directory);
-		write(directory / "storage.meta", l::encode_storage_identity(storage));
-		std::filesystem::create_hard_link(directory / "storage.meta", directory / "foreign-meta");
+		write(directory / "selected", table);
+		auto decoded = l::decode_table(table);
+		auto other = decoded;
+		other.profile.required_capabilities ^= 1;
+		write(directory / "selected", l::encode_table(other));
 		rejects(directory);
-		std::filesystem::remove(directory / "foreign-meta");
-		std::filesystem::rename(directory / "storage.meta", directory / "real-meta");
-		std::filesystem::create_symlink("real-meta", directory / "storage.meta");
+		other = decoded;
+		++other.entries.front().cursor.position;
+		write(directory / "selected", l::encode_table(other));
 		rejects(directory);
-		std::filesystem::remove(directory / "storage.meta");
-		std::filesystem::rename(directory / "real-meta", directory / "storage.meta");
-		for (auto length : {1u, 127u}) {
-			write(directory / (name + ".lease"), std::span(lease).first(length));
-			rejects(directory);
-		}
-		lease.back() ^= 1;
-		write(directory / (name + ".lease"), lease);
-		rejects(directory);
-		lease.back() ^= 1;
-		write(directory / (name + ".lease"), lease);
-		require(l::open_generation(directory).cursor() == cursor());
-		write(directory / (name + ".lease"), {});
-		std::filesystem::remove(directory / "storage.meta");
+		other = decoded;
+		other.entries.push_back(other.entries.front());
+		other.entries.back().name += "x";
+		other.entries.back().slot = 1;
+		write(directory / "selected", l::encode_table(other));
+		rejects(directory); // D88: the agent serves one namespace
+		write(directory / "selected", table);
 		require(l::open_generation(directory).cursor() == cursor());
 		std::filesystem::remove_all(directory);
-		std::cout << "dual legacy/managed reader, selection binding and unsafe identity rejection passed\n";
+		std::cout << "the table, lease and image binding of a reader, and unsafe entry rejection passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

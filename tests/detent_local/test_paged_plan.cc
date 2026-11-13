@@ -25,8 +25,7 @@ int main() {
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	auto account = source->storage_account();
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	l::detail::PagedSnapshotBuilder snapshot(source, generation);
@@ -35,7 +34,7 @@ int main() {
 		snapshot.step(b);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto recovered = std::optional<l::RecoveredGeneration>(l::recover_generation(directory));
 	const auto base = recovered->descriptor();
 	const auto identity = recovered->directory_identity();

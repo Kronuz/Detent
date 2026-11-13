@@ -1,6 +1,7 @@
 #include "detent/client.hh"
 #include "detent_local/client_source.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -32,18 +33,12 @@ void write(const std::filesystem::path &path, std::span<const char> bytes) {
 }
 void publish(const std::filesystem::path &directory, std::shared_ptr<const d::ValidatedSnapshot> snapshot,
 			 char id) {
-	const auto generation = l::next_generation(std::nullopt, snapshot->cursor(), snapshot->profile(), true).id;
 	l::ImageBuilder builder(std::move(snapshot));
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
 	}
-	auto image = builder.bytes();
-	auto name = l::generation_name(generation);
-	write(directory / (name + ".image"), {image->data(), image->size()});
-	write(directory / (name + ".lease"), {});
-	write(directory / "selected.next", l::encode_descriptor(builder.descriptor()));
-	std::filesystem::rename(directory / "selected.next", directory / "selected");
+	trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 }
 std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	std::string out;

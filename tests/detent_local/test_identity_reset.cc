@@ -1,6 +1,5 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_local/disk_store.hh"
-#include <completion/posix.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -9,22 +8,20 @@
 
 namespace d = detent::distribution;
 namespace l = detent::local;
-namespace c = kronuz::io::completion;
 namespace {
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("trusted reset invariant at line " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	while (store->operation() || store->needs_work()) {
-		auto job = store->operation();
-		if (!job) {
-			store->advance();
-			continue;
-		}
-		job->submitted();
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 std::unique_ptr<l::ImageBuilder> build(const d::Cursor &cursor, char generation,
@@ -66,10 +63,6 @@ std::unique_ptr<l::ImageBuilder> build(const d::Cursor &cursor, char generation,
 	}
 	return builder;
 }
-std::string read(const std::filesystem::path &path) {
-	std::ifstream stream(path, std::ios::binary);
-	return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-}
 } // namespace
 int main() {
 	try {
@@ -95,7 +88,6 @@ int main() {
 		store->begin(*first);
 		drive(store);
 		auto actual = *store->selection().descriptor;
-		auto metadata = read(directory / "storage.meta");
 		auto target = old;
 		target.restore_epoch.fill('r');
 		target.revision = 1;
@@ -133,34 +125,22 @@ int main() {
 		drive(store);
 		check(store->selection().descriptor == candidate->descriptor());
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
-		check(read(directory / "storage.meta") == metadata);
 		check(l::recover_generation(directory).descriptor() == candidate->descriptor());
 		auto next = target;
 		next.restore_epoch.fill('x');
 		next.revision = 2;
 		auto cancelled = build(next, 'z', account);
 		store->begin_reset(*cancelled, {candidate->descriptor(), next, {}});
-		bool replaced = false;
-		while (store->operation() || store->needs_work()) {
-			auto job = store->operation();
-			if (!job) {
-				store->advance();
-				continue;
-			}
-			auto kind = job->request().kind;
-			job->submitted();
-			check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
-			if (kind == c::Kind::Replace) {
-				replaced = true;
-				store->cancel_publication();
-			}
-			store->advance();
-		}
+		// Taken work runs to its end: a cancellation after it is taken changes nothing.
+		auto work = store->work();
+		check(work != nullptr);
+		store->cancel_publication();
+		work->run();
+		store->advance();
 		// Published describes durable selection, not caller acknowledgement.
-		check(replaced && store->publication_status() == l::DiskPublicationStatus::Published);
+		check(store->publication_status() == l::DiskPublicationStatus::Published);
 		check(store->selection().knowledge == l::SelectionKnowledge::Known &&
 			  store->selection().descriptor == cancelled->descriptor());
-		check(read(directory / "storage.meta") == metadata);
 		auto directory_identity = store->directory_identity();
 		store->close();
 		drive(store);
@@ -184,7 +164,7 @@ int main() {
 		recovery_domain.close().wait();
 		runtime.shutdown();
 		std::filesystem::remove_all(directory);
-		std::cout << "trusted identity reset, preflight rejection and unchanged storage UUID passed\n";
+		std::cout << "trusted identity reset, preflight rejection and a reset under the same namespace passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

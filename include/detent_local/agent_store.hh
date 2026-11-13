@@ -101,6 +101,9 @@ class AgentStore {
 	// exclusive lease, so a reader either holds it (and keeps it) or finds it gone. Syncs nothing: a cut
 	// keeps any subset of its removals, all of names no table reaches. Returns what it removed.
 	StoreUsage collect();
+	// The next cycles derive their names under `profile`; the first that publishes writes it into the
+	// table, and must drop or republish every entry the table holds.
+	void adopt(const distribution::Profile &profile);
 	StoreUsage usage() const noexcept;
 	// What the store has asked storage to make durable since it opened (SyncCounters' contract).
 	SyncCounters sync_counters() const noexcept;

@@ -17,14 +17,14 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("derived name invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 // The ordinal counts rebuilds at one head and resets at any other.
@@ -79,14 +79,12 @@ void rebuilds() {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 		l::GenerationId seed{};
 		seed.fill('f');
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::detail::PagedSnapshotBuilder builder(source, seed);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		install(directory, builder.take(), storage);
+		install(directory, builder.take());
 		write(directory / "owner.lock", {});
 		l::DiskStoreOptions options;
 		options.limits = {64 * l::paged::segment_bytes, 1000, 10};

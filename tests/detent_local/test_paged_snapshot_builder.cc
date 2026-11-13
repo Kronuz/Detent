@@ -72,7 +72,7 @@ std::shared_ptr<const d::ValidatedSnapshot> charged(std::shared_ptr<d::StorageLe
 		d::StorageAllocator<const d::ValidatedSnapshot>(account), decoder.finish());
 }
 void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d::StorageLedger> account,
-						  l::StorageIdentity storage, std::size_t quantum, bool corrupt = false,
+						  std::size_t quantum, bool corrupt = false,
 						  std::size_t rows = 16) {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("paged-discovery-" + std::to_string(::getpid()));
@@ -211,8 +211,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 }
 } // namespace
 int main() {
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	auto account = source->storage_account();
@@ -246,8 +245,8 @@ int main() {
             domain.close().wait();
         }
 
-		recover_dependencies(image, account, storage, 1);
-		recover_dependencies(image, account, storage, 8192, false, 1);
+		recover_dependencies(image, account, 1);
+		recover_dependencies(image, account, 8192, false, 1);
 		{
 			auto controls = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
 			d::RetirementRuntime runtime{controls, 1};
@@ -283,7 +282,7 @@ int main() {
 			domain.close().wait();
 		}
 
-		rejects<std::invalid_argument>([&] { recover_dependencies(image, account, storage, 1, true); });
+		rejects<std::invalid_argument>([&] { recover_dependencies(image, account, 1, true); });
 		require(image.descriptor().generation == generation && image.descriptor().cursor == cursor());
 		require(image.descriptor().checksum ==
 				p::metadata_commitment({image.bytes()->data(), image.bytes()->size()}));
@@ -410,7 +409,7 @@ int main() {
 		build(builder, 8192);
 		auto image = builder.take();
 		require(image.segments().size() > 1 && image.root().records == 100000);
-		recover_dependencies(image, ledger, storage, 8192);
+		recover_dependencies(image, ledger, 8192);
 		auto lease =
 			std::allocate_shared<Lease>(d::StorageAllocator<Lease>(ledger), std::move(image), ledger);
 		l::detail::GraphValidator validator(ledger, lease, lease->segments, lease->image.root(), {}, l::detail::paged_format_semantics);

@@ -15,12 +15,4 @@ inline void write(const std::filesystem::path &path, std::span<const char> bytes
 	require(bool(out));
 	require(::chmod(path.c_str(), 0600) == 0);
 }
-// Installs a built image as the store's one namespace (trusted_records.hh).
-inline void install(const std::filesystem::path &directory, const l::detail::PagedImage &image,
-					l::ViewLimits limits = {}) {
-	std::vector<trusted_records::Segment> segments;
-	for (const auto &s : image.segments())
-		segments.push_back({s.ownership, {s.bytes->data(), s.bytes->size()}});
-	trusted_records::install(directory, image.descriptor(), {image.bytes()->data(), image.bytes()->size()}, segments,
-							 limits);
-}
+using trusted_records::install;

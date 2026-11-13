@@ -45,7 +45,6 @@ struct Fixture {
   int directory = -1;
   std::shared_ptr<d::StorageLedger> heap =
       std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
-  l::StorageIdentity storage{};
   l::GenerationId generation{};
   p::Root root;
   std::vector<p::Reference> definitions, page_references;
@@ -63,7 +62,6 @@ struct Fixture {
     check(::mkdir(path.c_str(), 0700) == 0);
     directory = ::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     check(directory >= 0);
-    storage.fill('s');
     generation.fill('g' + count);
     auto packed = std::make_shared<dense_graph_test::Fixture>();
     packed->account = heap;
@@ -181,10 +179,6 @@ struct Fixture {
       bytes->seal();
       const l::SegmentOwnership ownership{identities[i], bytes->size(),
                                          p::pack_commitment(bytes->view())};
-      const x::SegmentNames names(ownership.segment);
-      write_file(path / names.ownership.data(),
-                 l::encode_segment_ownership(ownership));
-      write_file(path / names.payload.data(), {bytes->data(), bytes->size()});
       segments.push_back({ownership, {bytes->data(), bytes->size()}});
       buffers.push_back(bytes);
       physical_bytes += bytes->size();
@@ -203,20 +197,10 @@ struct Fixture {
     const auto checksum = p::metadata_commitment(image);
     l::Descriptor descriptor{generation, p::root_bytes, checksum, root.cursor,
                              root.profile};
-    write_file(path / "storage.meta", l::encode_storage_identity(storage));
-    write_file(
-        path / x::GenerationName(generation, x::GenerationFile::Image).view(),
-        image);
-    write_file(
-        path / x::GenerationName(generation, x::GenerationFile::Lease).view(),
-        l::encode_generation_ownership(
-            {storage, generation, p::root_bytes, checksum, 3}));
-    x::ReaderMetadata metadata{generation, checksum, proof.counts(),
-                               physical_bytes};
-    write_file(path / x::GenerationName(generation, ".read").view(),
-               x::encode_reader_metadata(metadata));
-    write_file(path / "selected", l::encode_descriptor(descriptor));
-    trusted_records::derive(path);
+    std::vector<trusted_records::Segment> installed;
+    for (const auto &segment : segments)
+      installed.push_back({segment.ownership, segment.bytes});
+    trusted_records::install(path, descriptor, image, installed);
   }
   ~Fixture() {
     if (directory >= 0)

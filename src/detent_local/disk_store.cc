@@ -90,8 +90,6 @@ struct DiskStore::Impl {
 	// Queues a cycle publishing `generation` as the store's one namespace (D88), every other entry dropped.
 	void queue(PreparedGeneration generation, DiskUsage peak) {
 		auto &core = *this->core;
-		if (descriptor.profile != core.agent->table().profile)
-			throw std::invalid_argument("managed publication profile differs from the store's");
 		auto work = std::make_shared<AgentWork>();
 		work->agent = core.agent.get();
 		for (const auto &entry : core.agent->table().entries)
@@ -99,6 +97,8 @@ struct DiskStore::Impl {
 				work->dropped.push_back(entry.name);
 		work->cycle.push_back(std::move(generation));
 		permit = core.ledger.reserve(peak);
+		// Every other entry is dropped, so a publication may change the store's profile.
+		core.agent->adopt(descriptor.profile);
 		pending = std::move(work);
 		publication = DiskPublicationStatus::Preparing;
 		publication_error = {};
