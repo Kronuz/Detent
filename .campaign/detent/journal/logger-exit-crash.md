@@ -1,6 +1,6 @@
 # logger-exit-crash: journal
 
-State: working
+State: waiting on jobs 261112-163559-b2eff5 (A1,A3), 261112-163606-ae7ad9 (A2), 261112-163610-8588d1 (A4), suite 261112-163551-3a803c
 Quest: .campaign/detent/quests/logger-exit-crash.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix committed on the logger branch (logger:4b5b847, logger:0261865). Waiting on jobs.
 
 ## Next
 
-1. <step>
+1. When jobs pass: paste `campaign brief` table, write Result, set ready for review.
 
 ## Blocked on
 
@@ -37,4 +37,24 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Cause (A1): at exit `LogWorker::get()`'s static Finisher ends and joins the LOG thread for 200 ms;
+  on timeout (a handler stalled) it returned, and the statics (`Logging::handlers`, `config`,
+  `hooks`, tints) were destroyed while the thread was still in `pass()` -> `Logging::emit`/`log`
+  writing through them: SIGSEGV. Fix: after a timed-out join the Finisher calls `abandon()`; the
+  thread finishes its current line, then `pass()` returns at its next record, `close()` skips its
+  writes and releases, and it sets `parked`; the Finisher waits for `parked` (bounded by one line).
+  Queued lines are lost on that path (as with any timed-out join). The timeout is not widened.
+- Test `test/exit.cc` (`logger_exit_test`): forced timeout by a 20 ms/line handler against 1200 lines,
+  a handler destructor that sets a flag and sleeps; a call after it exits 99. Counting only, no
+  wall-clock assertion. Fails on main (exit status nonzero, 3 of 3), passes with the fix (3 of 3).
+  `test/exit_mutant.sh` removes `abandon()`; `test/exit_load.sh` is the A2 loop.
+- Files outside the quest's file set, needed: CMakeLists.txt (the new test target), ARCHITECTURE.md
+  and CHANGELOG.md (the mechanism and the fix).
+- A5: the ROADMAP's trace-stub section named scheduler three times and the cancel/swap one once; both
+  now name stash and the wheel only (grep -ci scheduler = 0).
+
+## Evidence
+
+| Criterion | Evidence |
+|---|---|
+| A5 | `docs/ROADMAP.md`: "stash bundles a no-op `L_*` stub (`L_EXC`) ..."; no mention of scheduler (grep -ci = 0) |
