@@ -43,10 +43,9 @@ void run(bool compressed, const std::filesystem::path &certificates = {}) {
         bundle->authenticated();
         auto select = [&](std::uint64_t revision, bool staged) {
             auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24, 25, revision), at(revision)));
-            l::GenerationId id{}; id.fill(static_cast<char>(revision));
-            l::ImageBuilder builder(source, id);
+            l::ImageBuilder builder(source);
             while (!builder.done()) { l::ValidationBudget budget; builder.step(budget); }
-            const auto name = l::generation_name(id);
+            const auto name = l::generation_name(builder.descriptor().generation);
             write(directory / (name + ".image"), *builder.bytes());
             write(directory / (name + ".lease"), {});
             write(directory / "selected", l::encode_descriptor(builder.descriptor()));

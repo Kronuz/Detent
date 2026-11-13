@@ -86,7 +86,7 @@ struct PagedSegmentCollection::State final : d::RetirementNode {
 	d::RetirementHandle<CollectionProof> proof;
 	std::optional<Descriptor> selected;
 	std::optional<SegmentNames> names;
-	StorageIdentity sought{};
+	SegmentId sought{};
 	std::array<char, 256> name{};
 	c::Token token;
 	Phase phase = Phase::Done;
@@ -187,7 +187,7 @@ void PagedSegmentCollection::start() {
 	if (s.core->selection.knowledge == SelectionKnowledge::Uncertain || s.core->active_generation ||
 		s.core->pending_paged_recovery)
 		return;
-	s.marks = s.factory.make<PagedSegmentMarks>(s.core->account, s.core->directory_identity, s.core->identity,
+	s.marks = s.factory.make<PagedSegmentMarks>(s.core->account, s.core->directory_identity,
 												s.core->options.recovery_limits.segments);
 	s.claim = s.controls->claim(CollectorUse::Reclaim);
 	s.selected = s.core->selection.descriptor;
@@ -367,7 +367,7 @@ void PagedSegmentCollection::advance() {
 											   s.root->descriptor().length != s.selected->length ||
 											   s.root->descriptor().cursor != s.selected->cursor ||
 											   s.root->descriptor().profile != s.selected->profile)
-											: s.root->descriptor() != *s.selected)
+											: !same_generation(s.root->descriptor(), *s.selected))
 					throw std::runtime_error("selected root changed during marking");
 				s.selected_seen = true;
 			}
@@ -378,7 +378,7 @@ void PagedSegmentCollection::advance() {
 			}
 			s.certificate = s.root->certificate();
 			if (!s.certificate && s.core->verified_paged &&
-				s.core->verified_paged->descriptor() == s.root->descriptor()) {
+				same_generation(s.core->verified_paged->descriptor(), s.root->descriptor())) {
 				s.certificate = s.factory.make<PagedDependencyCertificate>(s.core->account, s.factory);
 				s.certificate->begin_recovered(*s.core->verified_paged);
 				s.phase = Phase::Certificate;
@@ -391,10 +391,10 @@ void PagedSegmentCollection::advance() {
 			}
 			const auto &root = s.root->root();
 			s.proof = s.factory.make<CollectionProof>();
-			s.proof->inputs.emplace(s.factory, s.core->account, s.core->identity, root.segments,
+			s.proof->inputs.emplace(s.factory, s.core->account, root.segments,
 									s.core->options.recovery_limits.bytes);
 			s.proof->walk.emplace(s.core->account, s.proof->inputs->owner(), OwnedSegmentInputs::lookup, root,
-								  s.core->identity, paged_limits(s.core->options.recovery_limits));
+								  paged_limits(s.core->options.recovery_limits));
 			s.phase = Phase::Walk;
 		} else if (s.phase == Phase::CloseRoot && s.root->done()) {
 			if (s.root->error())
@@ -467,7 +467,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 		else if (s.phase == Phase::Walk) {
 			s.proof->walk->step(budget);
 			if (auto missing = s.proof->walk->missing()) {
-				s.pack.emplace(s.factory, s.session, s.core->account, s.core->identity, *missing,
+				s.pack.emplace(s.factory, s.session, s.core->account, *missing,
 							   s.core->owner);
 				s.phase = Phase::Pack;
 			} else if (s.proof->walk->done()) {
@@ -475,7 +475,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 				const auto codec = paged_limits(limits);
 				s.proof->inputs->freeze();
 				s.proof->graph.emplace(s.core->account, s.proof->inputs->owner(), s.proof->inputs->inputs(),
-									   s.root->root(), s.core->identity, codec,
+									   s.root->root(), codec,
 									   PagedSemanticLimits{limits.strings, limits.overrides});
 				s.phase = Phase::Graph;
 			}
@@ -536,7 +536,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 						prepare(c::Kind::OpenCandidateInto);
 						request_.file = std::shared_ptr<c::File>(pin_, &s.controls->scratch_file());
 					} else {
-						s.pack.emplace(s.factory, s.session, s.core->account, s.core->identity, s.sought,
+						s.pack.emplace(s.factory, s.session, s.core->account, s.sought,
 									   s.core->owner, true);
 						s.phase = Phase::Candidate;
 					}
@@ -615,7 +615,7 @@ bool PagedSegmentCollection::complete(c::Result result) noexcept {
 			if (valid) {
 				try {
 					const auto owned = decode_segment_ownership(s.owner_reader.bytes());
-					valid = owned.storage == s.core->identity && owned.segment == s.sought;
+					valid = owned.segment == s.sought;
 				} catch (const std::invalid_argument &) {
 					valid = false;
 				}

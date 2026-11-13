@@ -54,7 +54,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -71,7 +71,7 @@ int main() {
 				  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
 		write(root / (name + ".image"), bytes.first(length));
         const auto metadata = l::detail::encode_reader_metadata(
-            {storage, id, image.descriptor().checksum, {}, l::paged::root_bytes});
+            {id, image.descriptor().checksum, {}, l::paged::root_bytes});
         write(root / (name + ".read"), std::span(metadata).first(std::min<std::size_t>(length, metadata.size())));
 	}
 	const auto pinned_name = l::generation_name(identity(159));
@@ -95,16 +95,16 @@ int main() {
                   {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
         write(root / (name + ".image"), bytes);
         auto metadata = l::detail::encode_reader_metadata(
-            {storage, id, image.descriptor().checksum, {}, l::paged::root_bytes});
+            {id, image.descriptor().checksum, {}, l::paged::root_bytes});
         std::size_t length = 0;
         switch (variant) {
-            case 0: metadata[119] = 2; length = 120; break;
-            case 1: metadata[120] = 1; length = 121; break;
-            case 2: l::write_integer(metadata, 112, 1, 4); length = 116; break;
+            case 0: metadata[103] = 2; length = 104; break;
+            case 1: metadata[104] = 1; length = 105; break;
+            case 2: l::write_integer(metadata, 96, 1, 4); length = 100; break;
             case 3:
-                l::write_integer(metadata, 80, UINT32_MAX, 4);
-                l::write_integer(metadata, 84, 1, 4);
-                length = 88;
+                l::write_integer(metadata, 64, UINT32_MAX, 4);
+                l::write_integer(metadata, 68, 1, 4);
+                length = 72;
                 break;
         }
         write(root / (name + ".read"), std::span(metadata).first(length));

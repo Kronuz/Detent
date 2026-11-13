@@ -44,7 +44,7 @@ struct TrieOverlay::Impl {
 	d::PagedStorage arena;
 	std::vector<SegmentReachability, d::StorageAllocator<SegmentReachability>> removed;
 	std::vector<p::Reference, d::StorageAllocator<p::Reference>> removed_extents;
-	using ExtentKey = std::pair<StorageIdentity, std::uint32_t>;
+	using ExtentKey = std::pair<SegmentId, std::uint32_t>;
 	// Counts its comparisons: TrieOverlay::removal_probes.
 	struct ExtentLess {
 		std::uint64_t *probes;
@@ -79,7 +79,7 @@ struct TrieOverlay::Impl {
 	};
 	struct RelocationWork {
 		std::array<RelocationFrame, 203> frames{};
-		std::array<StorageIdentity, 8> packs{};
+		std::array<SegmentId, 8> packs{};
 		std::size_t pack_count = 0, depth = 0, recipes = 0, recipe_limit = 0;
 		std::uint64_t visited = 0;
 		OverlayReference result;
@@ -222,7 +222,7 @@ struct TrieOverlay::Impl {
 		copy = 0;
 		phase = Phase::Convert;
 	}
-	bool selected_pack(const StorageIdentity &identity) const {
+	bool selected_pack(const SegmentId &identity) const {
 		return std::find(relocation->packs.begin(),
 						 relocation->packs.begin() + relocation->pack_count,
 						 identity) != relocation->packs.begin() + relocation->pack_count;
@@ -345,7 +345,7 @@ void TrieOverlay::change(std::string_view key, std::optional<std::span<const cha
 	s.changed = false;
 	s.phase = Impl::Phase::Body;
 }
-void TrieOverlay::begin_relocation(std::span<const StorageIdentity> selected,
+void TrieOverlay::begin_relocation(std::span<const SegmentId> selected,
 								   std::size_t maximum_recipes) {
 	if (!impl_ || impl_->failed || impl_->sealed || impl_->phase != Impl::Phase::Idle ||
 		selected.empty() || selected.size() > 8 || !maximum_recipes)

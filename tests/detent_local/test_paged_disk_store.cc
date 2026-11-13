@@ -68,7 +68,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder construction(source, storage, generation);
+	l::detail::PagedSnapshotBuilder construction(source, generation);
 	while (!construction.done()) {
 		l::ValidationBudget budget;
 		construction.step(budget);
@@ -81,8 +81,6 @@ int main() {
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
 			install(root, image, storage);
 			write(root / "owner.lock", {});
-			if (scenario == 5)
-				write(root / (l::generation_name(next) + ".image"), {});
 			auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 			auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 			d::RetirementRuntime runtime(baseline, 1);
@@ -98,16 +96,14 @@ int main() {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
 				auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
-				l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+				l::detail::PagedPlanBuilder builder(*base, delta, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(
-					*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account),
-					next, domain);
+				l::detail::PagedDeltaPlanBuilder builder(*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account), domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
@@ -140,6 +136,9 @@ int main() {
 						std::to_string(plan->root().bytes));
 				options.recovery_limits.bytes = physical - 1;
 			}
+			// An orphan under the derived name, as a cut publication leaves it: unlinked and written again.
+			if (scenario == 5)
+				write(root / (l::generation_name(wanted.generation) + ".image"), {});
 			auto store = l::make_disk_store(domain, root, std::make_shared<int>(1), options);
 			drive(store);
 			check(store->status() == l::StoreStatus::Ready);
@@ -178,7 +177,7 @@ int main() {
 						check(plan->descriptor() == wanted && store->publication_ready());
 						check(store->selection().descriptor == image.descriptor());
 						check(store->stats().reserved == l::DiskUsage{});
-						check(!std::filesystem::exists(root / (l::generation_name(next) + ".image")));
+						check(!std::filesystem::exists(root / (l::generation_name(wanted.generation) + ".image")));
 						for (const auto &segment : plan->segments()) {
 							const l::detail::SegmentNames names(segment.ownership.segment);
 							check(!std::filesystem::exists(root / names.payload_name()));
@@ -201,9 +200,6 @@ int main() {
 					check(store->selection().descriptor == image.descriptor());
 				} else if (scenario == 4 && progress) {
 					check(store->publication_status() == l::DiskPublicationStatus::Fenced);
-				} else if (scenario == 5) {
-					check(store->publication_status() == l::DiskPublicationStatus::Rejected);
-					check(store->selection().descriptor == image.descriptor());
 				} else {
 					check(store->publication_status() == l::DiskPublicationStatus::Published);
 					check(store->selection().descriptor == wanted && !store->publication_ready());
@@ -223,7 +219,7 @@ int main() {
 					check(store->publication_ready());
 					check(recovered.view().get("app", "count").value() == (progress ? INT64_MIN : 1));
 					if (!progress) {
-						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), storage, next);
+						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), next);
 						while (!oracle.done()) {
 							l::ValidationBudget budget;
 							oracle.step(budget);

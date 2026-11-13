@@ -292,7 +292,6 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					const auto &input = s.added_segments[s.index];
 					encode_segment_ownership(input.ownership);
 					require(
-						input.ownership.storage == s.base->storage_identity() &&
 						input.ownership.length == input.bytes.size() &&
 						(s.index == 0 || std::memcmp(s.added_segments[s.index - 1].ownership.segment.data(),
 													 input.ownership.segment.data(), 16) < 0) &&
@@ -361,8 +360,7 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					{
 						auto proof = s.reuse->take();
 						require(proof && proof->matches(frame.reference, {s.key.data(), s.key_size},
-														s.base->descriptor(), s.base->directory_identity(),
-														s.base->storage_identity()));
+														s.base->descriptor(), s.base->directory_identity()));
 						const auto certified = proof->header();
 						require(certified.length == frame.reference.length &&
 							certified.keys == frame.reference.keys && certified.height == frame.reference.height &&
@@ -621,7 +619,6 @@ std::span<const std::int64_t, 257> WarmGraphValidator::override_histogram() cons
 bool WarmGraphValidator::record_reachability(SegmentRegistry &registry, ValidationBudget &budget) {
 	root();
 	auto &s = *impl_;
-	require(registry.storage_ == s.base->storage_identity());
 	if (registry.validated_root_) {
 		require(p::encode_root(*registry.validated_root_, s.limits) == p::encode_root(s.expected, s.limits));
 		return true;

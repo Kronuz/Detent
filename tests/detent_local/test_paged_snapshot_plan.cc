@@ -82,15 +82,10 @@ int main() {
 		const auto context = l::detail::ManagedRecovery::capture(*store);
 		l::GenerationId generation{};
 		generation.fill('a');
-		for (bool wrong_storage : {false, true}) {
+		{
 			auto directory_binding = context.directory;
-			auto storage_binding = context.storage;
-			if (wrong_storage)
-				storage_binding[0] ^= 1;
-			else
-				++directory_binding.inode;
-			l::detail::PagedSnapshotPlanBuilder wrong(input(heap, 42), {}, directory_binding, storage_binding,
-													  generation, domain.factory(), heap,
+			++directory_binding.inode;
+			l::detail::PagedSnapshotPlanBuilder wrong(input(heap, 42), {}, directory_binding, domain.factory(), heap,
 													  options.recovery_limits);
 			finish(wrong);
 			auto candidate = wrong.take();
@@ -106,8 +101,7 @@ int main() {
 				  store->stats().reserved == l::DiskUsage{});
 		}
 
-		l::detail::PagedSnapshotPlanBuilder fresh(input(heap, 42), {}, context.directory, context.storage,
-												  generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder fresh(input(heap, 42), {}, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(fresh);
 		auto plan = fresh.take();
@@ -154,7 +148,7 @@ int main() {
 			unrelated.reset();
 			bool refused = false;
 			try {
-				l::detail::PagedPlanBuilder blocked(base, source, generation,
+				l::detail::PagedPlanBuilder blocked(base, source,
 													 pressure_domain.factory(), pressure_heap);
 			} catch (const d::StoragePressure &) {
 				refused = true;
@@ -165,7 +159,7 @@ int main() {
 			bool rebuilt = false;
 			while (!rebuilt && std::chrono::steady_clock::now() < deadline) {
 				try {
-					l::detail::PagedPlanBuilder retry(base, source, generation,
+					l::detail::PagedPlanBuilder retry(base, source,
 													   pressure_domain.factory(), pressure_heap);
 					while (!retry.done()) {
 						l::ValidationBudget budget{1, 1};
@@ -182,8 +176,7 @@ int main() {
 				  store->stats().reserved == l::DiskUsage{} &&
 				  base.view().get("app", "count").value() == INT64_MIN);
 		}
-		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory,
-													  context.storage, generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory, domain.factory(), heap,
 													  options.recovery_limits);
 		finish(unchanged);
 		check(unchanged.unchanged());
@@ -191,8 +184,7 @@ int main() {
 		check(store->selection().descriptor == base.descriptor());
 		bool rejected = false;
 		try {
-			l::detail::PagedSnapshotPlanBuilder conflict(input(heap, 42, false, 26), base, context.directory,
-														 context.storage, generation, domain.factory(), heap,
+			l::detail::PagedSnapshotPlanBuilder conflict(input(heap, 42, false, 26), base, context.directory, domain.factory(), heap,
 														 options.recovery_limits);
 			finish(conflict);
 		} catch (const std::invalid_argument &) {
@@ -204,7 +196,7 @@ int main() {
 		for (const auto conflicting : {false, true}) {
 			generation.fill('r');
 			l::detail::PagedSnapshotPlanBuilder repair(input(heap, 42, false, conflicting ? 26 : 25), base,
-													   context.directory, context.storage, generation,
+													   context.directory,
 													   domain.factory(), heap, options.recovery_limits, true);
 			finish(repair);
 			check(!repair.unchanged());
@@ -213,8 +205,7 @@ int main() {
 				  plan.descriptor().cursor == base.descriptor().cursor &&
 				  plan.descriptor().generation != base.descriptor().generation && !plan.registry());
 		}
-		l::detail::PagedSnapshotPlanBuilder forward(input(heap, 43), base, context.directory, context.storage,
-													generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder forward(input(heap, 43), base, context.directory, domain.factory(), heap,
 													options.recovery_limits);
 		finish(forward);
 		auto next = forward.take();
@@ -230,8 +221,7 @@ int main() {
 		generation.fill('d');
 		rejected = false;
 		try {
-			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory,
-														  context.storage, generation, domain.factory(), heap,
+			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory, domain.factory(), heap,
 														  options.recovery_limits);
 			finish(backwards);
 		} catch (const std::invalid_argument &) {
@@ -241,8 +231,7 @@ int main() {
 		// A repair never goes back either: its target is the base's cursor or later.
 		rejected = false;
 		try {
-			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory,
-														  context.storage, generation, domain.factory(), heap,
+			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory, domain.factory(), heap,
 														  options.recovery_limits, true);
 			finish(backwards);
 		} catch (const std::invalid_argument &) {
@@ -250,8 +239,7 @@ int main() {
 		}
 		check(rejected && store->selection().descriptor == wanted);
 		generation.fill('f');
-		l::detail::PagedSnapshotPlanBuilder stale(input(heap, 44), base, context.directory, context.storage,
-												  generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder stale(input(heap, 44), base, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(stale);
 		auto stale_plan = stale.take();
@@ -265,8 +253,7 @@ int main() {
 		check(rejected && stale_plan.descriptor() == stale_descriptor &&
 			  store->selection().descriptor == wanted && store->stats().reserved == l::DiskUsage{});
 		generation.fill('c');
-		l::detail::PagedSnapshotPlanBuilder reset(input(heap, 42, true), newer, context.directory,
-												  context.storage, generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder reset(input(heap, 42, true), newer, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(reset);
 		auto reset_plan = reset.take();

@@ -138,10 +138,6 @@ DirectoryIdentity PagedNamedRoot::directory_identity() const {
 	descriptor();
 	return state_->session->directory_identity();
 }
-StorageIdentity PagedNamedRoot::storage_identity() const {
-	descriptor();
-	return state_->storage;
-}
 d::RetirementHandle<PagedDependencyCertificate> PagedNamedRoot::certificate() const {
 	descriptor();
 	return state_->cached;
@@ -413,11 +409,12 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 										  state_->ownership.image_checksum, state_->root.cursor,
 										  state_->root.profile};
 					if (state_->cached &&
-						(state_->cached->descriptor() != state_->descriptor ||
-						 state_->cached->storage_identity() != state_->storage ||
+						(!same_generation(state_->cached->descriptor(), state_->descriptor) ||
 						 state_->cached->directory_identity() != state_->session->directory_identity() ||
 						 paged::encode_root(state_->cached->root(), paged_format_limits()) != state_->bytes))
 						state_->cached.reset();
+					else if (state_->cached)
+						state_->descriptor = state_->cached->descriptor();
 				}
 				if (state_->legacy_anchor) {
 					state_->phase = Phase::VerifyLeaseHeld;

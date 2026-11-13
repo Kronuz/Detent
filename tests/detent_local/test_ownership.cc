@@ -6,23 +6,24 @@
 #include <iostream>
 #include <limits>
 #include <sha256.h>
+#include <source_location>
 #include <stdexcept>
 #include <string_view>
 
 namespace l = detent::local;
 namespace {
-void check(bool value) {
+void check(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("storage ownership invariant failed");
+		throw std::runtime_error("storage ownership invariant failed at line " + std::to_string(at.line()));
 }
-template <class Action> void rejected(Action action) {
+template <class Action> void rejected(Action action, std::source_location at = std::source_location::current()) {
 	bool failed = false;
 	try {
 		action();
 	} catch (const std::invalid_argument &) {
 		failed = true;
 	}
-	check(failed);
+	check(failed, at);
 }
 template <std::size_t N> std::array<char, N> unhex(std::string_view hex) {
 	check(hex.size() == N * 2);
@@ -88,11 +89,11 @@ int main() {
 			rejected([&] { l::encode_generation_ownership(invalid); });
 		}
 		const auto segment_bytes =
-			unhex<128>("445453474f574e3100000001000000800102030405060708090a0b0c0d0e0f10"
-					   "1112131415161718191a1b1c1d1e1f2000000000000010000000000200000000"
-					   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-					   "e1d52b12ea9819ad7cf59c397985892dabab6c74782d86284130d005f59e2d93");
-		l::SegmentOwnership segment{ownership.storage, ownership.generation, 4096, ownership.image_checksum};
+			unhex<128>("445453474f574e3200000001000000801112131415161718191a1b1c1d1e1f20"
+					   "0000000000001000000102030405060708090a0b0c0d0e0f1011121314151617"
+					   "18191a1b1c1d1e1f000000000000000000000000000000000000000000000000"
+					   "5294252892feaa63cadffc53d4dea9b30fd676250293606e218fd26c4e74c87d");
+		l::SegmentOwnership segment{ownership.generation, 4096, ownership.image_checksum};
 		check(l::decode_segment_ownership(segment_bytes) == segment &&
 			  l::encode_segment_ownership(segment) == segment_bytes);
 		rejected([&] { l::decode_generation_ownership(segment_bytes); });
@@ -104,7 +105,7 @@ int main() {
 		}
 		for (std::size_t length = 0; length < segment_bytes.size(); ++length)
 			rejected([&] { l::decode_segment_ownership(std::span(segment_bytes).first(length)); });
-		for (auto offset : {0u, 8u, 12u, 56u, 60u}) {
+		for (auto offset : {0u, 8u, 12u, 72u, 88u}) {
 			auto broken = segment_bytes;
 			broken[offset] ^= 1;
 			reseal(broken);
@@ -112,7 +113,7 @@ int main() {
 		}
 		for (auto length : {0u, 63u, 1048577u}) {
 			auto broken = segment_bytes;
-			l::write_integer(broken, 48, length, 8);
+			l::write_integer(broken, 32, length, 8);
 			reseal(broken);
 			rejected([&] { l::decode_segment_ownership(broken); });
 			segment.length = length;

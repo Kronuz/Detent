@@ -12,7 +12,7 @@ class ContextualReuse {
 	const SegmentOwnership &ownership() const;
 	SegmentFileIdentity file_identity() const;
 	bool matches(const paged::Reference &, std::string_view entering_prefix, const Descriptor &,
-				 DirectoryIdentity, StorageIdentity) const;
+				 DirectoryIdentity) const;
 
   private:
 	ContextualReuse(distribution::RetirementHandle<LeasedPagedRoot>, paged::Reference, paged::PageHeader,

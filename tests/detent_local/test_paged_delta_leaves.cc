@@ -22,7 +22,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget work;
 		builder.step(work);
@@ -38,7 +38,7 @@ int main() {
 	});
 	std::vector<l::detail::SegmentReachability> live;
 	{
-		l::detail::GraphValidator graph(source->storage_account(), image, segments, image->root(), storage);
+		l::detail::GraphValidator graph(source->storage_account(), image, segments, image->root(), {}, l::detail::paged_format_semantics);
 		while (!graph.done()) {
 			l::ValidationBudget work;
 			graph.step(work);
@@ -83,7 +83,7 @@ int main() {
 				}
 				require(emitted == (progress ? 0 : 3));
 				overlay.seal();
-				l::detail::PagedSnapshotBuilder oracle(expected(progress, transactions), storage, generation);
+				l::detail::PagedSnapshotBuilder oracle(expected(progress, transactions), generation);
 				while (!oracle.done()) {
 					l::ValidationBudget work;
 					oracle.step(work);
@@ -94,7 +94,7 @@ int main() {
 						keys == wanted.root().records + wanted.root().namespaces);
 				l::GenerationId next{};
 				next.fill('n');
-				l::detail::OverlayAssembler assembly(account, overlay, segments, live, image->root(), storage,
+				l::detail::OverlayAssembler assembly(account, overlay, segments, live, image->root(),
 													 next, update->target());
 				for (unsigned turn = 0; !assembly.done(); ++turn) {
 					require(turn < 2000000);
@@ -117,7 +117,7 @@ int main() {
 					return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 				});
 				{
-					l::detail::GraphValidator graph(account, assembled, merged, assembled->root(), storage);
+					l::detail::GraphValidator graph(account, assembled, merged, assembled->root(), {}, l::detail::paged_format_semantics);
 					for (unsigned turn = 0; !graph.done(); ++turn) {
 						require(turn < 2000000);
 						l::ValidationBudget work{1, 1};
@@ -134,7 +134,7 @@ int main() {
 						bytes += segment.bytes->size();
 					}
 					l::detail::WarmGraphValidator warm(account, recovered, assembled, added,
-													   assembled->root());
+													   assembled->root(), {}, l::detail::paged_format_semantics);
 					for (unsigned turn = 0; !warm.done(); ++turn) {
 						require(turn < 2000000);
 						l::ValidationBudget work{1, 1};
@@ -148,7 +148,7 @@ int main() {
 								warm.removed(i).bytes == overlay.removed()[i].bytes);
 					{
 						l::detail::WarmGraphValidator cancelled(account, recovered, assembled, added,
-																assembled->root());
+																assembled->root(), {}, l::detail::paged_format_semantics);
 						for (unsigned turn = 0; turn < 2500; ++turn) {
 							l::ValidationBudget work{1, 1};
 							cancelled.step(work);
@@ -166,7 +166,7 @@ int main() {
 					if (!progress) {
 						auto bad = assembled->root();
 						++bad.bytes;
-						l::detail::WarmGraphValidator invalid(account, recovered, assembled, added, bad);
+						l::detail::WarmGraphValidator invalid(account, recovered, assembled, added, bad, {}, l::detail::paged_format_semantics);
 						bool rejected = false;
 						try {
 							for (unsigned turn = 0; !invalid.done(); ++turn) {
@@ -201,7 +201,7 @@ int main() {
 					d::RetirementRuntime runtime(account, 1);
 					auto domain = runtime.domain(account, 4);
 					{
-						auto registry = domain.make<l::detail::SegmentRegistry>(account, storage, limits);
+						auto registry = domain.make<l::detail::SegmentRegistry>(account, limits);
 						const auto fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
 						require(fd >= 0);
 						registry->append(domain.make<l::detail::SegmentMapping>(account, fd, ::getuid(),
@@ -211,7 +211,7 @@ int main() {
 						auto owner =
 							std::make_shared<d::RetirementHandle<l::detail::SegmentRegistry>>(registry);
 						l::detail::WarmGraphValidator warm(account, recovered, owner, registry->inputs(),
-														   assembled->root());
+														   assembled->root(), {}, l::detail::paged_format_semantics);
 						for (unsigned turn = 0; !warm.done(); ++turn) {
 							require(turn < 2000000);
 							l::ValidationBudget work{1, 1};
@@ -360,7 +360,7 @@ int main() {
 		bytes->seal();
 		l::GenerationId next{};
 		next.fill('a');
-		l::detail::SegmentBuilder segment(account, storage, next, 0);
+		l::detail::SegmentBuilder segment(account, next, 0);
 		segment.append({bytes, summary, {}});
 		while (!segment.page_ready()) {
 			l::ValidationBudget work;
@@ -382,7 +382,7 @@ int main() {
 		bad.bytes += reference.length;
 		++bad.segments;
 		p::encode_root(bad, p::Limits{});
-		l::detail::WarmGraphValidator validator(account, recovered, segment.bytes(), added, bad);
+		l::detail::WarmGraphValidator validator(account, recovered, segment.bytes(), added, bad, {}, l::detail::paged_format_semantics);
 		bool rejected = false;
 		try {
 			for (unsigned turn = 0; !validator.done(); ++turn) {

@@ -22,8 +22,8 @@ struct TrustedOwn {
 class TrustedRestart {
   public:
 	static TrustedGeneration
-	open(int directory, uid_t owner, const Descriptor &, const paged::Root &, StorageIdentity storage,
-		 paged::Limits bounds, const ViewLimits &limits, distribution::RetirementFactory,
+	open(int directory, uid_t owner, const Descriptor &, const paged::Root &, paged::Limits bounds,
+		 const ViewLimits &limits, distribution::RetirementFactory,
 		 std::shared_ptr<distribution::StorageLedger> heap, std::shared_ptr<distribution::StorageLedger> mappings,
 		 RecoveryMetrics *, TrustedOwn = {});
 };

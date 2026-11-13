@@ -125,8 +125,7 @@ int main() {
 	l::ViewLimits limits;
 	limits.bytes = 8 * p::segment_bytes;
 	auto mappings = std::make_shared<d::StorageLedger>(8 * p::segment_bytes);
-	auto access = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
-	                                             fixture->storage, fixture->root, limits,
+	auto access = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->root, limits,
 	                                             domain.factory(), fixture->heap, mappings);
 	auto leaf_reader = [&](std::string_view prefix, std::uint64_t ordinal) {
 		std::array<char, 8> watermark{};
@@ -152,7 +151,7 @@ int main() {
 		summary.keys = summary.height = 1;
 		summary.digest = header.digest;
 		x::SealedPage page{bytes, summary, {}};
-		x::SegmentBuilder segment(fixture->heap, fixture->storage, fixture->generation, ordinal);
+		x::SegmentBuilder segment(fixture->heap, fixture->generation, ordinal);
 		segment.append(page);
 		while (!segment.page_ready()) {
 			l::ValidationBudget budget;
@@ -175,8 +174,7 @@ int main() {
 		root.bytes = reference.length;
 		root.pages = root.segments = root.namespaces = 1;
 		root.records = 0;
-		auto reader = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
-		                                             fixture->storage, root, limits,
+		auto reader = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), root, limits,
 		                                             domain.factory(), fixture->heap, mappings);
 		using Owner = d::RetirementHandle<x::LazyPageAccess>;
 		auto owner = std::make_shared<Owner>(std::move(reader));
@@ -202,8 +200,7 @@ int main() {
 	check(state.definition("b", "k")->default_value() == 1);
 	check(access->mapped_segments() == 1);
 	{
-		auto alternate = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
-		                                                fixture->storage, fixture->root, limits,
+		auto alternate = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->root, limits,
 		                                                domain.factory(), fixture->heap, mappings);
 		alternate->resolve(fixture->definitions[0]);
 		auto forged = fixture->definitions[0];

@@ -5,7 +5,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(input, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(input, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -17,7 +17,7 @@ int main() {
 	auto domain = runtime.domain(account, 32);
 	const auto initial = account->used();
 	{
-		l::detail::OwnedSegmentInputs inputs(domain.factory(), account, storage, 4, 240);
+		l::detail::OwnedSegmentInputs inputs(domain.factory(), account, 4, 240);
 		for (char label : {'c', 'b', 'a'}) {
 			l::StorageIdentity id;
 			id.fill(label);
@@ -25,7 +25,7 @@ int main() {
 			auto bytes = d::make_owned_buffer(account, value.size());
 			bytes->append(value);
 			bytes->seal();
-			inputs.begin({storage, id, value.size(), l::paged::pack_commitment(value)}, bytes);
+			inputs.begin({id, value.size(), l::paged::pack_commitment(value)}, bytes);
 			while (inputs.busy()) {
 				l::ValidationBudget budget{1, 1};
 				inputs.step(budget);
@@ -44,18 +44,18 @@ int main() {
 		id.fill('d');
 		bool refused = false;
 		try {
-			inputs.begin({storage, id, value.size(), l::paged::pack_commitment(value)}, bytes);
+			inputs.begin({id, value.size(), l::paged::pack_commitment(value)}, bytes);
 		} catch (const std::invalid_argument &) {
 			refused = true;
 		}
 		require(refused && inputs.inputs().size() == 3 && !inputs.busy());
 	}
 	{
-		l::detail::OwnedSegmentInputs inputs(domain.factory(), account, storage, image.segments().size(),
+		l::detail::OwnedSegmentInputs inputs(domain.factory(), account, image.segments().size(),
 											 l::paged::segment_bytes);
 		const auto owner = inputs.owner();
 		l::detail::PagedDependencyWalk walk(account, owner, l::detail::OwnedSegmentInputs::lookup,
-											image.root(), storage);
+											image.root());
 		for (unsigned turns = 0; !walk.done(); ++turns) {
 			require(turns < 1000000);
 			l::ValidationBudget budget{1, 1};
@@ -80,7 +80,7 @@ int main() {
 		}
 		require(inputs.inputs().size() == image.segments().size());
 		inputs.freeze();
-		l::detail::GraphValidator graph(account, owner, inputs.inputs(), image.root(), storage);
+		l::detail::GraphValidator graph(account, owner, inputs.inputs(), image.root(), {}, l::detail::paged_format_semantics);
 		while (!graph.done()) {
 			l::ValidationBudget budget{1, 1};
 			graph.step(budget);

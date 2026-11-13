@@ -208,7 +208,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 	p::reset_hash_counts();
 	start = std::chrono::steady_clock::now();
 	const auto cpu = std::clock();
-	x::PagedSnapshotBuilder builder(source, storage, generation, limits);
+	x::PagedSnapshotBuilder builder(source, generation, limits);
 	std::size_t turns = 0;
 	while (!builder.done()) {
 		l::ValidationBudget budget{65536, 256};
@@ -278,7 +278,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 			image.root().tree == last_page && image.root().segments == image.segments().size());
 	require(hashes == p::HashCounts{page_count, page_hash_bytes, image.segments().size(),
 									pack_bytes, image.segments().size() + 1,
-									72 * image.segments().size() + p::root_bytes});
+									detent::local::segment_derivation_bytes * image.segments().size() + p::root_bytes});
 	auto root_bytes = image.bytes();
 	require(p::decode_root({root_bytes->data(), root_bytes->size()}, limits).tree == last_page);
 	require(p::metadata_commitment({root_bytes->data(), root_bytes->size()}) ==

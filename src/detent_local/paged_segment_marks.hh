@@ -8,14 +8,13 @@ namespace detent::local::detail {
 // A complete surviving-root census supplies all certificates before seal.
 class PagedSegmentMarks final : public distribution::RetirementNode {
   public:
-	PagedSegmentMarks(std::shared_ptr<distribution::StorageLedger>, DirectoryIdentity, StorageIdentity,
-					  std::size_t capacity);
+	PagedSegmentMarks(std::shared_ptr<distribution::StorageLedger>, DirectoryIdentity, std::size_t capacity);
 	void begin(distribution::RetirementHandle<PagedDependencyCertificate>);
 	void begin_conservative(std::span<const LiveRow>);
 	void step(ValidationBudget &);
 	bool busy() const noexcept;
 	void seal();
-	void query(StorageIdentity);
+	void query(SegmentId);
 	std::optional<bool> query_step(ValidationBudget &);
 	std::size_t size() const noexcept { return size_; }
 
@@ -31,11 +30,11 @@ class PagedSegmentMarks final : public distribution::RetirementNode {
 	distribution::RetirementHandle<PagedDependencyCertificate> certificate_;
 	std::span<const LiveRow> conservative_;
 	bool conservative_active_ = false;
-	StorageIdentity storage_, sought_{};
+	SegmentId sought_{};
 	DirectoryIdentity directory_;
 	std::size_t capacity_, size_ = 0, row_ = 0, slot_ = 0, probes_ = 0, charge_ = 0;
 	bool positioned_ = false, sealed_ = false, failed_ = false, querying_ = false;
-	static std::size_t hash(const StorageIdentity &) noexcept;
+	static std::size_t hash(const SegmentId &) noexcept;
 	bool admit(ValidationBudget &);
 };
 } // namespace detent::local::detail

@@ -5,6 +5,7 @@
 #include "paged_disk_fixture.hh"
 #include "paged_maintenance_plan.hh"
 #include <completion/native_completion.h>
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -291,6 +292,7 @@ struct Run {
 	l::SyncCounters publication_counters{}, startup_counters{};
 	std::size_t seam_files = 0, seam_directories = 0, seam_flushes = 0;
 	std::vector<c::Kind> trace;
+	std::vector<std::string> removed; // the names a publishing step unlinked
 	std::size_t groups = 0;
 };
 // The disk's state at every event of one store incarnation.
@@ -339,6 +341,8 @@ void step(Tracker &t, bool publishing) {
 	check(!result.error);
 	if (publishing)
 		run.trace.push_back(request.kind);
+	if (publishing && request.kind == c::Kind::Remove)
+		run.removed.emplace_back(request.source);
 	switch (request.kind) {
 	case c::Kind::Create:
 	case c::Kind::CreateInto: {
@@ -439,10 +443,9 @@ bool reopens(const std::filesystem::path &root) {
 	return ready;
 }
 
-// Opens `root` (whose files `start` describes), publishes a maintenance rewrite as generation `next`,
+// Opens `root` (whose files `start` describes), publishes a maintenance rewrite under its derived name,
 // and records the history of the disk's state at every event.
-Run publish(const std::filesystem::path &root, State start, const l::StorageIdentity &storage, char next_fill,
-			std::size_t window) {
+Run publish(const std::filesystem::path &root, State start, std::size_t window) {
 	Run run;
 	State state = std::move(start);
 	Tracker tracker;
@@ -478,11 +481,9 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 			   startup_flushes = g_seam_flushes;
 	// Publish a maintenance rewrite of the selected generation.
 	auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(root, env.options.recovery_limits));
-	l::GenerationId next;
-	next.fill(next_fill);
 	std::optional<l::detail::PagedPlan> plan;
 	{
-		l::detail::PagedMaintenanceBuilder builder(*base, env.domain.factory(), env.account, storage, next,
+		l::detail::PagedMaintenanceBuilder builder(*base, env.domain.factory(), env.account,
 												   env.options.recovery_limits);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
@@ -592,7 +593,7 @@ int main(int argc, char **argv) {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -645,11 +646,65 @@ int main(int argc, char **argv) {
 		++cases;
 		beat(what + " at event " + std::to_string(index));
 	};
+	// D8.4: a republication over a cut publication's durable orphans (its generation files and segments),
+	// cut at every event in every mode and killed at every boundary, each orphan Remove among them.
+	auto orphan_cuts = [&](const Run &run) {
+		std::size_t at = 0;
+		for (std::size_t i = 0; i < run.history.size(); ++i) {
+			if (run.labels[i].starts_with("replace ") && run.labels[i].ends_with("-> selected"))
+				break;
+			if (run.boundary[i])
+				at = i;
+		}
+		const auto orphaned = after_cut(run.history[at], EntryMode::Durable, DataMode::Truncate);
+		const auto derived = l::generation_name(run.after.generation);
+		auto named = [](const std::vector<std::string> &names, std::string_view prefix) {
+			return std::any_of(names.begin(), names.end(), [&](const auto &name) { return name.starts_with(prefix); });
+		};
+		std::vector<std::string> durable;
+		for (const auto &[name, id] : orphaned.durable_entries)
+			durable.push_back(name);
+		check(named(durable, derived) && named(durable, "segment-"));
+		const auto root = directory / "orphans";
+		materialize(root, orphaned, true, EntryMode::Durable, DataMode::Truncate);
+		auto rerun = publish(root, orphaned, 2);
+		check(rerun.before == run.before && rerun.after == run.after);
+		check(named(rerun.removed, derived) && named(rerun.removed, "segment-"));
+		std::size_t removes = 0;
+		for (std::size_t j = 0; j < rerun.history.size(); ++j) {
+			const bool remove = j >= rerun.startup_events && rerun.labels[j] == "remove";
+			const bool after_remove = j > 0 && rerun.labels[j - 1] == "remove";
+			if (j % stride && !remove && !after_remove)
+				continue;
+			const auto probe = directory / "probe";
+			for (const auto &[entries, data] : modes) {
+				materialize(probe, rerun.history[j], false, entries, data);
+				verify(rerun, j, probe, "orphans " + rerun.labels[j]);
+			}
+			if (rerun.boundary[j]) {
+				materialize(probe, rerun.history[j], true, EntryMode::All, DataMode::Zeros);
+				verify(rerun, j, probe, "orphans kill");
+			}
+			removes += remove;
+		}
+		check(removes == rerun.removed.size());
+		std::filesystem::remove_all(root);
+		return removes;
+	};
+	// T7_GROUP=orphans runs only the orphan sweep.
+	if (const char *group = std::getenv("T7_GROUP"); group && std::string_view(group) == "orphans") {
+		const auto root = directory / "run-2";
+		materialize(root, start, true, EntryMode::Durable, DataMode::Truncate);
+		const auto removes = orphan_cuts(publish(root, start, 2));
+		std::cout << cases << " orphan republication cases passed, cutting at all " << removes
+				  << " orphan Removes\n";
+		return 0;
+	}
 	for (const std::size_t window : {std::size_t(1), std::size_t(2), std::size_t(128)}) {
 		const auto root = directory / ("run-" + std::to_string(window));
 		std::filesystem::remove_all(root);
 		materialize(root, start, true, EntryMode::Durable, DataMode::Truncate);
-		auto run = publish(root, start, storage, 'n', window);
+		auto run = publish(root, start, window);
 		progress("window " + std::to_string(window) + " published");
 		requests += run.trace.size();
 		// Group syncs: owners and lease, then the payloads in windows of `window`, never a per-file sync.
@@ -700,7 +755,10 @@ int main(int argc, char **argv) {
 		// Restart-then-republish cycles: cut or kill at a boundary, restart, publish again, cut again.
 		if (window != 2)
 			continue;
-		unsigned cycle = 0;
+		const auto removes = orphan_cuts(run);
+		std::cout << "orphan republication: cut at all " << removes << " orphan Removes\n";
+		progress("window 2 orphan sweep");
+		unsigned cycle = 0, orphaned = 0;
 		for (std::size_t i = 0; i < run.history.size(); ++i) {
 			// Every fifth boundary, and always the one completing a Replace (rename visible, not yet durable).
 			const bool replaced = i > 0 && run.labels[i - 1].starts_with("replace ");
@@ -714,8 +772,16 @@ int main(int argc, char **argv) {
 										std::to_string(variant);
 				const auto again = directory / ("cycle-" + std::to_string(cycle++));
 				materialize(again, second, true, EntryMode::Durable, DataMode::Truncate);
-				auto rerun = publish(again, second, storage, 'o', 2);
+				// A republish over an unchanged head derives the cut publication's name: the orphans it left
+				// are unlinked before the files are written again (D8.4).
+				auto rerun = publish(again, second, 2);
 				beat(tag + " published");
+				const auto derived = l::generation_name(run.after.generation);
+				if (std::any_of(rerun.removed.begin(), rerun.removed.end(),
+								[&](const std::string &name) { return name.starts_with(derived); })) {
+					check(rerun.after == run.after);
+					++orphaned;
+				}
 				for (std::size_t j = 0; j < rerun.history.size(); j += 3) {
 					const auto probe = directory / "probe";
 					for (const auto &[entries, data] : {modes[0], modes[3]}) {
@@ -727,6 +793,9 @@ int main(int argc, char **argv) {
 			}
 			progress("cycles from event " + std::to_string(i));
 		}
+		// Some cuts leave orphans under the derived name, and their republication unlinks them.
+		check(orphaned > 0);
+		std::cout << orphaned << " of " << cycle << " republish cycles unlinked orphans\n";
 		progress("window 2 cycles");
 	}
 	const auto creation = creation_cuts(directory / "creation");

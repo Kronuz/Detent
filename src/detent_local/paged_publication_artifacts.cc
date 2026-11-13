@@ -29,7 +29,7 @@ void PagedPublicationArtifacts::append(std::string_view name, std::span<const ch
 	artifacts_.push_back(std::move(row));
 	usage_ = artifacts_.back().prefix;
 }
-void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
+void PagedPublicationArtifacts::populate(const PagedPlan &plan, const StorageIdentity &lease_storage) {
 	if (populated_ || failed_ || !artifacts_.empty())
 		throw std::logic_error("paged artifacts already populated or failed");
 	try {
@@ -56,8 +56,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		for (std::size_t i = 0; i < segments.size(); ++i) {
 			const auto &segment = segments[i];
 			if (!plan.new_reachability(i).pages || segment.bytes->account() != plan.bytes()->account() ||
-				segment.bytes->size() != segment.ownership.length ||
-				segment.ownership.storage != plan.storage_identity())
+				segment.bytes->size() != segment.ownership.length)
 				throw std::invalid_argument("invalid new paged publication dependency");
 			const SegmentNames names(segment.ownership.segment);
 			if (segment.ownership.length > UINT64_MAX - physical_bytes_)
@@ -71,7 +70,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			throw std::invalid_argument("paged publication dependency count mismatch");
 		const auto descriptor = plan.descriptor();
 		append(GenerationName(descriptor.generation, GenerationFile::Lease).view(),
-			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
+			   encode_generation_ownership({lease_storage, descriptor.generation, descriptor.length,
 											descriptor.checksum, paged::format_version}),
 			   {}, true);
 		// Owners and the lease form the first sync group; everything below waits for its barrier.
@@ -79,7 +78,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		for (const auto &segment : segments)
 			append(SegmentNames(segment.ownership.segment).payload_name(), {}, segment.bytes);
 		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
-		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
+		const auto metadata = encode_reader_metadata({descriptor.generation,
 		                                              descriptor.checksum, plan.counts(), physical_bytes_});
 		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
 		metadata_buffer->append({metadata.data(), metadata.size()});
@@ -103,7 +102,6 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		descriptor_ = descriptor;
 		base_descriptor_ = plan.selected_base();
 		directory_ = plan.directory_identity();
-		storage_ = plan.storage_identity();
 		populated_ = true;
 	} catch (...) {
 		failed_ = true;
@@ -112,8 +110,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 }
 void PagedPublicationArtifacts::attach(PagedPlan &&plan) {
 	if (!populated_ || plan_ || plan.descriptor() != descriptor_ ||
-		plan.selected_base() != base_descriptor_ || plan.directory_identity() != directory_ ||
-		plan.storage_identity() != storage_)
+		plan.selected_base() != base_descriptor_ || plan.directory_identity() != directory_)
 		throw std::invalid_argument("paged artifact plan binding mismatch");
 	plan_.emplace(std::move(plan));
 }
@@ -153,7 +150,7 @@ void PagedPublicationArtifacts::attach_recovery(d::RetirementHandle<MappedRecove
 	artifacts();
 	if (!admission || recovery_ || plan_)
 		throw std::logic_error("paged recovery admission attachment unavailable");
-	admission->bind(descriptor_, directory_, storage_);
+	admission->bind(descriptor_, directory_);
 	recovery_ = std::move(admission);
 }
 d::RetirementHandle<MappedRecoveryAdmission> PagedPublicationArtifacts::recovery_admission() const {

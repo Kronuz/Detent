@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 		generation.fill('a');
 		auto start = Clock::now();
 		auto cpu = std::clock();
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		l::detail::PagedSnapshotBuilder builder(source, generation);
 		while (!builder.done()) {
 			l::ValidationBudget b;
 			builder.step(b);
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
 		d::RetirementRuntime runtime{controls, 1};
 		auto domain = runtime.domain(controls, 16);
 		cpu = std::clock();
-		l::detail::GraphValidator validator(account, lease, lease->segments, root, storage);
+		l::detail::GraphValidator validator(account, lease, lease->segments, root, {}, l::detail::paged_format_semantics);
 		while (!validator.done()) {
 			l::ValidationBudget b;
 			validator.step(b);

@@ -5,15 +5,15 @@ namespace detent::local::detail {
 // Enumerates checked references; GraphValidator still certifies full semantics.
 class PagedDependencyWalk {
   public:
-	using Lookup = std::optional<SegmentInput> (*)(const void *, const StorageIdentity &);
+	using Lookup = std::optional<SegmentInput> (*)(const void *, const SegmentId &);
 	using Frontier = bool (*)(const void *, const paged::Reference &);
 	PagedDependencyWalk(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> source,
-						Lookup, paged::Root, StorageIdentity storage, paged::Limits = {}, Frontier = nullptr);
+						Lookup, paged::Root, paged::Limits = {}, Frontier = nullptr);
 	~PagedDependencyWalk();
 	PagedDependencyWalk(PagedDependencyWalk &&) noexcept;
 	PagedDependencyWalk(const PagedDependencyWalk &) = delete;
 	void step(ValidationBudget &);
-	std::optional<StorageIdentity> missing() const;
+	std::optional<SegmentId> missing() const;
 	bool done() const noexcept;
 	bool discard(ValidationBudget &);
 

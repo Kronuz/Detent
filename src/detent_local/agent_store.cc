@@ -165,38 +165,6 @@ StoreTable decode_table(std::span<const char> in) {
 	return table;
 }
 
-GenerationId derive_generation(const distribution::Profile &profile, const distribution::Identity &incarnation,
-							   std::uint64_t position, const GenerationId &base, std::uint32_t ordinal) {
-	constexpr std::string_view domain = "detent.agent-store.generation";
-	std::string input(domain);
-	input.resize(domain.size() + 4 + 4 + 8 + incarnation.size() + 8 + base.size() + 4);
-	std::size_t at = domain.size();
-	put(input, at, agent_store_layout, 4);
-	put(input, at, profile.semantic_id, 4);
-	put(input, at, profile.required_capabilities, 8);
-	put(input, at, incarnation);
-	put(input, at, position, 8);
-	put(input, at, base);
-	put(input, at, ordinal, 4);
-	const auto sum = digest(input);
-	GenerationId id{};
-	std::copy_n(sum.begin(), id.size(), id.begin());
-	return id;
-}
-
-StorageIdentity derive_segment(const GenerationId &generation, std::uint64_t ordinal) {
-	constexpr std::string_view domain = "detent.agent-store.segment";
-	std::string input(domain);
-	input.resize(domain.size() + generation.size() + 8);
-	std::size_t at = domain.size();
-	put(input, at, generation);
-	put(input, at, ordinal, 8);
-	const auto sum = digest(input);
-	StorageIdentity id{};
-	std::copy_n(sum.begin(), id.size(), id.begin());
-	return id;
-}
-
 struct AgentStore::Impl {
 	std::shared_ptr<c::PosixIO> io;
 	Options options;
@@ -204,7 +172,7 @@ struct AgentStore::Impl {
 	std::optional<detail::ChangeWriter> change;
 	StoreTable table;
 	std::vector<std::string> failed;
-	std::map<std::string, std::vector<StorageIdentity>, std::less<>> segments; // what each entry's `.live` names
+	std::map<std::string, std::vector<SegmentId>, std::less<>> segments; // what each entry's `.live` names
 	std::set<std::string, std::less<>> reached;
 	std::mt19937_64 random{std::random_device{}()};
 	bool poisoned = false;
@@ -242,7 +210,7 @@ struct AgentStore::Impl {
 	// Whether an entry's `.image`, `.read` and `.live` verify against it and its packs and owner records
 	// exist. `reach` gets the segments its `.live` names whenever that record decodes for the entry, so a
 	// failed namespace's files stay protected from the orphan rule.
-	bool verify(const TableEntry &entry, std::vector<StorageIdentity> &reach) {
+	bool verify(const TableEntry &entry, std::vector<SegmentId> &reach) {
 		const auto image = slurp(image_name(entry.generation), entry.root_length);
 		const auto read = slurp(read_name(entry.generation), 1u << 16);
 		const auto live = slurp(live_name(entry.generation), detail::live_record_size(options.maximum_segments));
@@ -349,7 +317,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 	};
 	struct Built {
 		TableEntry entry;
-		std::vector<StorageIdentity> segments;
+		std::vector<SegmentId> segments;
 	};
 	// Validation: nothing is written for a cycle whose files disagree with their derived names.
 	std::vector<Staged> files;
@@ -371,7 +339,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		if (record.generation != b.entry.generation || record.root_checksum != b.entry.root ||
 			record.read_digest != b.entry.read)
 			throw std::invalid_argument("agent store publication: .live does not bind its generation");
-		std::map<StorageIdentity, const PreparedGeneration::Segment *> fresh;
+		std::map<SegmentId, const PreparedGeneration::Segment *> fresh;
 		for (const auto &segment : generation.segments)
 			if (!fresh.emplace(segment.id, &segment).second)
 				throw std::invalid_argument("agent store publication: duplicate segment");

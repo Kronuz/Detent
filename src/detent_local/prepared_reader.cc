@@ -64,7 +64,7 @@ ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	const auto physical = base.registry()->physical_bytes();
 	if (physical > UINT64_MAX - paged::root_bytes)
 		throw std::overflow_error("prepared generation physical bytes overflow");
-	return {base.storage_identity(), generation.descriptor().generation, generation.descriptor().checksum,
+	return {generation.descriptor().generation, generation.descriptor().checksum,
 	        base.counts(), physical + paged::root_bytes};
 }
 bool PreparedReader::metadata_ready(const std::filesystem::path &path,
@@ -152,7 +152,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		const GenerationName metadata_name(descriptor.generation, GenerationFile::ReaderMetadata);
 		const auto metadata = decode_reader_metadata(
 		    record<reader_metadata_bytes>(files->directory.fd, metadata_name.view(), publisher));
-		require(metadata.storage == storage && metadata.generation == descriptor.generation &&
+		require(metadata.generation == descriptor.generation &&
 		        metadata.root_checksum == descriptor.checksum &&
 		        metadata.counts.records == root.records &&
 		        metadata.physical_bytes >= paged::root_bytes &&
@@ -171,7 +171,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		auto mappings = resources::mapping_account(limits);
 		using Files = d::RetirementHandle<PreparedFiles>;
 		auto files_owner = std::allocate_shared<Files>(d::StorageAllocator<Files>(heap), files);
-		auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher, storage, root,
+		auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher, root,
 		                                           limits, factory, heap, mappings);
 		using Access = d::RetirementHandle<LazyPageAccess>;
 		auto access_owner =

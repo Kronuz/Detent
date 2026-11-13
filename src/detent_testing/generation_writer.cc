@@ -13,10 +13,8 @@
 #include <completion/native_completion.h>
 #include <algorithm>
 #include <array>
-#include <fstream>
 #include <map>
 #include <optional>
-#include <random>
 #include <sys/stat.h>
 #include <vector>
 
@@ -102,9 +100,7 @@ struct GenerationWriter::Impl {
 	d::RetirementDomain domain = runtime.domain(heap, 256);
 	l::DiskStoreOptions options;
 	std::shared_ptr<l::DiskStore> disk;
-	l::StorageIdentity identity{};
 	d::Cursor cursor;
-	std::mt19937_64 random{std::random_device{}()};
 
 	explicit Impl(std::filesystem::path path) : store(std::move(path)) {
 		std::filesystem::create_directories(store);
@@ -122,10 +118,6 @@ struct GenerationWriter::Impl {
 		drive();
 		if (disk->status() != l::StoreStatus::Ready)
 			throw std::runtime_error("test store did not open: " + store.string());
-		std::array<char, l::storage_identity_bytes> bytes{};
-		std::ifstream in(store / "storage.meta", std::ios::binary);
-		in.read(bytes.data(), bytes.size());
-		identity = l::decode_storage_identity(bytes);
 		if (auto selected = disk->selection().descriptor)
 			cursor.revision = selected->cursor.revision;
 	}
@@ -175,11 +167,8 @@ struct GenerationWriter::Impl {
 		std::optional<l::RecoveredGeneration> actual;
 		if (disk->selection().descriptor)
 			actual.emplace(l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk)));
-		l::GenerationId generation{};
-		for (auto &byte : generation)
-			byte = static_cast<char>(random());
-		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), identity,
-		                                            generation, domain.factory(), heap, options.recovery_limits, repair);
+		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), domain.factory(),
+		                                            heap, options.recovery_limits, repair);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -269,11 +258,8 @@ struct GenerationWriter::Impl {
 		}
 		auto source = std::make_shared<const d::ValidatedDelta>(decoder.finish());
 		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
-		l::GenerationId generation{};
-		for (auto &byte : generation)
-			byte = static_cast<char>(random());
 		const auto bounds = l::detail::paged_limits(options.recovery_limits, l::paged::root_bytes);
-		l::detail::PagedDeltaPlanBuilder builder(actual, source, generation, domain.factory(), heap, bounds);
+		l::detail::PagedDeltaPlanBuilder builder(actual, source, domain.factory(), heap, bounds);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -285,7 +271,7 @@ struct GenerationWriter::Impl {
 	void compact(std::size_t packs) {
 		const auto context = l::detail::ManagedRecovery::capture(*disk);
 		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
-		std::array<l::StorageIdentity, 8> selected{};
+		std::array<l::SegmentId, 8> selected{};
 		std::size_t count = 0;
 		const auto prior = context.paged.prior;
 		if (!prior)
@@ -294,12 +280,9 @@ struct GenerationWriter::Impl {
 		for (std::size_t i = 0; i < inputs.size() && count < std::min(packs, selected.size()); ++i)
 			if (prior->registry()->reachability(i).pages)
 				selected[count++] = inputs[i].ownership.segment;
-		l::GenerationId generation{};
-		for (auto &byte : generation)
-			byte = static_cast<char>(random());
 		const auto bounds = l::detail::paged_limits(options.recovery_limits, l::paged::root_bytes);
-		l::detail::PagedCompactionBuilder builder(actual, {selected.data(), count}, generation, domain.factory(),
-		                                          heap, l::detail::CompactionLimits{}, bounds);
+		l::detail::PagedCompactionBuilder builder(actual, {selected.data(), count}, domain.factory(), heap,
+		                                          l::detail::CompactionLimits{}, bounds);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
