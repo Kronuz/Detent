@@ -9,19 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fixing test compilation after the signature changes (builders derive their own names; no
-StorageIdentity in segment ids, `.owner`, `.read`; PagedSemanticLimits has no defaults). Build:
-`.scratch/build` (configured with -DDETENT_BUILD_BENCHMARKS=ON); errors in `.scratch/errors.txt`.
-Mechanical rewrites live in `.scratch/dropargs.py` and `.scratch/validators.py`.
+Evidence jobs queued at 88987d54 (main merged): verify native 261112-210758-40d6a2, pins
+261112-210758-04a7c0; A1/A4 grep 261112-210808-4881bd; A3 crash model 261112-210812-89eb23; A2
+test 261112-210816-a5eb16; A2 mutant 261112-210819-bb52c5. Local full suite before the merge:
+283/283 passed (`.scratch/build`).
 
 ## Next
 
-1. Finish test compilation, then fix runtime failures: tests publishing through DiskStore must use
-   derived names (`l::next_generation`), descriptor/reader-metadata byte offsets moved.
-2. test_publication_power_cut.cc: republish cycles reuse the derived name and exercise orphan
-   unlinking (A3).
-3. A2 test (rebuild at an unchanged head takes r + 1, never a reused name) and its mutant.
-4. docs/status/namespace-s7.md; journal Result; jobs: verify, grep A1/A4, crash model A3, A2.
+1. When the jobs finish, paste `campaign brief`'s Evidence table below and set State to ready for
+   review (or fix what failed and rerun only that job).
 
 ## Blocked on
 
@@ -43,7 +39,24 @@ checked what), and answer each message by its id (msg-N).
 
 ## Result
 
-<When ready for review.>
+Generation, segment, `.read` and `.owner` names are derived as D8.1 says, in one place
+(`include/detent_local/derived_ids.hh`, `src/detent_local/derived_ids.cc`); no StorageIdentity
+enters a segment id, `.owner` (DTSGOWN2) or `.read` (DTREAD02). `.lease` and storage.meta keep it.
+
+1. Every builder derives its own name with `next_generation`; DiskStore rejects a publication whose
+   name and ordinal are not that derivation over the selected generation.
+2. A rebuild at an unchanged head takes ordinal r + 1 (descriptor bytes 164..168), so a name is
+   never reused: `tests/detent_local/test_derived_names.cc`, mutant
+   `tests/detent_local/mutants/s7-a2-ordinal-reused.patch`.
+3. Preflight unlinks an orphan at a derived name and writes it again (D8.4); the crash model
+   (`test_publication_power_cut.cc`) cuts power at every primitive including that Remove and checks
+   recovery to the last acknowledged generation or the one before, and that orphans were relinked.
+4. PagedSemanticLimits has no default bounds (static_assert in test_derived_names); callers pass
+   the store's recovery limits or `paged_format_semantics`. Static checks:
+   `tests/detent_local/derived_names_grep.sh`.
+5. Docs: `docs/status/namespace-s7.md`, "Derived names in the managed store".
+
+Out of the file set (msg-41), in their own commits: 0f110c25 and the s4-a1 delta mutant commit.
 
 ## Rulings I made
 
@@ -66,3 +79,8 @@ checked what), and answer each message by its id (msg-N).
    Replace's directory sync orders it before the new selection is durable.
 7. `paged_format_semantics` (graph validator header) is the format's bound, the one fallback
    callers name explicitly; the store's bound comes from its recovery limits.
+8. The segment builder counts the whole derivation input as one metadata hash
+   (`segment_derivation_bytes` = 26 + 16 + 8); test_dense_fullbuild expects that count.
+9. Pre-existing, not this quest's: 9 mutant patches no longer apply on main either
+   (cor1-unguarded-parent, s3b-k1, s3b-k2, s3b-k4 x4, s3b-m6, s4-a3); checked with `git apply
+   --check` against a main checkout at the quest's base.
