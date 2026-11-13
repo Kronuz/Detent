@@ -101,7 +101,6 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	std::vector<char> bytes(std::size_t(info.st_size));
 	read_record(table_file.fd, bytes);
 	DETENT_COUNT(record_opens, 1);
-	DETENT_COUNT(table_bytes, bytes.size());
 	DETENT_COUNT(bytes_hashed, bytes.size() - 32);
 	StoreTable table;
 	try {
@@ -124,7 +123,6 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	const auto length = std::min<std::uint64_t>(entry.root_length, prefix.size());
 	read_record(image.fd, std::span(prefix).first(length));
 	DETENT_COUNT(record_opens, 1);
-	DETENT_COUNT(table_bytes, length);
 	Selected selected;
 	auto &descriptor = selected.descriptor;
 	if (std::string_view(prefix.data(), 8) == "DTROOT03") {
