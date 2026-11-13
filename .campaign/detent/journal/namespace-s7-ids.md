@@ -60,6 +60,10 @@ contention at main 8d07ecad; if it fails, the flake is main's (the lead's).
 
 ## Blocked on
 
+F4's docs (`docs/HOW_IT_WORKS.md`, `docs/mechanisms/trusted-restart.md`) sit outside the file set;
+`campaign brief` flags them. Recommendation: widen the file set to those two lines' files (the
+lead asked for F4), or drop a6091291's two doc hunks.
+
 msg-41 to the lead: the file set lacks tests/detent_delivery/test_repair.cc,
 test_bundle_maintenance.cc, test_coordinator.cc, test_bootstrap_retention.cc,
 benchmarks/paged_recovery_bench.cc, paged_collection_bench.cc, local_image_bench.cc and the
@@ -74,10 +78,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <native 261112-235321-9e6f06 queued>, pins 261112-235321-c15cca; grep 261112-210808-4881bd |
+| A1 | <native 261112-235321-9e6f06 queued>, pins 261112-235321-c15cca; <grep 261112-235647-3a2d0a queued> |
 | A2 | <261112-235323-bfa303 queued>; mutants 261112-210819-bb52c5 (ordinal reused), <261112-235326-77c70c queued> (F1) |
 | A3 | <261112-235323-bfa303 queued>; mutant <261112-235330-8a834b queued> (F2) |
-| A4 | 261112-210808-4881bd |
+| A4 | <261112-235647-3a2d0a queued> (rerun of 261112-210808-4881bd at the fixed head) |
 
 Superseded: 261112-210812-89eb23 and 261112-210816-a5eb16 (built without configuring), replaced
 by 261112-235323-bfa303.
