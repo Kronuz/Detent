@@ -5503,10 +5503,40 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T06:46:25",
+          "commit": "7cd659c4dde6e340999ef6fac1f9c83f4796a7cc",
+          "criteria": {
+            "A1": "261113-052355-f37215, 261113-052356-6966f1, 261113-052400-cfef61; fails without: 261113-032601-1a5622, 261113-052403-7aca58, 261113-052406-041cb0",
+            "A2": "261113-052355-f37215, 261113-052356-6966f1, 261113-052400-cfef61; fails without: 261113-013251-a8f47b, 261113-032601-1a5622, 261113-052406-041cb0",
+            "A3": "261113-052355-f37215, 261113-052356-6966f1, 261113-052400-cfef61; fails without: 261113-013251-a8f47b, 261113-032601-1a5622, 261113-052403-7aca58, 261113-052406-041cb0",
+            "A4": "261113-052355-f37215, 261113-052356-6966f1, 261113-052400-cfef61; fails without: 261113-013251-a8f47b, 261113-032601-1a5622, 261113-052406-041cb0",
+            "A5": "261113-062458-eafcb4; fails without: 261113-013300-94782d, 261113-033814-67ea69, 261113-052410-390ee0"
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b7f621e3714546c420a77824af9dbab3badaffc8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-052355-f37215",
+              "level": "none",
+              "seconds": 5.2,
+              "state": "done",
+              "what": "namespace-s5-3 check pins at b7f621e37145"
+            }
+          ],
+          "final": true,
+          "from": "bcd688a5b67cad4b546ce238aca79f4d6cdd9429",
+          "reason": "",
+          "tested": "4e5c4830ef10a9d0c10e3fa84255a71402ad5038"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "namespace-s5-2"
@@ -5514,10 +5544,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-13T06:20:34",
-      "worktree": "../Detent-wt/detent/namespace-s5-3"
+      "updated": "2026-11-13T06:46:47",
+      "worktree": ""
     },
     "namespace-s6": {
       "accepted": {
