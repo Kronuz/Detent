@@ -2,9 +2,9 @@
 int main() {
 	try {
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		detent::local::GenerationId generation;
-		generation.fill('a');
-		detent::local::ImageBuilder builder(snapshot, generation);
+		detent::local::GenerationId generation{};
+		generation.fill(1);
+		detent::local::ImageBuilder builder(snapshot);
 		std::size_t turns = 0;
 		require(!builder.done());
 		bool rejected = false;
@@ -38,7 +38,7 @@ int main() {
 		limits.bytes = 192;
 		rejected = false;
 		try {
-			detent::local::ImageBuilder too_large(snapshot, generation, limits);
+			detent::local::ImageBuilder too_large(snapshot, limits);
 			while (!too_large.done()) {
 				detent::local::ValidationBudget b;
 				too_large.step(b);
@@ -72,7 +72,7 @@ int main() {
 		const auto before = account->used();
 		rejected = false;
 		try {
-			detent::local::ImageBuilder pressure(charged, generation);
+			detent::local::ImageBuilder pressure(charged);
 			while (!pressure.done()) {
 				detent::local::ValidationBudget budget;
 				pressure.step(budget);
@@ -83,7 +83,7 @@ int main() {
 		require(rejected && account->used() == before);
 		occupied.reset();
 		{
-			detent::local::ImageBuilder retry(charged, generation);
+			detent::local::ImageBuilder retry(charged);
 			while (!retry.done()) {
 				detent::local::ValidationBudget budget;
 				retry.step(budget);

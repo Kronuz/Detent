@@ -3,11 +3,6 @@
 namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
-namespace {
-// The format's bounds: string bytes are unbounded and a definition holds at most 256 overrides.
-// Publication admission enforces the store's own limits (disk_store.cc).
-constexpr PagedSemanticLimits format_semantics{std::numeric_limits<std::uint64_t>::max(), 256};
-} // namespace
 SparsePlanFinalizer::SparsePlanFinalizer(d::RetirementHandle<PagedPlanState> state,
 										 std::shared_ptr<d::StorageLedger> heap, p::Limits bounds,
 										 std::uint64_t maximum, std::optional<p::Digest> expected)
@@ -53,8 +48,7 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					break;
 				}
 				assembly.emplace(account, *overlay, plan->registry_->inputs(), old_live,
-								 plan->base_->root(), plan->base_->storage_identity(),
-								 plan->descriptor_.generation, plan->descriptor_.cursor, limits,
+								 plan->base_->root(), DerivedGeneration{plan->descriptor_.generation, plan->descriptor_.ordinal}, plan->descriptor_.cursor, limits,
 								 maximum_output_bytes);
 				position = 0;
 				phase = Phase::Assemble;
@@ -118,7 +112,7 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					artifact_owner =
 						std::allocate_shared<State>(d::StorageAllocator<State>(account), plan);
 					validator.emplace(account, plan->base_, artifact_owner, added,
-									  plan->image_->root(), limits, format_semantics, true);
+									  plan->image_->root(), limits, paged_format_semantics, true);
 				}
 				phase = Phase::Validate;
 				break;

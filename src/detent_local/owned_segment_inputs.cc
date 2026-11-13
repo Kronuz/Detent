@@ -10,23 +10,21 @@ struct OwnedSegmentInputs::State final : d::RetirementNode {
 				d::StorageAllocator<std::shared_ptr<const d::OwnedBuffer>>>
 		buffers;
 	std::shared_ptr<d::StorageLedger> account;
-	StorageIdentity storage;
 	std::size_t capacity, position = 0, moving = 0, charge = 0;
 	std::uint64_t maximum, physical = 0;
 	SegmentInput pending;
 	std::shared_ptr<const d::OwnedBuffer> buffer;
 	bool busy = false, frozen = false;
-	State(std::shared_ptr<d::StorageLedger> account, StorageIdentity storage, std::size_t capacity,
-		  std::uint64_t maximum)
+	State(std::shared_ptr<d::StorageLedger> account, std::size_t capacity, std::uint64_t maximum)
 		: inputs(d::StorageAllocator<SegmentInput>(account)),
 		  buffers(d::StorageAllocator<std::shared_ptr<const d::OwnedBuffer>>(account)),
-		  account(std::move(account)), storage(storage), capacity(capacity), maximum(maximum) {
+		  account(std::move(account)), capacity(capacity), maximum(maximum) {
 		if (capacity > inputs.max_size() || capacity > buffers.max_size())
 			throw std::length_error("owned segment input capacity exceeded");
 		inputs.reserve(capacity);
 		buffers.reserve(capacity);
 	}
-	auto find(const StorageIdentity &id) const {
+	auto find(const SegmentId &id) const {
 		return std::lower_bound(inputs.begin(), inputs.end(), id, [](const auto &row, const auto &key) {
 			return std::memcmp(row.ownership.segment.data(), key.data(), key.size()) < 0;
 		});
@@ -41,9 +39,9 @@ struct OwnedSegmentInputs::State final : d::RetirementNode {
 	}
 };
 OwnedSegmentInputs::OwnedSegmentInputs(d::RetirementFactory factory,
-									   std::shared_ptr<d::StorageLedger> account, StorageIdentity storage,
+									   std::shared_ptr<d::StorageLedger> account,
 									   std::size_t segments, std::uint64_t bytes) {
-	state_ = factory.make<State>(account, storage, segments, bytes);
+	state_ = factory.make<State>(account, segments, bytes);
 	using Handle = d::RetirementHandle<State>;
 	pin_ = std::allocate_shared<Handle>(d::StorageAllocator<Handle>(account), state_);
 }
@@ -60,7 +58,7 @@ void OwnedSegmentInputs::begin(SegmentOwnership ownership, std::shared_ptr<const
 		throw std::logic_error("owned segment insertion unavailable");
 	auto &s = *state_;
 	encode_segment_ownership(ownership);
-	if (!buffer || !buffer->sealed() || buffer->account() != s.account || ownership.storage != s.storage ||
+	if (!buffer || !buffer->sealed() || buffer->account() != s.account ||
 		!ownership.length || ownership.length != buffer->size() || ownership.length > paged::segment_bytes ||
 		ownership.length > s.maximum - s.physical || s.inputs.size() == s.capacity)
 		throw std::invalid_argument("invalid owned segment input");
@@ -109,7 +107,7 @@ std::shared_ptr<const void> OwnedSegmentInputs::owner() const {
 	inputs();
 	return std::shared_ptr<const void>(pin_, state_.get());
 }
-std::optional<SegmentInput> OwnedSegmentInputs::lookup(const void *owner, const StorageIdentity &id) {
+std::optional<SegmentInput> OwnedSegmentInputs::lookup(const void *owner, const SegmentId &id) {
 	const auto &s = *static_cast<const State *>(owner);
 	if (s.busy)
 		throw std::logic_error("owned segment inputs incomplete");

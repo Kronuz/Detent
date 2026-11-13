@@ -45,26 +45,27 @@ void run(bool paged_base) {
 		l::StorageIdentity storage{};
 		storage.fill('s');
 		if (paged_base) {
-			l::detail::PagedSnapshotBuilder builder(source, storage, original);
+			l::detail::PagedSnapshotBuilder builder(source, original);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
 			install(directory, builder.take(), storage);
 		} else {
-			l::ImageBuilder builder(source, original);
+			l::ImageBuilder builder(source);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
 			std::filesystem::create_directories(directory);
 			check(::chmod(directory.c_str(), 0700) == 0);
-			const auto name = l::generation_name(original);
+			const auto flat = builder.descriptor().generation;
+			const auto name = l::generation_name(flat);
 			write(directory / (name + ".image"), *builder.bytes());
 			write(directory / "storage.meta", l::encode_storage_identity(storage));
 			write(directory / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, original, builder.descriptor().length, builder.descriptor().checksum, 1}));
+					  {storage, flat, builder.descriptor().length, builder.descriptor().checksum, 1}));
 			write(directory / (name + ".descriptor"), l::encode_descriptor(builder.descriptor()));
 			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
 		}
@@ -80,7 +81,6 @@ void run(bool paged_base) {
 			std::rethrow_exception(store->error());
 		check(store->status() == l::StoreStatus::Ready);
 		l::detail::PagedMaintenanceBuilder builder(base, domain.factory(), heap,
-												   l::detail::ManagedRecovery::capture(*store).storage, next,
 												   options.recovery_limits);
 		unsigned turns = 0;
 		while (!builder.done()) {
@@ -107,9 +107,7 @@ void run(bool paged_base) {
 		}
 		l::GenerationId stale_id{};
 		stale_id.fill('q');
-		l::detail::PagedMaintenanceBuilder stale_builder(base, domain.factory(), heap,
-														 l::detail::ManagedRecovery::capture(*store).storage,
-														 stale_id, options.recovery_limits);
+		l::detail::PagedMaintenanceBuilder stale_builder(base, domain.factory(), heap, options.recovery_limits);
 		while (!stale_builder.done()) {
 			l::ValidationBudget budget;
 			stale_builder.step(budget);

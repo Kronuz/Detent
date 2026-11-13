@@ -35,7 +35,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget b;
 		snapshot.step(b);
@@ -55,17 +55,17 @@ int main() {
 		const auto page = std::size_t(::sysconf(_SC_PAGESIZE));
 		{
 			auto delta = progress(base->descriptor().cursor, heap);
-			l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+			l::detail::PagedPlanBuilder builder(*base, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
 			}
 			auto plan = builder.take();
 			const auto descriptor = plan.descriptor();
-			const auto name = l::generation_name(next);
+			const auto name = l::generation_name(descriptor.generation);
 			write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership({storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
+				  l::encode_generation_ownership({storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 			write(directory / "selected", l::encode_descriptor(descriptor));
 		}
 		std::optional<l::RecoveredGeneration> current;
@@ -108,7 +108,7 @@ int main() {
 			auto delta = progress(current->descriptor().cursor, heap);
 			l::GenerationId later;
 			later.fill('p');
-			l::detail::PagedPlanBuilder builder(*current, delta, later, domain);
+			l::detail::PagedPlanBuilder builder(*current, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
@@ -116,11 +116,11 @@ int main() {
 			{
 				auto plan = builder.take();
 				const auto descriptor = plan.descriptor();
-				const auto name = l::generation_name(later);
+				const auto name = l::generation_name(descriptor.generation);
 				write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, later, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
+						  {storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 			}
 			const auto installed_bytes = mappings->used();

@@ -618,9 +618,7 @@ int main(int argc, char **argv) {
 					decoder.step(budget);
 			}
 			auto input = decoder.take();
-			l::GenerationId initial{};
-			initial.fill('i');
-			l::ImageBuilder builder(input.snapshot, initial);
+			l::ImageBuilder builder(input.snapshot);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
@@ -633,7 +631,7 @@ int main(int argc, char **argv) {
 				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
 													   std::filesystem::perms::owner_write);
 			};
-			const auto name = l::generation_name(initial);
+			const auto name = l::generation_name(builder.descriptor().generation);
 			write(directory / (name + ".image"), builder.bytes()->view());
 			write(directory / (name + ".lease"), {});
 			write(directory / "owner.lock", {});

@@ -59,9 +59,7 @@ std::unique_ptr<l::ImageBuilder> build(const d::Cursor &cursor, char generation,
 		decoder.feed(input, budget);
 	}
 	auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-	l::GenerationId id;
-	id.fill(generation);
-	auto builder = std::make_unique<l::ImageBuilder>(snapshot, id);
+	auto builder = std::make_unique<l::ImageBuilder>(snapshot);
 	while (!builder->done()) {
 		l::ValidationBudget budget;
 		builder->step(budget);

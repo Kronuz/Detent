@@ -67,7 +67,7 @@ int main() {
 			auto base = l::recover_generation(fixture->path, options.recovery_limits);
 			l::GenerationId next{};
 			next.fill('z');
-			x::PagedCompactionBuilder compaction(base, {&old_pack, 1}, next, domain);
+			x::PagedCompactionBuilder compaction(base, {&old_pack, 1}, domain);
 			while (!compaction.done()) {
 				l::ValidationBudget budget;
 				compaction.step(budget);

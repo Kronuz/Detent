@@ -15,8 +15,8 @@ class SegmentProofError final : public std::runtime_error {
 class PagedSegmentRead final : public kronuz::io::completion::Operation {
   public:
 	PagedSegmentRead(distribution::RetirementFactory, std::shared_ptr<StorageSession>,
-					 std::shared_ptr<distribution::StorageLedger>, StorageIdentity storage,
-					 StorageIdentity segment, std::uint64_t trusted_owner, bool tolerate_mismatch = false);
+					 std::shared_ptr<distribution::StorageLedger>, SegmentId segment,
+					 std::uint64_t trusted_owner, bool tolerate_mismatch = false);
 	~PagedSegmentRead();
 	const kronuz::io::completion::Request &request() const override;
 	void submitted() override;

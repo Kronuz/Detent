@@ -29,7 +29,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -65,7 +65,7 @@ int main() {
 				write(pack_path, corrupt);
 			} else if (variant == 2)
 				write(pack_path, original.first(original.size() - 1));
-			l::detail::PagedSegmentRead reader(domain.factory(), session, account, storage,
+			l::detail::PagedSegmentRead reader(domain.factory(), session, account,
 											   segment.ownership.segment, ::getuid() + (variant == 3));
 			bool fired = false;
 			unsigned pack_reads = 0;

@@ -35,7 +35,7 @@ int open_record(int directory, std::string_view name, uid_t owner, std::uint64_t
 } // namespace
 TrustedGeneration
 TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, const paged::Root &root,
-					 StorageIdentity storage, paged::Limits bounds, const ViewLimits &limits,
+					 paged::Limits bounds, const ViewLimits &limits,
 					 distribution::RetirementFactory factory, std::shared_ptr<distribution::StorageLedger> heap,
 					 std::shared_ptr<distribution::StorageLedger> mappings, RecoveryMetrics *metrics, TrustedOwn own) {
 	std::uint64_t live_size = 0;
@@ -50,7 +50,7 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 	std::array<char, reader_metadata_bytes> read_bytes{};
 	read_generation_record(read_file.fd, read_bytes);
 	const auto metadata = decode_reader_metadata(read_bytes);
-	require(metadata.storage == storage && metadata.generation == descriptor.generation &&
+	require(metadata.generation == descriptor.generation &&
 			metadata.root_checksum == descriptor.checksum &&
 			metadata.counts.records == root.records &&
 			metadata.physical_bytes >= paged::root_bytes && root.bytes <= metadata.physical_bytes - paged::root_bytes &&
@@ -103,13 +103,13 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 								   }));
 	bounds.segments = root.segments;
 	auto registry = own.admission ? own.admission->target_registry()
-								  : factory.make<SegmentRegistry>(heap, storage, bounds);
+								  : factory.make<SegmentRegistry>(heap, bounds);
 	require(registry && (!own.admission || (registry->uses_account(heap) && !registry->physical_bytes())));
 	const auto prior_rows = own.prior ? own.prior->inputs() : std::span<const SegmentInput>{};
 	std::vector<SegmentReachability> reachable;
 	reachable.reserve(live.rows.size());
 	for (const auto &row : live.rows) {
-		const SegmentOwnership ownership{storage, row.segment, row.length, row.checksum};
+		const SegmentOwnership ownership{row.segment, row.length, row.checksum};
 		const auto held = std::lower_bound(prior_rows.begin(), prior_rows.end(), row.segment,
 										   [](const SegmentInput &input, const auto &id) {
 											   return std::memcmp(input.ownership.segment.data(), id.data(), id.size()) < 0;

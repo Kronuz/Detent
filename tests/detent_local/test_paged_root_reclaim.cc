@@ -66,7 +66,7 @@ int main() {
 	generation.fill('g');
 	next.fill('n');
 	last.fill('p');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
@@ -88,7 +88,7 @@ int main() {
 	drive(store);
 	auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
 	{
-		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), next, domain);
+		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -98,9 +98,10 @@ int main() {
 	}
 	auto pinned = std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
 	store->confirm_recovered(*pinned);
+	next = pinned->descriptor().generation;
 	base.reset();
 	{
-		l::detail::PagedPlanBuilder builder(*pinned, progress(pinned->descriptor().cursor, account), last,
+		l::detail::PagedPlanBuilder builder(*pinned, progress(pinned->descriptor().cursor, account),
 											domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
@@ -112,6 +113,7 @@ int main() {
 	{
 		auto current = l::recover_generation(root, options.recovery_limits, {}, &*pinned);
 		store->confirm_recovered(current);
+		last = current.descriptor().generation;
 	}
 	unpinned(root / (l::generation_name(generation) + ".lease"));
 	store->request_collection();
@@ -152,7 +154,7 @@ int main() {
 		l::GenerationId legacy;
 		legacy.fill('v');
 		{
-			l::ImageBuilder builder(snapshot, legacy, options.recovery_limits);
+			l::ImageBuilder builder(snapshot, options.recovery_limits);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);

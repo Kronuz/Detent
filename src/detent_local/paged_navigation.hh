@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 namespace detent::local::detail {
-inline std::size_t find_segment(std::span<const SegmentInput> segments, const StorageIdentity &id) {
+inline std::size_t find_segment(std::span<const SegmentInput> segments, const SegmentId &id) {
 	auto found =
 		std::lower_bound(segments.begin(), segments.end(), id, [](const auto &input, const auto &key) {
 			return std::memcmp(input.ownership.segment.data(), key.data(), key.size()) < 0;

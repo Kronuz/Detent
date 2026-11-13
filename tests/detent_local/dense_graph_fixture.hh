@@ -41,15 +41,14 @@ struct Fixture {
 	std::vector<Page> pages;
 	std::vector<char> bytes;
 	std::array<l::detail::SegmentInput, 1> inputs;
-	l::StorageIdentity storage{}, segment = [] {
-		l::StorageIdentity id;
+	l::SegmentId segment = [] {
+		l::SegmentId id;
 		id.fill('s');
 		return id;
 	}();
 	p::Root root;
 	void refresh() {
 		l::SegmentOwnership ownership;
-		ownership.storage = storage;
 		ownership.segment = segment;
 		ownership.length = bytes.size();
 		ownership.checksum = p::pack_commitment(bytes);
@@ -126,7 +125,6 @@ inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_
 }
 inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 	auto result = std::make_shared<Fixture>();
-	result->storage.fill('x');
 	std::array<char, 202> key{};
 	for (std::size_t i = 0; i < definitions; ++i) {
 		const auto name = "ns:k" + std::to_string(100000 + i);

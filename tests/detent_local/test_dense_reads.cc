@@ -46,7 +46,7 @@ void warm_skips() {
   ++root.cursor.revision;
   {
     const auto before = p::hash_counts();
-    x::WarmGraphValidator warm(account, recovered, source, {}, root);
+    x::WarmGraphValidator warm(account, recovered, source, {}, root, {}, x::paged_format_semantics);
     bounded(warm);
     check(same_counts(warm.counts(), prior.counts()));
     check(!warm.definitions_validated() && !warm.old_definition_headers());
@@ -58,7 +58,6 @@ void warm_skips() {
   auto bytes =
       std::make_shared<std::vector<char>>(original.begin(), original.end());
   l::SegmentOwnership ownership;
-  ownership.storage = source->storage;
   ownership.segment.fill('z');
   ownership.length = bytes->size();
   ownership.checksum = p::pack_commitment(*bytes);
@@ -69,7 +68,7 @@ void warm_skips() {
   check(p::decode_page_header(*bytes, p::Limits{}).externals > 1);
   {
     const auto before = p::hash_counts();
-    x::WarmGraphValidator warm(account, recovered, bytes, added, root);
+    x::WarmGraphValidator warm(account, recovered, bytes, added, root, {}, x::paged_format_semantics);
     bounded(warm);
     check(same_counts(warm.counts(), prior.counts()));
     check(warm.definitions_validated() < root.records);
@@ -82,7 +81,7 @@ void warm_skips() {
           after.pack_calls == before.pack_calls + 1);
     check(after.metadata_calls == before.metadata_calls);
     std::array<x::SegmentInput, 2> merged{source->segments[0], added[0]};
-    x::GraphValidator cold(account, bytes, merged, root, source->storage);
+    x::GraphValidator cold(account, bytes, merged, root, {}, x::paged_format_semantics);
     bounded(cold);
     check(same_counts(cold.counts(), warm.counts()));
     check(cold.segment_reachability(0).pages + warm.removed(0).pages ==
@@ -113,7 +112,7 @@ void warm_skips() {
               bytes->begin() + 32);
     added[0].ownership.checksum = p::pack_commitment(*bytes);
     rejects_corruption([&] {
-      x::WarmGraphValidator warm(account, recovered, bytes, added, root);
+      x::WarmGraphValidator warm(account, recovered, bytes, added, root, {}, x::paged_format_semantics);
       bounded(warm);
     });
   }
@@ -181,7 +180,7 @@ void fuzz_sample(std::uint64_t &seed) {
   });
   tolerate_corruption([&] {
     x::GraphValidator validator(source->account, source, source->inputs,
-                                source->root, source->storage);
+                                source->root, {}, x::paged_format_semantics);
     bounded(validator);
   });
 }
@@ -212,7 +211,6 @@ void fuzz_warm_sample(std::uint64_t &seed) {
     const auto digest = p::page_commitment(*bytes, p::Limits{});
     std::copy(digest.begin(), digest.end(), bytes->begin() + 32);
     l::SegmentOwnership ownership;
-    ownership.storage = base.source->storage;
     ownership.segment.fill('z');
     ownership.length = bytes->size();
     ownership.checksum = p::pack_commitment(*bytes);
@@ -221,7 +219,7 @@ void fuzz_warm_sample(std::uint64_t &seed) {
     root.tree.digest = digest;
     root.segments = 2;
     std::array<x::SegmentInput, 1> added{{{ownership, *bytes}}};
-    x::WarmGraphValidator validator(base.account, base.recovered, bytes, added, root);
+    x::WarmGraphValidator validator(base.account, base.recovered, bytes, added, root, {}, x::paged_format_semantics);
     bounded(validator);
   } catch (const std::invalid_argument &) {
   } catch (const x::ReadSourceFailure &) {
@@ -282,7 +280,7 @@ void mapped_mutation(unsigned variant) {
     auto domain = runtime.domain(source->account);
     auto mappings = std::make_shared<d::StorageLedger>(2 * p::segment_bytes);
     auto access = domain.make<l::detail::LazyPageAccess>(
-        source, directory, ::getuid(), source->storage, source->root,
+        source, directory, ::getuid(), source->root,
         l::ViewLimits{}, domain.factory(), source->account, mappings);
     for (const auto &page : source->pages)
       access->resolve(page.reference);

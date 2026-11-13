@@ -1,10 +1,11 @@
 diff --git a/src/detent_local/candidate_paged_validator.cc b/src/detent_local/candidate_paged_validator.cc
+index 16f1f342..044e1010 100644
 --- a/src/detent_local/candidate_paged_validator.cc
 +++ b/src/detent_local/candidate_paged_validator.cc
-@@ -70,7 +70,7 @@
+@@ -65,7 +65,7 @@ void CandidatePagedValidator::step(ValidationBudget &budget) {
  			inputs_.freeze();
  			const auto limits = paged_limits(limits_, image_->image().descriptor().length);
- 			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), storage_, limits,
+ 			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), limits,
 -						   PagedSemanticLimits{limits_.strings, limits_.overrides}, nullptr, true);
 +						   PagedSemanticLimits{limits_.strings, limits_.overrides}, nullptr, false);
  			break;

@@ -50,7 +50,7 @@ void run(bool shared) {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -63,7 +63,7 @@ void run(bool shared) {
 	const l::detail::SegmentNames names(orphan);
 	const std::string bytes(257, 'x');
 	write(directory / names.owner_name(),
-		  l::encode_segment_ownership({storage, orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
+		  l::encode_segment_ownership({orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
 	write(directory / names.payload_name(), bytes);
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
@@ -76,8 +76,7 @@ void run(bool shared) {
 		std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
 	auto base =
 		std::optional<l::RecoveredGeneration>(l::recover_generation(directory, options.recovery_limits));
-	l::detail::PagedDeltaPlanBuilder sparse(
-		*base, shared ? one_key_delta(account) : parse_delta(false, 2, "app", account), next, domain);
+	l::detail::PagedDeltaPlanBuilder sparse(*base, shared ? one_key_delta(account) : parse_delta(false, 2, "app", account), domain);
 	while (!sparse.done()) {
 		l::ValidationBudget budget;
 		sparse.step(budget);

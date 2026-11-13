@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 				decoder.feed(input, budget);
 			}
 			auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-			l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+			l::detail::PagedSnapshotBuilder builder(source, generation);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);

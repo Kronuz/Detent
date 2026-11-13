@@ -407,3 +407,10 @@ target_include_directories(test_local_dense_walkers PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(test_local_dense_walkers PRIVATE detent::local_builder)
 add_test(NAME test_local_dense_walkers COMMAND test_local_dense_walkers)
 set_tests_properties(test_local_dense_walkers PROPERTIES TIMEOUT 15)
+
+if(TARGET detent::local_publication)
+  add_executable(test_local_derived_names test_derived_names.cc)
+  target_include_directories(test_local_derived_names PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(test_local_derived_names PRIVATE detent::local_publication)
+  add_test(NAME test_local_derived_names COMMAND test_local_derived_names)
+endif()

@@ -19,7 +19,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
@@ -41,20 +41,20 @@ int main() {
 		auto first = domain.make<l::detail::PagedDependencyCertificate>(account, domain.factory());
 		first->capture(*base);
 		std::cout << "First certificate admitted bytes: " << account->used() - before_first << '\n';
-		require(first->descriptor() == image.descriptor() && first->storage_identity() == storage);
+		require(first->descriptor() == image.descriptor());
 		require(first->dependencies().size() == image.segments().size());
 		{
-			l::detail::PagedPlanBuilder builder(*base, progress(base->descriptor().cursor, account), next,
+			l::detail::PagedPlanBuilder builder(*base, progress(base->descriptor().cursor, account),
 												domain);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
 			auto plan = builder.take();
-			const auto name = l::generation_name(next);
+			const auto name = l::generation_name(plan.descriptor().generation);
 			write(root / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, next, plan.descriptor().length, plan.descriptor().checksum, detent::local::paged::format_version}));
+					  {storage, plan.descriptor().generation, plan.descriptor().length, plan.descriptor().checksum, detent::local::paged::format_version}));
 			write(root / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 			write(root / "selected", l::encode_descriptor(plan.descriptor()));
 		}

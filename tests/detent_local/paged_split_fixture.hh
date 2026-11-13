@@ -11,10 +11,9 @@ struct SplitPagedInput {
 	std::array<detail::SegmentInput, 2> inputs;
 	SplitPagedInput(std::shared_ptr<distribution::StorageLedger> heap,
 					std::span<const detail::SegmentInput> original, paged::Root source,
-					StorageIdentity storage, GenerationId generation)
+					GenerationId generation)
 		: root(source) {
-		detail::SegmentBuilder branches(heap, storage, generation, 0),
-			leaves(heap, storage, generation, 1);
+		detail::SegmentBuilder branches(heap, generation, 0), leaves(heap, generation, 1);
 		std::function<paged::Reference(paged::Reference)> copy = [&](paged::Reference reference) {
 			const auto index = detail::find_segment(original, reference.segment);
 			if (index == original.size())

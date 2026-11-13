@@ -55,9 +55,7 @@ int main(int argc, char **argv) {
 		auto source = std::make_shared<d::ValidatedSnapshot>(decoder.finish());
 		auto charged = charged_storage(*source);
 		auto decoded = Clock::now();
-		l::GenerationId generation;
-		generation.fill('a');
-		l::ImageBuilder builder(source, generation);
+		l::ImageBuilder builder(source);
 		std::uint64_t turns = 0;
 		std::int64_t maximum_turn = 0;
 		while (!builder.done()) {
@@ -113,7 +111,7 @@ int main(int argc, char **argv) {
 				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
 													   std::filesystem::perms::owner_write);
 			};
-			auto name = l::generation_name(generation);
+			auto name = l::generation_name(builder.descriptor().generation);
 			write(directory / (name + ".image"), *bytes);
 			write(directory / (name + ".lease"), {});
 			write(directory / "selected", l::encode_descriptor(builder.descriptor()));

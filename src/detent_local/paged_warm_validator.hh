@@ -8,13 +8,13 @@ class WarmGraphValidator {
   public:
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>, const RecoveredGeneration &,
 					   std::shared_ptr<const void> new_segments_owner,
-					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {}, bool own_build = false);
+					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits,
+					   PagedSemanticLimits, bool own_build = false);
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>,
 					   distribution::RetirementHandle<LeasedPagedRoot>,
 					   std::shared_ptr<const void> new_segments_owner,
-					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {}, bool own_build = false);
+					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits,
+					   PagedSemanticLimits, bool own_build = false);
 	~WarmGraphValidator();
 	WarmGraphValidator(WarmGraphValidator &&) noexcept;
 	WarmGraphValidator(const WarmGraphValidator &) = delete;

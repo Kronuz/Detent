@@ -12,3 +12,13 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   target_link_libraries(detent_relay_config PUBLIC detent::relay detent::delivery_config)
   add_library(detent::relay_config ALIAS detent_relay_config)
 endif()
+# The relay's mirror of blocks, base and sections, and its W5/W6 reading and answers (namespace
+# delivery D7, W8). It decodes the authority's history files and links no consensus: a reader, never a member.
+if(TARGET completion::completion AND TARGET hashes::hashes)
+  add_library(detent_relay_mirror STATIC mirror.cc namespace_relay.cc)
+  target_include_directories(detent_relay_mirror PUBLIC "${PROJECT_SOURCE_DIR}/include")
+  target_link_libraries(detent_relay_mirror PUBLIC detent::detent detent::distribution completion::completion
+    PRIVATE detent::authority hashes::hashes)
+  target_compile_features(detent_relay_mirror PUBLIC cxx_std_20)
+  add_library(detent::relay_mirror ALIAS detent_relay_mirror)
+endif()

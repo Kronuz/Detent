@@ -26,7 +26,7 @@ int main() {
 	publication.fill('g');
 	std::size_t admitted = 0;
 	{
-		x::SegmentBuilder segment(account, storage, publication, 0);
+		x::SegmentBuilder segment(account, publication, 0);
 		admitted = account->used();
 		auto page = make_page(account);
 		p::reset_hash_counts();
@@ -55,15 +55,15 @@ int main() {
 	require(account->used() == 0);
 	auto short_account = std::make_shared<d::StorageLedger>(admitted - 1);
 	try {
-		x::SegmentBuilder segment(short_account, storage, publication, 0);
+		x::SegmentBuilder segment(short_account, publication, 0);
 		require(false);
 	} catch (const d::StoragePressure &) {
 	}
 	require(short_account->used() == 0);
 	{
 		auto page = make_page(account);
-		x::SegmentBuilder segment(account, storage, publication, 0),
-			next(account, storage, publication, 1);
+		x::SegmentBuilder segment(account, publication, 0),
+			next(account, publication, 1);
 		next.append(page);
 		drain(next);
 		std::size_t count = 0;

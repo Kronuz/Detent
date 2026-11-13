@@ -69,9 +69,7 @@ std::unique_ptr<l::ImageBuilder> build(std::shared_ptr<d::StorageLedger> account
 		decoder.feed(input, budget);
 	}
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-	l::GenerationId id;
-	id.fill(generation);
-	auto builder = std::make_unique<l::ImageBuilder>(source, id);
+	auto builder = std::make_unique<l::ImageBuilder>(source);
 	while (!builder->done()) {
 		l::ValidationBudget budget;
 		builder->step(budget);
@@ -438,8 +436,8 @@ void quarantine_families(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 	// Contradictory first/last available bytes of every bound partial field.
 	constexpr std::array image_offsets{16u, 22u, 40u, 47u,	48u,  55u,	56u,  63u,	64u,
 									   71u, 72u, 79u, 168u, 175u, 176u, 182u, 184u, 190u};
-	constexpr std::array descriptor_offsets{0u,	 15u,  16u,	 31u,  32u,	 38u,  40u,
-											71u, 160u, 163u, 164u, 167u, 168u, 174u};
+	// Bytes 164..168 are the build ordinal, which no image binds: a partial record may hold any.
+	constexpr std::array descriptor_offsets{0u, 15u, 16u, 31u, 32u, 38u, 40u, 71u, 160u, 163u, 168u, 174u};
 	constexpr std::array identity_offsets{88u, 104u, 120u, 136u, 72u, 88u, 104u, 120u};
 	constexpr auto prefix_scenarios = 18 + image_offsets.size() + descriptor_offsets.size();
 	constexpr auto scenarios = prefix_scenarios + identity_offsets.size();

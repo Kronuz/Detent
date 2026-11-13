@@ -35,7 +35,7 @@ class PackScrub {
 	// new pack set starts clean.
 	std::uint64_t passes() const noexcept { return passes_; }
 	std::uint64_t bytes_hashed() const noexcept { return hashed_; }
-	const std::vector<StorageIdentity> &failures() const noexcept { return completed_; }
+	const std::vector<SegmentId> &failures() const noexcept { return completed_; }
 
   private:
 	std::uint64_t rate_;
@@ -48,8 +48,8 @@ class PackScrub {
 	double credit_ = 0;
 	Clock::time_point last_;
 	std::uint64_t passes_ = 0, hashed_ = 0;
-	std::vector<StorageIdentity> found_, completed_;
-	std::map<StorageIdentity, std::array<char, 32>> verified_;
+	std::vector<SegmentId> found_, completed_;
+	std::map<SegmentId, std::array<char, 32>> verified_;
 	bool running_ = false;
 	void start(std::span<const SegmentInput> packs, Clock::time_point now, const std::filesystem::path &directory);
 	bool verified(const SegmentInput &pack) const;

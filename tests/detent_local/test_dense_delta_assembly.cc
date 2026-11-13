@@ -80,7 +80,6 @@ struct Full {
 					((result.packs.back().bytes.size() + 7) & ~std::size_t(7)) + r.length >
 						pack_limit) {
 					Base::Pack pack;
-					pack.ownership.storage.fill('s');
 					pack.ownership.segment.fill('b');
 					l::write_integer(pack.ownership.segment, 8, result.packs.size() + 1, 8);
 					result.packs.push_back(std::move(pack));
@@ -217,7 +216,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('n');
-	x::OverlayAssembler assembler(account, overlay, base->inputs, base->live, base->root, storage,
+	x::OverlayAssembler assembler(account, overlay, base->inputs, base->live, base->root,
 								  generation, base->root.cursor, limits);
 	p::reset_hash_counts();
 	for (unsigned turn = 0; !assembler.done(); ++turn) {

@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 				decoder.feed(input, budget);
 			}
 			auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-			l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+			l::detail::PagedSnapshotBuilder builder(source, generation);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
@@ -154,13 +154,10 @@ int main(int argc, char **argv) {
 			for (const unsigned changes : {0, 1, 10, 1000}) {
 				if (changes && std::uint64_t(changes - 1) * 4 >= count)
 					continue;
-				l::GenerationId next;
-				next.fill('a');
-				next[0] = changes ? (changes == 1 ? 'b' : changes == 10 ? 'c' : 'd') : 'a';
 				auto update = delta(original.cursor, changes, heap);
 				std::optional<l::detail::PagedPlan> plan;
 				if (changes) {
-					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), next, domain);
+					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), domain);
 					while (!builder.done()) {
 						l::ValidationBudget budget;
 						builder.step(budget);
@@ -168,7 +165,7 @@ int main(int argc, char **argv) {
 					plan.emplace(builder.take());
 				} else {
 					l::detail::PagedPlanBuilder builder(
-						base, std::make_shared<const d::ValidatedDelta>(std::move(update)), next, domain);
+						base, std::make_shared<const d::ValidatedDelta>(std::move(update)), domain);
 					while (!builder.done()) {
 						l::ValidationBudget budget;
 						builder.step(budget);
@@ -180,6 +177,7 @@ int main(int argc, char **argv) {
 				admission->populate(*plan, core.verified_paged);
 				const auto reserved = admission->reserved_bytes();
 				std::uint64_t fresh_bytes = 0;
+				const auto next = plan->descriptor().generation;
 				const auto name = l::generation_name(next);
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
 				write(directory / (name + ".lease"),

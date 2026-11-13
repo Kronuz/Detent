@@ -15,7 +15,7 @@ class MappedRecoveryAdmission final : public distribution::RetirementNode {
 	void populate(const PagedPlan &, distribution::RetirementHandle<LeasedPagedRoot> prior,
 				  ViewLimits limits = {});
 	bool warm() const;
-	void bind(Descriptor, DirectoryIdentity, StorageIdentity) const;
+	void bind(Descriptor, DirectoryIdentity) const;
 	void bind_selection(Descriptor, DirectoryIdentity) const;
 	void bind_resources(const std::shared_ptr<distribution::StorageLedger> &heap,
 						const std::shared_ptr<distribution::StorageLedger> &mappings,
@@ -59,7 +59,6 @@ class MappedRecoveryAdmission final : public distribution::RetirementNode {
 	Descriptor target_;
 	std::optional<Descriptor> base_;
 	DirectoryIdentity directory_;
-	StorageIdentity storage_;
 	PagedStateCounts expected_counts_;
 	std::uint64_t bytes_ = 0;
 	bool populated_ = false, failed_ = false, warm_ = false;

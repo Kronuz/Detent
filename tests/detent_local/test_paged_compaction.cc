@@ -58,7 +58,7 @@ void run(std::size_t choice) {
 		generation.fill('g');
 		split_generation.fill('x');
 		next.fill('n');
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		l::detail::PagedSnapshotBuilder builder(source, generation);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -67,8 +67,7 @@ void run(std::size_t choice) {
 		std::vector<l::detail::SegmentInput> inputs;
 		for (const auto &segment : image.segments())
 			inputs.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
-		auto split = std::make_shared<l::testing::SplitPagedInput>(heap, inputs, image.root(),
-																   storage, split_generation);
+		auto split = std::make_shared<l::testing::SplitPagedInput>(heap, inputs, image.root(), split_generation);
 		const auto encoded = l::paged::encode_root(split->root, l::paged::Limits{});
 		l::Descriptor descriptor{generation, encoded.size(), l::paged::metadata_commitment(encoded),
 								 split->root.cursor, split->root.profile};
@@ -109,7 +108,7 @@ void run(std::size_t choice) {
 			if (limits.maximum_recipes == 1 && choice == 0) continue;
 			bool refused = false;
 			try {
-				l::detail::PagedCompactionBuilder bounded(*base, selection, next, domain, limits);
+				l::detail::PagedCompactionBuilder bounded(*base, selection, domain, limits);
 				while (!bounded.done()) {
 					l::ValidationBudget budget;
 					bounded.step(budget);
@@ -120,7 +119,7 @@ void run(std::size_t choice) {
 			check(refused && store->selection().descriptor == descriptor);
 			check(store->stats().reserved == l::DiskUsage{});
 		}
-		l::detail::PagedCompactionBuilder compaction(*base, selection, next, domain);
+		l::detail::PagedCompactionBuilder compaction(*base, selection, domain);
 		unsigned turns = 0;
 		while (!compaction.done()) {
 			l::ValidationBudget budget{1, 1};
@@ -148,7 +147,7 @@ void run(std::size_t choice) {
 		}
 		l::GenerationId stale_id{};
 		stale_id.fill('q');
-		l::detail::PagedCompactionBuilder stale_builder(*base, selection, stale_id, domain);
+		l::detail::PagedCompactionBuilder stale_builder(*base, selection, domain);
 		while (!stale_builder.done()) {
 			l::ValidationBudget budget;
 			stale_builder.step(budget);

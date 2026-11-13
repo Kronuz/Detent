@@ -29,7 +29,7 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 	std::shared_ptr<StorageSession> session;
 	std::shared_ptr<d::StorageLedger> account;
 	std::unique_ptr<c::File> owner, pack;
-	StorageIdentity storage, segment;
+	SegmentId segment;
 	SegmentNames names;
 	std::uint64_t trusted_owner;
 	RecordReader reader;
@@ -44,10 +44,10 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 	bool submitted = false, owner_open = false, pack_open = false, closing = false;
 	bool tolerate_mismatch = false, damaged = false;
 	State(std::shared_ptr<StorageSession> session, std::shared_ptr<d::StorageLedger> account,
-		  StorageIdentity storage, StorageIdentity segment, std::uint64_t uid, bool tolerate)
+		  SegmentId segment, std::uint64_t uid, bool tolerate)
 		: session(std::move(session)), account(std::move(account)),
 		  owner(this->session->backend()->make_closed_file()),
-		  pack(this->session->backend()->make_closed_file()), storage(storage), segment(segment),
+		  pack(this->session->backend()->make_closed_file()), segment(segment),
 		  names(segment), trusted_owner(uid), token(this->session->next_operation()),
 		  tolerate_mismatch(tolerate) {}
 	bool safe(const c::EntryInspection &entry) const noexcept {
@@ -85,10 +85,10 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 	}
 };
 PagedSegmentRead::PagedSegmentRead(d::RetirementFactory factory, std::shared_ptr<StorageSession> session,
-								   std::shared_ptr<d::StorageLedger> account, StorageIdentity storage,
-								   StorageIdentity segment, std::uint64_t uid, bool tolerate_mismatch) {
+								   std::shared_ptr<d::StorageLedger> account, SegmentId segment, std::uint64_t uid,
+								   bool tolerate_mismatch) {
 	const auto context = session->allocation_context();
-	state_ = factory.make<State>(std::move(session), std::move(account), storage, segment, uid,
+	state_ = factory.make<State>(std::move(session), std::move(account), segment, uid,
 								 tolerate_mismatch);
 	using Handle = d::RetirementHandle<State>;
 	pin_ = std::allocate_shared<Handle>(c::OwnedAllocator<Handle>(context), state_);
@@ -278,7 +278,7 @@ bool PagedSegmentRead::complete(c::Result result) noexcept {
 				request_ = {};
 				return true;
 			}
-			if (ownership.storage != state_->storage || ownership.segment != state_->segment ||
+			if (ownership.segment != state_->segment ||
 				!ownership.length || ownership.length > paged::segment_bytes)
 				throw SegmentProofError("invalid named segment ownership");
 			state_->ownership = ownership;

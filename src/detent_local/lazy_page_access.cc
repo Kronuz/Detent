@@ -26,7 +26,7 @@ void window(LazyPageWindow at) noexcept {
 std::size_t slot_count(std::uint64_t segments) {
 	return std::bit_ceil(std::max<std::size_t>(2, std::size_t(std::min<std::uint64_t>(segments, 1u << 20)) * 2));
 }
-std::size_t identity_hash(const StorageIdentity &identity) noexcept {
+std::size_t identity_hash(const SegmentId &identity) noexcept {
 	std::uint64_t low, high;
 	std::memcpy(&low, identity.data(), 8);
 	std::memcpy(&high, identity.data() + 8, 8);
@@ -41,11 +41,11 @@ struct LazyPageAccess::State {
 	using Mapping = d::RetirementHandle<SegmentMapping>;
 	// A mapped segment and its verified-page bitmap; immutable once published except for the bits.
 	struct Segment {
-		StorageIdentity identity;
+		SegmentId identity;
 		Mapping mapping;
 		std::span<const char> bytes;
 		VerifiedPages verified;
-		Segment(const StorageIdentity &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
+		Segment(const SegmentId &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
 		    : identity(id), mapping(std::move(held)), bytes(mapping->bytes()),
 		      verified(bytes.size(), account) {}
 	};
@@ -53,7 +53,6 @@ struct LazyPageAccess::State {
 	std::shared_ptr<const void> lease;
 	int directory;
 	uid_t publisher;
-	StorageIdentity storage;
 	p::Root root;
 	ViewLimits limits;
 	d::RetirementFactory factory;
@@ -62,10 +61,10 @@ struct LazyPageAccess::State {
 	mutable std::atomic<std::uint64_t> mapped_bytes{0}, published{0}, verifications{0};
 	mutable std::atomic<bool> failed{false};
 	std::size_t retired = 0;
-	State(std::shared_ptr<const void> owner, int fd, uid_t uid, StorageIdentity identity, p::Root selected,
+	State(std::shared_ptr<const void> owner, int fd, uid_t uid, p::Root selected,
 	      ViewLimits bounds, d::RetirementFactory allocator, std::shared_ptr<d::StorageLedger> account,
 	      std::shared_ptr<d::StorageLedger> mappings)
-	    : lease(std::move(owner)), directory(fd), publisher(uid), storage(identity), root(selected),
+	    : lease(std::move(owner)), directory(fd), publisher(uid), root(selected),
 	      limits(bounds), factory(std::move(allocator)), heap(std::move(account)),
 	      mapping_account(std::move(mappings)),
 	      slots(slot_count(root.segments), d::StorageAllocator<Slot>(heap)) {
@@ -101,7 +100,7 @@ struct LazyPageAccess::State {
 	// counts include segments published since this thread's probe, so one of those is not new.
 	// Acquire pairs with the winner's release increments, so a counted segment's slot is visible
 	// to the re-probe below.
-	const Segment *admit(const StorageIdentity &identity, std::size_t probe, std::size_t length) const {
+	const Segment *admit(const SegmentId &identity, std::size_t probe, std::size_t length) const {
 		const auto refusal = excess(published.load(std::memory_order_acquire) + 1,
 		                            mapped_bytes.load(std::memory_order_acquire), length);
 		if (!refusal)
@@ -110,7 +109,7 @@ struct LazyPageAccess::State {
 			return raced;
 		throw ReadSourceFailure(refusal);
 	}
-	Mapping open_mapping(const StorageIdentity &identity, std::size_t probe, const Segment *&raced) const {
+	Mapping open_mapping(const SegmentId &identity, std::size_t probe, const Segment *&raced) const {
 		if ((raced = admit(identity, probe, 0)))
 			return {};
 		const SegmentNames names(identity);
@@ -138,7 +137,7 @@ struct LazyPageAccess::State {
 	// Slots publish with a release compare-and-swap and are read with acquire loads, so a reader
 	// sees a segment's mapping, extent and zeroed bitmap; relaxed here is a data race on them.
 	// Probes from `probe`; sets `probe` to the first empty slot when the identity is absent.
-	const Segment *find(const StorageIdentity &identity, std::size_t &probe) const {
+	const Segment *find(const SegmentId &identity, std::size_t &probe) const {
 		const auto mask = slots.size() - 1;
 		for (std::size_t n = 0; n != slots.size(); probe = (probe + 1) & mask, ++n) {
 			const auto found = slots[probe].load(std::memory_order_acquire);
@@ -147,13 +146,13 @@ struct LazyPageAccess::State {
 		}
 		throw ReadSourceFailure("local generation exceeds its pack count");
 	}
-	const Segment &segment(const StorageIdentity &identity) const {
+	const Segment &segment(const SegmentId &identity) const {
 		auto probe = identity_hash(identity) & (slots.size() - 1);
 		if (auto found = find(identity, probe))
 			return *found;
 		return publish(identity, probe);
 	}
-	const Segment &publish(const StorageIdentity &identity, std::size_t probe) const {
+	const Segment &publish(const SegmentId &identity, std::size_t probe) const {
 		d::StorageAllocator<Segment> allocator(heap);
 		window(LazyPageWindow::Miss);
 		const Segment *raced = nullptr;
@@ -232,11 +231,11 @@ struct LazyPageAccess::State {
 	}
 };
 LazyPageAccess::LazyPageAccess(std::shared_ptr<const void> owner, int fd, uid_t publisher,
-                               StorageIdentity storage, p::Root root, ViewLimits limits,
+                               p::Root root, ViewLimits limits,
                                d::RetirementFactory factory, std::shared_ptr<d::StorageLedger> heap,
                                std::shared_ptr<d::StorageLedger> mappings)
     : state_(d::make_storage_owner<State>(heap, std::malloc, std::free, std::move(owner), fd, publisher,
-	                                      storage, root, limits, std::move(factory), heap,
+	                                      root, limits, std::move(factory), heap,
 	                                      std::move(mappings))) {}
 LazyPageAccess::~LazyPageAccess() = default;
 std::span<const char> LazyPageAccess::resolve(const p::Reference &reference) const {
