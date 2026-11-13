@@ -45,10 +45,7 @@ void run(bool compressed, const std::filesystem::path &certificates = {}) {
             auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24, 25, revision), at(revision)));
             l::ImageBuilder builder(source);
             while (!builder.done()) { l::ValidationBudget budget; builder.step(budget); }
-            const auto name = l::generation_name(builder.descriptor().generation);
-            write(directory / (name + ".image"), *builder.bytes());
-            write(directory / (name + ".lease"), {});
-            write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+            install(directory, builder.descriptor(), builder.bytes()->view());
             auto generation = l::recover_generation(directory, limits);
             if (staged) bundle->bind_candidate(builder.descriptor(), generation.directory_identity());
             bundle->selected(generation);

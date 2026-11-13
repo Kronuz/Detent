@@ -191,7 +191,7 @@ struct Coordinator::Impl {
 			disk_wake->cancel();
 	}
 	task::task<void> wait_disk() {
-		auto expires = std::chrono::steady_clock::time_point::max();
+		auto expires = store->collection_retry_at();
 		if (diagnostic.phase == CoordinatorPhase::WaitingPublication && !cancelled() &&
 			publication_retry > std::chrono::steady_clock::now())
 			expires = std::min(expires, publication_retry);
@@ -666,7 +666,13 @@ struct Coordinator::Impl {
 			co_return;
 		constexpr auto tick = std::chrono::milliseconds(20);
 		constexpr std::uint64_t per_tick = 2 * 1024 * 1024;
-		scrub_result = domain.make<ScrubResult>(options);
+		try {
+			scrub_result = domain.make<ScrubResult>(options);
+		} catch (...) {
+			// Storage pressure at startup fences the coordinator; it never terminates the process.
+			fence(std::current_exception());
+			co_return;
+		}
 		std::uint64_t reported_passes = 0;
 		while (!closing) {
 			const auto now = std::chrono::steady_clock::now();

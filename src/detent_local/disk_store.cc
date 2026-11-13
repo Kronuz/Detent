@@ -47,7 +47,7 @@ DiskUsage census(const StoreUsage &usage) noexcept { return {usage.bytes, usage.
 // One cycle or one collection on the agent store. run() touches only the store and this work.
 struct AgentWork final : DiskWork {
 	AgentStore *agent = nullptr;
-	bool collect = false;
+	bool collect = false, deferred = false;
 	std::vector<PreparedGeneration> cycle;
 	std::vector<std::string> dropped;
 	std::exception_ptr error;
@@ -66,6 +66,8 @@ struct AgentWork final : DiskWork {
 			error = std::current_exception();
 		}
 		usage = agent->usage();
+		// A generation the table does not reach survives a collection only under a reader's lease.
+		deferred = collect && usage.generations > agent->table().entries.size();
 		synced = agent->sync_counters();
 		done.store(true, std::memory_order_release);
 	}
@@ -85,6 +87,9 @@ struct DiskStore::Impl {
 	SyncCounters before;
 	DiskPublicationStatus publication = DiskPublicationStatus::Idle;
 	std::exception_ptr publication_error, collection_error;
+	// A collection that left a held generation runs again after a backoff (1s doubling to 30s).
+	std::chrono::steady_clock::time_point collection_retry = std::chrono::steady_clock::time_point::max();
+	std::chrono::seconds collection_backoff{1};
 
 	// Queues a cycle publishing `generation` as the store's one namespace (D88), every other entry dropped.
 	void queue(PreparedGeneration generation, DiskUsage peak) {
@@ -114,6 +119,13 @@ struct DiskStore::Impl {
 			collection_error = work.error;
 			if (!work.error)
 				core.ledger.observe(census(work.usage));
+			if (work.deferred) {
+				collection_retry = std::chrono::steady_clock::now() + collection_backoff;
+				collection_backoff = std::min(collection_backoff * 2, std::chrono::seconds(30));
+			} else {
+				collection_retry = std::chrono::steady_clock::time_point::max();
+				collection_backoff = std::chrono::seconds(1);
+			}
 			return;
 		}
 		if (!work.error) {
@@ -154,10 +166,17 @@ SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->se
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
 std::exception_ptr DiskStore::error() const noexcept { return impl_->core->failure; }
 std::exception_ptr DiskStore::collection_error() const noexcept { return impl_->collection_error; }
+std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
+	return impl_->core->closing ? std::chrono::steady_clock::time_point::max() : impl_->collection_retry;
+}
 std::shared_ptr<DiskWork> DiskStore::work() {
 	auto &core = *impl_->core;
 	if (impl_->running)
 		return nullptr;
+	if (!core.closing && std::chrono::steady_clock::now() >= impl_->collection_retry) {
+		core.collect = true;
+		impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+	}
 	if (!impl_->pending && core.collect && !core.closing && core.status == StoreStatus::Ready &&
 		!core.pending_paged_recovery) {
 		auto work = std::make_shared<AgentWork>();

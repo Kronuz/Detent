@@ -57,6 +57,8 @@ class DiskStore {
 	std::shared_ptr<DiskWork> work();
 	void advance();
 	void request_collection() noexcept;
+	// When a collection that left a reader's generation runs again; max() when none waits.
+	std::chrono::steady_clock::time_point collection_retry_at() const noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
