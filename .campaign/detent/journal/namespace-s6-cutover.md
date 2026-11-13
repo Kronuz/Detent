@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1: an authority `NamespaceHistory` over S5.2's layout table, history files, ring and the newest
-seal's state (`src/detent_authority/namespace_history.{hh,cc}`), then the v2 session endpoints in
-`service.cc` on it.
+A1-A3 in set: `AuthorityHistory` (namespace_history), `FramesExport`, `NamespaceSessions`, the v2
+session path in service.cc (ea9e2abb). Tests: test_authority_namespace_history (unit, three
+voters, W7), test_authority_frames_service (HTTP end to end vs an oracle from the voter's disk).
 
 ## Next
 
-1. A1 adapter + test (bytes per answer vs `Layout::answer` and an oracle).
-2. v2 open/next/close in the authority over `NamespaceGrants` (A3), W7 full copy (A2).
-3. A4-A7 per the lead's answer to msg-49.
+1. Build and run test_authority_frames_service; commit; jobs for A1 (both tests + a mutant), A2,
+   A3 (tests + grep), and the authority suite.
+2. A4-A7 per the lead's answer to msg-49.
 
 ## Blocked on
 
@@ -42,4 +42,15 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- v2 answers come from applied, committed state on the owner, no quorum read: a session answer is
+  a cache fill that a later next corrects, like the relay's.
+- The whole answer is encoded into ledger-admitted 64 KiB chunks before fragmenting: DTDIST01's
+  header carries the total. An answer past `delivery.bytes` is 503 before any header.
+- The full copy is read from the sealed state, not merged files; the unit test proves equality with
+  `Layout::answer`'s full copy.
+- History files collected mid-answer raise HistoryFailure: 503, retryable.
+- A next re-looks when `applied_index` moves, so seals and log progress both wake it.
+- The enabling entry is proposed lazily by the leader when a v2 next needs positions (at most once
+  a second), so v1 keeps working until A4 removes it; the cutover moves it to leader start.
+- The v1 `AuthorizedScope` exact-set check (export_scope.cc) serves only the v1 export; it goes with
+  v1 in A4. A3's grep then covers it; until then v2, /v2/transactions and /v2/read use W13 grants.

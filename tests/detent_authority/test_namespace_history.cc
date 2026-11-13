@@ -165,14 +165,36 @@ Records flatten(const std::vector<Piece> &pieces) {
 		out.insert(out.end(), piece.records.begin(), piece.records.end());
 	return out;
 }
-struct Totals {
-	std::uint64_t answers = 0, bytes = 0, full = 0, blocks = 0, entries = 0, current = 0, held = 0;
-};
 std::unique_ptr<AuthorityHistory> freeze(Cluster &group, unsigned i, const std::string &name) {
 	auto &node = *group.nodes[i];
 	check(node.history() && node.history()->ready() && node.sealed());
 	return AuthorityHistory::freeze(name, group.context.cluster, node.state(), *node.sealed(),
 									node.history()->layout().table(), *node.history_files(), *rings[i]->inner);
+}
+struct Totals {
+	std::uint64_t answers = 0, bytes = 0, full = 0, blocks = 0, entries = 0, current = 0, held = 0;
+	Totals &operator+=(const Totals &o) {
+		answers += o.answers, bytes += o.bytes, full += o.full, blocks += o.blocks, entries += o.entries;
+		current += o.current, held += o.held;
+		return *this;
+	}
+};
+// One answer, decoded, after checking every voter encodes the same bytes.
+Decoded answer_one(Cluster &group, const std::string &name, const std::optional<d::NamespaceCursor> &store) {
+	std::string bytes;
+	for (unsigned i = 0; i < 3; ++i) {
+		auto history = freeze(group, i, name);
+		d::NamespaceRequest one{name, history.get(), store};
+		auto answer = d::encode_session_frames(std::nullopt, {&one, 1});
+		check(i == 0 ? (bytes = answer, true) : answer == bytes);
+	}
+	Decoded decoded;
+	d::SessionFramesDecoder decoder(decoded);
+	std::span<const char> input(bytes.data(), bytes.size());
+	std::size_t budget = bytes.size();
+	decoder.feed(input, budget);
+	decoder.finish();
+	return decoded;
 }
 // Every cursor of every namespace on every voter; returns what was answered.
 Totals answer_all(Cluster &group) {
@@ -315,7 +337,7 @@ int main() {
 		});
 	}
 	settle(group);
-	auto totals = answer_all(group);
+	auto totals = answer_all(group), all = totals;
 
 	// A capture failure on every voter: the head stops at the gap until a seal covers it.
 	fail_at = group.nodes[0]->state().revision() + 1;
@@ -326,28 +348,46 @@ int main() {
 	if (group.nodes[0]->state().seal().ordinal == seals) {
 		auto held = freeze(group, 0, "a");
 		check(held->held_back() == 2 && held->head().position + 2 == group.nodes[0]->state().namespace_entry("a")->position);
-		totals.held += answer_all(group).held;
+		auto gap = answer_all(group);
+		totals.held += gap.held;
+		all += gap;
 	}
 	churn(group, 60, 1);
 	settle(group);
 	auto churned = answer_all(group);
 	check(churned.full && churned.blocks && churned.entries);
+	all += churned;
 
 	// A drop and a re-creation: the new incarnation starts where the old one ended.
 	const auto *c = group.nodes[0]->state().namespace_entry("c");
+	const auto old = freeze(group, 0, "c")->head();
 	AdministrativeCommand drop{group.context, AdministrativeKind::DropNamespace, {}, "c", c->incarnation, {}};
 	check(group.administer(0, ++request, drop).results[0].status == Status::Applied);
 	settle(group);
-	answer_all(group);
+	all += answer_all(group);
 	commit(group, "c", {{"k1", 5}, {"k2", 6}});
 	settle(group);
-	answer_all(group);
+	// W7: a store of the old incarnation, even at its head, gets a full copy of the new one under
+	// the new cursor; positions continue from the old incarnation's end.
+	const auto renewed = freeze(group, 0, "c")->head();
+	check(renewed.incarnation != old.incarnation && renewed.position > old.position);
+	for (const auto &store : {old, d::NamespaceCursor{old.cluster, old.incarnation, renewed.position}}) {
+		auto w7 = answer_one(group, "c", store);
+		check(w7.frames == 1 && w7.kind == d::FrameKind::FullCopy && w7.after == 0 && w7.to == renewed);
+		auto s = store_at("c", renewed.incarnation, renewed.position);
+		Store copied;
+		for (const auto &piece : w7.pieces)
+			for (const auto &[key, revision, value] : piece.records)
+				copied[key] = {revision, *value}; // A full copy holds no tombstone.
+		check(copied == s && s.size() == 2);
+	}
+	all += answer_all(group);
 	churn(group, 40, 2);
 	settle(group);
-	auto last = answer_all(group);
+	all += answer_all(group);
 	check(totals.held > 0 || churned.held > 0);
-	std::cout << last.answers << " cursors answered byte-identically on three voters (" << last.bytes
-			  << " bytes): " << last.full << " full copies, " << last.blocks << " blocks, " << last.entries
-			  << " entries, " << last.current << " without a frame; a capture gap held the head back in "
-			  << totals.held << " answers\n";
+	std::cout << all.answers << " cursors answered byte-identically on three voters (" << all.bytes
+			  << " bytes): " << all.full << " full copies, " << all.blocks << " blocks, " << all.entries
+			  << " entries, " << all.current << " without a frame; a capture gap held the head back in "
+			  << all.held << " answers; W7 full copy of the re-created incarnation for 2 old cursors\n";
 }

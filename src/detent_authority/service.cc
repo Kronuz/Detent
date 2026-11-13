@@ -619,7 +619,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		check(credential.namespaces.size() <= 4096, "credential grant count bound");
 		grants.names.reserve(credential.namespaces.size());
 		for (const auto &name : credential.namespaces)
-			grants.names.push_back(name);
+			if (distribution::valid_namespace_name(name)) // Version 1 follows exact names only.
+				grants.names.push_back(name);
 		grants.digest =
 			distribution::canonical_scope_identity("detent-subscription-grants-v1", 1, grants.names);
 	}
