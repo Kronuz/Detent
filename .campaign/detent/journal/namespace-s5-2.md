@@ -1,6 +1,6 @@
 # namespace-s5-2: journal
 
-State: working
+State: waiting on jobs 261112-220407-bcf0f5 261112-220407-64f2e5 261112-220409-a2488f 261112-220413-0e34b3 261112-220417-d8a94e 261112-220422-eb1426 261112-220445-848938 261112-220450-f5e9a0 261112-220456-df8763 261112-220505-41157f 261112-220512-56ad47 261112-220517-95cd37 261112-220521-ca11db
 Quest: .campaign/detent/quests/namespace-s5-2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,9 +9,26 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Steps 4-7 written, building: history files over `journal::IO` (`history.hh/.cc`), the node's
-checkpoint at the seal, the ring keyed by namespace position with lazy eviction, the cluster
-identity test (A1, A2, A4) and the history crash matrix (A5).
+Steps 1-7 done at eb37a84a (merged with main at a81ccd79); jobs queued at the branch head:
+
+- Gate: native 261112-220407-bcf0f5, pins 261112-220407-64f2e5 (`campaign verify`).
+- A1, A2, A4: `test_authority_history_cluster` 261112-220409-a2488f.
+- A2: `test_authority_change_history` (lazy eviction) 261112-220413-0e34b3.
+- A3, A6: `test_authority_history_layout` 261112-220417-d8a94e.
+- A5: `test_authority_history_power_cut`, `test_authority_namespace_power_cut` 261112-220422-eb1426.
+- Mutants (`--fails-without`, `tests/detent_authority/history_mutant.sh`): A5 table-before-outputs
+  261112-220445-848938, collect-above-table 261112-220450-f5e9a0, trust-local-files
+  261112-220456-df8763, checkpoint-between-seals 261112-220505-41157f; A2 eager-eviction
+  261112-220512-56ad47, ring-by-group-revision 261112-220517-95cd37; A3/A6 cut-at-twice-the-cost
+  261112-220521-ca11db.
+
+Local runs at e121df71 (quiet light): authority suite 48/49, the one failure
+`test_authority_snapshot_catchup` under a loaded parallel run, passing alone (51 s); the gate
+job decides whether it is pre-existing. history_power_cut: 39 seals, 7 tables, 946 storage
+operations, 1,892 cuts (370 recovered below the table), 4,243 cuts in installs.
+namespace_power_cut: 495 cuts over 495 operations with history on the same disk. Cluster: 23
+seals, 66 history files identical on three voters, ring answers kept 17 of 17 after every
+voter restarts.
 
 ## Proposed split (for the lead)
 
@@ -30,10 +47,8 @@ I keep going on both in this branch unless the lead splits it; each step is its 
 
 ## Next
 
-1. Build; run the authority suite; fix what breaks.
-2. Docs: S5.2 section in `docs/status/namespace-s5.md`.
-3. Jobs: `campaign verify` per criterion, mutants for the commit order, the checkpoint gate,
-   lazy eviction and the cost cut.
+1. Read the jobs; fix what fails; paste `campaign brief`'s evidence table; State "ready for
+   review".
 
 ## Blocked on
 
@@ -47,13 +62,19 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A7 | [decision] D90 in PLAN.md: α = 1/8 (`alpha_num` 1, `alpha_den` 8) and roll-up period 64 from namespace-measure, the `LayoutPolicy` defaults in `src/detent_authority/state.hh` |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Every voter persists the same compacted history per namespace (D6): apply seals on changes or
+log progress, seal files carry level-0 sections and the outputs their roll-ups write, blocks
+squash by ratio and L, the oldest are cut into the base by cost or the cap, and the `layout`
+table is written at period seals; the commit, collector, recovery, install and peer repair run
+over `journal::IO`. Checkpoints are taken at a seal whose history is durable. The ring is keyed
+by namespace position, evicts lazily and is refilled by replay after a restart. How it works,
+the contract and what is left open: `docs/status/namespace-s5.md` (S5.2 section). Left open
+there: nothing proposes the enabling entry yet (S6 cutover), production peer fetch needs an
+endpoint, and history IO runs synchronously in apply's seal.
 
 ## Rulings I made
 
@@ -83,3 +104,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 10. Answer "unchanged after a restart" (A2) is checked as: the same blocks answer, byte for
    byte, and every R from the cut delivers exactly the head store; ring answers below the
    checkpoint's seal become block answers (the ring restarts at the checkpoint).
+11. Checkpoints are taken only at seals, so `test_authority_namespace_power_cut` seals every
+   change (`seal_transactions` 1) to keep its checkpoint steps, and `test_distribution_service`
+   expects a delta after a restart (replay refills the ring; it expected a snapshot before).
+12. The ring's draft checks a record's revision against its namespace position (records carry
+   positions after the enabling entry); the group-revision check failed every non-delete capture.
