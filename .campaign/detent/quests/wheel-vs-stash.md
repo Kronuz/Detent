@@ -5,9 +5,8 @@ never edit it. Machine state: `campaign status wheel-vs-stash`.
 
 ## Hold
 
-Owner, 2026-11-12: on hold until the wheel stabilizes, since the logger-on-wheel decision may change
-it (for example a sorted expire). It resumes at the wheel commit that decision lands, not at
-wheel:bfd72bc.
+Owner, 2026-11-12: held until the wheel stabilized. Lifted by D86: the logger needs no wheel
+change, so the wheel is stable at wheel:bfd72bc and this quest measures that commit.
 
 ## Outcome
 

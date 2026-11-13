@@ -1,10 +1,12 @@
-"""Summarize stash_niche.sh logs by docs/design/stash-niche.md's rule.
+"""Summarize stash_niche.sh logs: Kronuz/wheel (w) against stash (b), the A/A twin b2.
 
-Per row (horizon, keys, producers): each arm's median over runs of insert, drain and cost per
-key with its min-max; the noise floor (the larger of the two arms' median consecutive relative
-differences on cost per key); r = the median over pairs of (w cost) / (b cost); the memory gate
-(total bytes per key, entry plus heap, from `nichemem` lines); and the outcome: win, loss or
-inconclusive. Pass every log of a row split over jobs, and the memory logs.
+Per row (horizon, keys, producers): each arm's median over rounds of insert, drain and cost per key
+with its min-max; the ratios of b2 and w to b, round by round (each round runs every arm once), as
+the median with a distribution-free 95% interval, and the A/A band (b2 / b on cost). The statistics
+are the wheel's (bench/wheel_bench_summary.py, loaded by path). Memory rows (`nichemem`): total bytes
+per key, entry plus heap, median per arm. Pass every log of a row split over jobs.
+
+usage: stash_niche_summary.py WHEEL_BENCH_SUMMARY.py LOG...
 """
 
 from __future__ import annotations
@@ -12,124 +14,61 @@ from __future__ import annotations
 import statistics
 import sys
 from collections import defaultdict
-from itertools import pairwise
 
-THRESHOLD = 1.10
-Key = tuple[int, int, int, str]
+from wheel_vs_stash_summary import load
+
+METRICS = ["insert_ns", "drain_ns", "cost_ns"]
+Key = tuple[int, int, int]
 
 
-def parse(
-    paths: list[str],
-) -> tuple[
-    dict[Key, list[dict[str, str]]], dict[Key, list[float]], dict[Key, list[float]]
-]:
-    runs: dict[Key, list[dict[str, str]]] = defaultdict(list)
-    heap: dict[Key, list[float]] = defaultdict(list)
-    total: dict[Key, list[float]] = defaultdict(list)
-    for path in paths:
-        with open(path) as log:
-            for line in log:
-                if not line.startswith("row="):
+def main(argv: list[str]) -> None:
+    lib = load(argv[0])
+    runs: dict[Key, dict[str, dict[int, dict[str, str]]]] = defaultdict(lambda: defaultdict(dict))
+    total: dict[tuple[int, int, str], list[float]] = defaultdict(list)
+    heap: dict[tuple[int, int, str], list[float]] = defaultdict(list)
+    for path in argv[1:]:
+        current = -1
+        with open(path) as f:
+            for line in f:
+                if line.startswith("round="):
+                    current = int(line.split()[0].split("=", 1)[1])
+                if not line.startswith(("row=niche ", "row=nichemem ")):
                     continue
                 fields = dict(kv.split("=", 1) for kv in line.split())
-                key = (
-                    int(fields["h_ms"]),
-                    int(fields["n"]),
-                    int(fields["p"]),
-                    fields["arm"],
-                )
                 if fields["row"] == "niche":
-                    runs[key].append(fields)
-                elif fields["row"] == "nichemem":
+                    runs[(int(fields["h_ms"]), int(fields["n"]), int(fields["p"]))][fields["arm"]][current] = fields
+                else:
+                    key = (int(fields["h_ms"]), int(fields["n"]), fields["arm"])
                     heap[key].append(float(fields["heap_per_key"]))
-                    total[key].append(
-                        float(fields["heap_per_key"]) + float(fields["entry_bytes"])
-                    )
-    return runs, heap, total
-
-
-def floor(xs: list[float]) -> float:
-    if len(xs) < 2:
-        return 0.0
-    m = statistics.median(xs)
-    return statistics.median(abs(b - a) for a, b in pairwise(xs)) / m if m else 0.0
-
-
-def cell(rs: list[dict[str, str]], metric: str) -> str:
-    xs = [float(r[metric]) for r in rs]
-    return f"{metric}={statistics.median(xs):.1f} [{min(xs):.1f}-{max(xs):.1f}]"
-
-
-def over_p(table: dict[Key, list[float]], h: int, n: int, arm: str) -> list[float]:
-    return [
-        v
-        for (hh, nn, _, a), vs in table.items()
-        if (hh, nn, a) == (h, n, arm)
-        for v in vs
-    ]
-
-
-def main(paths: list[str]) -> None:
-    runs, heap, total = parse(paths)
-    for h, n, p in sorted({k[:3] for k in runs}):
-        b, w = runs[(h, n, p, "b")], runs[(h, n, p, "w")]
-        print(f"\nh_ms={h} n={n} p={p}")
-        for arm, rs in (("b", b), ("w", w)):
-            ok = all(r["valid"] == "1" for r in rs)
-            capped = sum(r["capped"] == "1" for r in rs)
+                    total[key].append(float(fields["heap_per_key"]) + float(fields["entry_bytes"]))
+    for (h, n, p), arms in sorted(runs.items()):
+        print(f"\nh_ms={h} n={n} p={p} rounds={len({r for rs in arms.values() for r in rs})}")
+        for arm in sorted(arms):
+            rs = list(arms[arm].values())
+            cells = []
+            for metric in METRICS:
+                xs = [float(r[metric]) for r in rs]
+                cells.append(f"{metric}={statistics.median(xs):.1f} [{min(xs):.1f}-{max(xs):.1f}]")
             extra = ""
             if arm == "w":
-                extra = (
-                    f" wakes={statistics.median(int(r['calls']) for r in rs)}"
-                    f" empty={statistics.median(int(r['empty_calls']) for r in rs)}"
-                )
-            print(
-                f"  {arm} runs={len(rs)} {cell(rs, 'insert_ns')} {cell(rs, 'drain_ns')} {cell(rs, 'cost_ns')} "
-                f"rss_growth_mb={statistics.median(float(r['rss_growth_mb']) for r in rs):.1f} valid={ok} capped={capped}{extra}"
-            )
-        pairs = list(zip(b, w, strict=False))
-        ratios = [float(wr["cost_ns"]) / float(br["cost_ns"]) for br, wr in pairs]
-        r = statistics.median(ratios)
-        phi = max(
-            floor([float(x["cost_ns"]) for x in b]),
-            floor([float(x["cost_ns"]) for x in w]),
-        )
-        ins = statistics.median(
-            float(wr["insert_ns"]) / float(br["insert_ns"]) for br, wr in pairs
-        )
-        drn = statistics.median(
-            float(wr["drain_ns"]) / float(br["drain_ns"]) for br, wr in pairs
-        )
-        tb, tw = over_p(total, h, n, "b"), over_p(total, h, n, "w")
-        hb, hw = over_p(heap, h, n, "b"), over_p(heap, h, n, "w")
-        gate, mem_ok = "", True
-        if tb and tw:
-            mem_ratio = statistics.median(tb) / statistics.median(tw)
-            mem_ok = mem_ratio <= THRESHOLD
-            gate = (
-                f" bytes_per_key(entry+heap) b={statistics.median(tb):.1f} w={statistics.median(tw):.1f}"
-                f" b/w={mem_ratio:.2f}x gate={'ok' if mem_ok else 'FAIL'}"
-                f" (heap alone b={statistics.median(hb):.1f} w={statistics.median(hw):.1f})"
-            )
-        ok = all(x["valid"] == "1" for x in b + w)
-        # Reported beside the rule's outcome: the same row with the memory gate ignored.
-        if not ok:
-            time_only = outcome = "invalid"
-        else:
-            time_only = (
-                "stash loss"
-                if r < THRESHOLD
-                else "stash win"
-                if r - 1 > phi
-                else "inconclusive"
-            )
-            outcome = (
-                "stash loss" if time_only == "stash loss" or not mem_ok else time_only
-            )
-        print(
-            f"  pairs={len(pairs)} r(w/b cost)={r:.3f} [{min(ratios):.3f}-{max(ratios):.3f}] "
-            f"insert w/b={ins:.3f} drain w/b={drn:.3f} floor={phi:.1%}{gate}: {outcome} (time only: {time_only})"
-        )
+                extra = f" wakes={statistics.median(int(r['calls']) for r in rs)} empty={statistics.median(int(r['empty_calls']) for r in rs)}"
+            print(f"  {arm:3} runs={len(rs)} " + " ".join(cells)
+                  + f" rss_growth_mb={statistics.median(float(r['rss_growth_mb']) for r in rs):.1f}"
+                  + f" valid={all(r['valid'] == '1' for r in rs)} capped={sum(r['capped'] == '1' for r in rs)}{extra}")
+        for arm in ("b2", "w"):
+            cells = []
+            for metric in METRICS:
+                m, lo, hi = lib.median_interval(lib.paired(arms, arm, "b", metric))
+                cells.append(f"{metric} {lib.fmt(m, lo, hi)}")
+                if arm == "b2" and metric == "cost_ns":
+                    band = max(abs(lo - 1), abs(hi - 1))
+            print(f"  {arm}/b " + ", ".join(cells) + (f"  (A/A band on cost_ns {band:.1%})" if arm == "b2" else ""))
+    for h, n in sorted({k[:2] for k in total}):
+        cells = []
+        for arm in ("b", "w"):
+            if (h, n, arm) in total:
+                cells.append(f"{arm} total={statistics.median(total[(h, n, arm)]):.2f} heap={statistics.median(heap[(h, n, arm)]):.2f}")
+        print(f"\nmem h_ms={h} n={n} bytes per key (entry plus heap): " + "  ".join(cells))
 
 
 if __name__ == "__main__":

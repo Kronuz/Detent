@@ -6,6 +6,7 @@
 #include "detent_local/paged_layout.hh"
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
+#include "peer_close.hh"
 #include "task_support.hh"
 #include <asio/buffers_iterator.hpp>
 #include <asio/read.hpp>
@@ -1099,23 +1100,22 @@ int main(int argc, char **argv) {
 					}
 					asio::write(socket, asio::buffer(bytes));
 					if (final_close) {
-						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
-						if (::poll(&descriptor, 1, static_cast<int>(close_acknowledgement.count())) <= 0)
+						std::size_t stray = 0;
+						std::string seen;
+						if (!peer_closed(socket, close_acknowledgement, stray, &seen))
 							throw std::runtime_error("coordinator did not acknowledge the session close");
-						std::array<char, 1> byte;
-						asio::error_code error;
-						socket.read_some(asio::buffer(byte), error);
-						check(bool(error));
-						checkpoint("server-close-acknowledged");
+						checkpoint("server-close-acknowledged stray=" + std::to_string(stray));
+						report_stray("server-close-acknowledged", stray, seen);
+						check(!stray);
 						close_acknowledged = true;
 					}
 					if (retained_idle) {
-						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
-						check(::poll(&descriptor, 1, 5000) > 0);
-						std::array<char, 1> byte;
-						asio::error_code error;
-						socket.read_some(asio::buffer(byte), error);
-						check(bool(error));
+						std::size_t stray = 0;
+						std::string seen;
+						const bool closed = peer_closed(socket, 5000ms, stray, &seen);
+						checkpoint("server-idle-closed stray=" + std::to_string(stray));
+						report_stray("server-idle-closed", stray, seen);
+						check(closed && !stray);
 					}
 				}
 			} catch (...) {

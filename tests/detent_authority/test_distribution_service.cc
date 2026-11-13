@@ -199,7 +199,8 @@ int main(int argc, char **argv) {
 			}
 			auto response = request(endpoint, cert, "/v2/distribution",
 									"{" + common + base(0) + "\"coding\":\"raw\"}", token);
-			decoded(response, run ? d::UpdateKind::Snapshot : d::UpdateKind::Delta, false);
+			// The ring is refilled by replay, so a restart loses no cursor (D6).
+			decoded(response, d::UpdateKind::Delta, false);
 			if (!run) {
 				check(call("/v2/transactions",
 						   "\"generation\":1,\"sequence\":2,\"namespace\":\"secret\",\"operations\":[{"
