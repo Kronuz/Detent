@@ -1,13 +1,14 @@
 # namespace-s7-store: journal
 
-State: waiting on jobs 261113-042346-a967f7 261113-042357-242f17 261113-042403-028fd2 261113-042414-b3c4fb 261113-042418-606cb1 261113-042432-0f33ed 261113-042437-89be6e 261113-042444-419220
+State: waiting on jobs 261113-044509-c22720 261113-044510-08f77b 261113-044511-bfb064 261113-044512-76bfe6 261113-044512-6794a6
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
 
-Evidence jobs at Detent:03ef11d2 (the whole migration; the head adds only the doc and this journal).
-Locally at that commit the suite passes but for the 12 out-of-set entries (msg-47, msg-48);
-`test_system_managed_*` (authority, relay, agent) pass.
+Evidence jobs at Detent:518f6147 (the head's code). Earlier runs found two issues, fixed:
+test_paged_publication_intents collected before the base view's `.lease` closed on the retirement
+thread (flaky; it now waits), and the reader's table bytes were counted twice (CI's counters
+configuration, job 261113-042437-89be6e: got 1746, want 1129).
 
 ## Next
 
@@ -30,12 +31,12 @@ Locally at that commit the suite passes but for the 12 out-of-set entries (msg-4
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261113-042346-a967f7 (suite minus the 12 out-of-set entries; test_system_managed_* run authority, relay and agent) |
-| A2 | job 261113-042357-242f17 (T7, cut at every primitive of publish, repair, collect, startup); mutant n6 job 261113-042432-0f33ed |
-| A3 | job 261113-042400-8844d3 (`tests/detent_agent/agent_store_sole_writer.sh`, exit 0) plus the suite job |
-| A4 | job 261113-042403-028fd2 (test_agent_store); mutants 261113-042414-b3c4fb, 261113-042418-606cb1 |
-| A5 | job 261113-042346-a967f7 (test_agent_catch_up: 33 kills, 29 recovered at R and caught up locally) |
-| A6 | [artifact] docs/status/namespace-s7.md "## Wiring" |
+| A1 | job 261113-044509-c22720: the suite at the head, less the 12 entries outside the file set (msg-47, msg-48); test_system_managed_* run authority, relay and agent and compare readers' answers |
+| A2 | job 261113-044510-08f77b: T7, a cut at every primitive of publish, repair, collect (each removal) and startup; mutant n6 (table renamed before its fsync) killed: job 261113-042432-0f33ed |
+| A3 | job 261113-044510-384de8 (`tests/detent_agent/agent_store_sole_writer.sh`) and the suite, job 261113-044509-c22720 |
+| A4 | job 261113-044511-bfb064 (test_agent_store: `collection`, `held_lease`); mutants a4-collect-ignores-lease and a4-publish-ignores-lease killed: jobs 261113-042414-b3c4fb, 261113-042418-606cb1 |
+| A5 | job 261113-044509-c22720 (test_agent_catch_up: a kill at each of 33 primitives, 29 recovered at R and caught up by ring, block and base) |
+| A6 | [artifact] `docs/status/namespace-s7.md`: "## Wiring" |
 
 ## Result
 
@@ -62,8 +63,11 @@ Locally at that commit the suite passes but for the 12 out-of-set entries (msg-4
   is charged to the store's account (pressure refuses before queueing).
 - `change` grows a slot with the namespace's first publication (AgentStore's rule for any entry); the
   change file test follows it rather than AgentStore reserving slot 0 at creation.
-- The reader's first open counts the table read and the image peek (record opens, table bytes, the
-  table's digest as bytes hashed); job 261113-042437-89be6e runs CI's counters configuration.
+- The reader's first open counts the table and the image peek as record opens and the table's digest
+  as bytes hashed (read_record already counts their bytes); job 261113-044512-76bfe6 runs CI's
+  counters configuration.
+- Collection skips a generation whose `.lease` a view still holds; a dropped view closes it on the
+  retirement thread, so a superseded base may wait for the next publication's collection.
 - The prepared reader fixture writes no `owner.lock` (its callers do, as before).
 - Tests of deleted modules are deleted (collector, inventory, record_reader, storage_session, publication,
   paged_certificate, paged_segment_{marks,read,collection}, segment_mark_hash, paged_named_root,
