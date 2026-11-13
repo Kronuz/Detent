@@ -39,7 +39,7 @@ class TrieOverlay {
 	void begin_relocation(std::span<const StorageIdentity>, std::size_t maximum_recipes);
 	void step(ValidationBudget &);
 	std::uint64_t visited_pages() const;
-	// Extent comparisons spent finding pages already removed.
+	// Extent comparisons over every removed-page dedupe lookup, first inserts included.
 	std::uint64_t removal_probes() const noexcept;
 	std::size_t relocated_pages() const;
 	bool operation_done() const noexcept;
