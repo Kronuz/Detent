@@ -253,6 +253,13 @@
       "closed": "answered via cmux reply: no objection; default-off cost A/B and a Detent integration run against task-lanes before it lands",
       "id": "msg-40",
       "text": "Heads-up on Kronuz/task (D79/D80, design under review, not built yet): Xapiand's loop-scheduling design adds an opt-in heavy lane to task's asio scheduler as library quest `task-lanes`. A request's budget counts the slices it spends, past K (Xapiand uses 8, about 1.6 ms) it is heavy for life, and its resumptions go to a lane that runs one turn per io_context pass, so light work and timers go first. The default is off, so Detent and Prism keep today's behaviour exactly. Kronuz/http gets one line. Measured on Xapiand: light-search p50 0.45x, heavy throughput 1.10-1.18x, RESTORE flat. Design note: Xapiand docs/design/loop-scheduling.md on quest/xapiand/loop-scheduling (37d80c1d5). If Detent has a stake in task's scheduler queues, tell me before the library quest starts."
+    },
+    {
+      "at": "2026-11-10T19:45:32",
+      "by": "xapiand-lead",
+      "closed": "owner said go; replied to xapiand-lead with the SKILL.md sentence and re-accept plan",
+      "id": "msg-19",
+      "text": "Xapiand lead: the lighter tools are ready on xapiand/lighter-tools at agent-campaign:c74c179, rebased on your detent/lighter ee24a68 (edaa0ff + ee24a68 over main ac4803e). 222 tests OK, ruff clean, pyrefly 11 (baseline). Commits: normal risk gets no review lens (27931b3); campaign config suite=CMD gates new quests, sanitizer/crash/fuzz/mutant checks become milestone checks except on high/critical (1dbe3a5); a CHANGES with only non-blocking rows counts as APPROVE (2cec6f4); acceptances hash only criterion lines (8303b91); brief/status show the CI gap (3ae711b); land --upto accepts an empty May-land-early (e3d8bb4); accept --waive and status --reviews removed (a4326a7). Two things for you before I fast-forward main to c74c179 and bump dotfiles: 1) SKILL.md does not mention campaign config suite=CMD yet; one replaced sentence in your text covers it. 2) Acceptance hashing changes, so four acceptances on async-drivers-design, dense-pages and namespace-s5-1 read void once and need accept again. Reply go (or a commit to add on top) and I land both in one push."
     }
   ],
   "quests": {
@@ -524,6 +531,33 @@
       "title": "Site head links for the touch icons and web manifest",
       "updated": "2026-11-11T16:20:35",
       "worktree": ""
+    },
+    "ci-test-flakes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/**",
+        "tests/detent_authority/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Three CI test flakes: managed relay, writer failover, authority admission",
+      "updated": "2026-11-12T19:37:21"
     },
     "client-local-source": {
       "accepted": {},
@@ -902,6 +936,36 @@
       "title": "EX-0: flat-map adoption and container qualification",
       "updated": "2026-11-08T15:38:03"
     },
+    "coordinator-idle-cause": {
+      "accepted": {},
+      "after": [
+        "coordinator-idle-flake"
+      ],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_delivery/**",
+        "src/detent_delivery/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "waits for the first STRAY line in a CI log (D89)",
+      "repo": ".",
+      "risk": "normal",
+      "status": "blocked",
+      "title": "Name the sender of the coordinator fixture's stray bytes",
+      "updated": "2026-11-12T19:35:01"
+    },
     "coordinator-idle-flake": {
       "accepted": {},
       "after": [],
@@ -921,17 +985,45 @@
         "src/detent_delivery/http*",
         "src/detent_delivery/client*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T19:54:39",
+          "commit": "1bb430f93b0b9f427de4b25d736213214fdef25c",
+          "criteria": {
+            "A1": "261112-193532-048881 (passed at b49cda416233; only merges from main since); fails without: 261112-193540-a72b5f",
+            "A2": "261112-193548-9146ef (passed at b49cda416233; only merges from main since)",
+            "A3": "D89"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "ebcb470e69d1230f7aba7393ef519592a9ff2568",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-193550-457797",
+              "level": "light",
+              "seconds": 859.1,
+              "state": "done",
+              "what": "coordinator-idle-flake check suite at ebcb470e69d1"
+            }
+          ],
+          "final": true,
+          "from": "4558de812c1cdd4302a08d49e4f52c9d217b2a16",
+          "reason": "",
+          "tested": "baf84b4f7d4aa8668ddd9c74ced631d970245dbe"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Flaky retained-idle check in test_delivery_coordinator under ASan",
-      "updated": "2026-11-12T17:03:07",
-      "worktree": "../Detent-wt/detent/coordinator-idle-flake"
+      "updated": "2026-11-12T19:54:49",
+      "worktree": ""
     },
     "daemon-ready-leader": {
       "accepted": {
@@ -1073,6 +1165,70 @@
       "title": "detentd reports ready only once a leader exists",
       "updated": "2026-11-11T00:01:57",
       "worktree": ""
+    },
+    "delta-plan-fixed-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_delta_plan.*",
+        "src/detent_local/paged_plan.*",
+        "src/detent_local/paged_trie_overlay.*",
+        "src/detent_local/paged_warm_validator.*",
+        "src/detent_local/paged_navigation.*",
+        "src/detent_local/paged_node_*",
+        "tests/detent_local/test_delta_plan_*",
+        "tests/detent_local/CMakeLists.txt",
+        "docs/perf/delta-plan-scaling.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-12T18:58:45",
+          "checks": [
+            [
+              {
+                "cmd": "campaign verify",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              }
+            ]
+          ],
+          "reason": "replaces a mistyped suite check (cmd 'campaign verify') with the pins check delta-plan-scaling used; the quest has not started",
+          "voided": [],
+          "weakened": [
+            "gate check suite removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "namespace-s7-ids"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "A delta's plan has a store-sized fixed cost",
+      "updated": "2026-11-12T18:58:45"
     },
     "delta-plan-scaling": {
       "accepted": {
@@ -3641,17 +3797,47 @@
         "docs/perf/namespace-*",
         "docs/status/namespace-measure.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T19:24:19",
+          "commit": "2f20f3d61d2bc0ebb977eaa9a55811d5bd47455c",
+          "criteria": {
+            "A1": "`docs/perf/namespace-measure.md`: \"## Rules\" (committed before any job)",
+            "A2": "261112-115039-e2a0e2 (passed at b14304dd0377; only merges from main since), 261112-115033-5cb640 (passed at b14304dd0377; only merges from main since), 261112-115520-7fe532 (passed at e0c9f4506d2d; only merges from main since), 261112-184618-110b7d (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md), 261112-184754-b24467 (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md), 261112-184757-fefadb (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md)",
+            "A3": "261110-204532-499625 (passed at b0c517b53d2d; only merges from main since), 261112-113801-4be23d (passed at 9c48b4f92e95; only merges from main since)",
+            "A4": "261112-132124-1b4fd7 (passed at e0c9f4506d2d; only merges from main since), 261112-132129-82a3aa (passed at e0c9f4506d2d; only merges from main since), 261112-132134-41fc3c (passed at e0c9f4506d2d; only merges from main since)",
+            "A5": "`docs/perf/namespace-measure.md`: \"## Verdicts\""
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "ae46477b69ca08f386a1521a9b849b3dbd7ce209",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-113923-c7fdbf",
+              "level": "none",
+              "seconds": 5.8,
+              "state": "done",
+              "what": "namespace-measure check pins at ae46477b69ca"
+            }
+          ],
+          "final": true,
+          "from": "215dfc0b94cb67b20df27e1c6743789357ca4569",
+          "reason": "",
+          "tested": "e6778ffe2e1f3237bf9329683a587fdff50a9058"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-12T18:42:09",
-      "worktree": "../Detent-wt/detent/namespace-measure"
+      "updated": "2026-11-12T19:24:23",
+      "worktree": ""
     },
     "namespace-s1-s2": {
       "accepted": {
@@ -4756,6 +4942,8 @@
     "namespace-s5-2": {
       "accepted": {},
       "after": [],
+      "base": "3b8fbc50766fcf95cd336ed24b4b2c15cfac224e",
+      "branch": "quest/detent/namespace-s5-2",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4845,9 +5033,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-10T13:19:10"
+      "updated": "2026-11-12T19:38:03",
+      "worktree": "../Detent-wt/detent/namespace-s5-2"
     },
     "namespace-s6": {
       "accepted": {
@@ -5342,6 +5531,8 @@
     "namespace-s7-ids": {
       "accepted": {},
       "after": [],
+      "base": "8008610ec31b521bdcf1b1c2eb72b9dcd902737c",
+      "branch": "quest/detent/namespace-s7-ids",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5385,9 +5576,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T15:35:47"
+      "updated": "2026-11-12T18:42:11",
+      "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
       "accepted": {},
