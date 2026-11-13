@@ -8339,18 +8339,61 @@
         "docs/status/warm-graph-5m.md",
         "tests/detent_local/CMakeLists.txt"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T16:42:13",
+          "commit": "f4dfe9543f5514b80a94d055f68386cd3467e83b",
+          "criteria": {
+            "A1": "261112-154256-ad53cb (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md); fails without: 261112-143906-a7a2bf, 261112-154454-6606a0",
+            "A2": "261112-154135-a2931e (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154455-151646 (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154256-ad53cb (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md); fails without: 261112-143906-a7a2bf, 261112-154129-2cdfff, 261112-154454-6606a0",
+            "A3": "261112-154135-a2931e (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154455-151646 (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md)",
+            "A4": "lead and contributor: the budgeted exclusive 5M run at Detent:6a3d64f2 published the 0.5 C delta (apply 514.8 s); since then the only change under src/detent_local and include/detent_local is namespace-s6 replacing agent_store.hh's cursor structs with aliases of the distribution types, off the plan and finalize path, so per D85 the 5M arm is not rerun"
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "6c52a2b3dea0ba671bc64d198484fd7fda0d060c",
+              "docs": [
+                "docs/design/async-drivers-bench/CMakeLists.txt",
+                "docs/design/async-drivers-bench/stash_niche.cc",
+                "docs/design/async-drivers-bench/stash_niche.sh",
+                "docs/design/async-drivers-bench/stash_niche_summary.py",
+                "docs/design/async-drivers-bench/stash_niche_wheel.hh",
+                "docs/design/async-drivers-bench/wheel_vs_stash.cc",
+                "docs/design/async-drivers-bench/wheel_vs_stash.sh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_common.sh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_summary.py",
+                "docs/design/async-drivers-bench/wheel_vs_stash_vm.sh",
+                "docs/perf/wheel-vs-stash.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-154135-a2931e",
+              "level": "none",
+              "seconds": 5.4,
+              "state": "done",
+              "what": "warm-graph-5m check pins at 6c52a2b3dea0"
+            }
+          ],
+          "final": true,
+          "from": "8eb6410bdf782aab03e6eccaa5d1841e1254cbd8",
+          "reason": "",
+          "tested": "d9157fecbf3c6e768400c6bdd22a3fb45eefcf7a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T16:27:22",
+      "updated": "2026-11-12T16:42:24",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
