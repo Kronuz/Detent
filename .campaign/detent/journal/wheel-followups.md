@@ -1,6 +1,6 @@
 # wheel-followups: journal
 
-State: waiting on jobs 261112-161404-c64d69 261112-160839-ef94c0 261112-161409-113782 261112-160906-c85f23 261112-160908-f37dd5 261112-160910-a7d660 261112-161358-e2692f 261112-160916-710092 261112-160920-572262 261112-160923-9ecbc0 261112-160926-aab121
+State: waiting on job 261112-163951-fbebd9 (A5 rerun at head); then ready for review
 Quest: .campaign/detent/quests/wheel-followups.md (the lead's; never edit it)
 
 ## Doing
@@ -39,16 +39,22 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
-| A2 | pending |
-| A3 | pending |
-| A4 | pending |
-| A5 | pending |
-| A6 | pending |
+| A1 | 261112-161404-c64d69, 261112-161409-113782; fails without: 261112-161358-e2692f |
+| A2 | 261112-161404-c64d69; fails without: 261112-160916-710092 |
+| A3 | 261112-161404-c64d69 |
+| A4 | `README.md`: "Performance" gives the library's real numbers (arm, whole life, cross-thread arm, bytes), stash only on apples-to-apples rows; `docs/timer-wheel.md`: "Cost" likewise; no prototype numbers |
+| A5 | 261112-163951-fbebd9 (rerun at head of 261112-160910-a7d660; cause documented in "Fire lateness") |
+| A6 | 261112-161404-c64d69, 261112-161409-113782; fails without: 261112-160216-3b15c9, 261112-160839-ef94c0, 261112-160920-572262; paired 261112-160906-c85f23, 261112-160908-f37dd5 |
 
 ## Result
 
-pending
+A5: the lateness is the owner's longest loop iteration, one expire draining a 0.3-0.9M backlog
+(4-5 ms) after the producers finish; unpaced worst fire 0.21 / 3.48 / 4.08 ms at P = 1 / 4 / 14,
+0.2-0.9 ms with producers paced to stash's rate; inherent to the inbox, documented
+(wheel:cfdbbe6, docs/timer-wheel.md "Fire lateness"). A6: expire walks bitmap words (wheel:36e9c20);
+wake 201.6 ns against 264.4 ns old, ratio 0.773 (0.724-0.801), A/A 3.1%; dense row unchanged
+(0.988, A/A 3.4%). Stash vs wheel at small N was not rerun. A4: README "Performance" and
+"Cost" state the library's numbers.
 
 ## Rulings I made
 
