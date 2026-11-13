@@ -52,10 +52,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf (MUTANT KILLED, `invalid warm paged graph`, status 134) |
-| A2 | 261112-143954-efa99b (pending); fails without: 261112-143906-a7a2bf |
-| A3 | 261112-143954-efa99b (pending) |
-| A4 | lead and contributor: 5M job 261112-144057-f1c829 at 6a3d64f2 published the 0.5 C delta (apply 514.8 s); since then src/detent_local and include/detent_local are unchanged, the rest is namespace-s6 from main |
+| A1 | 261112-154454-6606a0 (mutant restores the 128 MiB default; the new test fails, job passes iff killed); diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf, 261112-154454-6606a0 |
+| A2 | 261112-154455-151646; fails without: 261112-154454-6606a0 |
+| A3 | 261112-154455-151646 |
+| A4 | lead and contributor: the budgeted exclusive 5M run at Detent:6a3d64f2 published the 0.5 C delta (apply 514.8 s); src/detent_local and include/detent_local are byte-identical between that commit and this one, so per D85 the 5M arm is not rerun |
 
 ## Result
 
