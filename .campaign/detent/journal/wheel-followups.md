@@ -1,6 +1,6 @@
 # wheel-followups: journal
 
-State: waiting on jobs 261112-160933-266ff2 261112-160839-ef94c0 261112-160848-be2b8c 261112-160906-c85f23 261112-160908-f37dd5 261112-160910-a7d660 261112-160913-754337 261112-160916-710092 261112-160920-572262 261112-160923-9ecbc0 261112-160926-aab121
+State: waiting on jobs 261112-161404-c64d69 261112-160839-ef94c0 261112-161409-113782 261112-160906-c85f23 261112-160908-f37dd5 261112-160910-a7d660 261112-161358-e2692f 261112-160916-710092 261112-160920-572262 261112-160923-9ecbc0 261112-160926-aab121
 Quest: .campaign/detent/quests/wheel-followups.md (the lead's; never edit it)
 
 ## Doing
@@ -18,6 +18,11 @@ at wheel:HEAD of quest/detent/wheel-followups. Jobs queued for every criterion (
 - A6: cause is expire() walking up to 4,096 slots bit by bit per wake after a far jump; fixed by
   walking bitmap words (wheel:36e9c20): 2.03 -> 0.18 us a wake at N = 1e3 (locally). Paired:
   261112-160243-d839de (wake), no regression: 261112-160245-27a1ef (single).
+
+## Note
+
+The first A1 mutant (261112-160913-754337) survived: the second entry's fire re-entered expire and
+asserted by itself. Fixed in the test (plain fire for the second entry), mutant resubmitted.
 
 ## Next
 
