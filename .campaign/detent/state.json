@@ -6557,8 +6557,8 @@
     "namespace-s7-store": {
       "accepted": {
         "durability": {
-          "at": "2026-11-13T07:08:05",
-          "base": "e15c75d9644ac8020a1e9d3576fb6dc149d90d49",
+          "at": "2026-11-13T07:52:38",
+          "base": "8781b0121fac038f4f0e3a2db0b0ffc95d91d18f",
           "blobs": {
             "benchmarks/CMakeLists.txt": "100644:fb372770c4fe81c29d885b5081f0c5e8a7202249",
             "benchmarks/local_image_bench.cc": "100644:f7d14120f2752d18d2b12697ecb0b7f28544f7d6",
@@ -6724,10 +6724,13 @@
             "tests/detent_testing/test_change_file.cc": "100644:5f80dbb9a4cb273e9db1efaa16f8149826ec8c8a",
             "tests/detent_testing/test_pack_scrub.cc": "100644:2341c48f046107406fdd1cb9c0c24231508219cd",
             "tools/check_lineage.sh": "100755:f76aa64a7884bcd6a4b5fe56fd96d306792f8592",
-            "tools/w5/first_read.py": "100644:37bb52128e4180f5c9ed64cc51af7bf226a8b230"
+            "tools/w5/first_read.py": "100644:37bb52128e4180f5c9ed64cc51af7bf226a8b230",
+            "website/src/content/docs/guides/managed-delivery.md": "100644:45d33133d97800fa6207b897a927ec9eba4ce9ca",
+            "website/src/content/docs/operations/upgrading.md": "100644:3f252630ec44dae5c15b44a668ea1a35e579e46e",
+            "website/src/content/docs/reference/cli/detent-agent.md": "100644:7b0f0b2be85536694ff59d57c99cd5aabb528a5a"
           },
           "by": "review",
-          "commit": "dc021249806266469679c51b615c3489e2e45081",
+          "commit": "c060c652d8e44d126657dd93fe98b9ad6d129200",
           "criteria": "1f071a75bbada3d5",
           "diffs": {
             "": "ba0297ecb39f88b8",
@@ -6895,21 +6898,24 @@
             "tests/detent_testing/test_change_file.cc": "c9601ca8b0990b96",
             "tests/detent_testing/test_pack_scrub.cc": "52af9cef3db018dd",
             "tools/check_lineage.sh": "eb7fda8ce84989ba",
-            "tools/w5/first_read.py": "529c386029a2a813"
+            "tools/w5/first_read.py": "529c386029a2a813",
+            "website/src/content/docs/guides/managed-delivery.md": "7567f4c2d51c4514",
+            "website/src/content/docs/operations/upgrading.md": "5e8e2370ac0d7fc1",
+            "website/src/content/docs/reference/cli/detent-agent.md": "d3c8b6840b46bff7"
           },
           "findings": {
             "F1": {
               "jobs": [
                 {
                   "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
-                  "commit": "dc021249806266469679c51b615c3489e2e45081",
+                  "commit": "c060c652d8e44d126657dd93fe98b9ad6d129200",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261113-065850-080d05",
+                  "job": "261113-074337-b96ab4",
                   "level": "light",
-                  "seconds": 464.7,
+                  "seconds": 526.8,
                   "state": "done",
-                  "what": "namespace-s7-store check native at dc0212498062"
+                  "what": "namespace-s7-store check native at c060c652d8e4"
                 }
               ],
               "kind": "defect",
@@ -6933,9 +6939,12 @@
               "tests/detent_delivery/verify_local_format.py",
               "tests/detent_local/mutants/s7-flat-live-private-ledger.patch",
               "tools/check_lineage.sh",
-              "tools/w5/first_read.py"
+              "tools/w5/first_read.py",
+              "website/src/content/docs/guides/managed-delivery.md",
+              "website/src/content/docs/operations/upgrading.md",
+              "website/src/content/docs/reference/cli/detent-agent.md"
             ],
-            "reason": "F1's fail-closed lease check in agent_store.cc as the review proposed, its tests and mutants; the rest is ports of tests, benches, tools and docs to the new layout (msg-47/48) and a missing include"
+            "reason": "F1's fail-closed lease check in agent_store.cc as the review proposed, its tests and mutants; the rest is ports of tests, benches, tools and docs to the new layout (msg-47/48), a missing include, and a merge from main"
           },
           "note": "",
           "review": "17a1c2193677b4a08f202d7199c01aacb541f604",
@@ -7023,7 +7032,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T07:43:17",
+      "updated": "2026-11-13T07:52:38",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
