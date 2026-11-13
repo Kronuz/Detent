@@ -6567,7 +6567,8 @@
         "docs/LOCAL_IMAGE_FORMAT.md",
         "docs/DISK_STORE_INTEGRATION.md",
         "docs/DISK_LIFECYCLE_ARCHITECTURE.md",
-        "docs/mechanisms/**"
+        "docs/mechanisms/**",
+        "benchmarks/CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [
@@ -6582,7 +6583,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T04:57:12",
+      "updated": "2026-11-13T06:35:31",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
