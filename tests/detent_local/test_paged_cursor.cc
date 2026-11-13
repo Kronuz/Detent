@@ -68,7 +68,7 @@ int main() {
 		l::StorageIdentity storage{}, generation{};
 		storage.fill('s');
 		generation.fill('g');
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation, paging);
+		l::detail::PagedSnapshotBuilder builder(source, generation, paging);
 		while (!builder.done()) {
 			l::ValidationBudget b;
 			builder.step(b);

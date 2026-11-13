@@ -29,7 +29,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -144,18 +144,18 @@ int main() {
 						(errno == EWOULDBLOCK || errno == EAGAIN));
 				require(::close(fd) == 0);
 				if (variant == 1) {
-					l::detail::OwnedSegmentInputs inputs(domain.factory(), account, storage,
+					l::detail::OwnedSegmentInputs inputs(domain.factory(), account,
 														 reader.root().segments,
 														 16 * l::paged::segment_bytes);
 					const auto owner = inputs.owner();
 					l::detail::PagedDependencyWalk walk(account, owner, l::detail::OwnedSegmentInputs::lookup,
-														reader.root(), storage);
+														reader.root());
 					for (unsigned turns = 0; !walk.done(); ++turns) {
 						require(turns < 100000);
 						l::ValidationBudget budget;
 						walk.step(budget);
 						if (const auto id = walk.missing()) {
-							l::detail::PagedSegmentRead pack(domain.factory(), session, account, storage, *id,
+							l::detail::PagedSegmentRead pack(domain.factory(), session, account, *id,
 															 ::getuid());
 							for (unsigned steps = 0; !pack.done(); ++steps) {
 								require(steps < 100000);
@@ -183,7 +183,7 @@ int main() {
 						}
 					}
 					inputs.freeze();
-					l::detail::GraphValidator graph(account, owner, inputs.inputs(), reader.root(), storage);
+					l::detail::GraphValidator graph(account, owner, inputs.inputs(), reader.root(), {}, l::detail::paged_format_semantics);
 					while (!graph.done()) {
 						l::ValidationBudget budget;
 						graph.step(budget);
@@ -230,7 +230,7 @@ int main() {
 		{
 			l::GenerationId legacy;
 			legacy.fill('v');
-			l::ImageBuilder builder(source, legacy);
+			l::ImageBuilder builder(source);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);

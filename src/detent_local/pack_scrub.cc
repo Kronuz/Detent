@@ -37,7 +37,7 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
 }
 void PackScrub::rebase(std::span<const SegmentInput> packs, Clock::time_point now,
 					   const std::filesystem::path &directory) {
-	std::map<StorageIdentity, std::array<char, 32>> kept;
+	std::map<SegmentId, std::array<char, 32>> kept;
 	if (running_)
 		for (const auto &pack : packs)
 			if (auto found = verified_.find(pack.ownership.segment);

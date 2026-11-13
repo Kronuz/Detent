@@ -76,7 +76,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder original(snapshot, storage, generation);
+	l::detail::PagedSnapshotBuilder original(snapshot, generation);
 	while (!original.done()) {
 		l::ValidationBudget work;
 		original.step(work);
@@ -103,7 +103,7 @@ int main() {
 		}
 		p::Limits bounds;
 		bounds.bytes = 1ull << 30;
-		l::detail::PagedDeltaPlanBuilder builder(recovered, decoder.finish(), next, domain, bounds);
+		l::detail::PagedDeltaPlanBuilder builder(recovered, decoder.finish(), domain, bounds);
 		while (!builder.done()) {
 			l::ValidationBudget work;
 			builder.step(work);

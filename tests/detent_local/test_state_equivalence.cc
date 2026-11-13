@@ -126,7 +126,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		changed_id.fill('x');
 		l::StorageIdentity storage{};
 		storage.fill('s');
-		l::ImageBuilder flat_builder(source, flat_id);
+		l::ImageBuilder flat_builder(source);
 		while (!flat_builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			flat_builder.step(budget);
@@ -139,7 +139,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		write(flat_directory / (name + ".lease"), {});
 		write(flat_directory / "selected", l::encode_descriptor(flat_builder.descriptor()));
 		auto flat = l::recover_generation(flat_directory, limits);
-		l::detail::PagedSnapshotBuilder builder(source, storage, paged_id);
+		l::detail::PagedSnapshotBuilder builder(source, paged_id);
 		while (!builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			builder.step(budget);
@@ -189,7 +189,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			}
 			l::GenerationId candidate_id{};
 			candidate_id.fill('c');
-			std::optional<l::ImageBuilder> staged(std::in_place, source, candidate_id);
+			std::optional<l::ImageBuilder> staged(std::in_place, source);
 			while (!staged->done()) {
 				l::ValidationBudget budget{1, 1};
 				staged->step(budget);
@@ -220,7 +220,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				auto altered = std::make_shared<const d::ValidatedSnapshot>(input(25, change));
 				l::GenerationId candidate_id{};
 				candidate_id.fill('d' + change);
-				l::ImageBuilder output(altered, candidate_id);
+				l::ImageBuilder output(altered);
 				while (!output.done()) {
 					l::ValidationBudget budget{1, 1};
 					output.step(budget);
@@ -249,7 +249,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		for (const auto *base : {&flat, &paged}) {
 			l::GenerationId replacement{};
 			replacement.fill(base == &flat ? 'm' : 'b');
-			l::detail::PagedSnapshotBuilder borrowed(*base, heap, storage, replacement);
+			l::detail::PagedSnapshotBuilder borrowed(*base, heap, replacement);
 			l::ValidationBudget zero{0, 0};
 			borrowed.step(zero);
 			state_check(!borrowed.done());
@@ -262,8 +262,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			auto image = borrowed.take();
 			state_check(l::paged::state_commitment(image.root()) == l::paged::state_commitment(paged_image.root()));
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
-			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
-														 limits);
+			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, limits);
 			while (!validator.done()) {
 				l::ValidationBudget budget{1, 1};
 				validator.step(budget);
@@ -291,7 +290,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		for (unsigned corruption = 0; corruption < (namespace_count ? 2u : 1u); ++corruption) {
 			l::GenerationId bad_id{};
 			bad_id.fill('z');
-			l::detail::PagedSnapshotBuilder builder(flat, heap, storage, bad_id);
+			l::detail::PagedSnapshotBuilder builder(flat, heap, bad_id);
 			while (!builder.done()) {
 				l::ValidationBudget budget{1, 1};
 				builder.step(budget);
@@ -306,8 +305,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			const auto before = mappings->used();
 			bool refused = false;
 			try {
-				l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap,
-															 storage, limits);
+				l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, limits);
 				while (!validator.done()) {
 					l::ValidationBudget budget{1, 1};
 					validator.step(budget);
@@ -322,7 +320,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		}
 
 		auto changed_source = std::make_shared<const d::ValidatedSnapshot>(input(26));
-		l::detail::PagedSnapshotBuilder changed_builder(changed_source, storage, changed_id);
+		l::detail::PagedSnapshotBuilder changed_builder(changed_source, changed_id);
 		while (!changed_builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			changed_builder.step(budget);

@@ -29,19 +29,18 @@ void reseal(std::array<char, d::reader_metadata_bytes> &bytes) {
 } // namespace
 int main() {
 	d::ReaderMetadata value{};
-	value.storage.fill(0x11);
 	value.generation.fill(0x22);
 	value.root_checksum.fill(0x33);
 	value.counts = {5, 3, 41, 2};
 	value.physical_bytes = 8192;
 	const auto bytes = d::encode_reader_metadata(value);
 	// Independent struct.pack/hashlib vector.
-	constexpr std::string_view hex = "445452454144303100000001000000c011111111111111111111111111111111"
-	                                 "2222222222222222222222222222222233333333333333333333333333333333"
-	                                 "3333333333333333333333333333333300000005000000000000000000000003"
-	                                 "0000000000000029000000000000200000000002000000010000000000000000"
+	constexpr std::string_view hex = "445452454144303200000001000000c022222222222222222222222222222222"
+	                                 "3333333333333333333333333333333333333333333333333333333333333333"
+	                                 "0000000500000000000000000000000300000000000000290000000000002000"
+	                                 "0000000200000001000000000000000000000000000000000000000000000000"
 	                                 "0000000000000000000000000000000000000000000000000000000000000000"
-	                                 "8f6da26dcfdd70d2bccae97aabb00f275f3cc19a2922ff2f61fb2f33758f4336";
+	                                 "3870b9343efd18a197f7891af520fd41258f9dda7f6fd5b1a74caf2884419806";
 	check(hex.size() == bytes.size() * 2);
 	auto digit = [](char byte) { return byte <= '9' ? byte - '0' : byte - 'a' + 10; };
 	for (std::size_t i = 0; i != bytes.size(); ++i)
@@ -49,18 +48,18 @@ int main() {
 	check(d::encode_reader_metadata(d::decode_reader_metadata(bytes)) == bytes);
 	for (std::size_t length = 0; length <= bytes.size(); ++length)
 		d::validate_reader_metadata_prefix(std::span(bytes).first(length), value);
-	for (auto offset : {116u, 119u, 120u, 159u}) {
+	for (auto offset : {100u, 103u, 104u, 159u}) {
 		auto corrupt = bytes;
 		corrupt[offset] ^= 2;
 		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(offset + 1), value); });
 	}
 	{
 		auto corrupt = bytes;
-		l::write_integer(corrupt, 84, 1, 4);
-		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(88), value); });
+		l::write_integer(corrupt, 68, 1, 4);
+		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(72), value); });
 		corrupt = bytes;
-		l::write_integer(corrupt, 112, 0, 4);
-		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(116), value); });
+		l::write_integer(corrupt, 96, 0, 4);
+		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(100), value); });
 	}
 	for (std::size_t i = 0; i != bytes.size(); ++i) {
 		auto corrupt = bytes;
@@ -71,18 +70,15 @@ int main() {
 	std::array<char, d::reader_metadata_bytes + 1> long_record{};
 	std::copy(bytes.begin(), bytes.end(), long_record.begin());
 	rejected([&] { d::decode_reader_metadata(long_record); });
-	for (auto offset : {8u, 12u, 84u, 116u, 120u, 159u}) {
+	for (auto offset : {8u, 12u, 68u, 100u, 104u, 159u}) {
 		auto corrupt = bytes;
 		corrupt[offset] ^= 1;
 		reseal(corrupt);
 		rejected([&] { d::decode_reader_metadata(corrupt); });
 	}
-	for (unsigned kind = 0; kind != 7; ++kind) {
+	for (unsigned kind = 1; kind != 7; ++kind) {
 		auto invalid = value;
 		switch (kind) {
-		case 0:
-			invalid.storage.fill(0);
-			break;
 		case 1:
 			invalid.generation.fill(0);
 			break;

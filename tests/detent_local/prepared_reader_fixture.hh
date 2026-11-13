@@ -67,7 +67,6 @@ struct Fixture {
     generation.fill('g' + count);
     auto packed = std::make_shared<dense_graph_test::Fixture>();
     packed->account = heap;
-    packed->storage = storage;
     packed->segment.fill('s' + count);
     std::array<char, 202> key{};
     for (unsigned i = 0; i != count; ++i) {
@@ -98,7 +97,7 @@ struct Fixture {
         dense_graph_test::seal(std::move(packed), count * per_namespace, count);
     root = packed->root;
     std::vector<std::vector<char>> packs;
-    std::vector<l::StorageIdentity> identities;
+    std::vector<l::SegmentId> identities;
     if (separate_segments) {
       check(per_namespace >= 128 && count >= 2 && count <= 26);
       packs.resize(count + 1);
@@ -180,7 +179,7 @@ struct Fixture {
       auto bytes = d::make_owned_buffer(heap, packs[i].size());
       bytes->append({packs[i].data(), packs[i].size()});
       bytes->seal();
-      const l::SegmentOwnership ownership{storage, identities[i], bytes->size(),
+      const l::SegmentOwnership ownership{identities[i], bytes->size(),
                                          p::pack_commitment(bytes->view())};
       const x::SegmentNames names(ownership.segment);
       write_file(path / names.ownership.data(),
@@ -195,7 +194,7 @@ struct Fixture {
                 return std::memcmp(a.ownership.segment.data(),
                                    b.ownership.segment.data(), 16) < 0;
               });
-    x::GraphValidator proof(heap, buffers[0], segments, root, storage);
+    x::GraphValidator proof(heap, buffers[0], segments, root, p::Limits{}, x::paged_format_semantics);
     while (!proof.done()) {
       l::ValidationBudget budget;
       proof.step(budget);
@@ -212,7 +211,7 @@ struct Fixture {
         path / x::GenerationName(generation, x::GenerationFile::Lease).view(),
         l::encode_generation_ownership(
             {storage, generation, p::root_bytes, checksum, 3}));
-    x::ReaderMetadata metadata{storage, generation, checksum, proof.counts(),
+    x::ReaderMetadata metadata{generation, checksum, proof.counts(),
                                physical_bytes};
     write_file(path / x::GenerationName(generation, ".read").view(),
                x::encode_reader_metadata(metadata));

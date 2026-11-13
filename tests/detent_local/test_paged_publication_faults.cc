@@ -52,21 +52,21 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 	std::optional<l::detail::PagedPlan> plan;
 	if (intent == 1) {
 		auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
-		l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+		l::detail::PagedPlanBuilder builder(*base, delta, domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
 		plan.emplace(builder.take());
 	} else if (!intent) {
-		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), next, domain);
+		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
 		plan.emplace(builder.take());
 	} else if (intent == 2) {
-		l::detail::PagedMaintenanceBuilder builder(*base, domain.factory(), account, storage, next,
+		l::detail::PagedMaintenanceBuilder builder(*base, domain.factory(), account,
 												   options.recovery_limits);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
@@ -75,7 +75,7 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 		plan.emplace(builder.take());
 	} else {
 		const auto selected = image.segments().front().ownership.segment;
-		l::detail::PagedCompactionBuilder builder(*base, {&selected, 1}, next, domain);
+		l::detail::PagedCompactionBuilder builder(*base, {&selected, 1}, domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -173,7 +173,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);

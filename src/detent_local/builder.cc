@@ -1,3 +1,4 @@
+#include "detent_local/derived_ids.hh"
 #include "detent_local/builder.hh"
 #include "applied_source.hh"
 #include <algorithm>
@@ -175,31 +176,30 @@ struct ImageBuilder::Impl {
 		phase = 3;
 	}
 };
-ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source,
-						   GenerationId generation, ViewLimits limits)
+ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, ViewLimits limits)
 	: impl_([&] {
 		  require(static_cast<bool>(source));
 		  return distribution::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free);
 	  }()) {
 	require(source && source->namespaces().size() <= limits.namespaces &&
-			source->records().size() <= limits.records && generation != GenerationId{});
+			source->records().size() <= limits.records);
 	impl_->account = source->storage_account();
+	// A flat publication is always forward of the selected head, so its ordinal is 0 (D8.2).
+	impl_->generation = next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 	impl_->source = std::move(source);
-	impl_->generation = generation;
 	impl_->limits = limits;
 }
 ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedDelta> source,
-						   RecoveredGeneration base, GenerationId generation, ViewLimits limits)
+						   RecoveredGeneration base, ViewLimits limits)
 	: impl_([&] {
 		  require(static_cast<bool>(source));
 		  return distribution::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free);
 	  }()) {
-	require(generation != GenerationId{});
 	impl_->account = source->storage_account();
+	impl_->generation = next_generation(base.descriptor(), source->target(), source->profile(), false).id;
 	impl_->applied_target = source->target();
 	impl_->applied_profile = source->profile();
 	impl_->applied.emplace(std::move(base), std::move(source), limits);
-	impl_->generation = generation;
 	impl_->limits = limits;
 }
 ImageBuilder::~ImageBuilder() = default;

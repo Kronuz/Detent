@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_local/ownership.hh"
 #include "paged_page_validator.hh"
+#include <limits>
 
 namespace detent::local::detail {
 class SegmentRegistry;
@@ -22,6 +23,9 @@ struct PagedSemanticLimits {
 	std::uint64_t strings;
 	std::uint32_t overrides;
 };
+// The format's bounds: string bytes are unbounded and a definition holds at most 256 overrides.
+// Publication admission enforces the store's own limits (disk_store.cc).
+inline constexpr PagedSemanticLimits paged_format_semantics{std::numeric_limits<std::uint64_t>::max(), 256};
 struct SegmentReachability {
 	std::uint64_t pages = 0, bytes = 0;
 };

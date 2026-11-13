@@ -7,8 +7,7 @@ namespace detent::local::detail {
 class PagedSnapshotPlanBuilder {
   public:
 	PagedSnapshotPlanBuilder(std::shared_ptr<const distribution::ValidatedSnapshot>,
-							 std::optional<RecoveredGeneration>, DirectoryIdentity,
-							 GenerationId, distribution::RetirementFactory,
+							 std::optional<RecoveredGeneration>, DirectoryIdentity, distribution::RetirementFactory,
 							 std::shared_ptr<distribution::StorageLedger>, ViewLimits, bool repair = false);
 	void step(ValidationBudget &);
 	bool done() const noexcept;

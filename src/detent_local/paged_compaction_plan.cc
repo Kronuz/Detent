@@ -65,21 +65,18 @@ struct PagedCompactionBuilder::Work final : d::RetirementNode {
 	}
 };
 PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
-											   std::span<const SegmentId> selected,
-											   GenerationId generation, d::RetirementDomain &domain,
+											   std::span<const SegmentId> selected, d::RetirementDomain &domain,
 											   CompactionLimits compaction, p::Limits limits) {
 	if (!base.paged_ || selected.empty() || selected.size() > compaction.maximum_packs ||
 		compaction.maximum_packs > 8 || !compaction.maximum_recipes ||
 		!compaction.maximum_output_bytes)
 		throw std::invalid_argument("compaction selection or admission bound mismatch");
-	plan_ = domain.make<PagedPlanState>(domain.storage_account(), base.paged_, generation,
-										PagedPlanState::PhysicalMaintenance{});
+	plan_ = domain.make<PagedPlanState>(domain.storage_account(), base.paged_, PagedPlanState::PhysicalMaintenance{});
 	work_ = domain.make<Work>(plan_, base, domain.storage_account(), selected, compaction, limits);
 }
 PagedCompactionBuilder::~PagedCompactionBuilder() = default;
 PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 											   std::span<const SegmentId> selected,
-											   GenerationId generation,
 											   d::RetirementFactory factory,
 											   std::shared_ptr<d::StorageLedger> heap,
 											   CompactionLimits compaction, p::Limits limits) {
@@ -87,8 +84,7 @@ PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 		selected.size() > compaction.maximum_packs || compaction.maximum_packs > 8 ||
 		!compaction.maximum_recipes || !compaction.maximum_output_bytes)
 		throw std::invalid_argument("compaction captured resources or selection mismatch");
-	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation,
-										 PagedPlanState::PhysicalMaintenance{});
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, PagedPlanState::PhysicalMaintenance{});
 	work_ = factory.make<Work>(plan_, base, std::move(heap), selected, compaction, limits);
 }
 std::shared_ptr<const StateEquivalenceProof> PagedCompactionBuilder::evidence() const {

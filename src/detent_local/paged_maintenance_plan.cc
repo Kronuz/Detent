@@ -1,18 +1,20 @@
+#include "detent_local/derived_ids.hh"
 #include "paged_limits.hh"
 #include "paged_maintenance_plan.hh"
 namespace detent::local::detail {
 PagedMaintenanceBuilder::PagedMaintenanceBuilder(RecoveredGeneration base,
 												 distribution::RetirementFactory factory,
-												 std::shared_ptr<distribution::StorageLedger> heap,
-												 GenerationId generation, ViewLimits limits)
+												 std::shared_ptr<distribution::StorageLedger> heap, ViewLimits limits)
 	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), limits_(limits) {
-	if (!heap_ || !factory_.uses_account(heap_) || generation == base_.descriptor().generation)
-		throw std::invalid_argument("maintenance requires exact resources and a fresh generation");
+	if (!heap_ || !factory_.uses_account(heap_))
+		throw std::invalid_argument("maintenance requires exact resources");
 	limits_.retirement_domain = nullptr;
 	if (limits_.bytes < paged::root_bytes)
 		throw std::invalid_argument("maintenance manifest exceeds limit");
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
-	encoder_.emplace(base_, heap_, generation, bounds);
+	// A full copy at the base's own cursor: a zero base and the base's ordinal + 1 (D8.2).
+	const auto &head = base_.descriptor();
+	encoder_.emplace(base_, heap_, next_generation(head, head.cursor, head.profile, true).id, bounds);
 }
 bool PagedMaintenanceBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)

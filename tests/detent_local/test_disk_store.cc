@@ -71,7 +71,7 @@ std::unique_ptr<l::ImageBuilder> build(std::shared_ptr<d::StorageLedger> account
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 	l::GenerationId id;
 	id.fill(generation);
-	auto builder = std::make_unique<l::ImageBuilder>(source, id);
+	auto builder = std::make_unique<l::ImageBuilder>(source);
 	while (!builder->done()) {
 		l::ValidationBudget budget;
 		builder->step(budget);

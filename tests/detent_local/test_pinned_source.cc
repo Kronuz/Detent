@@ -54,7 +54,7 @@ int main() {
 		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
 		l::GenerationId generation;
 		generation.fill('p');
-		l::ImageBuilder builder(snapshot, generation);
+		l::ImageBuilder builder(snapshot);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);

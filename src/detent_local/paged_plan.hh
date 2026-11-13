@@ -16,14 +16,14 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, std::optional<RecoveredGeneration>,
 				   distribution::RetirementHandle<PagedImageOwner>, DirectoryIdentity,
 				   PagedPlanIntent);
+	// A plan over a base derives its own name (derived_ids.hh): a base-relative build at the target.
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId, PhysicalMaintenance);
+				   distribution::RetirementHandle<LeasedPagedRoot>, PhysicalMaintenance);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
-				   const distribution::ValidatedDelta &);
+				   distribution::RetirementHandle<LeasedPagedRoot>, const distribution::ValidatedDelta &);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
-				   const distribution::ValidatedDelta &, Forward);
+				   distribution::RetirementHandle<LeasedPagedRoot>, const distribution::ValidatedDelta &,
+				   Forward);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
 				   distribution::RetirementHandle<PagedImageOwner>);
 	bool maintenance() const;
@@ -67,6 +67,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	class SHA256 hash_;
 	bool sealed_ = false;
     void copy_root(std::shared_ptr<distribution::StorageLedger>, distribution::Cursor);
+	void derive(const distribution::Cursor &, const distribution::Profile &);
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class SparsePlanFinalizer;

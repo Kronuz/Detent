@@ -208,7 +208,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 	p::reset_hash_counts();
 	start = std::chrono::steady_clock::now();
 	const auto cpu = std::clock();
-	x::PagedSnapshotBuilder builder(source, storage, generation, limits);
+	x::PagedSnapshotBuilder builder(source, generation, limits);
 	std::size_t turns = 0;
 	while (!builder.done()) {
 		l::ValidationBudget budget{65536, 256};

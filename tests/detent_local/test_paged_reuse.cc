@@ -38,7 +38,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget b;
 		builder.step(b);
@@ -58,14 +58,13 @@ int main() {
 	require(!navigator.done());
 	auto proof = finish(navigator);
 	require(proof && proof->reference() == image.root().tree && proof->header().keys == image.root().tree.keys);
-	require(proof->ownership().storage == storage && proof->file_identity().inode != 0);
-	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, storage));
+	require(proof->file_identity().inode != 0);
+	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity));
 	{
 		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(),
 														   proof->entering_prefix());
 		auto checked = finish(exact);
-		require(checked && checked->matches(proof->reference(), proof->entering_prefix(), descriptor,
-											identity, storage));
+		require(checked && checked->matches(proof->reference(), proof->entering_prefix(), descriptor, identity));
 		auto wrong = proof->reference();
 		wrong.digest[0] ^= 1;
 		auto rejected =
@@ -83,17 +82,14 @@ int main() {
 	}
 	auto bad_ref = proof->reference();
 	++bad_ref.offset;
-	require(!proof->matches(bad_ref, proof->entering_prefix(), descriptor, identity, storage));
-	require(!proof->matches(proof->reference(), "wrong-context", descriptor, identity, storage));
+	require(!proof->matches(bad_ref, proof->entering_prefix(), descriptor, identity));
+	require(!proof->matches(proof->reference(), "wrong-context", descriptor, identity));
 	auto bad_descriptor = descriptor;
 	bad_descriptor.checksum[0] ^= 1;
-	require(!proof->matches(proof->reference(), proof->entering_prefix(), bad_descriptor, identity, storage));
+	require(!proof->matches(proof->reference(), proof->entering_prefix(), bad_descriptor, identity));
 	auto bad_identity = identity;
 	++bad_identity.inode;
-	require(!proof->matches(proof->reference(), proof->entering_prefix(), descriptor, bad_identity, storage));
-	auto bad_storage = storage;
-	bad_storage[0] ^= 1;
-	require(!proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, bad_storage));
+	require(!proof->matches(proof->reference(), proof->entering_prefix(), descriptor, bad_identity));
 	{
 		auto root = l::detail::PagedPlanBuilder::reuse(*recovered, account, target, 0);
 		auto frontier = finish(root);
@@ -136,7 +132,7 @@ int main() {
 	{
 		l::GenerationId flat_id{};
 		flat_id.fill('f');
-		l::ImageBuilder flat(source, flat_id);
+		l::ImageBuilder flat(source);
 		while (!flat.done()) {
 			l::ValidationBudget b;
 			flat.step(b);
@@ -154,7 +150,7 @@ int main() {
 		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(50000)));
 		l::GenerationId id{};
 		id.fill('m');
-		l::detail::PagedSnapshotBuilder build(large, storage, id);
+		l::detail::PagedSnapshotBuilder build(large, id);
 		while (!build.done()) {
 			l::ValidationBudget b;
 			build.step(b);
@@ -170,7 +166,7 @@ int main() {
 		auto frontier = finish(navigation);
 		require(frontier && frontier->header().keys > 0 &&
 				frontier->matches(frontier->reference(), frontier->entering_prefix(), base.descriptor(),
-								  base.directory_identity(), storage));
+								  base.directory_identity()));
 		require(base.view().get("app", "k019999").value() == 19999);
 	}
 	recovered.reset();
@@ -180,7 +176,7 @@ int main() {
 	require(::flock(fd, LOCK_EX | LOCK_NB) != 0);
 	require(::close(fd) == 0);
 	std::filesystem::remove_all(directory);
-	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, storage));
+	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity));
 	auto moved = std::move(*proof);
 	rejects<std::logic_error>([&] { proof->reference(); });
 	require(moved.header().keys == image.root().tree.keys);

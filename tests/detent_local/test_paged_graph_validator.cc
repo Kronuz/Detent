@@ -12,8 +12,7 @@ void run(l::detail::GraphValidator &validator, std::size_t bytes = 1) {
 }
 void reject(const std::shared_ptr<Fixture> &source) {
 	rejects<std::invalid_argument>([&] {
-		l::detail::GraphValidator validator(source->account, source, source->inputs, source->root,
-		                                    source->storage);
+		l::detail::GraphValidator validator(source->account, source, source->inputs, source->root, {}, l::detail::paged_format_semantics);
 		run(validator);
 	});
 }
@@ -24,8 +23,7 @@ int main() {
 		auto source = fixture(count);
 		const auto baseline = account->used();
 		{
-			l::detail::GraphValidator validator(account, source, source->inputs, source->root,
-			                                    source->storage);
+			l::detail::GraphValidator validator(account, source, source->inputs, source->root, {}, l::detail::paged_format_semantics);
 			l::ValidationBudget empty{0, 0};
 			validator.step(empty);
 			check(!validator.done());
@@ -54,8 +52,7 @@ int main() {
 			    empty.tree = {};
 			    empty.pages = empty.bytes = empty.segments = empty.records = empty.namespaces = 0;
 			    return empty;
-		    }(),
-		    source->storage);
+		    }(), {}, l::detail::paged_format_semantics);
 		run(validator);
 		check(p::state_commitment(validator.root()) == p::empty_commitment());
 	}
@@ -88,8 +85,7 @@ int main() {
 	}
 	{
 		auto source = fixture();
-		l::detail::GraphValidator validator(account, source, source->inputs, source->root,
-		                                    source->storage);
+		l::detail::GraphValidator validator(account, source, source->inputs, source->root, {}, l::detail::paged_format_semantics);
 		run(validator);
 		d::RetirementRuntime runtime{account, 1};
 		auto domain = runtime.domain(account, 16);

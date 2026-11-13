@@ -79,7 +79,7 @@ l::Descriptor full_copy(Runtime &runtime, const std::filesystem::path &directory
 		decoder.feed(input, budget);
 	}
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-	l::detail::PagedSnapshotPlanBuilder builder(source, {}, context.directory, context.storage, id,
+	l::detail::PagedSnapshotPlanBuilder builder(source, {}, context.directory,
 											  runtime.domain.factory(), runtime.heap, runtime.options.recovery_limits);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
@@ -185,7 +185,7 @@ void foreign_install(const std::filesystem::path &directory) {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -213,7 +213,7 @@ void foreign_install(const std::filesystem::path &directory) {
 		pack[7] = static_cast<char>('0' + foreign_layout);
 		write(directory / names.payload_name(), pack);
 		write(directory / names.owner_name(),
-			  l::encode_segment_ownership({storage, segment.ownership.segment, pack.size(),
+			  l::encode_segment_ownership({segment.ownership.segment, pack.size(),
 										   l::paged::metadata_commitment(pack)}));
 	}
 	check(!l::current_layout(l::decode_generation_ownership(read(directory / (name + ".lease"))).layout_version));
@@ -349,7 +349,7 @@ void embedded(const std::filesystem::path &directory) {
 	storage.fill('s');
 	generation.fill('v');
 	segment.fill('p');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -371,7 +371,7 @@ void embedded(const std::filesystem::path &directory) {
 	const l::detail::SegmentNames names(segment);
 	write(directory / names.payload_name(), page);
 	write(directory / names.owner_name(), l::encode_segment_ownership(
-		{storage, segment, page.size(), l::paged::metadata_commitment(page)}));
+		{segment, page.size(), l::paged::metadata_commitment(page)}));
 	write(directory / "selected", l::encode_descriptor(descriptor));
 	refused = false;
 	try {
@@ -384,8 +384,7 @@ void embedded(const std::filesystem::path &directory) {
 		auto held = std::make_shared<l::detail::RecoveryFile>(
 			::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
 		check(held->fd >= 0);
-		auto pages = runtime.domain.make<l::detail::LazyPageAccess>(
-			held, held->fd, ::getuid(), storage, root, runtime.options.recovery_limits,
+		auto pages = runtime.domain.make<l::detail::LazyPageAccess>(held, held->fd, ::getuid(), root, runtime.options.recovery_limits,
 			runtime.domain.factory(), runtime.heap, runtime.mappings);
 		refused = false;
 		try {

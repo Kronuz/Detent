@@ -35,7 +35,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
@@ -57,14 +57,14 @@ int main() {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
 				auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", heap));
-				l::detail::PagedPlanBuilder builder(recovered, delta, next, domain);
+				l::detail::PagedPlanBuilder builder(recovered, delta, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(recovered, parse_delta(false, 2, "app", heap), next,
+				l::detail::PagedDeltaPlanBuilder builder(recovered, parse_delta(false, 2, "app", heap),
 														 domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
@@ -76,7 +76,7 @@ int main() {
 				const auto prior = core.verified_paged;
 				auto target = plan->root();
 				auto eligible = [&] {
-					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(), storage,
+					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(),
 															 heap, mappings);
 				};
 				require(eligible());
@@ -167,12 +167,11 @@ int main() {
 														: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 						require(admission->warm() == warm && admission->reserved_bytes() == needed);
 						require(mappings->used() == mappings->limit());
-						admission->bind(plan->descriptor(), plan->directory_identity(),
-										plan->storage_identity());
+						admission->bind(plan->descriptor(), plan->directory_identity());
 						auto wrong = plan->descriptor();
 						++wrong.cursor.revision;
 						rejects<std::invalid_argument>([&] {
-							admission->bind(wrong, plan->directory_identity(), plan->storage_identity());
+							admission->bind(wrong, plan->directory_identity());
 						});
 						auto root = admission->take_root();
 						rejects<std::logic_error>([&] { root->bytes(); });

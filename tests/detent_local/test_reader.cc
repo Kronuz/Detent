@@ -25,7 +25,7 @@ int main() {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 		l::GenerationId generation;
 		generation.fill('g');
-		l::ImageBuilder builder(source, generation);
+		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);

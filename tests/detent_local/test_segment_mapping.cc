@@ -33,7 +33,6 @@ int main() {
 	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	require(fd >= 0);
 	local::SegmentOwnership ownership;
-	ownership.storage.fill('s');
 	ownership.segment.fill('g');
 	ownership.length = bytes.size();
 	ownership.checksum = local::paged::pack_commitment(bytes);
@@ -92,7 +91,7 @@ int main() {
 	staged.reset();
 	local::paged::Limits registry_limits;
 	registry_limits.segments = 1;
-	auto registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, registry_limits);
+	auto registry = domain.make<local::detail::SegmentRegistry>(account, registry_limits);
 	rejects<std::logic_error>([&] { registry->inputs(); });
     {
         auto extent = domain.make<local::detail::SegmentMapping>(
@@ -114,7 +113,7 @@ int main() {
 	rejects<std::logic_error>([&] { registry->append(mapping); });
 	auto too_small = registry_limits;
 	too_small.bytes = ownership.length - 1;
-	auto short_registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, too_small);
+	auto short_registry = domain.make<local::detail::SegmentRegistry>(account, too_small);
 	rejects<std::invalid_argument>([&] { short_registry->append(mapping); });
 	short_registry.reset();
 	auto pinned = mapping;

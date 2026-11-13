@@ -19,7 +19,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -44,7 +44,7 @@ int main() {
 		orphan.fill('z');
 		const l::detail::SegmentNames names(orphan);
 		const std::string bytes(257, 'x');
-		const l::SegmentOwnership ownership{storage, orphan, bytes.size(),
+		const l::SegmentOwnership ownership{orphan, bytes.size(),
 											l::paged::pack_commitment(bytes)};
 		write(directory / names.owner_name(), l::encode_segment_ownership(ownership));
 		write(directory / names.payload_name(), bytes);
@@ -57,7 +57,7 @@ int main() {
 		if (variant == 10) {
 			l::GenerationId legacy{};
 			legacy.fill('v');
-			l::ImageBuilder flat(source, legacy);
+			l::ImageBuilder flat(source);
 			while (!flat.done()) {
 				l::ValidationBudget budget;
 				flat.step(budget);
@@ -70,7 +70,7 @@ int main() {
 			bad.fill('y');
 			write(directory / l::detail::SegmentNames(bad).owner_name(),
 				  l::encode_segment_ownership(
-					  {storage, bad, bytes.size(), l::paged::pack_commitment(bytes)}));
+					  {bad, bytes.size(), l::paged::pack_commitment(bytes)}));
 			auto corrupt = bytes;
 			corrupt.back() ^= 1;
 			write(directory / l::detail::SegmentNames(bad).payload_name(), corrupt);

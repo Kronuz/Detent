@@ -17,7 +17,6 @@
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
-#include <openssl/rand.h>
 #include <unistd.h>
 
 namespace detent::delivery {
@@ -37,7 +36,6 @@ struct RecoveryResult : d::RetirementNode {
 	const l::ViewLimits limits;
 	std::optional<l::RecoveredGeneration> generation;
 	bool prepared = false;
-	l::GenerationId next_id{};
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
@@ -243,9 +241,6 @@ struct Coordinator::Impl {
 						result->prepared = l::detail::PreparedReader::metadata_ready(
 							result->directory, *result->generation, ::geteuid());
 				}
-				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),
-							   result->next_id.size()) != 1)
-					throw std::runtime_error("managed generation identity generation failed");
 			} catch (...) {
 				result->failure = std::current_exception();
 			}
@@ -349,20 +344,18 @@ struct Coordinator::Impl {
 			source = *update;
 		auto actual = base->generation;
 		result->selected_base = actual ? std::optional(actual->descriptor()) : std::nullopt;
-		const auto generation = base->next_id;
 		const auto context = l::detail::ManagedRecovery::capture(*store);
 		auto factory = domain.factory();
 		auto heap = domain.storage_account();
 		auto limits = options.view_limits;
 		limits.retirement_domain = nullptr;
-		asio::post(worker, [result, source = std::move(source), actual = std::move(actual), generation,
-							directory = context.directory, storage = context.storage,
-							prior = context.paged.prior, compact, force, repair, factory, heap, limits]() mutable {
+		asio::post(worker, [result, source = std::move(source), actual = std::move(actual),
+							directory = context.directory, prior = context.paged.prior, compact, force, repair, factory, heap, limits]() mutable {
 			try {
 				if (!source && compact) {
 					if (!actual || !prior || prior->descriptor() != actual->descriptor())
 						throw std::invalid_argument("compaction lacks actual captured head");
-					std::array<l::StorageIdentity, 8> selected{};
+					std::array<l::SegmentId, 8> selected{};
 					std::size_t count = 0;
 					const auto inputs = prior->registry()->inputs();
 					for (std::size_t i = 0; i < inputs.size() && count < selected.size(); ++i) {
@@ -377,8 +370,7 @@ struct Coordinator::Impl {
 						result->descriptor = actual->descriptor();
 					else {
 						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
-						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
-																	generation, factory, heap,
+						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count}, factory, heap,
 																	l::detail::CompactionLimits{}, bounds);
 						while (!candidate.done()) {
 							result->control.step();
@@ -393,8 +385,7 @@ struct Coordinator::Impl {
 				} else if (!source) {
 					if (!actual)
 						throw std::invalid_argument("migration requires actual recovered base");
-					l::detail::PagedMaintenanceBuilder candidate(*actual, factory, heap, storage, generation,
-																 limits);
+					l::detail::PagedMaintenanceBuilder candidate(*actual, factory, heap, limits);
 					while (!candidate.done()) {
 						result->control.step();
 						l::ValidationBudget budget;
@@ -404,8 +395,8 @@ struct Coordinator::Impl {
 					result->plan.emplace(candidate.take());
 					result->descriptor = result->plan->descriptor();
 				} else if (source->snapshot) {
-					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory,
-																  storage, generation, factory, heap, limits, repair);
+					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory, factory,
+																  heap, limits, repair);
 					while (!candidate.done()) {
 						result->control.step();
 						l::ValidationBudget budget;
@@ -425,8 +416,7 @@ struct Coordinator::Impl {
 					if (!actual || !l::detail::StateCursor::state_commitment(*actual))
 						throw std::invalid_argument("paged delta requires a migrated actual base");
 					if (source->kind == d::UpdateKind::Progress) {
-						l::detail::PagedPlanBuilder candidate(*actual, source->delta, generation, factory,
-															  heap);
+						l::detail::PagedPlanBuilder candidate(*actual, source->delta, factory, heap);
 						while (!candidate.done()) {
 							result->control.step();
 							l::ValidationBudget budget;
@@ -435,8 +425,8 @@ struct Coordinator::Impl {
 						result->plan.emplace(candidate.take());
 					} else {
 						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
-						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, generation,
-																   factory, heap, bounds);
+						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, factory, heap,
+																   bounds);
 						while (!candidate.done()) {
 							result->control.step();
 							l::ValidationBudget budget;
@@ -1080,14 +1070,13 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					else {
 						if (update->snapshot)
 							builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
-																			 update->snapshot, base->next_id,
-																			 options.view_limits);
+																			 update->snapshot, options.view_limits);
 						else {
 							if (!base->generation || base->generation->descriptor() != actual.descriptor)
 								throw std::invalid_argument("managed delta has no exact recovered base");
 							builder = d::make_storage_owner<l::ImageBuilder>(
 								account, std::malloc, std::free, update->delta, *base->generation,
-								base->next_id, options.view_limits);
+								options.view_limits);
 						}
 						while (!builder->done() && !cancelled()) {
 							l::ValidationBudget budget;

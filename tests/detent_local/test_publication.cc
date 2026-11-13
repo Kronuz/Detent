@@ -13,7 +13,7 @@ std::unique_ptr<l::ImageBuilder> candidate(std::uint64_t revision, char id) {
 	auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24, 25, revision)));
 	l::GenerationId generation;
 	generation.fill(id);
-	auto builder = std::make_unique<l::ImageBuilder>(snapshot, generation);
+	auto builder = std::make_unique<l::ImageBuilder>(snapshot);
 	while (!builder->done()) {
 		l::ValidationBudget budget;
 		builder->step(budget);

@@ -34,7 +34,7 @@ int main() {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 		l::GenerationId id;
 		id.fill('a');
-		l::ImageBuilder original(source, id);
+		l::ImageBuilder original(source);
 		complete(original);
 		const auto name = l::generation_name(id);
 		write(directory / (name + ".image"), {original.bytes()->data(), original.bytes()->size()});
@@ -70,13 +70,13 @@ int main() {
 				}
 				auto next = id;
 				next.fill('b');
-				l::ImageBuilder builder(input, l::recover_generation(directory), next);
+				l::ImageBuilder builder(input, l::recover_generation(directory));
 				complete(builder);
 				require(builder.base_descriptor() == original.descriptor());
 				require(builder.base_directory_identity() ==
 						l::recover_generation(directory).directory_identity());
 				auto selected = builder.descriptor();
-				l::ImageBuilder oracle(expected(progress, tx), next);
+				l::ImageBuilder oracle(expected(progress, tx));
 				complete(oracle);
 				require(oracle.descriptor() == selected);
 				require(std::equal(oracle.bytes()->data(), oracle.bytes()->data() + oracle.bytes()->size(),
@@ -106,7 +106,7 @@ int main() {
 				}
 				bool rejected = false;
 				try {
-					l::ImageBuilder wrong(input, l::recover_generation(directory), id);
+					l::ImageBuilder wrong(input, l::recover_generation(directory));
 				} catch (const std::invalid_argument &) {
 					rejected = true;
 				}
@@ -120,7 +120,7 @@ int main() {
 			std::filesystem::permissions(paged_directory, std::filesystem::perms::owner_all);
 			l::StorageIdentity storage{};
 			storage.fill('s');
-			l::detail::PagedSnapshotBuilder encoder(source, storage, id);
+			l::detail::PagedSnapshotBuilder encoder(source, id);
 			while (!encoder.done()) {
 				l::ValidationBudget budget{1, 1};
 				encoder.step(budget);
@@ -143,9 +143,9 @@ int main() {
 					auto input = delta(progress, tx);
 					auto next = id;
 					next.fill('p');
-					l::ImageBuilder applied(input, paged_base, next);
+					l::ImageBuilder applied(input, paged_base);
 					complete(applied);
-					l::ImageBuilder oracle(expected(progress, tx), next);
+					l::ImageBuilder oracle(expected(progress, tx));
 					complete(oracle);
 					require(applied.base_descriptor() == image.descriptor());
 					require(applied.descriptor() == oracle.descriptor());
@@ -157,7 +157,7 @@ int main() {
 				auto changes = delta(false, 17);
 				auto next = id;
 				next.fill('q');
-				l::ImageBuilder cancelled(changes, paged_base, next);
+				l::ImageBuilder cancelled(changes, paged_base);
 				for (unsigned turns = 0; turns < partial && !cancelled.done(); ++turns) {
 					l::ValidationBudget budget{1, 1};
 					cancelled.step(budget);
@@ -179,7 +179,7 @@ int main() {
 			auto account = input->storage_account();
 			const auto before = account->used();
 			{
-				l::ImageBuilder builder(input, l::recover_generation(directory), id);
+				l::ImageBuilder builder(input, l::recover_generation(directory));
 				const auto controls = account->used();
 				auto pressure = account->admit(account->limit() - controls);
 				bool rejected = false;
@@ -204,7 +204,7 @@ int main() {
 			auto input = delta(false);
 			l::ViewLimits limits;
 			limits.records = 0;
-			l::ImageBuilder builder(input, l::recover_generation(directory), id, limits);
+			l::ImageBuilder builder(input, l::recover_generation(directory), limits);
 			bool rejected = false;
 			try {
 				complete(builder);

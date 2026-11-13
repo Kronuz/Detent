@@ -35,7 +35,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget b;
 		snapshot.step(b);
@@ -55,7 +55,7 @@ int main() {
 		const auto page = std::size_t(::sysconf(_SC_PAGESIZE));
 		{
 			auto delta = progress(base->descriptor().cursor, heap);
-			l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+			l::detail::PagedPlanBuilder builder(*base, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
@@ -108,7 +108,7 @@ int main() {
 			auto delta = progress(current->descriptor().cursor, heap);
 			l::GenerationId later;
 			later.fill('p');
-			l::detail::PagedPlanBuilder builder(*current, delta, later, domain);
+			l::detail::PagedPlanBuilder builder(*current, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);

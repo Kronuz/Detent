@@ -18,7 +18,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -38,7 +38,7 @@ int main() {
 		const std::string bytes(257, 'x');
 		write(directory / names.owner_name(),
 			  l::encode_segment_ownership(
-				  {storage, orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
+				  {orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
 		write(directory / names.payload_name(), bytes);
 		l::DiskStoreOptions options;
 		options.mode = l::StoreOpenMode::ExistingManaged;

@@ -68,7 +68,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder construction(source, storage, generation);
+	l::detail::PagedSnapshotBuilder construction(source, generation);
 	while (!construction.done()) {
 		l::ValidationBudget budget;
 		construction.step(budget);
@@ -98,16 +98,14 @@ int main() {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
 				auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
-				l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+				l::detail::PagedPlanBuilder builder(*base, delta, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(
-					*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account),
-					next, domain);
+				l::detail::PagedDeltaPlanBuilder builder(*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account), domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
@@ -223,7 +221,7 @@ int main() {
 					check(store->publication_ready());
 					check(recovered.view().get("app", "count").value() == (progress ? INT64_MIN : 1));
 					if (!progress) {
-						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), storage, next);
+						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), next);
 						while (!oracle.done()) {
 							l::ValidationBudget budget;
 							oracle.step(budget);

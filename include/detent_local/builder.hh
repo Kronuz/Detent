@@ -7,10 +7,10 @@ namespace detent::local {
 // Counting, zero filling, row construction and integrity hashing are resumable.
 class ImageBuilder {
   public:
-	ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, GenerationId generation,
-				 ViewLimits limits = {});
+	// The image is named as derived_ids.hh derives it: a snapshot as a full copy, a delta over `base`.
+	explicit ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, ViewLimits limits = {});
 	ImageBuilder(std::shared_ptr<const distribution::ValidatedDelta> source, RecoveredGeneration base,
-				 GenerationId generation, ViewLimits limits = {});
+				 ViewLimits limits = {});
 	~ImageBuilder();
 	ImageBuilder(ImageBuilder &&) noexcept;
 	ImageBuilder(const ImageBuilder &) = delete;

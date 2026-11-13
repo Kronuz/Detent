@@ -24,7 +24,7 @@ int main() {
 	limits.retirement_domain = &domain;
 	limits.mapping_account = std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
 	auto capture = [&] {
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		l::detail::PagedSnapshotBuilder builder(source, generation);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -50,7 +50,7 @@ int main() {
 		require(first->dependencies().size() == 1 && second->dependencies().size() == 1);
 		require(first->dependencies()[0].segment != second->dependencies()[0].segment);
 		auto marks =
-			domain.make<l::detail::PagedSegmentMarks>(account, first->directory_identity(), storage, 2);
+			domain.make<l::detail::PagedSegmentMarks>(account, first->directory_identity(), 2);
 		auto insert = [&](auto certificate) {
 			marks->begin(certificate);
 			l::ValidationBudget zero{0, 0};
@@ -89,7 +89,7 @@ int main() {
 		require(contains(second->dependencies()[0].segment));
 		require(!contains(storage));
 		auto limited =
-			domain.make<l::detail::PagedSegmentMarks>(account, first->directory_identity(), storage, 1);
+			domain.make<l::detail::PagedSegmentMarks>(account, first->directory_identity(), 1);
 		limited->begin(first);
 		while (limited->busy()) {
 			l::ValidationBudget budget{1, 1};
