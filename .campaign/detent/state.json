@@ -8581,18 +8581,49 @@
         "CMakeLists.txt",
         "README.md"
       ],
-      "journal": "../Detent-wt/detent/wheel-followups",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T18:03:47",
+          "commit": "5a3a0752a979a6e7660156bcfcb7acff6ef975e3",
+          "criteria": {
+            "A1": "261112-173225-b7aea2, 261112-173228-eb9875; fails without: 261112-161358-e2692f, 261112-173222-4026f6",
+            "A2": "261112-173225-b7aea2; fails without: 261112-160916-710092",
+            "A3": "261112-173225-b7aea2",
+            "A4": "`README.md`: \"Performance\" gives the library's real numbers (arm, whole life, cross-thread arm, bytes), stash only on apples-to-apples rows; `docs/timer-wheel.md`: \"Cost\" likewise; no prototype numbers",
+            "A5": "261112-173422-5193ba",
+            "A6": "261112-173225-b7aea2, 261112-173228-eb9875; fails without: 261112-160216-3b15c9, 261112-160839-ef94c0, 261112-160920-572262"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure",
+              "commit": "5a3a0752a979a6e7660156bcfcb7acff6ef975e3",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-173225-b7aea2",
+              "level": "light",
+              "seconds": 7.2,
+              "state": "done",
+              "what": "wheel-followups check suite at 5a3a0752a979"
+            }
+          ],
+          "final": true,
+          "from": "bfd72bc13395e4a232701e752be97ccd236530fc",
+          "reason": "",
+          "tested": "5a3a0752a979a6e7660156bcfcb7acff6ef975e3"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../wheel",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T16:36:37",
-      "worktree": "../wheel-wt/detent/wheel-followups"
+      "updated": "2026-11-12T18:03:50",
+      "worktree": ""
     },
     "wheel-lib": {
       "accepted": {
