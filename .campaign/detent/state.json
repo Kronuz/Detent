@@ -274,6 +274,13 @@
       "closed": "file set widened to the benchmarks, delivery tests and mutant patches that follow the storage-free signatures",
       "id": "msg-41",
       "text": "namespace-s7-ids needs its file set widened: removing StorageIdentity from SegmentOwnership and builder signatures (A1) breaks compilation of tests/detent_delivery/test_repair.cc, tests/detent_delivery/test_bundle_maintenance.cc, benchmarks/paged_recovery_bench.cc, benchmarks/paged_collection_bench.cc, benchmarks/local_image_bench.cc, and the mutant patches tests/detent_delivery/mutants/s4-a1-*.patch (context changed; s4-a1-delta-candidate-rehashes.patch holds PagedSemanticLimits{}, which A4 forbids). The native check builds them, so the suite cannot pass without it. Recommend: add those paths to the file set. I keep those edits in one separate commit on the branch, ready to keep or drop."
+    },
+    {
+      "at": "2026-11-12T21:56:09",
+      "by": "xapiand-lead",
+      "closed": "condition 1 met at task 18eb516; integration rerun 261112-215647-b7fe6c queued and reported to xapiand-lead",
+      "id": "msg-43",
+      "text": "task-lanes A3 rerun at task:18eb516 (261112-215014-07a8ed, exclusive ABBA, 8 rounds), head/main median [A/A range]: yield 0.995 [0.977-1.023], demote 1.013 [0.981-1.016], inline_await 1.009 [0.975-1.032], child 0.985 [0.979-1.029]. Every path sits inside its A/A band; demote ns: main 128.1, main-again 129.4, head 130.0. The fix compares current() with the scheduler instead of running_in_this_thread(). CI green at 18eb516 (43374507023). Correctness review (concurrency) launched now; landing follows it."
     }
   ],
   "quests": {
