@@ -5874,7 +5874,10 @@
         "tests/detent_local/**",
         "tests/detent_agent/**",
         "benchmarks/**",
-        "docs/status/namespace-s6-cutover.md"
+        "docs/status/namespace-s6-cutover.md",
+        "src/detent_distribution/session_frames.cc",
+        "include/detent_distribution/session_frames.hh",
+        "tests/detent_distribution/**"
       ],
       "landed": [],
       "lenses": [
@@ -5892,7 +5895,7 @@
       "risk": "high",
       "status": "review",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-13T09:22:26",
+      "updated": "2026-11-13T09:35:39",
       "worktree": "../Detent-wt/detent/namespace-s6-cutover"
     },
     "namespace-s6-v1-removal": {
