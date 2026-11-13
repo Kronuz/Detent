@@ -6598,7 +6598,9 @@
         "docs/DISK_STORE_INTEGRATION.md",
         "docs/DISK_LIFECYCLE_ARCHITECTURE.md",
         "docs/mechanisms/**",
-        "benchmarks/CMakeLists.txt"
+        "benchmarks/CMakeLists.txt",
+        "benchmarks/paged_snapshot_bench.cc",
+        "docs/USAGE.md"
       ],
       "history": [
         {
@@ -6631,7 +6633,7 @@
       "risk": "high",
       "status": "active",
       "title": "detent-agent publishes and recovers through the agent store",
-      "updated": "2026-11-13T06:35:32",
+      "updated": "2026-11-13T06:58:32",
       "worktree": "../Detent-wt/detent/namespace-s7-store"
     },
     "namespace-s7-wire": {
