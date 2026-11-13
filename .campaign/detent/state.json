@@ -3137,6 +3137,38 @@
       "title": "W2: Detent's HTTP path on task::task",
       "updated": "2026-11-08T12:45:37"
     },
+    "http-idle-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "*.h",
+        "bench/**",
+        "test/**",
+        "docs/**",
+        "CHANGELOG.md",
+        "README.md",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "normal",
+      "status": "planned",
+      "title": "HTTP idle cost: cheaper idle connections, TLS first",
+      "updated": "2026-11-13T13:33:36"
+    },
     "http-task-h1": {
       "accepted": {},
       "after": [],
