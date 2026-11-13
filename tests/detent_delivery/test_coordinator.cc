@@ -1101,16 +1101,21 @@ int main(int argc, char **argv) {
 					asio::write(socket, asio::buffer(bytes));
 					if (final_close) {
 						std::size_t stray = 0;
-						if (!peer_closed(socket, close_acknowledgement, stray))
+						std::string seen;
+						if (!peer_closed(socket, close_acknowledgement, stray, &seen))
 							throw std::runtime_error("coordinator did not acknowledge the session close");
 						checkpoint("server-close-acknowledged stray=" + std::to_string(stray));
+						report_stray("server-close-acknowledged", stray, seen);
+						check(!stray);
 						close_acknowledged = true;
 					}
 					if (retained_idle) {
 						std::size_t stray = 0;
-						const bool closed = peer_closed(socket, 5000ms, stray);
+						std::string seen;
+						const bool closed = peer_closed(socket, 5000ms, stray, &seen);
 						checkpoint("server-idle-closed stray=" + std::to_string(stray));
-						check(closed);
+						report_stray("server-idle-closed", stray, seen);
+						check(closed && !stray);
 					}
 				}
 			} catch (...) {
