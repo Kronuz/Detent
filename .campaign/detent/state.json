@@ -5714,9 +5714,27 @@
         "tests/detent_delivery/test_coordinator.cc",
         "tests/detent_delivery/test_repair.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-12T23:11:35",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk (publication crash model, identity derivation); one reviewer by that lens, as namespace-s5-2 and s5-3 have",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "N1",
       "needs": [
@@ -5729,7 +5747,7 @@
       "risk": "high",
       "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T21:19:40",
+      "updated": "2026-11-12T23:11:35",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
