@@ -5712,7 +5712,9 @@
         "tests/detent_delivery/test_bootstrap_retention.cc",
         "tests/detent_delivery/test_bundle_maintenance.cc",
         "tests/detent_delivery/test_coordinator.cc",
-        "tests/detent_delivery/test_repair.cc"
+        "tests/detent_delivery/test_repair.cc",
+        "docs/HOW_IT_WORKS.md",
+        "docs/mechanisms/trusted-restart.md"
       ],
       "history": [
         {
@@ -5747,7 +5749,7 @@
       "risk": "high",
       "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T23:11:35",
+      "updated": "2026-11-12T23:57:17",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
