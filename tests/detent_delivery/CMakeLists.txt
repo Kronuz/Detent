@@ -29,6 +29,10 @@ target_link_libraries(test_delivery_probe_client PRIVATE detent::delivery_transp
 add_test(NAME test_delivery_probe_client COMMAND test_delivery_probe_client ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
 set_tests_properties(test_delivery_probe_client PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
 add_executable(test_delivery_coordinator test_coordinator.cc)
+add_executable(test_delivery_peer_close test_peer_close.cc)
+target_link_libraries(test_delivery_peer_close PRIVATE detent::delivery_transport)
+add_test(NAME test_delivery_peer_close COMMAND test_delivery_peer_close)
+set_tests_properties(test_delivery_peer_close PROPERTIES TIMEOUT 30)
 add_executable(test_delivery_prepared_startup test_prepared_startup.cc)
 target_include_directories(test_delivery_prepared_startup PRIVATE
   "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery"
