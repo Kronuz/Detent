@@ -1,6 +1,10 @@
 #include "paged_limits.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/derived_ids.hh"
 #include "detent_local/ownership.hh"
+#include "detent_local/store_table.hh"
+#include "names.hh"
+#include "paged_root_prefix.hh"
 #include "generation_mapping.hh"
 #include "generation_file_access.hh"
 #include "leased_paged_root.hh"
@@ -28,7 +32,6 @@
 
 namespace detent::local {
 namespace {
-constexpr std::string_view magic = "DTSELECT";
 struct RecoverySelectionChanged : std::runtime_error {
 	RecoverySelectionChanged() : std::runtime_error("managed recovery selection changed") {}
 };
@@ -56,7 +59,7 @@ void read_record(int fd, std::span<char> bytes) {
 }
 
 } // namespace
-std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &d) {
+void validate_descriptor(const Descriptor &d) {
 	require(std::any_of(d.generation.begin(), d.generation.end(), [](char c) { return c != 0; }) &&
 			d.length >= header_bytes);
 	// Reuse the header codec to enforce identity and semantic profile invariants.
@@ -64,40 +67,6 @@ std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &d) {
 	h.cursor = d.cursor;
 	h.profile = d.profile;
 	encode_header(h);
-	std::array<char, descriptor_bytes> bytes{};
-	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 1, 4);
-	write_integer(bytes, 12, descriptor_bytes, 4);
-	std::copy(d.generation.begin(), d.generation.end(), bytes.begin() + 16);
-	write_integer(bytes, 32, d.length, 8);
-	std::copy(d.checksum.begin(), d.checksum.end(), bytes.begin() + 40);
-	std::copy(d.cursor.cluster.begin(), d.cursor.cluster.end(), bytes.begin() + 72);
-	std::copy(d.cursor.group.begin(), d.cursor.group.end(), bytes.begin() + 88);
-	std::copy(d.cursor.restore_epoch.begin(), d.cursor.restore_epoch.end(), bytes.begin() + 104);
-	std::copy(d.cursor.scope.begin(), d.cursor.scope.end(), bytes.begin() + 120);
-	write_integer(bytes, 152, d.cursor.revision, 8);
-	write_integer(bytes, 160, d.profile.semantic_id, 4);
-	write_integer(bytes, 164, d.ordinal, 4);
-	write_integer(bytes, 168, d.profile.required_capabilities, 8);
-	return bytes;
-}
-Descriptor decode_descriptor(std::span<const char> bytes) {
-	require(bytes.size() == descriptor_bytes && std::equal(magic.begin(), magic.end(), bytes.begin()) &&
-			read_integer(bytes, 8, 4) == 1 && read_integer(bytes, 12, 4) == descriptor_bytes);
-	Descriptor d;
-	std::copy_n(bytes.begin() + 16, 16, d.generation.begin());
-	d.length = read_integer(bytes, 32, 8);
-	std::copy_n(bytes.begin() + 40, 32, d.checksum.begin());
-	std::copy_n(bytes.begin() + 72, 16, d.cursor.cluster.begin());
-	std::copy_n(bytes.begin() + 88, 16, d.cursor.group.begin());
-	std::copy_n(bytes.begin() + 104, 16, d.cursor.restore_epoch.begin());
-	std::copy_n(bytes.begin() + 120, 32, d.cursor.scope.begin());
-	d.cursor.revision = read_integer(bytes, 152, 8);
-	d.profile.semantic_id = read_integer(bytes, 160, 4);
-	d.ordinal = read_integer(bytes, 164, 4);
-	d.profile.required_capabilities = read_integer(bytes, 168, 8);
-	encode_descriptor(d);
-	return d;
 }
 bool same_generation(const Descriptor &a, const Descriptor &b) noexcept {
 	return a.generation == b.generation && a.length == b.length && a.checksum == b.checksum &&
@@ -121,15 +90,76 @@ std::string_view generation_name(const GenerationId &id, std::span<char> destina
 	}
 	return {destination.data(), length};
 }
+std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner) {
+	File table_file(::openat(directory, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+	if (table_file.fd < 0 && errno == ENOENT)
+		throw GenerationUnavailable("the store has no selected generation");
+	struct stat info{};
+	require(table_file.fd >= 0 && ::fstat(table_file.fd, &info) == 0 && info.st_size > 0 &&
+			std::uint64_t(info.st_size) <= table_bytes(1));
+	trusted_file(table_file.fd, owner, std::uint64_t(info.st_size));
+	std::vector<char> bytes(std::size_t(info.st_size));
+	read_record(table_file.fd, bytes);
+	StoreTable table;
+	try {
+		table = decode_table(bytes);
+	} catch (const TableRefused &) {
+		require(false);
+	}
+	require(table.entries.size() == 1);
+	const auto &entry = table.entries.front();
+	require(entry.root_length >= header_bytes);
+	// The cursor is the image's: its leading bytes, the paged root or the flat header.
+	const GenerationName image_name(entry.generation, GenerationFile::Image);
+	std::array<char, 65> terminated{};
+	std::copy(image_name.view().begin(), image_name.view().end(), terminated.begin());
+	File image(::openat(directory, terminated.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+	if (image.fd < 0 && errno == ENOENT)
+		return std::nullopt;
+	trusted_file(image.fd, owner, entry.root_length);
+	std::array<char, paged::root_bytes> prefix{};
+	const auto length = std::min<std::uint64_t>(entry.root_length, prefix.size());
+	read_record(image.fd, std::span(prefix).first(length));
+	Selected selected;
+	auto &descriptor = selected.descriptor;
+	if (std::string_view(prefix.data(), 8) == "DTROOT03") {
+		require(entry.root_length == paged::root_bytes);
+		std::optional<std::pair<distribution::Cursor, distribution::Profile>> root;
+		try {
+			root = validate_paged_root_prefix(prefix);
+		} catch (const std::invalid_argument &) {
+		}
+		require(root.has_value());
+		descriptor.cursor = root->first;
+		require(root->second == table.profile);
+		selected.paged = true;
+	} else {
+		const auto header = decode_header(std::span(prefix).first(length), entry.root_length);
+		require(header.layout.length == entry.root_length && header.profile == table.profile);
+		descriptor.cursor = header.cursor;
+	}
+	require(namespace_cursor(descriptor.cursor) == entry.cursor);
+	descriptor.generation = entry.generation;
+	descriptor.length = entry.root_length;
+	descriptor.checksum = entry.root;
+	descriptor.profile = table.profile;
+	descriptor.ordinal = entry.ordinal;
+	return selected;
+}
+namespace {
+// The selection of an open directory: the table read again while the image it names moves on.
+detail::Selected selection_of(int directory, uid_t owner) {
+	for (unsigned attempt = 0; attempt < 3; ++attempt)
+		if (auto selected = detail::read_selected(directory, owner))
+			return *selected;
+	throw RecoverySelectionChanged();
+}
+} // namespace
 GenerationSelection read_generation_selection(const std::filesystem::path &directory) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
 	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
-	File selected(::openat(dir.fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-	trusted_file(selected.fd, info.st_uid, descriptor_bytes);
-	std::array<char, descriptor_bytes> raw{};
-	read_record(selected.fd, raw);
-	return {decode_descriptor(raw), {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+	return {selection_of(dir.fd, info.st_uid).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem::path &directory,
 														   RecoveryContext legacy,
@@ -142,11 +172,10 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 		struct stat info{};
 		require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) &&
 				!(info.st_mode & 0022));
-		File selected(::openat(dir.fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-		trusted_file(selected.fd, info.st_uid, descriptor_bytes);
-		std::array<char, descriptor_bytes> bytes;
-		read_record(selected.fd, bytes);
-		const auto descriptor = decode_descriptor(bytes);
+		const auto selected = detail::read_selected(dir.fd, info.st_uid);
+		if (!selected)
+			continue;
+		const auto &descriptor = selected->descriptor;
 		const auto name = generation_name(descriptor.generation) + ".lease";
 		File lease(::openat(dir.fd, name.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		if (lease.fd < 0 && errno == ENOENT)
@@ -161,8 +190,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 		require(::fstat(lease.fd, &held) == 0);
 		if (!held.st_nlink)
 			continue;
-		require(held.st_size == 0 || held.st_size == generation_ownership_bytes);
-		trusted_file(lease.fd, info.st_uid, held.st_size);
+		trusted_file(lease.fd, info.st_uid, 0);
 		if (::fstatat(dir.fd, name.c_str(), &named, AT_SYMLINK_NOFOLLOW) != 0) {
 			if (errno == ENOENT)
 				continue;
@@ -170,16 +198,10 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 		}
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
-		unsigned version = 1;
-		if (held.st_size) {
-			std::array<char, generation_ownership_bytes> record;
-			read_record(lease.fd, record);
-			version = decode_generation_ownership(record).layout_version;
-		}
-		auto context = version >= 2 ? paged_context : legacy;
+		auto context = selected->paged ? paged_context : legacy;
 		context.selection =
 			GenerationSelection{descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
-		context.layout_version = version;
+		context.paged = selected->paged;
 		try {
 			return recover(directory, std::move(context), expected);
 		} catch (const RecoverySelectionChanged &) {
@@ -250,11 +272,13 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 		require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
 				!(directory_info.st_mode & 0022));
 		for (unsigned attempt = 0; attempt < (context.admission ? 1u : 3u); ++attempt) {
-			File selected(::openat(dir->fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-			trusted_file(selected.fd, directory_info.st_uid, descriptor_bytes);
-			std::array<char, descriptor_bytes> raw{};
-			read_record(selected.fd, raw);
-			auto descriptor = decode_descriptor(raw);
+			const auto selected = detail::read_selected(dir->fd, directory_info.st_uid);
+			if (!selected) {
+				if (context.selection)
+					throw RecoverySelectionChanged();
+				continue;
+			}
+			const auto descriptor = selected->descriptor;
 			if (context.selection && (context.selection->descriptor != descriptor ||
 									  context.selection->directory_identity !=
 										  DirectoryIdentity{std::uint64_t(directory_info.st_dev),
@@ -283,9 +307,8 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			require(::fstat(mapping->lease, &lease_info) == 0);
 			if (lease_info.st_nlink == 0)
 				continue;
-			require(lease_info.st_size == 0 || lease_info.st_size == generation_ownership_bytes);
-			trusted_file(mapping->lease, directory_info.st_uid, lease_info.st_size);
-			// A collector may have unlinked an anchor between open and locking.
+			trusted_file(mapping->lease, directory_info.st_uid, 0);
+			// A collector may have unlinked a lease between open and locking.
 			// Match the held inode against the name before opening its image.
 			struct stat named_lease{};
 			if (::fstatat(dir->fd, (name + ".lease").c_str(), &named_lease, AT_SYMLINK_NOFOLLOW) != 0) {
@@ -295,23 +318,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			}
 			if (named_lease.st_dev != lease_info.st_dev || named_lease.st_ino != lease_info.st_ino)
 				continue;
-			std::optional<GenerationOwnership> generation_ownership;
-			if (lease_info.st_size == generation_ownership_bytes) {
-				std::array<char, generation_ownership_bytes> lease_record;
-				read_record(mapping->lease, lease_record);
-				auto ownership = decode_generation_ownership(lease_record);
-				generation_ownership = ownership;
-				File storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-				trusted_file(storage.fd, directory_info.st_uid, storage_identity_bytes);
-				std::array<char, storage_identity_bytes> storage_record;
-				read_record(storage.fd, storage_record);
-				require(ownership.storage == decode_storage_identity(storage_record) &&
-						ownership.generation == descriptor.generation &&
-						ownership.image_length == descriptor.length &&
-						ownership.image_checksum == descriptor.checksum);
-			}
-			if (context.layout_version &&
-				*context.layout_version != (generation_ownership ? generation_ownership->layout_version : 1))
+			if (context.paged && *context.paged != selected->paged)
 				throw RecoverySelectionChanged();
 			mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 			trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
@@ -334,32 +341,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			unsigned char digest[32];
 			hash.getHash(digest);
 			require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
-			const auto refuse = [&]() -> void {
-				require(generation_ownership.has_value());
-				struct stat image{}, named_image{}, named_anchor{};
-				require(::fstat(mapping->image, &image) == 0 &&
-						::fstatat(dir->fd, (name + ".image").c_str(), &named_image, AT_SYMLINK_NOFOLLOW) == 0 &&
-						image.st_dev == named_image.st_dev && image.st_ino == named_image.st_ino &&
-						::fstatat(dir->fd, (name + ".lease").c_str(), &named_anchor, AT_SYMLINK_NOFOLLOW) == 0 &&
-						lease_info.st_dev == named_anchor.st_dev && lease_info.st_ino == named_anchor.st_ino);
-				std::array<char, generation_ownership_bytes> anchor;
-				read_record(mapping->lease, anchor);
-				require(decode_generation_ownership(anchor) == *generation_ownership);
-				File storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-				trusted_file(storage.fd, directory_info.st_uid, storage_identity_bytes);
-				std::array<char, storage_identity_bytes> identity;
-				read_record(storage.fd, identity);
-				require(decode_storage_identity(identity) == generation_ownership->storage);
-				const auto selection = read_generation_selection(directory);
-				require(selection.descriptor == descriptor && selection.directory_identity ==
-						DirectoryIdentity{std::uint64_t(directory_info.st_dev), std::uint64_t(directory_info.st_ino)});
-				auto lease = std::allocate_shared<File>(distribution::StorageAllocator<File>(context.heap), -1);
-				lease->fd = std::exchange(mapping->lease, -1);
-				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
-			};
-			if (generation_ownership && !current_layout(generation_ownership->layout_version))
-				refuse();
-			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
+			if (selected->paged) {
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
@@ -510,7 +492,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 														std::uint64_t(named.st_ino)} == segment->identity());
 				}
 				trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
-				trusted_file(mapping->lease, directory_info.st_uid, generation_ownership_bytes);
+				trusted_file(mapping->lease, directory_info.st_uid, 0);
 				struct stat held_image{}, named_image{}, named_anchor{};
 				require(
 					::fstat(mapping->image, &held_image) == 0 &&
@@ -518,14 +500,6 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 					held_image.st_dev == named_image.st_dev && held_image.st_ino == named_image.st_ino &&
 					::fstatat(dir->fd, (name + ".lease").c_str(), &named_anchor, AT_SYMLINK_NOFOLLOW) == 0 &&
 					lease_info.st_dev == named_anchor.st_dev && lease_info.st_ino == named_anchor.st_ino);
-				std::array<char, generation_ownership_bytes> final_anchor;
-				read_record(mapping->lease, final_anchor);
-				require(decode_generation_ownership(final_anchor) == *generation_ownership);
-				File final_storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-				trusted_file(final_storage.fd, directory_info.st_uid, storage_identity_bytes);
-				std::array<char, storage_identity_bytes> final_identity;
-				read_record(final_storage.fd, final_identity);
-				require(decode_storage_identity(final_identity) == generation_ownership->storage);
 				if (progress)
 					capability->seal_progress(*prior);
 				else

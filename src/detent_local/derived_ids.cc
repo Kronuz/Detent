@@ -73,6 +73,16 @@ std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const dis
 	return selected->ordinal + 1;
 }
 
+std::string namespace_name(const distribution::Cursor &cursor) {
+	static constexpr char hex[] = "0123456789abcdef";
+	std::string name;
+	name.reserve(cursor.scope.size() * 2);
+	for (unsigned char byte : cursor.scope) {
+		name.push_back(hex[byte >> 4]);
+		name.push_back(hex[byte & 15]);
+	}
+	return name;
+}
 DerivedGeneration next_generation(const std::optional<Descriptor> &selected, const distribution::Cursor &target,
 								  const distribution::Profile &profile, bool full_copy) {
 	if (!full_copy && !selected)

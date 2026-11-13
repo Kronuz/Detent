@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
+index 9751b02b..df8920b8 100644
+--- a/src/detent_local/agent_store.cc
++++ b/src/detent_local/agent_store.cc
+@@ -430,7 +430,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
+ 		} catch (const std::exception &) {
+ 			continue; // not a file a reader could lease; the link step replaces it
+ 		}
+-		if (!lease->try_lease(c::LeaseMode::Exclusive))
++		if (false && !lease->try_lease(c::LeaseMode::Exclusive))
+ 			throw LeaseHeld(file.name);
+ 		leases.push_back(std::move(lease));
+ 	}

@@ -99,8 +99,6 @@ std::optional<pid_t> locked_pid() { return detent_cli::locked_pid(pid_path()); }
 int run_agent(const std::vector<std::string> &args) {
 	const bool detach = has_flag(args, "--daemonize");
 	if (g_system && detach) throw std::runtime_error("system services must run in the foreground");
-	if (has_flag(args, "--initialize-managed") && has_flag(args, "--upgrade-managed"))
-		throw std::runtime_error("managed initialization and upgrade are mutually exclusive");
 	if (!g_managed_config)
 		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or set managed_path");
 #ifdef DETENT_WITH_MANAGED_AGENT
@@ -113,7 +111,6 @@ int run_agent(const std::vector<std::string> &args) {
 			return detent_agent::run_managed(
 				*g_managed_config, *g_generation_dir,
 				has_flag(args, "--initialize-managed") ? detent::local::StoreOpenMode::FreshEmpty
-				: has_flag(args, "--upgrade-managed")  ? detent::local::StoreOpenMode::UpgradeLegacy
 													   : detent::local::StoreOpenMode::ExistingManaged,
 				g_system, ready);
 		}, detent_agent::managed_startup_timeout);
@@ -322,7 +319,7 @@ const char *kUsage =
 	"\n"
 	"usage:\n"
 	"  detent-agent --managed PRIVATE_CONFIG [--daemonize] [--generation-dir PATH]\n"
-	"               [--initialize-managed | --upgrade-managed]\n"
+	"               [--initialize-managed]\n"
 	"  detent-agent --status\n"
 	"  detent-agent --help | -h\n"
 	"\n"
@@ -386,7 +383,7 @@ int main(int argc, char** argv) {
 		for (std::size_t i = 0; i < args.size(); ++i) {
 			const auto& arg = args[i];
 			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet" ||
-				arg == "--initialize-managed" || arg == "--upgrade-managed")
+				arg == "--initialize-managed")
 				continue;
 			if (detent_agent::is_reader_option(arg) || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||

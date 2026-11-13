@@ -227,7 +227,9 @@ void publication() {
 	// A `.live` that does not bind its generation is refused; nothing is written.
 	const auto published = listing(root);
 	auto unbound = generation(profile, "beta", cursor('b', 1), {}, 0, {}, 1, 'b');
-	unbound.prepared.read[0] ^= 1;
+	auto read = std::string(unbound.prepared.read);
+	read[0] ^= 1;
+	unbound.prepared.read = read;
 	refuses<std::invalid_argument>([&] { store->publish({}, one(unbound)); });
 	check(listing(root) == published);
 

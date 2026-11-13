@@ -105,8 +105,8 @@ struct GenerationWriter::Impl {
 	explicit Impl(std::filesystem::path path) : store(std::move(path)) {
 		std::filesystem::create_directories(store);
 		::chmod(store.c_str(), 0700);
-		options.mode = std::filesystem::exists(store / "storage.meta") ? l::StoreOpenMode::ExistingManaged
-		                                                               : l::StoreOpenMode::FreshEmpty;
+		options.mode = std::filesystem::exists(store / "owner.lock") ? l::StoreOpenMode::ExistingManaged
+		                                                             : l::StoreOpenMode::FreshEmpty;
 		options.limits = {1024 * segment, 100000, 1000};
 		options.recovery_limits.retirement_domain = &domain;
 		options.recovery_limits.mapping_account = std::make_shared<d::StorageLedger>(64 * segment);
@@ -131,22 +131,16 @@ struct GenerationWriter::Impl {
 		domain.close().wait();
 	}
 	void drive() {
-		namespace c = kronuz::io::completion;
 		for (unsigned turns = 0;; ++turns) {
 			if (turns > 1'000'000)
 				throw std::runtime_error("test store made no progress");
 			disk->advance();
-			auto operation = disk->operation();
-			if (!operation) {
-				if (disk->needs_work())
-					continue;
+			auto work = disk->work();
+			if (!work)
 				break;
-			}
-			operation->submitted();
-			if (!operation->complete(
-			        kronuz::journal::detail::execute_primitive(operation->io(), operation->request())))
-				throw std::runtime_error("test store completion refused");
+			work->run();
 		}
+		disk->advance();
 		unwrap(disk->error());
 	}
 	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {

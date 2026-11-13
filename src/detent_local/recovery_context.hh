@@ -1,16 +1,6 @@
 #pragma once
 #include "mapped_recovery_admission.hh"
 namespace detent::local::detail {
-// Only authenticated owned selections carry authority to become absent at startup.
-struct ObsoleteGeneration final : std::runtime_error {
-	GenerationSelection selection;
-	GenerationOwnership ownership;
-	std::shared_ptr<const void> lease;
-	ObsoleteGeneration(GenerationSelection selection, GenerationOwnership ownership,
-					   std::shared_ptr<const void> lease)
-		: std::runtime_error("obsolete owned generation requires a full copy"),
-		  selection(selection), ownership(ownership), lease(std::move(lease)) {}
-};
 struct RecoveryMetrics {
 	std::uint64_t root_hash_bytes = 0, segment_hash_bytes = 0;
 	std::uint64_t root_mapping_installs = 0, segment_mapping_installs = 0;
@@ -26,7 +16,7 @@ struct RecoveryContext {
 	distribution::RetirementHandle<MappedRecoveryAdmission> admission;
 	ValidationBudget budget;
 	std::optional<GenerationSelection> selection;
-	std::optional<unsigned> layout_version;
+	std::optional<bool> paged; // the routed format: a paged root, or a flat image
 	std::shared_ptr<RecoveryMetrics> metrics;
 	// The agent's cold start: trust the generation's live record, and refuse a generation without one.
 	bool trusted_start = false;

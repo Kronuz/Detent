@@ -191,7 +191,7 @@ struct Coordinator::Impl {
 			disk_wake->cancel();
 	}
 	task::task<void> wait_disk() {
-		auto expires = store->collection_retry_at();
+		auto expires = std::chrono::steady_clock::time_point::max();
 		if (diagnostic.phase == CoordinatorPhase::WaitingPublication && !cancelled() &&
 			publication_retry > std::chrono::steady_clock::now())
 			expires = std::min(expires, publication_retry);
@@ -594,7 +594,6 @@ struct Coordinator::Impl {
 			refusal = std::current_exception();
 		}
 		if (refusal) {
-			l::detail::ManagedRecovery::yield_optional(*store);
 			++diagnostic.failures;
 			diagnostic.error = refusal;
 			paged_candidate.reset();
@@ -785,17 +784,21 @@ struct Coordinator::Impl {
 			}
 			store->advance();
 			notify_candidate();
-			if (auto operation = store->operation()) {
-				try {
-					if (options.completion_port)
-						co_await options.completion_port->run_one(operation);
-					else
-						co_await driver->run_one(operation);
-				} catch (...) {
-					// A failed original driver cannot manufacture settlement.
-					// Follow the native authority driver's fail-stop policy.
-					std::terminate();
+			if (auto work = store->work()) {
+				// The worker runs the store's disk work; the owner settles it once the work is done.
+				auto done = std::make_shared<std::atomic<bool>>(false);
+				asio::post(worker, [work, done] {
+					work->run();
+					done->store(true, std::memory_order_release);
+				});
+				while (!done->load(std::memory_order_acquire)) {
+					disk_wake->expires_after(std::chrono::milliseconds(1));
+					const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
+						[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
+					if (error && error != asio::error::operation_aborted)
+						throw asio::system_error(error);
 				}
+				store->advance();
 				if (store->error() || store->publication_status() == l::DiskPublicationStatus::Fenced)
 					fence(store->error() ? store->error() : store->publication_error());
 				notify_candidate();
@@ -803,8 +806,6 @@ struct Coordinator::Impl {
 					burst = 0;
 					co_await task::yield();
 				}
-			} else if (store->needs_work()) {
-				co_await task::yield();
 			} else {
 				burst = 0;
 				if (store->status() == l::StoreStatus::Fenced)
@@ -1114,10 +1115,8 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 			} catch (const MaintenanceFailure &) {
 				throw;
 			} catch (const d::StoragePressure &) {
-				l::detail::ManagedRecovery::yield_optional(*store);
 				failure = std::current_exception();
 			} catch (const std::bad_alloc &) {
-				l::detail::ManagedRecovery::yield_optional(*store);
 				failure = std::current_exception();
 			} catch (const SessionResetError &error) {
 				failure = std::current_exception();

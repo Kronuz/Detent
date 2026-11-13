@@ -98,4 +98,5 @@ ReaderMetadata decode_reader_metadata(std::span<const char> bytes) {
 	validate(value);
 	return value;
 }
+paged::Digest reader_metadata_digest(std::span<const char> bytes) { return checksum(bytes); }
 } // namespace detent::local::detail

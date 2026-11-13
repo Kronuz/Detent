@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
+#include <memory>
 #include <fstream>
 #include <sha256.h>
 #include <source_location>
@@ -45,36 +46,47 @@ inline l::NamespaceCursor cursor(char incarnation, std::uint64_t position) {
 	return {identity('c'), identity(incarnation), position};
 }
 struct Segment {
-	l::StorageIdentity id{};
-	std::string pack;
+	l::SegmentId id{};
+	std::shared_ptr<const std::string> pack;
 };
 // A generation of `name` at `cursor`, built on `base` (zero for a full copy), keeping `kept` of the
-// base's segments and writing `fresh` new ones whose bytes depend on `seed`.
+// base's segments and writing `fresh` new ones whose bytes depend on `seed`. `prepared` views `bytes`,
+// which every copy shares.
+struct Bytes {
+	std::string image, read, live;
+	std::vector<std::string> owners;
+	std::vector<std::shared_ptr<const std::string>> packs;
+};
 struct Generation {
 	l::PreparedGeneration prepared;
 	l::GenerationId id{};
 	std::vector<Segment> segments; // every segment its `.live` names
+	std::shared_ptr<Bytes> bytes = std::make_shared<Bytes>();
 };
 inline Generation generation(const d::Profile &profile, std::string name, l::NamespaceCursor at,
 							 const l::GenerationId &base, std::uint32_t ordinal, std::span<const Segment> kept,
 							 unsigned fresh, char seed) {
 	Generation g;
+	auto &bytes = *g.bytes;
 	g.id = l::derive_generation(profile, at.incarnation, at.position, base, ordinal);
 	g.prepared.name = std::move(name);
 	g.prepared.cursor = at;
 	g.prepared.base = base;
 	g.prepared.ordinal = ordinal;
-	g.prepared.image = std::string(320, seed) + g.prepared.name;
-	g.prepared.image.resize(320);
-	g.prepared.read = std::string(192, char(seed + 1));
+	bytes.image = std::string(320, seed) + g.prepared.name;
+	bytes.image.resize(320);
+	bytes.read = std::string(192, char(seed + 1));
 	g.segments.assign(kept.begin(), kept.end());
+	bytes.owners.reserve(fresh);
 	for (unsigned k = 0; k < fresh; ++k) {
-		Segment segment{l::derive_segment(g.id, k), std::string(700 + 13 * k, char(seed + 2 + k))};
+		Segment segment{l::derive_segment(g.id, k), std::make_shared<const std::string>(700 + 13 * k, char(seed + 2 + k))};
 		std::string owner(128, '\0');
 		std::copy(segment.id.begin(), segment.id.end(), owner.begin());
-		const auto sum = sha(segment.pack);
+		const auto sum = sha(*segment.pack);
 		std::copy(sum.begin(), sum.end(), owner.begin() + 16);
-		g.prepared.segments.push_back({segment.id, segment.pack, owner});
+		bytes.owners.push_back(std::move(owner));
+		bytes.packs.push_back(segment.pack);
+		g.prepared.segments.push_back({segment.id, *segment.pack, bytes.owners.back()});
 		g.segments.push_back(std::move(segment));
 	}
 	std::sort(g.segments.begin(), g.segments.end(), [](const Segment &a, const Segment &b) {
@@ -82,13 +94,16 @@ inline Generation generation(const d::Profile &profile, std::string name, l::Nam
 	});
 	l::detail::LiveRecord live;
 	live.generation = g.id;
-	live.root_checksum = sha(g.prepared.image);
-	live.read_digest = sha(g.prepared.read);
+	live.root_checksum = sha(bytes.image);
+	live.read_digest = sha(bytes.read);
 	live.histogram[0] = 1;
 	for (const auto &segment : g.segments)
-		live.rows.push_back({segment.id, segment.pack.size(), sha(segment.pack), {1, segment.pack.size()}});
-	g.prepared.live.resize(l::detail::live_record_size(live.rows.size()));
-	l::detail::encode_live_record(live, g.prepared.live);
+		live.rows.push_back({segment.id, segment.pack->size(), sha(*segment.pack), {1, segment.pack->size()}});
+	bytes.live.resize(l::detail::live_record_size(live.rows.size()));
+	l::detail::encode_live_record(live, bytes.live);
+	g.prepared.image = bytes.image;
+	g.prepared.read = bytes.read;
+	g.prepared.live = bytes.live;
 	return g;
 }
 inline std::string slurp(const std::filesystem::path &path) {
@@ -105,11 +120,14 @@ inline std::vector<std::string> listing(const std::filesystem::path &root) {
 inline std::string generation_file(const l::GenerationId &id, std::string_view suffix) {
 	return l::generation_name(id) + std::string(suffix);
 }
-// Every file the durable table reaches exists and verifies: `.image` and `.read` against the table,
+// Every file the durable table reaches exists and verifies: an empty `.lease`, `.image` and `.read` against the table,
 // `.live` against its own digest and bindings, and every pack it names against its row.
 inline bool table_verifies(const std::filesystem::path &root, const l::StoreTable &table,
 						   std::uint64_t maximum_segments = 1024) {
 	for (const auto &entry : table.entries) {
+		const auto lease = root / generation_file(entry.generation, ".lease");
+		if (!std::filesystem::is_regular_file(lease) || std::filesystem::file_size(lease))
+			return false;
 		const auto image = slurp(root / generation_file(entry.generation, ".image"));
 		const auto read = slurp(root / generation_file(entry.generation, ".read"));
 		if (image.size() != entry.root_length || sha(image) != entry.root || sha(read) != entry.read)

@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 
 // Every generation and segment id (docs/design/namespace-delivery.md D8.1, D8.2), derived from what
@@ -23,6 +24,8 @@ SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal);
 // cluster, group, restore epoch and scope, so a reset changing any of them derives new names; the
 // position is the revision.
 distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &);
+// D88: the table entry of the old cursor's namespace, named after its scope (lowercase hex).
+std::string namespace_name(const distribution::Cursor &);
 // The build ordinal over `selected`: r + 1 for a build at its unchanged head (r its ordinal), else 0.
 std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::Cursor &target);
 // A generation's name: its id and the build ordinal its descriptor carries. A bare id names ordinal 0.

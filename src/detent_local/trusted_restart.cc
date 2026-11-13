@@ -65,8 +65,7 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 	const auto live = decode_live_record(live_bytes, root.segments);
 	require(live.generation == descriptor.generation &&
 			live.root_checksum == descriptor.checksum && live.rows.size() == root.segments &&
-			std::equal(live.read_digest.begin(), live.read_digest.end(),
-					   read_bytes.begin() + reader_metadata_bytes - live_digest_bytes));
+			live.read_digest == reader_metadata_digest(read_bytes));
 	std::uint64_t physical = paged::root_bytes;
 	for (const auto &row : live.rows) {
 		require(row.length <= metadata.physical_bytes - physical);
