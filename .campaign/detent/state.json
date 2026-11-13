@@ -3646,12 +3646,11 @@
       "milestone": "N1",
       "needs": [],
       "provides": [],
-      "reason": "Waits for warm-graph-5m and delta-plan-scaling, then one 5M T9 round (D87)",
       "repo": ".",
       "risk": "low",
-      "status": "blocked",
+      "status": "active",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-12T15:20:18",
+      "updated": "2026-11-12T18:42:09",
       "worktree": "../Detent-wt/detent/namespace-measure"
     },
     "namespace-s1-s2": {
