@@ -1,0 +1,12 @@
+diff --git a/src/detent_local/derived_ids.cc b/src/detent_local/derived_ids.cc
+index 2e5c19e0..1e191143 100644
+--- a/src/detent_local/derived_ids.cc
++++ b/src/detent_local/derived_ids.cc
+@@ -57,7 +57,6 @@ SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal)
+ 
+ distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &cursor) {
+ 	const auto incarnation = Input("detent.agent-store.incarnation")
+-								 .add(cursor.cluster)
+ 								 .add(cursor.group)
+ 								 .add(cursor.restore_epoch)
+ 								 .add(cursor.scope)

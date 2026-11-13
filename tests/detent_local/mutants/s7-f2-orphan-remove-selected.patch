@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index a09d187a..d198fe9e 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -763,6 +763,8 @@ class PublicationOperation final : public c::Operation {
+ 		request_.kind = kind;
+ 		if (kind == c::Kind::InspectEntry || kind == c::Kind::Remove)
+ 			request_.source = child_name(index_);
++		if (kind == c::Kind::Remove && child_name(index_).ends_with(".lease"))
++			request_.source = "selected";
+ 		if (kind == c::Kind::SyncFiles)
+ 			request_.files = staged_;
+ 		if (kind == c::Kind::Replace) {
