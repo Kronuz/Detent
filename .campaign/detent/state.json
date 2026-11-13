@@ -246,6 +246,13 @@
       "closed": "Detent does not depend on strata",
       "id": "msg-39",
       "text": "strata:cb5294b8 landed (sync-at-first-commit, D60c): an open no longer syncs (open p50 22.9 ms -> 0.12 ms); the first commit after an open syncs what it inherited before acknowledging (+2.0 ms, p50 23.1 -> 25.2 ms). A failed background merge no longer syncs the directory from its thread; its bytes are freed at the writer's next dir sync. Picking it up needs a pin bump only; no API change."
+    },
+    {
+      "at": "2026-11-12T18:23:09",
+      "by": "xapiand-lead",
+      "closed": "answered via cmux reply: no objection; default-off cost A/B and a Detent integration run against task-lanes before it lands",
+      "id": "msg-40",
+      "text": "Heads-up on Kronuz/task (D79/D80, design under review, not built yet): Xapiand's loop-scheduling design adds an opt-in heavy lane to task's asio scheduler as library quest `task-lanes`. A request's budget counts the slices it spends, past K (Xapiand uses 8, about 1.6 ms) it is heavy for life, and its resumptions go to a lane that runs one turn per io_context pass, so light work and timers go first. The default is off, so Detent and Prism keep today's behaviour exactly. Kronuz/http gets one line. Measured on Xapiand: light-search p50 0.45x, heavy throughput 1.10-1.18x, RESTORE flat. Design note: Xapiand docs/design/loop-scheduling.md on quest/xapiand/loop-scheduling (37d80c1d5). If Detent has a stake in task's scheduler queues, tell me before the library quest starts."
     }
   ],
   "quests": {
