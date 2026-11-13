@@ -3705,17 +3705,47 @@
         "docs/perf/namespace-*",
         "docs/status/namespace-measure.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T19:24:19",
+          "commit": "2f20f3d61d2bc0ebb977eaa9a55811d5bd47455c",
+          "criteria": {
+            "A1": "`docs/perf/namespace-measure.md`: \"## Rules\" (committed before any job)",
+            "A2": "261112-115039-e2a0e2 (passed at b14304dd0377; only merges from main since), 261112-115033-5cb640 (passed at b14304dd0377; only merges from main since), 261112-115520-7fe532 (passed at e0c9f4506d2d; only merges from main since), 261112-184618-110b7d (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md), 261112-184754-b24467 (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md), 261112-184757-fefadb (passed at a56bb57cab5d; ignores docs-only docs/perf/namespace-measure.md)",
+            "A3": "261110-204532-499625 (passed at b0c517b53d2d; only merges from main since), 261112-113801-4be23d (passed at 9c48b4f92e95; only merges from main since)",
+            "A4": "261112-132124-1b4fd7 (passed at e0c9f4506d2d; only merges from main since), 261112-132129-82a3aa (passed at e0c9f4506d2d; only merges from main since), 261112-132134-41fc3c (passed at e0c9f4506d2d; only merges from main since)",
+            "A5": "`docs/perf/namespace-measure.md`: \"## Verdicts\""
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "ae46477b69ca08f386a1521a9b849b3dbd7ce209",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-113923-c7fdbf",
+              "level": "none",
+              "seconds": 5.8,
+              "state": "done",
+              "what": "namespace-measure check pins at ae46477b69ca"
+            }
+          ],
+          "final": true,
+          "from": "215dfc0b94cb67b20df27e1c6743789357ca4569",
+          "reason": "",
+          "tested": "e6778ffe2e1f3237bf9329683a587fdff50a9058"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-12T18:42:09",
-      "worktree": "../Detent-wt/detent/namespace-measure"
+      "updated": "2026-11-12T19:24:23",
+      "worktree": ""
     },
     "namespace-s1-s2": {
       "accepted": {
