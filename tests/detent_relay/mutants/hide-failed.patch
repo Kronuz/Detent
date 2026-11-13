@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index a5656750..f94803aa 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -262,7 +262,7 @@ std::optional<d::NamespaceCursor> NamespaceRelay::head(std::string_view name) co
+ std::vector<NamespaceLayout> NamespaceRelay::layouts(std::span<const std::string> names) {
+ 	std::vector<NamespaceLayout> out;
+ 	for (const auto &name : names)
+-		if (const auto *layout = impl_->store.table().find(name))
++		if (const auto *layout = impl_->store.table().find(name); layout && impl_->serves(*layout))
+ 			out.push_back(*layout);
+ 	return out;
+ }

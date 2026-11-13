@@ -30,12 +30,12 @@ mirror/                one directory, the mirror's alone
 
 1. Validation: the next table, whole. A file the durable table reaches under the same name and holds is reused, never fetched; the same name with another size or digest is the upstream contradicting an immutable name (`FetchRefused`). When nothing is fetched and the entries are unchanged, nothing is written.
 2. Fetch and stage: each other file is fetched by name, checked against its size and digest, and written under a `.tmp-` name, one file in memory at a time. A failed or refused fetch removes the staged names and publishes nothing; the mirror stays usable.
-3. Link: `linkat` from the `.tmp-` name. An existing name is not one the durable table holds, so it is unlinked and relinked (it may hold bytes whose sync never ran).
+3. Link: `linkat` from the `.tmp-` name, then the `.tmp-` name unlinked. An existing name may be one the durable table reaches (a file failed at startup), so its replacement is fsynced and renamed over it, as a repair is: a power cut never leaves a reached name with unsynced bytes that startup's size check would accept.
 4. One sync group (D11): the fetched files and the directory.
 5. The table: `.tmp-`, fsync, rename over `mirror`, directory sync.
 6. Collector: every file the new table no longer reaches is unlinked. A cut before the unlinks leaves orphans, which startup removes.
 
-An I/O error after staging leaves the mirror needing a restart.
+An I/O error while staging or after it leaves the mirror needing a restart (review D3: staging errors could clean up and keep the mirror usable; open).
 
 ## Startup
 
@@ -55,7 +55,9 @@ Take `owner.lock`, one barrier (a directory sync), read `mirror`, check each rea
 2. Each ring keeps its entries after the new s; one behind s, or of another incarnation, restarts empty at s.
 3. Ask the upstream for frames at each ring's head. Only entries are expected: anything else means the upstream sealed in between (`UpstreamMoved`), and the sync starts over, at most three times. Frames apply only once the body decodes whole.
 
-`frames(positions)` answers from a `MirrorHistory` per namespace, S6's `NamespaceHistory` over the mirror: the cut and spans from the layout (blocks named, sections unnamed), each span decoded from its file at read time, the full copy from the cached copy or the base and every tier merged without tombstones, and the ring from the upstream's entries. S6's `select_answer` and encoder pick the tier and write the bytes, so a relay answers exactly as its upstream does. A namespace `failed()` at startup is neither answered nor offered downstream until it is adopted again.
+`frames(positions)` answers from a `MirrorHistory` per namespace, S6's `NamespaceHistory` over the mirror: the cut and spans from the layout (blocks named, sections unnamed), each span decoded from its file at read time, the full copy from the cached copy or the base and every tier merged without tombstones, and the ring from the upstream's entries. S6's `select_answer` and encoder pick the tier and write the bytes, so a relay answers exactly as its upstream does. A namespace `failed()` at startup is not answered until it is adopted again, but its layout is still offered: a downstream relay keeps what it holds, and a missing file it asks for is fetched by name from this relay's upstream through `read`.
+
+Both classes are single-threaded: `frames` holds references into the table that `adopt` replaces, and `read` updates the verified and missing sets. The HTTP wiring serializes calls or snapshots the table (review D4).
 
 ## Evidence
 
@@ -63,8 +65,8 @@ Take `owner.lock`, one barrier (a directory sync), read `mirror`, check each rea
 | --- | --- | --- |
 | A1 | `test_relay_chain` | Three real voters (S5.2's history under the cluster harness) and a chain A, B, C: A reads a different voter each step, B reads A, C reads B. Over 14 steps with seals, roll-ups, a policy change, a drop and a re-creation (an empty base), every file of every voter's layout is on every relay under its name with the voter's bytes, and every relay's table equals each voter's layout |
 | A1 (relay half) | `test_relay_mirror` `chain` | A scripted upstream and three relays: every file byte-identical at every hop over 24 steps, and no relay reaches past its upstream |
-| A2 | `test_relay_chain` restart; `test_relay_mirror` `restart` | C restarts with its upstream refusing files, A restarts on the voter: each re-reads its ring through W6, fetches 0 files, and answers every cursor with the same bytes; the store alone reads every file unchanged and fetches only new names at the next seal |
-| A3 | `test_relay_mirror_crash` | T7 over completion's sync seam: a power cut after every primitive of a first adoption, a second (reuse, fetch, cut, squash, drop, policy change, collector) and a repair, then a restart that adopts again, cut in turn; a kill after every primitive, then a restart cut in turn |
+| A2 | `test_relay_chain` restart; `test_relay_mirror` `restart` | C restarts with its upstream refusing files, A restarts on the voter: each re-reads its ring through W6, fetches 0 files, and answers every cursor with the same bytes; B restarts with a file lost and C, syncing from B first, deletes and fetches nothing; the store alone reads every file unchanged and fetches only new names at the next seal |
+| A3 | `test_relay_mirror_crash` | T7 over completion's sync seam: a power cut after every primitive of a first adoption, a second (reuse, fetch, cut, squash, drop, policy change, collector), a repair, and the replacement of a reached file failed at startup, then a restart that adopts again, cut in turn; a kill after every primitive, then a restart cut in turn |
 | A4 | `test_relay_mirror` `follows`; `test_relay_chain` | The scripted upstream over 24 steps (seals, roll-ups, squashes, cuts, a policy change, a cached copy, a new incarnation, a drop, a new namespace): the table equals the upstream's layout, the directory holds exactly the reached names, the bytes fetched are exactly the new names'; over real voters, the relays follow a period change and a drop |
 | A5 | `test_relay_chain` | W8: every relay answers every store cursor (none, another incarnation, each R from 0 to h + 1) with the same W6 bytes as an oracle that replays every write, tiled as the voter's layout; B and C read only their upstream relay, and only through `Upstream` |
 
@@ -73,3 +75,4 @@ Take `owner.lock`, one barrier (a directory sync), read `mirror`, check each rea
 1. The HTTP wiring: the relay's routes for `layouts`, `fetch` and W5 sessions, and an `Upstream` over HTTP. The authority's side of `layouts` and `fetch` has no endpoint yet (namespace-s5-3 provides history files by name; nothing exports the layout), and it serves W5/W6 only after namespace-s6-cutover.
 2. A fetch returns one file's bytes whole; a base of a large namespace wants a streamed fetch into the `.tmp-` file.
 3. The ring is unbounded between seals; a bound in bytes, as the authority's, belongs with the HTTP wiring's ledgers.
+4. From the durability review: D3 (a staging I/O error poisons the store until restart instead of cleaning up), D4 (the single-thread rule, above), D5 (`RingSink` trusts entry positions inside (after, to]), D6 (the ring is memory only; the quest's Outcome says "persisted mirror of ... ring"), D7 (one refused namespace stops the whole adoption).
