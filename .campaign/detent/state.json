@@ -3047,18 +3047,48 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/logger-exit-crash",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T17:18:10",
+          "commit": "0261865fb7b7c2d4c9b07155de610442f9fb1aa3",
+          "criteria": {
+            "A1": "261112-164721-1f7329; fails without: 261112-163559-b2eff5",
+            "A2": "261112-163606-ae7ad9",
+            "A3": "261112-164721-1f7329; fails without: 261112-163559-b2eff5",
+            "A4": "261112-164723-6777b6, 261112-163610-8588d1",
+            "A5": "`docs/ROADMAP.md`: \"stash bundles a no-op `L_*` stub (`L_EXC`) so it builds without a logger.\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "0261865fb7b7c2d4c9b07155de610442f9fb1aa3",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-164723-6777b6",
+              "level": "light",
+              "seconds": 50.1,
+              "state": "done",
+              "what": "logger-exit-crash check suite at 0261865fb7b7"
+            }
+          ],
+          "final": true,
+          "from": "2bafea114d59e713eb6e055a2d721a9d66964644",
+          "reason": "",
+          "tested": "0261865fb7b7c2d4c9b07155de610442f9fb1aa3"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T16:38:57",
-      "worktree": "../logger-wt/detent/logger-exit-crash"
+      "updated": "2026-11-12T17:18:13",
+      "worktree": ""
     },
     "logger-followups": {
       "accepted": {},
