@@ -8222,7 +8222,51 @@
       "worktree": "../task-wt/detent/task-wheel"
     },
     "warm-graph-5m": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T16:07:59",
+          "base": "b4b7d01298034c86625fdcca79eb37732221827c",
+          "blobs": {
+            "src/detent_local/sparse_plan_finalizer.cc": "100644:8588441d7fddc16c44322abaa7b51dbee71d53c2",
+            "tests/detent_local/CMakeLists.txt": "100644:f699964064fcf9fa41927cf948e0b0e37445db59",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "100644:393a21b0dc15a9dff88fb78950469e7f6bab6f7f",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "100644:3a00d773eabb44c66cc04f4bf423308a76db9640"
+          },
+          "by": "review",
+          "commit": "132ac1a612d0a39d634ad12bbad828b5b33a242a",
+          "criteria": "2b5fd6fff33e1010",
+          "diffs": {
+            "": "fec9073bcaee2f6b",
+            "src/detent_local/sparse_plan_finalizer.cc": "b75d9f5e382e44ec",
+            "tests/detent_local/CMakeLists.txt": "fa33f3eec95920ee",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "4f2b3a10804cca10",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "7ba47f457f8267b7"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.scratch/f1/mutant.sh",
+                  "commit": "6c52a2b3dea0ba671bc64d198484fd7fda0d060c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-154129-2cdfff",
+                  "level": "light",
+                  "seconds": 50.9,
+                  "state": "done",
+                  "what": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.sc at 6c52a2b3dea0"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "1867c20d4d46724f719308ced28db62e697b0c9f",
+          "reviewed": "c486f4ed2b65e4a6ed60cf82c51620047f656264",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "257526dd8625bab03c2837dcbd1cd85345dbbf0d",
       "branch": "quest/detent/warm-graph-5m",
@@ -8256,7 +8300,7 @@
       "risk": "high",
       "status": "review",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T15:19:28",
+      "updated": "2026-11-12T16:07:59",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
