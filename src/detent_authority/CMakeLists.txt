@@ -3,7 +3,8 @@ add_library(detent_authority state.cc prepared.cc read_reply.cc export_scope.cc 
 target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(detent_authority PUBLIC detent::detent detent::resources)
 add_library(detent::authority ALIAS detent_authority)
-add_library(detent_authority_export export_encoder.cc change_history.cc delta_export.cc delivery_export.cc subscription.cc)
+add_library(detent_authority_export export_encoder.cc change_history.cc namespace_history.cc frames_export.cc namespace_sessions.cc delta_export.cc delivery_export.cc
+  subscription.cc)
 target_link_libraries(detent_authority_export PUBLIC detent::authority detent::distribution)
 add_library(detent::authority_export ALIAS detent_authority_export)
 
