@@ -32,15 +32,16 @@ struct MirrorFile {
 	Digest digest{};
 	bool operator==(const MirrorFile &) const = default;
 };
-// One namespace's layout at an upstream seal: the base at the cut p, the blocks above level 0 and the
-// level-0 sections, oldest first and contiguous from p + 1 to s, and at most one full copy at s.
+// One namespace's layout at an upstream seal: the base at the cut p (no file when the namespace was
+// empty at p), the blocks above level 0 and the level-0 sections, oldest first and contiguous from
+// p + 1 to s, and at most one full copy at s.
 struct NamespaceLayout {
 	std::string name;
 	distribution::Identity incarnation{};
 	std::uint64_t seal = 0, ordinal = 0; // the upstream seal this layout is at, and its seal ordinal
+	std::uint64_t cut = 0;               // p
 	std::string policy;                  // the policy in force at that seal, as the upstream encodes it
-	std::vector<MirrorFile> files;       // base, blocks, sections, then the copy
-	std::uint64_t cut() const noexcept;  // p
+	std::vector<MirrorFile> files;       // the base, blocks, sections, then the copy
 	std::uint64_t end() const noexcept;  // s
 	bool operator==(const NamespaceLayout &) const = default;
 };
@@ -58,24 +59,12 @@ class MirrorRefused : public std::runtime_error {
 std::string encode_mirror_table(const MirrorTable &);
 // Throws MirrorRefused for anything but a whole, current table.
 MirrorTable decode_mirror_table(std::span<const char>);
-// Throws std::invalid_argument when the tiers are not one base, blocks, sections and at most one copy,
-// contiguous from the cut to s, or a name is invalid.
+// Throws std::invalid_argument when the files are not an optional base at the cut, blocks, sections
+// and at most one copy, contiguous from the cut to s, or a name is invalid.
 void check_layout(const NamespaceLayout &);
 // The file name the mirror stores an upstream name under: `m-` and 32 hex digits of its SHA-256, so
 // any upstream name, a namespace with `/` included, is one flat entry.
 std::string mirror_file_name(std::string_view upstream_name);
-
-// D6's three answers for a store at R, from the mirror's tiers. `Ring`: R is at or above s, so every
-// change after R is in the ring (S6's session stream), and the mirror sends nothing. `Blocks`: the
-// first file holds R + 1 and is trimmed to revisions above R; the rest follow whole (sections merged at
-// answer time). `Copy`: R is below the cut, or another incarnation: the cached copy at s, or the base
-// and every block and section merged without tombstones.
-struct AnswerPlan {
-	enum class Tier { Ring, Blocks, Copy } tier = Tier::Ring;
-	std::uint64_t above = 0, through = 0; // the revision filter (R) for `Blocks`, and s
-	std::vector<const MirrorFile *> files;
-};
-AnswerPlan plan_answer(const NamespaceLayout &, const distribution::Identity &incarnation, std::uint64_t position);
 
 // Fetches one file by its upstream name from the authority or an upstream relay. Throws on failure.
 using MirrorFetch = std::function<std::string(const MirrorFile &)>;

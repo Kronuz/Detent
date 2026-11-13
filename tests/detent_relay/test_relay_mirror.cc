@@ -1,4 +1,4 @@
-// The relay mirror (namespace-delivery D7): the table codec, the answer plan, following the upstream's
+// The relay mirror (namespace-delivery D7): the table codec, the tiers, following the upstream's
 // layout (cuts, squashes, policy, incarnations, drops), restart without re-fetching, repair by name,
 // and a relay chain byte-identical at every hop.
 #include "mirror_fixture.hh"
@@ -7,33 +7,13 @@
 using namespace fixture;
 namespace {
 using K = r::MirrorFile::Kind;
-using Tier = r::AnswerPlan::Tier;
 
-// An answer as bytes: the tier, the filter, then every file the plan names, read from the mirror.
-std::string answer(r::MirrorStore &store, const r::NamespaceLayout &layout, char incarnation, std::uint64_t at,
-				   const r::MirrorFetch &fetch) {
-	const auto plan = r::plan_answer(layout, identity(incarnation), at);
-	std::string out = std::to_string(int(plan.tier)) + "/" + std::to_string(plan.above) + "/" + std::to_string(plan.through);
-	for (const auto *f : plan.files)
-		out += "|" + f->name + "=" + store.read(*f, fetch);
-	return out;
-}
-// Every answer the mirror gives for `upstream`'s namespaces: R from 0 to s + 1, and another incarnation.
-std::vector<std::string> answers(r::MirrorStore &store, const r::MirrorFetch &fetch) {
-	std::vector<std::string> out;
-	for (const auto &layout : store.table().entries) {
-		for (std::uint64_t at = 0; at <= layout.end() + 1; ++at)
-			out.push_back(answer(store, layout, layout.incarnation[0], at, fetch));
-		out.push_back(answer(store, layout, 'z', layout.end(), fetch));
-	}
-	return out;
-}
-// Answers for R at or above each namespace's cut.
-std::vector<std::string> answers_above_cut(r::MirrorStore &store, const r::MirrorFetch &fetch) {
+// Every file the table reaches, read through the mirror: its name and bytes.
+std::vector<std::string> reads(r::MirrorStore &store, const r::MirrorFetch &fetch) {
 	std::vector<std::string> out;
 	for (const auto &layout : store.table().entries)
-		for (std::uint64_t at = layout.cut(); at <= layout.end(); ++at)
-			out.push_back(answer(store, layout, layout.incarnation[0], at, fetch));
+		for (const auto &f : layout.files)
+			out.push_back(f.name + "=" + store.read(f, fetch));
 	return out;
 }
 std::uint64_t bytes_of_new(const r::MirrorTable &before, const std::vector<r::NamespaceLayout> &after, std::uint64_t &files) {
@@ -71,15 +51,25 @@ void codec() {
 		flipped[at] ^= 0x10;
 		refuses<r::MirrorRefused>([&] { r::decode_mirror_table(flipped); });
 	}
-	// Tiers: a base first, contiguous blocks and sections, a copy at s and last, unique names.
+	// Tiers: an optional base at the cut, contiguous blocks and sections, a copy at s and last, unique names.
 	auto layout = up.layout("app/flags");
 	r::check_layout(layout);
+	auto baseless = layout;
+	baseless.files.erase(baseless.files.begin()); // the namespace was empty at the cut
+	r::check_layout(baseless);
+	r::NamespaceLayout empty{"empty", identity('e'), 3, 3, 5, "policy-1", {}};
+	r::check_layout(empty);
+	check(empty.end() == 5);
+	r::MirrorTable sparse{8, {baseless, empty}};
+	check(r::decode_mirror_table(r::encode_mirror_table(sparse)) == sparse);
 	auto broken = [&](auto edit) {
 		auto copy = layout;
 		edit(copy);
 		refuses<std::invalid_argument>([&] { r::check_layout(copy); });
 	};
-	broken([](r::NamespaceLayout &l) { l.files.erase(l.files.begin()); });
+	broken([](r::NamespaceLayout &l) { l.files[0].last += 1; });
+	broken([](r::NamespaceLayout &l) { l.cut += 1; });
+	broken([](r::NamespaceLayout &l) { l.files.push_back(l.files[0]); });
 	broken([](r::NamespaceLayout &l) { l.files[1].first += 1; });
 	broken([](r::NamespaceLayout &l) { std::swap(l.files[1], l.files[2]); });
 	broken([](r::NamespaceLayout &l) { l.files.push_back(l.files[1]); });
@@ -96,39 +86,23 @@ void codec() {
 		  r::mirror_file_name("app/flags").size() == 34 && r::mirror_file_name("app/flags").find('/') == std::string::npos);
 }
 
-void plans() {
+// s is the newest tier's last position, or the cut when there is none.
+void tiers() {
 	Upstream up;
 	auto &h = up.add("n");
 	h.cut = 10;
+	check(up.layout("n").end() == 10);
 	up.advance({{"n", 5}}); // [11, 15]
 	up.roll_up("n");
 	up.advance({{"n", 3}}); // [16, 18]
 	up.roll_up("n");
 	up.advance({{"n", 2}}); // section [19, 20]
 	up.advance({{"n", 1}}); // section [21, 21]
-	const auto layout = up.layout("n");
-	check(layout.cut() == 10 && layout.end() == 21);
-	for (std::uint64_t at = 0; at <= 23; ++at) {
-		const auto plan = r::plan_answer(layout, identity('a'), at);
-		if (at >= 21) {
-			check(plan.tier == Tier::Ring && plan.files.empty() && plan.through == 21);
-		} else if (at >= 10) {
-			// The first file holds R + 1; the rest follow contiguously to s.
-			check(plan.tier == Tier::Blocks && plan.above == at && !plan.files.empty());
-			check(plan.files.front()->first <= at + 1 && plan.files.front()->last >= at + 1);
-			for (std::size_t i = 1; i < plan.files.size(); ++i)
-				check(plan.files[i]->first == plan.files[i - 1]->last + 1);
-			check(plan.files.back()->last == 21);
-		} else {
-			check(plan.tier == Tier::Copy && plan.files.size() == layout.files.size());
-		}
-	}
-	// Another incarnation gets the copy at any R; a cached copy replaces the merge.
-	check(r::plan_answer(layout, identity('b'), 21).tier == Tier::Copy);
+	auto layout = up.layout("n");
+	check(layout.cut == 10 && layout.end() == 21);
 	up.histories.at("n").copy = true;
-	const auto cached = up.layout("n");
-	const auto plan = r::plan_answer(cached, identity('a'), 3);
-	check(plan.tier == Tier::Copy && plan.files.size() == 1 && plan.files[0]->kind == K::Copy);
+	layout = up.layout("n");
+	check(layout.end() == 21 && layout.files.back().kind == K::Copy);
 }
 
 // The upstream's script: seals, roll-ups, squashes, cuts, a policy change, a cached copy, a new
@@ -196,46 +170,41 @@ void follows(const std::filesystem::path &root) {
 			check(e.policy == script.up.policy && e.seal == script.up.seal);
 		for (const auto &e : before.entries)
 			if (const auto *now = store.table().find(e.name)) {
-				cut_seen = cut_seen || now->cut() > e.cut();
+				cut_seen = cut_seen || now->cut > e.cut;
 				squash_seen = squash_seen || now->files.size() < e.files.size();
 			}
-		// Below the cut a store gets the copy; at or above it, blocks or the ring.
-		for (const auto &e : store.table().entries) {
-			if (e.cut() > 0)
-				check(r::plan_answer(e, e.incarnation, e.cut() - 1).tier == Tier::Copy);
-			check(r::plan_answer(e, e.incarnation, e.cut()).tier != Tier::Copy);
-		}
+		for (const auto &e : store.table().entries)
+			check(e.cut == script.up.histories.at(e.name).cut);
 	}
 	check(cut_seen && squash_seen && !store.table().find("gamma") && store.table().find("delta"));
 	check(store.table().find("beta")->incarnation == identity('b'));
 }
 
-// A2: a restart answers every R at or above the cut unchanged, from disk, and fetches nothing it holds.
+// A2, the store half: a restart reads every file unchanged from disk and fetches nothing it holds.
 void restart(const std::filesystem::path &root) {
 	prepare(root);
 	Script script;
 	auto fetch = script.up.fetch();
-	std::vector<std::string> before, before_all;
+	std::vector<std::string> before;
 	{
 		r::MirrorStore store(io_at(root), {});
 		for (int i = 0; i < 20; ++i) {
 			const auto dropped = script.next();
 			store.adopt(script.up.layouts(), dropped, fetch);
 		}
-		before = answers_above_cut(store, fetch);
-		before_all = answers(store, fetch);
+		before = reads(store, fetch);
 	}
 	script.up.reachable = false;
 	const auto fetched = script.up.fetched_bytes;
 	{
 		r::MirrorStore store(io_at(root), {});
 		check(store.failed().empty() && mirror_matches(root, store.table()));
-		check(answers_above_cut(store, fetch) == before && answers(store, fetch) == before_all);
+		check(reads(store, fetch) == before);
 		// The same layout again: every file reused, nothing fetched.
 		const auto stats = store.adopt(script.up.layouts(), {}, fetch);
 		check(stats.fetched_files == 0 && stats.reused_files > 0 && stats.collected_files == 0);
 		check(script.up.fetched_bytes == fetched);
-		std::fprintf(stderr, "restart: %zu answers above the cut unchanged, 0 bytes fetched, %llu files reused\n",
+		std::fprintf(stderr, "restart: %zu files read unchanged, 0 bytes fetched, %llu files reused\n",
 					 before.size(), static_cast<unsigned long long>(stats.reused_files));
 		// The upstream's next seal: exactly the new names are fetched.
 		script.up.reachable = true;
@@ -386,7 +355,7 @@ int main(int argc, char **argv) {
 	std::filesystem::create_directories(scratch);
 	try {
 		codec();
-		plans();
+		tiers();
 		follows(scratch / "follows");
 		restart(scratch / "restart");
 		repair(scratch / "repair");

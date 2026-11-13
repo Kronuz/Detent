@@ -79,12 +79,11 @@ void MirrorTesting::install(void (*hook)(void *, const char *) noexcept, void *c
 	testing_context = context;
 }
 
-std::uint64_t NamespaceLayout::cut() const noexcept { return files.empty() ? 0 : files.front().last; }
 std::uint64_t NamespaceLayout::end() const noexcept {
 	for (auto at = files.rbegin(); at != files.rend(); ++at)
-		if (at->kind != MirrorFile::Kind::Copy)
+		if (is_tier(at->kind))
 			return at->last;
-	return 0;
+	return cut;
 }
 
 const NamespaceLayout *MirrorTable::find(std::string_view name) const noexcept {
@@ -106,28 +105,27 @@ std::string mirror_file_name(std::string_view upstream_name) {
 
 void check_layout(const NamespaceLayout &layout) {
 	auto fail = [](const char *what) { throw std::invalid_argument(std::string("relay mirror layout: ") + what); };
-	if (!valid_name(layout.name) || layout.policy.size() > maximum_policy)
+	if (!valid_name(layout.name) || layout.policy.size() > maximum_policy || layout.files.size() > maximum_files)
 		fail("namespace");
-	if (layout.files.empty() || layout.files.size() > maximum_files || layout.files.front().kind != MirrorFile::Kind::Base ||
-		layout.files.front().first != 0)
-		fail("a base first");
 	std::set<std::string_view> names;
 	auto previous = MirrorFile::Kind::Base;
-	std::uint64_t end = layout.files.front().last;
+	std::uint64_t end = layout.cut;
 	for (std::size_t i = 0; i < layout.files.size(); ++i) {
 		const auto &file = layout.files[i];
 		if (!valid_name(file.name) || !names.insert(file.name).second)
 			fail("file name");
-		if (i == 0)
+		if (file.kind == MirrorFile::Kind::Base) {
+			if (i != 0 || file.first != 0 || file.last != layout.cut)
+				fail("the base is first, at the cut");
 			continue;
-		if (file.kind < previous || file.kind == MirrorFile::Kind::Base || (file.kind == MirrorFile::Kind::Section &&
-																		  previous == MirrorFile::Kind::Copy))
+		}
+		if (file.kind < previous || (file.kind == MirrorFile::Kind::Section && previous == MirrorFile::Kind::Copy))
 			fail("tier order");
 		if (is_tier(file.kind)) {
 			if (file.first != end + 1 || file.last < file.first)
 				fail("tiers are not contiguous");
 			end = file.last;
-		} else if (file.kind != MirrorFile::Kind::Copy || i + 1 != layout.files.size() || file.first != 0 || file.last != end)
+		} else if (i + 1 != layout.files.size() || file.first != 0 || file.last != end)
 			fail("the copy is at s, last");
 		previous = file.kind;
 	}
@@ -151,6 +149,7 @@ std::string encode_mirror_table(const MirrorTable &table) {
 		put(out, entry.incarnation);
 		put(out, entry.seal, 8);
 		put(out, entry.ordinal, 8);
+		put(out, entry.cut, 8);
 		put(out, entry.policy, 4);
 		put(out, entry.files.size(), 4);
 		for (const auto &file : entry.files) {
@@ -187,11 +186,12 @@ MirrorTable decode_mirror_table(std::span<const char> in) {
 		r.array(entry.incarnation);
 		entry.seal = r.integer(8);
 		entry.ordinal = r.integer(8);
+		entry.cut = r.integer(8);
 		const auto policy = r.integer(4);
 		refuse(policy <= maximum_policy, "policy");
 		entry.policy = r.bytes(policy);
 		const auto files = r.integer(4);
-		refuse(files && files <= maximum_files, "file count");
+		refuse(files <= maximum_files, "file count");
 		for (std::uint64_t j = 0; j < files; ++j) {
 			MirrorFile file;
 			const auto kind = r.integer(1);
@@ -215,30 +215,6 @@ MirrorTable decode_mirror_table(std::span<const char> in) {
 	}
 	refuse(r.at == r.in.size(), "trailing bytes");
 	return table;
-}
-
-AnswerPlan plan_answer(const NamespaceLayout &layout, const distribution::Identity &incarnation, std::uint64_t position) {
-	AnswerPlan plan;
-	plan.through = layout.end();
-	const bool same = incarnation == layout.incarnation;
-	if (same && position >= plan.through)
-		return plan;
-	if (same && position >= layout.cut()) {
-		plan.tier = AnswerPlan::Tier::Blocks;
-		plan.above = position;
-		for (const auto &file : layout.files)
-			if (is_tier(file.kind) && file.last > position)
-				plan.files.push_back(&file);
-		return plan;
-	}
-	plan.tier = AnswerPlan::Tier::Copy;
-	if (layout.files.back().kind == MirrorFile::Kind::Copy) {
-		plan.files.push_back(&layout.files.back());
-		return plan;
-	}
-	for (const auto &file : layout.files)
-		plan.files.push_back(&file);
-	return plan;
 }
 
 struct MirrorStore::Impl {
@@ -486,8 +462,7 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 		// which startup removes.
 		for (const auto &[name, file] : before)
 			if (!s.reached.contains(name)) {
-				if (s.io->inspect_entry(name)) // a file missing at startup has nothing to unlink
-					s.io->remove(name);
+				s.io->remove(name); // a file missing since startup is no error
 				s.missing.erase(name);
 				s.verified.erase(name);
 				++stats.collected_files;

@@ -163,6 +163,7 @@ class Upstream {
 		out.incarnation = identity(h.incarnation);
 		out.seal = seal;
 		out.ordinal = ordinal;
+		out.cut = h.cut;
 		out.policy = policy;
 		using K = r::MirrorFile::Kind;
 		out.files.push_back(file(K::Base, "base-" + h.stem() + "-" + std::to_string(h.cut), 0, h.cut));
