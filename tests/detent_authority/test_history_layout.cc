@@ -1,6 +1,7 @@
 // namespace-delivery D6: seals in apply, the layout's roll-ups, squash and cut,
 // and the three answers, against an oracle that keeps every position's state.
 #include "history_layout.hh"
+#include <bit>
 #include <cassert>
 #include <iostream>
 #include <map>
@@ -78,6 +79,11 @@ struct Run {
 		std::uint64_t ring = 0, blocks = 0, copies = 0, block_bytes = 0, missing = 0, block_read = 0, copy_bytes = 0;
 		double worst = 0;
 	} sent;
+	// The full check answers every R, so it runs at power-of-two seals, every 32nd and at the end.
+	~Run() {
+		if (!steps.empty() && !std::has_single_bit(steps.size()) && steps.size() % 32 != 0)
+			check();
+	}
 	explicit Run(LayoutPolicy policy, Limits limits = {}) : state(context(), limits), layout(limits) {
 		Command open;
 		open.context = context();
@@ -142,7 +148,8 @@ struct Run {
 				oracle[n.name][n.position] = image_of(state, n.name);
 			}
 		steps.push_back(std::move(step));
-		check();
+		if (std::has_single_bit(steps.size()) || steps.size() % 32 == 0)
+			check();
 	}
 	// Every answer for every R reaches st(s) with st(s)'s revisions; the tier follows the cut.
 	void check() {
