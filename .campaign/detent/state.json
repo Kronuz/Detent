@@ -1079,10 +1079,10 @@
       "after": [],
       "checks": [
         {
-          "cmd": "campaign verify",
-          "level": "light",
-          "minutes": 30,
-          "name": "suite"
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
         }
       ],
       "consumes": [],
@@ -1097,6 +1097,34 @@
         "tests/detent_local/CMakeLists.txt",
         "docs/perf/delta-plan-scaling.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-12T18:58:45",
+          "checks": [
+            [
+              {
+                "cmd": "campaign verify",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              }
+            ]
+          ],
+          "reason": "replaces a mistyped suite check (cmd 'campaign verify') with the pins check delta-plan-scaling used; the quest has not started",
+          "voided": [],
+          "weakened": [
+            "gate check suite removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -1108,7 +1136,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-12T18:58:21"
+      "updated": "2026-11-12T18:58:45"
     },
     "delta-plan-scaling": {
       "accepted": {
