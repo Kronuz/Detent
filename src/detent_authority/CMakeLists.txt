@@ -1,4 +1,5 @@
-add_library(detent_authority state.cc prepared.cc read_reply.cc export_scope.cc export_capture.cc)
+add_library(detent_authority state.cc prepared.cc read_reply.cc export_scope.cc export_capture.cc
+  history_format.cc history_layout.cc)
 target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(detent_authority PUBLIC detent::detent detent::resources)
 add_library(detent::authority ALIAS detent_authority)
@@ -8,7 +9,7 @@ add_library(detent::authority_export ALIAS detent_authority_export)
 
 
 if(DETENT_BUILD_AUTHORITY)
-  add_library(detent_authority_node node.cc)
+  add_library(detent_authority_node node.cc history.cc)
   target_link_libraries(detent_authority_node PUBLIC detent::authority consensus::consensus)
   add_library(detent::authority_node ALIAS detent_authority_node)
 endif()

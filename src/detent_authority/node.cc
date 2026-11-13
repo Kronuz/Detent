@@ -58,6 +58,19 @@ void validate_replacement_funding(const NodeOptions &o) {
 		"; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or "
 		"retained_state.log_bytes and log_entries");
 }
+// A node whose retained log bounds are below the group's would refuse entries its
+// peers accept, so it refuses to start or to keep applying (D6 "Seal").
+void check_retained_bounds(const NodeOptions &o, const State &s) {
+	if (!s.positions_enabled())
+		return;
+	const auto &retained = o.scheduling.retained;
+	for (const auto *p : {&s.policy(), s.pending_policy() ? &*s.pending_policy() : nullptr})
+		if (p && (retained.log_entries < p->log_entries || retained.log_bytes < p->log_bytes))
+			throw std::runtime_error("authority retained_state.log_entries " + std::to_string(retained.log_entries) +
+									 " and log_bytes " + std::to_string(retained.log_bytes) +
+									 " are below the group's " + std::to_string(p->log_entries) + " and " +
+									 std::to_string(p->log_bytes));
+}
 NodeOptions checked(NodeOptions o) {
 	validate_node_options(o);
 	return o;
@@ -82,7 +95,33 @@ Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)
 	  channel_(worker_) {
 	completions_.reserve(options_.waiters);
 }
-void Node::create(Identity id) { worker_.create(id); }
+void Node::create(Identity id) {
+	worker_.create(id);
+	restored_history(false);
+}
+void Node::attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch) {
+	if (closing_ || application_ || history_ || state_.applied_index())
+		throw std::logic_error("authority history unavailable");
+	history_.emplace(std::move(io), options_.application, std::move(fetch));
+}
+// The state a checkpoint captures: once positions are enabled, the latest seal's,
+// and only when the history through it is durable (D6 "Checkpoints and the gate").
+const State *Node::checkpoint_source() const noexcept {
+	if (!state_.positions_enabled())
+		return &state_;
+	if (!sealed_ || (history_ && !history_->durable_through(sealed_->applied_index())))
+		return nullptr;
+	return &*sealed_;
+}
+// After a recovery or an install the state sits at a seal; the history follows it.
+void Node::restored_history(bool install) {
+	sealed_.reset();
+	if (state_.positions_enabled())
+		sealed_ = state_;
+	if (history_)
+		install ? history_->install(state_) : history_->recover(state_);
+	cover();
+}
 void Node::recover() {
 	worker_.recover([&](auto &reader) {
 		auto size = reader.descriptor().length;
@@ -105,12 +144,14 @@ void Node::recover() {
 			decoder.step();
 		}
 		state_ = decoder.take();
+		check_retained_bounds(options_, state_);
 		if (recorder_) recorder_->reset(state_.context(),state_.revision());
 	});
 	auto boundary = worker_.base_boundary();
 	if (state_.applied_index() != boundary.index || state_.applied_term() != boundary.term) {
 		throw std::runtime_error("recovered application boundary mismatch");
 	}
+	restored_history(false);
 }
 void Node::start() {
 	if (worker_.try_submit(Start{}) != SubmitResult::Accepted) {
@@ -122,6 +163,19 @@ void Node::attach_change_recorder(std::shared_ptr<AppliedChangeRecorder> recorde
  if (closing_ || application_ || recorder_) throw std::logic_error("authority change recorder unavailable");
  if (!recorder) throw std::invalid_argument("missing authority change recorder");
  recorder_=std::move(recorder); recorder_->reset(state_.context(),state_.revision());
+ cover();
+}
+// The ring evicts only what the durable layout covers: through the newest durable seal.
+void Node::cover() noexcept {
+	if (!recorder_)
+		return;
+	if (!history_ || !state_.positions_enabled())
+		covered_ = UINT64_MAX;
+	else if (sealed_ && history_->durable_through(sealed_->applied_index()))
+		covered_ = sealed_->revision();
+	else if (covered_ == UINT64_MAX)
+		covered_ = 0;
+	recorder_->covered(covered_);
 }
 void Node::close() noexcept {
  if (!closing_ && recorder_) { recorder_->abandon_batch(); recorder_->reset(state_.context(),state_.revision()); }
@@ -160,6 +214,10 @@ void Node::retirement_step(CommandWorkBudget &budget) {
 	}
 	if (candidate_ && !retired_)
 		discard_candidate();
+	if (sealed_) {
+		sealed_->retire();
+		sealed_.reset();
+	}
 	if (!application_ && !capture_ && !candidate_ && !state_retired_) {
 		state_.retire();
 		state_retired_ = true;
@@ -220,7 +278,15 @@ SubmitResult Node::propose(std::uint64_t request, const std::vector<Command> &co
 SubmitResult Node::propose_administrative(std::uint64_t request, const AdministrativeCommand &command) {
 	if (command.context != options_.context)
 		throw std::invalid_argument("foreign authority request");
-	auto bytes = encode(command, options_.application);
+	auto entry = command;
+	if (entry.kind == AdministrativeKind::EnablePositions)
+		entry.policy = options_.application.layout;
+	if (entry.kind != AdministrativeKind::DropNamespace) {
+		// The log-progress seal derives from the group's consensus limits, never a constant.
+		entry.policy.log_entries = options_.consensus.log_entries;
+		entry.policy.log_bytes = options_.consensus.log_bytes;
+	}
+	auto bytes = encode(entry, options_.application);
 	Digest digest{};
 	SHA256 sha;
 	sha.add(bytes.data(), bytes.size());
@@ -395,7 +461,7 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				next.emplace(state_);
 				next->advance(entry.index, entry.term);
 			} else if (is_administrative(entry.payload)) {
-				// The history resets at publish when a drop moves the revision.
+				// A drop moves the revision with no ring entry; publish ends the wire's continuity.
 				if (!application_->administrative)
 					application_->administrative.emplace(
 						state_, entry.index, entry.term,
@@ -475,6 +541,18 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				}
 			}
 			state_ = std::move(*next);
+			if (state_.close_entry(entry.payload.size())) {
+				sealed_ = state_;
+				// A stalled history keeps apply running; checkpoints stop until it recovers.
+				if (history_ && history_->ready())
+					try {
+						history_->seal(*sealed_);
+					} catch (const std::exception &) {
+					}
+				cover();
+			}
+			if (entry.kind != EntryKind::NoOp && is_administrative(entry.payload))
+				check_retained_bounds(options_, state_);
 			if (recorder_) recorder_->publish(state_.context(),entry.index,state_.revision());
 			for (auto &result : ready) {
 				pending_.erase(result.request);
@@ -496,8 +574,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 	}
 }
 bool Node::checkpoint() {
-	if (application_ || capture_ || !state_.applied_index() ||
-		worker_.applied_index() != state_.applied_index()) {
+	const auto *source = checkpoint_source();
+	if (application_ || capture_ || !source || !source->applied_index() ||
+		source->applied_index() <= worker_.base_index() || worker_.applied_index() != state_.applied_index()) {
 		return false;
 	}
 	auto id = worker_.reserve_checkpoint(options_.application.image_bytes);
@@ -509,8 +588,8 @@ bool Node::checkpoint() {
 		throw std::overflow_error("authority checkpoint identity exhausted");
 	}
 	try {
-		capture_.emplace(Capture{*id, state_, ImageEncoder(state_), {}});
-		worker_.attach_capture(*id, {++checkpoint_request_, state_.applied_index(), state_.applied_term()});
+		capture_.emplace(Capture{*id, *source, ImageEncoder(*source), {}});
+		worker_.attach_capture(*id, {++checkpoint_request_, source->applied_index(), source->applied_term()});
 	} catch (...) {
 		worker_.cancel_checkpoint(*id);
 		capture_.reset();
@@ -548,15 +627,16 @@ void Node::refresh_checkpoint_due(Tick tick) {
 	}
 }
 void Node::service_checkpoint_due(Tick tick) {
-	if (!checkpoint_policy_.due || worker_.fenced() || capture_ || candidate_ || application_ ||
-		state_.applied_index() <= worker_.base_index() || worker_.applied_index() != state_.applied_index())
+	const auto *source = checkpoint_source();
+	if (!checkpoint_policy_.due || worker_.fenced() || capture_ || candidate_ || application_ || !source ||
+		source->applied_index() <= worker_.base_index() || worker_.applied_index() != state_.applied_index())
 		return;
 	if (checkpoint_attempt_ && (tick.now < *checkpoint_attempt_ || tick.now - *checkpoint_attempt_ < 100))
 		return;
 	checkpoint_attempt_ = tick.now;
 	checkpoint_policy_.attempts.add();
 	if (checkpoint())
-		checkpoint_policy_.captured_boundary = state_.applied_index();
+		checkpoint_policy_.captured_boundary = capture_->state.applied_index();
 	else
 		checkpoint_policy_.reservation_unavailable.add();
 }
@@ -654,12 +734,27 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 			if (retired_) {
 				throw std::runtime_error("authority retired-root capacity exhausted");
 			}
-			retired_.emplace(std::move(state_));
-			retired_->retire();
-			state_ = std::move(*candidate_->state);
-			if (recorder_) recorder_->reset(state_.context(),state_.revision());
-			worker_.snapshot_activated(activation->snapshot, activation->token);
-			candidate_.reset();
+			// The installed history is durable before the install is acknowledged.
+			bool installed = true;
+			if (history_)
+				try {
+					history_->install(*candidate_->state);
+				} catch (const std::exception &) {
+					installed = false;
+					worker_.snapshot_activation_failed(activation->snapshot, activation->token);
+				}
+			if (installed) {
+				retired_.emplace(std::move(state_));
+				retired_->retire();
+				state_ = std::move(*candidate_->state);
+				sealed_.reset();
+				if (state_.positions_enabled())
+					sealed_ = state_;
+				if (recorder_) recorder_->reset(state_.context(),state_.revision());
+				cover();
+				worker_.snapshot_activated(activation->snapshot, activation->token);
+				candidate_.reset();
+			}
 		}
 	}
 	if (worker_.ready() && worker_.base_index() > state_.applied_index()) {

@@ -215,6 +215,34 @@ int main() {
 		history->abandon_batch();
 		history.reset();
 		check(account->used() == 0);
+		// The ring evicts only at its bound, and only entries the durable layout covers.
+		history = std::make_shared<a::ChangeHistory>(account, a::HistoryOptions{3, 1 << 20, 4096});
+		history->reset(context, state.revision());
+		history->covered(0);
+		const auto first = state.revision();
+		auto lazy = [&](int value) {
+			command.sequence = 6 + static_cast<std::uint64_t>(value);
+			command.mutations = {{"ns:lazy", detent::KnobDef{value}, {}, {}}};
+			apply();
+			drain(*history);
+		};
+		for (int i = 0; i < 4; ++i)
+			lazy(i);
+		const auto incarnation = state.namespace_entry("ns")->incarnation;
+		auto head = state.namespace_revision("ns");
+		check(state.revision() == first + 4 && head == first + 4);
+		// Full of entries no layout covers: they stay, and the newest is refused.
+		check(history->size() == 3 && history->floor("ns", incarnation, head) == head);
+		check(history->entries("ns", incarnation, first).size() == 3);
+		history->covered(first + 2);
+		lazy(4);
+		head = state.namespace_revision("ns");
+		// One covered entry went to make room; the refused one leaves the ring serving only above it.
+		check(history->size() == 3 && history->floor("ns", incarnation, head) == head - 1);
+		check(history->entries("ns", incarnation, first).size() == 3 &&
+			  history->entries("ns", incarnation, first).front()->position == first + 2);
+		history.reset();
+		check(account->used() == 0);
 		std::cout << "canonical payload, staged publication, retries, eviction, pinned accounting, gaps and "
 					 "pressure passed\n";
 	} catch (const std::exception &error) {

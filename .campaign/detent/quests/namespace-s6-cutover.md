@@ -19,7 +19,7 @@ The authority serves namespace-s6's session endpoint from S5.2's ring, blocks an
 
 ## Contracts
 
-Consumes `namespace-session` and `namespace-blocks`.
+Consumes `namespace-session` and `namespace-blocks`. F5 of namespace-s5-2's durability review: an answer can fall in a ring gap with nothing signalling it; the session contract must signal it.
 
 ## Decisions
 

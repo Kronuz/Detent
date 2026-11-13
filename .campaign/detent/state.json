@@ -260,6 +260,41 @@
       "closed": "owner said go; replied to xapiand-lead with the SKILL.md sentence and re-accept plan",
       "id": "msg-19",
       "text": "Xapiand lead: the lighter tools are ready on xapiand/lighter-tools at agent-campaign:c74c179, rebased on your detent/lighter ee24a68 (edaa0ff + ee24a68 over main ac4803e). 222 tests OK, ruff clean, pyrefly 11 (baseline). Commits: normal risk gets no review lens (27931b3); campaign config suite=CMD gates new quests, sanitizer/crash/fuzz/mutant checks become milestone checks except on high/critical (1dbe3a5); a CHANGES with only non-blocking rows counts as APPROVE (2cec6f4); acceptances hash only criterion lines (8303b91); brief/status show the CI gap (3ae711b); land --upto accepts an empty May-land-early (e3d8bb4); accept --waive and status --reviews removed (a4326a7). Two things for you before I fast-forward main to c74c179 and bump dotfiles: 1) SKILL.md does not mention campaign config suite=CMD yet; one replaced sentence in your text covers it. 2) Acceptance hashing changes, so four acceptances on async-drivers-design, dense-pages and namespace-s5-1 read void once and need accept again. Reply go (or a commit to add on top) and I land both in one push."
+    },
+    {
+      "at": "2026-11-12T20:52:28",
+      "by": "xapiand-lead",
+      "closed": "integration job 261112-205304-da2074 passed, 275 tests at task 90b50f0; reported to xapiand-lead",
+      "id": "msg-42",
+      "text": "task-lanes is ready for Detent's integration job (your msg-40 condition 2): pin task=quest/xapiand/task-lanes@90b50f0. GitHub CI is green on every platform there (run 43367833692). The lane is off unless a budget passes light_slices, so Detent should see no change. Your condition 1, the paired resume-path A/B with the lane compiled in but off against task main, is job 261112-204947-85fbaf, queued exclusive. Please reply with your job id and result; the quest lands only after it."
+    },
+    {
+      "at": "2026-11-12T19:20:56",
+      "by": "namespace-s7-ids",
+      "closed": "file set widened to the benchmarks, delivery tests and mutant patches that follow the storage-free signatures",
+      "id": "msg-41",
+      "text": "namespace-s7-ids needs its file set widened: removing StorageIdentity from SegmentOwnership and builder signatures (A1) breaks compilation of tests/detent_delivery/test_repair.cc, tests/detent_delivery/test_bundle_maintenance.cc, benchmarks/paged_recovery_bench.cc, benchmarks/paged_collection_bench.cc, benchmarks/local_image_bench.cc, and the mutant patches tests/detent_delivery/mutants/s4-a1-*.patch (context changed; s4-a1-delta-candidate-rehashes.patch holds PagedSemanticLimits{}, which A4 forbids). The native check builds them, so the suite cannot pass without it. Recommend: add those paths to the file set. I keep those edits in one separate commit on the branch, ready to keep or drop."
+    },
+    {
+      "at": "2026-11-12T21:56:09",
+      "by": "xapiand-lead",
+      "closed": "condition 1 met at task 18eb516; integration rerun 261112-215647-b7fe6c queued and reported to xapiand-lead",
+      "id": "msg-43",
+      "text": "task-lanes A3 rerun at task:18eb516 (261112-215014-07a8ed, exclusive ABBA, 8 rounds), head/main median [A/A range]: yield 0.995 [0.977-1.023], demote 1.013 [0.981-1.016], inline_await 1.009 [0.975-1.032], child 0.985 [0.979-1.029]. Every path sits inside its A/A band; demote ns: main 128.1, main-again 129.4, head 130.0. The fix compares current() with the scheduler instead of running_in_this_thread(). CI green at 18eb516 (43374507023). Correctness review (concurrency) launched now; landing follows it."
+    },
+    {
+      "at": "2026-11-12T12:13:11",
+      "by": "namespace-s8",
+      "closed": "slot rebuilt; jobs resubmitted with --fresh",
+      "id": "msg-38",
+      "text": "namespace-s8: job slot ~/.scratch/campaign/jobs/slots/detent-namespace-s8 is broken (its .git points to .git/worktrees/detent-namespace-s8, which no longer exists); native/pins 261112-120518-* failed exit 125 before running. Resubmitted with --fresh."
+    },
+    {
+      "at": "2026-11-12T11:42:27",
+      "by": "namespace-s8",
+      "closed": "namespace-s5-2 landed (Detent:b6161f57); s8 merges main and proves A1's voter half on real blocks; tests/CMakeLists.txt added to its file set",
+      "id": "msg-37",
+      "text": "namespace-s8: consumes namespace-blocks (namespace-s5-2, planned behind namespace-measure); no voter writes blocks on main, so A1's 'byte-identical to the voters' cannot be shown yet. Building the mirror content-agnostic (names, digests, ranges) and proving A2-A4 plus the relay-chain half of A1 over a scripted upstream; recommend the voter half of A1 and the service wiring follow S5.2. Also needs one line add_subdirectory(detent_relay) in tests/CMakeLists.txt (outside the file set). Journal: Blocked on."
     }
   ],
   "quests": {
@@ -4940,7 +4975,76 @@
       "worktree": ""
     },
     "namespace-s5-2": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-12T23:10:49",
+          "base": "1f7dd51ab122cc4ffd019df10095c9f606c15562",
+          "blobs": {
+            "docs/status/namespace-s5.md": "100644:f6edb59fae12e66c1c0e3170669c7d919e9a6ed9",
+            "src/detent_authority/CMakeLists.txt": "100644:10d8642041ef0df25811187a449604fbcf5231a5",
+            "src/detent_authority/change_history.cc": "100644:65a88226bbed76f77b3175dcdcec77c6a0e51889",
+            "src/detent_authority/change_history.hh": "100644:27eaa00ec007d11682017a1bdcce4eafd1fd8501",
+            "src/detent_authority/change_recorder.hh": "100644:169ec7b08d693a566fe53c4c12d2e861a81a54f2",
+            "src/detent_authority/history.cc": "100644:5ca388c9bb5da1ec5fb627ef816a94b57560ebac",
+            "src/detent_authority/history.hh": "100644:b154f818525cd9366387704f05ad2ebdd44a5528",
+            "src/detent_authority/history_format.cc": "100644:eac93aa75f229e48b370e9b0246b5e7866591e0e",
+            "src/detent_authority/history_format.hh": "100644:ffad5600a72402b9769a9eeddde7a1b6aca28a62",
+            "src/detent_authority/history_layout.cc": "100644:47c6b48c9ac44602bd7a4ab1a1d7a99e226728dc",
+            "src/detent_authority/history_layout.hh": "100644:6b7a011fe2b64cd602a5a6a66e15b186732c949a",
+            "src/detent_authority/node.cc": "100644:2b66e7ead1e4a82c3bf9154e31e318a1a9603dee",
+            "src/detent_authority/node.hh": "100644:5937e859531b2b8fccc4c235d7d11aa5049eb999",
+            "src/detent_authority/service.cc": "100644:6ab9956287da420be0dc9d1735b61689ee20793f",
+            "src/detent_authority/state.cc": "100644:17338f54bd0bdc83c70daf38f6200de5e0e1f611",
+            "src/detent_authority/state.hh": "100644:c2d85e6bb8cbf404e344aef78f9392f77b499daf",
+            "tests/detent_authority/CMakeLists.txt": "100644:a2a81c8708ce024aca61b999d1c765cbf5f7cf8d",
+            "tests/detent_authority/cluster_harness.hh": "100644:4291fd4976a195f52cf9cb59d37250e558ce0800",
+            "tests/detent_authority/history_mutant.sh": "100755:fd0db44a9fd95a0fba6010dab3d37d72e8be3804",
+            "tests/detent_authority/history_tests.sh": "100755:72ae51593a66e3db7383daf38bbeda35c89c6248",
+            "tests/detent_authority/test_change_history.cc": "100644:d7d2a1a056aff534cd6af3f448465d74d00e00b9",
+            "tests/detent_authority/test_distribution_service.cc": "100644:69d8ff7947cf07e1cfb90966a1049ed58c14ee32",
+            "tests/detent_authority/test_history_cluster.cc": "100644:acffca77534f2005220775fc482617cf3539f983",
+            "tests/detent_authority/test_history_layout.cc": "100644:a7ef1631836b1bdadd95ffa783f13395d5777bb8",
+            "tests/detent_authority/test_history_power_cut.cc": "100644:e5b0374f7bcf4e5d1edaffd5ce22a00973b3d00a",
+            "tests/detent_authority/test_namespace_power_cut.cc": "100644:278c419082c9e69bc1ecfd4d56cd53584d605db3"
+          },
+          "by": "review",
+          "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+          "criteria": "8d4aea60a34a61cb",
+          "diffs": {
+            "docs/status/namespace-s5.md": "2849539bf450a9b9",
+            "src/detent_authority/CMakeLists.txt": "bc364a3ccc68f0ee",
+            "src/detent_authority/change_history.cc": "8e52264bd4bba688",
+            "src/detent_authority/change_history.hh": "03ea15c90a8f8b57",
+            "src/detent_authority/change_recorder.hh": "bed7275e278d2a7e",
+            "src/detent_authority/history.cc": "96af33b6d83b1e28",
+            "src/detent_authority/history.hh": "f09107a0152fdf7e",
+            "src/detent_authority/history_format.cc": "8166b8ea87eb1f02",
+            "src/detent_authority/history_format.hh": "5b1ca487eb5bd271",
+            "src/detent_authority/history_layout.cc": "a24e546283c59212",
+            "src/detent_authority/history_layout.hh": "8326ca314503989a",
+            "src/detent_authority/node.cc": "6783998ce50938f6",
+            "src/detent_authority/node.hh": "b93c8759e0c98311",
+            "src/detent_authority/service.cc": "489c4060dab11a49",
+            "src/detent_authority/state.cc": "fefacdb4672be03a",
+            "src/detent_authority/state.hh": "e49084c58770d1a9",
+            "tests/detent_authority/CMakeLists.txt": "6910c752b599b5f2",
+            "tests/detent_authority/cluster_harness.hh": "b0971209d43cea72",
+            "tests/detent_authority/history_mutant.sh": "e97520d3808026b5",
+            "tests/detent_authority/history_tests.sh": "36c4293fc8278384",
+            "tests/detent_authority/test_change_history.cc": "cc17bf81e58d735d",
+            "tests/detent_authority/test_distribution_service.cc": "02ea238c13307708",
+            "tests/detent_authority/test_history_cluster.cc": "44fecdd77074203e",
+            "tests/detent_authority/test_history_layout.cc": "46bfb8dde4ecda1a",
+            "tests/detent_authority/test_history_power_cut.cc": "45237f21b9ac4d3f",
+            "tests/detent_authority/test_namespace_power_cut.cc": "57275eadc5df7713"
+          },
+          "findings": {},
+          "note": "",
+          "review": "f7e1a441f2e1a2e0060eb9f82e529059a88c3fd0",
+          "reviewed": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "3b8fbc50766fcf95cd336ed24b4b2c15cfac224e",
       "branch": "quest/detent/namespace-s5-2",
@@ -5019,10 +5123,53 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T00:03:34",
+          "commit": "a5bd06e35ae7a4b3d954bc14bd292f6911d73a84",
+          "criteria": {
+            "A1": "261112-230837-48665e",
+            "A2": "261112-230837-48665e, 261112-230837-408fcf; fails without: 261112-222946-7a412e, 261112-222950-5e7cd2, 261112-230847-cb551f, 261112-230853-9d936b",
+            "A3": "261112-230838-a8d8ea; fails without: 261112-222953-6c9b51, 261112-230859-a4e1a5",
+            "A4": "261112-230837-48665e",
+            "A5": "261112-230838-00b1dd; fails without: 261112-222957-76329a, 261112-223001-516c2d, 261112-223005-704b72, 261112-223009-79dbd3, 261112-230905-ab63e2, 261112-230911-cf4a9e, 261112-230916-5889cb, 261112-230922-b0c15c",
+            "A6": "261112-230838-a8d8ea; fails without: 261112-222953-6c9b51, 261112-230859-a4e1a5",
+            "A7": "[decision] D90 in PLAN.md: \u03b1 = 1/8 (`alpha_num` 1, `alpha_den` 8) and roll-up period 64 from namespace-measure, the `LayoutPolicy` defaults in `src/detent_authority/state.hh`"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-234504-b1332d",
+              "level": "light",
+              "seconds": 1043.1,
+              "state": "done",
+              "what": "namespace-s5-2 check native at b6161f571f79"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-234504-f18ce1",
+              "level": "none",
+              "seconds": 9.1,
+              "state": "done",
+              "what": "namespace-s5-2 check pins at b6161f571f79"
+            }
+          ],
+          "final": true,
+          "from": "835ea4a2136d712a0dae1063b95509348706f3a2",
+          "reason": "",
+          "tested": "b6161f571f794ce88d0c2afec96b7ee156d675c9"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s5-1",
@@ -5033,10 +5180,64 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-12T19:38:03",
-      "worktree": "../Detent-wt/detent/namespace-s5-2"
+      "updated": "2026-11-13T00:04:08",
+      "worktree": ""
+    },
+    "namespace-s5-3": {
+      "accepted": {},
+      "after": [],
+      "base": "430f3c5da7fbaeb519b9eafad808fa74fb2b552d",
+      "branch": "quest/detent/namespace-s5-3",
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "include/detent_authority/**",
+        "tests/detent_authority/**",
+        "docs/status/namespace-s5.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-12T22:30:42",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk (persisted history, crash matrix); one reviewer by that lens, as namespace-s5-2 had",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [
+        "namespace-s5-2"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "active",
+      "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
+      "updated": "2026-11-13T00:05:55",
+      "worktree": "../Detent-wt/detent/namespace-s5-3"
     },
     "namespace-s6": {
       "accepted": {
@@ -5326,14 +5527,15 @@
       "needs": [
         "namespace-s6",
         "namespace-s5-2",
-        "okt-followups"
+        "okt-followups",
+        "namespace-s5-3"
       ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-12T11:45:32"
+      "updated": "2026-11-12T22:30:34"
     },
     "namespace-s7": {
       "accepted": {
@@ -5561,11 +5763,40 @@
         "tests/detent_system/**",
         "tests/detent_testing/**",
         "docs/status/namespace-s7.md",
-        "benchmarks/paged_snapshot_bench.cc"
+        "benchmarks/paged_snapshot_bench.cc",
+        "benchmarks/local_image_bench.cc",
+        "benchmarks/paged_collection_bench.cc",
+        "benchmarks/paged_recovery_bench.cc",
+        "tests/detent_delivery/mutants/s3b-m5-*.patch",
+        "tests/detent_delivery/mutants/s4-a1-*.patch",
+        "tests/detent_delivery/test_bootstrap_retention.cc",
+        "tests/detent_delivery/test_bundle_maintenance.cc",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_delivery/test_repair.cc",
+        "docs/HOW_IT_WORKS.md",
+        "docs/mechanisms/trusted-restart.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-12T23:11:35",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk (publication crash model, identity derivation); one reviewer by that lens, as namespace-s5-2 and s5-3 have",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "N1",
       "needs": [
@@ -5578,7 +5809,7 @@
       "risk": "high",
       "status": "active",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-12T18:42:11",
+      "updated": "2026-11-12T23:57:17",
       "worktree": "../Detent-wt/detent/namespace-s7-ids"
     },
     "namespace-s7-store": {
@@ -5771,7 +6002,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-12T12:13:47",
+      "updated": "2026-11-13T00:05:28",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
