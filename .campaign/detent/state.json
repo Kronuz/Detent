@@ -3020,6 +3020,8 @@
       "after": [
         "logger-followups"
       ],
+      "base": "2bafea114d59e713eb6e055a2d721a9d66964644",
+      "branch": "quest/detent/logger-exit-crash",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -3035,6 +3037,7 @@
         "test/**",
         "docs/ROADMAP.md"
       ],
+      "journal": "../Detent-wt/detent/logger-exit-crash",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3042,9 +3045,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T15:54:37"
+      "updated": "2026-11-12T16:32:48",
+      "worktree": "../logger-wt/detent/logger-exit-crash"
     },
     "logger-followups": {
       "accepted": {},
