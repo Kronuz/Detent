@@ -1,7 +1,8 @@
 // The scrub's I/O failures (namespace S3b, K4): compiles the production pack_scrub.cc against wrappers of
 // open, openat and pread that fail on cue. A failed directory open, pack open, read or short read is retried
 // once: one failure then success leaves the pass clean, two report only that pack, and a directory that
-// cannot be opened refuses the pass without reporting any pack. Real RLIMIT_NOFILE exhaustion does the same.
+// cannot be opened refuses the pass without reporting any pack. EMFILE, ENFILE and ENOMEM on a pack are not
+// damage: the step throws and the next one resumes at that pack. Real RLIMIT_NOFILE exhaustion does the same.
 #include "pack_scrub.hh"
 #include "segment_names.hh"
 #include "verified_pages.hh"
@@ -27,6 +28,7 @@ struct Fault {
 	Kind kind = Kind::None;
 	int remaining = 0, calls = 0, fd = -1;
 	std::string target;
+	int error = EIO;
 } fault;
 } // namespace
 
@@ -47,7 +49,7 @@ int scrub_fault_openat(int directory, const char *name, int flags) {
 		++fault.calls;
 		if (fault.remaining) {
 			--fault.remaining;
-			errno = EIO;
+			errno = fault.error;
 			return -1;
 		}
 	}
@@ -62,7 +64,7 @@ ssize_t scrub_fault_pread(int fd, void *buffer, size_t count, off_t offset) {
 		if (fault.remaining) {
 			--fault.remaining;
 			if (fault.kind == Kind::Read) {
-				errno = EIO;
+				errno = fault.error;
 				return -1;
 			}
 			return ::pread(fd, buffer, count - 1, offset);
@@ -150,6 +152,27 @@ void fault_case(const std::filesystem::path &dir, Kind kind, bool persistent) {
 	else
 		CHECK(scrub.failures().empty());
 }
+// Resource exhaustion on a pack is not damage: the step throws, the pass stays at that pack, reports nothing, and
+// the next step finishes the pass clean.
+void resource_case(const std::filesystem::path &dir, Kind kind, int error) {
+	const auto packs = synthetic(3);
+	const auto inputs = materialize(packs, dir);
+	fault = {kind, 1, 0, -1, std::string(x::SegmentNames(packs[1].ownership.segment).payload_name()), error};
+	x::PackScrub scrub(1'000'000'000);
+	const auto t0 = Clock::now();
+	scrub.begin(inputs, t0, dir);
+	bool thrown = false;
+	try {
+		scrub.step(t0 + 1s);
+	} catch (const std::system_error &failure) {
+		thrown = failure.code().value() == error;
+	}
+	CHECK(thrown && scrub.running() && scrub.passes() == 0 && scrub.failures().empty());
+	scrub.step(t0 + 2s);
+	CHECK(fault.calls == 2);
+	fault = {};
+	CHECK(!scrub.running() && scrub.passes() == 1 && scrub.failures().empty());
+}
 struct Limit {
 	rlimit saved{};
 	Limit() {
@@ -160,19 +183,25 @@ struct Limit {
 	}
 	~Limit() { ::setrlimit(RLIMIT_NOFILE, &saved); }
 };
-// Real descriptor exhaustion: after `begin` the pack is reported; before it the pass is refused.
+// Real descriptor exhaustion: a pack open is retried by the next step; a directory open refuses the pass.
 void exhausted(const std::filesystem::path &dir) {
 	const auto packs = synthetic(1);
 	const auto inputs = materialize(packs, dir);
 	x::PackScrub scrub(1'000'000'000);
 	const auto t0 = Clock::now();
 	scrub.begin(inputs, t0, dir);
+	bool thrown = false;
 	{
 		Limit limit;
-		scrub.step(t0 + 1s);
+		try {
+			scrub.step(t0 + 1s);
+		} catch (const std::system_error &failure) {
+			thrown = failure.code().value() == EMFILE;
+		}
 	}
-	CHECK(scrub.passes() == 1 && scrub.failures().size() == 1 &&
-		  scrub.failures()[0] == packs[0].ownership.segment);
+	CHECK(thrown && scrub.running() && scrub.passes() == 0 && scrub.failures().empty());
+	scrub.step(t0 + 2s);
+	CHECK(scrub.passes() == 1 && scrub.failures().empty());
 	bool refused = false;
 	{
 		Limit limit;
@@ -196,7 +225,10 @@ int main() {
 	for (const auto kind : {Kind::Directory, Kind::Open, Kind::Read, Kind::Short})
 		for (const bool persistent : {false, true})
 			fault_case(root / "faults", kind, persistent);
+	for (const auto kind : {Kind::Open, Kind::Read})
+		for (const int error : {EMFILE, ENFILE, ENOMEM})
+			resource_case(root / "resource", kind, error);
 	exhausted(root / "exhausted");
-	std::cout << "ok: 8 fault cases, descriptor exhaustion\n";
+	std::cout << "ok: 8 fault cases, 6 resource cases, descriptor exhaustion\n";
 	return 0;
 }

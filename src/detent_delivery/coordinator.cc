@@ -697,10 +697,13 @@ struct Coordinator::Impl {
 						reported_passes = result->scrub.passes();
 					result->failure = {};
 					result->ready.store(false, std::memory_order_relaxed);
-					asio::post(worker, [result, begin, now, paused = scrub_pause] {
+					asio::post(worker, [result, begin, changed, now, paused = scrub_pause] {
 						try {
 							const auto passes = result->scrub.passes();
-							if (begin)
+							// A new root keeps the progress the pass made over the packs it shares.
+							if (changed)
+								result->scrub.rebase(result->root->registry()->inputs(), now, result->directory);
+							else if (begin)
 								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);
 							result->scrub.step(now, per_tick);
 							if (paused && result->scrub.passes() != passes) {
