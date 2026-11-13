@@ -1070,7 +1070,7 @@
     "delta-plan-scaling": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-12T17:44:30",
+          "at": "2026-11-12T18:22:06",
           "base": "8aa24cebae4d985693dc0d1a6bca9f0a9b0ace5e",
           "blobs": {
             "docs/perf/delta-plan-scaling.md": "100644:0cbf2c12f25c36e2e53554a18d492f95c7f5f39b",
@@ -1137,7 +1137,7 @@
       "risk": "high",
       "status": "active",
       "title": "A delta's plan grows superlinearly with the store",
-      "updated": "2026-11-12T17:44:30",
+      "updated": "2026-11-12T18:22:06",
       "worktree": "../Detent-wt/detent/delta-plan-scaling"
     },
     "dense-distribution": {
