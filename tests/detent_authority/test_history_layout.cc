@@ -349,7 +349,8 @@ struct Model {
 				younger += blocks[i].bytes();
 			unsigned __int128 budget = (unsigned __int128)policy.alpha_num * live;
 			if (!((unsigned __int128)younger * policy.alpha_den >= budget ||
-				  (unsigned __int128)(younger + blocks[0].bytes()) * policy.alpha_den > budget * policy.cap))
+				  (unsigned __int128)(younger + blocks[0].bytes()) * policy.alpha_den > budget * policy.cap ||
+				  blocks.size() > h::max_blocks))
 				break;
 			auto oldest = blocks.front();
 			blocks.erase(blocks.begin());
@@ -488,7 +489,7 @@ void formats() {
 	outside.changes[1].revision = 5; // Past the block's last position.
 	assert(throws([&] { h::decode_block(h::encode_block(outside), Limits{}); }));
 	assert(throws([&] { h::encode_base(b); })); // A base holds no tombstone.
-	assert(h::block_name("a", {}, 1, 4) == "block-a-00000000000000000000000000000000-1-4" &&
+	assert(h::block_name("a", {}, 1, 4) == "block-ca978112ca1bbdcafac231b39a23dc4d-00000000000000000000000000000000-1-4" &&
 		   h::seal_name(255) == "seal-00000000000000ff");
 }
 } // namespace

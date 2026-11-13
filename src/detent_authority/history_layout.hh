@@ -35,7 +35,7 @@ struct Answer {
 	std::vector<Changes> parts;
 	std::uint64_t sent = 0, read = 0;
 };
-enum class Cut : std::uint8_t { Cost = 0, Cap = 1 };
+enum class Cut : std::uint8_t { Cost = 0, Cap = 1, Count = 2 };
 class Layout {
   public:
 	explicit Layout(Limits limits = {}) : limits_(limits) {}
@@ -50,7 +50,7 @@ class Layout {
 	Answer answer(std::string_view name, const Identity &incarnation, Revision after, Revision ring_floor,
 				  Files &files) const;
 	// Cuts per namespace by the rule that made them (health; not replicated).
-	const std::map<std::string, std::array<std::uint64_t, 2>> &cuts() const noexcept { return cuts_; }
+	const std::map<std::string, std::array<std::uint64_t, 3>> &cuts() const noexcept { return cuts_; }
 
   private:
 	Step apply(SealFile input, Files &files, const std::map<std::string, Changes> &bases);
@@ -58,7 +58,7 @@ class Layout {
 					const SealFile *current) const;
 	Limits limits_;
 	Table table_;
-	std::map<std::string, std::array<std::uint64_t, 2>> cuts_;
+	std::map<std::string, std::array<std::uint64_t, 3>> cuts_;
 };
 // L = ⌊|st| · α / 4⌋, exact in integers (D6 "Every input is replicated").
 std::uint64_t block_limit(const LayoutPolicy &policy, std::uint64_t live) noexcept;

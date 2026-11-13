@@ -4,6 +4,7 @@
 #include <sha256.h>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 namespace detent::authority {
 using namespace kronuz::consensus;
@@ -58,18 +59,21 @@ void validate_replacement_funding(const NodeOptions &o) {
 		"; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or "
 		"retained_state.log_bytes and log_entries");
 }
-// A node whose retained log bounds are below the group's would refuse entries its
-// peers accept, so it refuses to start or to keep applying (D6 "Seal").
+// A node whose retained or consensus log bounds are below the group's would refuse
+// entries its peers accept, or reach LogFull before a seal, so it refuses to start or
+// to keep applying (D6 "Seal").
 void check_retained_bounds(const NodeOptions &o, const State &s) {
 	if (!s.positions_enabled())
 		return;
-	const auto &retained = o.scheduling.retained;
 	for (const auto *p : {&s.policy(), s.pending_policy() ? &*s.pending_policy() : nullptr})
-		if (p && (retained.log_entries < p->log_entries || retained.log_bytes < p->log_bytes))
-			throw std::runtime_error("authority retained_state.log_entries " + std::to_string(retained.log_entries) +
-									 " and log_bytes " + std::to_string(retained.log_bytes) +
-									 " are below the group's " + std::to_string(p->log_entries) + " and " +
-									 std::to_string(p->log_bytes));
+		for (const auto &[field, entries, bytes] :
+			 {std::tuple{"retained_state", o.scheduling.retained.log_entries, o.scheduling.retained.log_bytes},
+			  std::tuple{"consensus_limits", o.consensus.log_entries, o.consensus.log_bytes}})
+			if (p && (entries < p->log_entries || bytes < p->log_bytes))
+				throw std::runtime_error("authority " + std::string(field) + ".log_entries " +
+										 std::to_string(entries) + " and log_bytes " + std::to_string(bytes) +
+										 " are below the group's " + std::to_string(p->log_entries) + " and " +
+										 std::to_string(p->log_bytes));
 }
 NodeOptions checked(NodeOptions o) {
 	validate_node_options(o);
@@ -85,6 +89,8 @@ void validate_node_options(const NodeOptions &o) {
 	}
 	validate_retained_state(o);
 	validate_replacement_funding(o);
+	if (history::file_bytes(o.application, o.application.layout) > history::fetch_bytes(o.application))
+		throw std::invalid_argument("authority layout policy writes history files above a peer fetch");
 }
 
 Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)
@@ -97,29 +103,66 @@ Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)
 }
 void Node::create(Identity id) {
 	worker_.create(id);
-	restored_history(false);
+	restored_history();
 }
 void Node::attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch) {
 	if (closing_ || application_ || history_ || state_.applied_index())
 		throw std::logic_error("authority history unavailable");
 	history_.emplace(std::move(io), options_.application, std::move(fetch));
 }
-// The state a checkpoint captures: once positions are enabled, the latest seal's,
-// and only when the history through it is durable (D6 "Checkpoints and the gate").
+// The state a checkpoint captures: once positions are enabled, the newest seal's
+// whose history is durable (D6 "Checkpoints and the gate").
 const State *Node::checkpoint_source() const noexcept {
 	if (!state_.positions_enabled())
 		return &state_;
-	if (!sealed_ || (history_ && !history_->durable_through(sealed_->applied_index())))
-		return nullptr;
-	return &*sealed_;
+	return durable_seal_ ? &*durable_seal_ : nullptr;
 }
-// After a recovery or an install the state sits at a seal; the history follows it.
-void Node::restored_history(bool install) {
+// After a recovery the state sits at a seal; the history follows it, and apply waits
+// while it fetches what a peer holds.
+void Node::restored_history() {
 	sealed_.reset();
-	if (state_.positions_enabled())
+	durable_seal_.reset();
+	unsynced_.clear();
+	if (state_.positions_enabled()) {
 		sealed_ = state_;
+		if (history_)
+			unsynced_.push_back(state_);
+		else
+			durable_seal_ = state_;
+	}
+	if (history_) {
+		history_->recover(state_);
+		recovering_ = history_->restoring();
+	}
+	cover();
+}
+std::shared_ptr<kronuz::journal::IOOperation> Node::take_history_operation() {
+	return history_ && !closing_ ? history_->take_io_operation() : nullptr;
+}
+// A settled write makes its seals durable; checkpoints and the ring follow the newest.
+void Node::settle_history() {
+	if (!history_)
+		return;
+	history_->settle();
+	if (recovering_ && !history_->restoring()) {
+		recovering_ = false;
+		if (!history_->ready() && history_->failure())
+			std::rethrow_exception(history_->failure());
+	}
+	while (!unsynced_.empty() && history_->durable_through(unsynced_.front().seal().index)) {
+		durable_seal_ = std::move(unsynced_.front());
+		unsynced_.pop_front();
+	}
+	if (!history_->ready() && !history_->restoring())
+		unsynced_.clear(); // A stalled history makes none of them durable.
+	cover();
+}
+// An activation that went away leaves history at a state this node never adopted.
+void Node::abandon_install() noexcept {
+	installing_.reset();
+	unsynced_.clear();
 	if (history_)
-		install ? history_->install(state_) : history_->recover(state_);
+		history_->abandon();
 	cover();
 }
 void Node::recover() {
@@ -151,7 +194,7 @@ void Node::recover() {
 	if (state_.applied_index() != boundary.index || state_.applied_term() != boundary.term) {
 		throw std::runtime_error("recovered application boundary mismatch");
 	}
-	restored_history(false);
+	restored_history();
 }
 void Node::start() {
 	if (worker_.try_submit(Start{}) != SubmitResult::Accepted) {
@@ -171,8 +214,8 @@ void Node::cover() noexcept {
 		return;
 	if (!history_ || !state_.positions_enabled())
 		covered_ = UINT64_MAX;
-	else if (sealed_ && history_->durable_through(sealed_->applied_index()))
-		covered_ = sealed_->revision();
+	else if (durable_seal_)
+		covered_ = durable_seal_->revision();
 	else if (covered_ == UINT64_MAX)
 		covered_ = 0;
 	recorder_->covered(covered_);
@@ -214,10 +257,14 @@ void Node::retirement_step(CommandWorkBudget &budget) {
 	}
 	if (candidate_ && !retired_)
 		discard_candidate();
-	if (sealed_) {
-		sealed_->retire();
-		sealed_.reset();
-	}
+	for (auto *seal : {&sealed_, &durable_seal_})
+		if (*seal) {
+			(*seal)->retire();
+			seal->reset();
+		}
+	for (auto &seal : unsynced_)
+		seal.retire();
+	unsynced_.clear();
 	if (!application_ && !capture_ && !candidate_ && !state_retired_) {
 		state_.retire();
 		state_retired_ = true;
@@ -448,6 +495,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 			application_.reset();
 		return;
 	}
+	// History restores, catches up or installs before apply seals again.
+	if (history_ && (history_->restoring() || installing_ || history_->queued() >= history_backlog))
+		return;
 	const auto through = application_->through;
 	try {
 		auto &entry = application_->range.entries[application_->cursor];
@@ -544,9 +594,12 @@ void Node::advance_application(CommandWorkBudget &budget) {
 			if (state_.close_entry(entry.payload.size())) {
 				sealed_ = state_;
 				// A stalled history keeps apply running; checkpoints stop until it recovers.
-				if (history_ && history_->ready())
+				if (!history_)
+					durable_seal_ = sealed_;
+				else if (history_->ready())
 					try {
 						history_->seal(*sealed_);
+						unsynced_.push_back(*sealed_);
 					} catch (const std::exception &) {
 					}
 				cover();
@@ -664,6 +717,7 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 	}
 	application_budget.bytes -= reserved_bytes - reclamation_budget.bytes;
 	application_budget.receipts -= reserved_receipts - reclamation_budget.receipts;
+	settle_history();
 	refresh_checkpoint_due(tick);
 	worker_.run_one(tick);
 	refresh_checkpoint_due(tick);
@@ -734,22 +788,35 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 			if (retired_) {
 				throw std::runtime_error("authority retired-root capacity exhausted");
 			}
-			// The installed history is durable before the install is acknowledged.
+			// The installed history is durable before the install is acknowledged: the
+			// activation waits while history fetches the source's files and writes them.
 			bool installed = true;
-			if (history_)
+			if (history_) {
+				const auto &target = *candidate_->state;
 				try {
-					history_->install(*candidate_->state);
+					if (installing_ != activation->snapshot) {
+						installing_ = activation->snapshot;
+						history_->install(target);
+					}
+					installed = !history_->restoring() && history_->durable_through(target.seal().index);
+					if (!installed && !history_->ready() && !history_->restoring())
+						throw std::runtime_error("authority history install failed");
 				} catch (const std::exception &) {
 					installed = false;
+					abandon_install();
 					worker_.snapshot_activation_failed(activation->snapshot, activation->token);
 				}
+			}
 			if (installed) {
+				installing_.reset();
 				retired_.emplace(std::move(state_));
 				retired_->retire();
 				state_ = std::move(*candidate_->state);
 				sealed_.reset();
+				durable_seal_.reset();
+				unsynced_.clear();
 				if (state_.positions_enabled())
-					sealed_ = state_;
+					sealed_ = durable_seal_ = state_;
 				if (recorder_) recorder_->reset(state_.context(),state_.revision());
 				cover();
 				worker_.snapshot_activated(activation->snapshot, activation->token);
@@ -770,6 +837,8 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 	if (candidate_ && !channel_.incoming_snapshot()) {
 		discard_candidate();
 	}
+	if (installing_ && (!candidate_ || candidate_->id != *installing_))
+		abandon_install();
 	if (worker_.fenced()) {
 		capture_.reset();
 		discard_candidate();

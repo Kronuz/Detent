@@ -102,6 +102,11 @@ struct Run {
 		node->service({++clock, 1000});
 		if (auto job = node->worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
+		if (auto job = node->take_history_operation()) {
+			kronuz::journal::drive_synchronously(*job);
+			if (disk.dead())
+				throw mem::PowerLoss{};
+		}
 		node->take_network_actions();
 		for (auto &c : node->take_completions())
 			completed.push_back(std::move(c));
@@ -110,6 +115,10 @@ struct Run {
 		for (unsigned i = 0; i < 200000 && !f(); ++i)
 			pump();
 		assert(f());
+	}
+	// History writes queued behind apply land.
+	void settle() {
+		until([&] { return node->history()->durable_through(node->sealed()->applied_index()); });
 	}
 	bool created = false, strict = true;
 	void boot(bool recover) {
@@ -193,6 +202,7 @@ int main() {
 		for (const auto &step : steps)
 			run.run(step);
 		expected = run.node->state();
+		run.settle();
 		same_layout(expected, *run.node);
 		operations = reference.operations;
 		run.node.reset();
@@ -249,6 +259,7 @@ int main() {
 		for (const auto &step : steps)
 			run.run(step);
 		detent::authority::testing::same_namespaces(expected, run.node->state());
+		run.settle();
 		same_layout(expected, *run.node);
 		run.node.reset();
 	}
