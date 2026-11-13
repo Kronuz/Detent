@@ -5109,10 +5109,53 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-13T00:03:34",
+          "commit": "a5bd06e35ae7a4b3d954bc14bd292f6911d73a84",
+          "criteria": {
+            "A1": "261112-230837-48665e",
+            "A2": "261112-230837-48665e, 261112-230837-408fcf; fails without: 261112-222946-7a412e, 261112-222950-5e7cd2, 261112-230847-cb551f, 261112-230853-9d936b",
+            "A3": "261112-230838-a8d8ea; fails without: 261112-222953-6c9b51, 261112-230859-a4e1a5",
+            "A4": "261112-230837-48665e",
+            "A5": "261112-230838-00b1dd; fails without: 261112-222957-76329a, 261112-223001-516c2d, 261112-223005-704b72, 261112-223009-79dbd3, 261112-230905-ab63e2, 261112-230911-cf4a9e, 261112-230916-5889cb, 261112-230922-b0c15c",
+            "A6": "261112-230838-a8d8ea; fails without: 261112-222953-6c9b51, 261112-230859-a4e1a5",
+            "A7": "[decision] D90 in PLAN.md: \u03b1 = 1/8 (`alpha_num` 1, `alpha_den` 8) and roll-up period 64 from namespace-measure, the `LayoutPolicy` defaults in `src/detent_authority/state.hh`"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-234504-b1332d",
+              "level": "light",
+              "seconds": 1043.1,
+              "state": "done",
+              "what": "namespace-s5-2 check native at b6161f571f79"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b6161f571f794ce88d0c2afec96b7ee156d675c9",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-234504-f18ce1",
+              "level": "none",
+              "seconds": 9.1,
+              "state": "done",
+              "what": "namespace-s5-2 check pins at b6161f571f79"
+            }
+          ],
+          "final": true,
+          "from": "835ea4a2136d712a0dae1063b95509348706f3a2",
+          "reason": "",
+          "tested": "b6161f571f794ce88d0c2afec96b7ee156d675c9"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s5-1",
@@ -5123,10 +5166,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S5.2: ring, seals, compacted blocks, roll-ups, cut, bases, checkpoint at the seal",
-      "updated": "2026-11-12T23:10:49",
-      "worktree": "../Detent-wt/detent/namespace-s5-2"
+      "updated": "2026-11-13T00:04:08",
+      "worktree": ""
     },
     "namespace-s5-3": {
       "accepted": {},
