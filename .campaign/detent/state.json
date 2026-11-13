@@ -316,6 +316,13 @@
       "closed": "file set widened to tests/detent_delivery/**, the three paged/local benchmarks, tools/check_lineage.sh, tools/w5/first_read.py and the layout docs; port them in this quest (D43)",
       "id": "msg-47",
       "text": "namespace-s7-store file set misses files that write or read the old agent layout and must change with A3 (old layout deleted, D43): tests/detent_delivery/** (test_coordinator.cc, test_bootstrap_retention.cc, test_bundle_maintenance.cc write 'selected' as a DTSELECT descriptor plus .lease; verify_local_format.py and test_managed_process.sh read it), benchmarks/{paged_collection_bench,paged_recovery_bench,local_image_bench}.cc (CI builds benchmarks, ci.yml:48), tools/check_lineage.sh, tools/w5/first_read.py, and the layout docs (docs/HOW_IT_WORKS.md, docs/LOCAL_IMAGE_FORMAT.md, docs/DISK_STORE_INTEGRATION.md, docs/DISK_LIFECYCLE_ARCHITECTURE.md, docs/mechanisms/{trusted-restart,generation-writer,sync-groups}.md). Recommend widening the set to tests/detent_delivery/**, those three benchmarks, those two tools, and the layout docs. I proceed inside the set meanwhile; DiskStore's public API (begin/selection/Descriptor) stays, so src/detent_relay needs nothing."
+    },
+    {
+      "at": "2026-11-13T04:20:33",
+      "by": "namespace-s7-store",
+      "closed": "file set widened to tests/detent_delivery/**, the three paged/local benchmarks, tools/check_lineage.sh, tools/w5/first_read.py and the layout docs; port them in this quest (D43)",
+      "id": "msg-48",
+      "text": "namespace-s7-store, adds to msg-47: tests/detent_delivery/test_managed_process.sh (8 ctest entries: test_managed_{delivery,subscription,paged-v2,paged-to-flat}_process, test_relay_{paged_shared,paged_isolated,delivery,isolated}_process) cmp's generations/storage.meta, which D43 deletes; it also needs the file set. In-set suite otherwise green locally (test_system_managed_* pass: authority+relay+agent). Recommend widening to tests/detent_delivery/** so I port the 4 non-compiling tests and this script to trusted_records/the table; alternative: a follow-up quest owns them and this one lands with those 12 entries excluded."
     }
   ],
   "quests": {
