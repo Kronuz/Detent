@@ -44,9 +44,9 @@ The store is one directory. A *generation* is one complete, immutable copy of th
 | File | What it holds | Size |
 | --- | --- | --- |
 | `segment-<id>.pack` | A segment: pages packed end to end | At most 1 MiB (`include/detent_local/paged_layout.hh:15`) |
-| `segment-<id>.owner` | The segment's owner record: storage identity, id, length, SHA-256 | 128 B |
+| `segment-<id>.owner` | The segment's owner record (`DTSGOWN2`): id, length, SHA-256; no storage identity | 128 B |
 | `generation-<id>.image` | The root of the trie | 320 B |
-| `generation-<id>.read` | Reader metadata: exact counts, bound to the storage, the generation and the root checksum, with a trailing SHA-256 | 192 B |
+| `generation-<id>.read` | Reader metadata (`DTREAD02`): exact counts, bound to the generation and the root checksum, with a trailing SHA-256 | 192 B |
 | `generation-<id>.live` | Per segment, the live page and byte counts; the segment list; the override histogram; a trailing SHA-256 | 1,152 B plus 72 B per segment plus 32 B |
 | `generation-<id>.lease` | The generation's ownership record | 128 B |
 | `selected` | Which generation is current: its id, root length and SHA-256, cursor and profile | 176 B |

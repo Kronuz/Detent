@@ -30,7 +30,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -43,7 +43,7 @@ int main() {
 	for (unsigned boundary = 0; boundary < 4; ++boundary) {
 		const auto root = directory / std::to_string(boundary);
 		install(root, image, storage);
-		write(root / names.owner_name(), l::encode_segment_ownership({storage, orphan, bytes.size(),
+		write(root / names.owner_name(), l::encode_segment_ownership({orphan, bytes.size(),
 																	  l::paged::pack_commitment(bytes)}));
 		write(root / names.payload_name(), bytes);
 		const auto child = ::fork();

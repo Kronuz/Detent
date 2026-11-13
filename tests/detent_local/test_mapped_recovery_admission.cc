@@ -35,7 +35,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
@@ -57,14 +57,14 @@ int main() {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
 				auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", heap));
-				l::detail::PagedPlanBuilder builder(recovered, delta, next, domain);
+				l::detail::PagedPlanBuilder builder(recovered, delta, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(recovered, parse_delta(false, 2, "app", heap), next,
+				l::detail::PagedDeltaPlanBuilder builder(recovered, parse_delta(false, 2, "app", heap),
 														 domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
@@ -72,11 +72,16 @@ int main() {
 				}
 				plan.emplace(builder.take());
 			}
+			// Both plans move the one base to one target, so they derive one name.
+			next = plan->descriptor().generation;
+			require(next == l::next_generation(recovered.descriptor(), plan->descriptor().cursor,
+											   plan->descriptor().profile, false)
+								.id);
 			{
 				const auto prior = core.verified_paged;
 				auto target = plan->root();
 				auto eligible = [&] {
-					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(), storage,
+					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(),
 															 heap, mappings);
 				};
 				require(eligible());
@@ -167,12 +172,11 @@ int main() {
 														: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 						require(admission->warm() == warm && admission->reserved_bytes() == needed);
 						require(mappings->used() == mappings->limit());
-						admission->bind(plan->descriptor(), plan->directory_identity(),
-										plan->storage_identity());
+						admission->bind(plan->descriptor(), plan->directory_identity());
 						auto wrong = plan->descriptor();
 						++wrong.cursor.revision;
 						rejects<std::invalid_argument>([&] {
-							admission->bind(wrong, plan->directory_identity(), plan->storage_identity());
+							admission->bind(wrong, plan->directory_identity());
 						});
 						auto root = admission->take_root();
 						rejects<std::logic_error>([&] { root->bytes(); });
@@ -221,11 +225,11 @@ int main() {
 					}
 				}
 				auto pressure = mappings->admit(mappings->limit() - mappings->used());
-				const auto name = l::generation_name(next);
+				const auto name = l::generation_name(plan->descriptor().generation);
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, detent::local::paged::format_version}));
+						  {storage, plan->descriptor().generation, plan->descriptor().length, plan->descriptor().checksum, detent::local::paged::format_version}));
 				for (const auto &segment : plan->segments()) {
 					const l::detail::SegmentNames names(segment.ownership.segment);
 					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -274,11 +278,11 @@ int main() {
 				const auto bytes = l::paged::encode_root(invalid, l::paged::Limits{});
 				auto descriptor = plan->descriptor();
 				descriptor.checksum = l::paged::metadata_commitment(bytes);
-				const auto name = l::generation_name(next);
+				const auto name = l::generation_name(descriptor.generation);
 				write(directory / (name + ".image"), bytes);
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
+						  {storage, descriptor.generation, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,

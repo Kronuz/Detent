@@ -94,31 +94,28 @@ bool current_layout(std::uint32_t layout_version) noexcept {
 	return layout_version == 1 || layout_version == paged::format_version;
 }
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {
-	require(nonzero(ownership.storage) && nonzero(ownership.segment) &&
-			ownership.length >= paged::page_header_bytes && ownership.length <= paged::segment_bytes);
+	require(nonzero(ownership.segment) && ownership.length >= paged::page_header_bytes &&
+			ownership.length <= paged::segment_bytes);
 	std::array<char, segment_ownership_bytes> bytes{};
-	constexpr std::string_view magic = "DTSGOWN1";
+	constexpr std::string_view magic = "DTSGOWN2";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
 	write_integer(bytes, 8, 1, 4);
 	write_integer(bytes, 12, bytes.size(), 4);
-	std::copy(ownership.storage.begin(), ownership.storage.end(), bytes.begin() + 16);
-	std::copy(ownership.segment.begin(), ownership.segment.end(), bytes.begin() + 32);
-	write_integer(bytes, 48, ownership.length, 8);
-	write_integer(bytes, 56, 2, 4);
-	std::copy(ownership.checksum.begin(), ownership.checksum.end(), bytes.begin() + 64);
+	std::copy(ownership.segment.begin(), ownership.segment.end(), bytes.begin() + 16);
+	write_integer(bytes, 32, ownership.length, 8);
+	std::copy(ownership.checksum.begin(), ownership.checksum.end(), bytes.begin() + 40);
 	seal(bytes, 96);
 	return bytes;
 }
 SegmentOwnership decode_segment_ownership(std::span<const char> bytes) {
-	validate(bytes, "DTSGOWN1", segment_ownership_bytes);
-	require(read_integer(bytes, 56, 4) == 2 && !read_integer(bytes, 60, 4));
+	validate(bytes, "DTSGOWN2", segment_ownership_bytes);
+	require(std::all_of(bytes.begin() + 72, bytes.begin() + 96, [](char value) { return value == 0; }));
 	SegmentOwnership ownership;
-	std::copy_n(bytes.begin() + 16, 16, ownership.storage.begin());
-	std::copy_n(bytes.begin() + 32, 16, ownership.segment.begin());
-	ownership.length = read_integer(bytes, 48, 8);
-	std::copy_n(bytes.begin() + 64, 32, ownership.checksum.begin());
-	require(nonzero(ownership.storage) && nonzero(ownership.segment) &&
-			ownership.length >= paged::page_header_bytes && ownership.length <= paged::segment_bytes);
+	std::copy_n(bytes.begin() + 16, 16, ownership.segment.begin());
+	ownership.length = read_integer(bytes, 32, 8);
+	std::copy_n(bytes.begin() + 40, 32, ownership.checksum.begin());
+	require(nonzero(ownership.segment) && ownership.length >= paged::page_header_bytes &&
+			ownership.length <= paged::segment_bytes);
 	return ownership;
 }
 } // namespace detent::local

@@ -68,7 +68,6 @@ struct GraphValidator::Impl {
 	p::Limits limits;
 	PagedSemanticLimits semantic_limits;
 	std::uint64_t strings = 0;
-	StorageIdentity storage;
 	std::vector<SegmentState, distribution::StorageAllocator<SegmentState>> states;
 	std::vector<Namespace, distribution::StorageAllocator<Namespace>> namespaces;
 	std::array<Frame, 203> frames{};
@@ -86,15 +85,14 @@ struct GraphValidator::Impl {
 	Phase phase = Phase::Directory;
 	bool failed = false, started = false, definitions = false, compared = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
-		 std::span<const SegmentInput> source, p::Root root, StorageIdentity identity, p::Limits bounds,
+		 std::span<const SegmentInput> source, p::Root root, p::Limits bounds,
 		 PagedSemanticLimits semantics, bool digests_already_compared)
 		: account(std::move(ledger)), owner(std::move(lifetime)), segments(source), expected(root),
-		  limits(bounds), semantic_limits(semantics), storage(identity),
+		  limits(bounds), semantic_limits(semantics),
 		  states(distribution::StorageAllocator<SegmentState>(account)),
 		  namespaces(distribution::StorageAllocator<Namespace>(account)), compared(digests_already_compared) {
 		require(owner && segments.size() == expected.segments && segments.size() <= limits.segments);
 		p::encode_root(expected, limits);
-		require(std::any_of(storage.begin(), storage.end(), [](char value) { return value != 0; }));
 		states.reserve(segments.size());
 		namespaces.reserve(expected.namespaces);
 	}
@@ -179,10 +177,10 @@ struct GraphValidator::Impl {
 };
 GraphValidator::GraphValidator(std::shared_ptr<distribution::StorageLedger> account,
 							   std::shared_ptr<const void> owner, std::span<const SegmentInput> segments,
-							   p::Root root, StorageIdentity storage, p::Limits limits,
+							   p::Root root, p::Limits limits,
 							   PagedSemanticLimits semantics, const SegmentRegistry *compared, bool own_build)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(owner),
-												   segments, root, storage, limits, semantics,
+												   segments, root, limits, semantics,
 												   digests_compared(compared, segments, root, limits) || own_build)) {}
 GraphValidator::~GraphValidator() = default;
 GraphValidator::GraphValidator(GraphValidator &&) noexcept = default;
@@ -203,8 +201,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 					return;
 				const auto &input = state.segments[state.index];
 				encode_segment_ownership(input.ownership);
-				require(input.ownership.storage == state.storage &&
-						input.bytes.size() == input.ownership.length);
+				require(input.bytes.size() == input.ownership.length);
 				require(!state.index || std::memcmp(state.segments[state.index - 1].ownership.segment.data(),
 													input.ownership.segment.data(), 16) < 0);
 				require(input.bytes.size() <= state.limits.bytes - state.physical_bytes);
@@ -400,7 +397,7 @@ bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBu
 		throw std::logic_error("graph validation incomplete");
 	auto &state = *impl_;
 	const auto inputs = registry.inputs();
-	require(registry.storage_ == state.storage && inputs.data() == state.segments.data() &&
+	require(inputs.data() == state.segments.data() &&
 			inputs.size() == state.segments.size());
 	registry.compared_root_.reset();
 	if (registry.validated_root_) {

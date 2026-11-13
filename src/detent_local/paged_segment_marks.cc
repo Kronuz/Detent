@@ -16,9 +16,8 @@ std::size_t table_size(std::size_t capacity) {
 }
 } // namespace
 PagedSegmentMarks::PagedSegmentMarks(std::shared_ptr<distribution::StorageLedger> account,
-									 DirectoryIdentity directory, StorageIdentity storage,
-									 std::size_t capacity)
-	: entries_(distribution::StorageAllocator<Entry>(account)), storage_(storage), directory_(directory),
+									 DirectoryIdentity directory, std::size_t capacity)
+	: entries_(distribution::StorageAllocator<Entry>(account)), directory_(directory),
 	  capacity_(capacity) {
 	entries_.resize(table_size(capacity));
 }
@@ -35,14 +34,14 @@ bool PagedSegmentMarks::admit(ValidationBudget &budget) {
 	--budget.rows;
 	return true;
 }
-std::size_t PagedSegmentMarks::hash(const StorageIdentity &identity) noexcept {
+std::size_t PagedSegmentMarks::hash(const SegmentId &identity) noexcept {
 	return static_cast<std::size_t>(fnv1ah64::hash(identity.data(), identity.size()));
 }
 void PagedSegmentMarks::begin(distribution::RetirementHandle<PagedDependencyCertificate> certificate) {
 	if (sealed_ || failed_ || busy() || !certificate)
 		throw std::logic_error("paged marking unavailable");
-	if (certificate->storage_identity() != storage_ || certificate->directory_identity() != directory_)
-		throw std::invalid_argument("paged mark storage mismatch");
+	if (certificate->directory_identity() != directory_)
+		throw std::invalid_argument("paged mark directory mismatch");
 	certificate_ = std::move(certificate);
 	row_ = probes_ = 0;
 	positioned_ = false;
@@ -65,7 +64,7 @@ void PagedSegmentMarks::step(ValidationBudget &budget) {
 		const auto rows = certificate_ ? certificate_->dependencies() : std::span<const SegmentOwnership>{};
 		const auto count = conservative_active_ ? conservative_.size() : rows.size();
 		while (row_ < count) {
-			const auto row = conservative_active_ ? SegmentOwnership{storage_, conservative_[row_].segment,
+			const auto row = conservative_active_ ? SegmentOwnership{conservative_[row_].segment,
 				conservative_[row_].length, conservative_[row_].checksum} : rows[row_];
 			if (!positioned_) {
 				if (!admit(budget))
@@ -107,7 +106,7 @@ void PagedSegmentMarks::seal() {
 		throw std::logic_error("incomplete paged marks");
 	sealed_ = true;
 }
-void PagedSegmentMarks::query(StorageIdentity identity) {
+void PagedSegmentMarks::query(SegmentId identity) {
 	if (!sealed_ || failed_ || querying_)
 		throw std::logic_error("paged mark query unavailable");
 	sought_ = identity;

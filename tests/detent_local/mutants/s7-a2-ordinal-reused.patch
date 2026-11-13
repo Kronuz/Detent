@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/derived_ids.cc b/src/detent_local/derived_ids.cc
+index 36543a16..01e271d3 100644
+--- a/src/detent_local/derived_ids.cc
++++ b/src/detent_local/derived_ids.cc
+@@ -66,7 +66,7 @@ std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const dis
+ 		return 0;
+ 	if (selected->ordinal == std::numeric_limits<std::uint32_t>::max())
+ 		throw std::overflow_error("build ordinal exhausted at an unchanged head");
+-	return selected->ordinal + 1;
++	return selected->ordinal;
+ }
+ 
+ DerivedGeneration next_generation(const std::optional<Descriptor> &selected, const distribution::Cursor &target,

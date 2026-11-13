@@ -36,7 +36,7 @@ class TrieOverlay {
 	// The optional body stays borrowed until this operation completes or is
 	// discarded.
 	void change(std::string_view typed_key, std::optional<std::span<const char>> body);
-	void begin_relocation(std::span<const StorageIdentity>, std::size_t maximum_recipes);
+	void begin_relocation(std::span<const SegmentId>, std::size_t maximum_recipes);
 	void step(ValidationBudget &);
 	std::uint64_t visited_pages() const;
 	// Extent comparisons over every removed-page dedupe lookup, first inserts included.

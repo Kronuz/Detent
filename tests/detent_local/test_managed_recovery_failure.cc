@@ -78,7 +78,7 @@ void run(std::uint64_t available, bool close_during_worker, bool grown_pack = fa
 	generation.fill('g');
 	next.fill('n');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
@@ -102,7 +102,7 @@ void run(std::uint64_t available, bool close_during_worker, bool grown_pack = fa
 		drive(store);
 		// Keep planner refunds pending until the recovery pressure check settles.
 		CleanupPause cleanup_pause(domain);
-		l::detail::PagedDeltaPlanBuilder builder(base, one_key_delta(heap), next, domain);
+		l::detail::PagedDeltaPlanBuilder builder(base, one_key_delta(heap), domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);

@@ -1,4 +1,5 @@
 #include "paged_segment_builder.hh"
+#include "detent_local/derived_ids.hh"
 #include <algorithm>
 #include <sha256.h>
 #include <stdexcept>
@@ -17,7 +18,7 @@ p::Digest finish(SHA256 &hash) {
 	std::copy(bytes.begin(), bytes.end(), result.begin());
 	return result;
 }
-bool nonzero(const StorageIdentity &identity) {
+bool nonzero(const GenerationId &identity) {
 	return std::any_of(identity.begin(), identity.end(), [](char value) { return value != 0; });
 }
 } // namespace
@@ -31,31 +32,17 @@ struct SegmentBuilder::Impl {
 	std::size_t offset = 0;
 	std::uint64_t pages = 0;
 	Phase phase = Phase::Idle;
-	Impl(std::shared_ptr<distribution::StorageLedger> account, StorageIdentity storage,
-		 GenerationId publication, std::uint64_t ordinal) {
-		require(nonzero(storage) && nonzero(publication));
-		ownership.storage = storage;
-		SHA256 identity;
-		constexpr std::string_view domain = "detent.local.segment.v3.identity";
-		identity.add(domain.data(), domain.size());
-		identity.add(storage.data(), storage.size());
-		identity.add(publication.data(), publication.size());
-		std::array<char, 8> ordinal_bytes{};
-		write_integer(ordinal_bytes, 0, ordinal, 8);
-		identity.add(ordinal_bytes.data(), ordinal_bytes.size());
-		p::count_hash(p::HashKind::Metadata, 1,
-					  domain.size() + storage.size() + publication.size() + ordinal_bytes.size());
-		const auto digest = finish(identity);
-		std::copy_n(digest.begin(), ownership.segment.size(), ownership.segment.begin());
-		require(nonzero(ownership.segment));
+	Impl(std::shared_ptr<distribution::StorageLedger> account, GenerationId publication, std::uint64_t ordinal) {
+		require(nonzero(publication));
+		ownership.segment = derive_segment(publication, ordinal);
+		p::count_hash(p::HashKind::Metadata, 1, segment_derivation_bytes);
 		output = distribution::make_owned_buffer(std::move(account), p::segment_bytes);
 	}
 };
-SegmentBuilder::SegmentBuilder(std::shared_ptr<distribution::StorageLedger> account,
-							   StorageIdentity storage, GenerationId publication,
+SegmentBuilder::SegmentBuilder(std::shared_ptr<distribution::StorageLedger> account, GenerationId publication,
 							   std::uint64_t ordinal)
-	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account,
-												   storage, publication, ordinal)) {}
+	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, publication,
+												   ordinal)) {}
 SegmentBuilder::~SegmentBuilder() = default;
 SegmentBuilder::SegmentBuilder(SegmentBuilder &&) noexcept = default;
 bool SegmentBuilder::fits(const SealedPage &page) const {

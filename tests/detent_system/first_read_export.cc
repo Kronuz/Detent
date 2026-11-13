@@ -219,7 +219,7 @@ void run(const std::string &path, const std::filesystem::path &output, unsigned 
 	l::GenerationId generation{};
 	storage.fill('s');
 	generation.fill('g');
-	x::PagedSnapshotBuilder builder(snapshot, storage, generation, limits);
+	x::PagedSnapshotBuilder builder(snapshot, generation, limits);
 	while (!builder.done()) {
 		l::ValidationBudget budget{65536, 256};
 		builder.step(budget);

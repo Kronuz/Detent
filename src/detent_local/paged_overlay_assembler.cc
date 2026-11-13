@@ -45,13 +45,12 @@ struct OverlayAssembler::Impl {
 	std::span<const SegmentReachability> live;
 	Vector<SegmentReachability> removed;
 	Vector<Extent> extents;
-	using ExtentKey = std::pair<StorageIdentity, std::uint32_t>;
+	using ExtentKey = std::pair<SegmentId, std::uint32_t>;
 	using ExtentRow = std::pair<const ExtentKey, std::size_t>;
 	std::map<ExtentKey, std::size_t, std::less<ExtentKey>, d::StorageAllocator<ExtentRow>>
 		extent_index;
 	p::Root root, base;
-	StorageIdentity storage;
-	GenerationId generation;
+	DerivedGeneration generation;
 	p::Limits limits;
 	std::uint64_t maximum_output_bytes, output_bytes = 0, fresh_pages = 0, fresh_bytes = 0;
 	std::uint64_t base_pages = 0, base_bytes = 0, reused_segments = 0, physical_bytes = 0;
@@ -69,13 +68,13 @@ struct OverlayAssembler::Impl {
 	bool failed = false, discarding = false, finishing = false, event = false, relocation = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, const TrieOverlay &source,
 		 std::span<const SegmentInput> segments, std::span<const SegmentReachability> reachability,
-		 p::Root previous, StorageIdentity identity, GenerationId publication, d::Cursor target,
+		 p::Root previous, DerivedGeneration publication, d::Cursor target,
 		 p::Limits bounds, std::uint64_t maximum)
 		: account(std::move(ledger)), overlay(source), inputs(segments), live(reachability),
 		  removed(d::StorageAllocator<SegmentReachability>(account)),
 		  extents(d::StorageAllocator<Extent>(account)),
 		  extent_index(std::less<ExtentKey>{}, d::StorageAllocator<ExtentRow>(account)),
-		  root(previous), base(previous), storage(identity), generation(publication),
+		  root(previous), base(previous), generation(publication),
 		  limits(bounds), maximum_output_bytes(maximum) {
 		require(inputs.size() == live.size() && live.size() == root.segments);
 		require(root.cursor.same_identity(target) && target.revision >= root.cursor.revision);
@@ -176,10 +175,9 @@ OverlayAssembler::OverlayAssembler(std::shared_ptr<d::StorageLedger> account,
 								   const TrieOverlay &overlay,
 								   std::span<const SegmentInput> segments,
 								   std::span<const SegmentReachability> live, p::Root base,
-								   StorageIdentity storage, GenerationId generation,
-								   d::Cursor target, p::Limits limits, std::uint64_t maximum)
+								   DerivedGeneration generation, d::Cursor target, p::Limits limits, std::uint64_t maximum)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, overlay, segments,
-										live, base, storage, generation, target, limits, maximum)) {
+										live, base, generation, target, limits, maximum)) {
 }
 OverlayAssembler::~OverlayAssembler() = default;
 OverlayAssembler::OverlayAssembler(OverlayAssembler &&) noexcept = default;
@@ -323,7 +321,7 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 				if (s.page.summary.length > s.maximum_output_bytes - s.fresh_bytes)
 					throw std::length_error("overlay output page limit exceeded");
 				if (!s.segment)
-					s.segment.emplace(s.account, s.storage, s.generation,
+					s.segment.emplace(s.account, s.generation.id,
 									  s.output->impl_->segments.size());
 				if (!s.segment->fits(s.page)) {
 					s.segment->seal();
@@ -437,8 +435,8 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 					auto &out = *s.output->impl_;
 					out.root = s.root;
 					out.bytes = std::move(bytes);
-					out.descriptor = {s.generation, p::root_bytes, p::metadata_commitment(encoded),
-									  s.root.cursor, s.root.profile};
+					out.descriptor = {s.generation.id, p::root_bytes, p::metadata_commitment(encoded),
+									  s.root.cursor, s.root.profile, s.generation.ordinal};
 					out.sealed = true;
 				}
 				s.phase = Phase::Done;

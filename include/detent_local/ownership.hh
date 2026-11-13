@@ -4,11 +4,14 @@
 #include <span>
 
 namespace detent::local {
+// The host's identity: `storage.meta` and `.lease` only, never a derived name (D8.1).
 using StorageIdentity = std::array<char, 16>;
+using SegmentId = std::array<char, 16>;
 inline constexpr std::size_t storage_identity_bytes = 64, generation_ownership_bytes = 128;
 inline constexpr std::size_t segment_ownership_bytes = 128;
+// A segment's `.owner` record.
 struct SegmentOwnership {
-	StorageIdentity storage{}, segment{};
+	SegmentId segment{};
 	std::uint64_t length = 0;
 	std::array<char, 32> checksum{};
 	bool operator==(const SegmentOwnership &) const = default;

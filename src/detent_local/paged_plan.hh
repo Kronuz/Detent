@@ -14,18 +14,18 @@ class PagedPlanState final : public distribution::RetirementNode {
 	struct Forward {};
 	struct PhysicalMaintenance {};
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, std::optional<RecoveredGeneration>,
-				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity, DirectoryIdentity,
+				   distribution::RetirementHandle<PagedImageOwner>, DirectoryIdentity,
 				   PagedPlanIntent);
+	// A plan over a base derives its own name (derived_ids.hh): a base-relative build at the target.
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId, PhysicalMaintenance);
+				   distribution::RetirementHandle<LeasedPagedRoot>, PhysicalMaintenance);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
-				   const distribution::ValidatedDelta &);
+				   distribution::RetirementHandle<LeasedPagedRoot>, const distribution::ValidatedDelta &);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
-				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
-				   const distribution::ValidatedDelta &, Forward);
+				   distribution::RetirementHandle<LeasedPagedRoot>, const distribution::ValidatedDelta &,
+				   Forward);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
-				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
+				   distribution::RetirementHandle<PagedImageOwner>);
 	bool maintenance() const;
 	bool snapshot() const noexcept { return bool(replacement_); }
 	PagedPlanIntent intent() const;
@@ -34,7 +34,6 @@ class PagedPlanState final : public distribution::RetirementNode {
 	const paged::Root &root() const;
 	const Descriptor &base_descriptor() const;
 	DirectoryIdentity directory_identity() const;
-	StorageIdentity storage_identity() const;
 	const distribution::RetirementHandle<SegmentRegistry> &registry() const;
 	PagedStateCounts counts() const;
 	std::shared_ptr<const distribution::OwnedBuffer> bytes() const;
@@ -50,7 +49,6 @@ class PagedPlanState final : public distribution::RetirementNode {
 	distribution::RetirementHandle<LeasedPagedRoot> base_;
 	std::optional<RecoveredGeneration> construction_base_;
 	distribution::RetirementHandle<PagedImageOwner> replacement_;
-	StorageIdentity replacement_storage_{};
 	DirectoryIdentity construction_directory_{};
 	PagedPlanIntent intent_ = PagedPlanIntent::Forward;
 	std::optional<StateEquivalenceProof> maintenance_proof_;
@@ -69,6 +67,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	class SHA256 hash_;
 	bool sealed_ = false;
     void copy_root(std::shared_ptr<distribution::StorageLedger>, distribution::Cursor);
+	void derive(const distribution::Cursor &, const distribution::Profile &);
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class SparsePlanFinalizer;
@@ -89,7 +88,6 @@ class PagedPlan {
 	const paged::Root &root() const { return checked_state().root(); }
 	const Descriptor &base_descriptor() const { return checked_state().base_descriptor(); }
 	DirectoryIdentity directory_identity() const { return checked_state().directory_identity(); }
-	StorageIdentity storage_identity() const { return checked_state().storage_identity(); }
 	// The verified base registry supplies reused dependencies; new artifacts remain separate.
 	const distribution::RetirementHandle<SegmentRegistry> &registry() const {
 		return checked_state().registry();

@@ -138,7 +138,7 @@ l::paged::Digest commitment_of(std::shared_ptr<const d::ValidatedSnapshot> snaps
 							   char generation) {
 	l::GenerationId id{};
 	id.fill(generation);
-	l::detail::PagedSnapshotBuilder builder(std::move(snapshot), storage, id);
+	l::detail::PagedSnapshotBuilder builder(std::move(snapshot), id);
 	return l::paged::state_commitment(drive(builder).root());
 }
 } // namespace
@@ -160,7 +160,7 @@ int main() {
 		const auto base_copy = full_copy(R, 7, {{"app:a", {3, 1}}, {"app:b", {5, 2}}, {"app:c", {7, 3}}});
 		l::GenerationId base_id{};
 		base_id.fill('r');
-		l::detail::PagedSnapshotBuilder base_builder(base_copy, storage, base_id);
+		l::detail::PagedSnapshotBuilder base_builder(base_copy, base_id);
 		const auto base_image = drive(base_builder);
 		install(directory, base_image, storage);
 
@@ -175,7 +175,7 @@ int main() {
 		auto apply = [&](d::ValidatedDelta delta, char generation) {
 			l::GenerationId next{};
 			next.fill(generation);
-			l::detail::PagedDeltaPlanBuilder builder(*base, std::move(delta), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(*base, std::move(delta), domain);
 			return l::paged::state_commitment(drive(builder).root());
 		};
 

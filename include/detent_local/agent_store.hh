@@ -1,7 +1,6 @@
 #pragma once
 #include "detent/cursor.hh"
-#include "detent_local/generation.hh"
-#include "detent_local/ownership.hh"
+#include "detent_local/derived_ids.hh"
 #include <completion/api.h>
 #include <array>
 #include <cstdint>
@@ -16,7 +15,6 @@
 // directory holding `selected` (the namespace table), `change`, `owner.lock`, and every namespace's
 // generation and segment files under names derived from what they hold.
 namespace detent::local {
-inline constexpr std::uint32_t agent_store_layout = 1;
 using distribution::NamespaceCursor;
 using distribution::DirectoryCursor;
 using DirectoryPosition = DirectoryCursor; // agent_store.cc's spelling until namespace-s6-cutover
@@ -47,17 +45,10 @@ std::string encode_table(const StoreTable &);
 // Throws TableRefused for anything but a whole, current table.
 StoreTable decode_table(std::span<const char>);
 
-// D8.1: SHA-256 over a domain, the layout, the profile, the incarnation, the position, the base
-// generation (zero for a build from a full copy) and the build ordinal, truncated to 16 bytes.
-GenerationId derive_generation(const distribution::Profile &, const distribution::Identity &incarnation,
-							   std::uint64_t position, const GenerationId &base, std::uint32_t ordinal);
-// A generation's segment `ordinal`, with no storage identity.
-StorageIdentity derive_segment(const GenerationId &generation, std::uint64_t ordinal);
-
 // One namespace generation ready in a publication cycle: its files' bytes as the build wrote them.
 struct PreparedGeneration {
 	struct Segment {
-		StorageIdentity id{};
+		SegmentId id{};
 		std::string pack, owner;
 	};
 	std::string name;

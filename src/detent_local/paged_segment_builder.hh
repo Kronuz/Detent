@@ -6,8 +6,8 @@
 namespace detent::local::detail {
 class SegmentBuilder {
   public:
-	SegmentBuilder(std::shared_ptr<distribution::StorageLedger>, StorageIdentity storage,
-				   GenerationId publication, std::uint64_t ordinal);
+	// The segment's id derives from `publication` and `ordinal` (D8.1).
+	SegmentBuilder(std::shared_ptr<distribution::StorageLedger>, GenerationId publication, std::uint64_t ordinal);
 	~SegmentBuilder();
 	SegmentBuilder(SegmentBuilder &&) noexcept;
 	SegmentBuilder(const SegmentBuilder &) = delete;

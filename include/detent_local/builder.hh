@@ -1,16 +1,17 @@
 #pragma once
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
+#include "derived_ids.hh"
 #include "generation.hh"
 namespace detent::local {
 // Build-worker capability: borrows sealed semantic input through all work.
 // Counting, zero filling, row construction and integrity hashing are resumable.
 class ImageBuilder {
   public:
-	ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, GenerationId generation,
-				 ViewLimits limits = {});
+	// The image is named as derived_ids.hh derives it: a snapshot as a full copy, a delta over `base`.
+	explicit ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, ViewLimits limits = {});
 	ImageBuilder(std::shared_ptr<const distribution::ValidatedDelta> source, RecoveredGeneration base,
-				 GenerationId generation, ViewLimits limits = {});
+				 ViewLimits limits = {});
 	~ImageBuilder();
 	ImageBuilder(ImageBuilder &&) noexcept;
 	ImageBuilder(const ImageBuilder &) = delete;

@@ -13,8 +13,6 @@ MappedRecoveryAdmission::MappedRecoveryAdmission(std::shared_ptr<d::StorageLedge
 }
 void MappedRecoveryAdmission::append(SegmentOwnership ownership) {
 	encode_segment_ownership(ownership);
-	if (ownership.storage != storage_)
-		throw std::invalid_argument("mapped admission storage mismatch");
 	const auto found =
 		std::lower_bound(rows_.begin(), rows_.end(), ownership.segment, [](const Row &row, const auto &id) {
 			return std::memcmp(row.ownership.segment.data(), id.data(), id.size()) < 0;
@@ -33,10 +31,9 @@ bool MappedRecoveryAdmission::warm() const {
 		throw std::logic_error("unpopulated mapped admission");
 	return warm_;
 }
-void MappedRecoveryAdmission::bind(Descriptor target, DirectoryIdentity directory,
-								   StorageIdentity storage) const {
+void MappedRecoveryAdmission::bind(Descriptor target, DirectoryIdentity directory) const {
 	warm();
-	if (target != target_ || directory != directory_ || storage != storage_)
+	if (target != target_ || directory != directory_)
 		throw std::invalid_argument("mapped admission target binding mismatch");
 }
 void MappedRecoveryAdmission::bind_selection(Descriptor target, DirectoryIdentity directory) const {
@@ -53,7 +50,7 @@ void MappedRecoveryAdmission::bind_resources(const std::shared_ptr<d::StorageLed
 	if (!warm_)
 		return;
 	if (!prior || prior->descriptor() != base_ || prior->directory_identity() != directory_ ||
-		prior->storage_identity() != storage_ || !prior->registry()->uses_account(heap_))
+		!prior->registry()->uses_account(heap_))
 		throw std::invalid_argument("mapped admission recovery base mismatch");
 	for (std::size_t i = 0; i < prior->registry()->inputs().size(); ++i)
 		if (prior->registry()->mapping(i)->storage_account() != mappings_)

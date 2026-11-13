@@ -69,6 +69,20 @@ Runs: the first publication into a new store; the same, rebuilt with other bytes
 
 Mutants (`tests/detent_agent/mutants/`, run by `agent_store_mutant.sh`): `n6-rename-before-fsync` (the table renamed before its fsync, T7's revert check), `ndr4-trust-reused-name` (a reached name reused without verifying its bytes), `f1-short-change-refused` (`ChangeWriter` refusing a `change` shorter than a word, killed by T7) and `f2-reuse-unreached` (an unreached name reused when its bytes verify, killed by `test_agent_store`).
 
+## Derived names in the managed store
+
+The managed store (`DiskStore`) names its generations and segments by the same derivation, from one place: `next_generation` in `include/detent_local/derived_ids.hh` (D8.1, D8.2). Each builder derives its own name (`ImageBuilder`, `PagedSnapshotPlanBuilder`, `PagedMaintenanceBuilder`, `PagedPlanBuilder`, `PagedDeltaPlanBuilder`, `PagedCompactionBuilder`); no caller passes an id. Until namespace-s6-cutover (D88) the old cursor maps to a namespace cursor: the incarnation is the first 16 bytes of SHA-256 over `detent.agent-store.incarnation`, the cluster, the group, the restore epoch and the scope, so a trusted reset that changes only the cluster derives new names; the position is the revision.
+
+- Base. A snapshot, a repair, a trusted reset and a migration are full copies (zero base); a delta, progress and a compaction name the selected generation as their base.
+- Ordinal. A build at the selected head's cursor takes the head's ordinal plus one, any other build 0. The descriptor carries it in bytes 164..168 (formerly reserved), so a rebuild of a rebuild keeps counting.
+- Check. `DiskStore::begin` refuses a publication whose generation and ordinal are not the derivation over the selected generation.
+- Orphans (D8.4). Preflight inspects each derived name. One the selected generation does not reach (its own files, or a segment its registry holds) is what a cut or cancelled publication left: it is unlinked, its usage credited to the ledger, and written again. One it reaches, or an entry that is not a safe regular file, refuses the publication.
+- Records. `.owner` (`DTSGOWN2`: segment, length, checksum) and `.read` (`DTREAD02`) hold no storage identity. `.lease` and `storage.meta` keep it until namespace-s7-store.
+- `PagedSemanticLimits` has no default bounds: callers pass the store's recovery limits or `paged_format_semantics`, the format's.
+- A `PagedNamedRoot` without a cached certificate carries ordinal 0 (the image and lease do not hold it); a builder based on it at a selected ordinal above 0 is refused by `begin`'s derivation check, never published under a colliding name.
+
+Tests: `test_derived_names` (rebuilds at one head take ordinals 1, 2, 3 under distinct names; a cluster-only reset derives a new name; mutants `tests/detent_local/mutants/s7-a2-ordinal-reused.patch`, `s7-f1-cluster-omitted.patch`), `test_publication_power_cut` (a republication over a cut publication's durable orphans is cut at every event, each orphan Remove included, in every mode and killed at every boundary, `T7_GROUP=orphans` alone; mutant `s7-f2-orphan-remove-selected.patch`; its republish cycles derive the cut publication's name and unlink its orphans), `test_ownership` and `test_reader_metadata` (the record layouts, pinned).
+
 ## Open
 
 - The store lands as a module (`detent::agent_store`, built in `src/detent_local/CMakeLists.txt`); namespace-s7-wire wires the agent's publication and readers through it.

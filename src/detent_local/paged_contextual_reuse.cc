@@ -38,11 +38,9 @@ SegmentFileIdentity ContextualReuse::file_identity() const {
 	return file_identity_;
 }
 bool ContextualReuse::matches(const p::Reference &reference, std::string_view prefix,
-							  const Descriptor &descriptor, DirectoryIdentity directory,
-							  StorageIdentity storage) const {
+							  const Descriptor &descriptor, DirectoryIdentity directory) const {
 	return base_ && reference == reference_ && prefix == entering_prefix() &&
-		   descriptor == base_->descriptor() && directory == base_->directory_identity() &&
-		   storage == base_->storage_identity();
+		   descriptor == base_->descriptor() && directory == base_->directory_identity();
 }
 struct ReuseNavigator::Impl {
 	enum class Phase { Node, Child, Done };

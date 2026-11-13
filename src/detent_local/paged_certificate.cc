@@ -30,9 +30,8 @@ void PagedDependencyCertificate::capture(const LeasedPagedRoot &source,
 		descriptor_ = source.descriptor();
 		root_ = source.root();
 		directory_ = source.directory_identity();
-		storage_ = source.storage_identity();
 		const auto registry = source.registry();
-		if (prior && prior->sealed_ && prior->account_ == account_ && prior->storage_ == storage_ &&
+		if (prior && prior->sealed_ && prior->account_ == account_ &&
 			prior->directory_ == directory_ &&
 			prior->dependencies_->identity == registry->metadata_identity()) {
 			dependencies_ = prior->dependencies_;
@@ -64,7 +63,6 @@ void PagedDependencyCertificate::begin_recovered(const LeasedPagedRoot &source) 
 		descriptor_ = source.descriptor();
 		root_ = source.root();
 		directory_ = source.directory_identity();
-		storage_ = source.storage_identity();
 		capture_registry_ = source.registry();
 		capture_inputs_ = capture_registry_->inputs();
 		dependencies_ = factory_.make<Dependencies>(account_);
@@ -86,7 +84,6 @@ void PagedDependencyCertificate::begin_named(const PagedNamedRoot &named, const 
 			throw std::invalid_argument("named certificate graph mismatch");
 		descriptor_ = named.descriptor();
 		directory_ = named.directory_identity();
-		storage_ = named.storage_identity();
 		auto source = graph.validated_inputs();
 		capture_owner_ = std::move(source.first);
 		capture_inputs_ = source.second;
@@ -112,8 +109,6 @@ void PagedDependencyCertificate::capture_step(ValidationBudget &budget) {
 				return;
 			--budget.rows;
 			const auto &ownership = capture_inputs_[capture_index_++].ownership;
-			if (ownership.storage != storage_)
-				throw std::invalid_argument("named certificate storage mismatch");
 			dependencies_->rows.push_back(ownership);
 		}
 		if (capture_index_ == capture_inputs_.size() && budget.rows) {
@@ -138,10 +133,6 @@ const paged::Root &PagedDependencyCertificate::root() const {
 DirectoryIdentity PagedDependencyCertificate::directory_identity() const {
 	descriptor();
 	return directory_;
-}
-StorageIdentity PagedDependencyCertificate::storage_identity() const {
-	descriptor();
-	return storage_;
 }
 std::span<const SegmentOwnership> PagedDependencyCertificate::dependencies() const {
 	descriptor();

@@ -16,7 +16,7 @@ struct LazyPageTesting {
 class LazyPageAccess final : public PagedPageAccess, public distribution::RetirementNode {
   public:
 	LazyPageAccess(std::shared_ptr<const void> directory_and_lease, int directory_fd, uid_t publisher,
-	               StorageIdentity, paged::Root, ViewLimits, distribution::RetirementFactory,
+	               paged::Root, ViewLimits, distribution::RetirementFactory,
 	               std::shared_ptr<distribution::StorageLedger> heap,
 	               std::shared_ptr<distribution::StorageLedger> mappings);
 	~LazyPageAccess();

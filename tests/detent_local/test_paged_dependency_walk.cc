@@ -24,7 +24,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(input, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(input, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -55,7 +55,7 @@ int main() {
 			root.bytes = root.pages = root.segments = root.records = root.namespaces = 0;
 			root.tree = {};
 		}
-		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root, storage);
+		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root);
 		l::ValidationBudget zero{0, 0};
 		walk.step(zero);
 		require(!walk.done() && !walk.missing() && source->lookups == 0);

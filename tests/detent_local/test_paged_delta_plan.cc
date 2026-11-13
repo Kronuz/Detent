@@ -115,7 +115,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder original(snapshot, storage, generation);
+	l::detail::PagedSnapshotBuilder original(snapshot, generation);
 	while (!original.done()) {
 		l::ValidationBudget work;
 		original.step(work);
@@ -130,7 +130,7 @@ int main() {
 		const auto baseline = account->used();
 		{
 			auto input = parse_delta(false, transactions, "app", account);
-			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), domain);
 			check(input.storage_capacity() == 0);
 			rejects<std::logic_error>([&] { builder.take(); });
 			l::ValidationBudget none{0, 0};
@@ -144,15 +144,16 @@ int main() {
 			auto plan = builder.take();
 			rejects<std::logic_error>([&] { builder.take(); });
 			check(plan.base_descriptor() == recovered.descriptor() &&
-					plan.directory_identity() == recovered.directory_identity() &&
-					plan.storage_identity() == storage);
-			check(plan.descriptor().generation == next &&
+					plan.directory_identity() == recovered.directory_identity());
+			check(plan.descriptor().generation == l::next_generation(recovered.descriptor(), plan.descriptor().cursor,
+																   plan.descriptor().profile, false)
+															  .id &&
 					plan.descriptor().cursor.revision == 43 + transactions);
 			check(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
 			check(plan.new_reachability(0).pages == plan.root().pages &&
 					plan.override_histogram()[0] == plan.root().records);
 			check(plan.counts().records == (transactions == 1 ? 1 : 2));
-			l::detail::PagedSnapshotBuilder oracle(expected(false, transactions), storage, next);
+			l::detail::PagedSnapshotBuilder oracle(expected(false, transactions), next);
 			while (!oracle.done()) {
 				l::ValidationBudget work;
 				oracle.step(work);
@@ -165,7 +166,7 @@ int main() {
 		domain.close().wait();
 		check(account->used() == baseline);
 	}
-	for (unsigned invalid = 0; invalid < 3; ++invalid) {
+	for (unsigned invalid : {0u, 2u}) {
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 8);
@@ -174,7 +175,7 @@ int main() {
 			auto input = parse_delta(invalid == 0, 2, invalid == 2 ? "bad" : "app", account);
 			rejects<std::invalid_argument>([&] {
 				l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input),
-														 invalid == 1 ? generation : next, domain);
+														 domain);
 				while (!builder.done()) {
 					l::ValidationBudget work;
 					builder.step(work);
@@ -191,7 +192,7 @@ int main() {
 		const auto baseline = account->used();
 		{
 			auto input = parse_delta(false, 17, "app", account);
-			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), domain);
 			auto pressure = account->admit(account->limit() - account->used());
 			rejects<d::StoragePressure>([&] {
 				while (!builder.done()) {
@@ -214,7 +215,7 @@ int main() {
 		const auto baseline = account->used();
 		{
 			auto input = parse_delta(false, 17, "app", account);
-			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), domain);
 			for (unsigned turn = 0; turn < partial && !builder.done(); ++turn) {
 				l::ValidationBudget work{1, 1};
 				builder.step(work);
@@ -236,7 +237,7 @@ int main() {
 		{
 			auto input = parse_delta(false, 2, "app", account);
 			rejects<d::StoragePressure>([&] {
-				l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
+				l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), domain);
 			});
 		}
 		domain.close().wait();
@@ -257,7 +258,7 @@ int main() {
 				d::WorkBudget work;
 				decoder.feed(input, work);
 			}
-			l::detail::PagedDeltaPlanBuilder builder(recovered, decoder.finish(), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(recovered, decoder.finish(), domain);
 			for (unsigned turn = 0; !builder.done(); ++turn) {
 				check(turn < 2000000);
 				l::ValidationBudget work{4096, 16};
@@ -274,7 +275,7 @@ int main() {
 			target.revision = 43;
 			auto expected =
 				std::make_shared<const d::ValidatedSnapshot>(decode(heavy(true), target));
-			l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
+			l::detail::PagedSnapshotBuilder oracle(expected, next);
 			while (!oracle.done()) {
 				l::ValidationBudget work;
 				oracle.step(work);
@@ -288,7 +289,7 @@ int main() {
 			std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
 				return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 			});
-			l::detail::GraphValidator graph(account, plan, merged, plan->root(), storage);
+			l::detail::GraphValidator graph(account, plan, merged, plan->root(), {}, l::detail::paged_format_semantics);
 			while (!graph.done()) {
 				l::ValidationBudget work;
 				graph.step(work);
@@ -314,7 +315,7 @@ int main() {
 		const auto baseline = account->used();
 		{
 			auto input = parse_delta(false, 2, "app", account);
-			l::detail::PagedDeltaPlanBuilder builder(*base, std::move(input), next, domain);
+			l::detail::PagedDeltaPlanBuilder builder(*base, std::move(input), domain);
 			base.reset();
 			while (!builder.done()) {
 				l::ValidationBudget work;

@@ -1,73 +1,76 @@
 #include "paged_root_prefix.hh"
 #include "paged_plan.hh"
+#include "detent_local/derived_ids.hh"
 #include <algorithm>
 #include <stdexcept>
 namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
-							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
-							   const d::ValidatedDelta &source)
+							   d::RetirementHandle<LeasedPagedRoot> base, const d::ValidatedDelta &source)
 	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!base_ || source.kind() != d::UpdateKind::Progress || source.transactions().size() != 0 ||
 		source.base() != base_->descriptor().cursor || !source.target().same_identity(source.base()) ||
-		source.target().revision <= source.base().revision ||
-		source.profile() != base_->descriptor().profile || generation == base_->descriptor().generation)
+		source.target().revision <= source.base().revision || source.profile() != base_->descriptor().profile)
 		throw std::invalid_argument("invalid exact-base paged progress");
-	descriptor_.generation = generation;
 	copy_root(std::move(account), source.target());
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
-							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
-							   const d::ValidatedDelta &source, Forward)
+							   d::RetirementHandle<LeasedPagedRoot> base, const d::ValidatedDelta &source,
+							   Forward)
 	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!base_ || source.kind() != d::UpdateKind::Delta || source.base() != base_->descriptor().cursor ||
 		!source.target().same_identity(source.base()) || source.target().revision <= source.base().revision ||
-		source.profile() != base_->descriptor().profile || generation == base_->descriptor().generation)
+		source.profile() != base_->descriptor().profile)
 		throw std::invalid_argument("invalid exact-base paged delta");
 	registry_ = base_->registry();
-	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile()};
-	encode_descriptor(descriptor_);
+	derive(source.target(), source.profile());
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
-							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
-							   PhysicalMaintenance)
+							   d::RetirementHandle<LeasedPagedRoot> base, PhysicalMaintenance)
 	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
-	if (!base_ || !base_->registry()->uses_account(account) || generation == base_->descriptor().generation)
+	if (!base_ || !base_->registry()->uses_account(account))
 		throw std::invalid_argument("physical maintenance requires actual paged base and common admission");
 	registry_ = base_->registry();
-	descriptor_ = {generation, p::root_bytes, {}, base_->descriptor().cursor, base_->descriptor().profile};
+	derive(base_->descriptor().cursor, base_->descriptor().profile);
+}
+void PagedPlanState::derive(const d::Cursor &target, const d::Profile &profile) {
+	const auto name = next_generation(base_->descriptor(), target, profile, false);
+	descriptor_ = {name.id, p::root_bytes, {}, target, profile, name.ordinal};
 	encode_descriptor(descriptor_);
 }
 void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::Cursor target) {
 	root_ = base_->root();
 	root_.cursor = target;
-	descriptor_ = {descriptor_.generation, p::root_bytes, {}, root_.cursor, root_.profile};
-	encode_descriptor(descriptor_);
+	derive(root_.cursor, root_.profile);
 	encoded_ = p::encode_root(root_, paged_format_limits());
 	counts_ = base_->counts();
 	registry_ = base_->registry();
 	bytes_ = d::make_owned_buffer(account, p::root_bytes);
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account, RecoveredGeneration base,
-							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage)
+							   d::RetirementHandle<PagedImageOwner> replacement)
 	: PagedPlanState(std::move(account), std::optional<RecoveredGeneration>(base), std::move(replacement),
-					 storage, base.directory_identity(), PagedPlanIntent::Maintenance) {}
+					 base.directory_identity(), PagedPlanIntent::Maintenance) {}
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   std::optional<RecoveredGeneration> base,
-							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage,
-							   DirectoryIdentity directory, PagedPlanIntent intent)
+							   d::RetirementHandle<PagedImageOwner> replacement, DirectoryIdentity directory,
+							   PagedPlanIntent intent)
 	: construction_base_(std::move(base)), replacement_(std::move(replacement)),
-	  replacement_storage_(storage), construction_directory_(directory), intent_(intent),
+	  construction_directory_(directory), intent_(intent),
 	  base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!replacement_ || replacement_->image().bytes()->account() != account)
 		throw std::invalid_argument("snapshot image account mismatch");
 	root_ = replacement_->image().root();
 	descriptor_ = replacement_->image().descriptor();
+	if (descriptor_.ordinal != build_ordinal(construction_base_ ? std::optional(construction_base_->descriptor())
+															   : std::nullopt,
+											 descriptor_.cursor))
+		throw std::invalid_argument("snapshot image ordinal is not derived over its base");
 	if ((intent == PagedPlanIntent::Fresh) != !construction_base_)
 		throw std::invalid_argument("snapshot intent and actual base mismatch");
 	if (construction_base_) {
@@ -124,10 +127,6 @@ const Descriptor &PagedPlanState::base_descriptor() const {
 DirectoryIdentity PagedPlanState::directory_identity() const {
 	descriptor();
 	return base_ ? base_->directory_identity() : construction_directory_;
-}
-StorageIdentity PagedPlanState::storage_identity() const {
-	descriptor();
-	return base_ ? base_->storage_identity() : replacement_storage_;
 }
 const d::RetirementHandle<SegmentRegistry> &PagedPlanState::registry() const {
 	descriptor();
@@ -195,19 +194,18 @@ bool PagedPlanState::retire_step() noexcept {
 	return true;
 }
 PagedPlanBuilder::PagedPlanBuilder(const RecoveredGeneration &base,
-								   std::shared_ptr<const d::ValidatedDelta> source, GenerationId generation,
-								   d::RetirementDomain &domain) {
+								   std::shared_ptr<const d::ValidatedDelta> source, d::RetirementDomain &domain) {
 	if (!source || !base.paged_ || source->storage_account() != domain.storage_account())
 		throw std::invalid_argument("paged plan requires recovered base and common admission");
-	plan_ = domain.make<PagedPlanState>(source->storage_account(), base.paged_, generation, *source);
+	plan_ = domain.make<PagedPlanState>(source->storage_account(), base.paged_, *source);
 }
 PagedPlanBuilder::~PagedPlanBuilder() = default;
 PagedPlanBuilder::PagedPlanBuilder(const RecoveredGeneration &base,
-								   std::shared_ptr<const d::ValidatedDelta> source, GenerationId generation,
-								   d::RetirementFactory factory, std::shared_ptr<d::StorageLedger> heap) {
+								   std::shared_ptr<const d::ValidatedDelta> source, d::RetirementFactory factory,
+								   std::shared_ptr<d::StorageLedger> heap) {
 	if (!source || !base.paged_ || source->storage_account() != heap || !factory.uses_account(heap))
 		throw std::invalid_argument("paged progress requires exact captured resources");
-	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation, *source);
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, *source);
 }
 PagedPlanBuilder::PagedPlanBuilder(PagedPlanBuilder &&) noexcept = default;
 void PagedPlanBuilder::step(ValidationBudget &budget) {

@@ -19,7 +19,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder original(source, storage, generation);
+	l::detail::PagedSnapshotBuilder original(source, generation);
 	while (!original.done()) {
 		l::ValidationBudget work;
 		original.step(work);
@@ -34,7 +34,7 @@ int main() {
 	});
 	std::vector<l::detail::SegmentReachability> live;
 	{
-		l::detail::GraphValidator graph(account, image, segments, image->root(), storage);
+		l::detail::GraphValidator graph(account, image, segments, image->root(), {}, l::detail::paged_format_semantics);
 		while (!graph.done()) {
 			l::ValidationBudget work;
 			graph.step(work);
@@ -79,8 +79,7 @@ int main() {
 	target.revision = 43;
 	const auto baseline = account->used();
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
-											storage, next, target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), next, target);
 		for (unsigned turn = 0; !builder.done(); ++turn) {
 			check(turn < 2000000);
 			l::ValidationBudget work{1, 1};
@@ -98,7 +97,7 @@ int main() {
 			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 		});
 		{
-			l::detail::GraphValidator graph(account, result, merged, result->root(), storage);
+			l::detail::GraphValidator graph(account, result, merged, result->root(), {}, l::detail::paged_format_semantics);
 			while (!graph.done()) {
 				l::ValidationBudget work;
 				graph.step(work);
@@ -109,7 +108,7 @@ int main() {
 			std::vector<l::detail::SegmentInput> added{
 				{result->segments()[0].ownership,
 				 {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}}};
-			l::detail::WarmGraphValidator warm(account, recovered, result, added, result->root());
+			l::detail::WarmGraphValidator warm(account, recovered, result, added, result->root(), {}, l::detail::paged_format_semantics);
 			for (unsigned turn = 0; !warm.done(); ++turn) {
 				check(turn < 2000000);
 				l::ValidationBudget work{1, 1};
@@ -130,7 +129,7 @@ int main() {
 		}
 		auto expected =
 			std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
-		l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
+		l::detail::PagedSnapshotBuilder oracle(expected, next);
 		while (!oracle.done()) {
 			l::ValidationBudget work;
 			oracle.step(work);
@@ -148,8 +147,7 @@ int main() {
 	}
 	check(account->used() == baseline);
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
-											storage, next, target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), next, target);
 		for (unsigned turn = 0; account->used() - baseline < p::segment_bytes; ++turn) {
 			check(turn < 2000000 && !builder.done());
 			l::ValidationBudget work{1, 1};
@@ -168,8 +166,7 @@ int main() {
 	{
 		auto incorrect = live;
 		++incorrect[0].pages;
-		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(),
-											storage, next, target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(), next, target);
 		bool rejected = false;
 		try {
 			while (!builder.done()) {

@@ -106,7 +106,7 @@ int main() {
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget b;
 		builder.step(b);
@@ -114,7 +114,7 @@ int main() {
 	auto input = std::make_shared<Input>(source, builder.take());
 	{
 		l::detail::GraphValidator validator(source->storage_account(), input, input->segments,
-											input->image.root(), storage);
+											input->image.root(), {}, l::detail::paged_format_semantics);
 		while (!validator.done()) {
 			l::ValidationBudget b;
 			validator.step(b);
@@ -151,11 +151,10 @@ int main() {
 	{
 		l::GenerationId split_generation{};
 		split_generation.fill('x');
-		auto split = std::make_shared<l::testing::SplitPagedInput>(
-			source->storage_account(), input->segments, input->image.root(), storage,
+		auto split = std::make_shared<l::testing::SplitPagedInput>(source->storage_account(), input->segments, input->image.root(),
 			split_generation);
 		l::detail::GraphValidator validator(source->storage_account(), split, split->inputs,
-											split->root, storage);
+											split->root, {}, l::detail::paged_format_semantics);
 		while (!validator.done()) {
 			l::ValidationBudget budget{1, 1};
 			validator.step(budget);
@@ -292,7 +291,7 @@ int main() {
 			overlay.seal();
 			const auto [logical, keys] = fingerprint(overlay.root(), input->segments);
 			auto rows = oracle(expected);
-			l::detail::PagedSnapshotBuilder full(rows, storage, generation);
+			l::detail::PagedSnapshotBuilder full(rows, generation);
 			while (!full.done()) {
 				l::ValidationBudget b;
 				full.step(b);

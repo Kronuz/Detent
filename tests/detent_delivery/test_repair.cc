@@ -128,14 +128,12 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 	damage.apply();
 	const auto old_packs = packs_in(store);
 	const auto before = l::read_generation_selection(store).descriptor;
-	l::StorageIdentity orphan_id{};
+	l::SegmentId orphan_id{};
 	orphan_id.fill('z');
 	const x::SegmentNames orphan(orphan_id);
 	{
-		std::ifstream input(store / "storage.meta", std::ios::binary);
-		const std::vector<char> metadata{std::istreambuf_iterator<char>(input), {}};
 		const std::string bytes(257, 'x');
-		const auto owner = l::encode_segment_ownership({l::decode_storage_identity(metadata), orphan_id,
+		const auto owner = l::encode_segment_ownership({orphan_id,
 			bytes.size(), l::paged::pack_commitment(bytes)});
 		std::ofstream payload(store / orphan.payload_name(), std::ios::binary);
 		payload.write(bytes.data(), bytes.size());

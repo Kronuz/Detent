@@ -28,7 +28,7 @@ int main() {
 	storage.fill('s');
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -48,29 +48,31 @@ int main() {
 				if (progress) {
 					auto delta =
 						std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
-					l::detail::PagedPlanBuilder construction(recovered, delta, next, domain);
+					l::detail::PagedPlanBuilder construction(recovered, delta, domain);
 					while (!construction.done()) {
 						l::ValidationBudget budget;
 						construction.step(budget);
 					}
 					plan.emplace(construction.take());
 				} else {
-					l::detail::PagedDeltaPlanBuilder construction(
-						recovered, parse_delta(false, 2, "app", account), next, domain);
+					l::detail::PagedDeltaPlanBuilder construction(recovered, parse_delta(false, 2, "app", account), domain);
 					while (!construction.done()) {
 						l::ValidationBudget budget;
 						construction.step(budget);
 					}
 					plan.emplace(construction.take());
 				}
+				next = l::next_generation(recovered.descriptor(), plan->descriptor().cursor, plan->descriptor().profile,
+										  false)
+						   .id;
 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
 				if (pressure) {
 					auto admission = account->admit(account->limit() - account->used());
-					rejects<d::StoragePressure>([&] { artifacts->populate(*plan); });
+					rejects<d::StoragePressure>([&] { artifacts->populate(*plan, storage); });
 					rejects<std::logic_error>([&] { artifacts->artifacts(); });
 					require(plan->descriptor().generation == next);
 				} else {
-					artifacts->populate(*plan);
+					artifacts->populate(*plan, storage);
 					const auto rows = artifacts->artifacts();
 					require(rows.size() == (progress ? 5 : 7));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
@@ -97,7 +99,7 @@ int main() {
 					const auto &record = rows[rows.size() - 2];
 					const auto metadata =
 					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
-					require(metadata.storage == storage && metadata.generation == next &&
+					require(metadata.generation == next &&
 					        metadata.root_checksum == plan->descriptor().checksum &&
 					        metadata.counts.records == plan->counts().records &&
 					        metadata.physical_bytes == artifacts->target_physical_bytes());

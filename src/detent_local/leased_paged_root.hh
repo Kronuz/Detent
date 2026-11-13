@@ -9,9 +9,9 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
   public:
 	LeasedPagedRoot(std::shared_ptr<const void> directory, std::shared_ptr<const void> lease,
 					distribution::RetirementHandle<SegmentRegistry> registry, Descriptor descriptor,
-					DirectoryIdentity identity, StorageIdentity storage, paged::Root root)
+					DirectoryIdentity identity, paged::Root root)
 		: directory_(std::move(directory)), lease_(std::move(lease)), registry_(std::move(registry)),
-		  descriptor_(descriptor), identity_(identity), storage_(storage), root_(root) {}
+		  descriptor_(descriptor), identity_(identity), root_(root) {}
 	const paged::Root &root() const {
 		if (!sealed_)
 			throw std::logic_error("unsealed leased paged root");
@@ -28,10 +28,6 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	DirectoryIdentity directory_identity() const {
 		root();
 		return identity_;
-	}
-	StorageIdentity storage_identity() const {
-		root();
-		return storage_;
 	}
 	const distribution::RetirementHandle<SegmentRegistry> &registry() const {
 		root();
@@ -68,7 +64,7 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	void seal_progress(const LeasedPagedRoot &base) {
 		const auto old = base.root();
 		if (sealed_ || !directory_ || !lease_ || registry_.get() != base.registry_.get() ||
-			identity_ != base.identity_ || storage_ != base.storage_ || !reuses_paged_state(old, root_) ||
+			identity_ != base.identity_ || !reuses_paged_state(old, root_) ||
 			descriptor_.cursor != root_.cursor || descriptor_.profile != root_.profile)
 			throw std::invalid_argument("invalid leased paged progress root");
 		counts_ = base.counts();
@@ -79,7 +75,6 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	distribution::RetirementHandle<SegmentRegistry> registry_;
 	Descriptor descriptor_;
 	DirectoryIdentity identity_;
-	StorageIdentity storage_;
 	paged::Root root_;
 	PagedStateCounts counts_;
 	bool sealed_ = false;
