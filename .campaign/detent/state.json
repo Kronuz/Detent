@@ -3020,6 +3020,8 @@
       "after": [
         "logger-followups"
       ],
+      "base": "2bafea114d59e713eb6e055a2d721a9d66964644",
+      "branch": "quest/detent/logger-exit-crash",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -3033,8 +3035,12 @@
         "logger.cc",
         "logger.h",
         "test/**",
-        "docs/ROADMAP.md"
+        "docs/ROADMAP.md",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/logger-exit-crash",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3042,9 +3048,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T15:54:37"
+      "updated": "2026-11-12T16:38:57",
+      "worktree": "../logger-wt/detent/logger-exit-crash"
     },
     "logger-followups": {
       "accepted": {},
@@ -3072,18 +3079,47 @@
         "README.md",
         "AGENTS.md"
       ],
-      "journal": "../Detent-wt/detent/logger-followups",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T16:32:22",
+          "commit": "2bafea114d59e713eb6e055a2d721a9d66964644",
+          "criteria": {
+            "A1": "261112-162247-3c16de, 261112-162247-219244",
+            "A2": "261112-161458-af4825, 261112-162248-78ca6c, 261112-162248-a68768",
+            "A3": "261112-161458-af4825; fails without: 261112-153648-ec9876, 261112-153825-06b388, 261112-161449-b3e0b7",
+            "A4": "`ARCHITECTURE.md`: \"so the batch rarely takes an insert\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "2bafea114d59e713eb6e055a2d721a9d66964644",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-161458-af4825",
+              "level": "light",
+              "seconds": 49.5,
+              "state": "done",
+              "what": "logger-followups check suite at 2bafea114d59"
+            }
+          ],
+          "final": true,
+          "from": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "reason": "",
+          "tested": "2bafea114d59e713eb6e055a2d721a9d66964644"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "logger: review follow-ups and the scheduler link",
-      "updated": "2026-11-12T15:40:36",
-      "worktree": "../logger-wt/detent/logger-followups"
+      "updated": "2026-11-12T16:32:24",
+      "worktree": ""
     },
     "logger-on-wheel": {
       "accepted": {
@@ -8222,7 +8258,65 @@
       "worktree": "../task-wt/detent/task-wheel"
     },
     "warm-graph-5m": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T16:27:22",
+          "base": "cf69549cf5fb46bf3a290517fc40373f611cb953",
+          "blobs": {
+            "src/detent_local/sparse_plan_finalizer.cc": "100644:8588441d7fddc16c44322abaa7b51dbee71d53c2",
+            "tests/detent_local/CMakeLists.txt": "100644:f699964064fcf9fa41927cf948e0b0e37445db59",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "100644:393a21b0dc15a9dff88fb78950469e7f6bab6f7f",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "100644:3a00d773eabb44c66cc04f4bf423308a76db9640"
+          },
+          "by": "review",
+          "commit": "d9157fecbf3c6e768400c6bdd22a3fb45eefcf7a",
+          "criteria": "2b5fd6fff33e1010",
+          "diffs": {
+            "": "fec9073bcaee2f6b",
+            "src/detent_local/sparse_plan_finalizer.cc": "b75d9f5e382e44ec",
+            "tests/detent_local/CMakeLists.txt": "fa33f3eec95920ee",
+            "tests/detent_local/test_warm_semantic_bounds.cc": "4f2b3a10804cca10",
+            "tests/detent_local/test_warm_semantic_bounds.mutant.patch": "7ba47f457f8267b7"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.scratch/f1/mutant.sh",
+                  "commit": "6c52a2b3dea0ba671bc64d198484fd7fda0d060c",
+                  "docs": [
+                    "docs/design/async-drivers-bench/CMakeLists.txt",
+                    "docs/design/async-drivers-bench/stash_niche.cc",
+                    "docs/design/async-drivers-bench/stash_niche.sh",
+                    "docs/design/async-drivers-bench/stash_niche_summary.py",
+                    "docs/design/async-drivers-bench/stash_niche_wheel.hh",
+                    "docs/design/async-drivers-bench/wheel_vs_stash.cc",
+                    "docs/design/async-drivers-bench/wheel_vs_stash.sh",
+                    "docs/design/async-drivers-bench/wheel_vs_stash_common.sh",
+                    "docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh",
+                    "docs/design/async-drivers-bench/wheel_vs_stash_summary.py",
+                    "docs/design/async-drivers-bench/wheel_vs_stash_vm.sh",
+                    "docs/perf/wheel-vs-stash.md"
+                  ],
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261112-154129-2cdfff",
+                  "level": "light",
+                  "seconds": 50.9,
+                  "state": "done",
+                  "what": "/Users/kronuz/code/Kronuz/Detent-wt/detent/warm-graph-5m/.sc at 6c52a2b3dea0"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "1867c20d4d46724f719308ced28db62e697b0c9f",
+          "reviewed": "c486f4ed2b65e4a6ed60cf82c51620047f656264",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "257526dd8625bab03c2837dcbd1cd85345dbbf0d",
       "branch": "quest/detent/warm-graph-5m",
@@ -8245,18 +8339,61 @@
         "docs/status/warm-graph-5m.md",
         "tests/detent_local/CMakeLists.txt"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T16:42:13",
+          "commit": "f4dfe9543f5514b80a94d055f68386cd3467e83b",
+          "criteria": {
+            "A1": "261112-154256-ad53cb (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md); fails without: 261112-143906-a7a2bf, 261112-154454-6606a0",
+            "A2": "261112-154135-a2931e (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154455-151646 (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154256-ad53cb (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md); fails without: 261112-143906-a7a2bf, 261112-154129-2cdfff, 261112-154454-6606a0",
+            "A3": "261112-154135-a2931e (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md), 261112-154455-151646 (passed at e0ad7e155d91; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/stash_niche.cc, docs/design/async-drivers-bench/stash_niche.sh, docs/design/async-drivers-bench/stash_niche_summary.py, docs/design/async-drivers-bench/stash_niche_wheel.hh, docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_common.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/perf/wheel-vs-stash.md)",
+            "A4": "lead and contributor: the budgeted exclusive 5M run at Detent:6a3d64f2 published the 0.5 C delta (apply 514.8 s); since then the only change under src/detent_local and include/detent_local is namespace-s6 replacing agent_store.hh's cursor structs with aliases of the distribution types, off the plan and finalize path, so per D85 the 5M arm is not rerun"
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "6c52a2b3dea0ba671bc64d198484fd7fda0d060c",
+              "docs": [
+                "docs/design/async-drivers-bench/CMakeLists.txt",
+                "docs/design/async-drivers-bench/stash_niche.cc",
+                "docs/design/async-drivers-bench/stash_niche.sh",
+                "docs/design/async-drivers-bench/stash_niche_summary.py",
+                "docs/design/async-drivers-bench/stash_niche_wheel.hh",
+                "docs/design/async-drivers-bench/wheel_vs_stash.cc",
+                "docs/design/async-drivers-bench/wheel_vs_stash.sh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_common.sh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh",
+                "docs/design/async-drivers-bench/wheel_vs_stash_summary.py",
+                "docs/design/async-drivers-bench/wheel_vs_stash_vm.sh",
+                "docs/perf/wheel-vs-stash.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-154135-a2931e",
+              "level": "none",
+              "seconds": 5.4,
+              "state": "done",
+              "what": "warm-graph-5m check pins at 6c52a2b3dea0"
+            }
+          ],
+          "final": true,
+          "from": "8eb6410bdf782aab03e6eccaa5d1841e1254cbd8",
+          "reason": "",
+          "tested": "d9157fecbf3c6e768400c6bdd22a3fb45eefcf7a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T15:19:28",
+      "updated": "2026-11-12T16:42:24",
       "worktree": "../Detent-wt/detent/warm-graph-5m"
     },
     "wheel-evidence": {
@@ -8341,7 +8478,12 @@
         "wheel.hh",
         "bench/**",
         "docs/**",
-        "test/**"
+        "test/**",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt",
+        "README.md"
       ],
       "journal": "../Detent-wt/detent/wheel-followups",
       "landed": [],
@@ -8353,7 +8495,7 @@
       "risk": "low",
       "status": "active",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T15:49:19",
+      "updated": "2026-11-12T16:36:37",
       "worktree": "../wheel-wt/detent/wheel-followups"
     },
     "wheel-lib": {
