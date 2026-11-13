@@ -1091,7 +1091,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: accept late append responses that still match the log",
-      "updated": "2026-11-13T02:48:17"
+      "updated": "2026-11-13T02:48:19"
     },
     "container-selection": {
       "accepted": {},
