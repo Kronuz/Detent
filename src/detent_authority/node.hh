@@ -1,4 +1,5 @@
 #pragma once
+#include "history.hh"
 #include "state.hh"
 #include <consensus/snapshot_channel.h>
 #include <consensus/worker.h>
@@ -47,7 +48,9 @@ class Node {
 	bool drained() const noexcept;
 	kronuz::consensus::SubmitResult propose(std::uint64_t request, const std::vector<Command> &commands);
 	kronuz::consensus::SubmitResult propose_prepared(std::uint64_t request, PreparedProposal &proposal);
-	// Proposes one administrative entry: the enabling entry or a namespace drop.
+	// Proposes one administrative entry: the enabling entry, a namespace drop or a
+	// layout policy. The enabling entry proposes the configured policy; both policies
+	// take their log thresholds from this node's consensus limits.
 	kronuz::consensus::SubmitResult propose_administrative(std::uint64_t request,
 														   const AdministrativeCommand &command);
 	kronuz::consensus::SubmitResult read(std::uint64_t request);
@@ -57,7 +60,13 @@ class Node {
 	std::vector<Completion> take_completions();
 	kronuz::consensus::Actions take_network_actions();
 	void attach_change_recorder(std::shared_ptr<AppliedChangeRecorder> recorder);
+	// Keeps history (D6) in its own directory, before create() or recover(); `fetch`
+	// reads a history file from a peer for repair and install.
+	void attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch = {});
+	const history::History *history() const noexcept { return history_ ? &*history_ : nullptr; }
 	const State &state() const noexcept { return state_; }
+	// The state at the latest seal: where checkpoints are taken and seal files are cut.
+	const std::optional<State> &sealed() const noexcept { return sealed_; }
 	kronuz::consensus::Worker &worker() noexcept { return worker_; }
 	kronuz::consensus::SnapshotChannel &channel() noexcept { return channel_; }
 	bool checkpoint();
@@ -110,7 +119,11 @@ class Node {
 	std::shared_ptr<kronuz::journal::IO> io_;
 	NodeOptions options_;
 	State state_;
+	std::optional<State> sealed_;
+	std::optional<history::History> history_;
 	std::shared_ptr<AppliedChangeRecorder> recorder_;
+	std::uint64_t covered_ = UINT64_MAX;
+	void cover() noexcept;
 	kronuz::consensus::Worker worker_;
 	kronuz::consensus::SnapshotChannel channel_;
 	std::map<std::uint64_t, Pending> pending_;
@@ -129,5 +142,7 @@ class Node {
 	void drain();
 	void advance_application(CommandWorkBudget &budget);
 	void discard_candidate();
+	void restored_history(bool install);
+	const State *checkpoint_source() const noexcept;
 };
 } // namespace detent::authority

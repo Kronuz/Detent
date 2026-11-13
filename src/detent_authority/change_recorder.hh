@@ -27,6 +27,8 @@ class AppliedChangeRecorder {
 	virtual void publish(const Context &context, std::uint64_t index, std::uint64_t revision) noexcept = 0;
 	virtual void abandon_batch() noexcept = 0;
 	virtual void reset(const Context &context, std::uint64_t revision) noexcept = 0;
+	// Entries at or below this group revision are in the durable layout and may be evicted.
+	virtual void covered(std::uint64_t) noexcept {}
 	virtual bool pending() const noexcept = 0;
 	virtual void collect(CommandWorkBudget &budget) noexcept = 0;
 };
