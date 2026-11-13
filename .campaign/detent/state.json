@@ -5888,6 +5888,73 @@
       "updated": "2026-11-13T08:18:08",
       "worktree": "../Detent-wt/detent/namespace-s6-cutover"
     },
+    "namespace-s6-v1-removal": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "include/detent_authority/**",
+        "tests/detent_authority/**",
+        "include/detent/**",
+        "src/detent/**",
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_agent/**",
+        "tests/detent_local/**",
+        "tests/detent_agent/**",
+        "src/detent_delivery/**",
+        "include/detent_delivery/**",
+        "tests/detent_delivery/**",
+        "src/detent_distribution/**",
+        "include/detent_distribution/**",
+        "tests/detent_distribution/**",
+        "src/detent_distribution_http/**",
+        "include/detent_distribution_http/**",
+        "src/detent_relay/**",
+        "include/detent_relay/**",
+        "tests/detent_relay/**",
+        "src/detent_testing/**",
+        "include/detent_testing/**",
+        "tests/detent_system/**",
+        "benchmarks/**",
+        "docs/ACTORS.md",
+        "docs/AUTHORITY_EXPORT.md",
+        "docs/RELAY.md",
+        "docs/USAGE.md",
+        "docs/*_ARCHITECTURE.md",
+        "docs/status/namespace-s6-cutover.md",
+        "website/src/content/docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s6-cutover"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
+      "updated": "2026-11-13T09:21:42"
+    },
     "namespace-s7": {
       "accepted": {
         "durability": {
