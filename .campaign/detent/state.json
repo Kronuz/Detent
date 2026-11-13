@@ -3035,7 +3035,10 @@
         "logger.cc",
         "logger.h",
         "test/**",
-        "docs/ROADMAP.md"
+        "docs/ROADMAP.md",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/logger-exit-crash",
       "landed": [],
@@ -3047,7 +3050,7 @@
       "risk": "normal",
       "status": "active",
       "title": "logger: exit without finish can crash",
-      "updated": "2026-11-12T16:32:48",
+      "updated": "2026-11-12T16:38:57",
       "worktree": "../logger-wt/detent/logger-exit-crash"
     },
     "logger-followups": {
