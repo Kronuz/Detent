@@ -241,9 +241,12 @@ struct Agent {
 		require(store->publication_status() == l::DiskPublicationStatus::Published);
 		const auto base = selected->descriptor().generation;
 		selected.reset();
-		released(directory, base);
 		auto recovered = recover(directory);
 		store->confirm_recovered(recovered);
+		drive_store();
+		// The confirmed recovery drops the plan's view of the base; once its lease is free, collect it.
+		released(directory, base);
+		store->request_collection();
 		drive_store();
 		return state_of(recovered);
 	}

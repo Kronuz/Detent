@@ -139,7 +139,8 @@ if [[ -n "$relay" ]]; then
     relay_port=$(bound_port "$root/relay.log" "$relay_pid")
     set_port "$relay_port" managed.json managed-empty.json relay.json
     wait_relay_ready "$root/relay.log"
-    "$interpreter" -c 'import json,sys; data=json.loads(next(line for line in open(sys.argv[1]) if line.startswith("{"))); native=data["disk_native_submitted"]; fallback=data["disk_fallback_submitted"]; peak=data["disk_maximum_outstanding"]; assert native+fallback > 0 and peak == 1; print(f"Relay disk originals: native={native}, fallback={fallback}, maximum_outstanding={peak}")' "$root/relay-status.json"
+    # A ready relay has published its originals through its agent store.
+    check_format "$root/relay-generations" "$image_format"
     if [[ "$isolated" == isolated ]]; then
         "$agent" --config "$root/agent-empty.json" --initialize-managed > "$root/agent-empty.log" 2>&1 &
         empty_agent_pid=$!

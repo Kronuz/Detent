@@ -5,6 +5,7 @@
 #include "identity_reset.hh"
 #include "sync_counters.hh"
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <memory>
 
