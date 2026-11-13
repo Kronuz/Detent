@@ -1,6 +1,6 @@
 # namespace-s7-store: journal
 
-State: waiting on jobs 261113-052843-16886a 261113-052745-a0b1a8 261113-052759-b162ba 261113-052802-4165a0 261113-052806-da03ca 261113-052809-87f71f 261113-052813-b190fd 261113-052816-abaf97 261113-052820-12513f 261113-052823-734a00 at Detent:1bcdab05 (queued behind an exclusive hold; A3 2d2540 and pins cb33c9 done exit 0)
+State: waiting on jobs 261113-064836-7523c4 (native) 261113-064836-2db804 (pins) 261113-064848-247cb4 (F1 confirm) at Detent:3591767a; CI stays red on two files outside the set (Blocked on)
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
@@ -14,21 +14,32 @@ done, F7 ported.
 
 ## Next
 
-1. Read the jobs; fix and rerun what fails. On green set "ready for review".
-2. A test_relay_chain timeout in the native suite is reported, not chased (lead, F5).
+1. Read the jobs; on green set "ready for review" (after the two out-of-set fixes land in CI).
+2. Once the set covers them: drop `paged_snapshot_bench.cc`'s dead StorageIdentity and USAGE.md's
+   `--upgrade-managed` sentence, rerun the benches job and push CI through the lead.
+3. A test_relay_chain timeout in the native suite is reported, not chased (lead, F5).
 
 ## Blocked on
 
-Nothing.
+CI (run 43435676235 linux-benchmarks, Docs run 43435676004) fails on two files outside the set, both
+left by this quest's deletions (D43):
+1. `benchmarks/paged_snapshot_bench.cc:41-42` declares an unused `l::StorageIdentity storage` (ownership.hh
+   is deleted). Fix: delete the two lines.
+2. `docs/USAGE.md:222` names `--upgrade-managed` (deleted with UpgradeLegacy); check_docs.py reports
+   `docs-only flag --upgrade-managed`. Fix: drop that sentence.
+Recommendation: add both files to the set; each is a deletion.
+Follow-up for the lead (src/detent_relay, outside the set): the relay's native queue, driver and
+CompletionScheduler no longer carry disk work (the agent store runs on the coordinator's worker), so its
+`disk_*` status fields read 0 and `CoordinatorOptions::completion_port` is only validated.
 
 ## Review findings (durability, 518f6147)
 
 | Finding | What changed | Test, and the job that kills its mutant |
 |---|---|---|
-| F1 | `collect()` keeps a generation whose `.lease` fails to open for any reason but ENOENT (and the segments its `.live` names, or all when `.live` does not read); `publish()` throws LeaseHeld | `test_agent_store` `lease_open_failure` (EMFILE, EACCES via an interposed `openat`): job 261113-052759-b162ba; mutants s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f; final suite 261113-052843-16886a |
-| F2 | The catch-up child waits for the base's lease before its collection, so cuts land in it | `test_agent_catch_up`, suite 261113-052843-16886a |
+| F1 | `collect()` keeps a generation whose `.lease` fails to open for any reason but ENOENT (and the segments its `.live` names, or all when `.live` does not read); `publish()` throws LeaseHeld | `test_agent_store` `lease_open_failure` (EMFILE, EACCES via an interposed `openat`): job 261113-052759-b162ba; mutants s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f; F1 confirm 261113-064848-247cb4; final suite 261113-064836-7523c4 |
+| F2 | The catch-up child confirms the recovery (which drops the plan's view of the base), waits for the base's lease, then requests the collection, so cuts land in it | `test_agent_catch_up`, suite 261113-064836-7523c4 |
 | F3 | none (test only) | `test_local_disk_store` live-charge case; mutant s7-flat-live-private-ledger 261113-052823-734a00 |
-| F5 | not chased (lead) | native suite 261113-052843-16886a |
+| F5 | not chased (lead); did not recur in 261113-052843-16886a | native suite 261113-064836-7523c4 |
 | F6 | `collection_retry_at()` back on DiskStore (a collection that leaves a generation the table does not reach is deferred) and in the coordinator's `wait_disk` | `test_delivery_repair_heal` / `lease-close` (deferred passes, backoff, release without a request), suite |
 | F7 | verify_local_format.py, test_managed_process.sh, benches ported | suite; benches 261113-052745-a0b1a8 |
 | F4, F8 | not done (optional nit; outside the lens) | |
@@ -37,11 +48,11 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261113-052843-16886a: the native check, no exclusions (test_system_managed_*, test_managed_*_process, test_delivery_coordinator*) |
+| A1 | job 261113-064836-7523c4: the native check, no exclusions (test_system_managed_*, test_managed_*_process, test_delivery_coordinator*) |
 | A2 | job 261113-052802-4165a0: T7; mutant n6 killed: job 261113-052820-12513f |
-| A3 | job 261113-052825-2d2540 (`agent_store_sole_writer.sh`) and the suite, 261113-052843-16886a |
-| A4 | job 261113-052759-b162ba (test_agent_store: `collection`, `held_lease`, `lease_open_failure`); mutants killed: a4-collect-ignores-lease 261113-052813-b190fd, a4-publish-ignores-lease 261113-052816-abaf97, s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f |
-| A5 | job 261113-052843-16886a (test_agent_catch_up: a kill at every primitive, collection included) |
+| A3 | job 261113-052825-2d2540 (`agent_store_sole_writer.sh`) and the suite, 261113-064836-7523c4 |
+| A4 | job 261113-064848-247cb4 at Detent:3591767a (earlier 261113-052759-b162ba; test_agent_store: `collection`, `held_lease`, `lease_open_failure`); mutants killed: a4-collect-ignores-lease 261113-052813-b190fd, a4-publish-ignores-lease 261113-052816-abaf97, s7-lease-collect-fail-open 261113-052806-da03ca, s7-lease-publish-fail-open 261113-052809-87f71f |
+| A5 | job 261113-064836-7523c4 (test_agent_catch_up: a kill at every primitive, collection included) |
 | A6 | [artifact] `docs/status/namespace-s7.md`: "## Wiring" |
 
 ## Result
@@ -107,3 +118,9 @@ Nothing.
 - DISK_LIFECYCLE_ARCHITECTURE.md and DISK_STORE_INTEGRATION.md now describe the agent store and DiskStore
   in a page each; the old blueprints describe deleted code. diagrams/11_how_store.png still draws
   `storage.meta` (diagrams/ is outside the file set; the caption no longer names it).
+- Suite 261113-052843-16886a failed on two port errors, fixed at Detent:3591767a: test_agent_catch_up
+  waited for the base's lease before confirm, but the pending recovery's plan views the base until
+  confirmed (the wait could never end); test_managed_process.sh asserted relay disk work on the native
+  completion queue, a path the agent store replaced with the coordinator's worker (Wiring), so it now
+  checks the ready relay's table and image. Locally all five pass (and test_local_disk_store).
+- `disk_store.hh` includes `<exception>` (macOS libc++ CI failed on `std::exception_ptr`).
