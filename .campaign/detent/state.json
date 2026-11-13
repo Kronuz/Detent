@@ -5146,9 +5146,27 @@
         "tests/detent_authority/**",
         "docs/status/namespace-s5.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-12T22:30:42",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk (persisted history, crash matrix); one reviewer by that lens, as namespace-s5-2 had",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [
@@ -5159,7 +5177,7 @@
       "risk": "high",
       "status": "planned",
       "title": "S5.2 follow-ups: peer fetch, async history I/O, review F1-F7",
-      "updated": "2026-11-12T22:30:31"
+      "updated": "2026-11-12T22:30:42"
     },
     "namespace-s6": {
       "accepted": {
