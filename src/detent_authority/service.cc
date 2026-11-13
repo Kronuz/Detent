@@ -1,5 +1,6 @@
 #include "service.hh"
 #include "delivery_export.hh"
+#include "peer_history.hh"
 #include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
@@ -1313,6 +1314,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	asio::steady_timer timer(io);
 	std::shared_ptr<Node> owned_node;
 	std::shared_ptr<AuthorityPeers> peers;
+	std::shared_ptr<PeerHistory> peer_history;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
 	std::uint64_t next = 0;
@@ -1545,7 +1547,21 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
 											node_options);
 		auto &node = *owned_node;
-		node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
+		// With peers, history fetches what it lacks from them and serves them its files (D91).
+		std::optional<kronuz::consensus::transport::PeerOptions> peer_options = options_.peers;
+		if (peer_options) {
+			std::vector<kronuz::consensus::NodeId> others;
+			for (auto voter : node_options.configuration.voters)
+				if (voter != node_options.configuration.local)
+					others.push_back(voter);
+			peer_history = std::make_shared<PeerHistory>(io.get_executor(), std::move(others), peer_options->fetches,
+														 std::chrono::milliseconds(200));
+			peer_options->reader = history_reader(std::make_shared<kronuz::journal::PosixIO>(history_directory),
+												  peer_options->fetch_bytes);
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory), peer_history->fetch());
+		} else {
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
+		}
 		history = std::allocate_shared<ChangeHistory>(
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
 			accounting_->delivery_account);
@@ -1753,6 +1769,14 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		};
 		// The ring is attached before replay, which refills it above the checkpoint (D6).
 		node.attach_change_recorder(history);
+		// Peers run before recovery: a history restore fetches from them before replay ends.
+		// Consensus frames wait for admit(), which starts with the service loop.
+		if (peer_options) {
+			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node, peer_configuration(node_options),
+													 std::move(*peer_options));
+			peer_history->attach(peers);
+			peers->start();
+		}
 		if (std::filesystem::exists(options_.directory / "manifest")) {
 			node.recover();
 		} else {
@@ -1793,11 +1817,6 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				timer.expires_after(std::chrono::milliseconds(1));
 				co_await detent::transport::await_timer(timer);
 			}
-		}
-		if (options_.peers) {
-			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node,
-													 peer_configuration(node_options), *options_.peers);
-			peers->start();
 		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
 		publish_health();
@@ -2737,6 +2756,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	}
 	if (owned_node)
 		owned_node->close();
+	if (peer_history)
+		peer_history->stop();
 	if (peers)
 		peers->stop();
 	if (delivering) {

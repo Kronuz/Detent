@@ -46,6 +46,9 @@ struct Write {
 // Runs one write as the primitives a completion driver issues, one at a time.
 std::shared_ptr<kronuz::journal::IOOperation> write_operation(std::shared_ptr<kronuz::journal::IO> io,
 															  std::shared_ptr<const Write> write);
+// Serves a peer's fetch: nullopt for a name history never writes (checked before the disk) or
+// a file it lacks; a file above `bytes` throws unread.
+std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes);
 // Asks a peer for a history file by name; `done` runs on the owner with the bytes, or
 // with nothing when no peer holds them. Every voter holds the same bytes (D6 "Recovery").
 using Fetched = std::function<void(std::optional<std::string>)>;

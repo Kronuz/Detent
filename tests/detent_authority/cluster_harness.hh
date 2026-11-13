@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <deque>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <iterator>
@@ -119,10 +120,11 @@ struct Cluster {
 		assert(nodes[i]->worker().ready());
 		nodes[i]->start();
 	}
+	std::filesystem::path history_directory(unsigned i) const { return root / (std::to_string(i) + ".history"); }
 	std::shared_ptr<kronuz::journal::IO> history_io(unsigned i) {
 		if (memory_storage)
 			return std::make_shared<kronuz::journal::testing::MemoryIO>(history_disks[i]);
-		auto files = root / (std::to_string(i) + ".history");
+		auto files = history_directory(i);
 		std::filesystem::create_directories(files);
 		chmod(files.c_str(), 0700);
 		return std::make_shared<kronuz::journal::PosixIO>(files);

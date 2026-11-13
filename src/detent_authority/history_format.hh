@@ -27,10 +27,15 @@ Changes trim(const Changes &changes, Revision after);
 
 Digest sha256(std::string_view bytes);
 std::string hex(const Identity &identity);
+// A file name holds a namespace as the first 16 bytes of its name's SHA-256, in hex: a
+// namespace may hold `/` and run to 199 bytes, which no file name can.
+std::string namespace_token(std::string_view name_space);
 std::string block_name(std::string_view name_space, const Identity &incarnation, Revision first, Revision last);
 std::string base_name(std::string_view name_space, const Identity &incarnation, Revision position);
 std::string seal_name(std::uint64_t index);
 inline constexpr std::string_view table_name = "layout";
+// A name history writes, in canonical form: the table, a seal file, a block or a base.
+bool history_name(std::string_view name) noexcept;
 
 // A block [first, last] of one namespace incarnation, or its base at `last`
 // (first == 0); a level-0 section is a block stored inside its seal file.

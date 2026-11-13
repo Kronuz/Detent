@@ -24,9 +24,6 @@ std::string read_all(kronuz::journal::File &file) {
 	}
 	return bytes;
 }
-bool history_file(std::string_view name) {
-	return name.starts_with("seal-") || name.starts_with("block-") || name.starts_with("base-");
-}
 // Every file a table reaches, by name, with the digest it must have (a seal file verifies itself).
 std::vector<std::pair<std::string, std::optional<Digest>>> reached(const Table &t) {
 	std::vector<std::pair<std::string, std::optional<Digest>>> out;
@@ -166,7 +163,7 @@ Script run(const Write &write, std::set<std::string, std::less<>> keep) {
 	cursor.reset();
 	std::sort(names.begin(), names.end());
 	for (const auto &name : names)
-		if (history_file(name) && !keep.contains(name))
+		if (history_name(name) && name != table_name && !keep.contains(name))
 			co_await Issue{primitive(PrimitiveKind::Remove, name)};
 }
 class Operation final : public kronuz::journal::IOOperation {
@@ -212,6 +209,16 @@ class Operation final : public kronuz::journal::IOOperation {
 };
 } // namespace
 
+std::optional<std::string> serve(kronuz::journal::IO &io, std::string_view name, std::size_t bytes) {
+	if (!history_name(name))
+		return std::nullopt;
+	auto file = io.open_reclaim_candidate_read_only(name);
+	if (!file)
+		return std::nullopt;
+	if (file->size() > bytes)
+		throw std::length_error("history file above the fetch bound");
+	return read_all(*file);
+}
 Directory::Directory(std::shared_ptr<kronuz::journal::IO> io, Limits limits) : io_(std::move(io)), limits_(limits) {
 	if (!io_)
 		throw std::invalid_argument("missing history directory");

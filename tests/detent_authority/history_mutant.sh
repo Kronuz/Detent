@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
-# Applies one history mutant (S5.2's seven, S5.3's three) to the source, builds the test that must kill it and runs it.
+# Applies one history mutant (S5.2's seven, S5.3's six) to the source, builds the test that must kill it and runs it.
 # Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
 # or its build does not apply, as `campaign job submit --fails-without` expects.
 set -u
@@ -53,6 +53,17 @@ retained-bounds-only) file=src/detent_authority/node.cc test=test_authority_hist
 	old=',
 			  std::tuple{"consensus_limits", o.consensus.log_entries, o.consensus.log_bytes}}'
 	new='}' ;;
+serve-any-name) file=src/detent_authority/history.cc test=test_authority_history_names
+	old='	if (!history_name(name))
+		return std::nullopt;
+	auto file = io.open_reclaim_candidate_read_only(name);'
+	new='	auto file = io.open_reclaim_candidate_read_only(name);' ;;
+namespace-in-file-names) file=src/detent_authority/history_format.cc test=test_authority_history_names
+	old='	return "block-" + namespace_token(n) + "-"'
+	new='	return "block-" + std::string(n) + "-"' ;;
+reader-serves-nothing) file=src/detent_authority/peer_history.cc test=test_authority_history_transport
+	old='	return [io = std::move(io), bytes](std::string_view name) { return history::serve(*io, name, bytes); };'
+	new='	return [](std::string_view) { return std::optional<std::string>(); };' ;;
 *) echo "unknown mutant $mutant"; exit 1 ;;
 esac
 OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }
@@ -72,7 +83,13 @@ cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/
 cmake --build "$build" -j4 --target "$test" >/dev/null || { echo "build failed"; exit 1; }
 binary=$(find "$build" -name "$test" -type f -perm -u+x | head -n 1)
 [ -n "$binary" ] || { echo "no $test"; exit 1; }
-"$binary"
+args=()
+if [ "$test" = test_authority_history_transport ]; then
+	# Its TLS fixture comes from the certificates test.
+	ctest --test-dir "$build" -R '^authority_tls_certificates$' >/dev/null || { echo "no TLS fixture"; exit 1; }
+	args=("$(dirname "$binary")/tls-fixture")
+fi
+"$binary" ${args[@]+"${args[@]}"}
 status=$?
 if [ "$status" -eq 0 ]; then echo "mutant $mutant survived $test"; exit 1; fi
 echo "mutant $mutant killed by $test (status $status)"

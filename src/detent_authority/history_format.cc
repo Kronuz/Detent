@@ -1,6 +1,8 @@
 #include "history_format.hh"
 #include "detent/validation.hh"
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <sha256.h>
 #include <stdexcept>
 
@@ -188,11 +190,17 @@ std::string hex(const Identity &identity) {
 	}
 	return out;
 }
+std::string namespace_token(std::string_view n) {
+	const auto digest = sha256(n);
+	Identity token{};
+	std::copy_n(digest.begin(), token.size(), token.begin());
+	return hex(token);
+}
 std::string block_name(std::string_view n, const Identity &i, Revision first, Revision last) {
-	return "block-" + std::string(n) + "-" + hex(i) + "-" + std::to_string(first) + "-" + std::to_string(last);
+	return "block-" + namespace_token(n) + "-" + hex(i) + "-" + std::to_string(first) + "-" + std::to_string(last);
 }
 std::string base_name(std::string_view n, const Identity &i, Revision position) {
-	return "base-" + std::string(n) + "-" + hex(i) + "-" + std::to_string(position);
+	return "base-" + namespace_token(n) + "-" + hex(i) + "-" + std::to_string(position);
 }
 std::string seal_name(std::uint64_t index) {
 	constexpr char digits[] = "0123456789abcdef";
@@ -200,6 +208,39 @@ std::string seal_name(std::uint64_t index) {
 	for (int shift = 60; shift >= 0; shift -= 4)
 		out.push_back(digits[(index >> shift) & 15]);
 	return out;
+}
+namespace {
+bool lower_hex(std::string_view text, std::size_t size) noexcept {
+	return text.size() == size && std::all_of(text.begin(), text.end(), [](char c) {
+			   return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+		   });
+}
+bool decimal(std::string_view text) noexcept {
+	std::uint64_t value = 0;
+	auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+	return !text.empty() && error == std::errc{} && end == text.data() + text.size() &&
+		   (text.size() == 1 || text.front() != '0');
+}
+} // namespace
+bool history_name(std::string_view name) noexcept {
+	if (name == table_name)
+		return true;
+	if (name.starts_with("seal-"))
+		return lower_hex(name.substr(5), 16);
+	std::array<std::string_view, 5> fields;
+	std::size_t count = 0;
+	for (std::size_t start = 0;;) {
+		if (count == fields.size())
+			return false;
+		auto dash = name.find('-', start);
+		fields[count++] = name.substr(start, dash - start);
+		if (dash == std::string_view::npos)
+			break;
+		start = dash + 1;
+	}
+	const bool block = count == 5 && fields[0] == "block" && decimal(fields[3]) && decimal(fields[4]);
+	const bool base = count == 4 && fields[0] == "base" && decimal(fields[3]);
+	return (block || base) && lower_hex(fields[1], 32) && lower_hex(fields[2], 32);
 }
 std::string Output::name() const {
 	return base ? base_name(name_space, incarnation, last) : block_name(name_space, incarnation, first, last);
