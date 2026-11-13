@@ -2,27 +2,38 @@
 // An in-process group of three voters with partitions, restarts and snapshot installs.
 #include "node.hh"
 #include <completion/posix.h>
+#include <journal/memory_io.h>
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstdlib>
 #include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <optional>
+#include <source_location>
+#include <tuple>
 #include <sys/stat.h>
 #include <unistd.h>
 
 namespace detent::authority::testing {
 using namespace kronuz::consensus;
 inline bool completion_storage = false;
-// When set, each voter keeps D6 history under this policy in `<root>/<i>.history`,
+// When set, each voter keeps D6 history under this policy in `history_io(i)`,
 // fetching what it lacks from its peers' directories, and gets the ring `ring(i)`.
 inline std::optional<LayoutPolicy> history_policy;
 inline std::function<std::shared_ptr<AppliedChangeRecorder>(unsigned)> ring;
+// Adjusts voter i's options before it launches.
+inline std::function<void(unsigned, NodeOptions &)> configure;
+// Journals and history directories live in memory (journal's MemoryIO, kept across
+// restarts), so a run waits on no device or filesystem; power cuts are the crash model's.
+inline bool memory_storage = false;
 struct Cluster {
 	std::filesystem::path root;
+	std::array<kronuz::journal::testing::Disk, 3> disks, history_disks;
 	std::array<std::unique_ptr<Node>, 3> nodes;
 	std::array<std::deque<Receive>, 3> messages;
 	std::array<std::vector<Completion>, 3> completed;
@@ -67,19 +78,26 @@ struct Cluster {
 		o.timing.election_max = 2000;
 		if (history_policy)
 			o.application.layout = *history_policy;
+		if (configure)
+			configure(i, o);
 		return o;
 	}
 	void launch(unsigned i, bool recover) {
 		auto directory = root / std::to_string(i);
 		std::filesystem::create_directories(directory);
 		chmod(directory.c_str(), 0700);
-		nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
+		if (memory_storage)
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::testing::MemoryIO>(disks[i]), options(i));
+		else
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
 		if (history_policy) {
-			auto files = history_directory(i);
-			std::filesystem::create_directories(files);
-			chmod(files.c_str(), 0700);
-			nodes[i]->attach_history(std::make_shared<kronuz::journal::PosixIO>(files),
-									 [this, i](std::string_view name) { return fetch(i, name); });
+			nodes[i]->attach_history(history_io(i),
+									 [this, i](const std::string &name, history::Check, history::Fetched done) {
+										 if (deferred)
+											 fetches.emplace_back(i, name, std::move(done));
+										 else
+											 done({fetch(i, name), "none"});
+									 });
 		}
 		if (ring)
 			nodes[i]->attach_change_recorder(ring(i));
@@ -95,19 +113,45 @@ struct Cluster {
 			if (auto job = nodes[i]->worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
+			if (auto job = nodes[i]->take_history_operation())
+				kronuz::journal::drive_synchronously(*job);
 			nodes[i]->take_network_actions();
 		}
 		assert(nodes[i]->worker().ready());
 		nodes[i]->start();
 	}
 	std::filesystem::path history_directory(unsigned i) const { return root / (std::to_string(i) + ".history"); }
+	std::shared_ptr<kronuz::journal::IO> history_io(unsigned i) {
+		if (memory_storage)
+			return std::make_shared<kronuz::journal::testing::MemoryIO>(history_disks[i]);
+		auto files = history_directory(i);
+		std::filesystem::create_directories(files);
+		chmod(files.c_str(), 0700);
+		return std::make_shared<kronuz::journal::PosixIO>(files);
+	}
+	// Peer fetches answer at once, or wait in `fetches` while `deferred` until answered.
+	bool deferred = false;
+	std::vector<std::tuple<unsigned, std::string, history::Fetched>> fetches;
+	void answer_fetches() {
+		auto pending = std::move(fetches);
+		fetches.clear();
+		for (auto &[i, name, done] : pending)
+			done({fetch(i, name), "none"});
+	}
+	// A voter whose history writes wait in `held` until released.
+	std::array<bool, 3> held_history{};
+	std::array<std::shared_ptr<kronuz::journal::IOOperation>, 3> held;
+	void release_history(unsigned i) {
+		if (held[i])
+			kronuz::journal::drive_synchronously(*held[i]);
+		held[i].reset();
+	}
 	// A peer serves a history file by name (D6 "Recovery"); every voter holds the same bytes.
-	std::optional<std::string> fetch(unsigned i, std::string_view name) const {
-		for (unsigned j = 0; j < 3; ++j) {
-			std::ifstream in(history_directory(j) / std::string(name), std::ios::binary);
-			if (j != i && in)
-				return std::string(std::istreambuf_iterator<char>(in), {});
-		}
+	std::optional<std::string> fetch(unsigned i, std::string_view name) {
+		for (unsigned j = 0; j < 3; ++j)
+			if (j != i)
+				if (auto bytes = history::Directory(history_io(j), {}).find(name))
+					return bytes;
 		return std::nullopt;
 	}
 	void link(unsigned a, unsigned b, bool enabled) {
@@ -161,6 +205,10 @@ struct Cluster {
 			if (auto job = nodes[i]->worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
+			if (auto job = nodes[i]->take_history_operation(); job && !held_history[i])
+				kronuz::journal::drive_synchronously(*job);
+			else if (job)
+				held[i] = std::move(job);
 			for (auto &action : nodes[i]->take_network_actions()) {
 				if (auto send = std::get_if<Send>(&action)) {
 					auto peer = static_cast<unsigned>(send->peer - 1);
@@ -187,11 +235,15 @@ struct Cluster {
 			}
 		}
 	}
-	void until(const std::function<bool()> &predicate, unsigned budget = 20000) {
+	void until(const std::function<bool()> &predicate, unsigned budget = 20000,
+			   std::source_location where = std::source_location::current()) {
 		for (unsigned i = 0; i < budget && !predicate(); ++i) {
 			step();
 		}
-		assert(predicate());
+		if (!predicate()) {
+			std::cerr << "until timed out at " << where.file_name() << ":" << where.line() << "\n";
+			std::abort();
+		}
 	}
 	Completion request(unsigned node, std::uint64_t id, const Command &command) {
 		bool submitted = false;

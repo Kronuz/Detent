@@ -27,10 +27,15 @@ Changes trim(const Changes &changes, Revision after);
 
 Digest sha256(std::string_view bytes);
 std::string hex(const Identity &identity);
+// A file name holds a namespace as the first 16 bytes of its name's SHA-256, in hex: a
+// namespace may hold `/` and run to 199 bytes, which no file name can.
+std::string namespace_token(std::string_view name_space);
 std::string block_name(std::string_view name_space, const Identity &incarnation, Revision first, Revision last);
 std::string base_name(std::string_view name_space, const Identity &incarnation, Revision position);
 std::string seal_name(std::uint64_t index);
 inline constexpr std::string_view table_name = "layout";
+// A name history writes, in canonical form: the table, a seal file, a block or a base.
+bool history_name(std::string_view name) noexcept;
 
 // A block [first, last] of one namespace incarnation, or its base at `last`
 // (first == 0); a level-0 section is a block stored inside its seal file.
@@ -112,4 +117,22 @@ struct Table {
 };
 std::string encode(const Table &table);
 Table decode_table(std::string_view bytes, const Limits &limits);
+
+// A namespace holds at most this many blocks above its base; a roll-up cuts the oldest past it.
+// The ratio rule alone keeps one block per roll-up while a namespace grows (status doc
+// "File bounds"), so the table needs this bound.
+inline constexpr std::size_t max_blocks = 32;
+// The largest file of each kind history writes under `policy` (docs/status/namespace-s5.md
+// "File bounds"), saturating at UINT64_MAX.
+struct FileBounds {
+	std::uint64_t base = 0, block = 0, seal = 0, table = 0;
+};
+FileBounds file_bounds(const Limits &limits, const LayoutPolicy &policy);
+// The largest file history writes under `policy`, also right after a change from `previous`.
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy);
+std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous);
+// What a peer fetch carries: the image bound, or the default policy's files when larger, so the
+// default policy is always accepted. A policy whose files exceed it is refused, so every file
+// history writes can be fetched.
+std::uint64_t fetch_bytes(const Limits &limits);
 } // namespace detent::authority::history

@@ -3,10 +3,14 @@
 // mid-run, a voter restarted mid-period and one installed mid-period; the installed
 // voter answers the same bytes; after every voter restarts, every answer at or above
 // the cut still delivers the store's changes, and the ring never drops an entry the
-// durable layout does not cover.
+// durable layout does not cover. S5.3: apply seals past history writes still queued,
+// an install waits for its peer's files, and a voter whose consensus log limits are
+// below the group's policy refuses to start. File bounds: a growing namespace keeps a
+// block per roll-up until the count cut takes the oldest, on every voter alike.
 #include "change_history.hh"
 #include "cluster_harness.hh"
 #include "history.hh"
+#include <algorithm>
 #include <iostream>
 #include <map>
 
@@ -74,20 +78,19 @@ void commit(Cluster &group, std::string name, std::string key, std::optional<int
 	writes[name].push_back({state.namespace_entry(name)->incarnation, result.namespace_revision, name + ":" + key,
 							def ? std::optional(encode_definition(*def)) : std::nullopt});
 }
-void settle(Cluster &group) {
+void settle(Cluster &group, std::source_location where = std::source_location::current()) {
 	group.until([&] {
 		return std::all_of(group.nodes.begin(), group.nodes.end(), [&](const auto &node) {
 			return node->state().applied_index() == group.nodes[0]->state().applied_index() &&
 				   !node->worker().busy() && node->state().applied_index() == node->worker().committed();
 		});
-	});
+	}, 20000, where);
 }
 std::map<std::string, std::string> files(Cluster &group, unsigned i) {
 	std::map<std::string, std::string> out;
-	for (const auto &entry : std::filesystem::directory_iterator(group.history_directory(i))) {
-		std::ifstream in(entry.path(), std::ios::binary);
-		out[entry.path().filename().string()] = std::string(std::istreambuf_iterator<char>(in), {});
-	}
+	h::Directory directory(group.history_io(i), {});
+	for (const auto &name : directory.names())
+		out[name] = directory.read(name);
 	return out;
 }
 void identical(Cluster &group) {
@@ -125,7 +128,7 @@ std::map<Revision, Seen> answers(Cluster &group, unsigned i, const std::string &
 	const auto head = entry->position;
 	const auto *history = group.nodes[i]->history();
 	assert(history && history->ready());
-	h::Directory directory(std::make_shared<kronuz::journal::PosixIO>(group.history_directory(i)), state.limits());
+	h::Directory directory(group.history_io(i), state.limits());
 	const auto *n = history->layout().table().find(name);
 	assert(n && n->incarnation == entry->incarnation);
 	auto &ring = *rings[i]->inner;
@@ -182,12 +185,14 @@ void churn(Cluster &group, unsigned count, unsigned salt) {
 int main() {
 	LayoutPolicy policy;
 	policy.seal_transactions = 6;
+	policy.seal_bytes = 64 * 1024; // Keeps the later layout changes within the fetch bound.
 	policy.period = 4;
 	policy.carry_bytes = 64;
 	policy.carry_count = 2;
 	policy.alpha_num = 1;
 	policy.alpha_den = 2;
 	testing::history_policy = policy;
+	testing::memory_storage = true;
 	testing::ring = [](unsigned i) { return rings[i] = std::make_shared<Ring>(); };
 	Cluster group;
 	group.until([&] { return group.nodes[0]->worker().role() == Role::Leader; });
@@ -231,6 +236,24 @@ int main() {
 	identical(group);
 	assert(group.nodes[0]->state().policy().period == 8);
 
+	// Apply's seal returns before its history is written: voter 1 seals past held writes,
+	// and its checkpoints and ring stay at the newest durable seal until they land.
+	group.step(); // Settles the writes the last step drove.
+	const auto durable = group.nodes[1]->durable_seal()->applied_index();
+	assert(durable == group.nodes[1]->sealed()->applied_index());
+	group.held_history[1] = true;
+	for (unsigned salt = 20; group.nodes[1]->sealed()->applied_index() == durable; ++salt)
+		churn(group, 1, salt);
+	group.until([&] { return group.nodes[1]->sealed()->applied_index() > durable && bool(group.held[1]); });
+	const auto pending = group.nodes[1]->sealed()->applied_index();
+	assert(!files(group, 1).contains(h::seal_name(pending)) && !group.nodes[1]->history()->durable_through(pending) &&
+		   group.nodes[1]->durable_seal()->applied_index() == durable);
+	group.held_history[1] = false;
+	group.release_history(1);
+	settle(group);
+	group.until([&] { return group.nodes[1]->durable_seal()->applied_index() == group.nodes[1]->sealed()->applied_index(); });
+	identical(group);
+
 	// Voter 2 restarts mid-period and replays above its checkpoint.
 	while (group.nodes[2]->state().seal().ordinal % group.nodes[2]->state().policy().period == 0)
 		churn(group, 1, 3);
@@ -260,8 +283,19 @@ int main() {
 	group.until([&] { return !group.nodes[0]->checkpoint_busy(); });
 	churn(group, 3, 8);
 	assert(group.nodes[0]->worker().base_index() > missed);
+	// The activation waits while the install's peer fetches are outstanding.
+	group.deferred = true;
 	group.link(0, 1, true);
 	group.link(1, 2, true);
+	group.until([&] { return !group.fetches.empty(); });
+	for (unsigned k = 0; k < 50; ++k)
+		group.step();
+	assert(group.nodes[1]->history()->restoring() && group.nodes[1]->state().applied_index() < snapshot);
+	group.until([&] {
+		group.answer_fetches();
+		return group.nodes[1]->state().applied_index() >= snapshot;
+	});
+	group.deferred = false;
 	churn(group, 12, 9);
 	settle(group);
 	assert(group.nodes[1]->worker().base_index() >= snapshot);
@@ -310,8 +344,87 @@ int main() {
 			kept += a.tier == h::Tier::Ring && b.tier == h::Tier::Ring;
 		}
 	}
+	// A voter whose consensus log limits are below the group's policy refuses to start (F6).
+	const unsigned follower = leader == 2 ? 1 : 2;
+	churn(group, 12, 10);
+	settle(group);
+	group.until([&] { // A checkpoint at its newest durable seal, its own or one it took itself.
+		auto &node = *group.nodes[follower];
+		if (!node.checkpoint_busy())
+			node.checkpoint();
+		return !node.checkpoint_busy() && node.worker().base_index() == node.durable_seal()->applied_index();
+	});
+	assert(group.nodes[follower]->state().positions_enabled());
+	for (unsigned i = 0; i < 3; ++i)
+		if (i != follower)
+			group.link(follower, i, false);
+	group.nodes[follower].reset();
+	group.messages[follower].clear();
+	testing::configure = [&](unsigned i, NodeOptions &o) {
+		if (i == follower)
+			o.consensus.log_entries = group.nodes[leader]->state().policy().log_entries / 2;
+	};
+	bool refused = false;
+	try {
+		group.launch(follower, true);
+	} catch (const std::runtime_error &error) {
+		refused = std::string_view(error.what()).find("consensus_limits") != std::string_view::npos;
+	}
+	assert(refused);
+	testing::configure = {};
+	group.nodes[follower].reset();
+	group.launch(follower, true);
+	for (unsigned i = 0; i < 3; ++i)
+		if (i != follower)
+			group.link(follower, i, true);
+	settle(group);
+	identical(group);
+
+	// α 1, a roll-up every seal and no carry: a namespace whose seals grow by 1.17 times keeps
+	// every block (each merge passes L and grows), until the count cut takes the oldest.
+	auto grow = group.nodes[leader]->state().policy();
+	grow.seal_transactions = 1;
+	grow.period = 1;
+	grow.carry_count = 0;
+	grow.alpha_num = grow.alpha_den = 1;
+	AdministrativeCommand regrow{group.context, AdministrativeKind::SetLayout, {}, {}, {}, grow};
+	assert(group.administer(0, ++request, regrow).results[0].status == Status::Applied);
+	for (unsigned salt = 30; group.nodes[0]->state().policy() != grow; ++salt)
+		churn(group, 1, salt); // The period changes where the old one divides the ordinal.
+	auto counted = [&](unsigned i) {
+		const auto &cuts = group.nodes[i]->history()->layout().cuts();
+		auto found = cuts.find("grow");
+		return found == cuts.end() ? std::uint64_t{0} : found->second[static_cast<unsigned>(h::Cut::Count)];
+	};
+	double target = 40;
+	unsigned seals = 0;
+	for (; !counted(0) && seals < 40; ++seals, target *= 1.17) {
+		Command c;
+		c.context = group.context;
+		c.producer = "writer";
+		c.generation = 1;
+		c.sequence = ++sequence;
+		c.name_space = "grow";
+		const auto keys = std::max<std::size_t>(1, static_cast<std::size_t>(target / 220) + 1);
+		const auto stem = "grow:s" + std::to_string(seals) + "k";
+		const auto each = static_cast<std::size_t>(target / keys);
+		for (std::size_t k = 0; k < keys; ++k) {
+			auto key = stem + std::to_string(k);
+			key.resize(std::clamp<std::size_t>(each > 24 + key.size() ? each - 24 : key.size(), key.size(), 199), 'x');
+			c.mutations.push_back({key, detent::KnobDef{1}, {}, {}});
+		}
+		assert(group.request(0, ++request, c).results.front().status == Status::Applied);
+	}
+	settle(group);
+	identical(group);
+	for (unsigned i = 0; i < 3; ++i) {
+		const auto *grown = group.nodes[i]->history()->layout().table().find("grow");
+		assert(counted(i) && grown && grown->blocks.size() <= h::max_blocks);
+	}
+
 	const auto &state = group.nodes[leader]->state();
 	std::cout << "seal " << state.seal().ordinal << " at index " << state.seal().index << ", "
 			  << files(group, 0).size() << " history files identical on three voters; ring answers kept "
-			  << kept << " of " << ring_answers << "\n";
+			  << kept << " of " << ring_answers << "; the count cut fired after " << seals
+			  << " seals of a growing namespace\n";
 }

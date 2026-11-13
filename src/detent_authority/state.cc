@@ -1,6 +1,7 @@
 #include "detent/utf8.hh"
 #include "state.hh"
 #include "deferred_values.hh"
+#include "history_format.hh"
 #include "detent/validation.hh"
 #include "prepared.hh"
 #include <algorithm>
@@ -1783,7 +1784,7 @@ BatchResult BatchApplication::finish() {
 }
 
 namespace {
-void validate_administrative(const AdministrativeCommand &c) {
+void validate_administrative(const AdministrativeCommand &c, const Limits &l) {
 	require(c.context.cluster != Identity{} && c.context.group != Identity{} && c.context.epoch != Identity{},
 			"missing authority identity");
 	if (c.kind == AdministrativeKind::EnablePositions)
@@ -1799,12 +1800,14 @@ void validate_administrative(const AdministrativeCommand &c) {
 					c.policy == LayoutPolicy{},
 				"invalid namespace drop");
 	validate(c.policy);
+	require(c.kind == AdministrativeKind::DropNamespace || history::file_bytes(l, c.policy) <= history::fetch_bytes(l),
+			"layout policy writes history files above a peer fetch");
 }
 bool carries_policy(AdministrativeKind kind) { return kind != AdministrativeKind::DropNamespace; }
 } // namespace
 bool is_administrative(std::string_view payload) noexcept { return payload.starts_with("DTAADM01"); }
 std::string encode(const AdministrativeCommand &c, Limits l) {
-	validate_administrative(c);
+	validate_administrative(c, l);
 	Writer w{{}, 1024};
 	w.raw("DTAADM01");
 	write_limits(w, l);
@@ -1834,14 +1837,14 @@ AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
 	if (carries_policy(c.kind))
 		c.policy = read_policy(r);
 	r.end();
-	validate_administrative(c);
+	validate_administrative(c, l);
 	return c;
 }
 AdministrativeApplication::AdministrativeApplication(const State &source, std::uint64_t index,
 													 std::uint64_t term, AdministrativeCommand command)
 	: source_(source), candidate_(source), index_(index), term_(term), command_(std::move(command)),
 	  result_{Status::Applied, source.revision_, 0, 0, 0} {
-	validate_administrative(command_);
+	validate_administrative(command_, source.limits_);
 	require(command_.context == source.context_, "foreign authority context");
 	require(index > source.applied_ && index < maximum && term && term >= source.applied_term_,
 			"invalid application boundary");
@@ -1881,6 +1884,9 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 				result_.status = Status::Conflict;
 			else if (command_.policy == (source_.pending_ ? *source_.pending_ : source_.policy_))
 				result_.status = Status::NoChange;
+			else if (history::file_bytes(source_.limits_, command_.policy, source_.policy_) >
+					 history::fetch_bytes(source_.limits_))
+				result_.status = Status::Conflict; // Files written across the change would outgrow a fetch.
 			else
 				candidate_.pending_ = command_.policy;
 			return complete();

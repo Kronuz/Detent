@@ -1,5 +1,6 @@
 #include "service.hh"
 #include "delivery_export.hh"
+#include "peer_history.hh"
 #include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
@@ -445,6 +446,8 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 												std::move(host), static_cast<std::uint16_t>(port)});
 		}
 		check(peers.listen.port(), "local voter missing");
+		// The fetch lane carries every history file these limits let a voter write.
+		peers.fetch_bytes = history::fetch_bytes(o.node.application);
 		o.peers = std::move(peers);
 		// Production elections cover durable vote/term barriers and network latency.
 		o.node.timing.heartbeat = 100;
@@ -572,6 +575,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 	check(!options_.delivery_timeout || (options_.delivery_timeout->count() > 0 &&
 			  *options_.delivery_timeout <= std::chrono::hours(24)),
 		  "invalid authority delivery timeout");
+	check(!options_.peers || options_.peers->fetch_bytes >= history::fetch_bytes(options_.node.application),
+		  "authority peers' fetch_bytes is below the largest history file the application limits allow");
 	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
 			  options_.delivery_heap_bytes <= SIZE_MAX && options_.delivery.bytes &&
 			  options_.delivery.bytes <= SIZE_MAX && options_.delivery.namespaces &&
@@ -1186,23 +1191,27 @@ struct Service::Runtime {
 		Clock::time_point admitted;
 	};
 	std::optional<Flight> storage_flight;
+	// History's writes (D6) run on their own queue, beside the journal's storage jobs.
+	bool history_active = false;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
-	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue;
-	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>> driver;
+	using Driver = kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>;
+	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue, history_queue;
+	std::shared_ptr<Driver> driver, history_driver;
 	Runtime(const ServiceOptions &options, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {
+		for (auto *each : {&queue, &history_queue}) {
 #ifdef __linux__
-		using Policy = kronuz::journal::LinuxCompletionPolicy;
-		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>(
-			options.storage_backend == "native"		? Policy::RequireNative
-			: options.storage_backend == "fallback" ? Policy::Fallback
-													: Policy::Automatic);
+			using Policy = kronuz::journal::LinuxCompletionPolicy;
+			*each = std::make_shared<kronuz::journal::NativeCompletionQueue>(
+				options.storage_backend == "native"		? Policy::RequireNative
+				: options.storage_backend == "fallback" ? Policy::Fallback
+														: Policy::Automatic);
 #else
-		(void)options;
-		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>();
+			(void)options;
+			*each = std::make_shared<kronuz::journal::NativeCompletionQueue>();
 #endif
-		driver =
-			std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>>(
-				scheduler, queue, true);
+		}
+		driver = std::make_shared<Driver>(scheduler, queue, true);
+		history_driver = std::make_shared<Driver>(scheduler, history_queue, true);
 	}
 
 #else
@@ -1249,8 +1258,29 @@ struct Service::Runtime {
 				throw;
 			}
 		}
+		if (auto operation = history_active ? nullptr : node.take_history_operation()) {
+			history_active = true;
+			try {
+				task::spawn(task::scheduler_ref::of(scheduler), history_driver->run(operation),
+							[this, operation](std::exception_ptr error) {
+								// A dead driver leaves the write unsettled: fail-stop, as storage does.
+								if (error) {
+									if (operation->in_flight())
+										std::terminate();
+									failure = error;
+								}
+								history_active = false;
+							});
+			} catch (...) {
+				history_active = false;
+				if (operation->in_flight())
+					std::terminate();
+				throw;
+			}
+		}
 #else
-		(void)node;
+		if (auto operation = node.take_history_operation())
+			kronuz::journal::drive_synchronously(*operation);
 #endif
 	}
 	task::task<void> run(Service &service, std::promise<void> &ready);
@@ -1288,6 +1318,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	asio::steady_timer timer(io);
 	std::shared_ptr<Node> owned_node;
 	std::shared_ptr<AuthorityPeers> peers;
+	std::shared_ptr<PeerHistory> peer_history;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
 	std::uint64_t next = 0;
@@ -1520,7 +1551,21 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
 											node_options);
 		auto &node = *owned_node;
-		node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
+		// With peers, history fetches what it lacks from them and serves them its files (D91).
+		std::optional<kronuz::consensus::transport::PeerOptions> peer_options = options_.peers;
+		if (peer_options) {
+			std::vector<kronuz::consensus::NodeId> others;
+			for (auto voter : node_options.configuration.voters)
+				if (voter != node_options.configuration.local)
+					others.push_back(voter);
+			peer_history = std::make_shared<PeerHistory>(io.get_executor(), std::move(others), peer_options->fetches,
+														 std::chrono::milliseconds(200));
+			peer_options->reader = history_reader(std::make_shared<kronuz::journal::PosixIO>(history_directory),
+												  peer_options->fetch_bytes);
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory), peer_history->fetch());
+		} else {
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
+		}
 		history = std::allocate_shared<ChangeHistory>(
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
 			accounting_->delivery_account);
@@ -1728,6 +1773,14 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		};
 		// The ring is attached before replay, which refills it above the checkpoint (D6).
 		node.attach_change_recorder(history);
+		// Peers run before recovery: a history restore fetches from them before replay ends.
+		// Consensus frames wait for admit(), which starts with the service loop.
+		if (peer_options) {
+			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node, peer_configuration(node_options),
+													 std::move(*peer_options));
+			peer_history->attach(peers);
+			peers->start();
+		}
 		if (std::filesystem::exists(options_.directory / "manifest")) {
 			node.recover();
 		} else {
@@ -1768,11 +1821,6 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				timer.expires_after(std::chrono::milliseconds(1));
 				co_await detent::transport::await_timer(timer);
 			}
-		}
-		if (options_.peers) {
-			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node,
-													 peer_configuration(node_options), *options_.peers);
-			peers->start();
 		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
 		publish_health();
@@ -2712,6 +2760,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	}
 	if (owned_node)
 		owned_node->close();
+	if (peer_history)
+		peer_history->stop();
 	if (peers)
 		peers->stop();
 	if (delivering) {
@@ -2779,7 +2829,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	}
 	if (peers)
 		peers->stop();
-	while (active || (storage_flight && storage_flight->operation->done()) ||
+	while (active || history_active || (storage_flight && storage_flight->operation->done()) ||
 		   (owned_node && !owned_node->drained()) ||
 		   (peers && (!peers->drained() || !owned_node->channel().drained()))) {
 		if (owned_node) {
@@ -2787,7 +2837,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (owned_node && !owned_node->drained() && !active) {
+		if (owned_node && !owned_node->drained() && !active && !history_active) {
 			co_await task::yield();
 		} else {
 			timer.expires_after(std::chrono::milliseconds(1));

@@ -3,6 +3,7 @@
 #include "state.hh"
 #include <consensus/snapshot_channel.h>
 #include <consensus/worker.h>
+#include <deque>
 #include <map>
 #include <metrics.hh>
 #include <sha256.h>
@@ -64,9 +65,15 @@ class Node {
 	// reads a history file from a peer for repair and install.
 	void attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch = {});
 	const history::History *history() const noexcept { return history_ ? &*history_ : nullptr; }
+	// History's next write, for the host to drive like the worker's storage jobs; service()
+	// settles it. Apply waits while history_backlog writes are queued.
+	std::shared_ptr<kronuz::journal::IOOperation> take_history_operation();
+	static constexpr std::size_t history_backlog = 4;
 	const State &state() const noexcept { return state_; }
-	// The state at the latest seal: where checkpoints are taken and seal files are cut.
+	// The state at the latest seal: where seal files are cut.
 	const std::optional<State> &sealed() const noexcept { return sealed_; }
+	// The state at the newest seal whose history is durable: where checkpoints are taken.
+	const std::optional<State> &durable_seal() const noexcept { return durable_seal_; }
 	kronuz::consensus::Worker &worker() noexcept { return worker_; }
 	kronuz::consensus::SnapshotChannel &channel() noexcept { return channel_; }
 	bool checkpoint();
@@ -119,8 +126,11 @@ class Node {
 	std::shared_ptr<kronuz::journal::IO> io_;
 	NodeOptions options_;
 	State state_;
-	std::optional<State> sealed_;
+	std::optional<State> sealed_, durable_seal_;
+	std::deque<State> unsynced_; // Seals whose history writes are queued, oldest first.
 	std::optional<history::History> history_;
+	std::optional<kronuz::consensus::SnapshotId> installing_; // An activation waiting on history.
+	bool recovering_ = false;
 	std::shared_ptr<AppliedChangeRecorder> recorder_;
 	std::uint64_t covered_ = UINT64_MAX;
 	void cover() noexcept;
@@ -142,7 +152,9 @@ class Node {
 	void drain();
 	void advance_application(CommandWorkBudget &budget);
 	void discard_candidate();
-	void restored_history(bool install);
+	void restored_history();
+	void settle_history();
+	void abandon_install() noexcept;
 	const State *checkpoint_source() const noexcept;
 };
 } // namespace detent::authority
