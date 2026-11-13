@@ -5953,7 +5953,7 @@
       "risk": "high",
       "status": "planned",
       "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
-      "updated": "2026-11-13T09:21:42"
+      "updated": "2026-11-13T09:21:45"
     },
     "namespace-s7": {
       "accepted": {
