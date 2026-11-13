@@ -957,6 +957,8 @@
     "consensus-fetch-lane": {
       "accepted": {},
       "after": [],
+      "base": "3d988d17d89fea17bc66825835397e0bbe324b80",
+      "branch": "quest/detent/consensus-fetch-lane",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -979,6 +981,7 @@
         "CHANGELOG.md",
         "README.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-fetch-lane",
       "landed": [],
       "lenses": [
         "correctness"
@@ -990,9 +993,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus fetch lane: name-to-bytes reads between peers",
-      "updated": "2026-11-13T01:40:32"
+      "updated": "2026-11-13T01:40:59",
+      "worktree": "../consensus-wt/detent/consensus-fetch-lane"
     },
     "container-selection": {
       "accepted": {},
