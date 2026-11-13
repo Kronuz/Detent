@@ -52,7 +52,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-154454-6606a0 (mutant restores the 128 MiB default; the new test fails, job passes iff killed); diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf |
+| A1 | 261112-154256-ad53cb (the reproduction, test_local_warm_semantic_bounds, passes at the fix); diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf, 261112-154454-6606a0 (mutants restoring the 128 MiB default; the test fails) |
 | A2 | 261112-154455-151646; fails without: 261112-154454-6606a0 |
 | A3 | 261112-154455-151646 |
 | A4 | lead and contributor: the budgeted exclusive 5M run at Detent:6a3d64f2 published the 0.5 C delta (apply 514.8 s); since then the only change under src/detent_local and include/detent_local is namespace-s6 replacing agent_store.hh's cursor structs with aliases of the distribution types, off the plan and finalize path, so per D85 the 5M arm is not rerun |
