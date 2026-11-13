@@ -288,6 +288,13 @@
       "closed": "slot rebuilt; jobs resubmitted with --fresh",
       "id": "msg-38",
       "text": "namespace-s8: job slot ~/.scratch/campaign/jobs/slots/detent-namespace-s8 is broken (its .git points to .git/worktrees/detent-namespace-s8, which no longer exists); native/pins 261112-120518-* failed exit 125 before running. Resubmitted with --fresh."
+    },
+    {
+      "at": "2026-11-12T11:42:27",
+      "by": "namespace-s8",
+      "closed": "namespace-s5-2 landed (Detent:b6161f57); s8 merges main and proves A1's voter half on real blocks; tests/CMakeLists.txt added to its file set",
+      "id": "msg-37",
+      "text": "namespace-s8: consumes namespace-blocks (namespace-s5-2, planned behind namespace-measure); no voter writes blocks on main, so A1's 'byte-identical to the voters' cannot be shown yet. Building the mirror content-agnostic (names, digests, ranges) and proving A2-A4 plus the relay-chain half of A1 over a scripted upstream; recommend the voter half of A1 and the service wiring follow S5.2. Also needs one line add_subdirectory(detent_relay) in tests/CMakeLists.txt (outside the file set). Journal: Blocked on."
     }
   ],
   "quests": {
