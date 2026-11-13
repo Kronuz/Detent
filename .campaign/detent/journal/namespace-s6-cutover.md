@@ -17,11 +17,16 @@ shape are namespace-s6-v1-removal). Correctness review CHANGES at 05ec8079 folde
   now requiring Ahead and no frame), test_session_frames `other_incarnation`.
 - F2 (blocking): test_authority_frames_service opens `all` under the exact `ns` grant and checks
   that only `ns` appears in the directory and the frames.
+- CI at 2a85386a: test_authority_frames_service failed its tier check (line 378) on every Linux
+  job and macos-x86_64. Cause: the seal layout depends on how many bootstrap writes ran before
+  positions answered (timing); some counts end with head == s, so no Entries answer. Shown locally
+  by varying the main write count: 39 and 41 writes give that layout. Fixed at 10dd82f4: single-key
+  writes until 0 < cut < s < head, then the same byte comparison; counts printed on failure.
 
 ## Next
 
-1. Lead: confirm F1=261113-094044-ae3ff3 F2=261113-094044-ae3ff3 (the native suite at 8d667269)
-   once it and the mutant chain finish.
+1. Lead: confirm F1=261113-110906-90d130 F2=261113-110906-90d130 (native suite at 10dd82f4) once
+   it and the chain finish; CI at the new tip.
 2. msg-50 (lead): history.hh's tier comment (outside my set) to match F1.
 
 ## Blocked on
@@ -30,22 +35,23 @@ Nothing.
 
 ## Evidence
 
-Jobs at Detent:8d667269 (submitted; not yet finished when I ended the turn):
+Jobs at Detent:10dd82f4 (submitted; not yet finished when I ended the turn):
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261113-094020-d3c6fb; fails without: 261113-094032-0c4de6 (no gap hold-back), 261113-094036-8d045d (blocks as sections: byte compare) |
-| A2 | 261113-094020-d3c6fb; fails without: 261113-094023-df33a1 (F1: identity before position) |
-| A3 | 261113-094020-d3c6fb, grep 261113-094047-3ffa30; fails without: 261113-094027-e8afb8 (F2: `all` ignores grants), 261113-094041-4f9f7d (follows ignore grants) |
-| suite | 261113-094044-ae3ff3 (native, fresh checkout) |
-| pins | 261113-094051-f35e53 |
+| A1 | 261113-110844-ce6ed4 (frames test repeated 10x); fails without: 261113-110856-8d85ed (no gap hold-back), 261113-110859-cb0904 (blocks as sections: byte compare) |
+| A2 | 261113-110844-ce6ed4; fails without: 261113-110848-13d230 (F1: identity before position) |
+| A3 | 261113-110844-ce6ed4, grep 261113-110908-1667b8; fails without: 261113-110852-976bed (F2: `all` ignores grants), 261113-110903-cfcbae (follows ignore grants) |
+| suite | 261113-110906-90d130 (native, fresh checkout) |
+| pins | 261113-110911-9ff8f5 |
 
-Review confirm: F1 -> 261113-094044-ae3ff3, F2 -> 261113-094044-ae3ff3.
+Review confirm: F1 -> 261113-110906-90d130, F2 -> 261113-110906-90d130.
 
-Earlier, at 05ec8079: A1-A3 261113-091246-eab613, mutants 261113-091251-d1a00c, -091258-d2d9be,
--091559-6bf109, -091305-4832aa; suite 261113-091333-9c4789. Review probes (lead's reviewer, not
-mine): 261113-092941-f5f614, 261113-093054-05276f (F1 present at 05ec8079), 261113-093301-a65e2c
-(F2 mutant survived at 05ec8079).
+Superseded: at 8d667269 J 261113-094020-d3c6fb, mutants -094023-df33a1, -094027-e8afb8,
+-094032-0c4de6, -094036-8d045d, -094041-4f9f7d, suite -094044-ae3ff3, grep -094047-3ffa30; at
+05ec8079 261113-091246-eab613, mutants -091251-d1a00c, -091258-d2d9be, -091559-6bf109,
+-091305-4832aa, suite -091333-9c4789. Review probes (reviewer's): 261113-092941-f5f614,
+261113-093054-05276f, 261113-093301-a65e2c.
 
 ## Result
 
