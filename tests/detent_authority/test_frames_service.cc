@@ -326,24 +326,39 @@ int main(int argc, char **argv) {
 			if (i % 8 == 0)
 				write("d.x", {{"d.x:k", detent::KnobDef{static_cast<std::int64_t>(i)}}});
 		}
-		// The head and the ring start from a full copy, then the table on disk at that seal.
-		auto copy = decode(frames_body(next(writer, id, "[[\"ns\"]]", 1000), id, false));
-		const auto head = copy.frames.at(0).second.position;
-		const auto incarnation = copy.frames.at(0).second.incarnation;
-		const auto s = std::get<2>(copy.pieces.at(0));
+		// The head and the ring start from a full copy, then the table on disk at that seal. Where the
+		// seals fall depends on how many writes the bootstrap took, so single-key writes follow until
+		// every tier is there: a base, a span above the cut and a ring above it (0 < cut < s < head).
+		std::uint64_t head = 0, s = 0, padding = 0;
+		d::Identity incarnation{};
 		h::TableNamespace table;
 		DiskFiles files;
 		files.root = directory;
 		files.root += ".history";
-		for (auto deadline = std::chrono::steady_clock::now() + 10s;; std::this_thread::sleep_for(10ms)) {
-			check(std::chrono::steady_clock::now() < deadline);
-			if (!std::filesystem::exists(files.root / "layout"))
-				continue;
-			auto decoded = h::decode_table(files.read("layout"), {});
-			if (const auto *n = decoded.find("ns"); n && n->position == s) {
-				table = *n;
-				break;
+		for (unsigned extra = 0;; ++extra) {
+			auto copy = decode(frames_body(next(writer, id, "[[\"ns\"]]", 1000), id, false));
+			head = copy.frames.at(0).second.position;
+			incarnation = copy.frames.at(0).second.incarnation;
+			s = std::get<2>(copy.pieces.at(0));
+			for (auto deadline = std::chrono::steady_clock::now() + 10s; head > s; std::this_thread::sleep_for(10ms)) {
+				check(std::chrono::steady_clock::now() < deadline);
+				if (!std::filesystem::exists(files.root / "layout"))
+					continue;
+				auto decoded = h::decode_table(files.read("layout"), {});
+				if (const auto *n = decoded.find("ns"); n && n->position == s) {
+					table = *n;
+					break;
+				}
 			}
+			if (head > s && 0 < table.base.last && table.base.last < s)
+				break;
+			if (extra == 24) {
+				std::cerr << "no layout with every tier: cut " << table.base.last << ", ring from " << s << ", head "
+						  << head << '\n';
+				check(false);
+			}
+			++padding;
+			write("ns", {{"ns:pad" + std::to_string(extra), detent::KnobDef{static_cast<std::int64_t>(extra)}}});
 		}
 		check(table.incarnation == incarnation && head == ring["ns"].rbegin()->first);
 		Oracle oracle(context.cluster, table, files, ring["ns"], head);
@@ -375,7 +390,11 @@ int main(int argc, char **argv) {
 			blocks += answer.kind == d::AnswerKind::Blocks;
 			entries += answer.kind == d::AnswerKind::Entries;
 		}
-		check(full > 2 && blocks && entries && idle == 2);
+		if (!(full > 2 && blocks && entries && idle == 2)) {
+			std::cerr << full << " full, " << blocks << " blocks, " << entries << " entries, " << idle << " idle; cut "
+					  << table.base.last << ", ring from " << s << ", head " << head << '\n';
+			check(false);
+		}
 		// zstd: the same body.
 		{
 			auto zid = request(endpoint, cert, "/v2/distribution/session/open",
@@ -419,7 +438,8 @@ int main(int argc, char **argv) {
 		std::filesystem::remove_all(history);
 		std::cout << stores.size() << " cursors over HTTP byte for byte against the voter's history (" << bytes
 				  << " bytes): " << full << " full copies, " << blocks << " blocks, " << entries << " entries, "
-				  << idle << " idle; cut " << table.base.last << ", ring from " << s << ", head " << head << "\n";
+				  << idle << " idle; cut " << table.base.last << ", ring from " << s << ", head " << head << " after "
+				  << padding << " padding writes\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;
