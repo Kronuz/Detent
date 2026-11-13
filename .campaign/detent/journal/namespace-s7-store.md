@@ -1,6 +1,6 @@
 # namespace-s7-store: journal
 
-State: waiting on jobs 261113-064836-7523c4 (native) 261113-064836-2db804 (pins) 261113-064848-247cb4 (F1 confirm) at Detent:3591767a; CI stays red on two files outside the set (Blocked on)
+State: native suite 261113-064836-7523c4, pins 261113-064836-2db804 and F1 confirm 261113-064848-247cb4 green at Detent:3591767a; ready for review once two out-of-set CI fixes land (Blocked on)
 Quest: .campaign/detent/quests/namespace-s7-store.md (the lead's; never edit it)
 
 ## Doing
