@@ -6012,6 +6012,42 @@
       "updated": "2026-11-13T00:05:28",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
+    "namespace-s8-wiring": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "campaign verify",
+          "level": "light",
+          "minutes": 60,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_relay/**",
+        "include/detent_relay/**",
+        "tests/detent_relay/**",
+        "src/detent_authority/**",
+        "docs/status/namespace-s8.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s8",
+        "namespace-s5-3",
+        "namespace-s6-cutover"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
+      "updated": "2026-11-13T00:39:49"
+    },
     "namespace-s9-s10": {
       "accepted": {},
       "after": [],
