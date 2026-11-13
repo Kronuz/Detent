@@ -120,6 +120,7 @@ class History final : public Files {
 	Write plan_; // A restore's writes, queued once it completes.
 	std::map<std::string, std::string, std::less<>> planned_;
 	std::vector<std::string> above_; // Seal files above the newest table, and their outputs.
+	std::optional<std::size_t> fetched_group_; // The plan's group of fetched files.
 	std::map<std::string, Queued, std::less<>> unsynced_;
 	std::deque<std::shared_ptr<const Write>> writes_;
 	std::shared_ptr<kronuz::journal::IOOperation> operation_;

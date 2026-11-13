@@ -293,7 +293,13 @@ std::string History::verified(std::string_view name, const std::optional<Digest>
 		if (fetched == fetched_.end())
 			throw Wanted{{std::string(name)}};
 		if (fetched->second && good(*fetched->second)) {
-			stage({{std::string(name), *fetched->second}});
+			// Fetched files are independent: one sync group, before anything derived from them.
+			if (!fetched_group_) {
+				fetched_group_ = plan_.groups.size();
+				plan_.groups.emplace_back();
+			}
+			plan_.groups[*fetched_group_].emplace_back(name, *fetched->second);
+			planned_[std::string(name)] = *fetched->second;
 			return *fetched->second;
 		}
 	}
@@ -348,6 +354,7 @@ void History::attempt() {
 		plan_ = {};
 		planned_.clear();
 		above_.clear();
+		fetched_group_.reset();
 		std::vector<std::string> wanted;
 		try {
 			restore();
