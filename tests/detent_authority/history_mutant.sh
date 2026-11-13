@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
-# Applies one history mutant to the source, builds the test that must kill it and runs it.
+# Applies one history mutant (S5.2's seven, S5.3's three) to the source, builds the test that must kill it and runs it.
 # Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
 # or its build does not apply, as `campaign job submit --fails-without` expects.
 set -u
@@ -8,19 +8,24 @@ mutant=${1:?usage: history_mutant.sh MUTANT}
 build=.scratch/history-mutant-build
 case "$mutant" in
 table-before-outputs) file=src/detent_authority/history.cc test=test_authority_history_power_cut
-	old='		directory_.publish(step.written);
-		if (step.table) {
-			directory_.publish({{std::string(table_name), encode(*step.table)}});'
+	old='		if (!step.written.empty())
+			write.groups.push_back(std::move(step.written));
+		kept(step);
+		if (step.table) {'
 	new='		if (step.table)
-			directory_.publish({{std::string(table_name), encode(*step.table)}});
-		directory_.publish(step.written);
+			write.groups.push_back({{std::string(table_name), encode(*step.table)}});
+		if (!step.written.empty())
+			write.groups.push_back(std::move(step.written));
+		kept(step);
 		if (step.table) {' ;;
 collect-above-table) file=src/detent_authority/history.cc test=test_authority_history_power_cut
-	old='		if (name.starts_with("seal-") && seal_index(name) > durable_.index) {'
-	new='		if (false) {' ;;
+	old='	above_.push_back(seal_name(step.seal.index));
+	for (const auto &o : step.seal.outputs)
+		above_.push_back(o.name());'
+	new='' ;;
 trust-local-files) file=src/detent_authority/history.cc test=test_authority_history_power_cut
-	old='	if (auto local = directory_.find(name); local && good(*local))'
-	new='	if (auto local = directory_.find(name); local)' ;;
+	old='	if (auto local = find(name); local && good(*local))'
+	new='	if (auto local = find(name); local)' ;;
 eager-eviction) file=src/detent_authority/change_history.cc test=test_authority_change_history
 	old=' &&
 			   p.live[p.head]->revision <= std::max(p.durable, p.dead))'
@@ -35,6 +40,19 @@ cut-at-twice-the-cost) file=src/detent_authority/history_layout.cc test=test_aut
 ring-by-group-revision) file=src/detent_authority/change_history.cc test=test_authority_history_cluster
 	old='		if (!record || record->revision != entry_->position)'
 	new='		if (!record || record->revision != entry_->revision)' ;;
+durable-at-seal) file=src/detent_authority/history.hh test=test_authority_history_power_cut
+	old='return ready_ && durable_ >= index; }'
+	new='return ready_ && layout_.table().index >= index; }' ;;
+trust-rotten-table) file=src/detent_authority/history.cc test=test_authority_history_power_cut
+	old='std::optional<Table> History::local_table() { return decoded(find(table_name), limits_); }'
+	new='std::optional<Table> History::local_table() {
+	auto bytes = find(table_name);
+	return bytes ? std::optional(decode_table(*bytes, limits_)) : std::nullopt;
+}' ;;
+retained-bounds-only) file=src/detent_authority/node.cc test=test_authority_history_cluster
+	old=',
+			  std::tuple{"consensus_limits", o.consensus.log_entries, o.consensus.log_bytes}}'
+	new='}' ;;
 *) echo "unknown mutant $mutant"; exit 1 ;;
 esac
 OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }
