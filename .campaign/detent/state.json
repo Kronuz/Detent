@@ -1039,11 +1039,47 @@
         "README.md",
         "fuzz/**"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-lane",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-13T02:59:05",
+          "commit": "a197efba7ac0e2e939cc7833cac07d5793d16522",
+          "criteria": {
+            "A1": "261113-025208-55a754",
+            "A2": "261113-025148-7981de",
+            "A3": "261113-025207-111b68; fails without: 261113-020124-cd1754, 261113-024649-d90224, 261113-024710-f17f16, 261113-025208-49c443, 261113-025208-043844",
+            "A4": "261113-025208-07d1bb",
+            "A5": "[artifact] `CHANGELOG.md` 2026-11-13 \"Added\": the fetch lane entry"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "a197efba7ac0e2e939cc7833cac07d5793d16522",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261113-025143-f37c46",
+              "level": "light",
+              "seconds": 132.4,
+              "state": "done",
+              "what": "consensus-fetch-lane check suite at a197efba7ac0"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "a197efba7ac0e2e939cc7833cac07d5793d16522",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "3d988d17d89fea17bc66825835397e0bbe324b80",
+          "reason": "",
+          "tested": "a197efba7ac0e2e939cc7833cac07d5793d16522"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [
@@ -1051,10 +1087,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus fetch lane: name-to-bytes reads between peers",
-      "updated": "2026-11-13T02:54:57",
-      "worktree": "../consensus-wt/detent/consensus-fetch-lane"
+      "updated": "2026-11-13T02:59:08",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {},
