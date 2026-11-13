@@ -5449,14 +5449,15 @@
       "needs": [
         "namespace-s6",
         "namespace-s5-2",
-        "okt-followups"
+        "okt-followups",
+        "namespace-s5-3"
       ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
-      "updated": "2026-11-12T11:45:32"
+      "updated": "2026-11-12T22:30:34"
     },
     "namespace-s7": {
       "accepted": {
