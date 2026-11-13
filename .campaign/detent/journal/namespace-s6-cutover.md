@@ -80,8 +80,8 @@ Follow-ups from the correctness review (not blocking; for the lead to place):
 - A next re-looks when `applied_index` moves, so seals and log progress both wake it.
 - The enabling entry is proposed lazily by the leader when a v2 next needs positions (at most once
   a second), so v1 keeps working until A4 removes it; the cutover moves it to leader start.
-- The v1 `AuthorizedScope` exact-set check (export_scope.cc) serves only the v1 export; it goes with
-  v1 in A4. A3's grep then covers it; until then v2, /v2/transactions and /v2/read use W13 grants.
+- The v1 `AuthorizedScope` exact-set check (export_scope.cc) serves only the v1 export; D93 moves
+  its removal to namespace-s6-v1-removal. Every v2 path uses W13 grants.
 - F1's fix sits in `select_answer` (shared by the relay), not in service.cc: it is the contract's
   rule (D1, positions continue across incarnations), so every source gets it.
 - Version 1's grant view keeps exact names only (service.cc), so W13 patterns narrow v1, never
