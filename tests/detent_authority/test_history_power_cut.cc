@@ -1,13 +1,17 @@
 // S5.2 T4(5): a power cut at every storage primitive of a run's seal commits, roll-up
 // output groups, table publications (the first included), collector and an install,
-// with the roll-up period changed mid-run. Recovery from the checkpoint the node could
-// have persisted, then replay of the seals above it, reaches the directory of an
-// uninterrupted run byte for byte; a rotted seal file is fetched from a peer.
+// with the roll-up period changed mid-run, also with writes lagging the seals that
+// queued them. Recovery from the checkpoint the node could have persisted, then replay
+// of the seals above it, reaches the directory of an uninterrupted run byte for byte; a
+// rotted seal file or `layout` table is fetched from a peer. Sections: cuts, lagged,
+// installs, rot (all by default).
 #include "history.hh"
 #include <cassert>
+#include <deque>
 #include <iostream>
 #include <journal/memory_io.h>
 #include <map>
+#include <set>
 
 using namespace detent::authority;
 namespace h = detent::authority::history;
@@ -31,10 +35,24 @@ Files files(const mem::Disk &disk) {
 }
 std::shared_ptr<mem::MemoryIO> io(mem::Disk &disk) { return std::make_shared<mem::MemoryIO>(disk, std::string(prefix)); }
 h::Fetch peer(const Files &source) {
-	return [&source](std::string_view name) -> std::optional<std::string> {
-		auto found = source.find(std::string(name));
-		return found == source.end() ? std::nullopt : std::optional(found->second);
+	return [&source](const std::string &name, h::Fetched done) {
+		auto found = source.find(name);
+		done(found == source.end() ? std::nullopt : std::optional(found->second));
 	};
+}
+// Drives one queued write; a cut ends the run at the primitive it falls on.
+bool drive(h::History &history, const mem::Disk &disk) {
+	auto operation = history.take_io_operation();
+	if (operation)
+		kronuz::journal::drive_synchronously(*operation);
+	history.settle();
+	if (disk.dead())
+		throw mem::PowerLoss{};
+	return bool(operation);
+}
+void drain(h::History &history, const mem::Disk &disk) {
+	while (drive(history, disk)) {
+	}
 }
 // The states at every seal of one log, and the state before the enabling entry.
 struct Log {
@@ -107,28 +125,45 @@ struct Log {
 		}
 	}
 };
-// One run on `disk`: recovered from the checkpoint, then every seal above it. Returns
-// the seal of the checkpoint a node could persist, every `every` durable seals.
+// One run on `disk`: recovered from the checkpoint, then every seal above it, with up to
+// `lag` writes queued behind apply. Records the seal of the checkpoint a node could
+// persist: every `every` seals, once its history is durable.
 struct Run {
 	const Log &log;
 	mem::Disk &disk;
 	h::Fetch fetch;
 	std::optional<std::size_t> checkpoint, installed;
 	unsigned every = 1;
+	std::size_t lag = 0;
 	void seal_from(h::History &history, std::size_t first) {
+		std::deque<std::size_t> queued;
+		auto durable = [&] {
+			for (; !queued.empty() && history.durable_through(log.seals[queued.front()].applied_index()); queued.pop_front())
+				if ((queued.front() + 1) % every == 0)
+					checkpoint = queued.front();
+		};
 		for (auto k = first; k < log.seals.size(); ++k) {
 			history.seal(log.seals[k]);
-			if (history.durable_through(log.seals[k].applied_index()) && (k + 1) % every == 0)
-				checkpoint = k;
+			queued.push_back(k);
+			while (history.queued() > lag)
+				drive(history, disk);
+			durable();
 		}
+		drain(history, disk);
+		durable();
+		assert(queued.empty());
 	}
 	void recover(h::History &history) {
 		history.recover(checkpoint ? log.seals[*checkpoint] : log.start);
+		drain(history, disk);
 	}
 };
+std::set<std::string> sections;
+bool section(const char *name) { return sections.empty() || sections.contains(name); }
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
+	sections.insert(argv + 1, argv + argc);
 	const Log log;
 	assert(log.seals.size() > 30);
 	unsigned tables = 0;
@@ -142,8 +177,14 @@ int main() {
 	{
 		h::History history(io(reference), {});
 		history.recover(log.start);
+		drain(history, reference);
 		for (const auto &s : log.seals) {
 			history.seal(s);
+			// Apply's seal returns before its files are written; they are durable once driven.
+			assert(!history.durable_through(s.applied_index()) && history.queued() == 1 &&
+				   !files(reference).contains(h::seal_name(s.applied_index())));
+			drain(history, reference);
+			assert(history.durable_through(s.applied_index()));
 			at.push_back(files(reference));
 		}
 	}
@@ -152,13 +193,20 @@ int main() {
 	assert(expected.contains("layout"));
 
 	// A cut at every primitive of the run; recovery from the node's checkpoint.
-	unsigned cuts = 0, below_table = 0;
-	for (unsigned every : {1u, 3u})
+	unsigned cuts = 0, below_table = 0, lagged = 0;
+	struct Pass {
+		const char *section;
+		unsigned every;
+		std::size_t lag;
+	};
+	for (auto [name, every, lag] : {Pass{"cuts", 1, 0}, Pass{"cuts", 3, 0}, Pass{"lagged", 1, 3}}) {
+		if (!section(name))
+			continue;
 		for (std::uint64_t cut = 1; cut <= operations; ++cut) {
 			mem::Disk disk;
 			disk.cut = cut;
-			disk.random.seed(cut * every);
-			Run run{log, disk, {}, {}, {}, every};
+			disk.random.seed(cut * every + lag);
+			Run run{log, disk, {}, {}, {}, every, lag};
 			try {
 				h::History history(io(disk), {});
 				run.recover(history);
@@ -168,6 +216,7 @@ int main() {
 			if (!disk.dead())
 				continue;
 			++cuts;
+			lagged += lag != 0;
 			disk.power_loss();
 			h::History history(io(disk), {}); // No peer: what the node persisted suffices.
 			run.recover(history);
@@ -176,11 +225,14 @@ int main() {
 			run.seal_from(history, run.checkpoint ? *run.checkpoint + 1 : 0);
 			assert(files(disk) == expected);
 		}
-	assert(cuts > 200 && below_table > 0);
+	}
+	assert(!section("cuts") || (cuts - lagged > 200 && below_table > 0));
+	assert(!section("lagged") || lagged > 100);
 
 	// An install mid-period from a peer at or past the snapshot's seal, cut at every primitive.
 	unsigned installs = 0;
 	for (std::size_t s : {std::size_t(9), std::size_t(14), log.seals.size() / 2})
+		if (section("installs"))
 		for (std::size_t ahead : {std::size_t(0), std::size_t(3)}) {
 			const auto &source = at[std::min(s + ahead, at.size() - 1)];
 			for (std::uint64_t cut = 1;; ++cut) {
@@ -190,8 +242,10 @@ int main() {
 				Run run{log, disk, peer(source)};
 				try {
 					h::History history(io(disk), {}, peer(source));
-					history.recover(log.start);
+					run.recover(history);
 					history.install(log.seals[s]);
+					drain(history, disk);
+					assert(history.durable_through(log.seals[s].applied_index()));
 					run.checkpoint = run.installed = s; // Acknowledged: the checkpoint is the snapshot.
 					run.seal_from(history, s + 1);
 				} catch (const mem::PowerLoss &) {
@@ -204,8 +258,10 @@ int main() {
 				disk.power_loss();
 				h::History history(io(disk), {}, peer(source));
 				run.recover(history);
-				if (!run.installed)
+				if (!run.installed) {
 					history.install(log.seals[s]); // Consensus sends the snapshot again.
+					drain(history, disk);
+				}
 				run.seal_from(history, run.checkpoint ? *run.checkpoint + 1 : s + 1);
 				assert(files(disk) == expected);
 			}
@@ -213,7 +269,7 @@ int main() {
 
 	// A rotted seal file above the table, whose journal span is compacted, comes from a peer.
 	std::size_t rotted = 0;
-	{
+	if (section("rot")) {
 		const auto table = h::decode_table(expected.at("layout"), {});
 		for (std::size_t k = 0; k < log.seals.size(); ++k)
 			if (log.seals[k].applied_index() > table.index)
@@ -228,6 +284,7 @@ int main() {
 			bool failed = false;
 			try {
 				history.recover(log.seals[rotted]);
+				drain(history, disk);
 			} catch (const std::runtime_error &) {
 				failed = true;
 			}
@@ -235,8 +292,28 @@ int main() {
 			if (with_peer)
 				assert(files(disk) == expected);
 		}
+		// A rotted `layout` table is fetched from a peer too, and never adopted (F1); with
+		// no peer, recovery stops instead of serving other bytes.
+		for (bool with_peer : {false, true}) {
+			mem::Disk disk = reference;
+			auto &table = disk.inodes.at(disk.names.at(std::string(prefix) + "layout")).durable;
+			table[table.size() / 2] ^= 1;
+			h::History history(io(disk), {}, with_peer ? peer(expected) : h::Fetch{});
+			bool failed = false;
+			try {
+				history.recover(log.seals[rotted]);
+				drain(history, disk);
+			} catch (const std::runtime_error &) {
+				failed = true;
+			}
+			assert(failed != with_peer);
+			if (with_peer) {
+				assert(history.ready() && history.durable_through(log.seals[rotted].applied_index()));
+				assert(files(disk) == expected);
+			}
+		}
 	}
 	std::cout << log.seals.size() << " seals, " << tables << " tables, " << operations << " storage operations: "
-			  << cuts << " cuts (" << below_table << " recovered below the table), " << installs
-			  << " cuts in installs, a rotted seal file fetched from a peer\n";
+			  << cuts << " cuts (" << lagged << " lagged, " << below_table << " recovered below the table), "
+			  << installs << " cuts in installs, a rotted seal file and table fetched from a peer\n";
 }

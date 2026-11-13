@@ -1,9 +1,14 @@
 #include "history.hh"
 #include <algorithm>
+#include <coroutine>
+#include <set>
 #include <stdexcept>
 
 namespace detent::authority::history {
 namespace {
+using kronuz::journal::MutationCompletion;
+using kronuz::journal::MutationRequest;
+using kronuz::journal::PrimitiveKind;
 void require(bool condition, const char *message) {
 	if (!condition)
 		throw std::runtime_error(message);
@@ -22,12 +27,6 @@ std::string read_all(kronuz::journal::File &file) {
 bool history_file(std::string_view name) {
 	return name.starts_with("seal-") || name.starts_with("block-") || name.starts_with("base-");
 }
-std::uint64_t seal_index(std::string_view name) {
-	std::uint64_t index = 0;
-	for (char c : name.substr(5))
-		index = index * 16 + static_cast<std::uint64_t>(c <= '9' ? c - '0' : c - 'a' + 10);
-	return index;
-}
 // Every file a table reaches, by name, with the digest it must have (a seal file verifies itself).
 std::vector<std::pair<std::string, std::optional<Digest>>> reached(const Table &t) {
 	std::vector<std::pair<std::string, std::optional<Digest>>> out;
@@ -43,6 +42,174 @@ std::vector<std::pair<std::string, std::optional<Digest>>> reached(const Table &
 	out.erase(std::unique(out.begin(), out.end()), out.end());
 	return out;
 }
+
+// A write as a coroutine: each co_await issues one primitive and resumes with its completion.
+struct Script {
+	struct promise_type {
+		MutationRequest request;
+		MutationCompletion result;
+		std::exception_ptr error;
+		Script get_return_object() noexcept { return {std::coroutine_handle<promise_type>::from_promise(*this)}; }
+		std::suspend_always initial_suspend() noexcept { return {}; }
+		std::suspend_always final_suspend() noexcept { return {}; }
+		void return_void() noexcept {}
+		void unhandled_exception() noexcept { error = std::current_exception(); }
+	};
+	std::coroutine_handle<promise_type> handle;
+};
+struct Issue {
+	MutationRequest request;
+	std::coroutine_handle<Script::promise_type> handle{};
+	bool await_ready() const noexcept { return false; }
+	void await_suspend(std::coroutine_handle<Script::promise_type> h) noexcept {
+		handle = h;
+		h.promise().request = std::move(request);
+	}
+	MutationCompletion await_resume() {
+		auto result = std::move(handle.promise().result);
+		if (result.error)
+			std::rethrow_exception(result.error);
+		return result;
+	}
+};
+MutationRequest primitive(PrimitiveKind kind, std::string_view source = {}) {
+	MutationRequest r;
+	r.kind = kind;
+	r.source = source;
+	return r;
+}
+// The same commit as Directory::publish, then the collector against the write's table:
+// it keeps what the table reaches and every seal file above it and their outputs.
+Script run(const Write &write, std::set<std::string, std::less<>> keep) {
+	std::vector<std::string> names;
+	if (write.temporaries) {
+		auto cursor = std::shared_ptr<kronuz::journal::DirectoryCursor>((co_await Issue{primitive(PrimitiveKind::Scan)}).cursor);
+		for (;;) {
+			auto next = primitive(PrimitiveKind::Next);
+			next.cursor = cursor;
+			auto name = (co_await Issue{std::move(next)}).name;
+			if (!name)
+				break;
+			names.push_back(std::move(*name));
+		}
+		cursor.reset();
+		for (const auto &name : names)
+			if (name.starts_with(temporary))
+				co_await Issue{primitive(PrimitiveKind::Remove, name)};
+	}
+	for (const auto &group : write.groups) {
+		std::vector<std::shared_ptr<kronuz::journal::File>> handles;
+		std::vector<std::string> written;
+		for (const auto &[name, bytes] : group) {
+			auto open = primitive(PrimitiveKind::OpenCandidate, name);
+			open.read_only = true;
+			if (auto existing = std::shared_ptr<kronuz::journal::File>((co_await Issue{std::move(open)}).file)) {
+				auto size = primitive(PrimitiveKind::Size);
+				size.file = existing;
+				std::string held((co_await Issue{std::move(size)}).length, '\0');
+				for (std::size_t offset = 0; offset < held.size();) {
+					auto read = primitive(PrimitiveKind::Read);
+					read.file = existing;
+					read.offset = offset;
+					read.destination_bytes = std::span<char>(held.data() + offset, held.size() - offset);
+					auto count = (co_await Issue{std::move(read)}).count;
+					require(count && count <= held.size() - offset, "short history read");
+					offset += count;
+				}
+				if (held == bytes)
+					continue; // A reused name holding these bytes was synced before it was linked.
+			}
+			auto tmp = std::string(temporary) + name;
+			auto stale = primitive(PrimitiveKind::OpenCandidate, tmp);
+			stale.read_only = true;
+			if ((co_await Issue{std::move(stale)}).file)
+				co_await Issue{primitive(PrimitiveKind::Remove, tmp)};
+			auto file = std::shared_ptr<kronuz::journal::File>((co_await Issue{primitive(PrimitiveKind::Create, tmp)}).file);
+			for (std::size_t offset = 0; offset < bytes.size();) {
+				auto put = primitive(PrimitiveKind::Write);
+				put.file = file;
+				put.offset = offset;
+				put.bytes = std::string_view(bytes).substr(offset);
+				auto count = (co_await Issue{std::move(put)}).count;
+				require(count && count <= bytes.size() - offset, "short history write");
+				offset += count;
+			}
+			handles.push_back(std::move(file));
+			written.push_back(std::move(tmp));
+		}
+		if (handles.empty())
+			continue;
+		auto sync = primitive(PrimitiveKind::SyncFiles);
+		sync.files = handles;
+		co_await Issue{std::move(sync)};
+		handles.clear();
+		// A name that exists with other bytes is an orphan the durable table does not reach.
+		for (const auto &tmp : written) {
+			auto rename = primitive(PrimitiveKind::Replace, tmp);
+			rename.destination = std::string_view(tmp).substr(temporary.size());
+			co_await Issue{std::move(rename)};
+		}
+		co_await Issue{primitive(PrimitiveKind::DirectorySync)};
+	}
+	if (!write.table)
+		co_return;
+	names.clear();
+	auto cursor = std::shared_ptr<kronuz::journal::DirectoryCursor>((co_await Issue{primitive(PrimitiveKind::Scan)}).cursor);
+	for (;;) {
+		auto next = primitive(PrimitiveKind::Next);
+		next.cursor = cursor;
+		auto name = (co_await Issue{std::move(next)}).name;
+		if (!name)
+			break;
+		names.push_back(std::move(*name));
+	}
+	cursor.reset();
+	std::sort(names.begin(), names.end());
+	for (const auto &name : names)
+		if (history_file(name) && !keep.contains(name))
+			co_await Issue{primitive(PrimitiveKind::Remove, name)};
+}
+class Operation final : public kronuz::journal::IOOperation {
+  public:
+	Operation(std::shared_ptr<kronuz::journal::IO> io, std::shared_ptr<const Write> write,
+			  std::set<std::string, std::less<>> keep)
+		: io_(std::move(io)), write_(std::move(write)), script_(run(*write_, std::move(keep))) {
+		advance();
+	}
+	~Operation() override { script_.handle.destroy(); }
+	Operation(const Operation &) = delete;
+	Operation &operator=(const Operation &) = delete;
+	const MutationRequest &request() const override { return script_.handle.promise().request; }
+	void submitted() override {
+		if (done() || in_flight_)
+			throw std::logic_error("history write already submitted");
+		in_flight_ = true;
+	}
+	bool complete(MutationCompletion completion) noexcept override {
+		if (!in_flight_ || completion.token != request().token)
+			return false;
+		in_flight_ = false;
+		script_.handle.promise().result = std::move(completion);
+		advance();
+		return true;
+	}
+	bool done() const noexcept override { return script_.handle.done(); }
+	bool in_flight() const noexcept override { return in_flight_; }
+	kronuz::journal::IO &io() const noexcept override { return *io_; }
+	std::exception_ptr error() const noexcept { return script_.handle.promise().error; }
+
+  private:
+	void advance() noexcept {
+		script_.handle.resume();
+		if (!done())
+			script_.handle.promise().request.token = {{}, 0, ++step_};
+	}
+	std::shared_ptr<kronuz::journal::IO> io_;
+	std::shared_ptr<const Write> write_;
+	std::uint64_t step_ = 0;
+	bool in_flight_ = false;
+	Script script_;
+};
 } // namespace
 
 Directory::Directory(std::shared_ptr<kronuz::journal::IO> io, Limits limits) : io_(std::move(io)), limits_(limits) {
@@ -62,36 +229,9 @@ std::string Directory::read(std::string_view name) {
 	return std::move(*bytes);
 }
 void Directory::publish(const std::vector<std::pair<std::string, std::string>> &files) {
-	std::vector<std::unique_ptr<kronuz::journal::File>> handles;
-	std::vector<std::string_view> names;
-	for (const auto &[name, bytes] : files) {
-		if (auto existing = find(name); existing && *existing == bytes)
-			continue; // A reused name holding these bytes was synced before it was linked.
-		auto tmp = std::string(temporary) + name;
-		if (io_->open_reclaim_candidate_read_only(tmp))
-			io_->remove(tmp);
-		auto file = io_->create_exclusive(tmp);
-		std::string_view rest = bytes;
-		std::uint64_t offset = 0;
-		while (!rest.empty()) {
-			auto count = file->write_at(offset, rest);
-			require(count && count <= rest.size(), "short history write");
-			offset += count;
-			rest.remove_prefix(count);
-		}
-		handles.push_back(std::move(file));
-		names.push_back(name);
-	}
-	if (handles.empty())
-		return;
-	std::vector<kronuz::journal::File *> group;
-	for (auto &h : handles)
-		group.push_back(h.get());
-	io_->sync_files(group);
-	// A name that exists with other bytes is an orphan the durable table does not reach.
-	for (auto name : names)
-		io_->replace(std::string(temporary) + std::string(name), name);
-	io_->sync_directory();
+	Write write;
+	write.groups.push_back(files);
+	kronuz::journal::drive_synchronously(*write_operation(io_, std::make_shared<const Write>(std::move(write))));
 }
 void Directory::remove(std::string_view name) { io_->remove(name); }
 std::vector<std::string> Directory::names() {
@@ -108,8 +248,31 @@ void Directory::remove_temporaries() {
 			io_->remove(name);
 }
 
+std::shared_ptr<kronuz::journal::IOOperation> write_operation(std::shared_ptr<kronuz::journal::IO> io,
+															  std::shared_ptr<const Write> write) {
+	std::set<std::string, std::less<>> keep(write->above.begin(), write->above.end());
+	if (write->table)
+		for (const auto &[name, _] : reached(*write->table))
+			keep.insert(name);
+	return std::make_shared<Operation>(std::move(io), std::move(write), std::move(keep));
+}
+
 History::History(std::shared_ptr<kronuz::journal::IO> io, Limits limits, Fetch fetch)
 	: directory_(std::move(io), limits), limits_(limits), fetch_(std::move(fetch)), layout_(limits) {}
+
+std::optional<std::string> History::find(std::string_view name) {
+	if (auto planned = planned_.find(name); planned != planned_.end())
+		return planned->second;
+	if (auto queued = unsynced_.find(name); queued != unsynced_.end())
+		return queued->second.bytes;
+	return directory_.find(name);
+}
+std::string History::read(std::string_view name) {
+	auto bytes = find(name);
+	if (!bytes)
+		throw std::runtime_error("absent history file " + std::string(name));
+	return std::move(*bytes);
+}
 
 std::string History::verified(std::string_view name, const std::optional<Digest> &digest) {
 	auto good = [&](const std::string &bytes) {
@@ -122,64 +285,159 @@ std::string History::verified(std::string_view name, const std::optional<Digest>
 			return false;
 		}
 	};
-	if (auto local = directory_.find(name); local && good(*local))
+	if (auto local = find(name); local && good(*local))
 		return std::move(*local);
 	// A peer holds the same bytes under the same name.
-	if (fetch_)
-		if (auto fetched = fetch_(name); fetched && good(*fetched)) {
-			directory_.publish({{std::string(name), *fetched}});
-			return std::move(*fetched);
+	if (fetch_) {
+		auto fetched = fetched_.find(name);
+		if (fetched == fetched_.end())
+			throw Wanted{{std::string(name)}};
+		if (fetched->second && good(*fetched->second)) {
+			stage({{std::string(name), *fetched->second}});
+			return *fetched->second;
 		}
+	}
 	throw std::runtime_error("history file " + std::string(name) + " is missing or rotten and no peer holds it");
 }
 
-void History::recover(const State &state) {
+namespace {
+// A table that fails its digest is missing: a peer's copy, or the first bases, replaces it.
+std::optional<Table> decoded(const std::optional<std::string> &bytes, const Limits &limits) {
+	if (!bytes)
+		return std::nullopt;
+	try {
+		return decode_table(*bytes, limits);
+	} catch (const std::invalid_argument &) {
+		return std::nullopt;
+	}
+}
+} // namespace
+std::optional<Table> History::local_table() { return decoded(find(table_name), limits_); }
+std::optional<Table> History::peer_table() {
+	if (!fetch_)
+		return std::nullopt;
+	auto fetched = fetched_.find(table_name);
+	if (fetched == fetched_.end())
+		throw Wanted{{std::string(table_name)}};
+	return decoded(fetched->second, limits_);
+}
+
+void History::recover(const State &state) { begin(state, false); }
+void History::install(const State &state) { begin(state, true); }
+void History::begin(const State &state, bool install) {
+	++epoch_;
 	ready_ = false;
+	durable_ = 0;
+	table_ = {};
+	failure_ = nullptr;
 	layout_ = Layout(limits_);
-	durable_ = {};
-	directory_.remove_temporaries();
-	auto table = directory_.find(table_name);
+	install_ = install;
+	target_ = state;
+	fetched_.clear();
+	outstanding_ = 0;
+	attempt();
+	if (failure_ && !target_)
+		std::rethrow_exception(failure_);
+}
+
+// Runs the restore against the local files and those fetched so far; when it needs a
+// peer's file it fetches every name it found missing and runs again once they land.
+void History::attempt() {
+	attempting_ = true;
+	for (;;) {
+		plan_ = {};
+		planned_.clear();
+		above_.clear();
+		std::vector<std::string> wanted;
+		try {
+			restore();
+			break;
+		} catch (const Wanted &missing) {
+			wanted = missing.names;
+		} catch (...) {
+			failure_ = std::current_exception();
+			plan_ = {};
+			planned_.clear();
+			fetched_.clear();
+			target_.reset();
+			break;
+		}
+		outstanding_ += wanted.size();
+		for (const auto &name : wanted)
+			fetch_(name, [self = std::weak_ptr<History *>(self_), epoch = epoch_, name](std::optional<std::string> bytes) {
+				auto alive = self.lock();
+				if (!alive)
+					return;
+				auto &history = **alive;
+				if (history.epoch_ != epoch || !history.target_)
+					return; // A newer restore superseded this one.
+				history.fetched_[name] = std::move(bytes);
+				if (!--history.outstanding_ && !history.attempting_)
+					history.attempt();
+			});
+		if (outstanding_)
+			break;
+	}
+	attempting_ = false;
+}
+
+void History::restore() {
+	const auto &state = *target_;
+	layout_ = Layout(limits_);
+	plan_.temporaries = true;
+	std::optional<Table> table;
 	if (!state.positions_enabled()) {
 		// Replay from before the enabling entry folds none of the seals a table holds.
-		if (table)
-			adopt(decode_table(*table, limits_), state);
-		ready_ = true;
-		return;
+		if (!install_ && (table = local_table()))
+			return adopt(std::move(*table), state);
+		return complete(0);
 	}
-	require(state.seal().index == state.applied_index(), "a checkpoint between seals");
-	if (!table && fetch_)
-		table = fetch_(table_name);
+	require(state.seal().index == state.applied_index(),
+			install_ ? "a snapshot between seals" : "a checkpoint between seals");
+	require(!install_ || bool(fetch_), "an install needs a peer's history");
+	if (!install_)
+		table = local_table();
+	if (!table)
+		table = peer_table();
 	if (!table) {
+		require(!install_, "no peer holds a history table");
 		// A checkpoint at the enabling entry may precede its table: take the first bases again.
 		require(!state.seal().ordinal, "the history table is missing and no peer holds it");
-		ready_ = true;
-		seal(state);
-		return;
+		auto sealed = state;
+		complete(0);
+		return seal(sealed);
 	}
-	adopt(decode_table(*table, limits_), state);
+	adopt(std::move(*table), state);
 }
 
 // Adopts a table: every file it reaches verified (or fetched), then the seal files
 // through the state's seal. A table past the state's seal already holds the seals
 // that replay re-applies; those fold nothing (D6 "Recovery").
 void History::adopt(Table table, const State &state) {
+	std::vector<std::string> wanted;
 	for (const auto &[name, digest] : reached(table))
-		verified(name, digest);
-	durable_ = std::move(table);
-	layout_ = Layout(durable_, limits_);
-	if (durable_.index < state.seal().index)
-		chain(state);
+		try {
+			verified(name, digest);
+		} catch (const Wanted &) {
+			wanted.push_back(name);
+		}
+	if (!wanted.empty())
+		throw Wanted{std::move(wanted)};
+	layout_ = Layout(table, limits_);
+	if (table.index < state.seal().index)
+		chain(state, table);
 	else
-		require(durable_.index > state.seal().index || durable_.ordinal == state.seal().ordinal,
+		require(table.index > state.seal().index || table.ordinal == state.seal().ordinal,
 				"the history table and the checkpoint disagree");
 	// Every file the table reaches is durable before the table that names it.
-	directory_.publish({{std::string(table_name), encode(durable_)}});
-	ready_ = true;
-	collect();
+	stage({{std::string(table_name), encode(table)}});
+	plan_.table = std::move(table);
+	plan_.above = above_;
+	complete(layout_.table().index);
 }
 
 // Replays the seal files above the table through the state's seal, newest named first.
-void History::chain(const State &state) {
+void History::chain(const State &state, Table &durable) {
 	std::vector<std::string> seals;
 	for (auto index = state.seal().index; index > layout_.table().index;) {
 		auto bytes = verified(seal_name(index), std::nullopt);
@@ -187,31 +445,63 @@ void History::chain(const State &state) {
 		seals.push_back(std::move(bytes));
 	}
 	for (auto it = seals.rbegin(); it != seals.rend(); ++it) {
-		auto step = layout_.replay(*it, directory_);
-		directory_.publish(step.written); // Rebuilds an output a crash left missing.
+		auto step = layout_.replay(*it, *this);
+		stage(step.written); // Rebuilds an output a crash left missing.
+		kept(step);
 		if (step.table) {
-			directory_.publish({{std::string(table_name), encode(*step.table)}});
-			durable_ = *step.table;
+			stage({{std::string(table_name), encode(*step.table)}});
+			durable = std::move(*step.table);
 		}
 	}
 	require(layout_.table().index == state.seal().index && layout_.table().ordinal == state.seal().ordinal,
 			"the seal chain does not reach the checkpoint");
 }
 
-void History::install(const State &state) {
-	ready_ = false;
-	layout_ = Layout(limits_);
-	durable_ = {};
-	if (!state.positions_enabled()) {
-		ready_ = true;
+// The collector keeps every seal file above the durable table and its outputs.
+void History::kept(const Step &step) {
+	if (step.table) {
+		above_.clear();
 		return;
 	}
-	require(state.seal().index == state.applied_index(), "a snapshot between seals");
-	require(bool(fetch_), "an install needs a peer's history");
-	auto table = fetch_(table_name);
-	require(table.has_value(), "no peer holds a history table");
-	directory_.remove_temporaries();
-	adopt(decode_table(*table, limits_), state);
+	above_.push_back(seal_name(step.seal.index));
+	for (const auto &o : step.seal.outputs)
+		above_.push_back(o.name());
+}
+
+// Queues the restore's writes; the layout is ready for seals at once.
+void History::complete(std::uint64_t durable) {
+	plan_.durable = durable;
+	plan_.epoch = epoch_;
+	queue(std::move(plan_));
+	plan_ = {};
+	planned_.clear();
+	fetched_.clear();
+	target_.reset();
+	failure_ = nullptr;
+	ready_ = true;
+}
+
+void History::stage(Group group) {
+	if (group.empty())
+		return;
+	for (const auto &[name, bytes] : group)
+		planned_[name] = bytes;
+	plan_.groups.push_back(std::move(group));
+}
+void History::queue(Write write) {
+	for (const auto &group : write.groups)
+		for (const auto &[name, bytes] : group) {
+			auto &queued = unsynced_[name];
+			queued.bytes = bytes;
+			++queued.writes;
+		}
+	writes_.push_back(std::make_shared<const Write>(std::move(write)));
+}
+void History::release(const Write &write) noexcept {
+	for (const auto &group : write.groups)
+		for (const auto &[name, _] : group)
+			if (auto queued = unsynced_.find(name); queued != unsynced_.end() && !--queued->second.writes)
+				unsynced_.erase(queued);
 }
 
 void History::seal(const State &sealed) {
@@ -219,39 +509,60 @@ void History::seal(const State &sealed) {
 	if (sealed.applied_index() <= layout_.table().index)
 		return; // The adopted table already holds this seal.
 	try {
-		auto step = layout_.seal(sealed, directory_);
-		directory_.publish({{seal_name(step.seal.index), step.bytes}}); // In seal order: all a checkpoint waits for.
-		directory_.publish(step.written);
+		auto step = layout_.seal(sealed, *this);
+		Write write;
+		write.groups.push_back({{seal_name(step.seal.index), std::move(step.bytes)}}); // In seal order.
+		if (!step.written.empty())
+			write.groups.push_back(std::move(step.written));
+		kept(step);
 		if (step.table) {
-			directory_.publish({{std::string(table_name), encode(*step.table)}});
-			durable_ = std::move(*step.table);
-			collect();
+			write.groups.push_back({{std::string(table_name), encode(*step.table)}});
+			write.table = std::move(step.table);
 		}
+		write.durable = step.seal.index;
+		write.epoch = epoch_;
+		queue(std::move(write));
 	} catch (...) {
 		ready_ = false;
 		throw;
 	}
 }
 
-// Unlinks what the durable table does not reach, keeping every seal file above it and its outputs.
-void History::collect() {
-	std::set<std::string, std::less<>> keep;
-	for (const auto &[name, _] : reached(durable_))
-		keep.insert(name);
-	auto names = directory_.names();
-	for (const auto &name : names)
-		if (name.starts_with("seal-") && seal_index(name) > durable_.index) {
-			keep.insert(name);
-			try {
-				for (const auto &o : decode_seal(directory_.read(name), limits_).outputs)
-					keep.insert(o.name());
-			} catch (const std::invalid_argument &) {
-				// A rotten seal file above the table: its outputs stay until it is rebuilt.
-				return;
-			}
-		}
-	for (const auto &name : names)
-		if (history_file(name) && !keep.contains(name))
-			directory_.remove(name);
+void History::abandon() noexcept {
+	++epoch_;
+	ready_ = false;
+	target_.reset();
+	fetched_.clear();
+	outstanding_ = 0;
+}
+std::shared_ptr<kronuz::journal::IOOperation> History::take_io_operation() {
+	if (operation_ || writes_.empty())
+		return nullptr;
+	return operation_ = write_operation(directory_.io(), writes_.front());
+}
+void History::settle() {
+	if (!operation_ || !operation_->done())
+		return;
+	auto error = static_cast<const Operation &>(*operation_).error();
+	operation_.reset();
+	auto write = std::move(writes_.front());
+	writes_.pop_front();
+	release(*write);
+	if (error)
+		return stall(error);
+	if (write->epoch != epoch_)
+		return;
+	durable_ = std::max(durable_, write->durable);
+	if (write->table)
+		table_ = *write->table;
+}
+// A failed write stalls history: the queued writes after it depend on it and never run.
+void History::stall(std::exception_ptr error) noexcept {
+	ready_ = false;
+	failure_ = std::move(error);
+	while (!writes_.empty() && !(operation_ && writes_.size() == 1)) {
+		release(*writes_.back());
+		writes_.pop_back();
+	}
 }
 } // namespace detent::authority::history

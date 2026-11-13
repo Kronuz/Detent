@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
-# Applies one S5.2 mutant to the source, builds the test that must kill it and runs it.
-# Exits 1 when the test fails (the mutant is killed), 0 when it passes or the mutant or
-# its build does not apply, so a `--fails-without` job succeeds only on a real kill.
+# Applies one history mutant to the source, builds the test that must kill it and runs it.
+# Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
+# or its build does not apply, as `campaign job submit --fails-without` expects.
 set -u
 mutant=${1:?usage: history_mutant.sh MUTANT}
 build=.scratch/history-mutant-build
@@ -35,9 +35,9 @@ cut-at-twice-the-cost) file=src/detent_authority/history_layout.cc test=test_aut
 ring-by-group-revision) file=src/detent_authority/change_history.cc test=test_authority_history_cluster
 	old='		if (!record || record->revision != entry_->position)'
 	new='		if (!record || record->revision != entry_->revision)' ;;
-*) echo "unknown mutant $mutant"; exit 0 ;;
+*) echo "unknown mutant $mutant"; exit 1 ;;
 esac
-OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 0; }
+OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }
 import os, sys
 path = sys.argv[1]
 text = open(path).read()
@@ -50,12 +50,12 @@ git diff --stat
 trap 'git checkout -- "$file"' EXIT
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON \
-	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null || { echo "configure failed"; exit 0; }
-cmake --build "$build" -j4 --target "$test" >/dev/null || { echo "build failed"; exit 0; }
+	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null || { echo "configure failed"; exit 1; }
+cmake --build "$build" -j4 --target "$test" >/dev/null || { echo "build failed"; exit 1; }
 binary=$(find "$build" -name "$test" -type f -perm -u+x | head -n 1)
-[ -n "$binary" ] || { echo "no $test"; exit 0; }
+[ -n "$binary" ] || { echo "no $test"; exit 1; }
 "$binary"
 status=$?
-if [ "$status" -eq 0 ]; then echo "mutant $mutant survived $test"; exit 0; fi
+if [ "$status" -eq 0 ]; then echo "mutant $mutant survived $test"; exit 1; fi
 echo "mutant $mutant killed by $test (status $status)"
-exit 1
+exit 0

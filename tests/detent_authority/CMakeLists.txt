@@ -62,8 +62,11 @@ if(DETENT_BUILD_AUTHORITY)
   set_tests_properties(test_authority_namespace_power_cut PROPERTIES TIMEOUT 600)
   add_executable(test_authority_history_power_cut test_history_power_cut.cc)
   target_link_libraries(test_authority_history_power_cut PRIVATE detent::authority_node)
-  add_test(NAME test_authority_history_power_cut COMMAND test_authority_history_power_cut)
-  set_tests_properties(test_authority_history_power_cut PROPERTIES TIMEOUT 600)
+  add_test(NAME test_authority_history_power_cut COMMAND test_authority_history_power_cut cuts)
+  add_test(NAME test_authority_history_power_cut_lagged COMMAND test_authority_history_power_cut lagged)
+  add_test(NAME test_authority_history_power_cut_installs COMMAND test_authority_history_power_cut installs rot)
+  set_tests_properties(test_authority_history_power_cut test_authority_history_power_cut_lagged
+                       test_authority_history_power_cut_installs PROPERTIES TIMEOUT 600)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)

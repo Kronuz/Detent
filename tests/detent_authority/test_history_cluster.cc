@@ -188,6 +188,7 @@ int main() {
 	policy.alpha_num = 1;
 	policy.alpha_den = 2;
 	testing::history_policy = policy;
+	testing::cached_storage = true;
 	testing::ring = [](unsigned i) { return rings[i] = std::make_shared<Ring>(); };
 	Cluster group;
 	group.until([&] { return group.nodes[0]->worker().role() == Role::Leader; });

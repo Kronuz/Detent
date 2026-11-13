@@ -2,6 +2,7 @@
 // An in-process group of three voters with partitions, restarts and snapshot installs.
 #include "node.hh"
 #include <completion/posix.h>
+#include <journal/memory_io.h>
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -11,6 +12,7 @@
 #include <functional>
 #include <iterator>
 #include <optional>
+#include <tuple>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -21,8 +23,27 @@ inline bool completion_storage = false;
 // fetching what it lacks from its peers' directories, and gets the ring `ring(i)`.
 inline std::optional<LayoutPolicy> history_policy;
 inline std::function<std::shared_ptr<AppliedChangeRecorder>(unsigned)> ring;
+// Journals live in memory (journal's MemoryIO, kept across restarts) and history syncs
+// reach the page cache only, so a run waits on no device flush; power cuts are the
+// crash model's.
+inline bool cached_storage = false;
+inline std::unique_ptr<kronuz::journal::PosixIO> directory_io(const std::filesystem::path &path) {
+	auto io = std::make_unique<kronuz::journal::PosixIO>(path);
+	if (cached_storage) {
+		auto none = +[](int) { return 0; };
+#ifdef __APPLE__
+		io->replace_sync_calls(none, +[](int, int) { return 0; });
+#elif defined(__linux__)
+		io->replace_sync_calls(none, none);
+#else
+		io->replace_sync_calls(none);
+#endif
+	}
+	return io;
+}
 struct Cluster {
 	std::filesystem::path root;
+	std::array<kronuz::journal::testing::Disk, 3> disks;
 	std::array<std::unique_ptr<Node>, 3> nodes;
 	std::array<std::deque<Receive>, 3> messages;
 	std::array<std::vector<Completion>, 3> completed;
@@ -73,13 +94,21 @@ struct Cluster {
 		auto directory = root / std::to_string(i);
 		std::filesystem::create_directories(directory);
 		chmod(directory.c_str(), 0700);
-		nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
+		if (cached_storage)
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::testing::MemoryIO>(disks[i]), options(i));
+		else
+			nodes[i] = std::make_unique<Node>(directory_io(directory), options(i));
 		if (history_policy) {
 			auto files = history_directory(i);
 			std::filesystem::create_directories(files);
 			chmod(files.c_str(), 0700);
-			nodes[i]->attach_history(std::make_shared<kronuz::journal::PosixIO>(files),
-									 [this, i](std::string_view name) { return fetch(i, name); });
+			nodes[i]->attach_history(directory_io(files),
+									 [this, i](const std::string &name, history::Fetched done) {
+										 if (deferred)
+											 fetches.emplace_back(i, name, std::move(done));
+										 else
+											 done(fetch(i, name));
+									 });
 		}
 		if (ring)
 			nodes[i]->attach_change_recorder(ring(i));
@@ -95,12 +124,31 @@ struct Cluster {
 			if (auto job = nodes[i]->worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
+			if (auto job = nodes[i]->take_history_operation())
+				kronuz::journal::drive_synchronously(*job);
 			nodes[i]->take_network_actions();
 		}
 		assert(nodes[i]->worker().ready());
 		nodes[i]->start();
 	}
 	std::filesystem::path history_directory(unsigned i) const { return root / (std::to_string(i) + ".history"); }
+	// Peer fetches answer at once, or wait in `fetches` while `deferred` until answered.
+	bool deferred = false;
+	std::vector<std::tuple<unsigned, std::string, history::Fetched>> fetches;
+	void answer_fetches() {
+		auto pending = std::move(fetches);
+		fetches.clear();
+		for (auto &[i, name, done] : pending)
+			done(fetch(i, name));
+	}
+	// A voter whose history writes wait in `held` until released.
+	std::array<bool, 3> held_history{};
+	std::array<std::shared_ptr<kronuz::journal::IOOperation>, 3> held;
+	void release_history(unsigned i) {
+		if (held[i])
+			kronuz::journal::drive_synchronously(*held[i]);
+		held[i].reset();
+	}
 	// A peer serves a history file by name (D6 "Recovery"); every voter holds the same bytes.
 	std::optional<std::string> fetch(unsigned i, std::string_view name) const {
 		for (unsigned j = 0; j < 3; ++j) {
@@ -161,6 +209,10 @@ struct Cluster {
 			if (auto job = nodes[i]->worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
+			if (auto job = nodes[i]->take_history_operation(); job && !held_history[i])
+				kronuz::journal::drive_synchronously(*job);
+			else if (job)
+				held[i] = std::move(job);
 			for (auto &action : nodes[i]->take_network_actions()) {
 				if (auto send = std::get_if<Send>(&action)) {
 					auto peer = static_cast<unsigned>(send->peer - 1);
