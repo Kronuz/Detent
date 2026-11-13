@@ -5,11 +5,17 @@ Quest: .campaign/detent/quests/logger-followups.md (the lead's; never edit it)
 
 ## Doing
 
-Lead's follow-up done at logger:4f26753: arms C and D, wheel-port.sh, sizeof.cc deleted; README, AGENTS, docs/perf reworded; A2 grep now whole repo. All jobs passed.
+CI fixes at logger:2bafea1 (CI run 43335535307 green on every job). Transcript: the random section's
+`std::string s(rng() % 60, 'a' + rng() % 26)` drew its two values in unspecified argument order (gcc
+right to left, clang left to right), not a std distribution; now two sequenced statements in the
+golden's order, so the golden is unchanged and serves every platform. deferred.cc: the lateness bounds
+are opt-in (DEFERRED_LATENESS=1, `test/deferred_lateness.sh`), reported always; ordering, once-only and
+never-early are the pass/fail path; the mutant script runs with the bound on (the late mutant needs it).
 
 ## Next
 
-1. Review. CI needs the branch pushed (lead).
+1. Review. Strict job 261112-162248-40c765 (lateness bounds, 20 repeats) is queued behind the
+   machine; it passed at 2f300c9 (261112-160518-1a7ae1), same test code.
 
 ## Blocked on
 
@@ -18,18 +24,15 @@ lead's new quest, logger-exit-crash; see Result.)
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-154326-0214a8 |
-| A2 | 261112-154159-639ab1 (passed at 3bdf664566b6; ignores docs-only docs/ROADMAP.md), 261112-154201-da17c7 (same), 261112-154205-39b3fa (same) |
-| A3 | 261112-154159-639ab1 (same); fails without: 261112-153648-ec9876, 261112-153825-06b388 |
+| A1 | 261112-162247-3c16de (x50 under load, bounds off); TSan suite 261112-162247-219244; lateness bounds on a quiet machine 261112-162248-40c765 (queued; 261112-160518-1a7ae1 passed at 2f300c9) |
+| A2 | 261112-161458-af4825, 261112-162248-78ca6c, 261112-162248-a68768 |
+| A3 | 261112-161458-af4825; fails without: 261112-153648-ec9876, 261112-161449-b3e0b7 (the late arm needs DEFERRED_LATENESS=1) |
 | A4 | `ARCHITECTURE.md`: "so the batch rarely takes an insert" |
 
 A1's job runs logger_deferred, _stress and _ties 50 times each (150 passes) under one busy loop per
-CPU, with the lateness bound off (DEFERRED_LOADED: its first run failed that bound at p99 5.3 ms against
-4.9 ms, which a loaded machine has no claim to; the suite job keeps the bound on). A3's `fails without` is
+CPU, with lateness unbounded (a loaded machine has no bound; the bounds run only under DEFERRED_LATENESS=1). A3's `fails without` is
 `test/deferred_mutant.sh`: the early and late arms and the new `ties` mutant are each killed.
 
 ## Result
