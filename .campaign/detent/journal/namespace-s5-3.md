@@ -1,6 +1,6 @@
 # namespace-s5-3: journal
 
-State: waiting on jobs 261113-013247-78f1d4 261113-013251-a8f47b 261113-013300-94782d
+State: waiting on jobs 261113-032549-708552 261113-032551-c8c730 261113-032554-b6d693 261113-032601-1a5622 261113-032609-b2cea0
 Quest: .campaign/detent/quests/namespace-s5-3.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,34 +9,34 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A2-A5 are in at e67233f0; jobs queued there:
+Every criterion is in code at d52bbc1b (main merged at e4a7e81d, consensus pinned at a197efb).
+Jobs there:
 
-- Gate: pins 261113-013222-0492b8; full native suite 261113-013247-78f1d4 (not a quest check).
-- A2, A3, A4: history tests (power cut cuts/lagged/installs/rot, node power cut, cluster,
-  change history, layout) 261113-013224-9d40a2.
-- A2, A3, A4 mutants (`--fails-without`): durable-at-seal, trust-rotten-table,
-  retained-bounds-only 261113-013251-a8f47b.
-- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-013300-94782d.
+- Gate: pins 261113-032549-708552; full native suite 261113-032551-c8c730.
+- A1-A4: history tests (transport install, names, power cut, node power cut, cluster, change
+  history, layout) 261113-032554-b6d693.
+- A1-A4 mutants (`--fails-without`): reader-serves-nothing, durable-at-seal, trust-rotten-table,
+  retained-bounds-only, serve-any-name, namespace-in-file-names 261113-032601-1a5622.
+- A5 (`--fails-without`): the seven S5.2 mutants unwrapped 261113-032609-b2cea0.
 
-Local at e67233f0 (quiet light): authority suite 50/51, the one failure
-`test_authority_snapshot_catchup` (detentd TLS read timeout under the parallel run) passing alone
-in 51.7 s, as in S5.2's journal; the native job decides. The cluster test runs in 0.1 s.
+Earlier, at e67233f0: pins, history tests, suite, both mutant runs passed (261113-013222-0492b8,
+-013224-9d40a2, -013247-78f1d4, -013251-a8f47b, -013300-94782d).
 
-Passed: pins 261113-013222-0492b8, history tests 261113-013224-9d40a2.
+Local at d52bbc1b: `test_authority_history_transport` passes in 2.5 s (voter three installed at
+index 37 with an empty history directory, 12 files fetched, 11 files identical, 15 answers
+equal); `test_authority_history_names --measure`: serving 64 MiB from the page cache, 16 ms mean,
+18 ms slowest over eight reads.
 
 A4's "CI green on every sanitizer job" needs the branch pushed, which is the lead's.
 
 ## Next
 
-1. Read the jobs; fix what fails.
-2. A1 once the lead rules (msg-46): the production `history::Fetch` and its endpoint, a cluster
-   test over the real transport (an empty history directory installs and answers the same bytes),
-   docs Left open item 5.
+1. Read the jobs; fix what fails; paste the evidence table; State "ready for review".
 
 ## Blocked on
 
-A1's endpoint: msg-46 to the lead (a resend: msg-44 is gone from state.json; options: a fetch lane in consensus's peer transport,
-recommended; `GET /v2/history/<name>` on the publisher listener; a dedicated history TLS listener).
+Nothing. msg-46 (A1's endpoint): ruled D91, option 1, consensus-fetch-lane at consensus:a197efb;
+done here.
 
 ## Evidence
 
@@ -44,15 +44,20 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending the lead's ruling> |
-| A2 | <jobs to submit> |
-| A3 | <jobs to submit> |
-| A4 | <jobs to submit> |
-| A5 | <jobs to submit> |
+| A1 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
+| A2 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
+| A3 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 |
+| A4 | 261113-032554-b6d693; fails without: 261113-032601-1a5622 (sanitizer CI needs a push) |
+| A5 | fails without: 261113-032609-b2cea0 |
 
 ## Result
 
-<When ready for review.>
+History is production-ready for S6's enabling entry: writes leave apply's seal and run as
+completion IO the service drives, `durable_through` counts settled writes, a rotten table is
+fetched or stops recovery, the node refuses consensus limits below the policy, and voters fetch
+history files from each other over consensus's fetch lane, serving only history names. How it
+works and what is left open: `docs/status/namespace-s5.md` (S5.2 section, S5.3 paragraphs and
+Left open 5-6).
 
 ## Rulings I made
 
@@ -82,3 +87,17 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
    (stubbing syncs alone left it at 25-47 s on this loaded host: unlink, rename and create).
 9. The power-cut test splits into three ctest entries (`cuts`, `lagged`, `installs rot`) so each
    stays well inside a sanitizer job's per-test budget.
+10. File names carry a namespace as the first 16 bytes of its SHA-256 in hex. A namespace may hold
+   `/` and run to 199 bytes (knob-name rules), so the old names could not be files for such a
+   namespace; found while confining the reader's names (F6). The collector removes only
+   `history_name`s.
+11. `PeerHistory` reports "no peer holds it" only when every other voter answers not-found; a round
+   with an error (no lane yet, timeout, busy) retries after 200 ms, so a voter waits for a peer it
+   cannot reach instead of failing its restore.
+12. The service starts its peers before recovery (a restore fetches before replay ends);
+   consensus frames still wait for `admit()`, which starts with the service loop.
+13. Consensus review F3: the reader stays on the owner executor (its signature is synchronous),
+   bounded to one file of at most `fetch_bytes`, refused unread above it; 64 MiB from the page
+   cache costs 16-18 ms here. Serving off the executor needs an asynchronous reader in consensus
+   (Left open 5). F6: names outside `history_name` are refused before the disk, with a test and
+   the serve-any-name mutant.
