@@ -6399,8 +6399,8 @@
     "namespace-s8": {
       "accepted": {
         "durability": {
-          "at": "2026-11-13T01:56:05",
-          "base": "179b7185521d702741035557467209a3da0e34bd",
+          "at": "2026-11-13T02:10:22",
+          "base": "a8b2139969aa11d3e7e5c4039406c2fe50e0ba7d",
           "blobs": {
             "docs/status/namespace-s8.md": "100644:1acec6a6c3480b0e97b6d54a76a2455510e79310",
             "include/detent_relay/mirror.hh": "100644:99b80536b685663f7d8e31f0eb4d53186f5957ea",
@@ -6429,7 +6429,7 @@
             "tests/detent_relay/test_relay_mirror_crash.cc": "100644:d88ca0843e5490947b720c736b39b2ace897f6cc"
           },
           "by": "review",
-          "commit": "9bf4c2d3c18444eee1620c97871ca342a3f5ff9a",
+          "commit": "723ac7da108fc577ad5bb63be9042d6891dd4192",
           "criteria": "e321377b59fa2356",
           "diffs": {
             "": "174cc01d3b227f42",
@@ -6500,7 +6500,7 @@
               "tests/detent_relay/mutants/hide-failed.patch",
               "tests/detent_relay/mutants/relink-unsynced.patch"
             ],
-            "reason": "the files the review never saw are the D1/D2 mutant patches and the status doc; they add no mechanism"
+            "reason": "the files the review never saw are the D1/D2 mutant patches and the status doc; they add no mechanism; the merge from main touches no relay code"
           },
           "note": "",
           "review": "c060b5ca5f78b793f1f9d6faaae82613114c54a5",
@@ -6606,7 +6606,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-13T01:56:05",
+      "updated": "2026-11-13T02:10:22",
       "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s8-wiring": {
