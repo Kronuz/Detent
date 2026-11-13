@@ -35,13 +35,13 @@ Nothing.
 
 ## Evidence
 
-Jobs at Detent:10dd82f4 (submitted; not yet finished when I ended the turn):
+Jobs at Detent:10dd82f4: tests, suite, grep, pins passed; the mutant chain (resubmitted after a lost runner, 261113-110848-13d230) was still queued when I ended the turn:
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261113-110844-ce6ed4 (frames test repeated 10x); fails without: 261113-110856-8d85ed (no gap hold-back), 261113-110859-cb0904 (blocks as sections: byte compare) |
-| A2 | 261113-110844-ce6ed4; fails without: 261113-110848-13d230 (F1: identity before position) |
-| A3 | 261113-110844-ce6ed4, grep 261113-110908-1667b8; fails without: 261113-110852-976bed (F2: `all` ignores grants), 261113-110903-cfcbae (follows ignore grants) |
+| A1 | 261113-110844-ce6ed4 (frames test repeated 10x); fails without: 261113-111927-782fff (no gap hold-back), 261113-111933-37ff44 (blocks as sections: byte compare) |
+| A2 | 261113-110844-ce6ed4; fails without: 261113-111916-9d2378 (F1: identity before position) |
+| A3 | 261113-110844-ce6ed4, grep 261113-110908-1667b8; fails without: 261113-111922-acbcde (F2: `all` ignores grants), 261113-111939-5a2a5f (follows ignore grants) |
 | suite | 261113-110906-90d130 (native, fresh checkout) |
 | pins | 261113-110911-9ff8f5 |
 
