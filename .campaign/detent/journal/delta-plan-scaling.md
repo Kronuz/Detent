@@ -1,6 +1,6 @@
 # delta-plan-scaling: journal
 
-State: blocked on lead: the fix is in src/detent_local/paged_trie_overlay.{cc,hh}, outside the file set
+State: waiting on jobs 261112-170932-ee31ea 261112-170935-8c7bb4 261112-171004-4fde22 261112-170947-1b9b23 261112-170951-9c408e 261112-170955-436de9 261112-170958-40ef49
 Quest: .campaign/detent/quests/delta-plan-scaling.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,19 +32,17 @@ sha256 b7f66891adadebd7da65c09f36b93251bd8f37d9343423a447adbe276b1f6284).
 
 ## Next
 
-1. On the ruling: commit the candidate (fix + test + CMake + tests/detent_local/test_delta_plan_removal_probes.mutant.patch).
-2. Jobs: `campaign verify delta-plan-scaling --for A4`; mutant `--for A4 --fails-without -- tests/detent/one_knob_mutant.sh
-   tests/detent_local/test_delta_plan_removal_probes.mutant.patch test_local_delta_plan_removal_probes`; A3 identity.sh
-   with `--ref base=main` (100K f 0.05,0.5,1; 1M f 0.5); A2 light prep (harness build + 100K/1M/5M prepared stores)
-   then strict `round 1 full 0.5` at 100K and 1M, then one exclusive 5M `round 1 full 0.5` (T9_BUDGET_S ~300).
-3. Fill docs/perf/delta-plan-scaling.md's after table from the jobs; delete .scratch stores and builds.
+1. Wait for the jobs; the 100K/1M strict rounds (170955, 170958) follow their prep jobs (170947, 170951).
+   Scripts and corpora are in ~/.scratch/dps (a2.sh prep|round SIZE CORPUS SHA ARMS).
+2. After 100K and 1M pass: one exclusive 5M round, `a2.sh prep 5m` (light) then `round 5m ... full 0.5` with
+   T9_BUDGET_S ~300, --for A2.
+3. Fill docs/perf/delta-plan-scaling.md's after table from the jobs; replace the A5 row; Result; delete stores.
+
+Committed: fix 2396a240, merged main d660a78a. File set widened by the lead (overlay).
 
 ## Blocked on
 
-Lead: widen the file set to src/detent_local/paged_trie_overlay.cc and .hh (the cause and the 6-line fix live
-there; nothing in the current set can change it: paged_delta_plan.cc only hands keys to the overlay). Options:
-(1) widen the set (recommended; the overlay's sibling, paged_overlay_assembler, already indexes the same pages
-this way); (2) move the quest to whoever holds the overlay. No contract or byte change either way.
+Nothing.
 
 ## Evidence
 
