@@ -957,12 +957,12 @@
     "consensus-fetch-lane": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-13T02:28:45",
+          "at": "2026-11-13T02:54:57",
           "base": "3d988d17d89fea17bc66825835397e0bbe324b80",
           "blobs": {
             "CHANGELOG.md": "100644:463588440ae6918dcb1df827a6e4a536b1790dc9",
             "README.md": "100644:8ee0b4c2d0604c65dcd43fa32832d1053809c63f",
-            "docs/mechanisms/peer-fetch.md": "100644:4dd58c0485f136fb12b11fc2d6aa30a10b168dac",
+            "docs/mechanisms/peer-fetch.md": "100644:ea7c1d29861eb96442cb02d937bec32f8134a1f2",
             "fuzz/corpus/decoders/0ec6e5de105353420732228ec00caaf911940d85": "100644:97bd5f45de9cbfe47c49da8a48befab953fbd036",
             "fuzz/corpus/decoders/60353d1cc5624062023a292619506bf26a4908d7": "100644:fd0341fecd502cba3af61bc3ea634e3ca6860418",
             "fuzz/corpus/decoders/e28caa5067b54442eef9e4f5aa041ac1737deaf1": "100644:a1296cf0eb58398532e0c47f4e1621eced98143c",
@@ -971,36 +971,36 @@
             "include/consensus/transport/fetch.h": "100644:df4cdf16d4bd2f4c0fcf39e71d0dad9376d3b191",
             "include/consensus/transport/peers.h": "100644:51aabd6d2c6ffa796035f541a64f5273b4b203ad",
             "test/transport/codec_test.cc": "100644:3e638607d5a0dbd246c2f663dbe8c0960a1a5e43",
-            "test/transport/peers_test.cc": "100644:87763b99585fad4a57e10222be79dbd870936d17"
+            "test/transport/peers_test.cc": "100644:aa32efd81a675e4962bb399deb782460289af08f"
           },
           "by": "review",
-          "commit": "07077b986493919eab001d0fbcc4582da67b8bd5",
+          "commit": "a197efba7ac0e2e939cc7833cac07d5793d16522",
           "criteria": "3d2553bb754a0de6",
           "diffs": {
             "": "1d5ab52dacd34582",
             "CHANGELOG.md": "5fb766e869ffedb7",
             "README.md": "bba9683e0fe1874d",
-            "docs/mechanisms/peer-fetch.md": "dfa26b27c9c931e4",
+            "docs/mechanisms/peer-fetch.md": "4a25eaf733b425d6",
             "fuzz/fuzz_decoders.cc": "029e9a521c90536b",
             "fuzz/seed.cc": "274c97292b7c9cce",
             "include/consensus/transport/fetch.h": "8e93842b88ae2edd",
             "include/consensus/transport/peers.h": "af6f0a11551486fb",
             "test/transport/codec_test.cc": "3eacead2870411e0",
-            "test/transport/peers_test.cc": "62ea5d128edd8d0b"
+            "test/transport/peers_test.cc": "b078e3652b5d9fa4"
           },
           "findings": {
             "F1": {
               "jobs": [
                 {
                   "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
-                  "commit": "07077b986493919eab001d0fbcc4582da67b8bd5",
+                  "commit": "a197efba7ac0e2e939cc7833cac07d5793d16522",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261113-022554-e164e1",
+                  "job": "261113-025143-f37c46",
                   "level": "light",
-                  "seconds": 146.8,
+                  "seconds": 132.4,
                   "state": "done",
-                  "what": "consensus-fetch-lane check suite at 07077b986493"
+                  "what": "consensus-fetch-lane check suite at a197efba7ac0"
                 }
               ],
               "kind": "defect",
@@ -1053,7 +1053,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus fetch lane: name-to-bytes reads between peers",
-      "updated": "2026-11-13T02:28:45",
+      "updated": "2026-11-13T02:54:57",
       "worktree": "../consensus-wt/detent/consensus-fetch-lane"
     },
     "consensus-late-append": {
