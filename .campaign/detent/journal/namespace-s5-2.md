@@ -9,15 +9,36 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1: the layout policy in `Limits`, the set-limits entry (`AdministrativeKind::SetLayout`), and
+the seal in apply (ordinal, counters, accumulator, last seal index) carried by the image.
+
+## Proposed split (for the lead)
+
+The quest splits cleanly at the disk:
+
+1. **s5-2a, the layout in memory** (steps 1-3): policy and set-limits entry, seals with apply's
+   accumulator and ordinal, the seal-file / block / base / table formats, roll-up, squash, cut,
+   carry, first bases at the enabling entry, and the three answers. Criteria A3, A6, A7 and A1's
+   voter identity with a capture failure and a policy change. Nothing consumes it until S6.
+2. **s5-2b, the layout on disk** (steps 4-7): files under the commit protocol, collector,
+   recovery, checkpoint at the seal persisted after a durable layout, the ring keyed by namespace
+   position with lazy eviction and no reset, install and repair from a peer, the crash matrix.
+   Criteria A2, A4, A5 and A1's restart and install cases.
+
+I keep going on both in this branch unless the lead splits it; each step is its own commit.
 
 ## Next
 
-1. <step>
+1. Step 2: history formats (record, section, block, base, seal file, table), SHA-256 names.
+2. Step 3: the layout engine and answers, with an oracle over every position (A3, A6).
+3. Step 4: history files over `journal::IO`, commit, collector, recovery; checkpoint at the seal.
+4. Step 5: the ring keyed by namespace position, lazy eviction, no reset at restart (A2).
+5. Step 6: install and repair from a peer (A4).
+6. Step 7: crash matrix (A5) and the cluster identity job (A1).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
