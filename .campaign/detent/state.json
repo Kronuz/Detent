@@ -925,11 +925,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "waits for the first STRAY line in a CI log (D89)",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "blocked",
       "title": "Name the sender of the coordinator fixture's stray bytes",
-      "updated": "2026-11-12T19:35:00"
+      "updated": "2026-11-12T19:35:01"
     },
     "coordinator-idle-flake": {
       "accepted": {},
