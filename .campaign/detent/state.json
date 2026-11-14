@@ -7416,8 +7416,8 @@
       "risk": "high",
       "status": "dropped",
       "title": "Namespace S7 wiring: the agent publishes and reads through the agent store",
-      "updated": "2026-11-12T14:58:36",
-      "worktree": "../Detent-wt/detent/namespace-s7-wire"
+      "updated": "2026-11-13T17:01:28",
+      "worktree": ""
     },
     "namespace-s8": {
       "accepted": {
