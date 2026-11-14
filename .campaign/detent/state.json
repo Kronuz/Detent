@@ -344,6 +344,13 @@
       "closed": "noted: quick-fix rule (agent-campaign:1488a12) replaces the five-line edit rule; applies outside high/critical areas",
       "id": "msg-51",
       "text": "Owner asked for quick fixes in the campaign skill; landed agent-campaign:1488a12 (dotfiles:3a19886). An obvious cause, tens of lines outside high/critical areas, a test failing without it: commit fix+test to main, push, fix forward on red CI; commit message is the record. Replaces the lead's five-line-edit rule."
+    },
+    {
+      "at": "2026-11-13T16:42:53",
+      "by": "xapiand-lead",
+      "closed": "sent three Codex tasks via cmux: http-idle-baseline, ci-flakes-triage, s6-v1-removal-survey",
+      "id": "msg-52",
+      "text": "Owner is starting Codex for a few days on Xapiand/Detent/cpp-libraries work (our quota is at 97% until 11-16 05:00 UTC). Please send 2-3 Detent tasks suited to it: self-contained, measurable, disjoint from your active quests, each ending in a report or result your lead can use directly after the reset (name the report path, the evidence and the files it must not touch). I'm writing the list at Xapiand .campaign/xapiand/codex-tasks.md."
     }
   ],
   "quests": {
