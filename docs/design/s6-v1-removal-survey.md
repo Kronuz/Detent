@@ -308,3 +308,41 @@ The last search intentionally includes v2; inspect each version discriminator ra
 | `tests/detent_testing/test_trusted_restart.cc` | 66, 538 |
 | `tools/w5/http_replay.py` | 42, 103, 135, 141, 268 |
 | `tools/w5/w5_detent.cc` | 19, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 |
+
+## Legacy identity and table-shape helpers
+
+`tests/detent_system/managed.py:34` requires exactly one table entry before reading its position; migrate this oracle when selecting D8. Scope hashes and adapters are consumers even without an explicit `Cursor` spelling. The following inventory also includes generic grant-scope hashes whose authorization role must survive the cursor removal.
+
+| File | Lines |
+|---|---|
+| `include/detent/scope.hh` | 13, 18 |
+| `include/detent_distribution/grants.hh` | 24 |
+| `include/detent_local/derived_ids.hh` | 26, 28 |
+| `src/detent_authority/export_scope.cc` | 36 |
+| `src/detent_authority/service.cc` | 622, 625, 725, 1013 |
+| `src/detent_authority/state.cc` | 911 |
+| `src/detent_authority/state.hh` | 259 |
+| `src/detent_delivery/client.cc` | 471 |
+| `src/detent_delivery/configuration.cc` | 171 |
+| `src/detent_delivery/namespace_session.cc` | 75 |
+| `src/detent_distribution/grants.cc` | 7, 17, 19, 30 |
+| `src/detent_distribution/session_frames.cc` | 318, 324, 573, 603 |
+| `src/detent_local/derived_ids.cc` | 58, 76, 90 |
+| `src/detent_local/disk_store.cc` | 273, 274, 372, 373 |
+| `src/detent_local/generation.cc` | 144 |
+| `src/detent_local/paged_warm_validator.cc` | 102 |
+| `src/detent_relay/configuration.cc` | 155 |
+| `src/detent_relay/host.cc` | 202 |
+| `tests/detent_authority/test_distribution_ownership.cc` | 258, 501 |
+| `tests/detent_authority/test_distribution_service.cc` | 132 |
+| `tests/detent_authority/test_namespace_positions.cc` | 228, 262 |
+| `tests/detent_authority/test_subscription.cc` | 20 |
+| `tests/detent_delivery/test_coordinator.cc` | 1221, 1222 |
+| `tests/detent_delivery/test_managed_config.cc` | 68 |
+| `tests/detent_delivery/test_managed_process.sh` | 103, 107 |
+| `tests/detent_delivery/test_relay_config.cc` | 70, 156 |
+| `tests/detent_delivery/test_relay_registry.cc` | 25, 26, 28 |
+| `tests/detent_local/trusted_records.hh` | 72, 73 |
+| `tests/detent_system/first_read_export.cc` | 103 |
+| `tests/detent_system/managed.py` | 18, 26, 34, 101, 282 |
+| `tests/detent_system/run_trust_negatives.py` | 12, 188 |
