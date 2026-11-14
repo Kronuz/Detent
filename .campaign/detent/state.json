@@ -2931,8 +2931,8 @@
       "risk": "low",
       "status": "dropped",
       "title": "Coordinator fixture builds the 500K snapshot only for replies that carry it",
-      "updated": "2026-11-09T18:12:27",
-      "worktree": "../Detent-wt/detent/fixture-500k"
+      "updated": "2026-11-13T17:01:07",
+      "worktree": ""
     },
     "fleet-runner": {
       "accepted": {},
