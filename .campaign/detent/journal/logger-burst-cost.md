@@ -41,9 +41,9 @@ routine lines and queue-order records wake on `due < worker_wake` again.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261116-001349-19ec7c (bisect, exclusive, 7 arms x 20 rounds): a07f3fe 1.446 / 1.847 burst (1 / 4 producers), later commits flat; mechanism above and logger docs/perf/burst-cost.md |
-| A2 | A/B 261116-014628-44ad05 and A/A 261116-014632-1037e9 (exclusive, 30 rounds, at 7e261c1): every burst, back-to-back and end-to-end row at or below 1.10x (burst 1.012 / 0.973, back to back 1.006 / 0.996, end to end 1.009 / 0.994), A/A within about +/-6% (review-checked); screen 19ec7c: fix arm 0.965-1.043. Fix test fails without the slack: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec; at 6e7ab9e also the queue-order mutant: 261116-051126-efae89 |
-| A3 | 261116-012411-484c4f (deferred mutants early, late, ties killed, at 7e261c1); suite at 6e7ab9e 261116-051125-83a3c9 (earlier at 7e261c1: 261116-012408-fce080, 15 of 15); ci needs a push (lead) |
+| A1 | bisect rerun at 6e7ab9e: build 261116-051244-8b7915, A/B 261116-051244-4388be (earlier, other code: 261116-001349-19ec7c: a07f3fe 1.446 / 1.847 burst, later commits flat); mechanism above and logger docs/perf/burst-cost.md |
+| A2 | at 6e7ab9e (alignas changed the layout the old A/B measured): build 261116-051231-438ea0, exclusive 30-round A/B 261116-051232-7ae5c2 (f61d8df vs head), A/A 261116-051234-d8445e; pending. At 7e261c1: A/B 261116-014628-44ad05 and A/A 261116-014632-1037e9, every row <= 1.10x (burst 1.012 / 0.973, back to back 1.006 / 0.996, end to end 1.009 / 0.994). Fix test fails without the slack: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec; at 6e7ab9e also the queue-order mutant: 261116-051126-efae89 |
+| A3 | at 6e7ab9e: deferred mutants early, late, ties rerun 261116-051253-d01271 (earlier 261116-012411-484c4f); suite 261116-051125-83a3c9 (earlier at 7e261c1: 261116-012408-fce080, 15 of 15); ci needs a push (lead) |
 | A4 | logger `CHANGELOG.md` "2026-11-16 (a producer's burst cost)" (logger:35ad331, wording at 7e261c1) |
 
 Test history: 261116-001415-0e454e (ru_nvcsw is 0 on macOS: mutant survived);
@@ -85,7 +85,7 @@ Fixed at logger:6e7ab9e (two commits, 59506a1 and 6e7ab9e):
 | Finding | Fix | Evidence |
 |---|---|---|
 | F1 | `test/wake.cc` gains a burst of 1,000 `L_DELAYED(false, 500us)` queue-order task records under the held watchdog, `notifies < 50`; `test/wake_mutant.sh` gains `wake-slack-task` (`wake_for(ordered ? due : due - kWakeSlackNs)` -> `wake_for(due - kWakeSlackNs)`) | mutant job 261116-051126-efae89 (builds fixed tree, then both mutants; the second prints "killed"); suite at the fix 261116-051125-83a3c9. The review's probe saw 720 notifies with this mutant, 1 without |
-| F3 | `alignas(kCacheLine)` on `worker_notifies` | the suite |
+| F3 | `alignas(kCacheLine)` on `worker_notifies` | the suite; A2 rerun at this layout (above) |
 | F4 | ARCHITECTURE.md wording | docs; burst-cost.md and CHANGELOG also name the second burst and mutant |
 
 Follow-up for the lead (F2, not this quest): the deferred lines' 8 ms slack (`push_task` with
