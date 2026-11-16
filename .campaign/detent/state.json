@@ -8817,10 +8817,51 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-16T10:24:11",
+          "commit": "232b34af4c8fe1f77092941b3069eca401e9314b",
+          "criteria": {
+            "A1": "261116-082652-fee406, 261116-082634-2fbb70, 261116-082634-e969e2; fails without: 261115-230043-562639, 261115-230049-08c459, 261116-005111-5eb137, 261116-005113-852cae, 261116-005116-bf5989, 261116-005118-7f277f, 261116-005121-6ea6c5, 261116-005123-e69b7a, 261116-005125-7e45d6, 261116-005128-226477, 261116-005130-cf3b1c, 261116-030651-aed823, 261116-030655-48d932, 261116-030659-51b9bc, 261116-030703-1475aa, 261116-030714-3d4167, 261116-030717-1f35ed, 261116-030721-281010, 261116-030726-64b0c4, 261116-030729-92134f, 261116-030734-f2b77b, 261116-030737-7ecbfd, 261116-041457-47be19, 261116-041500-89b9e0, 261116-041504-0ecd50, 261116-041508-1e6ec2, 261116-041519-3cd80f, 261116-041523-2b6e19, 261116-055702-e9a921, 261116-055709-dd35c4, 261116-055715-70a4f9, 261116-055722-63b7b5",
+            "A2": "261116-082652-fee406, 261116-082634-2fbb70, 261116-082634-e969e2; fails without: 261115-230054-1ddbbb, 261116-005135-178dd4, 261116-030707-b72321, 261116-041511-a30e3f, 261116-055736-17f69b",
+            "A3": "261116-082652-fee406, 261116-082634-2fbb70, 261116-082634-e969e2; fails without: 261115-230058-44d37f, 261116-005138-b4f850, 261116-030710-c9e363, 261116-041515-baa8ec, 261116-055743-68bbbe",
+            "A4": "[artifact] `docs/status/namespace-s8.md`, \"The service\" (the window and D101; step 4 as tested now); [artifact] `docs/status/namespace-s8.md`, \"The service\": the absence rule; step 4 (the resumed voter keeps refusing); [artifact] `docs/status/namespace-s8.md`, \"The service\" (A5 added: `503 not_ready`, the skip on 503, the test's step 4); [artifact] `docs/status/namespace-s8.md`, \"The service\" (updated: seal order, busy retry, 413, backoff, skip past a lagging voter)",
+            "A5": "[decision] D101 (PLAN.md); test: suite 261116-082652-fee406, soak 261116-082655-e15f57 + 261116-082658-3a05d9 (20 runs beside 6 `yes` hogs), mutants absence-trusted 261116-082702-991d63, history-not-gated 261116-082706-2a4c28, refusal-not-skipped 261116-082709-6a5056 (all pending)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "110579034daa4131e46ba073443d49c99897c45e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-082634-2fbb70",
+              "level": "light",
+              "seconds": 592.9,
+              "state": "done",
+              "what": "namespace-s8-wiring check native at 110579034daa"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "110579034daa4131e46ba073443d49c99897c45e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-082634-e969e2",
+              "level": "none",
+              "seconds": 4.7,
+              "state": "done",
+              "what": "namespace-s8-wiring check pins at 110579034daa"
+            }
+          ],
+          "final": true,
+          "from": "7d22c0810ad9c0f0486d19c814a87ad351fa66c5",
+          "reason": "",
+          "tested": "0ef1117f3d54c794c9615a6c7c46b24f824d25c8"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s8",
@@ -8830,9 +8871,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-16T10:23:49",
+      "updated": "2026-11-16T10:24:13",
       "worktree": "../Detent-wt/detent/namespace-s8-wiring"
     },
     "namespace-s9-s10": {
