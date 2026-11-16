@@ -989,6 +989,7 @@
         "include/consensus/driver.h",
         "include/consensus/snapshot_channel.h",
         "include/consensus/types.h",
+        "include/consensus/worker.h",
         "test/**",
         "bench/**",
         "docs/**",
@@ -1014,7 +1015,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-16T15:42:30",
+      "updated": "2026-11-16T15:43:51",
       "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
