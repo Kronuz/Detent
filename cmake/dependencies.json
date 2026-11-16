@@ -38,7 +38,7 @@
   {
     "name": "detent_logger",
     "repository": "https://github.com/Kronuz/logger.git",
-    "revision": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
+    "revision": "6e7ab9ea01578d60e459137940e9e645a6727744",
     "source_subdir": "."
   },
   {
