@@ -412,11 +412,12 @@
         "async-drivers-design"
       ],
       "provides": [],
+      "reason": "split into drivers-task-wheel, drivers-completion-seam, journal-driver, consensus-driver, consensus-transport, consensus-quiescence, detent-on-drivers and worker-pump-removal (D96); its criteria live in those quests",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "dropped",
       "title": "M1b: coroutine drivers for journal and consensus, Detents owner loops on them",
-      "updated": "2026-11-09T14:24:58"
+      "updated": "2026-11-16T02:27:20"
     },
     "async-drivers-design": {
       "accepted": {
