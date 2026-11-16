@@ -4403,9 +4403,9 @@
       ],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
-      "updated": "2026-11-16T12:12:50",
+      "updated": "2026-11-16T15:41:16",
       "worktree": "../journal-wt/detent/journal-driver"
     },
     "legacy-h": {
