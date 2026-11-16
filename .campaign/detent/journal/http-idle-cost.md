@@ -1,6 +1,6 @@
 # http-idle-cost: journal
 
-State: waiting on jobs 261116-012327-17683d 261116-012332-c66999 261116-012337-d0d5f6 261116-012341-188fac 261116-012345-cba126 261116-012350-66ef55 261116-012355-6cbb4e 261116-012359-7fcd7c 261116-012405-815b06 261116-012410-6d7174 261116-012414-ba9ee6 261116-012418-4d5602 261116-012423-dcb492 261116-012427-2c38f4 261116-012431-fec7c5 261116-012436-2ce3c9 261116-012441-481714 261116-012446-eb31d6 261116-012459-659c51 261116-012504-cf1398
+State: ready for review (code at 76f698d, docs f21dacf); waiting on jobs 261116-012327-17683d 261116-012332-c66999 261116-012337-d0d5f6 261116-012341-188fac 261116-012345-cba126 261116-012350-66ef55 261116-012355-6cbb4e 261116-012359-7fcd7c 261116-012405-815b06 261116-012410-6d7174 261116-012414-ba9ee6 261116-012418-4d5602 261116-012423-dcb492 261116-012427-2c38f4 261116-012431-fec7c5 261116-012436-2ce3c9 261116-012441-481714 261116-012446-eb31d6 261116-012459-659c51 261116-012504-cf1398
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -58,9 +58,10 @@ base0 -012410-6d7174, head0 -012414-ba9ee6, head1 -012418-4d5602, base1 -012423-
 
 ## Next
 
-1. Merge the 100K jobs' out/runs into docs/perf/idle/ and run summarize.py over them (rounds 0 and 1 give
-   the spread); fill docs/perf/idle.md's 100K section and the load row (A2).
-2. Evidence table; set "ready for review".
+1. When the jobs land: merge the 100K jobs' out/runs into docs/perf/idle/ and run summarize.py over them
+   (rounds 0 and 1 give the spread); replace the 10K rows with 261116-012341-188fac / -012345-cba126 at
+   76f698d; fill docs/perf/idle.md's 100K section, connections per GiB, and the load row (A2).
+2. If a 100K owners job times out (owners setup is ~4.5x slower), report owners at 10K and 100K head only.
 
 ## Blocked on
 
@@ -70,10 +71,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261115-214321-2a3f2c, 261115-214324-a3838f (10K, at f1e173f); 100K pending (jobs above) |
-| A2 | 261115-214324-a3838f (TLS 10K), 261115-214354-19da72 (watch_ab noise); load A/B pending |
-| A3 | 261115-234631-7d23fc (suite at e336643), 261115-234650-cd3ef5 (TSan at e336643); at f3d6be6 pending |
-| A4 | docs/perf/idle.md (10K, owners, watch_ab at 6ef5cd8); 100K pending |
+| A1 | 261115-214321-2a3f2c, 261115-214324-a3838f (10K at f1e173f, done); at 76f698d: 10K 261116-012341-188fac, -012345-cba126; 100K 261116-012350-66ef55 .. -012441-481714 (queued) |
+| A2 | TLS 10K -58.7% (261115-214324-a3838f); watch_ab noise 261115-214354-19da72; load at 4279a49 found a regression (fixed at 76f698d); load at 76f698d 261116-012332-c66999, -012337-d0d5f6 (queued) |
+| A3 | suite 261115-234631-7d23fc and TSan 261115-234650-cd3ef5 at e336643 (passed); OpenSSL 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28 (passed); at 76f698d suite 261116-012446-eb31d6, TSan -012459-659c51, join mutant -012504-cf1398 (queued) |
+| A4 | docs/perf/idle.md at f21dacf: where the bytes go, what changed, 10K numbers, owners; 100K pending its jobs |
 
 ## Result
 
@@ -94,3 +95,7 @@ Nothing.
 - 100K: one arm and round per exclusive job (the lead's split), ABBA order, two rounds per arm for the spread; the
   head arm is f3d6be6, whose product headers equal f1e173f's but for main's http_accept.h.
 - Merged main into the branch (4279a49), as the brief asked.
+- TlsStream joins up to 8 KiB of a buffer sequence into one SSL_write (asio::ssl::stream's linearisation size),
+  copying into a buffer the write owns; SSL_set_read_ahead was tried and dropped (no measured gain).
+- 10K rows are rerun at 76f698d so every published row names the final product; the after-POST rows stay at
+  f1e173f (the write join does not touch idle memory) and are labelled so.
