@@ -7898,6 +7898,8 @@
     "namespace-s8-wiring": {
       "accepted": {},
       "after": [],
+      "base": "e4d108cec9c101ef109b34fc8e9dd50e4cac8b0e",
+      "branch": "quest/detent/namespace-s8-wiring",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7974,11 +7976,13 @@
         "namespace-s6-cutover"
       ],
       "provides": [],
+      "reason": "started by force: overlap is only docs/status/namespace-s8.md, which names no threadpool, so deps-workpool-repin never edits it",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-13T00:40:03"
+      "updated": "2026-11-15T21:14:06",
+      "worktree": "../Detent-wt/detent/namespace-s8-wiring"
     },
     "namespace-s9-s10": {
       "accepted": {},
