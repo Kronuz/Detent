@@ -192,6 +192,21 @@ Update responses additionally carry `X-Detent-Session-Version: 1`, `X-Detent-Ses
 
 A 409 control identifies `snapshot_required`, `identity_changed`, `session_out_of_sync` or `session_busy`; 410 identifies `session_expired`. Snapshot resets include `reason` (`history_lost` or `representation_limit`) and require a new Open with `force_snapshot:true`. Admission pressure returns a bounded 503. Separate request lanes preserve Close capacity when polls are full. The existing distribution endpoint retains automatic snapshot fallback.
 
+`session_busy` means the session's previous answer has not retired yet: the session stays open, and the reader asks again after a short wait.
+
+---
+
+## Namespace History for Relays
+
+A relay mirrors namespace history from a voter, or from another relay, through two routes. Both require a bearer credential whose namespace patterns grant every name asked for. A voter answers both from its own sealed history, with no quorum read, and a relay answers them from its mirror.
+
+| Endpoint | Request | Response |
+| --- | --- | --- |
+| `POST /v2/history/layouts` | `{"namespaces": [name, ...]}` | `200`, `application/vnd.detent.layouts`: each live name's layout at the voter's latest seal, the seal in the answer's header |
+| `POST /v2/history/file` | `{"namespace": name, "name": file}` | `200`, `application/octet-stream`: the bytes of a file that the namespace's layout names; `404` otherwise |
+
+A layouts answer is built from the sealed state alone, so every voter at one seal gives the same bytes. A relay never adopts an answer at an older seal than it holds. Both routes answer `503 history_unavailable` until positions are enabled and the history is sealed; a layouts request makes the leader propose the enabling entry, as a version 2 session does. A file larger than the reply bound answers `413 reply_bound`.
+
 ---
 
 ## Limits
