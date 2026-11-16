@@ -5,27 +5,24 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+v2 gets stricter while v1 still serves every consumer: session codecs and the client admit their memory through a `StorageLedger`, the agent-side sink stages a response's prepared generations and publishes nothing when any fragment is corrupt, a dropped followed namespace is signalled, and a live namespace the voter cannot freeze gets an explicit answer instead of silent omission (P1 of D94).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 namespace-s6's session codecs and client admit their memory through a `StorageLedger`, not the bare heap (S6 ruling R8): a test that a ledger at its bound refuses an answer
+- A2 A two-namespace response with namespace 1 complete in fragment 1 and fragment 2 corrupt leaves the table, `change` words and coordinator cursors unchanged and the ledger at its prior use (design F9): a test plus the early-apply mutant, killed
+- A3 A dropped followed namespace is signalled to the session (cutover review F5): a test that a follower learns of the drop
+- A4 A live followed namespace the voter cannot freeze gets an explicit answer (503 or a retry frame) and the client keeps its cursor (design F6): tests for both cases
+- A5 The tier comment in `include/detent_distribution/history.hh` matches the cutover's F1 rule (msg-50): `include/detent_distribution/history.hh` reviewed by the lead [manual]
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Additive on the v2 wire: a drop signal and an unfreezable answer, named in `docs/status/namespace-s6-cutover.md` before landing. v1 unchanged.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.md`): P1 of five ordered landings.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: it changes the wire.

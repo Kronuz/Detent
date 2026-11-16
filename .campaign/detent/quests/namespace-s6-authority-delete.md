@@ -5,27 +5,22 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Nothing consumes v1 after namespace-s6-v1-removal, so the authority deletes it: the one-shot route `POST /v2/distribution`, the v1 session body, `AuthorizedScope`, `export_scope`, `subscription`, `DeliveryMode`, the old `Cursor` and `authority::NamespaceCursor` (the one W1 cursor replaces it), with docs and website pages describing them (P5 of D94, D43).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Q4: the one-shot route, the v1 session body and poll configuration are removed with nothing left behind: a grep job and the suites
+- A2 W1: `AuthorizedScope`, `export_scope`, `subscription`, `DeliveryMode`, the old `Cursor` and `authority::NamespaceCursor` are gone and the authority uses `include/detent/cursor.hh`'s one type: a grep job and the suites
+- A3 Docs and the website describe only v2 sessions: the docs check and a grep job
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Removes the v1 wire from the authority; `/v1/health` and producer/recovery format versions stay (their numbers are independent).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.md`): P5.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: it removes a wire.

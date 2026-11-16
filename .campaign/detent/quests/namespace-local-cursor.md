@@ -5,27 +5,23 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The local layer runs on the one W1 cursor (`include/detent/cursor.hh`): `detent_local`, `read_view`, `detent_testing` and benchmarks no longer use the old 88-byte cursor; the agent store layout is 2 and the paged root is `DTROOT04` / format 4, and a store or root of the previous version is refused once with one status and the agent bootstraps fresh (D43). The coordinator maps the v1 cursor at its boundary, rebuilding the old identity from configuration, until namespace-s6-v1-removal moves consumers to v2. The flat-v1 image is revised to the new cursor and kept (design F12; deleting it is the owner's call) (P3 of D94).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A store whose table carries layout 1, and a root with format 3, each synthesized from current bytes, are refused with one status and the agent bootstraps fresh (design F2): tests plus a mutant that accepts the old version, killed
+- A2 `detent_local`, `read_view`, `detent_testing` and benchmarks are free of the old `Cursor` type: a grep job and the suites
+- A3 A power cut at every primitive of publication still recovers to the last acknowledged generation or the one before (T7) and derived names still hold (`test_derived_names`), at the new layout: the crash-model job and the suite
+- A4 [artifact] `docs/LOCAL_IMAGE_FORMAT.md`: "DTROOT04"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Changes bytes on disk: agent store layout 2, root `DTROOT04` format 4, flat-v1 header with the W1 cursor. Provides the one cursor to namespace-s6-v1-removal.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.md`): P3 lands separately to keep the on-disk change out of the riskiest landing. F12: revise flat-v1 (no user-visible narrowing); the owner may choose deletion instead.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: it changes bytes on disk.
