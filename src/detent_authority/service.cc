@@ -1735,10 +1735,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		bool leader_known = false;
 		// Last proof a follower's leader is alive: a RoleChanged naming it, or our reply to its append.
 		auto leader_contact = Clock::now();
+		// A voter back from an absence of election_min or more (stopped, starved) reads the frames
+		// that waited in its sockets meanwhile: none proves a live leader, so no proof counts until
+		// election_max after its return.
+		auto returned = Clock::time_point{};
+		auto trusting = [&] {
+			return Clock::now() - returned >= std::chrono::milliseconds(options_.node.timing.election_max);
+		};
 		// A follower is ready only while that proof is within election_max, CheckQuorum's window on the
 		// leader side (D41); pre-vote keeps the leader known after it falls silent.
 		auto leader_alive = [&] {
-			return leader_known &&
+			return leader_known && trusting() &&
 				   (node.worker().role() == kronuz::consensus::Role::Leader ||
 					Clock::now() - leader_contact <= std::chrono::milliseconds(options_.node.timing.election_max));
 		};
@@ -1986,8 +1993,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		ready.set_value();
 		started = true;
 		auto scheduled_wakeup = Clock::now();
+		auto last_pass = Clock::now();
 		for (;;) {
 			auto owner_started = Clock::now();
+			if (owner_started - last_pass >= std::chrono::milliseconds(options_.node.timing.election_min))
+				returned = owner_started;
+			last_pass = owner_started;
 			auto cpu_started = owner_cpu_ns();
 			wake_lateness.observe(elapsed_ns(scheduled_wakeup, owner_started));
 			{
@@ -2022,14 +2033,16 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<kronuz::consensus::Send>(action)) {
 					if (std::holds_alternative<kronuz::consensus::AppendResponse>(
-							std::get<kronuz::consensus::Send>(action).message))
+							std::get<kronuz::consensus::Send>(action).message) &&
+						trusting())
 						leader_contact = Clock::now();
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
 					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
 				} else if (auto role = std::get_if<kronuz::consensus::RoleChanged>(&action)) {
 					leader_known = role->leader != 0;
-					leader_contact = Clock::now();
+					if (trusting())
+						leader_contact = Clock::now();
 					publish_health();
 					service.leader_known_.store(leader_known, std::memory_order_release);
 				}

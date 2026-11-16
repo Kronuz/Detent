@@ -573,7 +573,9 @@ class Run:
 
     # A5 (D99): a voter that knows no live leader refuses the history routes.
     def refuses(self, index: int) -> dict[str, Any]:
-        """Waits until voter `index` reports it is not ready, then checks it refuses both routes."""
+        """Waits until voter `index` reports it is not ready, then checks it refuses both routes
+        for a second: a voter just resumed reads the leader frames queued while it was stopped
+        within ~100 ms, and none may prove a live leader."""
         deadline = time.monotonic() + 20
         while True:
             health = self.health(self.http[index])
@@ -581,15 +583,18 @@ class Run:
                 break
             check(time.monotonic() < deadline, f"voter {index} stayed ready alone")
             time.sleep(0.05)
-        for path, body in (
-            ("/v2/history/layouts", {"namespaces": NAMES}),
-            ("/v2/history/file", {"namespace": "a", "name": "absent"}),
-        ):
-            status, answer = self.call(self.http[index], path, body, MIRROR)
-            check(
-                status == 503 and b'"not_ready"' in answer,
-                f"voter {index}, knowing no leader, answered {path} {status}: {answer[:200]!r}",
-            )
+        until = time.monotonic() + 1
+        while time.monotonic() < until:
+            for path, body in (
+                ("/v2/history/layouts", {"namespaces": NAMES}),
+                ("/v2/history/file", {"namespace": "a", "name": "absent"}),
+            ):
+                status, answer = self.call(self.http[index], path, body, MIRROR)
+                check(
+                    status == 503 and b'"not_ready"' in answer,
+                    f"voter {index}, knowing no leader, answered {path} {status}: {answer[:200]!r}",
+                )
+            time.sleep(0.02)
         return health
 
     def mirror(self, name: str) -> dict[str, Any]:
