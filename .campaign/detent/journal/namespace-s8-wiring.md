@@ -1,22 +1,40 @@
 # namespace-s8-wiring: journal
 
-State: A5 (D11) fixed at Detent:45acbe9f; local test_relay_service run pending, then jobs
+State: ready for review (waiting on jobs at Detent:3023f2d0: suite 261116-055643-30fa1f, native 261116-055648-ea95b0, pins 261116-055655-92aa4f and the mutants under A5 below)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
 
-D11 / A5 (D99): voters refuse the history routes with 503 `not_ready` without a live leader.
+Nothing: the jobs remain.
 
 ## Next
 
-1. Local test_relay_service green, then submit suite, native, pins and the mutants whose tests
-   changed (all test_relay_service mutants: its flow changed), set "ready for review".
+1. When the jobs end, record them; the suite confirms D11 (`campaign accept` is the lead's).
+2. If native fails only outside the relay and authority history routes, compare with a job at main.
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+Third round (D11, A5 per D99) at Detent:45acbe9f, test fix Detent:3023f2d0. Local run (Release,
+loaded host), `test_relay_service` 80 s: A1-A3 as before; A5 "voter 1 alone (applied 54, the
+quorum's 62) refused 503; relay D adopted nothing in 2 failed syncs, then converged" and "voter 1
+at D's seal and alone refused 503; relay D synced nothing, then converged"; relay C (reading a 503
+source first) had 0 failed syncs. Earlier evidence at Detent:dd16de65 is superseded for the
+service mutants and the suite.
+
+| Criterion | Evidence (Detent:3023f2d0) |
+|---|---|
+| A1 | suite 261116-055643-30fa1f; mutants behind-not-skipped 261116-055702-e9a921, upstream-drops-frames 261116-055709-dd35c4, busy-not-retried 261116-055715-70a4f9, layouts-no-enable 261116-055722-63b7b5 (regenerated); `test_relay_mirror`/`test_relay_chain` mutants as listed for dd16de65 below (those tests and their code unchanged) |
+| A2 | suite 261116-055643-30fa1f; mutant mirror-forgotten 261116-055736-17f69b |
+| A3 | suite 261116-055643-30fa1f; mutant member-route-admitted 261116-055743-68bbbe |
+| A4 | [artifact] `docs/status/namespace-s8.md`, "The service" (A5 added: `503 not_ready`, the skip on 503, the test's step 4) |
+| A5 | suite 261116-055643-30fa1f; mutants history-not-gated 261116-055750-88fa5c (voter gate), refusal-not-skipped 261116-055729-53fd26 (relay skip on 503) |
+| checks | native 261116-055648-ea95b0, pins 261116-055655-92aa4f |
+
+Second-round evidence (superseded where restated above):
 
 Durability review (CHANGES) folded in at Detent:e09d3690 (code at Detent:bfb6a386, docs Detent:8da51b76,
 mutants Detent:9945b0f0; jobs submitted at Detent:e09d3690).
@@ -67,6 +85,7 @@ Re-review (CHANGES, D9 and D10 blocking), the quest's last fix round:
 | ID | Fix | Test | Fails without |
 |---|---|---|---|
 | D9 | `Upstream` gains `sources()` and `skip()`; `NamespaceRelay::sync` on `UpstreamBehind` skips to the next source and starts over, each source once per sync, then throws (the service backs off as before); `HttpUpstream` answers its endpoint count and rotates | `test_relay_service` relay C reads `[lagging proxy, leader]`: the proxy forwards until C holds the authority's seal, then answers every layouts request with the first one it forwarded; C converges with the authority after 12 more writes, and the proxy served a stale answer | mutant `behind-not-skipped` (rethrow at once) |
+| D11 | A voter's history routes answer `503 not_ready` unless `serving` holds (service.cc: `node.worker().ready() && leader_alive()`, the one lambda `/v1/health` `ready` also reports); `HttpUpstream::layouts` turns a 503 into `UpstreamBehind`, so `sync` skips to the next source within the sync | `test_relay_service` A5: two voters SIGSTOPped, the third reports not ready and answers layouts and file 503 `not_ready`; relay D [that voter, a stopped one] adopts nothing (at start, the voter 8 entries behind) and syncs nothing (at D's seal), then converges with the leader once a voter resumes; relay C reads `[gated (503), lagging]` and has 0 failed syncs | mutants `history-not-gated`, `refusal-not-skipped` |
 | D10 | `test_relay_service` checks the authority's heads hold every name at a position > 0, that each name's answers at 0 and at its head differ, and that the answer at no cursor read at the authority, A and B with the test's own HTTP and DTDIST01 parsing (no HttpUpstream) equals the probe's | the same | mutant `upstream-drops-frames` |
 
 The earlier failed job 261116-005133-947e51 (listed under A1 without a note) was that mutant
@@ -125,6 +144,22 @@ open there: streamed fetch of large files (a file above the reply bound is refus
 13. D10's independent read is the W5 answer at no cursor, parsed in Python (DTDIST01: 96-byte
     header, payload size at byte 12); the per-cursor answers stay with the probe, now checked to
     reach every name and to differ between R = 0 and the head.
+15. D11's gate covers the two history routes only, not the W5 next: every relay attempt starts with
+    layouts and reads frames from the same endpoint, so a refused layouts request is enough for a
+    relay. Gating W5 next would change every v2 reader's behavior (a 503 during each election and
+    at bootstrap) and is left to the lead (namespace-followups: direct W5 readers of a cut-off
+    voter). The error is `not_ready`, after the health field it mirrors; `layouts-no-enable` is
+    regenerated for the moved lines.
+16. Any 503 to a layouts request is a skip, not only `not_ready`: `history_unavailable`, `stopping`
+    and `admission_full` are also "this source cannot answer now". A single-endpoint relay fails
+    the sync and backs off as before. Relay C now reads `[gated, lagging]` and starts once A is
+    ready, so its first sync must skip a 503 source; `behind-not-skipped` now dies with C never
+    ready (the mutant throws without `skip`, so C stays on the closed proxy).
+17. A lone voter and bootstrap: a single voter leads itself, so `serving` holds once it elects
+    itself (the same moment `/v1/health` turns ready); before that a history route answers 503,
+    as it already did before positions were enabled. Not tested separately: no single-voter
+    history-route test exists, and the cluster test covers the bootstrap path (A relay starts
+    with the voters).
 14. `test_relay_chain`'s voters run on the harness's memory storage: the test proves the relays'
     files and answers against the voters, and the voters' own durability is the authority suites';
     the relays' mirrors stay on disk.
