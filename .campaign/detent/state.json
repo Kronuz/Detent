@@ -6130,6 +6130,51 @@
       "updated": "2026-11-13T12:17:39",
       "worktree": ""
     },
+    "namespace-s6-hardening": {
+      "accepted": {},
+      "after": [
+        "namespace-s8-wiring"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/namespace_history*",
+        "src/detent_authority/frames_export*",
+        "src/detent_authority/namespace_sessions*",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_namespace_history.cc",
+        "src/detent_distribution/session_frames.cc",
+        "include/detent_distribution/**",
+        "tests/detent_distribution/**",
+        "src/detent_delivery/namespace_session.cc",
+        "include/detent_delivery/namespace_session.hh",
+        "tests/detent_delivery/test_namespace_session.cc",
+        "docs/status/namespace-s6-cutover.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
+      "updated": "2026-11-15T21:12:51"
+    },
     "namespace-s6-v1-removal": {
       "accepted": {},
       "after": [],
