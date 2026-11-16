@@ -9,12 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-msg-1 (Xapiand lead, A5 review of task:627aca3, CHANGES) folded in at task:a30bb0f; jobs queued
-at it (Evidence). Correctness reviewer on 627aca3 runs in parallel; its findings go on top.
+Second fix round at task:412b2c2: the correctness review of task:627aca3 (F1 blocking, F2) on top
+of msg-1's fixes (task:a30bb0f, all its jobs passed). Jobs queued at 412b2c2 (Evidence).
 
 ## Next
 
-1. Read the jobs at task:a30bb0f; fold in the correctness review and the Xapiand lead's re-check.
+1. Read the jobs at task:412b2c2 and the F4 A/B pair; the Xapiand lead's re-check (msg-48).
+
+## Correctness review (Detent reviews/drivers-task-wheel-correctness.md, CHANGES at 627aca3)
+
+- F1 (blocking): fixed in task:412b2c2 with the review's option (a). A request that runs callbacks
+  sets `delivering_bit` under the lock it takes with `requested_bit`, and clears it (with an epoch
+  bump) after the last; a wheel fire whose request loses calls `cancel_state::settle()`, which
+  waits on the epoch while another thread delivers. The hop is then queued before `expire()`
+  returns, and drive's recheck sees it. Why (a), not (b) a pending count: the guarantee "a fire
+  returns after the token's callbacks ran" sits in the state, so no waiter (D8's or any other)
+  counts its hops, and inline and asio get it too. It waits on another thread's callbacks, which
+  never block (std::stop_callback's rule, as `remove()` already relies on); on its own thread it
+  returns at once. Tests `blocking_test race` (1,000 rounds), `race-forced` (callback held up to
+  100 ms between claim and hop while a 5 ms deadline fires: cancelled at 101.5 ms locally; the
+  mutant stalls at 6.5 ms); mutant `fire-skips-settle`.
+- F2: `window-forced` is in `blocking_test` (3 s timer; the post made from may_wait()). The
+  review's `blocking-lost-wake` is equivalent (the review says so: it kept the wait predicate),
+  so no test can kill it; the suite kills the real lost wake instead, mutant `blocking-lost-wake`
+  in `test/wheel_mutant.py` removing both the recheck and the predicate (window-forced runs 3 s,
+  fails `elapsed < 1s`).
+- F3 (scheduler-level "runs the queue to empty before true"): not taken this round (tight fix);
+  journal-driver's `blocking_entry rules` covers the entry.
+- F4: not pre-existing by the numbers so far, and not attributed either: main f51aafb had 0/200
+  TSan failures (261115-231813-10e137, 768 s, run alone-ish) against 12/200 at 627aca3
+  (261115-225535-863f7d, 1222 s, beside two other x200 stresses). Neither failing line is in this
+  diff, and both are load-sensitive (line 758 a timing coverage check, 1700 a fork death test).
+  A paired A/B under the same load is queued: main 261116-001458-1a29c1, head
+  261116-001448-e92eeb. If both fail alike, they are the lead's (ci-test-flakes).
+- F5: fixed in a30bb0f (controls exit 0 without their assertion).
+- N4: `cancellation.md` now says any thread on asio, the driving thread on inline and blocking.
 
 ## Messages
 
@@ -71,19 +100,22 @@ Nothing.
 
 ## Evidence
 
-At task:a30bb0f (queued 2026-11-15 23:09-23:12; gate check suite 261115-231221-c1fb80; CI needs the
+At task:412b2c2 (queued 2026-11-16 00:14; gate check suite 261116-001436-1fcc80; CI needs the
 branch pushed, the lead's):
 
 | Criterion | Evidence |
 |---|---|
 | A1 | the gap list above (G1-G8 built in task:627aca3; row 15 amended by task:a30bb0f) |
-| A2 | suite 261115-230919-11321d; mutant `rearm-fires-early` 261115-231021-fa893c (fails without) |
-| A3 | ASan+UBSan 261115-230928-237422; TSan 261115-230935-8e4110; controls `offloop-arm` 261115-230958-6c0bcc, `closed-arm` 261115-231005-ddbf38; mutant `closed-arm-allowed` 261115-231058-da579c (fails without) |
-| A4 | TSan 261115-230935-8e4110; X1 `wakes-unarmed` under TSan 261115-230951-3981e7; control `offthread-cancel` 261115-231014-093c6c; mutants (fails without) `unarmed-returns` 261115-231029-7e7232, `expire-when-idle` 261115-231036-5eaf16, `drop-calls-dead-scheduler` 261115-231043-6bb6ac, `blocking-cancel-unchecked` 261115-231051-65b2a4 |
+| A2 | suite 261116-001402-b63645; mutant `rearm-fires-early` 261116-001404-0ac481 (fails without) |
+| A3 | ASan+UBSan 261116-001403-5aedbf; TSan 261116-001403-f48e86; controls `offloop-arm` 261116-001403-70a81e, `closed-arm` 261116-001403-d41f81; mutant `closed-arm-allowed` 261116-001405-816273 (fails without) |
+| A4 | TSan 261116-001403-f48e86; X1 `wakes-unarmed` under TSan 261116-001403-4a12f6; F1/F2 `race`, `race-forced`, `window-forced` under TSan 261116-001420-de8395; control `offthread-cancel` 261116-001403-a03d3e; mutants (fails without) `unarmed-returns` 261116-001404-83681c, `fire-skips-settle` 261116-001426-a47947, `blocking-lost-wake` 261116-001432-f76e78, `expire-when-idle` 261116-001404-86ccb0, `drop-calls-dead-scheduler` 261116-001404-fd0781, `blocking-cancel-unchecked` 261116-001405-54a740 |
 | A5 | [artifact] task `ARCHITECTURE.md` "Schedulers" (Xapiand's BlockingScheduler and D5's entry on `drive`) and "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current. Xapiand lead: msg-1 CHANGES on task:627aca3 (X1 blocking), fixed in task:a30bb0f, re-check asked in msg-48 |
 
-At task:627aca3 (superseded): suite 261115-224042-c56fa6, ASan+UBSan 261115-224045-7cef95, TSan
-261115-224052-f3ced1, mutant 261115-224059-7bf17d, control 261115-224121-def07d.
+Superseded: task:a30bb0f, all 14 passed (suite 261115-230919-11321d, ASan+UBSan
+261115-230928-237422, TSan 261115-230935-8e4110, the rest 261115-230951-3981e7 to
+261115-231058-da579c, gate 261115-231221-c1fb80). task:627aca3: suite 261115-224042-c56fa6,
+ASan+UBSan 261115-224045-7cef95, TSan 261115-224052-f3ced1, mutant 261115-224059-7bf17d, control
+261115-224121-def07d.
 
 ## Result
 
@@ -95,6 +127,10 @@ and asio (10,000 each); blocking cross-thread cancel returns 54-57 ms after a 50
 200 ms deadline at 206-208 ms.
 
 ## Rulings I made
+
+- F1: option (a), the fire settles behind an in-flight request (see "Correctness review"); the
+  wait is in `timed_cancel_state::on_wheel` only, so a plain `request()` keeps its cost.
+- F2: the killed mutant removes both guards; the review's single-guard version is equivalent.
 
 - Row 1's `task::timer_wheel` is Kronuz/wheel (D72); its own tests (reentry, model, far, owner)
   stay in that repository, and task ports the bench cases through its schedulers.
