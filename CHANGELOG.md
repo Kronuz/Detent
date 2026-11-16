@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Pins: workpool, no scheduler
+
+- The logger pin moves to logger:907d27f: it links `workpool::workpool` (the library formerly named
+  threadpool; no alias keeps the old names) and files deferred lines on a LOG-thread-owned
+  Kronuz/wheel with per-thread queues (D86). The manifest pins workpool:640c66b and wheel:bfd72bc
+  as the logger declares them, and drops scheduler, stash (declared only by scheduler) and
+  threadpool (D72). Detent's sources use none of them.
+
 ### One knob type
 
 - One knob type: every knob is a signed 64-bit integer with a default, group overrides (a forced
