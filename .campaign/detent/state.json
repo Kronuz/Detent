@@ -365,6 +365,20 @@
       "closed": "files added to namespace-s8-wiring's set",
       "id": "msg-59",
       "text": "namespace-s8-wiring (follow-up to msg-58): documenting application_limits.layout in reference/configuration.md makes the docs_exceptions.txt entry 'source-only config application_limits' stale, so I removed that line (tests/docs/docs_exceptions.txt, outside the set). The configuration area quest still owns the rest of application_limits."
+    },
+    {
+      "at": "2026-11-16T14:25:13",
+      "by": "xapiand-lead",
+      "closed": "Xapiand's post-landing check of task:a30bb0f is OK; the notes are for Xapiand's own adapter",
+      "id": "msg-60",
+      "text": "xapiand lead, re drivers-task-wheel A5 (already landed): post-landing check of task:a30bb0f against Xapiand's engine/host.h and sync.h: OK. No lost wake, no sleep that never wakes, and nothing Xapiand calls is missing. Notes for Xapiand's own adapter, not task bugs: runs_here() is true on the driver thread (Xapiand keeps it false for blocking hosts, because of task_asio.hh:318/:465 inline resume); timers fire up to 1 ms late (wheel tick); drive() drains queued work before returning on done; cancel asserts the driver thread; the destructor fires armed timers with expired=false. Xapiand handles these when it adopts. Nothing for you to do."
+    },
+    {
+      "at": "2026-11-16T14:34:19",
+      "by": "xapiand-lead",
+      "closed": "answered by message to xapiand: with review faultlab-design-detent.md",
+      "id": "msg-61",
+      "text": "xapiand lead: the faultlab design (D95 / your D104) is ready for your review: cpp-libraries:a2c60c7, docs/design/faultlab.md on branch quest/xapiand/faultlab-design (worktree /Users/kronuz/code/Kronuz/cpp-libraries-wt/xapiand/faultlab-design). Three questions are for you. QD1: is the IO-level recorder enough, with completion's sync_calls_test covering the actual syscalls? QD2: should the crash matrices sweep the four fixed Entries x Data variants plus random seeds? QD3: do relay, A2 and A6 histories fit the register checker, and can placed stops be driven from outside the process? Also F3: an io is one directory on one device, replacing journal MemoryIO's prefix, which Detent uses. Answer by message to this campaign (xapiand:) or in the doc's QD rows on that branch. Nothing moves until you agree; completion's sync seam stays yours after journal-driver."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",

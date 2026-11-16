@@ -1,6 +1,6 @@
 # journal-driver review: durability
 
-Commit: journal:535e9e52f37105621ba1e1b023149880b90bb0b5
+Commit: journal:5a959a158c9029320b75c378eb38876d0605917d (round 1; round 0 was journal:535e9e52f37105621ba1e1b023149880b90bb0b5)
 Verdict: CHANGES
 Date: 2026-11-16
 
@@ -70,20 +70,67 @@ Settled by reading:
   calls `layout()`, `migrate` and `finish_migration`, which fail to compile at its repin
   (consensus-driver, as recorded in Detent:47117861).
 
+## Round 1 (journal:5a959a1)
+
+Fixes journal:d4b6380, 286582c, 5a959a1; journal "Fix round 1" table and R23-R26. I read the
+diff `535e9e5..5a959a1` under `include/` and the probe reruns at 5a959a1:
+
+- 261116-142003-5516c2: `absent` modes 0-2 now `status=3` (lost; 2, 54 and 208 ids lost: every
+  open group whose only records the damage took), `first_open_cut` 38,915 and `repartition_cut`
+  212,789 checks, 0 failures.
+- 261116-142006-c0c1df: `close_failure` keeps the group open with its two artifacts after the
+  restart; `recover_twice` throws Corruption ("reopen the host") and the loop's driver survives.
+- Suite 261116-141838-acebfd and TSan 261116-141845-fc7862 done at 5a959a1.
+
+At the cause, and no new hole:
+
+- F1 (turn_log.h `recover`, host.h `known`): the rule sits in TurnRecovery's contract and applies
+  only when `damaged`; a group with any kept record is in `groups` and unaffected. A crash-torn
+  tail is not damage (a tail is damage only where a kept manifest names its block), and the
+  shared-store crash rounds still require `status == none` for unacknowledged groups
+  (shared_store_test.cc:116) and pass in the suite. Under real damage a never-durable or
+  just-reopened group is lost too (R23): fail-closed, the right side.
+- F2/F4 (`Host::update`): a failure before the rename leaves the old shard and the restored
+  entry agreeing. A failure after the rename (in the directory sync) leaves the disk at or ahead
+  of memory. For each transition that is safe: a closed entry on disk with the log not forgotten
+  recovers from the table, since no record follows `base` (the Store is fenced, and F3 refuses
+  re-recovery). A higher `high` on disk only widens the probed range. A new incarnation on disk
+  with no record is recreated. `close_group` refuses staged records before the commit, so
+  `forget` cannot fail after it.
+- F3 (`TurnDriver::holds`): the condition is right. A durable sequence or a staged record means
+  the log owns the group; a group closed in this process is forgotten by the log, so it still
+  reopens from the table (`closed_reopen`).
+
+Rulings:
+
+- cancel-without-hop killed by TSan in 1 of 3 samples is not "fails without" evidence (proof
+  standard: concurrency claims need a deterministic test of the interleaving). A deterministic
+  value check exists. Cancel from another thread between drives, join that thread, then assert
+  `waiting_groups()` still names the group until the loop runs the hop. The mutant unlinks on
+  the cancelling thread, so it fails every time, with or without TSan: G1.
+- F5: accepted as a note (cost, not durability).
+- F6: accepted as left. The fallback is unreachable with every task scheduler; the follow-up
+  belongs to task (expose `post_call` in `scheduler_ref`).
+- F8: accepted as left, per D43.
+
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | A known group whose acknowledged records a damaged log no longer holds, and that no surviving manifest names, is offered for `create`: `Host::status` returns `none` for an open table entry absent from the log (host.h:272-280), and `open()` marks only `recovered().lost` (host.h:436-438). `create_group` then removes the group's artifacts and starts incarnation 2, so the loss is silent. TurnRecovery's own contract says a group the host knows that is in neither map is lost when the log is damaged (turn_log.h:62-64). The old marker made this case fail closed (Corruption). | 261116-140207-14fdf6 `absent` modes 1 and 2 | In `open()`, when a loop's recovery is damaged, mark that loop's open entries absent from `recovered().groups` lost with the rest, durably. Test: the probe's `absent` case in `placement_test`. |
-| F2 | yes | defect | `close_group` makes the log forget the group before the table write (host.h:323-325). If the shard write fails (ENOSPC, EIO), the host keeps serving, retention recycles the group's records, and the table still holds it open with no record. After a restart, `status` is `none` and `create` removes its artifacts. | 261116-140554-3cc85e `close_failure` | Commit the closed entry first, from a copy, and forget only after the commit succeeds; on failure leave the entry and the log as they were. Test: `close_failure` in `host_test`. |
-| F3 | yes | defect | Recovering a once-closed group a second time in one host process (a new Store after a fenced one, the remedy `healthy()` names) takes the table branch of `recover_shared`, because the first recovery released the log's records (`!turns_->has_group`). It returns the table's stale checkpoint as the frontier and stages `base + 1` behind the log's sequence. The next turn then fails the whole loop's driver. Before this quest, that case was Corruption for the one group. | 261116-140554-3cc85e `recover_twice` | Take the table branch only when the log holds nothing of the group (`turns_->sequence(group_) == 0`), and keep Corruption otherwise; or have the host refuse a second attach. Test: `recover_twice` in `host_test`. |
-| F4 | no | defect | Each table transition mutates the in-memory entry before `commit` (`create_group`, `reopen_group`, `close_group`, `next_artifact`'s `high += 64`, `mark_lost`), so a failed table write leaves memory ahead of disk. `next_artifact` then hands out serials from a block that was never made durable (host.h:330-334). After a crash, a published artifact can lie outside `[mark, high)`, where the census and reclamation miss it, and its serial is issued again (EEXIST, one fence). | host.h:307-335, read | Commit a copy and apply it on success, or fence the host on a failed table write. This also covers F2's state half. |
-| F5 | no | nit | `mark` is a low-water mark: one long-lived artifact pins it, so every census and reclamation pass probes every serial issued since then, one stat per serial. | host.h:346-348, read | Measure a group with a pinned dependency over many checkpoints, or keep the live serials sparse. |
-| F6 | no | defect | When the waiter's scheduler declares no `post_call`, `Cancel` runs `hop` on the cancelling thread (turn_driver.h `Wait::Cancel`), and its `unlink` then races the loop's list. Every task scheduler declares `post_call`; a host scheduler might not. | turn_driver.h, read; task:95798a0 task.hh:221-224 | Refuse a scheduler without `post_call` at `await_suspend` instead of falling back. |
-| F7 | no | gap | A cross-thread cancel that claims a waiter just before a stalled entry destroys its root leaves a queued `hop` that points into the freed frame. The one-argument `run` drops it with its scheduler, but a caller-owned scheduler (R5 overload) that is driven again runs it. | blocking.h `run`, task.hh:470-475, read; not probed | Document that a stalled entry's scheduler is not driven again, or drain claimed hops before destroying the root. |
-| F8 | no | nit | `Host::open` writes a fresh `layout` over a directory that still holds old-layout names (`turns-*`, `owner.lock`, per-group directories) and ignores them (host.h:410-414). This is acceptable under D43; refusing unknown names is one line. The owner's call, keeping it is fine. | host.h:410-414, read | Optional: refuse the directory if any non-layout name is present at first open. |
+| F1 | fixed | defect | A known group whose acknowledged records a damaged log no longer holds, and that no surviving manifest names, is offered for `create`: `Host::status` returns `none` for an open table entry absent from the log (host.h:272-280), and `open()` marks only `recovered().lost` (host.h:436-438). `create_group` then removes the group's artifacts and starts incarnation 2, so the loss is silent. TurnRecovery's own contract says a group the host knows that is in neither map is lost when the log is damaged (turn_log.h:62-64). The old marker made this case fail closed (Corruption). | 261116-140207-14fdf6 `absent` modes 1 and 2 | In `open()`, when a loop's recovery is damaged, mark that loop's open entries absent from `recovered().groups` lost with the rest, durably. Test: the probe's `absent` case in `placement_test`. |
+| F2 | fixed | defect | `close_group` makes the log forget the group before the table write (host.h:323-325). If the shard write fails (ENOSPC, EIO), the host keeps serving, retention recycles the group's records, and the table still holds it open with no record. After a restart, `status` is `none` and `create` removes its artifacts. | 261116-140554-3cc85e `close_failure` | Commit the closed entry first, from a copy, and forget only after the commit succeeds; on failure leave the entry and the log as they were. Test: `close_failure` in `host_test`. |
+| F3 | fixed | defect | Recovering a once-closed group a second time in one host process (a new Store after a fenced one, the remedy `healthy()` names) takes the table branch of `recover_shared`, because the first recovery released the log's records (`!turns_->has_group`). It returns the table's stale checkpoint as the frontier and stages `base + 1` behind the log's sequence. The next turn then fails the whole loop's driver. Before this quest, that case was Corruption for the one group. | 261116-140554-3cc85e `recover_twice` | Take the table branch only when the log holds nothing of the group (`turns_->sequence(group_) == 0`), and keep Corruption otherwise; or have the host refuse a second attach. Test: `recover_twice` in `host_test`. |
+| F4 | no (fixed) | defect | Each table transition mutates the in-memory entry before `commit` (`create_group`, `reopen_group`, `close_group`, `next_artifact`'s `high += 64`, `mark_lost`), so a failed table write leaves memory ahead of disk. `next_artifact` then hands out serials from a block that was never made durable (host.h:330-334). After a crash, a published artifact can lie outside `[mark, high)`, where the census and reclamation miss it, and its serial is issued again (EEXIST, one fence). | host.h:307-335, read | Commit a copy and apply it on success, or fence the host on a failed table write. This also covers F2's state half. |
+| F5 | no (accepted) | nit | `mark` is a low-water mark: one long-lived artifact pins it, so every census and reclamation pass probes every serial issued since then, one stat per serial. | host.h:346-348, read | Measure a group with a pinned dependency over many checkpoints, or keep the live serials sparse. |
+| F6 | no (accepted, task follow-up) | defect | When the waiter's scheduler declares no `post_call`, `Cancel` runs `hop` on the cancelling thread (turn_driver.h `Wait::Cancel`), and its `unlink` then races the loop's list. Every task scheduler declares `post_call`; a host scheduler might not. | turn_driver.h, read; task:95798a0 task.hh:221-224 | Refuse a scheduler without `post_call` at `await_suspend` instead of falling back. |
+| F7 | no (documented, blocking.h) | gap | A cross-thread cancel that claims a waiter just before a stalled entry destroys its root leaves a queued `hop` that points into the freed frame. The one-argument `run` drops it with its scheduler, but a caller-owned scheduler (R5 overload) that is driven again runs it. | blocking.h `run`, task.hh:470-475, read; not probed | Document that a stalled entry's scheduler is not driven again, or drain claimed hops before destroying the root. |
+| F8 | no (kept, D43) | nit | `Host::open` writes a fresh `layout` over a directory that still holds old-layout names (`turns-*`, `owner.lock`, per-group directories) and ignores them (host.h:410-414). This is acceptable under D43; refusing unknown names is one line. The owner's call, keeping it is fine. | host.h:410-414, read | Optional: refuse the directory if any non-layout name is present at first open. |
+| G1 | yes | gap | A2's cross-thread cancel hop is proven only by a TSan mutant that dies in 1 of 3 samples (261116-141919-d95bce, 261116-141922-5664cd, 261116-141925-5a860e; only the last killed it). | journal Fix round 1 evidence; test/mutants.py:37-39 | Add a deterministic test: cancel on another thread between drives, join it, assert the waiter stays linked (`waiting_groups()`) until the loop runs the hop. Then rerun cancel-without-hop against it (killed without TSan). |
 
 ## Not run
+
+- Round 1: I did not rerun the new mutants or read the TSan log; the probe reruns and the diff
+  are my evidence for F1-F4.
 
 - The suite, ASan, TSan and mutant reruns at 535e9e5: still queued when I wrote this, so the
   A1/A2 crash-point counts (967 per mode) and the TSan cancel cases are the contributor's evidence,
