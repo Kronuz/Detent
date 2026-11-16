@@ -2208,7 +2208,7 @@
           "files": [
             "docs/status/dense-integration.md"
           ],
-          "worktree": "../Detent-wt/dense-pages--integration"
+          "worktree": ""
         },
         "overlay-bounds": {
           "base": "6b58a858e1bf6a5ce32d95033ae96795400bb40f",
@@ -2252,8 +2252,8 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-11T04:47:00",
-      "worktree": "../Detent-wt/dense-pages"
+      "updated": "2026-11-15T23:16:26",
+      "worktree": ""
     },
     "dense-sync-stack": {
       "accepted": {},
