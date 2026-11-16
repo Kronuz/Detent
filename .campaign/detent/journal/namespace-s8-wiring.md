@@ -1,6 +1,6 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (at Detent:3023f2d0 suite 261116-055643-30fa1f and pins 261116-055655-92aa4f passed; waiting on native 261116-055648-ea95b0 and the 8 service mutants in the Evidence table)
+State: ready for review (gate fix at Detent:bf52fca4; waiting on jobs 261116-073923-0d3f9a native, 261116-073946-b0ee94 relay suite, mutants 261116-073925-5d2f6a absence-trusted, 261116-073927-c36fd9 history-not-gated, 261116-073930-d0f58f refusal-not-skipped; pins 261116-073923-5297d0 passed)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
@@ -9,14 +9,45 @@ Nothing: the jobs remain.
 
 ## Next
 
-1. When the jobs end, record them; the suite confirms D11 (`campaign accept` is the lead's).
-2. If native fails only outside the relay and authority history routes, compare with a job at main.
+1. When the jobs end, record them in the Evidence table (the A5 round).
+2. If native fails outside the relay and the authority's leader gate, compare with a job at main.
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+Fourth round (native 261116-055648-ea95b0 failed A5's start case: relay D `ready` with 6 files
+from voter x). Mechanism, traced at Detent:3023f2d0 with a temporary patch logging each `serving`
+transition, each AppendResponse x sent and each history request's gate
+(`.scratch/instrument.diff`, driver `.scratch/a5_repeat.py`: A5's start case alone, 20 repeats
+beside 6 `yes` hogs, light hold): x is stopped ~2.5 s while the leader seals; the leader's
+heartbeat and appends to x wait in x's sockets; on SIGCONT x's first pass reports not ready (the
+last contact 2.5 s old), then 46-94 ms later it reads the queued frames, its AppendResponse sets
+`leader_contact` to now and `serving` turns true for `election_max` (2 s) while the leader is
+stopped. First frame: a heartbeat sent when x stopped (matched 14 of the quorum's 22), then the
+leader's last appends (16-22). 20 of 20 resumes flipped; 9 of 20 inside `refuses()` itself (the
+route answered past the gate, 503 history_unavailable), the others answered D's layouts 200; the
+native run adopted. So the voter answered with no live leader on proof older than `election_max`:
+a gate defect (proof counted when read, not when it could have been sent).
+
+Fix (Detent:bf52fca4, service.cc): the owner loop notes a return from an absence of
+`election_min` or more; no AppendResponse or RoleChanged counts as contact until `election_max`
+after it, and `leader_alive` (so `serving`, `/v1/health` `ready` and both routes) holds only past
+it. Test: `refuses()` checks both routes every 20 ms for 1 s after the voter reports not ready
+(the queued frames arrive within ~100 ms). Local: the fix 20 of 20 pass beside the hog (x refused
+through D's 2 failed syncs, D `syncs` 0, `fetched_files` 0); mutant `absence-trusted` (`trusting`
+always true) 5 of 5 killed by `refuses()`.
+
+| Criterion | Evidence (Detent:bf52fca4) |
+|---|---|
+| A1-A3, A5 | relay suite 261116-073946-b0ee94 (pending) |
+| A5 | mutants absence-trusted 261116-073925-5d2f6a (new: the absence guard), history-not-gated 261116-073927-c36fd9, refusal-not-skipped 261116-073930-d0f58f (pending) |
+| A4 | [artifact] `docs/status/namespace-s8.md`, "The service": the absence rule; step 4 (the resumed voter keeps refusing) |
+| checks | native 261116-073923-0d3f9a (pending), pins 261116-073923-5297d0 (passed) |
+
+Third-round evidence (superseded for A5 and the checks by the above):
 
 Third round (D11, A5 per D99) at Detent:45acbe9f, test fix Detent:3023f2d0. Local run (Release,
 loaded host), `test_relay_service` 80 s: A1-A3 as before; A5 "voter 1 alone (applied 54, the
@@ -163,6 +194,14 @@ open there: streamed fetch of large files (a file above the reply bound is refus
     bootstrap the routes answer 503 until the first leader is known, as they already did until
     positions were enabled; `test_relay_service` starts relays right after the election and they
     become ready (suite).
+18. The absence rule lives in the service's `leader_alive`, the one predicate behind `/v1/health`
+    `ready` and the history routes, not in consensus: the core also counts a queued frame as
+    contact (its `leader_contact_` is set when read), and per-frame receive times are in the
+    consensus transport, not this quest's files. Threshold `election_min` (an absence the cluster
+    could elect through), hold `election_max` (the lease window; a stale leader's CheckQuorum
+    steps it down within it). The queued frames drain in under 100 ms in the trace. A voter
+    whose owner loop stalls 1 s or more under load reports not ready for 2 s after: honest, it
+    could have missed an election. W5 next stays ungated (ruling 15).
 14. `test_relay_chain`'s voters run on the harness's memory storage: the test proves the relays'
     files and answers against the voters, and the voters' own durability is the authority suites';
     the relays' mirrors stay on disk.
