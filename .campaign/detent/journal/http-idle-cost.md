@@ -1,6 +1,6 @@
 # http-idle-cost: journal
 
-State: blocked: A2 not met at http:47d6726 after the third experiment (measured gap under Blocked on)
+State: experiment 4 (lead: option 1) at http:ad6771f; gate count job 261116-081537-cfec36 (after build 261116-081525-eb9d17)
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -110,36 +110,22 @@ mutant 261116-051730-1f186a. All exit 0.
   (+3 B at 10K, +2 to +15 B at 100K vs 76f698d, inside the spread): RELEASE_BUFFERS frees the emptied read
   buffer. Owners at 100K head: OpenSSL 27,909 B requested, heap blocks 9,504 B, 5 task frames, socket mbufs 0.
 
+Experiment 4 (lead's msg: option 1, one experiment), http:ad6771f: a read that wants bytes receives
+them with async_receive into the caller's buffer (speculative: no kevent re-arm); the BIO serves a copy held
+until OpenSSL takes it, so nothing is held while idle (the pending receive uses ConnectionInput's own 4 KiB
+buffer). Handshake, writes and reads under 512 B keep the direct read + async_wait. Local tls_asio_test (light
+hold): all pass, 4 MiB upload exercises the leftover path, OpenSSL 29,856 B per idle connection.
+
 ## Next
 
-1. The lead rules on Blocked on. Nothing runs; no jobs pending.
+1. Gate: count job 261116-081537-cfec36 (base, prev 47d6726, head ad6771f). Pass: TLS c64 kevent/req at head
+   ~0.02 (base 0.019). If not: stop, write it under Blocked on.
+2. If it passes: exclusive load small rows (base, prev, head, A/A) and the other three rows (base, head, A/A),
+   10K TLS idle, suite, TSan, join mutant at ad6771f. Then A2 decides docs/CHANGELOG or Blocked on.
 
 ## Blocked on
 
-A2: small-reply TLS keep-alive is still outside its A/A band at http:47d6726, after the three experiments
-(write join 76f698d, defer 74d5d7b, read-ahead 47d6726), CPU/req included:
-- TLS / c1 keep: req/s 0.921x [0.885-0.992] vs A/A [0.967-1.028]; CPU/req 1.143x [1.073-1.189] (+3.2 us) vs
-  A/A [0.977-1.032].
-- TLS / c64 keep: req/s 0.821x [0.791-0.872] vs A/A [0.975-1.093]; CPU/req 1.218x [1.148-1.264] (+3.3 us) vs
-  A/A [0.915-1.025].
-- Measured residual cause: one kevent(EV_ADD) per request from TlsStream's async_wait re-arm (1.020/req vs
-  0.019 at c64), plus one deferred io_context op per request; the counts do not apportion the 3.3 us between
-  them, a profile would.
-- Everything else meets A2: idle TLS -58.7% at 10K and 100K, read-ahead adds nothing idle; TLS 1 MiB 1.102x
-  better; TLS close and plain 1 MiB inside their bands.
-Options:
-1. A fourth experiment (needs the lead's budget): wait for readability without async_wait, through a
-   speculative Asio receive. Either MSG_PEEK async_receive of one byte (no kevent, but about 2 more recvfrom
-   per request) or a BIO whose read is Asio's async_receive into the connection's read-ahead buffer (no extra
-   syscall; it is the BIO pair's job without its 34,928 B, buffer released while idle). Then the count and
-   load jobs again. Cost: about a day; the BIO variant changes the TlsStream design.
-2. Accept the trade (owner's call: it changes A2): -58.7% idle TLS memory, 2.42x connections per GiB, against
-   -8% c1 / -18% c64 req/s and +14% / +22% CPU/req on small TLS keep-alive replies.
-3. Land without TlsStream: keep asio::ssl::stream (with SSL_MODE_RELEASE_BUFFERS) and only the transport-neutral
-   cuts (read scratch off the frame, header read-ahead); keeps the load numbers, gives up most of the TLS idle
-   win (the 2 x 17,408 B staging and 34,928 B BIO pair stay). Needs a 10K/100K rerun to state what remains.
-Recommendation: 1 with the BIO variant, one experiment, bounded by the count job first (kevent ~0.02/req at
-c64 and no io_context execute before any load job); if it does not reach the band, 2 goes to the owner.
+Nothing while experiment 4 runs (the measured gap at 47d6726 is in Doing; the lead chose option 1).
 
 ## Evidence
 
