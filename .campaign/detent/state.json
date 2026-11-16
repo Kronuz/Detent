@@ -3155,7 +3155,70 @@
       "updated": "2026-11-10T11:59:38"
     },
     "drivers-completion-seam": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-16T11:54:22",
+          "base": "fd2608aa484884d9a27acc6a15f7e72c9cfef4f2",
+          "blobs": {
+            "AGENTS.md": "100644:41e69168e2d310f54afa5d5b8ed63a2bc8c2eb26",
+            "ARCHITECTURE.md": "100644:2b5e467d453913a8bd7319c430f05f458ea962a5",
+            "CHANGELOG.md": "100644:563df81e7cfdcd521784a55cb7eadd57d4887e1b",
+            "CMakeLists.txt": "100644:aa76ed070ab99890fbfed25aa9ed84fced2253aa",
+            "README.md": "100644:d2120394955c6abacbfe79bac0a241dd456f4d87",
+            "bench/lane_ab.py": "100644:b7969cafe8093a55fcd9f15cf6227df49243a337",
+            "bench/lane_build.sh": "100755:4c9d19079cdc2a69b441e59c983097bdfe56c58d",
+            "bench/lane_probe.cc": "100644:125cd2841f0b46b46a15af2bfc3a193e0bbcf85d",
+            "docs/MEASUREMENTS.md": "100644:fddd272a37526c43b9dbdcd79f1a2c3cce539e08",
+            "docs/mechanisms/completion-seam.md": "100644:dc9113367ada1f3d89497e436bd453c743d3f2ee",
+            "include/completion/asio_completion.h": "100644:1d9fa2d18c6e11b5e528a613c50d4884bf35dcd8",
+            "include/completion/bsd_completion.h": "100644:d50829a31ab00e33b242b9ac06531adbc52c579a",
+            "include/completion/completion.h": "100644:b6773744513ac75f757a66593a039f05ca452ca4",
+            "include/completion/linux_completion.h": "100644:9b441aa2401282b5f8533f19626fe246b598977a",
+            "include/completion/operation.h": "100644:4c6023e72f2f277b78ac26214bcb8608e0e26b25",
+            "include/completion/seam.h": "100644:61700b106ba46d3a58d64cca2e9e537f91c0eee7",
+            "test/asio_extension_test.cc": "100644:af72fbd0b8a83b6d23ac635f26ec7ecbbae5b8fd",
+            "test/asio_seam_test.cc": "100644:1c0c66427a42157dd6c7a5202178f43f72407ec4",
+            "test/check_seam.py": "100644:e00e3ff481768eb7c298bcb2a62c647dae4b9579",
+            "test/replace_once.py": "100644:e04e7e1e67f20263c2fccd7d590ba85749f1ead8",
+            "test/seam_support.h": "100644:da08ee93d960b51bd0b30b627f0640592976785d",
+            "test/seam_test.cc": "100644:f3620bbe6d45861af108cd6f32a7db0428cd5db9",
+            "test/sync_data_test.cc": "100644:63bca23b7f56f71031ea78366048bb3f7fece47a"
+          },
+          "by": "review",
+          "commit": "90411863d5e421c99da18568b07432954aa83615",
+          "criteria": "17ab9bcb2cafbbb4",
+          "diffs": {
+            "AGENTS.md": "6f6d2d4a00cbdd7b",
+            "ARCHITECTURE.md": "6d888ff31f5c2618",
+            "CHANGELOG.md": "87107004a26be9e7",
+            "CMakeLists.txt": "75963ad22bfa9f76",
+            "README.md": "b21abf5fb4b9cd93",
+            "bench/lane_ab.py": "840ae27723d052d9",
+            "bench/lane_build.sh": "ef21491119272530",
+            "bench/lane_probe.cc": "abae086b688055ca",
+            "docs/MEASUREMENTS.md": "37c0ce6d5136434b",
+            "docs/mechanisms/completion-seam.md": "59454d01c98f00f3",
+            "include/completion/asio_completion.h": "5361261a446b2bcc",
+            "include/completion/bsd_completion.h": "397151d5e392b7ef",
+            "include/completion/completion.h": "a2c2b133d719b664",
+            "include/completion/linux_completion.h": "75090638a188825f",
+            "include/completion/operation.h": "c29ead3751bdf20b",
+            "include/completion/seam.h": "7691bb8e061a158c",
+            "test/asio_extension_test.cc": "81fd1f90ef4c062f",
+            "test/asio_seam_test.cc": "bf9b0986c31ea580",
+            "test/check_seam.py": "f1c982fea5a445a3",
+            "test/replace_once.py": "80abea8aed906cfa",
+            "test/seam_support.h": "b00209d21c296c70",
+            "test/seam_test.cc": "85c447bb4ad2c5fc",
+            "test/sync_data_test.cc": "696a38f93213383d"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ed7cf84a2d523a6136552d371b0fd3e8f565fb1c",
+          "reviewed": "90411863d5e421c99da18568b07432954aa83615",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "3f82cda129a2abeb7fb57baff04fe3981dcc1d85",
       "branch": "quest/detent/drivers-completion-seam",
@@ -3188,7 +3251,9 @@
       ],
       "journal": "../Detent-wt/detent/drivers-completion-seam",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "M1b",
       "needs": [],
       "provides": [
@@ -3198,7 +3263,7 @@
       "risk": "normal",
       "status": "review",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-16T00:09:49",
+      "updated": "2026-11-16T11:54:22",
       "worktree": "../completion-wt/detent/drivers-completion-seam"
     },
     "drivers-task-wheel": {
