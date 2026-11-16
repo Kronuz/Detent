@@ -7533,8 +7533,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Agent store: derived ids, no storage identity",
-      "updated": "2026-11-13T01:31:13",
-      "worktree": "../Detent-wt/detent/namespace-s7-ids"
+      "updated": "2026-11-15T23:16:01",
+      "worktree": ""
     },
     "namespace-s7-store": {
       "accepted": {
