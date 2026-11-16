@@ -3199,7 +3199,7 @@
     "drivers-task-wheel": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-16T02:07:29",
+          "at": "2026-11-16T02:08:50",
           "base": "f51aafb74028fb5b2dcb0c43db7b7e7c1abd848b",
           "blobs": {
             "AGENTS.md": "100644:39ce481c77d2741ede7567ff28fb0cd50cd83889",
@@ -3219,7 +3219,7 @@
           },
           "by": "review",
           "commit": "95798a02f68c86f070401329a05c78d326ac2579",
-          "criteria": "a92f94b248247300",
+          "criteria": "b9b5e21d9552c78f",
           "diffs": {
             "AGENTS.md": "07af27fe23465b05",
             "ARCHITECTURE.md": "d7c202e2ab05efac",
@@ -3312,7 +3312,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:07:35",
+      "updated": "2026-11-16T02:08:50",
       "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
