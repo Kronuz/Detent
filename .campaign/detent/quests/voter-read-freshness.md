@@ -25,7 +25,7 @@ Consumes consensus's read path (or adds a ReadIndex primitive to it, then a ques
 
 ## Decisions
 
-D101 (owner, 2026-11-16): split from namespace-s8-wiring. Open, for the design review: whether W5 `next` (reader-facing) is gated the same way (namespace-s8-wiring ruling 1 left it ungated).
+D101 (owner, 2026-11-16): split from namespace-s8-wiring. Also D12 (namespace-s8-wiring review, non-blocking): a stall that starts mid owner pass escapes the top-of-pass absence check for that pass; stamp `leader_contact = owner_started` (service.cc:2038, :2045) or cover it with the leader-confirmed read. Nits D13-D15 of that review (frame backlog slower than election_max, the website reference omits the absence rule, enabling the moved test starts relay D twice). Open, for the design review: whether W5 `next` (reader-facing) is gated the same way (namespace-s8-wiring ruling 1 left it ungated).
 
 ## May land early
 
