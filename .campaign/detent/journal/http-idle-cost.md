@@ -1,6 +1,6 @@
 # http-idle-cost: journal
 
-State: waiting on jobs 261116-005006-33e605 261116-005016-7c440c 261116-005018-f86639 261116-005020-be4ff3 261116-005022-d66445 261116-005024-5fceda 261116-005025-50df2a 261116-005027-f124b9 261116-005029-e3c253 261116-005031-60857a 261116-005033-e981c8 261116-005035-ed5e67 261116-005037-f0cb2a 261116-005043-9b8768 261116-005050-009870 261115-235032-963543 261115-235036-fc949b
+State: waiting on jobs 261116-012327-17683d 261116-012332-c66999 261116-012337-d0d5f6 261116-012341-188fac 261116-012345-cba126 261116-012350-66ef55 261116-012355-6cbb4e 261116-012359-7fcd7c 261116-012405-815b06 261116-012410-6d7174 261116-012414-ba9ee6 261116-012418-4d5602 261116-012423-dcb492 261116-012427-2c38f4 261116-012431-fec7c5 261116-012436-2ce3c9 261116-012441-481714 261116-012446-eb31d6 261116-012459-659c51 261116-012504-cf1398
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -36,12 +36,25 @@ default config 261116-000626-9f041e (4.1.0 = 4.1.0, libssl.4.dylib), mutant 2611
 (without the property: headers 4.1.0, library 3.6.5, the check FAILED). Pre-fix 261115-235445-d74933 fails the
 same way: the mismatch reproduced.
 
-Queued at f3d6be6: build 261116-005006-33e605; 100K, one arm and round per exclusive job (ABBA):
-TLS base0 261116-005016-7c440c, head0 -005018-f86639, head1 -005020-be4ff3, base1 -005022-d66445;
-plain base0 -005024-5fceda, head0 -005025-50df2a, head1 -005027-f124b9, base1 -005029-e3c253;
-owners TLS base -005031-60857a, TLS head -005033-e981c8, plain base -005035-ed5e67, plain head -005037-f0cb2a.
-Suite 261116-005043-9b8768, TSan 261116-005050-009870. Load at 4279a49: 261115-235032-963543,
-261115-235036-fc949b.
+TLS load regression (A2), found and fixed:
+- Load at 4279a49 (261115-235032-963543, -235036-fc949b): TLS / c1 keep 0.616x base req/s (range 0.589-0.652,
+  A/A 0.962), CPU/req 1.676x; c64 0.596x, 1.675x. 1 MiB download 1.116x (better), TLS close c8 0.922x
+  (A/A 1.009, ranges overlap), plain 1 MiB 1.005x: noise.
+- Local profile (sample, quiet light): head spends ~1.75x base's time in sendto. Cause: TlsStream wrote only
+  the first buffer per async_write_some, so a reply's head and body were two records and two sends;
+  asio::ssl::stream linearises up to 8 KiB into one SSL_write. 76f698d joins them (operation-owned copy).
+  tls_asio_test counts records of a small reply: 1 with the fix, 2 without (local); mutant job
+  261116-012504-cf1398.
+- Local req/s, TLS c1 keep (light hold, noisy): before the fix base 5,564 / fixed 4,677 / old head 3,508; after
+  base 5,454 5,688, join 5,491 5,642, join+SSL_set_read_ahead 5,720 5,573. read_ahead: no measured gain,
+  dropped.
+
+Queued at 76f698d (supersedes f3d6be6's): build 261116-012327-17683d; load A/B 261116-012332-c66999,
+-012337-d0d5f6; 10K TLS -012341-188fac, plain -012345-cba126 (3 rounds + owners); 100K one arm and round per
+job, ABBA: TLS base0 -012350-66ef55, head0 -012355-6cbb4e, head1 -012359-7fcd7c, base1 -012405-815b06; plain
+base0 -012410-6d7174, head0 -012414-ba9ee6, head1 -012418-4d5602, base1 -012423-dcb492; owners TLS base
+-012427-2c38f4, TLS head -012431-fec7c5, plain base -012436-2ce3c9, plain head -012441-481714. Suite
+-012446-eb31d6, TSan -012459-659c51, join mutant -012504-cf1398.
 
 ## Next
 
