@@ -1,6 +1,6 @@
 # journal-driver: journal
 
-State: waiting on jobs 261116-134558-0ebf97 261116-134558-ff571e 261116-134559-096532 261116-134559-716069 261116-134559-9de588 261116-134559-290fe3 261116-134559-acb5ec 261116-134600-8f3890 261116-134600-071bcb 261116-134600-dd6db2 261116-134600-2c8644 261116-134601-9a13f2 261116-134601-f4630f 261116-134601-8b0196 261116-134601-39997d
+State: waiting on jobs 261116-141838-acebfd 261116-141841-9aa2bd 261116-141845-fc7862 261116-141849-473b2c 261116-141853-1c95eb 261116-141857-2492f6 261116-141901-fea9cf 261116-141905-228948 261116-141908-6c54a9 261116-141912-bac21f 261116-141915-1284ed 261116-141919-d95bce 261116-141922-5664cd 261116-141925-5a860e 261116-141928-26c106 261116-141931-c71579 261116-141934-eac4e0 261116-141937-ca8803 261116-141941-8771b6 261116-141944-59a147 261116-141947-a9566f 261116-141950-c5319b 261116-141954-c7b068 261116-141957-09e890 261116-142000-26d170 261116-142003-5516c2 261116-142006-c0c1df 261116-142008-75d3a1 261116-142011-b6fe5a 261116-142013-74b933
 Quest: .campaign/detent/quests/journal-driver.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1-A5 built (journal:e2dc181..HEAD). A3/A4 per D105: one flat directory per host
-(`include/journal/host.h`), tests `test/host_test.cc`, `test/placement_test.cc`,
-`test/completion_test.cc` host_lock, crash rounds with close/reopen in `test/shared_store_test.cc`,
-`bench/idle_cost.cc`. Evidence jobs submitted at journal HEAD; waiting on them.
+Fix round 1 for the durability review (Detent `.campaign/detent/reviews/journal-driver-durability.md`,
+verdict CHANGES at journal:535e9e5): F1-F3 fixed with a test and a mutant each, F4 and F7 folded
+in (journal:d4b6380..5a959a1). Evidence for every criterion resubmitted at journal:5a959a1.
 
 ## Next
 
-1. Once the reruns at 535e9e5 pass, mark them passed in the table and set "ready for review"
-   (durability review next).
+1. When the round-1 jobs finish: mark each in the Fix round 1 table, then set "ready for review"
+   (the lead accepts with `campaign accept journal-driver durability --confirm F1=... F2=... F3=...`).
 
 ## Blocked on
 
 Nothing. The lead's D105 answered both items: flat directory with (generation, loop)-prefixed
 logs (R13 updated), and N1 fixed in completion:7731315 (repinned, R21).
+
+## Fix round 1 (durability review)
+
+| Finding | Fix | Test (fails at 535e9e5) | Mutant killed | Confirming job |
+|---|---|---|---|---|
+| F1 | `TurnLog::recover` loses every open group the table names (`TurnLogGroups::open`) that a damaged log holds nothing of; open and re-partition both mark it (journal:d4b6380) | `placement_test damaged_absent` (modes 0-2, two restarts, create refused): 261116-142008-75d3a1 | damaged-keeps-absent 261116-142000-26d170 | suite 261116-141838-acebfd; probe rerun 261116-142003-5516c2 |
+| F2 | table transitions go through `Host::update` (change, commit, restore on failure); `close_group` commits before `forget` (journal:d4b6380) | `host_test failed_close`: 261116-142011-b6fe5a | close-forgets-first 261116-141941-8771b6, update-keeps-change 261116-141944-59a147 | suite 261116-141838-acebfd; probe rerun 261116-142006-c0c1df |
+| F3 | `recover_shared` takes the table's record only when `TurnDriver::holds` is false (no durable or staged record); otherwise Corruption (journal:d4b6380) | `host_test second_recovery`: 261116-142013-74b933 | recover-twice-from-table 261116-141947-a9566f | suite 261116-141838-acebfd; probe rerun 261116-142006-c0c1df |
+| F4 | same `Host::update` rollback: memory never ahead of the disk | `failed_close` checks the entry stays open | update-keeps-change | as F2 |
+| F5 | not changed: noted (low-water `mark` probes every serial since a pinned artifact) | - | - | - |
+| F6 | not changed: refusing a scheduler without `post_call` needs task's `scheduler_ref` to expose it (task repo, outside the file set) | - | - | - |
+| F7 | documented in `blocking.h`: a stalled entry's scheduler is not driven again (journal:286582c) | - | - | - |
+| F8 | not changed: kept per D43, the owner's call | - | - | - |
+
+Round-1 evidence at journal:5a959a1: suite 261116-141838-acebfd, ASan 261116-141841-9aa2bd, TSan
+261116-141845-fc7862, A5 grep 261116-141849-473b2c, idle cost (exclusive) 261116-141853-1c95eb.
+Mutants: A1 no-sync-data -2492f6, no-barrier-wait -fea9cf; A2 entry-skips-commit -228948,
+entry-waits-without-deadline -6c54a9, stalled-without-groups -bac21f, wake-ignores-claim -1284ed,
+cancel-without-hop three TSan samples -d95bce -5664cd -5a860e; A3 group-blind-names -26c106,
+group-scans -c71579, reopen-from-log -eac4e0, same-incarnation -ca8803, close-forgets-first,
+update-keeps-change, recover-twice-from-table; A4 remap-forget -c5319b, repartition-skips-mark
+-c7b068, open-skips-mark -09e890, damaged-keeps-absent. (All 261116-14xxxx; full ids in State.)
 
 ## Evidence
 
@@ -69,6 +90,19 @@ history (967 points per mode at seed 1, identical operation counts). Docs: journ
 "Coroutine drivers"; design for A3/A4: `docs/design/host-layout.md`.
 
 ## Rulings I made
+
+- R23. F1 lives in `TurnLog::recover`, where TurnRecovery's contract is: the host passes its open
+  ids (`TurnLogGroups::open`, a vector built in the pass `known()` already makes), so open and
+  re-partition get it alike and the log refuses the id at once. A group reopened or created whose
+  first record never became durable is lost too while the damage remains: fail closed.
+- R24. F2/F4 by rollback, not a host fence: a failed shard write restores the entry; if the rename
+  did persist, the disk is ahead of memory, which retrying the same transition rewrites
+  idempotently, and the group's own journal is fenced by the failure.
+- R25. F3 refuses a second recovery on one host (Corruption, the pre-quest behavior) rather than
+  rereading the log; `TurnDriver::holds` also covers a reopen whose record is still staged.
+- R26. The new cases are named `damaged_absent`, `failed_close`, `second_recovery` so the review's
+  probes, which include the test files, rerun unchanged. `entry_threads_busy` runs 200 rounds: at 20
+  the cancel-without-hop mutant survived one TSan run of three (261116-134559-acb5ec).
 
 - R1. task pinned at task:95798a0 (blocking_scheduler) ahead of completion:9041186's task:18eb516, declared
   first in journal's CMakeLists so FetchContent takes it; TASK_ASIO and COMPLETION_ASIO off.
