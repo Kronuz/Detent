@@ -1844,8 +1844,8 @@
       "risk": "high",
       "status": "landed",
       "title": "A delta's plan grows superlinearly with the store",
-      "updated": "2026-11-12T18:41:28",
-      "worktree": "../Detent-wt/detent/delta-plan-scaling"
+      "updated": "2026-11-15T23:15:37",
+      "worktree": ""
     },
     "dense-distribution": {
       "accepted": {
