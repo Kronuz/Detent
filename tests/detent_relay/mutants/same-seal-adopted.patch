@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 222dc996..61578e3e 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -200,7 +200,7 @@ SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
+ 		if (!std::binary_search(names.begin(), names.end(), layout.name) || layout.seal > answer.seal)
+ 			throw std::runtime_error("relay: the upstream sent a namespace it was not asked for, or past its seal");
+ 		if (const auto *held = table.find(layout.name);
+-			held && (held->seal > layout.seal || (held->seal == layout.seal && *held != layout)))
++			held && held->seal > layout.seal)
+ 			throw UpstreamBehind("relay: the upstream's layout is older than the mirror's: " + layout.name);
+ 	}
+ 	SyncStats stats;
