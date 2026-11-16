@@ -3213,19 +3213,43 @@
         "docs/**",
         "CHANGELOG.md",
         "README.md",
-        "ARCHITECTURE.md"
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-15T21:49:26",
+          "lenses": [
+            [],
+            [
+              "security",
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "risk": [
+            "normal",
+            "high"
+          ],
+          "voided": [],
+          "weakened": []
+        }
       ],
       "journal": "../Detent-wt/detent/http-idle-cost",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
-      "risk": "normal",
+      "risk": "high",
       "status": "active",
       "title": "HTTP idle cost: cheaper idle connections, TLS first",
-      "updated": "2026-11-15T21:03:55",
+      "updated": "2026-11-15T21:49:26",
       "worktree": "../http-wt/detent/http-idle-cost"
     },
     "http-task-h1": {
