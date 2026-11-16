@@ -2853,6 +2853,8 @@
     "drivers-completion-seam": {
       "accepted": {},
       "after": [],
+      "base": "3f82cda129a2abeb7fb57baff04fe3981dcc1d85",
+      "branch": "quest/detent/drivers-completion-seam",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -2880,6 +2882,7 @@
         "CHANGELOG.md",
         "examples/**"
       ],
+      "journal": "../Detent-wt/detent/drivers-completion-seam",
       "landed": [],
       "lenses": [],
       "milestone": "M1b",
@@ -2889,9 +2892,10 @@
       ],
       "repo": "../completion",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-15T21:58:36"
+      "updated": "2026-11-15T21:59:15",
+      "worktree": "../completion-wt/detent/drivers-completion-seam"
     },
     "drivers-task-wheel": {
       "accepted": {},
