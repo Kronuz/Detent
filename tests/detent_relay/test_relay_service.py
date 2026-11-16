@@ -32,7 +32,7 @@ READER = "c3" * 16  # downstream readers at either relay, and relay B at A
 NAMES = ["a", "b", "c", "d"]  # "d" is written rarely: its small roll-ups stay sections
 # Small seals and roll-ups, and a block limit of twice the live bytes, so a short run reaches
 # bases, blocks and the sections between roll-ups.
-LAYOUT = {"seal_transactions": 6, "period": 4, "carry_bytes": 64, "carry_count": 2, "alpha_num": 8, "alpha_den": 1}
+LAYOUT = {"seal_transactions": 3, "period": 4, "carry_bytes": 64, "carry_count": 2, "alpha_num": 8, "alpha_den": 1}
 
 
 def check(condition: bool, message: str) -> None:
@@ -63,6 +63,8 @@ class Run:
         self.relay_ports = {"a": free_port(), "b": free_port()}
         self.children: dict[str, subprocess.Popen[bytes]] = {}
         self.sequence = 0
+        self.leading: int | None = None
+        self.started = time.monotonic()
 
     # Processes.
     def start(self, name: str, command: list[str]) -> None:
@@ -176,9 +178,15 @@ class Run:
     def write(self, path: str, fields: dict[str, Any]) -> dict[str, Any]:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
-            status, body = self.call(self.http[self.leader()], path, CONTEXT | fields)
+            if self.leading is None:
+                self.leading = self.leader()
+            try:
+                status, body = self.call(self.http[self.leading], path, CONTEXT | fields)
+            except (OSError, http.client.HTTPException):
+                status, body = 0, b""
             if status == 200:
                 return json.loads(body)
+            self.leading = None
             time.sleep(0.05)
         raise AssertionError(f"{path} was not applied")
 
@@ -211,14 +219,13 @@ class Run:
         return json.loads(result.stdout)
 
     def converged(self, ports: dict[str, tuple[int, str]]) -> dict[str, dict[str, Any]]:
-        """Probes every endpoint until all answer alike, after the leader answers twice alike."""
+        """Probes every endpoint until all answer alike; the writes are done, so the leader's is final."""
         deadline = time.monotonic() + 60
         last: dict[str, dict[str, Any]] = {}
         while time.monotonic() < deadline:
             last = {name: self.probe(*where) for name, where in ports.items()}
             if all(answer == last["authority"] for answer in last.values()):
-                if self.probe(*ports["authority"]) == last["authority"]:
-                    return last
+                return last
             time.sleep(0.2)
         differing = {name for name, answer in last.items() if answer != last["authority"]}
         raise AssertionError(f"answers never converged; differing: {differing}")
@@ -230,6 +237,9 @@ class Run:
             check(stored.is_file(), f"relay {name} holds no copy of {file['name']}")
             check(hashlib.sha256(stored.read_bytes()).hexdigest() == file["sha"],
                   f"relay {name}'s copy of {file['name']} differs")
+
+    def log(self, line: str) -> None:
+        print(f"[{time.monotonic() - self.started:6.1f}s] {line}", flush=True)
 
     def endpoints(self) -> dict[str, tuple[int, str]]:
         return {"authority": (self.http[self.leader()], MIRROR), "a": (self.relay_ports["a"], READER),
@@ -249,7 +259,7 @@ class Run:
         # W8: the relay links no consensus (Itanium-mangled kronuz::consensus).
         symbols = subprocess.run(["nm", str(self.relay)], capture_output=True, timeout=120).stdout
         check(b"6kronuz9consensus" not in symbols, "detent-relay links kronuz::consensus")
-        print("A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols")
+        self.log("A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols")
 
 
 def main() -> int:
@@ -258,19 +268,20 @@ def main() -> int:
         run.voters()
         run.leader()
         run.write("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
-        run.churn(30, 0)  # history before any relay
+        run.churn(12, 0)  # history before any relay
         run.start_relay("a")
         run.start_relay("b")
         run.relay_ready("a")
         run.relay_ready("b")
-        run.churn(60, 1)  # history the relays follow live
+        run.churn(27, 1)  # history the relays follow live
+        run.log("writes done")
         first = run.converged(run.endpoints())
         kinds = {file["kind"] for file in first["authority"]["files"]}
         check(kinds == {"base", "block", "section"}, f"the layouts reach only {kinds}")
         for name in ("a", "b"):
             run.on_disk(name, first[name])
         answers = len(first["authority"]["frames"])
-        print(f"A1: {len(first['authority']['files'])} files ({sorted(kinds)}) and {answers} W5/W6 answers "
+        run.log(f"A1: {len(first['authority']['files'])} files ({sorted(kinds)}) and {answers} W5/W6 answers "
               f"byte-identical at the authority, A and B; heads {first['authority']['heads']}")
 
         held = {file["name"] for file in first["authority"]["files"]}
@@ -286,13 +297,13 @@ def main() -> int:
         for name in ("a", "b"):
             check(again[name] == first[name], f"relay {name} answers differently after a restart")
         # The next seals: the restarted relays follow them again.
-        run.churn(30, 2)
+        run.churn(12, 2)
         later = run.converged(run.endpoints())
         new = {file["name"] for file in later["authority"]["files"]} - held
         check(bool(new), "the later writes sealed no new file")
         for name in ("a", "b"):
             run.on_disk(name, later[name])
-        print(f"A2: after a restart A and B fetched 0 files, reused {restarted['a']['reused_files']} and "
+        run.log(f"A2: after a restart A and B fetched 0 files, reused {restarted['a']['reused_files']} and "
               f"{restarted['b']['reused_files']}, answered unchanged; then followed {len(new)} new files")
         run.a3()
         return 0

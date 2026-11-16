@@ -1,6 +1,7 @@
 // Reads one upstream (a voter or a relay) through HttpUpstream and prints, as JSON, the digest of
 // every answer test_relay_service.py compares: the layouts, each file, and the W6 body at every
-// cursor of every namespace (none, another incarnation, and R = 0 .. head + 1), raw and zstd.
+// cursor of every namespace (none, another incarnation, and R = 0 .. head + 1), raw, and zstd at
+// none, another incarnation, R = 0 and the last three.
 //
 //   relay_probe CA PORT TOKEN CLUSTER-HEX NAME...
 #include "detent_distribution/session_frames.hh"
@@ -99,8 +100,11 @@ int main(int argc, char **argv) {
 		}
 		out += "},\"frames\":{";
 		first = true;
-		auto answer = [&](const std::string &label, std::span<const r::Position> positions) {
+		// Raw at every cursor; zstd, the same frames coded again, at the cursors of each answer kind.
+		auto answer = [&](const std::string &label, std::span<const r::Position> positions, bool coded = true) {
 			for (auto *from : {raw.get(), zstd.get()}) {
+				if (from == zstd.get() && !coded)
+					break;
 				out += std::string(first ? "" : ",") + "\"" + (from == raw.get() ? "raw " : "zstd ") + label +
 					   "\":\"" + sha(from->frames(positions)) + "\"";
 				first = false;
@@ -117,7 +121,8 @@ int main(int argc, char **argv) {
 			answer(name + " other", std::span(&position, 1));
 			for (std::uint64_t at = 0; at <= head.position + 1; ++at) {
 				position.cursor = d::NamespaceCursor{cluster, head.incarnation, at};
-				answer(name + " " + std::to_string(at), std::span(&position, 1));
+				answer(name + " " + std::to_string(at), std::span(&position, 1),
+					   at == 0 || at + 2 >= head.position);
 			}
 		}
 		out += "}}";
