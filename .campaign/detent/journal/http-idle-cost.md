@@ -1,7 +1,8 @@
 # http-idle-cost: journal
 
-State: blocked on A2 (small TLS replies on keep-alive regress outside their A/A band at http:76f698d); every
-Evidence row filled; docs http:2d8a5dd. No jobs pending.
+State: waiting on jobs 261116-051657-9fb383 261116-051659-5e726e 261116-051701-9a7b14 261116-051703-05a11f
+261116-051705-06d314 261116-051707-2cc499 261116-051709-086f5f 261116-051730-1f186a (A2 fix, lead's option 1, at
+http:47d6726)
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -57,32 +58,41 @@ base0 -012410-6d7174, head0 -012414-ba9ee6, head1 -012418-4d5602, base1 -012423-
 -012427-2c38f4, TLS head -012431-fec7c5, plain base -012436-2ce3c9, plain head -012441-481714. Suite
 -012446-eb31d6, TSan -012459-659c51, join mutant -012504-cf1398.
 
+A2 fix (lead: option 1, profile first, three experiments at most):
+- Profile, exclusive 261116-050534-d3bc76 at e8b4ab3 (http_idle_count: Asio handler tracking counts +
+  libidle_syscount interposing recv*/send*/kevent; base a17b197 vs head 76f698d; median of 2 runs, per request):
+  | per request | c1 base | c1 head | c64 base | c64 head |
+  |---|---:|---:|---:|---:|
+  | recvfrom (EAGAIN) | 2 (1) | 3 (1) | 2.002 (1.001) | 3.005 (1.001) |
+  | sendto | 1 | 1 | 1.001 | 1.002 |
+  | kevent | 2 | 3 | 0.017 | 1.018 |
+  | asio::post (io_context execute) | 0 | 1 | 0 | 1.001 |
+  | socket handlers invoked | 2 | 1 | 2.003 | 1.002 |
+  Cause, measured: (1) the write's immediate result goes through asio::post, which from the loop takes the
+  scheduler lock and interrupts the reactor: one kevent per request where base's is a continuation (private
+  queue, 0.017 kevent/req at c64); (2) without read-ahead OpenSSL reads the 5-byte header and the body in two
+  recvs: one extra recvfrom per request. CPU/req in that (tracked) run: c64 23.1/21.5 vs 17.0/16.7 us.
+- Experiment 1, 74d5d7b: asio::defer instead of asio::post (thread-private queue, never inline).
+- Experiment 2, 47d6726: + SSL_set_read_ahead(1) (RELEASE_BUFFERS frees the read buffer once empty).
+- One load job measures both against base with an A/A arm (the defer arm attributes); the head arm is the
+  fresh A/B. Third experiment held in reserve.
+
 ## Next
 
-1. The lead rules on "Blocked on". If option 1: count syscalls per small TLS request in both arms (a bench
-   counter of bio_read/bio_write calls), then one exclusive load A/B per hypothesis, re-running the 10K TLS
-   idle row after any change that touches reads.
+1. Read 261116-051659-5e726e (exp: base, defer 74d5d7b, head 47d6726 = defer + read-ahead, A/A; TLS c1, c64)
+   and 261116-051701-9a7b14 (TLS 1 MiB, TLS close, plain 1 MiB): both small-reply rows, req/s and CPU/req,
+   inside their A/A bands at head, or name the gap. Attribute defer vs read-ahead from the defer arm.
+2. 261116-051703-05a11f: 10K TLS idle at 47d6726 must stay ~39.9 KB/conn. 261116-051705-06d314: counts at
+   head should be recvfrom 2/req and kevent ~0.02/req at c64, io_context execute 0.
+3. Suite 261116-051707-2cc499, TSan 261116-051709-086f5f, join mutant 261116-051730-1f186a at 47d6726.
+4. If green: update docs/perf/idle.md (cause, fix, fresh load table) and CHANGELOG, set ready for review.
+   The 100K and plain idle rows ran at 76f698d; 47d6726 changes only http_asio_tls.h's read and completion
+   path, so A1's 100K rows need the lead's call: rerun them at 47d6726 (12 exclusive jobs) or accept 76f698d's.
+   If not green and the three experiments are spent: write the measured cause and gap under Blocked on.
 
 ## Blocked on
 
-A2's "no throughput or latency regression beyond the A/A band" fails at http:76f698d (load 261116-012332-c66999,
-five rounds, median per-round ratio after/before, min-max = 93.8% distribution-free interval):
-- TLS `/` c1 keep-alive: req/s 0.924x (0.850-0.985) vs A/A 1.019x (0.963-1.079); CPU/req 1.177x (1.086-1.257)
-  vs A/A 0.991x (0.931-1.042); p50 1.140x.
-- TLS `/` c64 keep-alive: req/s 0.760x (0.753-0.851) vs A/A 0.992x (0.941-1.055); CPU/req 1.311x (1.177-1.324)
-  vs A/A 1.008x (0.950-1.059); p50 1.281x, p99 1.508x.
-The write join narrowed it (0.616x / 0.596x at 4279a49) but did not close it.
-
-Options:
-1. Diagnose and fix, budget three experiments (recommended). Ranked hypotheses from reading http_asio_tls.h:
-   (a) without read-ahead OpenSSL reads a record's 5-byte header and its body in two recv() calls, and each
-   read first tries SSL_read and gets EAGAIN before async_wait, where asio::ssl::stream did one 17 KiB recv
-   into its staging: more syscalls per request, matching CPU/req rising with load. SSL_set_read_ahead(1)
-   with SSL_MODE_RELEASE_BUFFERS should keep idle cost (the buffer goes when empty); the earlier local try
-   was a noisy light hold, not a verdict. (b) every immediately complete read and write is posted, one
-   extra scheduler pass each. (c) the joined write's per-reply allocation.
-2. Accept the trade as a Decisions row: 2.42x idle TLS connections per GiB for 7.6% (c1) to 24% (c64) fewer
-   small-reply TLS requests per second. Changes A2, so the lead's or the owner's call.
+Nothing while the A2 fix jobs run (the lead chose option 1, at most three experiments).
 
 ## Evidence
 
@@ -130,3 +140,8 @@ At http:76f698d against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs (
   rerun. A row counts as regressed when its median lies outside the A/A arm's interval.
 - The 10K and 100K runs at 76f698d and both load logs are kept under http docs/perf/idle/ (220 KB) so
   summarize.py reproduces every table; the CHANGELOG's "inside the noise" claim is corrected there.
+- Profile tooling: http_idle_count (Asio's ASIO_CUSTOM_HANDLER_TRACKING counting, bench/idle-cost/count_tracking.h)
+  and libidle_syscount (DYLD_INSERT_LIBRARIES interposing; recv/send count again as recvfrom/sendto inside
+  libsystem, so recvfrom/sendto are the syscall counts). Counts only, never timing.
+- Both fixes measured in one exclusive job with a defer-only arm instead of two jobs: same rounds, and the
+  arm attributes the gain; read-ahead was dropped earlier on a noisy light-hold run, not an exclusive one.
