@@ -79,7 +79,7 @@ At task:a30bb0f (queued 2026-11-15 23:09-23:10):
 | A2 | suite 261115-230919-11321d; mutant `rearm-fires-early` 261115-231029-7e7232 (fails without) |
 | A3 | ASan+UBSan 261115-230928-237422; TSan 261115-230935-8e4110; controls `offloop-arm` 261115-230958-6c0bcc, `closed-arm` 261115-231005-ddbf38; mutant `closed-arm-allowed` 261115-231058-da579c (fails without) |
 | A4 | TSan 261115-230935-8e4110; X1 `wakes-unarmed` under TSan 261115-230951-3981e7; control `offthread-cancel` 261115-231014-093c6c; mutants (fails without) `unarmed-returns` 261115-231021-fa893c, `expire-when-idle` 261115-231036-5eaf16, `drop-calls-dead-scheduler` 261115-231043-6bb6ac, `blocking-cancel-unchecked` 261115-231051-65b2a4 |
-| A5 | [artifact] task `ARCHITECTURE.md` "Schedulers" (Xapiand's BlockingScheduler and D5's entry on `drive`) and "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current. Xapiand lead: msg-1 CHANGES on task:627aca3 (X1 blocking), fixed in task:a30bb0f, re-check asked |
+| A5 | [artifact] task `ARCHITECTURE.md` "Schedulers" (Xapiand's BlockingScheduler and D5's entry on `drive`) and "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current. Xapiand lead: msg-1 CHANGES on task:627aca3 (X1 blocking), fixed in task:a30bb0f, re-check asked in msg-48 |
 
 At task:627aca3 (superseded): suite 261115-224042-c56fa6, ASan+UBSan 261115-224045-7cef95, TSan
 261115-224052-f3ced1, mutant 261115-224059-7bf17d, control 261115-224121-def07d.
