@@ -1,6 +1,6 @@
 # journal-driver: journal
 
-State: waiting on jobs 261116-131224-3a268f 261116-131229-921097 261116-131315-8db917 261116-131236-21826e 261116-131242-29b5c7 261116-131248-b049cb 261116-131254-8e5e16 261116-131300-009477 261116-131304-273447 261116-131308-d7c2d9
+State: waiting on jobs 261116-134558-0ebf97 261116-134558-ff571e 261116-134559-096532 261116-134559-716069 261116-134559-9de588 261116-134559-290fe3 261116-134559-acb5ec 261116-134600-8f3890 261116-134600-071bcb 261116-134600-dd6db2 261116-134600-2c8644 261116-134601-9a13f2 261116-134601-f4630f 261116-134601-8b0196 261116-134601-39997d
 Quest: .campaign/detent/quests/journal-driver.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,8 +16,8 @@ A1-A5 built (journal:e2dc181..HEAD). A3/A4 per D105: one flat directory per host
 
 ## Next
 
-1. Read the jobs below; fold any failure in, rerun at HEAD.
-2. Fill the Evidence table; set "ready for review" (durability review next).
+1. Once the reruns at 535e9e5 pass, mark them passed in the table and set "ready for review"
+   (durability review next).
 
 ## Blocked on
 
@@ -28,11 +28,16 @@ logs (R13 updated), and N1 fixed in completion:7731315 (repinned, R21).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending at journal:0c52251: suite 261116-131224-3a268f, ASan 261116-131229-921097; fails without (rerun, killed): 261116-130833-94034b (no-sync-data), 261116-130833-16ae42 (no-barrier-wait) |
-| A2 | 261116-130832-8903d2 (driver_test under TSan, passed at 0c52251); fails without (rerun, killed): 261116-130833-de3054, 261116-130833-7ab02f, 261116-130834-4f5c4b, 261116-130834-5d1eb9, 261116-130834-32f7a8 |
-| A3 | pending: suite 261116-131224-3a268f, ASan 261116-131229-921097, idle cost (exclusive) 261116-131315-8db917; fails without: 261116-131254-8e5e16 (group-blind-names), 261116-131300-009477 (group-scans), 261116-131304-273447 (reopen-from-log), 261116-131308-d7c2d9 (same-incarnation) |
-| A4 | pending: suite 261116-131224-3a268f, ASan 261116-131229-921097; fails without: 261116-131236-21826e (remap-forget), 261116-131242-29b5c7 (repartition-skips-mark), 261116-131248-b049cb (open-skips-mark) |
-| A5 | 261116-130832-d4538a (no Asio under include/, passed at 0c52251); [artifact] journal `ARCHITECTURE.md` "One directory per host" and `docs/design/host-layout.md` |
+Final commit journal:535e9e5 (fixes the group-scans anchor; every mutant's anchor occurs once).
+Evidence at 0c52251 (passed, per the lead): suite 261116-131224-3a268f, ASan 261116-131229-921097,
+idle cost 261116-131315-8db917 (0 descriptors per open or closed group at 100 and 1,000), mutants
+killed -8e5e16 -273447 -d7c2d9 -21826e -29b5c7 -b049cb. Reruns at 535e9e5:
+
+| A1 | suite 261116-134558-0ebf97, ASan 261116-134558-ff571e (pending); fails without: 261116-134559-9de588 (no-sync-data), 261116-134559-290fe3 (no-barrier-wait) (pending) |
+| A2 | TSan 261116-134559-096532 (pending); fails without: 261116-134559-acb5ec, 261116-134600-8f3890, 261116-134600-071bcb, 261116-134600-dd6db2, 261116-134600-2c8644 (pending) |
+| A3 | suite and ASan as A1; idle cost (exclusive) 261116-134559-716069 (running); fails without: 261116-134601-37aff8 (group-scans, killed: census sees "storage inventory not ready"), 261116-134601-10a9e7 (same-incarnation, killed), 261116-134601-9a13f2 (group-blind-names), 261116-134601-f4630f (reopen-from-log) (pending) |
+| A4 | suite and ASan as A1; fails without: 261116-134600-5ef699 (remap-forget, killed), 261116-134601-8b0196 (repartition-skips-mark), 261116-134601-39997d (open-skips-mark) (running) |
+| A5 | 261116-134559-d0bfa1 (no Asio under include/, passed at 535e9e5); [artifact] journal `ARCHITECTURE.md` "One directory per host" and `docs/design/host-layout.md` |
 
 Jobs 261116-130823-5e806b, 130827-e7b375, 130843..130921 never ran (zsh kept `$Q` one argument);
 resubmitted as above.
