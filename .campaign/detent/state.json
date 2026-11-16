@@ -4356,7 +4356,152 @@
       "worktree": ""
     },
     "journal-driver": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-16T15:41:22",
+          "base": "8f3e410d4209c3e739d3bcbf62087d0d6876681d",
+          "blobs": {
+            "AGENTS.md": "100644:8c7db9ac02fcac08345f7f50b96a69bc4daa3229",
+            "ARCHITECTURE.md": "100644:bac5899016c832c82d0aca41522a316d7cabce97",
+            "CMakeLists.txt": "100644:90ff7fb72cc4d5b4039af6e99b09f2c36c771957",
+            "bench/idle_cost.cc": "100644:2164614d514d871110b1b4439c47f9ce9667dd70",
+            "docs/design/host-layout.md": "100644:562f80760bbbf6802b3ddc2eb35d248bf247b144",
+            "fuzz/fuzz_turn_log.cc": "100644:d601e1dce0549e8c09d69b0dbf6fa8ce98c5fa3a",
+            "fuzz/replay.cc": "100644:610acc15f4f44505b0a3ab76e7b39e104e92ad80",
+            "include/journal/artifact.h": "100644:4bdb643ff48e3f562ee00c89df0d79b57c7a2a56",
+            "include/journal/blocking.h": "100644:f6cd6a9ace2dec5a7a3bbc5da2c9bbef58f28395",
+            "include/journal/host.h": "100644:e33208eaef9d6993a8c4078864575282a86f29f8",
+            "include/journal/journal.h": "100644:fad488a672bbe2161f5938a19efa131a3f0dd2d6",
+            "include/journal/memory_io.h": "100644:01165b8aec5390619886c1959f3374a6c93a09b2",
+            "include/journal/store.h": "100644:7e254d76be19fe33c699851fad637feab0f6456f",
+            "include/journal/turn_driver.h": "100644:56579bf430f3849734bddf1816c8518230c3963d",
+            "include/journal/turn_log.h": "100644:7ad308cb873b32385cebebbb4f141658e0e88426",
+            "test/completion_test.cc": "100644:387e0782fe9accbe11bee0be5b3fb9f07e2aa174",
+            "test/driver_test.cc": "100644:5c57e4d7b348b49147e4cf78c3677d1812b2770b",
+            "test/host_test.cc": "100644:6fedb511da0f8e24868a7fda9e5f72c7cf9621b9",
+            "test/mutants.py": "100644:9ce3c054997c75cfa04538ab4dce5f931cbfde2d",
+            "test/placement_test.cc": "100644:279b2202fa049545065518db9a28217536245aa5",
+            "test/shared_store_test.cc": "100644:7961168dde0c9fe4045be0dbe28c9e40c7b57d54"
+          },
+          "by": "review",
+          "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+          "criteria": "1c5dc9fdb9075639",
+          "diffs": {
+            "AGENTS.md": "92c641d062f10435",
+            "ARCHITECTURE.md": "0cf8ea62fb8b3efb",
+            "CMakeLists.txt": "0cf8e8dc478c63fe",
+            "bench/idle_cost.cc": "0c22372b09d21741",
+            "docs/design/host-layout.md": "cca22c5ccf6953e2",
+            "fuzz/fuzz_turn_log.cc": "60355db0979547ee",
+            "fuzz/replay.cc": "9b4c77b4d60a149e",
+            "include/journal/artifact.h": "9025305f00530499",
+            "include/journal/blocking.h": "16d2d471b8d199f9",
+            "include/journal/host.h": "46810a9041aef68c",
+            "include/journal/journal.h": "998bf26085bb15b2",
+            "include/journal/memory_io.h": "07bab5c9a4917806",
+            "include/journal/store.h": "f596640a6a0316e6",
+            "include/journal/turn_driver.h": "1e668b6b6e5f9d43",
+            "include/journal/turn_log.h": "1748ac58a49466b5",
+            "test/completion_test.cc": "e4036b8ab88bbc5f",
+            "test/driver_test.cc": "cab99cc682c2249a",
+            "test/host_test.cc": "deebf4a47a6c9e15",
+            "test/mutants.py": "249450cd5c148fac",
+            "test/placement_test.cc": "51ce566dc017480d",
+            "test/shared_store_test.cc": "0ba014abd566d03e"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600'",
+                  "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-151451-52b783",
+                  "level": "light",
+                  "seconds": 77.6,
+                  "state": "done",
+                  "what": "check suite (Release) at placement split"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600'",
+                  "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-151451-52b783",
+                  "level": "light",
+                  "seconds": 77.6,
+                  "state": "done",
+                  "what": "check suite (Release) at placement split"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F3": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600'",
+                  "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-151451-52b783",
+                  "level": "light",
+                  "seconds": 77.6,
+                  "state": "done",
+                  "what": "check suite (Release) at placement split"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F4": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600'",
+                  "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-151451-52b783",
+                  "level": "light",
+                  "seconds": 77.6,
+                  "state": "done",
+                  "what": "check suite (Release) at placement split"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "G1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'set -e; cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release >/dev/null; cmake --build .scratch/build --target journal_driver_test -j4 >/dev/null; .scratch/build/journal_driver_test cancel_hops'",
+                  "commit": "7c08540c312044c21215c831ab455fd0777f1efd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-152440-e2a73f",
+                  "level": "light",
+                  "seconds": 5.8,
+                  "state": "done",
+                  "what": "cancel_hops at G1 fix at 7c08540c3120"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "525d659615a358ff12b65f6daf504103d594d765",
+          "reviewed": "5a959a158c9029320b75c378eb38876d0605917d",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "8f3e410d4209c3e739d3bcbf62087d0d6876681d",
       "branch": "quest/detent/journal-driver",
@@ -4405,7 +4550,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
-      "updated": "2026-11-16T15:41:16",
+      "updated": "2026-11-16T15:41:22",
       "worktree": "../journal-wt/detent/journal-driver"
     },
     "legacy-h": {
