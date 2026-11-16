@@ -8210,12 +8210,11 @@
         "namespace-s6-cutover"
       ],
       "provides": [],
-      "reason": "started by force: overlap is only docs/status/namespace-s8.md, which names no threadpool, so deps-workpool-repin never edits it",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-15T21:14:06",
+      "updated": "2026-11-15T23:01:32",
       "worktree": "../Detent-wt/detent/namespace-s8-wiring"
     },
     "namespace-s9-s10": {
