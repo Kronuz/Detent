@@ -1,6 +1,6 @@
 # drivers-task-wheel: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/drivers-task-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Building the gaps (G1-G8 below) on quest/detent/drivers-task-wheel in task-wt.
+Jobs queued at task:627aca3: suite 261115-224042-c56fa6, ASan+UBSan 261115-224045-7cef95, TSan
+261115-224052-f3ced1, mutant 261115-224059-7bf17d, offloop-arm control 261115-224121-def07d
+(after the suite). A5: msg-47 to the Xapiand lead with the diff, reply pending.
+
+Local Debug, before the jobs: every ctest green except one `task_asio` abort under `ctest -j2`
+(output not kept); 12 serial and 15 three-way-parallel reruns of task_asio_test all passed. If
+a job reproduces it, rerun the same at main's commit to attribute it.
 
 ## Next
 
-1. G1 inline post_call, G2 blocking_scheduler, G3 tests, then jobs.
+1. Read the jobs; fold the Xapiand lead's reply (msg-47) into A5; launch-ready for review.
 
 ## Gap list (A1): design row 1 against task main (task:f51aafb, wheel:bfd72bc)
 
@@ -48,17 +54,38 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | the gap list above |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
-| A5 | <no evidence yet> |
+| A1 | the gap list above (G1-G8 built in task:627aca3) |
+| A2 | suite 261115-224042-c56fa6 (`deadline_test manual`, `reentry`, `model`, `long`, `post_call`); mutant 261115-224059-7bf17d (`test/wheel_mutant.py rearm-fires-early`, killed by `reentry` and `model`; locally both exited 1) |
+| A3 | ASan+UBSan 261115-224045-7cef95 and TSan 261115-224052-f3ced1 (`asio_test` unchanged, `deadline_asio_test offloop`, `teardown`, `roots`, `loops`; `deadline_alloc_test` asio 0 allocations); control 261115-224121-def07d (`offloop-arm` aborts) |
+| A4 | TSan 261115-224052-f3ced1 (`blocking_test` cancel-thread, deadline-steady, lost-wake, lost-wake-live-token, rounds, wakes) |
+| A5 | [artifact] task `ARCHITECTURE.md` "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current; Xapiand lead review: msg-47 sent, reply pending |
 
 ## Result
 
-Pending.
+task:627aca3 on quest/detent/drivers-task-wheel: `task::blocking_scheduler` (task.hh), inline
+`post_call`, asio arm/cancel on teardown's thread once closed; tests listed in task's
+`docs/mechanisms/deadlines.md` "Tests"; D4's list in task `ARCHITECTURE.md` "Timers on the
+wheel". Measured locally (Debug, macOS x86-64): 0 allocations per deadline on inline, blocking
+and asio (10,000 each); blocking cross-thread cancel returns 54-57 ms after a 50 ms request,
+200 ms deadline at 206-208 ms.
 
 ## Rulings I made
 
 - Row 1's `task::timer_wheel` is Kronuz/wheel (D72); its own tests (reentry, model, far, owner)
   stay in that repository, and task ports the bench cases through its schedulers.
+- inline_scheduler's ready queue holds `{fn, arg}` calls (16 B) with resumes as one such call,
+  so `post` and `post_call` share one FIFO; demoted stays handles. One queue shape, also
+  blocking_scheduler's.
+- blocking_scheduler: `drive(done, may_wait = always)`. The scheduler never sleeps without an
+  armed timer; `may_wait` lets the journal/consensus entry count only operation deadlines
+  (D5 step 4) without task knowing group timers. It returns bool; `stalled` stays journal's.
+- blocking_scheduler deadlines and arm/cancel are on the driving thread (as inline), not any
+  thread (as asio): its frames run there; the wheel's owner check asserts it. Destroyed, it
+  releases the wheel so the destroying thread drops what is armed.
+- asio after close: deadlines still leave their entries for the wheel's drop (no in-place
+  unfile), since a deadline may die on any thread; only `arm`/`cancel` (a driver's entries,
+  teardown's thread) run in place. Assertion is `!io_ || runs_here() || closed()`.
+- Row 1's `floor(d / round)` early wakes is superseded by the hierarchical wheel (D74): at most
+  one early wake per level, Kronuz/wheel `wheel_test far`; task checks never-early via advance.
+- The mutant script follows `test/lanes_mutant.py`'s contract (exit 0 when killed), so its job
+  is `--fails-without` without a `!`.
