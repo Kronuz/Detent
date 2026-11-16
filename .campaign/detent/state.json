@@ -1232,11 +1232,12 @@
       "milestone": "N1",
       "needs": [],
       "provides": [],
+      "reason": "D102: folded into consensus-transport (A6); skip at consensus:d1065e0; branch quest/detent/consensus-fetch-macos at 6efc34b kept for reference",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "dropped",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-16T06:39:38",
+      "updated": "2026-11-16T10:26:15",
       "worktree": "../consensus-wt/detent/consensus-fetch-macos"
     },
     "consensus-late-append": {
