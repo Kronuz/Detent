@@ -1,6 +1,6 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (waiting on jobs 261116-030647-709c5f, native 261116-030743-567511, pins 261116-030743-72753a and the mutants below, all at Detent:1eea5261, code Detent:3fa0dfeb)
+State: ready for review (waiting on jobs at Detent:dd16de65: suite 261116-041454-245173, native 261116-041526-b91daa, pins 261116-041526-5b27e2 and the mutants below)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
@@ -9,9 +9,9 @@ Nothing: the jobs below remain.
 
 ## Next
 
-1. When the jobs end, record their results; the suite 261116-030647-709c5f confirms D9 and D10
+1. When the jobs end, record their results; the suite 261116-041454-245173 confirms D9 and D10
    (`campaign accept` is the lead's).
-2. If native 261116-030743-567511 fails only tests outside the relay, compare with a job at main.
+2. If native 261116-041526-b91daa fails only tests outside the relay, compare with a job at main.
 
 ## Blocked on
 
@@ -28,17 +28,31 @@ an unsealed drop leaves it unchanged), `test_relay_service` 49 s (incl. the busy
 
 | Criterion | Evidence |
 |---|---|
-| A1 | suite 261116-030647-709c5f (`test_relay_service` incl. relay C and the direct read, `test_relay_mirror`, `test_relay_chain`, `test_relay_mirror_crash`); mutants 261116-030651-aed823 (`behind-not-skipped`), 261116-030655-48d932 (`upstream-drops-frames`), 261116-030659-51b9bc (`busy-not-retried`), 261116-030703-1475aa (`layouts-no-enable`), 261116-030714-3d4167 (`older-seal-adopted`), 261116-030717-1f35ed (`same-seal-adopted`), 261116-030721-281010 (`fetch-reached`), 261116-030726-64b0c4 (`no-collector`), 261116-030729-92134f (`trust-first-read`), 261116-030734-f2b77b (`hide-failed`), 261116-030737-7ecbfd (`keep-dropped`) |
-| A2 | suite 261116-030647-709c5f; mutant 261116-030707-b72321 (`mirror-forgotten`) |
-| A3 | suite 261116-030647-709c5f; mutant 261116-030710-c9e363 (`member-route-admitted`) |
+| A1 | suite 261116-041454-245173 (`test_relay_service` incl. relay C and the direct read, `test_relay_mirror`, `test_relay_chain`, `test_relay_mirror_crash`); mutants at Detent:dd16de65: 261116-041457-47be19 (`behind-not-skipped`), 261116-041500-89b9e0 (`upstream-drops-frames`), 261116-041504-0ecd50 (`busy-not-retried`), 261116-041508-1e6ec2 (`layouts-no-enable`), 261116-041519-3cd80f (`hide-failed`), 261116-041523-2b6e19 (`keep-dropped`); at Detent:1eea5261 (same code, `test_relay_mirror` unchanged since), killed: 261116-030714-3d4167 (`older-seal-adopted`), 261116-030717-1f35ed (`same-seal-adopted`), 261116-030721-281010 (`fetch-reached`), 261116-030726-64b0c4 (`no-collector`), 261116-030729-92134f (`trust-first-read`) |
+| A2 | suite 261116-041454-245173; mutant 261116-041511-a30e3f (`mirror-forgotten`) |
+| A3 | suite 261116-041454-245173; mutant 261116-041515-baa8ec (`member-route-admitted`) |
 | A4 | [artifact] `docs/status/namespace-s8.md`, "The service" (updated: seal order, busy retry, 413, backoff, skip past a lagging voter) |
-| checks | native 261116-030743-567511, pins 261116-030743-72753a |
+| checks | native 261116-041526-b91daa, pins 261116-041526-5b27e2 |
 
 Second round (D9, D10) at Detent:3fa0dfeb, main merged at Detent:eba70ec5. Local run (Release,
 loaded host): `test_relay_service` 56 s: heads {a: 19, b: 17, c: 21, d: 8}, 111 answers, the
 answer at no cursor read directly equal at the authority, A and B; relay C refused 1 older layouts
 answer and followed the leader. `test_relay_mirror` 10 s. Earlier evidence at Detent:e09d3690
 (suite 261116-005109-0f20c5, native 261116-005055-6d0652) is superseded.
+
+At Detent:1eea5261 (lead, msg): all 13 mutants and pins passed; suite 261116-030647-709c5f and
+native 261116-030743-567511 failed `lagging.stale > 0`: relay C had rotated to the leader (an early
+503 `history_unavailable` rotates) before the proxy turned lagging, so it never asked it. Native
+also timed out `test_relay_chain` (120 s, load 15-45). Fixed at Detent:dd16de65:
+1. C reads `[lagging proxy, gated proxy]`, the gated one closed (503) until the lagging one served
+   C an older seal, so C must refuse a stale answer and skip to converge. Local: 2 refused, 55 s.
+2. `test_relay_chain` was not lengthened by D10 (it runs no service code; 48 s in suite
+   261116-005109-0f20c5 vs 76 s in 261116-030647-709c5f, `test_relay_mirror_crash` 20 s vs 52 s:
+   load). A `sample` of it shows ~90% in the harness voters' journal F_FULLFSYNC; its voters now
+   use the harness's `memory_storage`, relays stay on disk: 49 s to 19 s locally.
+3. `converged()` retries a probe that fails while a relay still syncs (a file collected between
+   the probe's layouts and its read: the 404 at 591511ce, seen again locally); the proxy answers
+   502 on a failed forward.
 
 Review findings:
 
@@ -112,3 +126,6 @@ open there: streamed fetch of large files (a file above the reply bound is refus
 13. D10's independent read is the W5 answer at no cursor, parsed in Python (DTDIST01: 96-byte
     header, payload size at byte 12); the per-cursor answers stay with the probe, now checked to
     reach every name and to differ between R = 0 and the head.
+14. `test_relay_chain`'s voters run on the harness's memory storage: the test proves the relays'
+    files and answers against the voters, and the voters' own durability is the authority suites';
+    the relays' mirrors stay on disk.
