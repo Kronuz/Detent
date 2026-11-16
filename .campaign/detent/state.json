@@ -4174,7 +4174,60 @@
       "updated": "2026-11-08T15:38:25"
     },
     "logger-burst-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-16T06:36:36",
+          "base": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:29fc5eab36fcfc38936e33dca0207ecf992cabfc",
+            "CHANGELOG.md": "100644:730fa4cbaca440055bdc81173eafbe2f95ba4c73",
+            "bench/ab_build.sh": "100755:4d6dda963a6fdc5067d5a3331d49bcbb7a8d6292",
+            "bench/logger_ab.py": "100644:89b54f7a94c486a1b3439665e8691b53a25d29d2",
+            "docs/perf/burst-cost.md": "100644:117b9b4931094c1825d177729661fd64c9d97a54",
+            "logger.cc": "100644:894b2c8d518833f34be4d973c9b4166b20c5feac",
+            "logger.h": "100644:221ea6064f3cb42d97e18712bd6847f84e0e020a",
+            "test/wake.cc": "100644:c9a13b4da24dc9a2d031f7277045d63107e7e38a",
+            "test/wake_mutant.sh": "100755:35c1e1c2d40c9135095db209651c564a96bc7f0b"
+          },
+          "by": "review",
+          "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+          "criteria": "131a819a661670c1",
+          "diffs": {
+            "ARCHITECTURE.md": "15fdc270c9865340",
+            "CHANGELOG.md": "7043afe1b000924d",
+            "bench/ab_build.sh": "474931c49110f1e4",
+            "bench/logger_ab.py": "881513081ddb03e3",
+            "docs/perf/burst-cost.md": "7dbe103601e6e07f",
+            "logger.cc": "49f32d1bba57b9e8",
+            "logger.h": "88fef37c7815dd6f",
+            "test/wake.cc": "2ef798ed77b0e0f2",
+            "test/wake_mutant.sh": "d7a2fae39e901b0b"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh test/wake_mutant.sh .scratch/mutant both",
+                  "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-051126-efae89",
+                  "level": "light",
+                  "seconds": 84.2,
+                  "state": "done",
+                  "what": "sh test/wake_mutant.sh .scratch/mutant both at 6e7ab9ea0157"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "eb847b1826438a4e69445a57b9c072f688bbe170",
+          "reviewed": "7e261c14b4329d7e4820938b4ab7c7de6d34b51e",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
       "branch": "quest/detent/logger-burst-cost",
@@ -4217,7 +4270,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T06:36:33",
+      "updated": "2026-11-16T06:36:36",
       "worktree": "../logger-wt/detent/logger-burst-cost"
     },
     "logger-exit-crash": {
