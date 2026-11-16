@@ -57,7 +57,35 @@ Take `owner.lock`, one barrier (a directory sync), read `mirror`, check each rea
 
 `frames(positions)` answers from a `MirrorHistory` per namespace, S6's `NamespaceHistory` over the mirror: the cut and spans from the layout (blocks named, sections unnamed), each span decoded from its file at read time, the full copy from the cached copy or the base and every tier merged without tombstones, and the ring from the upstream's entries. S6's `select_answer` and encoder pick the tier and write the bytes, so a relay answers exactly as its upstream does. A namespace `failed()` at startup is not answered until it is adopted again, but its layout is still offered: a downstream relay keeps what it holds, and a missing file it asks for is fetched by name from this relay's upstream through `read`.
 
-Both classes are single-threaded: `frames` holds references into the table that `adopt` replaces, and `read` updates the verified and missing sets. The HTTP wiring serializes calls or snapshots the table (review D4).
+Both classes are single-threaded: `frames` holds references into the table that `adopt` replaces, and `read` updates the verified and missing sets. The service runs both on one thread (review D4; "The service" below).
+
+## The service
+
+detent-relay serves its mirror over HTTPS beside its v1 bundles (W8: a reader, never a member). A `mirror` section in the relay configuration names the mirror directory (mode 0700), the authority's cluster, the namespaces mirrored, and the upstream: the authority's voters or another relay, with a credential token and a CA. A relay may run with no bundles when it has a mirror, and its credentials carry W13 `namespaces` patterns for version 2 beside or instead of `bundles`.
+
+One mirror thread (`MirrorService`) owns the `NamespaceRelay`, so the single-thread rule (review D4) holds by construction: it syncs every `interval_ms` and answers every request the HTTP lanes hand it. The relay reports `ready` after the first sync, and its `/v1/health` carries the mirror's counters (`syncs`, `fetched_files`, `reused_files`, `answers`, `sessions`, ...). A mirror that stops on a logic error stops the relay.
+
+`HttpUpstream` is the `Upstream` over HTTPS: one request per connection, each step under one deadline, the next endpoint after a failure. Its W5 session is opened on first use and again on `410`; every next carries the ring heads with `wait_ms` 0, and a `204` is a body with no frames.
+
+The routes, the same at a voter and at a relay, all `POST` with a bearer credential:
+
+| Route | Request | Answer |
+| --- | --- | --- |
+| `/v2/history/layouts` | `{"namespaces": [name, ...]}`, each granted | `200`, `application/vnd.detent.layouts`: a DTMIRR01 table (sequence 0) of the live names' layouts, the encoding the mirror stores; a name not live is left out |
+| `/v2/history/file` | `{"namespace": name, "name": file}`, the namespace granted | `200`, `application/octet-stream`: the file's bytes, only when the namespace's current layout names it (a section as `seal-<i>/<block name>`, cut from its seal file); `404` otherwise |
+| `/v2/distribution/session/{open,next,close}` | W5, version 2 | W6 frames in DTDIST01 fragments, exactly as the authority's |
+
+At a voter, both history routes answer on the owner from the voter's own sealed history, with no quorum read: the files are immutable, and the layout is the voter's own at its sealed index. Each answers `503 history_unavailable` until positions are enabled and the history is sealed, and a layouts request triggers the enabling entry as a W5 next does. A file is read and checked against the table's digest once, and its size is cached. The relay checks that each layout it adopts is not older than the one it holds for the same incarnation (`UpstreamBehind`), so a lagging voter is not followed backwards.
+
+At a relay, the history routes and W5 version 2 go to the mirror thread; version 1 stays with the bundles. A W5 session at a relay follows only names it mirrors and the credential grants (`403 scope_forbidden` otherwise, `400` for `all`), and a next before the first sync gets `503 source_behind`. Member routes (`/v2/open`, `/v2/transactions`, `/v2/read`, `/v2/result`, ...) are `404`, a configuration with `voters` is refused, and detent-relay links no consensus.
+
+The authority's configuration takes the layout policy its enabling entry proposes as `application_limits.layout` (`seal_transactions`, `period`, `carry_bytes`, ...), validated as `SetLayout` validates it.
+
+`test_relay_service` runs three detentd voters, relay A reading them and relay B reading A, all over HTTPS, and reads each through `HttpUpstream`:
+
+1. A1: after writes before and while the relays run, every base, block and section and every W5/W6 answer (none, another incarnation, each R from 0 to h + 1, raw and zstd) has the same SHA-256 at the leader, A and B, and A's and B's disks hold each file under `m-<hash of its name>` with those bytes.
+2. A2: A and B restart, report 0 files fetched and the rest reused, and answer every cursor unchanged; after more writes, each fetches at most the files new to the layout.
+3. A3: both relays answer member routes `404`, a `voters` configuration is refused, and `nm detent-relay` holds no `kronuz::consensus` symbol.
 
 ## Evidence
 
@@ -72,7 +100,6 @@ Both classes are single-threaded: `frames` holds references into the table that 
 
 ## Left open
 
-1. The HTTP wiring: the relay's routes for `layouts`, `fetch` and W5 sessions, and an `Upstream` over HTTP. The authority's side of `layouts` and `fetch` has no endpoint yet (namespace-s5-3 provides history files by name; nothing exports the layout), and it serves W5/W6 only after namespace-s6-cutover.
-2. A fetch returns one file's bytes whole; a base of a large namespace wants a streamed fetch into the `.tmp-` file.
-3. The ring is unbounded between seals; a bound in bytes, as the authority's, belongs with the HTTP wiring's ledgers.
-4. From the durability review: D3 (a staging I/O error poisons the store until restart instead of cleaning up), D4 (the single-thread rule, above), D5 (`RingSink` trusts entry positions inside (after, to]), D6 (the ring is memory only; the quest's Outcome says "persisted mirror of ... ring"), D7 (one refused namespace stops the whole adoption).
+1. A fetch returns one file's bytes whole; a base of a large namespace wants a streamed fetch into the `.tmp-` file.
+2. The ring is unbounded between seals: the service's `answer_bytes` account funds answers, not the ring.
+3. From the durability review: D3 (a staging I/O error poisons the store until restart instead of cleaning up), D4 (the single-thread rule, above), D5 (`RingSink` trusts entry positions inside (after, to]), D6 (the ring is memory only; the quest's Outcome says "persisted mirror of ... ring"), D7 (one refused namespace stops the whole adoption).

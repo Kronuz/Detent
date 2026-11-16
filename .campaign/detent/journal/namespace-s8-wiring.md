@@ -42,7 +42,7 @@ Pending.
    the voter's own sealed history (no quorum read: files are immutable, the layout is the voter's).
    They want positions like a W5 next, so a relay alone triggers the enabling entry.
 4. A lagging voter's older layout for the same incarnation is refused (`UpstreamBehind`), never adopted.
-5. The relay refuses `all` (400) and names it does not mirror (400 scope); nexts get 503
+5. The relay refuses `all` (400) and names it does not mirror or grant (403); nexts get 503
    source_behind before the first sync; history routes share the opens lane.
 6. A relay may run with no v1 bundles when a mirror is configured; credentials may carry W13
    `namespaces` beside or instead of `bundles`.

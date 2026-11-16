@@ -260,7 +260,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	if (d.HasMember("application_limits")) {
 		const auto &limits = field(d, "application_limits");
 		fields(limits, {"keys", "namespaces", "producers", "mutations", "request_bytes",
-					   "state_bytes", "image_bytes", "definition_bytes", "overrides", "results"});
+					   "state_bytes", "image_bytes", "definition_bytes", "overrides", "results", "layout"});
 		auto set = [&](const char *key, std::size_t &target) {
 			if (!limits.HasMember(key))
 				return;
@@ -279,6 +279,25 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		set("definition_bytes", application.definition_bytes);
 		set("overrides", application.overrides);
 		set("results", application.results);
+		// The policy the enabling entry proposes (S5.2); the log limits come from consensus_limits.
+		if (limits.HasMember("layout")) {
+			const auto &layout = field(limits, "layout");
+			fields(layout, {"seal_transactions", "seal_bytes", "period", "carry_bytes", "carry_count", "ratio",
+							"alpha_num", "alpha_den", "cap"});
+			auto &policy = application.layout;
+			for (auto [key, target] : {std::pair{"seal_transactions", &policy.seal_transactions},
+									   {"seal_bytes", &policy.seal_bytes}, {"period", &policy.period},
+									   {"carry_bytes", &policy.carry_bytes}, {"carry_count", &policy.carry_count},
+									   {"ratio", &policy.ratio}, {"alpha_num", &policy.alpha_num},
+									   {"alpha_den", &policy.alpha_den}, {"cap", &policy.cap}})
+				if (layout.HasMember(key))
+					*target = number(field(layout, key));
+			try {
+				validate(policy);
+			} catch (const std::exception &) {
+				check(false, "authority layout policy");
+			}
+		}
 	}
 	if (d.HasMember("retained_state")) {
 		const auto &limits = field(d, "retained_state");

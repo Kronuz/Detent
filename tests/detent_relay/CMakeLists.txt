@@ -18,3 +18,16 @@ if(TARGET detent::relay_mirror AND TARGET detent::authority_node)
   add_test(NAME test_relay_chain COMMAND test_relay_chain ${CMAKE_CURRENT_BINARY_DIR}/relay-chain)
   set_tests_properties(test_relay_chain PROPERTIES TIMEOUT 120)
 endif()
+
+# A1-A3 over processes: three detentd voters, relay A reading them and relay B reading A, all over
+# HTTPS; the probe reads each through the relay's own HttpUpstream.
+find_package(Python3 3.12 COMPONENTS Interpreter QUIET)
+if(TARGET detent::relay_mirror_service AND TARGET detentd AND TARGET detent-relay AND Python3_FOUND AND DETENT_BUILD_AUTHORITY)
+  add_executable(test_relay_probe relay_probe.cc)
+  target_link_libraries(test_relay_probe PRIVATE detent::relay_mirror_service hashes::hashes)
+  add_test(NAME test_relay_service
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_service.py
+      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-relay> $<TARGET_FILE:test_relay_probe>
+      ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
+  set_tests_properties(test_relay_service PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 120)
+endif()
