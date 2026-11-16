@@ -1,6 +1,6 @@
 # logger-burst-cost: journal
 
-State: ready for review
+State: ready for review (correctness CHANGES folded in at logger:6e7ab9e; jobs pending, see Review round 1)
 Quest: .campaign/detent/quests/logger-burst-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -42,8 +42,8 @@ routine lines and queue-order records wake on `due < worker_wake` again.
 | Criterion | Evidence |
 |---|---|
 | A1 | 261116-001349-19ec7c (bisect, exclusive, 7 arms x 20 rounds): a07f3fe 1.446 / 1.847 burst (1 / 4 producers), later commits flat; mechanism above and logger docs/perf/burst-cost.md |
-| A2 | pending 261116-014628-44ad05 (A/B) and 261116-014632-1037e9 (A/A); screen in 19ec7c: fix arm 0.965-1.043 on all six rows. Fix test: 261116-012402-971dec (fixed tree 1 notify over 1,000 batched lines; mutant 794, killed) |
-| A3 | 261116-012411-484c4f (deferred mutants early, late, ties killed); suite pending 261116-012408-fce080 (runs transcript golden, deferred, deferred_ties, wake); ci needs a push (lead) |
+| A2 | A/B 261116-014628-44ad05 and A/A 261116-014632-1037e9 (exclusive, 30 rounds, at 7e261c1): every burst, back-to-back and end-to-end row at or below 1.10x (burst 1.012 / 0.973, back to back 1.006 / 0.996, end to end 1.009 / 0.994), A/A within about +/-6% (review-checked); screen 19ec7c: fix arm 0.965-1.043. Fix test fails without the slack: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec; at 6e7ab9e also the queue-order mutant: 261116-051126-efae89 |
+| A3 | 261116-012411-484c4f (deferred mutants early, late, ties killed, at 7e261c1); suite at 6e7ab9e 261116-051125-83a3c9 (earlier at 7e261c1: 261116-012408-fce080, 15 of 15); ci needs a push (lead) |
 | A4 | logger `CHANGELOG.md` "2026-11-16 (a producer's burst cost)" (logger:35ad331, wording at 7e261c1) |
 
 Test history: 261116-001415-0e454e (ru_nvcsw is 0 on macOS: mutant survived);
@@ -74,3 +74,21 @@ a LOG-side cost, not the producer's.
   syscalls) could not separate a producer's notify from load or the LOG thread's own waits. It is
   in logger_detail beside worker_wake, not public API; `sizeof(Logging)` is unchanged.
 - ARCHITECTURE.md's second filing rule now names deferred lines only.
+- ARCHITECTURE.md rule 2 says "the producer's rule" (review F4).
+- `worker_notifies` is `alignas(kCacheLine)` like `worker_state` and `worker_wake`, its neighbours
+  (review F3): the same declaration shape.
+
+## Review round 1 (correctness, CHANGES at logger:7e261c1)
+
+Fixed at logger:6e7ab9e (two commits, 59506a1 and 6e7ab9e):
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| F1 | `test/wake.cc` gains a burst of 1,000 `L_DELAYED(false, 500us)` queue-order task records under the held watchdog, `notifies < 50`; `test/wake_mutant.sh` gains `wake-slack-task` (`wake_for(ordered ? due : due - kWakeSlackNs)` -> `wake_for(due - kWakeSlackNs)`) | mutant job 261116-051126-efae89 (builds fixed tree, then both mutants; the second prints "killed"); suite at the fix 261116-051125-83a3c9. The review's probe saw 720 notifies with this mutant, 1 without |
+| F3 | `alignas(kCacheLine)` on `worker_notifies` | the suite |
+| F4 | ARCHITECTURE.md wording | docs; burst-cost.md and CHANGELOG also name the second burst and mutant |
+
+Follow-up for the lead (F2, not this quest): the deferred lines' 8 ms slack (`push_task` with
+`!ordered`) is pinned by no test: removing it passes the suite and the deferred lateness does not
+move (review job 261116-050415-8c4f93). Options: keep, pin with a test of a deferred line filed
+before due, or drop it if no load shows a benefit.
