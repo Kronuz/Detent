@@ -68,7 +68,7 @@
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "c813531cf893ce079e2737dff6274b2025f9b151",
+    "revision": "eb08b59e6aa2086a1ebaac665b8475f32e80d230",
     "source_subdir": "."
   },
   {
@@ -116,7 +116,7 @@
   {
     "name": "strict_stox",
     "repository": "https://github.com/Kronuz/strict-stox.git",
-    "revision": "b846098218696c4f148c7bcb12f5b41c489554d3",
+    "revision": "d3eaf328cd011ba045325467e09f00b520d55f4d",
     "source_subdir": "."
   },
   {
