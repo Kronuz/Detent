@@ -11607,7 +11607,7 @@
         "AGENTS.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/wheel-lib",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-12T07:54:01",
@@ -11651,8 +11651,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
-      "updated": "2026-11-12T07:54:02",
-      "worktree": "../wheel-wt/detent/wheel-lib"
+      "updated": "2026-11-15T23:16:16",
+      "worktree": ""
     },
     "wheel-vs-stash": {
       "accepted": {},
