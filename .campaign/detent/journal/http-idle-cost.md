@@ -1,7 +1,7 @@
 # http-idle-cost: journal
 
-State: waiting on jobs 261116-081525-eb9d17 (build) 261116-081537-cfec36 (gate counts), both queued behind
-the machine's light holds; experiment 4 at http:ad6771f. Next jobs drafted in home .scratch/http-idle/submit-exp4.sh
+State: waiting on jobs 261116-090524-ec6fc0 261116-090550-a7dfdc 261116-090554-1c2b25 261116-090540-ddc83e
+261116-090602-ef2c7e 261116-090609-eca92c (experiment 4 at http:ad6771f, gate passed)
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -117,12 +117,27 @@ until OpenSSL takes it, so nothing is held while idle (the pending receive uses 
 buffer). Handshake, writes and reads under 512 B keep the direct read + async_wait. Local tls_asio_test (light
 hold): all pass, 4 MiB upload exercises the leftover path, OpenSSL 29,856 B per idle connection.
 
+Gate passed: count job 261116-081537-cfec36 (build 261116-081525-eb9d17), per request, median of 2:
+| per request | c1 base | c1 prev | c1 head | c64 base | c64 prev | c64 head |
+|---|---:|---:|---:|---:|---:|---:|
+| kevent | 1.998 | 2.995 | 1.999 | 0.020 | 1.021 | 0.021 |
+| recvfrom | 2.000 | 2.000 | 2.000 | 2.006 | 2.013 | 2.013 |
+| socket async_wait | 0 | 1.000 | 0 | 0 | 1.003 | 0.002 |
+| socket async_receive | 1.000 | 0 | 1.000 | 1.006 | 0 | 1.003 |
+| io_context execute | 0 | 1.000 | 1.000 | 0.001 | 1.004 | 1.003 |
+The kevent re-arm is gone; the deferred write completion (io_context execute) remains, on the private queue.
+
+Experiment 4 jobs at http:ad6771f: load small rows (base, prev 47d6726, head, A/A) 261116-090524-ec6fc0; load
+TLS 1 MiB, TLS close, plain 1 MiB (base, head, A/A) 261116-090550-a7dfdc; 10K TLS idle 261116-090554-1c2b25;
+suite 261116-090540-ddc83e; TSan 261116-090602-ef2c7e; join mutant 261116-090609-eca92c.
+
 ## Next
 
-1. Gate: count job 261116-081537-cfec36 (base, prev 47d6726, head ad6771f). Pass: TLS c64 kevent/req at head
-   ~0.02 (base 0.019). If not: stop, write it under Blocked on.
-2. If it passes: exclusive load small rows (base, prev, head, A/A) and the other three rows (base, head, A/A),
-   10K TLS idle, suite, TSan, join mutant at ad6771f. Then A2 decides docs/CHANGELOG or Blocked on.
+1. Read the load jobs: D77 paired (median per-round ratio, min-max) vs A/A for both small TLS rows, req/s and
+   CPU/req; head/prev pairs give this experiment's share. Other three rows inside band or better.
+2. 10K TLS idle must stay ~39.9 KB/conn (the pending receive uses ConnectionInput's buffer).
+3. Suite, TSan, mutant green. A2 met: docs/perf/idle.md + CHANGELOG, Evidence rows, ready for review; the 100K
+   TLS rows at 47d6726 need a rerun at ad6771f only if 10K moves. A2 unmet: measured gap under Blocked on, stop.
 
 ## Blocked on
 
