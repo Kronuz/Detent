@@ -3275,8 +3275,46 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/drivers-task-wheel",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-16T02:24:35",
+          "commit": "95798a02f68c86f070401329a05c78d326ac2579",
+          "criteria": {
+            "A1": "[manual] the lead checked the gap list above against design row 1 on 2026-11-16 (G1-G8 built in task:627aca3, row 15 amended by task:a30bb0f); the correctness review's Q4 found every clause mapped",
+            "A2": "261116-001436-1fcc80 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001402-b63645 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md); fails without: 261115-224059-7bf17d, 261115-231021-fa893c, 261116-001404-0ac481",
+            "A3": "261116-001403-5aedbf (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001403-f48e86 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001403-70a81e (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001403-d41f81 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md); fails without: 261115-231058-da579c, 261116-001405-816273",
+            "A4": "261116-001403-f48e86 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001403-4a12f6 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001403-a03d3e (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md), 261116-001420-de8395 (passed at 412b2c2481b1; ignores docs-only docs/mechanisms/cancellation.md); fails without: 261115-231029-7e7232, 261115-231036-5eaf16, 261115-231043-6bb6ac, 261115-231051-65b2a4, 261116-001404-83681c, 261116-001404-86ccb0, 261116-001404-fd0781, 261116-001405-54a740, 261116-001426-a47947, 261116-001432-f76e78",
+            "A5": "`ARCHITECTURE.md`: \"wheel\"; the Xapiand lead reviewed the diff: msg-1 CHANGES (fixed in task:a30bb0f), msg-2 APPROVE at a30bb0f, msg-3 APPROVE at 412b2c2"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "412b2c2481b1bb257527c68d98ecbcdd0a74a72a",
+              "docs": [
+                "docs/mechanisms/cancellation.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-001436-1fcc80",
+              "level": "light",
+              "seconds": 33.6,
+              "state": "done",
+              "what": "drivers-task-wheel check suite at 412b2c2481b1"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "95798a02f68c86f070401329a05c78d326ac2579",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "f51aafb74028fb5b2dcb0c43db7b7e7c1abd848b",
+          "reason": "",
+          "tested": "95798a02f68c86f070401329a05c78d326ac2579"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -3310,10 +3348,10 @@
       ],
       "repo": "../task",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:08:50",
-      "worktree": "../task-wt/detent/drivers-task-wheel"
+      "updated": "2026-11-16T02:24:44",
+      "worktree": ""
     },
     "drop-justknobs": {
       "accepted": {},
