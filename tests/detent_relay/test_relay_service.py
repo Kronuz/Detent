@@ -8,9 +8,10 @@ without HttpUpstream, equals the probe's at every endpoint. Relay C reads past a
 refuses (503) within one sync, and past one that lags behind its mirror to the current one.
 A2: A and B restart, fetch no file their mirror holds, and answer unchanged.
 A3: the relays refuse member routes and a `voters` configuration and link no consensus.
-A5: a voter that knows no live leader (two voters stopped) answers both history routes 503 as its
-`/v1/health` reports it not ready; relay D, reading it first, adopts nothing from it, lagging at D's
-start or at D's seal, and converges with the live quorum once one voter resumes.
+A5: a voter that knows no live leader (two voters stopped) answers both history routes 503 while
+its `/v1/health` reports it not ready, and from its return when it was stopped itself (the absence
+rule); relay D, reading it first, converges with the live quorum once one voter resumes. That D
+never adopts from it is voter-read-freshness's (D101), kept disabled in `a5_voter_read_freshness`.
 
     test_relay_service.py DETENTD DETENT-RELAY RELAY-PROBE CERTIFICATES
 """
@@ -571,31 +572,51 @@ class Run:
             "A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols"
         )
 
-    # A5 (D99): a voter that knows no live leader refuses the history routes.
-    def refuses(self, index: int) -> dict[str, Any]:
-        """Waits until voter `index` reports it is not ready, then checks it refuses both routes
-        for a second: a voter just resumed reads the leader frames queued while it was stopped
-        within ~100 ms, and none may prove a live leader."""
+    # A5 (D99, D101): a voter that knows no live leader refuses the history routes.
+    def refuses(self, index: int, returned: float | None = None) -> dict[str, Any]:
+        """Checks voter `index`, knowing no live leader, answers both history routes 503
+        `not_ready` while its `/v1/health` reports it not ready, for a second, and never reports
+        ready again meanwhile. With `returned`, when it resumed from a stop of `election_max` or
+        more, the second starts there and every answer must refuse, before its health (published
+        every 250 ms) catches up: the leader frames queued during the stop arrive within ~100 ms
+        and none may prove a live leader (the absence rule, ruling 18)."""
+        port = self.http[index]
+        reported: dict[str, Any] | None = None
         deadline = time.monotonic() + 20
-        while True:
-            health = self.health(self.http[index])
+        while returned is None:
+            health = self.health(port)
             if health and not health.get("ready"):
-                break
-            check(time.monotonic() < deadline, f"voter {index} stayed ready alone")
-            time.sleep(0.05)
-        until = time.monotonic() + 1
+                reported, returned = health, time.monotonic()
+            else:
+                check(time.monotonic() < deadline, f"voter {index} stayed ready alone")
+                time.sleep(0.05)
+        until = returned + 1
         while time.monotonic() < until:
+            health = self.health(port)
+            if health and not health.get("ready"):
+                reported = reported or health
+            check(
+                not (health and health.get("ready") and reported),
+                f"voter {index}, knowing no leader, reported ready again: {health}",
+            )
             for path, body in (
                 ("/v2/history/layouts", {"namespaces": NAMES}),
                 ("/v2/history/file", {"namespace": "a", "name": "absent"}),
             ):
-                status, answer = self.call(self.http[index], path, body, MIRROR)
+                status, answer = self.call(port, path, body, MIRROR)
                 check(
                     status == 503 and b'"not_ready"' in answer,
                     f"voter {index}, knowing no leader, answered {path} {status}: {answer[:200]!r}",
                 )
             time.sleep(0.02)
-        return health
+        while reported is None:
+            health = self.health(port)
+            if health and not health.get("ready"):
+                reported = health
+            else:
+                check(time.monotonic() < deadline, f"voter {index} stayed ready alone")
+                time.sleep(0.05)
+        return reported
 
     def mirror(self, name: str) -> dict[str, Any]:
         deadline = time.monotonic() + 30
@@ -623,6 +644,60 @@ class Run:
             time.sleep(0.05)
 
     def a5(self) -> None:
+        leader = self.leader()
+        x, y = (leader + 1) % 3, (leader + 2) % 3
+        # x is stopped past election_max while the others seal, then is the only voter running.
+        stopped = time.monotonic()
+        self.pause(x)
+        self.churn(9, 3)
+        quorum = self.health(self.http[leader]) or {}
+        self.pause(y)
+        self.pause(leader)
+        time.sleep(max(0.0, stopped + 2.5 - time.monotonic()))
+        self.resume(x)
+        alone = self.refuses(x, time.monotonic())
+        # Relay D starts on [x, a stopped voter]: no assertion while no quorum lives (D101; the
+        # cases that x never serves it are voter-read-freshness's, below).
+        self.upstreams["d"] = ([self.http[x], self.http[y]], MIRROR)
+        self.mirror_options["d"] = {"timeout_ms": 1000}
+        self.start_relay("d")
+        self.mirror("d")
+        self.resume(y)  # a quorum, x and y
+        self.churn(6, 4)
+        self.converged(
+            {
+                "authority": self.endpoints()["authority"],
+                "d": (self.relay_ports["d"], READER),
+            }
+        )
+        self.resume(leader)
+        self.log(
+            f"A5: voter {x} back alone (applied {alone.get('applied')}, the quorum's "
+            f"{quorum.get('applied')}) refused 503 from its return; relay D converged with the quorum"
+        )
+        # At D's seal: the voter D reads that does not lead is left alone.
+        leading = self.leader()
+        alone_index = x if leading != x else y
+        others = [index for index in range(3) if index != alone_index]
+        for index in others:
+            self.pause(index)
+        self.refuses(alone_index)
+        for index in others:
+            self.resume(index)
+        self.churn(6, 5)
+        self.converged(
+            {
+                "authority": self.endpoints()["authority"],
+                "d": (self.relay_ports["d"], READER),
+            }
+        )
+        self.log(
+            f"A5: voter {alone_index} at D's seal and alone refused 503; relay D converged with the quorum"
+        )
+
+    # voter-read-freshness A2 (D101): disabled, not called until that quest lands. A voter cut
+    # off from its leader serves a relay up to election_max today (suite 261116-073946-b0ee94).
+    def a5_voter_read_freshness(self) -> None:
         leader = self.leader()
         x, y = (leader + 1) % 3, (leader + 2) % 3
         # At D's start: x is stopped while the others seal, then is the only voter running.
