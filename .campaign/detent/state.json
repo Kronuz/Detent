@@ -967,6 +967,8 @@
     "consensus-driver": {
       "accepted": {},
       "after": [],
+      "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+      "branch": "quest/detent/consensus-driver",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -996,6 +998,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1009,9 +1012,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-15T23:07:59"
+      "updated": "2026-11-16T15:42:30",
+      "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
       "accepted": {},
