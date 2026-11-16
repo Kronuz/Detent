@@ -11,7 +11,7 @@
 // credential and no consensus. Blocking, one request per connection, one caller at a time.
 namespace detent::relay {
 struct HttpUpstreamOptions {
-	std::vector<asio::ip::tcp::endpoint> endpoints; // read in turn: a failure or a lagging answer moves on
+	std::vector<asio::ip::tcp::endpoint> endpoints; // read in turn: a failure, a lagging answer or a 503 moves on
 	std::string hostname, token;
 	std::shared_ptr<asio::ssl::context> tls; // a client context that verifies the upstream
 	std::chrono::milliseconds timeout{10000};

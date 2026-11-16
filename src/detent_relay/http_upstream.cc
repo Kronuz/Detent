@@ -176,13 +176,16 @@ struct HttpUpstream::Impl {
 		parse.response.status = parser.status_code;
 		return std::move(parse.response);
 	}
-	Response expect(std::string_view path, std::string_view body, unsigned status, std::string_view type) {
-		auto response = exchange(path, body);
+	void require(std::string_view path, const Response &response, unsigned status, std::string_view type) {
 		if (response.status != status || response.header("content-type") != type) {
 			rotate();
 			throw UpstreamUnavailable("relay upstream: " + std::string(path) + " answered " +
 									  std::to_string(response.status) + ": " + response.body.substr(0, 256));
 		}
+	}
+	Response expect(std::string_view path, std::string_view body, unsigned status, std::string_view type) {
+		auto response = exchange(path, body);
+		require(path, response, status, type);
 		return response;
 	}
 	delivery::NamespaceSession open(const delivery::Following &following) {
@@ -236,7 +239,12 @@ MirrorTable HttpUpstream::layouts(std::span<const std::string> names) {
 	for (std::size_t i = 0; i < names.size(); ++i)
 		body += (i ? "," : "") + json_string(names[i]);
 	body += "]}";
-	const auto response = impl_->expect("/v2/history/layouts", body, 200, "application/vnd.detent.layouts");
+	auto &p = *impl_;
+	auto response = p.exchange("/v2/history/layouts", body);
+	// A voter that knows no live leader, or whose history is not ready: the next source may answer.
+	if (response.status == 503)
+		throw UpstreamBehind("relay upstream: /v2/history/layouts answered 503: " + response.body.substr(0, 256));
+	p.require("/v2/history/layouts", response, 200, "application/vnd.detent.layouts");
 	try {
 		return decode_mirror_table(response.body);
 	} catch (const MirrorRefused &error) {

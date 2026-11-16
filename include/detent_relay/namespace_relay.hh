@@ -26,7 +26,7 @@ class Upstream {
 	// The W6 body answering W5 positions, in strictly increasing name order.
 	virtual std::string frames(std::span<const Position>) = 0;
 	// The sources read in turn (the voters), and a move to the next one after an answer older than
-	// the mirror's: a sync tries each source once before it fails.
+	// the mirror's or a refusal to answer: a sync tries each source once before it fails.
 	virtual std::size_t sources() const noexcept { return 1; }
 	virtual void skip() {}
 };
@@ -35,8 +35,9 @@ class UpstreamMoved : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
-// The upstream answered at a seal older than the mirror's, or disagrees with it at the same seal
-// (another voter that lags): nothing is adopted or dropped, and the relay reads again later.
+// The upstream answered at a seal older than the mirror's, disagrees with it at the same seal
+// (another voter that lags), or refused its layouts (503: a voter that knows no live leader):
+// nothing is adopted or dropped, and the relay reads the next source.
 class UpstreamBehind : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;

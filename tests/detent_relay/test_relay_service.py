@@ -4,10 +4,13 @@ Three detentd voters; relay A reads them, relay B reads A, both as W8 readers wi
 A1: every block, base and section, and every W5/W6 answer (none, another incarnation, R = 0 ..
 head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's and B's disks,
 also when every other W5 next answers `409 session_busy`; the answer at no cursor, read here
-without HttpUpstream, equals the probe's at every endpoint. Relay C reads a voter that lags behind
-its mirror and moves to the current one.
+without HttpUpstream, equals the probe's at every endpoint. Relay C reads past a voter that
+refuses (503) within one sync, and past one that lags behind its mirror to the current one.
 A2: A and B restart, fetch no file their mirror holds, and answer unchanged.
 A3: the relays refuse member routes and a `voters` configuration and link no consensus.
+A5: a voter that knows no live leader (two voters stopped) answers both history routes 503 as its
+`/v1/health` reports it not ready; relay D, reading it first, adopts nothing from it, lagging at D's
+start or at D's seal, and converges with the live quorum once one voter resumes.
 
     test_relay_service.py DETENTD DETENT-RELAY RELAY-PROBE CERTIFICATES
 """
@@ -61,7 +64,8 @@ class Proxy:
     """A TLS proxy in front of one voter that forwards every request unchanged, except: when `busy`,
     it answers every other W5 next `409 session_busy` itself, as a voter does while the session's
     previous answer retires; when `lagging`, it answers every layouts request with the first one it
-    forwarded, as a voter cut off from the quorum does; when `closed`, it answers everything 503."""
+    forwarded, as a voter cut off from the quorum did before A5; when `closed`, it answers
+    everything 503 `not_ready`, as a voter that knows no live leader answers its history routes."""
 
     def __init__(
         self,
@@ -84,7 +88,7 @@ class Proxy:
                     self.answer(
                         503,
                         {"Content-Type": "application/json"},
-                        b'{"error":"distribution_unavailable"}',
+                        b'{"error":"not_ready"}',
                     )
                     return
                 if (
@@ -187,9 +191,11 @@ class Run:
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
         self.peers = [free_port() for _ in range(3)]
         self.http = [free_port() for _ in range(3)]
-        self.relay_ports = {"a": free_port(), "b": free_port(), "c": free_port()}
+        self.relay_ports = {name: free_port() for name in ("a", "b", "c", "d")}
         self.upstreams: dict[str, tuple[list[int], str]] = {}
+        self.mirror_options: dict[str, dict[str, Any]] = {}
         self.children: dict[str, subprocess.Popen[bytes]] = {}
+        self.paused: set[int] = set()  # voters stopped with SIGSTOP
         self.sequence = 0
         self.leading: int | None = None
         self.started = time.monotonic()
@@ -202,8 +208,19 @@ class Run:
         )
         log.close()
 
+    def pause(self, index: int) -> None:
+        self.children[f"voter-{index}"].send_signal(signal.SIGSTOP)
+        self.paused.add(index)
+        if self.leading == index:
+            self.leading = None
+
+    def resume(self, index: int) -> None:
+        self.children[f"voter-{index}"].send_signal(signal.SIGCONT)
+        self.paused.discard(index)
+
     def stop(self, name: str) -> None:
         child = self.children.pop(name)
+        child.send_signal(signal.SIGCONT)
         child.send_signal(signal.SIGTERM)
         try:
             child.wait(20)
@@ -290,7 +307,8 @@ class Run:
                 ],
                 "token": token,
                 "interval_ms": 100,
-            },
+            }
+            | self.mirror_options.get(name, {}),
             "credentials": [
                 {
                     "token": READER,
@@ -350,6 +368,8 @@ class Run:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             for index, port in enumerate(self.http):
+                if index in self.paused:
+                    continue
                 health = self.health(port)
                 if health and health.get("role") == 2 and not health.get("fenced"):
                     return index
@@ -551,6 +571,105 @@ class Run:
             "A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols"
         )
 
+    # A5 (D99): a voter that knows no live leader refuses the history routes.
+    def refuses(self, index: int) -> dict[str, Any]:
+        """Waits until voter `index` reports it is not ready, then checks it refuses both routes."""
+        deadline = time.monotonic() + 20
+        while True:
+            health = self.health(self.http[index])
+            if health and not health.get("ready"):
+                break
+            check(time.monotonic() < deadline, f"voter {index} stayed ready alone")
+            time.sleep(0.05)
+        for path, body in (
+            ("/v2/history/layouts", {"namespaces": NAMES}),
+            ("/v2/history/file", {"namespace": "a", "name": "absent"}),
+        ):
+            status, answer = self.call(self.http[index], path, body, MIRROR)
+            check(
+                status == 503 and b'"not_ready"' in answer,
+                f"voter {index}, knowing no leader, answered {path} {status}: {answer[:200]!r}",
+            )
+        return health
+
+    def mirror(self, name: str) -> dict[str, Any]:
+        health = self.health(self.relay_ports[name])
+        check(health is not None, f"relay {name} answered no health")
+        assert health is not None
+        return dict(health["mirror"])
+
+    def failing(self, name: str, count: int) -> dict[str, Any]:
+        """Waits until relay `name` has failed `count` more syncs; answers its mirror's health."""
+        target = self.mirror(name)["sync_failures"] + count
+        deadline = time.monotonic() + 30
+        while True:
+            mirror = self.mirror(name)
+            if mirror["sync_failures"] >= target:
+                return mirror
+            check(
+                time.monotonic() < deadline,
+                f"relay {name} kept syncing from a voter that knows no leader: {mirror}",
+            )
+            time.sleep(0.05)
+
+    def a5(self) -> None:
+        leader = self.leader()
+        x, y = (leader + 1) % 3, (leader + 2) % 3
+        # At D's start: x is stopped while the others seal, then is the only voter running.
+        self.pause(x)
+        self.churn(9, 3)
+        quorum = self.health(self.http[leader]) or {}
+        self.pause(y)
+        self.pause(leader)
+        self.resume(x)
+        alone = self.refuses(x)
+        self.upstreams["d"] = ([self.http[x], self.http[y]], MIRROR)
+        self.mirror_options["d"] = {"timeout_ms": 1000}
+        self.start_relay("d")
+        mirror = self.failing("d", 2)
+        check(
+            not mirror["ready"] and mirror["fetched_files"] == 0,
+            f"relay D adopted from a voter that knows no leader: {mirror}",
+        )
+        self.resume(y)  # a quorum, x and y
+        self.churn(6, 4)
+        self.converged(
+            {
+                "authority": self.endpoints()["authority"],
+                "d": (self.relay_ports["d"], READER),
+            }
+        )
+        self.resume(leader)
+        self.log(
+            f"A5: voter {x} alone (applied {alone.get('applied')}, the quorum's {quorum.get('applied')}) "
+            f"refused 503; relay D adopted nothing in {mirror['sync_failures']} syncs, then converged"
+        )
+        # At D's seal: the voter D reads that does not lead is left alone.
+        leading = self.leader()
+        alone_index = x if leading != x else y
+        others = [index for index in range(3) if index != alone_index]
+        for index in others:
+            self.pause(index)
+        self.refuses(alone_index)
+        before = self.failing("d", 1)
+        after = self.failing("d", 2)
+        check(
+            after["syncs"] == before["syncs"],
+            f"relay D synced from a voter that knows no leader: {before} then {after}",
+        )
+        for index in others:
+            self.resume(index)
+        self.churn(6, 5)
+        self.converged(
+            {
+                "authority": self.endpoints()["authority"],
+                "d": (self.relay_ports["d"], READER),
+            }
+        )
+        self.log(
+            f"A5: voter {alone_index} at D's seal and alone refused 503; relay D synced nothing, then converged"
+        )
+
 
 def main() -> int:
     run = Run(*(Path(argument).resolve() for argument in sys.argv[1:5]))
@@ -559,8 +678,8 @@ def main() -> int:
         run.leader()
         run.write("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
         run.churn(12, 0)  # history before any relay
-        # Relay C reads two proxies of the leader: `lagging`, then `gated`, which stays closed
-        # until `lagging` has answered C an older seal.
+        # Relay C reads two proxies of the leader: `gated`, closed (503 `not_ready`) until
+        # `lagging` has answered C an older seal, then `lagging`.
         leader = run.http[run.leader()]
         lagging = Proxy(run.certificates, run.context, leader)
         gated = Proxy(run.certificates, run.context, leader)
@@ -568,12 +687,19 @@ def main() -> int:
         run.upstreams = {
             "a": (run.http, MIRROR),
             "b": ([run.relay_ports["a"]], READER),
-            "c": ([lagging.port, gated.port], MIRROR),
+            "c": ([gated.port, lagging.port], MIRROR),
         }
-        for name in ("a", "b", "c"):
+        for name in ("a", "b"):
             run.start_relay(name)
-        for name in ("a", "b", "c"):
+        for name in ("a", "b"):
             run.relay_ready(name)
+        # A is ready, so the history is: C's first sync reads past the refusing source.
+        run.start_relay("c")
+        mirror = run.relay_ready("c")["mirror"]
+        check(
+            mirror["sync_failures"] == 0,
+            f"relay C failed a sync on a source that refused: {mirror}",
+        )
         run.churn(27, 1)  # history the relays follow live
         run.log("writes done")
         first = run.converged(run.endpoints() | {"c": (run.relay_ports["c"], READER)})
@@ -661,6 +787,7 @@ def main() -> int:
             f"{restarted['b']['reused_files']}, answered unchanged; then followed {len(new)} new files"
         )
         run.a3()
+        run.a5()
         return 0
     except BaseException:
         for log in sorted(run.directory.glob("*.log")):

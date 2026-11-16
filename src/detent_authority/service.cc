@@ -1742,6 +1742,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				   (node.worker().role() == kronuz::consensus::Role::Leader ||
 					Clock::now() - leader_contact <= std::chrono::milliseconds(options_.node.timing.election_max));
 		};
+		// `/v1/health` `ready`; the history routes answer only while it holds (W8).
+		auto serving = [&] { return node.worker().ready() && leader_alive(); };
 		auto publish_health = [&] {
 			const auto export_progress = delivering && delivering->exporter
 				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
@@ -1854,7 +1856,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					return bounds + "]";
 				}() +
-				",\"ready\":" + std::string(node.worker().ready() && leader_alive() ? "true" : "false") +
+				",\"ready\":" + std::string(serving() ? "true" : "false") +
 				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 				",\"committed\":" + std::to_string(node.worker().committed()) +
 				",\"term\":" + std::to_string(node.worker().term()) +
@@ -2962,10 +2964,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				}
 				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
 					// W8: this voter's own history, by name; immutable files need no quorum read. A
-					// relay's layouts want positions as a W5 next does.
+					// relay's layouts want positions as a W5 next does. A voter that knows no live
+					// leader may be cut off from the quorum: it refuses, and the relay reads another.
 					history_wanted = history_wanted ||
 									 (first->kind == Task::Kind::HistoryLayouts && !node.state().positions_enabled());
-					complete(first, Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256));
+					complete(first, serving() ? Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256)
+											: Reply{503, "{\"error\":\"not_ready\"}"});
 					first.reset();
 				}
 				if (first) {
