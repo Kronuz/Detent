@@ -367,6 +367,7 @@
       "text": "namespace-s8-wiring (follow-up to msg-58): documenting application_limits.layout in reference/configuration.md makes the docs_exceptions.txt entry 'source-only config application_limits' stale, so I removed that line (tests/docs/docs_exceptions.txt, outside the set). The configuration area quest still owns the rest of application_limits."
     }
   ],
+  "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
   "quests": {
     "actors-docs": {
       "accepted": {},
