@@ -1,6 +1,6 @@
 # logger-burst-cost: journal
 
-State: waiting on jobs 261116-051125-83a3c9 261116-051126-efae89 261116-051231-438ea0 261116-051232-7ae5c2 261116-051234-d8445e 261116-051244-8b7915 261116-051244-4388be 261116-051253-d01271 (correctness CHANGES folded in at logger:6e7ab9e)
+State: ready for review (correctness CHANGES folded in at logger:6e7ab9e); waiting on A1 jobs 261116-055710-a2ac8d, 261116-055715-c27489
 Quest: .campaign/detent/quests/logger-burst-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -41,9 +41,9 @@ routine lines and queue-order records wake on `due < worker_wake` again.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | bisect rerun at 6e7ab9e: build 261116-051244-8b7915, A/B 261116-051244-4388be (earlier, other code: 261116-001349-19ec7c: a07f3fe 1.446 / 1.847 burst, later commits flat); mechanism above and logger docs/perf/burst-cost.md |
-| A2 | at 6e7ab9e (alignas changed the layout the old A/B measured): build 261116-051231-438ea0, exclusive 30-round A/B 261116-051232-7ae5c2 (f61d8df vs head), A/A 261116-051234-d8445e; pending. At 7e261c1: A/B 261116-014628-44ad05 and A/A 261116-014632-1037e9, every row <= 1.10x (burst 1.012 / 0.973, back to back 1.006 / 0.996, end to end 1.009 / 0.994). Fix test fails without the slack: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec; at 6e7ab9e also the queue-order mutant: 261116-051126-efae89 |
-| A3 | at 6e7ab9e: deferred mutants early, late, ties rerun 261116-051253-d01271 (earlier 261116-012411-484c4f); suite 261116-051125-83a3c9 (earlier at 7e261c1: 261116-012408-fce080, 15 of 15); ci needs a push (lead) |
+| A1 | bisect at 6e7ab9e, fresh build dir bisect2 (261116-051244-8b7915 failed: its build dir was configured from another job's checkout): build 261116-055710-a2ac8d, 7-arm A/B 261116-055715-c27489 (pending). Earlier, other code: 261116-001349-19ec7c: a07f3fe 1.446 / 1.847 burst, later commits flat; mechanism above and logger docs/perf/burst-cost.md |
+| A2 | at 6e7ab9e (alignas changed the layout the old A/B measured): build 261116-051231-438ea0, exclusive 30-round A/B 261116-051232-7ae5c2 (f61d8df vs head), A/A 261116-051234-d8445e; per the lead, every row 0.996-1.004 and inside the A/A band. At 7e261c1: A/B 261116-014628-44ad05 and A/A 261116-014632-1037e9, every row <= 1.10x (burst 1.012 / 0.973, back to back 1.006 / 0.996, end to end 1.009 / 0.994). Fix test fails without the slack: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec; at 6e7ab9e also the queue-order mutant: 261116-051126-efae89 |
+| A3 | at 6e7ab9e: deferred mutants early, late, ties rerun 261116-051253-d01271 (earlier 261116-012411-484c4f); suite 261116-051125-83a3c9 (earlier at 7e261c1: 261116-012408-fce080, 15 of 15); mutants and the F1 mutant job passed (lead); CI green (lead) |
 | A4 | logger `CHANGELOG.md` "2026-11-16 (a producer's burst cost)" (logger:35ad331, wording at 7e261c1) |
 
 Test history: 261116-001415-0e454e (ru_nvcsw is 0 on macOS: mutant survived);
