@@ -3197,7 +3197,52 @@
       "worktree": "../completion-wt/detent/drivers-completion-seam"
     },
     "drivers-task-wheel": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-16T02:07:29",
+          "base": "f51aafb74028fb5b2dcb0c43db7b7e7c1abd848b",
+          "blobs": {
+            "AGENTS.md": "100644:39ce481c77d2741ede7567ff28fb0cd50cd83889",
+            "ARCHITECTURE.md": "100644:7e5e04a7471186bd9537f502d6f1d7a969fb1b91",
+            "CMakeLists.txt": "100644:a231863709a2c0b5de210b8cf15e20d6ca4207ff",
+            "README.md": "100644:c799d21e7d701675fef9bae36f411563e784dee2",
+            "docs/API.md": "100644:2507cbd7d6fab1ab52caf870db051ba19778533a",
+            "docs/mechanisms/cancellation.md": "100644:06a73c9247f42206b30cba4aee4bc9f2453563d7",
+            "docs/mechanisms/deadlines.md": "100644:6a3a4dd1a7da0a6dce483a3c9f7b2f62414c8878",
+            "task.hh": "100644:519076fd52571d2275e27971153209bf273aa155",
+            "task_asio.hh": "100644:74d7ded80c249129059ceb60a66885e38f3404c8",
+            "test/blocking_test.cc": "100644:f3755b9576afdf7155ed4a57c1d77c48f811c72b",
+            "test/deadline_alloc_test.cc": "100644:a6eb34bb5d2806a8fa0d5d18aff6e745c10cc2ce",
+            "test/deadline_asio_test.cc": "100644:2cba0b0216755612cdee66aa8da59d5eb595683d",
+            "test/deadline_test.cc": "100644:31df9e7bc889a0db4aacd34e766da09ea7f6791c",
+            "test/wheel_mutant.py": "100755:cd1d7240d525773609a918c8d2839fbe9d673da7"
+          },
+          "by": "review",
+          "commit": "95798a02f68c86f070401329a05c78d326ac2579",
+          "criteria": "a92f94b248247300",
+          "diffs": {
+            "AGENTS.md": "07af27fe23465b05",
+            "ARCHITECTURE.md": "d7c202e2ab05efac",
+            "CMakeLists.txt": "339a6b07cfca354a",
+            "README.md": "07cbcf09d4516050",
+            "docs/API.md": "3f1acfc3875a0951",
+            "docs/mechanisms/cancellation.md": "f3b2a2d8829f73d8",
+            "docs/mechanisms/deadlines.md": "5cc32b2fcbd34bfb",
+            "task.hh": "932fc52b40b7eefc",
+            "task_asio.hh": "467e3b97f9919c6f",
+            "test/blocking_test.cc": "b26f72d535e60738",
+            "test/deadline_alloc_test.cc": "d6672e0166ba80df",
+            "test/deadline_asio_test.cc": "a1704b1c0da19065",
+            "test/deadline_test.cc": "b381331d535e0522",
+            "test/wheel_mutant.py": "8765a7cea9ca5a25"
+          },
+          "findings": {},
+          "note": "",
+          "review": "0f2aef82eeb64cfc2e8eb262b7ad9d1f0e011f28",
+          "reviewed": "95798a02f68c86f070401329a05c78d326ac2579",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "f51aafb74028fb5b2dcb0c43db7b7e7c1abd848b",
       "branch": "quest/detent/drivers-task-wheel",
@@ -3244,7 +3289,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-15T22:45:43",
+      "updated": "2026-11-16T02:07:29",
       "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
