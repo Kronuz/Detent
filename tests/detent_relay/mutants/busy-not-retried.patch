@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/http_upstream.cc b/src/detent_relay/http_upstream.cc
+index 11dee82d..638b7784 100644
+--- a/src/detent_relay/http_upstream.cc
++++ b/src/detent_relay/http_upstream.cc
+@@ -269,7 +269,7 @@ std::string HttpUpstream::frames(std::span<const Position> positions) {
+ 			return d::encode_session_frames(std::nullopt, {});
+ 		if (response.status == 200)
+ 			return p.defragment(response);
+-		if (response.status == 409 && response.body.find("\"session_busy\"") != std::string::npos &&
++		if (false && response.status == 409 && response.body.find("\"session_busy\"") != std::string::npos &&
+ 			busy < busy_attempts) {
+ 			std::this_thread::sleep_for(std::chrono::milliseconds(1 << busy++));
+ 			continue;

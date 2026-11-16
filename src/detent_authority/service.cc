@@ -2,6 +2,7 @@
 #include "delivery_export.hh"
 #include "frames_export.hh"
 #include "history_format.hh"
+#include "layout_export.hh"
 #include "peer_history.hh"
 #include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
@@ -259,7 +260,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	if (d.HasMember("application_limits")) {
 		const auto &limits = field(d, "application_limits");
 		fields(limits, {"keys", "namespaces", "producers", "mutations", "request_bytes",
-					   "state_bytes", "image_bytes", "definition_bytes", "overrides", "results"});
+					   "state_bytes", "image_bytes", "definition_bytes", "overrides", "results", "layout"});
 		auto set = [&](const char *key, std::size_t &target) {
 			if (!limits.HasMember(key))
 				return;
@@ -278,6 +279,25 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		set("definition_bytes", application.definition_bytes);
 		set("overrides", application.overrides);
 		set("results", application.results);
+		// The policy the enabling entry proposes (S5.2); the log limits come from consensus_limits.
+		if (limits.HasMember("layout")) {
+			const auto &layout = field(limits, "layout");
+			fields(layout, {"seal_transactions", "seal_bytes", "period", "carry_bytes", "carry_count", "ratio",
+							"alpha_num", "alpha_den", "cap"});
+			auto &policy = application.layout;
+			for (auto [key, target] : {std::pair{"seal_transactions", &policy.seal_transactions},
+									   {"seal_bytes", &policy.seal_bytes}, {"period", &policy.period},
+									   {"carry_bytes", &policy.carry_bytes}, {"carry_count", &policy.carry_count},
+									   {"ratio", &policy.ratio}, {"alpha_num", &policy.alpha_num},
+									   {"alpha_den", &policy.alpha_den}, {"cap", &policy.cap}})
+				if (layout.HasMember(key))
+					*target = number(field(layout, key));
+			try {
+				validate(policy);
+			} catch (const std::exception &) {
+				check(false, "authority layout policy");
+			}
+		}
 	}
 	if (d.HasMember("retained_state")) {
 		const auto &limits = field(d, "retained_state");
@@ -888,6 +908,27 @@ Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr
 		task->kind = Task::Kind::Result;
 		task->generation = number(field(d, "generation"));
 		task->sequence = number(field(d, "sequence"));
+	} else if (request.path == "/v2/history/layouts") {
+		// W8: a relay's read of its namespaces' layouts; every name is granted.
+		fields(d, {"namespaces"});
+		task->kind = Task::Kind::HistoryLayouts;
+		auto &names = field(d, "namespaces");
+		check(names.IsArray() && names.Size() && names.Size() <= options_.delivery.namespaces, "namespace count bound");
+		for (const auto &value : names.GetArray()) {
+			auto name = text(value);
+			check(distribution::valid_namespace_name(name) && task->admission->credential->grants.allows(name),
+				  "unauthorized namespace");
+			task->keys.push_back(std::move(name));
+		}
+	} else if (request.path == "/v2/history/file") {
+		// W8: one file of a granted namespace's layout, by the name the layout gives it.
+		fields(d, {"namespace", "name"});
+		task->kind = Task::Kind::HistoryFile;
+		task->name_space = text(field(d, "namespace"));
+		check(distribution::valid_namespace_name(task->name_space) &&
+				  task->admission->credential->grants.allows(task->name_space),
+			  "unauthorized namespace");
+		task->keys.push_back(text(field(d, "name"), 255));
 	} else {
 		return {Reply{404, "{\"error\":\"unknown_endpoint\"}"}, nullptr};
 	}
@@ -1099,6 +1140,33 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 	}
 }
 
+// W8, on the owner: a relay's layouts, or one file of a granted namespace's layout, from this voter's
+// history at its latest seal (docs/status/namespace-s8.md, "The service").
+// A file above `maximum` (the reply bound) is refused 413, before it is read once a layout sized it.
+Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum) {
+	const Reply unavailable{503, "{\"error\":\"history_unavailable\"}"};
+	auto *files = node.history_files();
+	if (!files || !node.history()->ready() || !node.sealed())
+		return unavailable;
+	try {
+		const auto &table = node.history()->layout().table();
+		if (task.kind == Task::Kind::HistoryFile) {
+			auto bytes = exporter.file(task.name_space, task.keys.front(), table, *files, node.sealed()->limits(), maximum);
+			if (!bytes)
+				return {404, "{\"error\":\"not_found\"}"};
+			return {200, std::move(*bytes), true, {}, "application/octet-stream"};
+		}
+		auto layouts = exporter.layouts(task.keys, *node.sealed(), table, *files);
+		if (!layouts)
+			return unavailable;
+		return {200, relay::encode_mirror_table(*layouts), true, {}, "application/vnd.detent.layouts"};
+	} catch (const std::length_error &) {
+		return {413, "{\"error\":\"reply_bound\"}"};
+	} catch (const std::exception &) {
+		return unavailable;
+	}
+}
+
 Service::Reply Service::enveloped(Reply reply) const {
 	if (!reply.enveloped && !reply.body.empty() && reply.body[0] == '{') {
 		const auto &context = options_.node.context;
@@ -1164,7 +1232,7 @@ void Service::write_owned(http::Request &request, http::ResponseWriter &response
 	check(static_cast<bool>(owned), "owned reply streaming unavailable");
 	http::Response metadata;
 	metadata.status = reply.status;
-	metadata.content_type = "application/json";
+	metadata.content_type = std::string(reply.content_type);
 	auto body = std::make_shared<const std::string>(std::move(reply.body));
 	if (owned->start(metadata, body->size(), request.keep_alive) != http::StreamSubmit::Accepted ||
 		(!body->empty() && owned->publish({body, std::string_view(*body)}) != http::StreamSubmit::Accepted) ||
@@ -1459,6 +1527,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	std::optional<Subscriptions> subscriptions;
 	// W5/W6 sessions (version 2): their table, the requests on the owner, and the one answer in flight.
 	std::optional<NamespaceSessions> frames_sessions;
+	LayoutExport layout_export;
+	bool history_wanted = false; // a relay asked for layouts before positions were enabled
 	std::vector<std::shared_ptr<Task>> frames_tasks;
 	struct FramesSlot {
 		std::shared_ptr<Task> task;
@@ -1665,13 +1735,22 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		bool leader_known = false;
 		// Last proof a follower's leader is alive: a RoleChanged naming it, or our reply to its append.
 		auto leader_contact = Clock::now();
+		// A voter back from an absence of election_min or more (stopped, starved) reads the frames
+		// that waited in its sockets meanwhile: none proves a live leader, so no proof counts until
+		// election_max after its return.
+		auto returned = Clock::time_point{};
+		auto trusting = [&] {
+			return Clock::now() - returned >= std::chrono::milliseconds(options_.node.timing.election_max);
+		};
 		// A follower is ready only while that proof is within election_max, CheckQuorum's window on the
 		// leader side (D41); pre-vote keeps the leader known after it falls silent.
 		auto leader_alive = [&] {
-			return leader_known &&
+			return leader_known && trusting() &&
 				   (node.worker().role() == kronuz::consensus::Role::Leader ||
 					Clock::now() - leader_contact <= std::chrono::milliseconds(options_.node.timing.election_max));
 		};
+		// `/v1/health` `ready`; the history routes answer only while it holds (W8).
+		auto serving = [&] { return node.worker().ready() && leader_alive(); };
 		auto publish_health = [&] {
 			const auto export_progress = delivering && delivering->exporter
 				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
@@ -1784,7 +1863,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					return bounds + "]";
 				}() +
-				",\"ready\":" + std::string(node.worker().ready() && leader_alive() ? "true" : "false") +
+				",\"ready\":" + std::string(serving() ? "true" : "false") +
 				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 				",\"committed\":" + std::to_string(node.worker().committed()) +
 				",\"term\":" + std::to_string(node.worker().term()) +
@@ -1914,8 +1993,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		ready.set_value();
 		started = true;
 		auto scheduled_wakeup = Clock::now();
+		auto last_pass = Clock::now();
 		for (;;) {
 			auto owner_started = Clock::now();
+			if (owner_started - last_pass >= std::chrono::milliseconds(options_.node.timing.election_min))
+				returned = owner_started;
+			last_pass = owner_started;
 			auto cpu_started = owner_cpu_ns();
 			wake_lateness.observe(elapsed_ns(scheduled_wakeup, owner_started));
 			{
@@ -1950,14 +2033,16 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<kronuz::consensus::Send>(action)) {
 					if (std::holds_alternative<kronuz::consensus::AppendResponse>(
-							std::get<kronuz::consensus::Send>(action).message))
+							std::get<kronuz::consensus::Send>(action).message) &&
+						trusting())
 						leader_contact = Clock::now();
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
 					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
 				} else if (auto role = std::get_if<kronuz::consensus::RoleChanged>(&action)) {
 					leader_known = role->leader != 0;
-					leader_contact = Clock::now();
+					if (trusting())
+						leader_contact = Clock::now();
 					publish_health();
 					service.leader_known_.store(leader_known, std::memory_order_release);
 				}
@@ -2630,7 +2715,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 				}
 				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.
-				if (wanted && node.worker().role() == kronuz::consensus::Role::Leader &&
+				if ((wanted || history_wanted) && node.worker().role() == kronuz::consensus::Role::Leader &&
 					!node.state().positions_enabled() && now >= enabling_at) {
 					enabling_at = now + std::chrono::seconds(1);
 					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
@@ -2889,6 +2974,16 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						first = queue_.front();
 						queue_.pop_front();
 					}
+				}
+				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
+					// W8: this voter's own history, by name; immutable files need no quorum read. A
+					// relay's layouts want positions as a W5 next does. A voter that knows no live
+					// leader may be cut off from the quorum: it refuses, and the relay reads another.
+					history_wanted = history_wanted ||
+									 (first->kind == Task::Kind::HistoryLayouts && !node.state().positions_enabled());
+					complete(first, serving() ? Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256)
+											: Reply{503, "{\"error\":\"not_ready\"}"});
+					first.reset();
 				}
 				if (first) {
 					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
