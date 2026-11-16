@@ -1,6 +1,7 @@
 # http-idle-cost: journal
 
-State: experiment 4 (lead: option 1) at http:ad6771f; gate count job 261116-081537-cfec36 (after build 261116-081525-eb9d17)
+State: waiting on jobs 261116-081525-eb9d17 (build) 261116-081537-cfec36 (gate counts), both queued behind
+the machine's light holds; experiment 4 at http:ad6771f. Next jobs drafted in home .scratch/http-idle/submit-exp4.sh
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
