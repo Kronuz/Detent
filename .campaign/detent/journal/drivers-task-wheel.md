@@ -9,15 +9,36 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-All five jobs at task:627aca3 passed: suite 261115-224042-c56fa6 (9/9), ASan+UBSan
-261115-224045-7cef95 (9/9), TSan 261115-224052-f3ced1 (9/9), mutant 261115-224059-7bf17d
-(reentry and model exited 1), control 261115-224121-def07d (owner assertion aborts). The local
-`task_asio` abort under `ctest -j2` did not recur in any job. A5: msg-47 to the Xapiand lead,
-reply pending; the review lens is the lead's to launch.
+msg-1 (Xapiand lead, A5 review of task:627aca3, CHANGES) folded in at task:a30bb0f; jobs queued
+at it (Evidence). Correctness reviewer on 627aca3 runs in parallel; its findings go on top.
 
 ## Next
 
-1. Read the jobs; fold the Xapiand lead's reply (msg-47) into A5; launch-ready for review.
+1. Read the jobs at task:a30bb0f; fold in the correctness review and the Xapiand lead's re-check.
+
+## Messages
+
+- msg-1 (xapiand-lead, CHANGES): fixed in task:a30bb0f.
+  - X1: `drive(done, may_wait)` sleeps with no deadline when nothing is armed and `may_wait()`
+    holds; `drive(done)` defaults `may_wait` to "a timer the clock reaches is armed", so the
+    lost-wake cases are unchanged. Xapiand's `BlockingScheduler::drive(done)` is
+    `drive([&]{ return done; }, []{ return true; })` inside its `HostScope`; ARCHITECTURE.md
+    "Scheduling" says so, with D5's entry passing "an operation deadline is armed". Test
+    `blocking_test wakes-unarmed` (post and post_call at 20 ms; 5,000 rounds with the post around
+    the decision to sleep, a 10 s per-round watchdog); mutant `unarmed-returns` kills it.
+  - X4: `drop_timer` is static; inline and blocking read the scheduler only while the entry is
+    armed (their destruction fires every entry off). Test `late`; mutant
+    `drop-calls-dead-scheduler` (the old call, which with X7's assertion reads the freed
+    scheduler) is killed by ASan.
+  - X5: asio `arm` asserts the loop (no closed allowance); `cancel` keeps it. Control
+    `deadline_asio_test closed-arm` aborts; mutant `closed-arm-allowed` makes it exit 0.
+  - X7: `blocking_scheduler::arm`/`cancel` assert `runs_here()`. Control `offthread-cancel`
+    (cancel of an unarmed entry off-thread, which the wheel's check never sees); mutant
+    `blocking-cancel-unchecked`.
+  - X8: fixed, small: each `drive` pass runs what was queued when it began, then expires the
+    wheel (one `now()` per pass). Test `starve` (a self-reposting call, a 20 ms timer fires at
+    20.0 ms); mutant `expire-when-idle` holds it off past 2 s. Xapiand's `post_demoted` maps to
+    `post`, noted in ARCHITECTURE.md.
 
 ## Gap list (A1): design row 1 against task main (task:f51aafb, wheel:bfd72bc)
 
@@ -40,7 +61,7 @@ wheel:bfd72bc and uses (`task.hh:57`, CMakeLists.txt). Clauses in row order:
 | 12 | `cancellation.md` and the D4 users table unchanged | no caller changes | G7: check, keep current |
 | 13 | `scheduler_ref` owner-thread `arm` and `cancel`, the wheel private (X14, D79) | `task.hh:197-240`; `deadline_test ref`, `deadline_asio_test direct` | none |
 | 14 | `inline_scheduler` same-thread `post_call` | absent | G1 `deadline_test post_call` |
-| 15 | `task::blocking_scheduler` (D5, X3): thread-safe `post`/`post_call` waking its wait, no wait without an armed timer; `blocking_entry threads` incl. `lost-wake-live-token` under TSan (R3) | absent | G2 `blocking_test` |
+| 15 | `task::blocking_scheduler` (D5, X3): thread-safe `post`/`post_call` waking its wait, no wait without an armed timer; `blocking_entry threads` incl. `lost-wake-live-token` under TSan (R3) | absent | G2 `blocking_test`; "no wait without an armed timer" is `drive(done)`'s default, `may_wait` widens it (msg-1 X1, task:a30bb0f) |
 | 16 | D4's list of what moves onto the wheel and what stays (X7, Y7) | not in task's docs | G7 ARCHITECTURE.md "Timers on the wheel" |
 | 17 | Xapiand lead reviews the diff | - | A5 message |
 
@@ -50,13 +71,18 @@ Nothing.
 
 ## Evidence
 
+At task:a30bb0f (queued 2026-11-15 23:09-23:10):
+
 | Criterion | Evidence |
 |---|---|
-| A1 | the gap list above (G1-G8 built in task:627aca3) |
-| A2 | suite 261115-224042-c56fa6 (`deadline_test manual`, `reentry`, `model`, `long`, `post_call`); mutant 261115-224059-7bf17d (`test/wheel_mutant.py rearm-fires-early`, killed by `reentry` and `model`; locally both exited 1) |
-| A3 | ASan+UBSan 261115-224045-7cef95 and TSan 261115-224052-f3ced1 (`asio_test` unchanged, `deadline_asio_test offloop`, `teardown`, `roots`, `loops`; `deadline_alloc_test` asio 0 allocations); control 261115-224121-def07d (`offloop-arm` aborts) |
-| A4 | TSan 261115-224052-f3ced1 (`blocking_test` cancel-thread, deadline-steady, lost-wake, lost-wake-live-token, rounds, wakes) |
-| A5 | [artifact] task `ARCHITECTURE.md` "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current; Xapiand lead review: msg-47 sent 2026-11-15 22:42, no reply yet |
+| A1 | the gap list above (G1-G8 built in task:627aca3; row 15 amended by task:a30bb0f) |
+| A2 | suite 261115-230919-11321d; mutant `rearm-fires-early` 261115-231029-7e7232 (fails without) |
+| A3 | ASan+UBSan 261115-230928-237422; TSan 261115-230935-8e4110; controls `offloop-arm` 261115-230958-6c0bcc, `closed-arm` 261115-231005-ddbf38; mutant `closed-arm-allowed` 261115-231058-da579c (fails without) |
+| A4 | TSan 261115-230935-8e4110; X1 `wakes-unarmed` under TSan 261115-230951-3981e7; control `offthread-cancel` 261115-231014-093c6c; mutants (fails without) `unarmed-returns` 261115-231021-fa893c, `expire-when-idle` 261115-231036-5eaf16, `drop-calls-dead-scheduler` 261115-231043-6bb6ac, `blocking-cancel-unchecked` 261115-231051-65b2a4 |
+| A5 | [artifact] task `ARCHITECTURE.md` "Scheduling" (Xapiand's BlockingScheduler and D5's entry on `drive`) and "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current. Xapiand lead: msg-1 CHANGES on task:627aca3 (X1 blocking), fixed in task:a30bb0f, re-check asked |
+
+At task:627aca3 (superseded): suite 261115-224042-c56fa6, ASan+UBSan 261115-224045-7cef95, TSan
+261115-224052-f3ced1, mutant 261115-224059-7bf17d, control 261115-224121-def07d.
 
 ## Result
 
@@ -74,15 +100,28 @@ and asio (10,000 each); blocking cross-thread cancel returns 54-57 ms after a 50
 - inline_scheduler's ready queue holds `{fn, arg}` calls (16 B) with resumes as one such call,
   so `post` and `post_call` share one FIFO; demoted stays handles. One queue shape, also
   blocking_scheduler's.
-- blocking_scheduler: `drive(done, may_wait = always)`. The scheduler never sleeps without an
-  armed timer; `may_wait` lets the journal/consensus entry count only operation deadlines
-  (D5 step 4) without task knowing group timers. It returns bool; `stalled` stays journal's.
+- blocking_scheduler: `drive(done, may_wait)` sleeps while `may_wait()` holds, toward the
+  wheel's `next()` or with nothing armed until a post (msg-1 X1); `drive(done)`'s default is "a
+  timer the clock reaches is armed" (`next() != never`, not `size() != 0`, so an entry at the
+  wheel's end keeps today's lost wake). D5's entry passes "an operation deadline is armed". It
+  returns bool; `stalled` stays journal's.
+- X8: drive() runs a pass of what was queued when it began, then expires; costs one clock read
+  per pass while busy, none when the queue empties as before.
 - blocking_scheduler deadlines and arm/cancel are on the driving thread (as inline), not any
   thread (as asio): its frames run there; the wheel's owner check asserts it. Destroyed, it
   releases the wheel so the destroying thread drops what is armed.
 - asio after close: deadlines still leave their entries for the wheel's drop (no in-place
-  unfile), since a deadline may die on any thread; only `arm`/`cancel` (a driver's entries,
-  teardown's thread) run in place. Assertion is `!io_ || runs_here() || closed()`.
+  unfile), since a deadline may die on any thread; only `cancel` (a driver's entry, teardown's
+  thread) runs in place: `cancel` asserts `!io_ || runs_here() || closed()`, `arm`
+  `!io_ || runs_here()` (msg-1 X5).
+- `drop_timer` is a static `S::drop_timer(S*, state*)` on all three schedulers (one shape);
+  asio's still needs its scheduler alive, as documented.
+- Assertion controls (`offloop-arm`, `closed-arm`, `offthread-cancel`) exit 0 when no assertion
+  fires, so `! case` fails without it; `offloop-arm` returned 1, so its `!` job passed either way.
+- `test/wheel_mutant.py` is the one mutant runner for timers: wheel.hh or task's headers, a
+  per-mutant kill code (1 a CHECK or ASan report with `abort_on_error=0`, 0 a control finding no
+  assertion), ASan flags per mutant. Exit 0 when killed, so its jobs are `--fails-without`
+  without `!` (lead asked for `!`: the script's exit code is the same contract).
 - Row 1's `floor(d / round)` early wakes is superseded by the hierarchical wheel (D74): at most
   one early wake per level, Kronuz/wheel `wheel_test far`; task checks never-early via advance.
 - The mutant script follows `test/lanes_mutant.py`'s contract (exit 0 when killed), so its job
