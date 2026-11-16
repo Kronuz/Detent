@@ -3969,21 +3969,69 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/http-idle-cost",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-16T11:21:02",
+          "commit": "2d53cef78de262df1417f25560c72e53034dd001",
+          "criteria": {
+            "A1": "261116-090554-1c2b25 (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl)",
+            "A2": "261116-090554-1c2b25 (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl), 261116-090550-a7dfdc (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl), 261116-081537-cfec36 (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl), 261116-090524-ec6fc0 (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl)",
+            "A3": "261116-090540-ddc83e (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl), 261116-090609-eca92c (passed at ad6771f361a1; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/100k-tls/base-tls-100000-0.jsonl, docs/perf/idle/100k-tls/base-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-0.jsonl, docs/perf/idle/100k-tls/head-tls-100000-1.jsonl, docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl, docs/perf/idle/10k-tls/base-tls-10000-0.jsonl, docs/perf/idle/10k-tls/base-tls-10000-1.jsonl, docs/perf/idle/10k-tls/base-tls-10000-2.jsonl, docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl, docs/perf/idle/10k-tls/head-tls-10000-0.jsonl, docs/perf/idle/10k-tls/head-tls-10000-1.jsonl, docs/perf/idle/10k-tls/head-tls-10000-2.jsonl, docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl, docs/perf/idle/load/close-and-plain.jsonl, docs/perf/idle/load/keepalive.jsonl); fails without: 261116-090609-eca92c",
+            "A4": "`docs/perf/idle.md`: \"an idle connection costs 58.5% less at 10K\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "ad6771f361a1cfee532301de4e1840b0aa016d4b",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/idle.md",
+                "docs/perf/idle/100k-tls/base-tls-100000-0.jsonl",
+                "docs/perf/idle/100k-tls/base-tls-100000-1.jsonl",
+                "docs/perf/idle/100k-tls/head-tls-100000-0.jsonl",
+                "docs/perf/idle/100k-tls/head-tls-100000-1.jsonl",
+                "docs/perf/idle/100k-tls/head-tls-100000-owners.jsonl",
+                "docs/perf/idle/10k-tls/base-tls-10000-0.jsonl",
+                "docs/perf/idle/10k-tls/base-tls-10000-1.jsonl",
+                "docs/perf/idle/10k-tls/base-tls-10000-2.jsonl",
+                "docs/perf/idle/10k-tls/base-tls-10000-owners.jsonl",
+                "docs/perf/idle/10k-tls/head-tls-10000-0.jsonl",
+                "docs/perf/idle/10k-tls/head-tls-10000-1.jsonl",
+                "docs/perf/idle/10k-tls/head-tls-10000-2.jsonl",
+                "docs/perf/idle/10k-tls/head-tls-10000-owners.jsonl",
+                "docs/perf/idle/load/close-and-plain.jsonl",
+                "docs/perf/idle/load/keepalive.jsonl"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-090540-ddc83e",
+              "level": "light",
+              "seconds": 104.7,
+              "state": "done",
+              "what": "http-idle-cost check suite at ad6771f361a1"
+            }
+          ],
+          "final": true,
+          "from": "eb08b59e6aa2086a1ebaac665b8475f32e80d230",
+          "reason": "",
+          "tested": "2d53cef78de262df1417f25560c72e53034dd001"
+        }
+      ],
       "lenses": [
         "security",
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "HTTP idle cost: cheaper idle connections, TLS first",
-      "updated": "2026-11-16T11:20:45",
-      "worktree": "../http-wt/detent/http-idle-cost"
+      "updated": "2026-11-16T11:21:13",
+      "worktree": ""
     },
     "http-task-h1": {
       "accepted": {},
