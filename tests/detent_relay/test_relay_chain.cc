@@ -208,7 +208,7 @@ struct Voter final : r::Upstream {
 				out.push_back(layout(*n));
 		return out;
 	}
-	std::string fetch(const r::MirrorFile &file) override {
+	std::string fetch(std::string_view, const r::MirrorFile &file) override {
 		auto bytes = read(file.name);
 		++fetched_files;
 		fetched_bytes += bytes.size();
@@ -233,10 +233,10 @@ struct Counted final : r::Upstream {
 	bool files = true;
 	explicit Counted(r::Upstream &inner) : inner(&inner) {}
 	std::vector<r::NamespaceLayout> layouts(std::span<const std::string> n) override { return inner->layouts(n); }
-	std::string fetch(const r::MirrorFile &f) override {
+	std::string fetch(std::string_view n, const r::MirrorFile &f) override {
 		CHECK(files);
 		++fetched_files;
-		return inner->fetch(f);
+		return inner->fetch(n, f);
 	}
 	std::string frames(std::span<const r::Position> p) override { return inner->frames(p); }
 };

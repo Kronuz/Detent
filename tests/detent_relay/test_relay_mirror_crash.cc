@@ -160,7 +160,7 @@ std::string fingerprint(const std::map<std::string, std::string> &files) {
 }
 
 r::MirrorFetch upstream_fetch() {
-	return [](const r::MirrorFile &f) { return bytes_of(f.name); };
+	return [](std::string_view, const r::MirrorFile &f) { return bytes_of(f.name); };
 }
 // One step of a run: an adoption, or a read of one file (a repair when it rotted).
 struct Step {

@@ -5,6 +5,7 @@
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/directory.hh"
 #include "detent_relay/configuration.hh"
+#include "detent_relay/http_upstream.hh"
 #include "detent_relay/service.hh"
 #include <asio.hpp>
 #include <cassert>
@@ -59,7 +60,7 @@ template <class Records>
 std::shared_ptr<const d::OwnedBuffer>
 health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedger &root,
 				const Records &records, ServiceStatus service, t::CompletionSchedulerStatus scheduling,
-				kronuz::journal::CompletionStats disk, bool ready) {
+				kronuz::journal::CompletionStats disk, const MirrorService *mirror, bool ready) {
 	auto output = d::make_owned_buffer(std::move(account), 256 * 1024);
 	auto number = [&](std::uint64_t value) {
 		std::array<char, 32> bytes;
@@ -88,6 +89,23 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 	field(",\"disk_native_submitted\":", disk.native_submitted);
 	field(",\"disk_fallback_submitted\":", disk.fallback_submitted);
 	field(",\"disk_maximum_outstanding\":", disk.maximum_outstanding);
+	if (mirror) {
+		const auto state = mirror->status();
+		field(",\"mirror\":{\"ready\":", state.ready);
+		field(",\"failed\":", state.failed);
+		field(",\"syncs\":", state.syncs);
+		field(",\"sync_failures\":", state.sync_failures);
+		field(",\"entries\":", state.entries);
+		field(",\"fetched_files\":", state.fetched_files);
+		field(",\"fetched_bytes\":", state.fetched_bytes);
+		field(",\"reused_files\":", state.reused_files);
+		field(",\"collected_files\":", state.collected_files);
+		field(",\"answers\":", state.answers);
+		field(",\"idle\":", state.idle);
+		field(",\"sessions\":", state.sessions);
+		field(",\"failed_namespaces\":", state.failed_namespaces);
+		output->append("}");
+	}
 	output->append(",\"bundles\":[");
 	for (std::size_t index = 0; index < records.size(); ++index) {
 		if (index)
@@ -149,7 +167,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	auto baseline = std::make_shared<d::StorageLedger>(root, options.baseline_bytes);
 	auto control = std::allocate_shared<d::StorageLedger>(d::StorageAllocator<d::StorageLedger>(baseline),
 														  root, options.control_bytes);
-	d::RetirementRuntime retirement(baseline, options.bundles.size() * 2);
+	d::RetirementRuntime retirement(baseline, std::max<std::size_t>(1, options.bundles.size() * 2));
 	auto child = [&](std::shared_ptr<d::StorageLedger> parent, std::size_t bytes) {
 		return std::allocate_shared<d::StorageLedger>(d::StorageAllocator<d::StorageLedger>(baseline),
 													  std::move(parent), bytes);
@@ -175,9 +193,29 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(baseline)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(baseline),
 														owner.scheduler(), queue, true);
-	auto scheduler =
-		std::allocate_shared<t::CompletionScheduler>(d::StorageAllocator<t::CompletionScheduler>(baseline),
-													 owner.scheduler(), driver, baseline, records.size());
+	auto scheduler = std::allocate_shared<t::CompletionScheduler>(d::StorageAllocator<t::CompletionScheduler>(baseline),
+																  owner.scheduler(), driver, baseline,
+																  std::max<std::size_t>(1, records.size()));
+	// W8: the namespace mirror, a reader of the authority or an upstream relay, never a member.
+	std::shared_ptr<MirrorService> mirror;
+	if (options.mirror) {
+		auto &configured = *options.mirror;
+		on_worker<bool>(startup, [&] {
+			const auto &directory = configured.service.directory;
+			if (!std::filesystem::exists(directory)) {
+				std::filesystem::create_directory(directory);
+				std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+			}
+			struct stat info{};
+			if (::stat(directory.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || info.st_uid != ::geteuid() ||
+				(info.st_mode & 0077))
+				throw std::invalid_argument("relay mirror directory requires service ownership and mode 0700");
+			return true;
+		});
+		mirror = std::make_shared<MirrorService>(configured.service,
+												 std::make_unique<HttpUpstream>(configured.upstream),
+												 child(root, configured.answer_bytes));
+	}
 	std::vector<RegistryBundle> registry_bindings;
 	std::vector<std::vector<std::string_view>> names;
 	std::vector<SessionBinding, d::StorageAllocator<SessionBinding>> session_bindings{
@@ -217,8 +255,8 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	registry_bindings.clear();
 	names.clear();
 	auto runtime =
-		std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts,
-											 registry, session_bindings, options.service_limits);
+		std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts, registry,
+											 session_bindings, options.service_limits, mirror);
 	for (std::size_t index = 0; index < records.size(); ++index) {
 		auto &record = *records[index];
 		record.coordinator = t::prepare_coordinator(std::move(options.bundles[index].source.coordinator),
@@ -278,6 +316,8 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 			return;
 		stop_requested = true;
 		runtime->close();
+		if (mirror)
+			mirror->close();
 		for (auto &record : records)
 			record->coordinator->close();
 		stop.set_value();
@@ -330,21 +370,28 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 				d::WorkBudget cleanup;
 				record.bundle->cleanup_step(cleanup);
 			}
-			if (!announced && !stop_requested &&
+			if (mirror && !stop_requested)
+				if (const auto state = mirror->status(); state.failed) {
+					L_WARNING("detent-relay: namespace mirror stopped: {}", state.error);
+					failure = std::make_exception_ptr(std::runtime_error("relay mirror: " + state.error));
+					shutdown();
+				}
+			if (!announced && !stop_requested && (!mirror || mirror->status().ready) &&
 				std::all_of(records.begin(), records.end(),
 							[](const auto &record) { return record->bundle->status().ready; })) {
 				runtime->health(health_snapshot(accounts.metadata, *root, records, runtime->status(),
-												scheduler->status(), queue->stats(), true));
+												scheduler->status(), queue->stats(), mirror.get(), true));
 				health_due = now + std::chrono::milliseconds(100);
 				ready();
 				announced = true;
-				L_INFO("detent-relay: {} durable bundles ready on {}:{}", records.size(),
-					   options.endpoint.address().to_string(), listener.port());
+				L_INFO("detent-relay: {} durable bundles{} ready on {}:{}", records.size(),
+					   mirror ? " and the namespace mirror" : "", options.endpoint.address().to_string(),
+					   listener.port());
 			}
 			if (now >= health_due) {
 				try {
 					runtime->health(health_snapshot(accounts.metadata, *root, records, runtime->status(),
-													scheduler->status(), queue->stats(),
+													scheduler->status(), queue->stats(), mirror.get(),
 													announced && !stop_requested));
 				} catch (const d::StoragePressure &) {
 				}
@@ -409,6 +456,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	startup.join();
 	facade.reset();
 	runtime.reset();
+	mirror.reset();
 	session_bindings.clear();
 	registry.reset();
 	for (auto &record : records) {

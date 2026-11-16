@@ -21,13 +21,19 @@ class Upstream {
 	// The layout of each named namespace the upstream holds, in name order; a name it does not
 	// hold is absent.
 	virtual std::vector<NamespaceLayout> layouts(std::span<const std::string> names) = 0;
-	// One file of a layout, by its upstream name.
-	virtual std::string fetch(const MirrorFile &) = 0;
+	// One file of namespace `name_space`'s layout, by its upstream name.
+	virtual std::string fetch(std::string_view name_space, const MirrorFile &) = 0;
 	// The W6 body answering W5 positions, in strictly increasing name order.
 	virtual std::string frames(std::span<const Position>) = 0;
 };
 // The upstream answered below its own ring: it sealed between its layout and its frames.
 class UpstreamMoved : public std::runtime_error {
+  public:
+	using std::runtime_error::runtime_error;
+};
+// The upstream offered a layout older than the mirror's for the same incarnation (another voter
+// that lags): nothing is adopted, and the relay reads again later.
+class UpstreamBehind : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
@@ -46,15 +52,19 @@ class NamespaceRelay final : public Upstream {
 	NamespaceRelay &operator=(const NamespaceRelay &) = delete;
 	// Brings `names` (strictly increasing) to the upstream: adopts their layouts, fetching only
 	// the files the mirror lacks and dropping a name the upstream no longer holds, then reads the
-	// entries after each ring's head. Throws UpstreamMoved when the upstream sealed in between.
+	// entries after each ring's head. Throws UpstreamMoved when the upstream sealed in between, and
+	// UpstreamBehind when it offers an older layout than the mirror holds.
 	SyncStats sync(std::span<const std::string> names);
 	const MirrorStore &mirror() const noexcept;
 	// Where the relay holds a namespace: its incarnation and newest position.
 	std::optional<distribution::NamespaceCursor> head(std::string_view name) const;
 
 	std::vector<NamespaceLayout> layouts(std::span<const std::string> names) override;
-	std::string fetch(const MirrorFile &) override;
+	std::string fetch(std::string_view name_space, const MirrorFile &) override;
 	std::string frames(std::span<const Position>) override;
+	// The W6 body for a session's next, or nothing while every answer is Current or Ahead (the
+	// session waits, as the authority's does).
+	std::optional<std::string> changes(std::span<const Position>);
 
   private:
 	struct Impl;

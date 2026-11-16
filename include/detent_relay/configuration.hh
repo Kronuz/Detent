@@ -1,5 +1,7 @@
 #pragma once
 #include "detent_delivery/configuration.hh"
+#include "http_upstream.hh"
+#include "mirror_service.hh"
 #include "registry.hh"
 #include "service_limits.hh"
 
@@ -9,11 +11,18 @@ struct ConfiguredBundle {
 	std::size_t cache_bytes = 64 * 1024 * 1024;
 	std::size_t retained_edges = 64;
 };
+// W8: the namespaces this relay mirrors, its upstream, and the bytes its answers may hold.
+struct ConfiguredMirror {
+	MirrorServiceOptions service;
+	HttpUpstreamOptions upstream;
+	std::size_t answer_bytes = 64 * 1024 * 1024;
+};
 struct HostOptions {
 	asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), 8318};
 	std::shared_ptr<asio::ssl::context> tls_context;
 	std::string certificate_authority, hostname = "localhost";
-	std::vector<ConfiguredBundle> bundles;
+	std::vector<ConfiguredBundle> bundles; // version 1; none when only the mirror serves
+	std::optional<ConfiguredMirror> mirror;
 	std::vector<ConfiguredCredential> credentials;
 	std::size_t control_bytes = 64 * 1024 * 1024;
 	std::size_t baseline_bytes = 16 * 1024 * 1024;

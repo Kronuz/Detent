@@ -82,7 +82,7 @@ struct NamespaceRelay::Impl final : Tiers {
 			rings[layout.name] = {layout.incarnation, layout.end(), {}};
 	}
 	MirrorFetch fetcher() {
-		return [this](const MirrorFile &file) { return upstream.fetch(file); };
+		return [this](std::string_view name_space, const MirrorFile &file) { return upstream.fetch(name_space, file); };
 	}
 	bool serves(const NamespaceLayout &layout) const {
 		const auto failed = store.failed();
@@ -100,6 +100,7 @@ struct NamespaceRelay::Impl final : Tiers {
 		return std::move(block.changes);
 	}
 	SyncStats attempt(std::span<const std::string> names);
+	std::optional<std::string> answer(std::span<const Position>, bool changed_only);
 };
 
 namespace {
@@ -186,9 +187,13 @@ SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
 	for (const auto &name : names)
 		if (std::none_of(layouts.begin(), layouts.end(), [&](const auto &layout) { return layout.name == name; }))
 			dropped.push_back(name);
-	for (const auto &layout : layouts)
+	for (const auto &layout : layouts) {
 		if (!std::binary_search(names.begin(), names.end(), layout.name))
 			throw std::runtime_error("relay: the upstream sent a namespace it was not asked for");
+		if (const auto *held = store.table().find(layout.name);
+			held && held->incarnation == layout.incarnation && held->seal > layout.seal)
+			throw UpstreamBehind("relay: the upstream's layout is older than the mirror's: " + layout.name);
+	}
 	SyncStats stats;
 	stats.files = store.adopt(layouts, dropped, fetcher());
 	for (const auto &name : dropped)
@@ -267,18 +272,38 @@ std::vector<NamespaceLayout> NamespaceRelay::layouts(std::span<const std::string
 	return out;
 }
 
-std::string NamespaceRelay::fetch(const MirrorFile &file) { return impl_->store.read(file, impl_->fetcher()); }
+// A file of `name_space`'s layout only: a downstream reads the namespaces it was granted.
+std::string NamespaceRelay::fetch(std::string_view name_space, const MirrorFile &file) {
+	const auto *layout = impl_->store.table().find(name_space);
+	if (!layout || std::find(layout->files.begin(), layout->files.end(), file) == layout->files.end())
+		throw std::invalid_argument("relay fetch: not a file of the namespace's layout: " + file.name);
+	return impl_->store.read(file, impl_->fetcher());
+}
 
 std::string NamespaceRelay::frames(std::span<const Position> positions) {
+	return impl_->answer(positions, false).value();
+}
+std::optional<std::string> NamespaceRelay::changes(std::span<const Position> positions) {
+	return impl_->answer(positions, true);
+}
+std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position> positions, bool changed_only) {
 	std::vector<std::unique_ptr<MirrorHistory>> histories;
 	std::vector<d::NamespaceRequest> requests;
 	for (const auto &position : positions) {
-		const auto *layout = impl_->store.table().find(position.name);
-		if (!layout || !impl_->serves(*layout))
+		const auto *layout = store.table().find(position.name);
+		if (!layout || !serves(*layout))
 			continue;
-		histories.push_back(std::make_unique<MirrorHistory>(*impl_, impl_->cluster, *layout, impl_->rings.at(position.name)));
+		histories.push_back(std::make_unique<MirrorHistory>(*this, cluster, *layout, rings.at(position.name)));
 		requests.push_back({position.name, histories.back().get(), position.cursor});
 	}
-	return d::encode_session_frames(std::nullopt, requests);
+	d::SessionFramesEncoder encoder(std::nullopt, requests);
+	if (changed_only && std::all_of(encoder.answers().begin(), encoder.answers().end(), [](const d::Answer &answer) {
+			return answer.kind == d::AnswerKind::Current || answer.kind == d::AnswerKind::Ahead;
+		}))
+		return std::nullopt;
+	std::string body;
+	while (!encoder.step(body, body.size() + 65536)) {
+	}
+	return body;
 }
 } // namespace detent::relay

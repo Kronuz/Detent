@@ -286,11 +286,11 @@ void refused(const std::filesystem::path &root) {
 	script.next();
 	const auto layouts = script.up.layouts();
 	refuses<r::FetchRefused>([&] {
-		store.adopt(layouts, {}, [](const r::MirrorFile &f) { return bytes_of(f.name) + "!"; });
+		store.adopt(layouts, {}, [](std::string_view, const r::MirrorFile &f) { return bytes_of(f.name) + "!"; });
 	});
 	check(store.table() == table && mirror_matches(root, table));
 	refuses<std::runtime_error>([&] {
-		store.adopt(layouts, {}, [](const r::MirrorFile &) -> std::string { throw std::runtime_error("down"); });
+		store.adopt(layouts, {}, [](std::string_view, const r::MirrorFile &) -> std::string { throw std::runtime_error("down"); });
 	});
 	check(store.table() == table && mirror_matches(root, table));
 	// An upstream that changes an immutable name's bytes is refused before anything is fetched.
@@ -316,7 +316,7 @@ void chain(const std::filesystem::path &scratch) {
 	r::MirrorStore a(io_at(ra), {}), b(io_at(rb), {}), c(io_at(rc), {});
 	std::uint64_t from_a = 0, from_b = 0;
 	auto via = [](r::MirrorStore &store, const r::MirrorFetch &upstream, std::uint64_t &served) -> r::MirrorFetch {
-		return [&store, upstream, &served](const r::MirrorFile &f) {
+		return [&store, upstream, &served](std::string_view, const r::MirrorFile &f) {
 			auto bytes = store.read(f, upstream);
 			served += bytes.size();
 			return bytes;

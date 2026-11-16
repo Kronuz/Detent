@@ -2,6 +2,7 @@
 #include "delivery_export.hh"
 #include "frames_export.hh"
 #include "history_format.hh"
+#include "layout_export.hh"
 #include "peer_history.hh"
 #include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
@@ -888,6 +889,27 @@ Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr
 		task->kind = Task::Kind::Result;
 		task->generation = number(field(d, "generation"));
 		task->sequence = number(field(d, "sequence"));
+	} else if (request.path == "/v2/history/layouts") {
+		// W8: a relay's read of its namespaces' layouts; every name is granted.
+		fields(d, {"namespaces"});
+		task->kind = Task::Kind::HistoryLayouts;
+		auto &names = field(d, "namespaces");
+		check(names.IsArray() && names.Size() && names.Size() <= options_.delivery.namespaces, "namespace count bound");
+		for (const auto &value : names.GetArray()) {
+			auto name = text(value);
+			check(distribution::valid_namespace_name(name) && task->admission->credential->grants.allows(name),
+				  "unauthorized namespace");
+			task->keys.push_back(std::move(name));
+		}
+	} else if (request.path == "/v2/history/file") {
+		// W8: one file of a granted namespace's layout, by the name the layout gives it.
+		fields(d, {"namespace", "name"});
+		task->kind = Task::Kind::HistoryFile;
+		task->name_space = text(field(d, "namespace"));
+		check(distribution::valid_namespace_name(task->name_space) &&
+				  task->admission->credential->grants.allows(task->name_space),
+			  "unauthorized namespace");
+		task->keys.push_back(text(field(d, "name"), 255));
 	} else {
 		return {Reply{404, "{\"error\":\"unknown_endpoint\"}"}, nullptr};
 	}
@@ -1099,6 +1121,30 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 	}
 }
 
+// W8, on the owner: a relay's layouts, or one file of a granted namespace's layout, from this voter's
+// history at its latest seal (docs/status/namespace-s8.md, "The service").
+Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter) {
+	const Reply unavailable{503, "{\"error\":\"history_unavailable\"}"};
+	auto *files = node.history_files();
+	if (!files || !node.history()->ready() || !node.sealed())
+		return unavailable;
+	try {
+		const auto &table = node.history()->layout().table();
+		if (task.kind == Task::Kind::HistoryFile) {
+			auto bytes = LayoutExport::file(task.name_space, task.keys.front(), table, *files, node.state().limits());
+			if (!bytes)
+				return {404, "{\"error\":\"not_found\"}"};
+			return {200, std::move(*bytes), true, {}, "application/octet-stream"};
+		}
+		auto layouts = exporter.layouts(task.keys, node.state(), *node.sealed(), table, *files);
+		if (!layouts)
+			return unavailable;
+		return {200, relay::encode_mirror_table({0, std::move(*layouts)}), true, {}, "application/vnd.detent.layouts"};
+	} catch (const std::exception &) {
+		return unavailable;
+	}
+}
+
 Service::Reply Service::enveloped(Reply reply) const {
 	if (!reply.enveloped && !reply.body.empty() && reply.body[0] == '{') {
 		const auto &context = options_.node.context;
@@ -1164,7 +1210,7 @@ void Service::write_owned(http::Request &request, http::ResponseWriter &response
 	check(static_cast<bool>(owned), "owned reply streaming unavailable");
 	http::Response metadata;
 	metadata.status = reply.status;
-	metadata.content_type = "application/json";
+	metadata.content_type = std::string(reply.content_type);
 	auto body = std::make_shared<const std::string>(std::move(reply.body));
 	if (owned->start(metadata, body->size(), request.keep_alive) != http::StreamSubmit::Accepted ||
 		(!body->empty() && owned->publish({body, std::string_view(*body)}) != http::StreamSubmit::Accepted) ||
@@ -1459,6 +1505,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	std::optional<Subscriptions> subscriptions;
 	// W5/W6 sessions (version 2): their table, the requests on the owner, and the one answer in flight.
 	std::optional<NamespaceSessions> frames_sessions;
+	LayoutExport layout_export;
+	bool history_wanted = false; // a relay asked for layouts before positions were enabled
 	std::vector<std::shared_ptr<Task>> frames_tasks;
 	struct FramesSlot {
 		std::shared_ptr<Task> task;
@@ -2630,7 +2678,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 				}
 				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.
-				if (wanted && node.worker().role() == kronuz::consensus::Role::Leader &&
+				if ((wanted || history_wanted) && node.worker().role() == kronuz::consensus::Role::Leader &&
 					!node.state().positions_enabled() && now >= enabling_at) {
 					enabling_at = now + std::chrono::seconds(1);
 					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
@@ -2889,6 +2937,13 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						first = queue_.front();
 						queue_.pop_front();
 					}
+				}
+				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
+					// W8: this voter's own history, by name; immutable files need no quorum read. A
+					// relay's layouts want positions as a W5 next does.
+					history_wanted = history_wanted || !node.state().positions_enabled();
+					complete(first, Service::history_reply(*first, node, layout_export));
+					first.reset();
 				}
 				if (first) {
 					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");

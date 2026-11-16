@@ -23,6 +23,7 @@
 #include <set>
 
 namespace detent::authority {
+class LayoutExport;
 struct Credential {
 	std::string token, producer;
 	// W13 patterns: exact names, whole-component prefixes `p.*` and `*`.
@@ -82,13 +83,25 @@ class Service final : public http::HttpHandler {
 		std::string body;
 		bool enveloped = false;
 		std::shared_ptr<ReplyAdmission> reservation;
+		// A binary body (a relay's layouts or history file) is never enveloped.
+		std::string_view content_type = "application/json";
 	};
 	struct Admission;
 	struct Runtime;
 	struct Accounting;
 	struct Delivery;
 	struct Task {
-		enum class Kind { Command, Read, Result, Distribution, SessionOpen, SessionNext, SessionClose } kind;
+		enum class Kind {
+			Command,
+			Read,
+			Result,
+			Distribution,
+			SessionOpen,
+			SessionNext,
+			SessionClose,
+			HistoryLayouts, // W8: a relay reads layouts and files by name, answered from this voter's history
+			HistoryFile
+		} kind;
 		std::shared_ptr<Delivery> delivery;
 		std::shared_ptr<const AuthorizedScope> retiring_scope;
 		std::shared_ptr<Admission> admission;
@@ -157,6 +170,7 @@ class Service final : public http::HttpHandler {
 	void enqueue(const std::shared_ptr<Task> &task);
 	Outcome reply_for(Task &task, task::cancel_reason why);
 	Reply enveloped(Reply reply) const;
+	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter);
 	// Answers a submitted request through an owned stream that keeps the connection (D8).
 	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
 					 std::chrono::steady_clock::time_point outcome_deadline);
