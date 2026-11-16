@@ -1,6 +1,6 @@
 # journal-driver: journal
 
-State: waiting on jobs 261116-130823-5e806b 261116-130827-e7b375 261116-130921-66d097 and mutant/rerun jobs listed under Evidence
+State: waiting on jobs 261116-131224-3a268f 261116-131229-921097 261116-131315-8db917 261116-131236-21826e 261116-131242-29b5c7 261116-131248-b049cb 261116-131254-8e5e16 261116-131300-009477 261116-131304-273447 261116-131308-d7c2d9
 Quest: .campaign/detent/quests/journal-driver.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,16 +28,14 @@ logs (R13 updated), and N1 fixed in completion:7731315 (repinned, R21).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261116-123503-343a08, 261116-123045-cac914 (passed at 170e6fe369dd; ignores docs-only AGENTS.md, ARCHITECTURE.md, docs/design/host-layout.md); fails without: 261116-123048-ac237c, 261116-123051-b79de0 |
-| A2 | 261116-123042-8ca6de (passed at 170e6fe369dd; ignores docs-only AGENTS.md, ARCHITECTURE.md, docs/design/host-layout.md), 261116-123045-cac914 (passed at 170e6fe369dd; ignores docs-only AGENTS.md, ARCHITECTURE.md, docs/design/host-layout.md); fails without: 261116-123014-81ccc1, 261116-123054-f575c6, 261116-123057-674517, 261116-123100-c710d8, 261116-123103-55423a |
-| A3 | pending: suite 261116-130823-5e806b, ASan 261116-130827-e7b375, idle cost (exclusive) 261116-130921-66d097; fails without: 261116-130859-f3128c (group-blind-names), 261116-130904-cac914 (group-scans), 261116-130910-fbe621 (reopen-from-log), 261116-130916-67da9a (same-incarnation) |
-| A4 | pending: suite 261116-130823-5e806b, ASan 261116-130827-e7b375; fails without: 261116-130843-ee8021 (remap-forget), 261116-130848-d5d008 (repartition-skips-mark), 261116-130854-281a18 (open-skips-mark) |
-| A5 | grep rerun 261116-130832-d4538a (pending); [artifact] journal `ARCHITECTURE.md` "One directory per host" and `docs/design/host-layout.md` |
+| A1 | pending at journal:0c52251: suite 261116-131224-3a268f, ASan 261116-131229-921097; fails without (rerun, killed): 261116-130833-94034b (no-sync-data), 261116-130833-16ae42 (no-barrier-wait) |
+| A2 | 261116-130832-8903d2 (driver_test under TSan, passed at 0c52251); fails without (rerun, killed): 261116-130833-de3054, 261116-130833-7ab02f, 261116-130834-4f5c4b, 261116-130834-5d1eb9, 261116-130834-32f7a8 |
+| A3 | pending: suite 261116-131224-3a268f, ASan 261116-131229-921097, idle cost (exclusive) 261116-131315-8db917; fails without: 261116-131254-8e5e16 (group-blind-names), 261116-131300-009477 (group-scans), 261116-131304-273447 (reopen-from-log), 261116-131308-d7c2d9 (same-incarnation) |
+| A4 | pending: suite 261116-131224-3a268f, ASan 261116-131229-921097; fails without: 261116-131236-21826e (remap-forget), 261116-131242-29b5c7 (repartition-skips-mark), 261116-131248-b049cb (open-skips-mark) |
+| A5 | 261116-130832-d4538a (no Asio under include/, passed at 0c52251); [artifact] journal `ARCHITECTURE.md` "One directory per host" and `docs/design/host-layout.md` |
 
-Reruns at journal:0c52251 (pending): A1 suite 261116-130823-5e806b, ASan 261116-130827-e7b375,
-mutants 261116-130833-94034b, 261116-130833-16ae42; A2 TSan 261116-130832-8903d2, mutants
-261116-130833-de3054, 261116-130833-7ab02f, 261116-130834-4f5c4b, 261116-130834-5d1eb9,
-261116-130834-32f7a8.
+Jobs 261116-130823-5e806b, 130827-e7b375, 130843..130921 never ran (zsh kept `$Q` one argument);
+resubmitted as above.
 
 Notes on jobs: 261116-122429-d36c87 and 261116-122533-fd233c failed on test expectations (a group's
 create stages checkpoint record 1; one append per group at a time), fixed in journal:3d6a455 and
