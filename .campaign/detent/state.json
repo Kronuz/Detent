@@ -1137,6 +1137,8 @@
     "consensus-late-append": {
       "accepted": {},
       "after": [],
+      "base": "a95847e9b3b9a621a814fe3e178fb15eb268a51b",
+      "branch": "quest/detent/consensus-late-append",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -1158,6 +1160,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-late-append",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1167,9 +1170,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: accept late append responses that still match the log",
-      "updated": "2026-11-13T02:48:19"
+      "updated": "2026-11-15T21:03:52",
+      "worktree": "../consensus-wt/detent/consensus-late-append"
     },
     "container-selection": {
       "accepted": {},
