@@ -61,7 +61,7 @@ class Proxy:
     """A TLS proxy in front of one voter that forwards every request unchanged, except: when `busy`,
     it answers every other W5 next `409 session_busy` itself, as a voter does while the session's
     previous answer retires; when `lagging`, it answers every layouts request with the first one it
-    forwarded, as a voter cut off from the quorum does."""
+    forwarded, as a voter cut off from the quorum does; when `closed`, it answers everything 503."""
 
     def __init__(
         self,
@@ -70,7 +70,7 @@ class Proxy:
         upstream: int,
         busy: bool = False,
     ) -> None:
-        self.busy, self.lagging, self.stale = 0, False, 0
+        self.busy, self.lagging, self.closed, self.stale = 0, False, False, 0
         self.first: tuple[int, dict[str, str], bytes] | None = None
         nexts = itertools.count()
         proxy = self
@@ -80,6 +80,13 @@ class Proxy:
 
             def do_POST(self) -> None:
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                if proxy.closed:
+                    self.answer(
+                        503,
+                        {"Content-Type": "application/json"},
+                        b'{"error":"distribution_unavailable"}',
+                    )
+                    return
                 if (
                     busy
                     and self.path == "/v2/distribution/session/next"
@@ -121,9 +128,11 @@ class Proxy:
                     answer = (response.status, headers, response.read())
                     if layouts and answer[0] == 200 and not proxy.first:
                         proxy.first = answer
-                    self.answer(*answer)
+                except (OSError, http.client.HTTPException):
+                    answer = (502, {"Content-Type": "application/json"}, b"{}")
                 finally:
                     connection.close()
+                self.answer(*answer)
 
             def answer(self, status: int, headers: dict[str, str], body: bytes) -> None:
                 self.send_response(status)
@@ -446,18 +455,28 @@ class Run:
         return hashlib.sha256(payload).hexdigest()
 
     def converged(self, ports: dict[str, tuple[int, str]]) -> dict[str, dict[str, Any]]:
-        """Probes every endpoint until all answer alike; the writes are done, so the leader's is final."""
+        """Probes every endpoint until all answer alike; the writes are done, so the leader's is final.
+        A relay still syncing may collect a file between the probe's layouts and its read: a probe
+        that fails counts as not yet converged."""
         deadline = time.monotonic() + 60
         last: dict[str, dict[str, Any]] = {}
+        failed = ""
         while time.monotonic() < deadline:
-            last = {name: self.probe(*where) for name, where in ports.items()}
+            try:
+                last = {name: self.probe(*where) for name, where in ports.items()}
+            except AssertionError as error:
+                failed = str(error)
+                time.sleep(0.2)
+                continue
             if all(answer == last["authority"] for answer in last.values()):
                 return last
             time.sleep(0.2)
         differing = {
             name for name, answer in last.items() if answer != last["authority"]
         }
-        raise AssertionError(f"answers never converged; differing: {differing}")
+        raise AssertionError(
+            f"answers never converged; differing: {differing}; last failure: {failed}"
+        )
 
     def on_disk(self, name: str, answer: dict[str, Any]) -> None:
         """Each file the relay serves is its own durable copy: m-<hash of its name>, these bytes."""
@@ -540,13 +559,16 @@ def main() -> int:
         run.leader()
         run.write("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
         run.churn(12, 0)  # history before any relay
-        # Relay C reads a proxy of the leader first, then the leader itself.
+        # Relay C reads two proxies of the leader: `lagging`, then `gated`, which stays closed
+        # until `lagging` has answered C an older seal.
         leader = run.http[run.leader()]
         lagging = Proxy(run.certificates, run.context, leader)
+        gated = Proxy(run.certificates, run.context, leader)
+        gated.closed = True
         run.upstreams = {
             "a": (run.http, MIRROR),
             "b": ([run.relay_ports["a"]], READER),
-            "c": ([lagging.port, leader], MIRROR),
+            "c": ([lagging.port, gated.port], MIRROR),
         }
         for name in ("a", "b", "c"):
             run.start_relay(name)
@@ -583,8 +605,13 @@ def main() -> int:
             f"byte-identical at the authority, A and B, the answer at no cursor also read directly; "
             f"heads {heads}"
         )
-        # Relay C is at the authority's seal; its first upstream now answers an older one.
+        # Relay C is at the authority's seal; its only open upstream now answers an older one.
         lagging.lagging = True
+        deadline = time.monotonic() + 30
+        while not lagging.stale and time.monotonic() < deadline:
+            time.sleep(0.05)
+        check(lagging.stale > 0, "relay C never asked the lagging voter")
+        gated.closed = False
         # W5's session contract: a next on a busy session (409 session_busy) is asked again.
         proxy = Proxy(run.certificates, run.context, run.http[run.leader()], busy=True)
         try:
@@ -621,9 +648,9 @@ def main() -> int:
         run.churn(12, 2)
         later = run.converged(run.endpoints() | {"c": (run.relay_ports["c"], READER)})
         lagging.close()
-        check(lagging.stale > 0, "the lagging voter answered no layouts request")
+        gated.close()
         run.log(
-            f"D9: relay C refused {lagging.stale} older layouts answers and followed the leader"
+            f"D9: relay C refused {lagging.stale} older layouts answers and followed the current voter"
         )
         new = {file["name"] for file in later["authority"]["files"]} - held
         check(bool(new), "the later writes sealed no new file")

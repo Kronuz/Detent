@@ -167,11 +167,16 @@ struct Voter final : r::Upstream {
 	const h::Table &table() const { return group.nodes[index]->history()->layout().table(); }
 	// A file of the voter's history; `seal-<index>/<block name>` is a section of that seal file.
 	std::string read(const std::string &name) const {
+		auto file = [&](std::string_view at) {
+			auto bytes = h::Directory(group.history_io(index), {}).find(at);
+			CHECK(bytes.has_value());
+			return std::move(*bytes);
+		};
 		const auto slash = name.find('/');
 		if (slash == std::string::npos)
-			return slurp(group.history_directory(index) / name);
+			return file(name);
 		const auto &limits = group.nodes[index]->state().limits();
-		const auto seal = h::decode_seal(slurp(group.history_directory(index) / name.substr(0, slash)), limits);
+		const auto seal = h::decode_seal(file(name.substr(0, slash)), limits);
 		auto named = [&](const std::string &bytes) {
 			const auto b = h::decode_block(bytes, limits);
 			return h::block_name(b.name_space, b.incarnation, b.first, b.last) == name.substr(slash + 1);
@@ -326,6 +331,7 @@ int main(int argc, char **argv) {
 		policy.alpha_num = 1;
 		policy.alpha_den = 2;
 		testing::history_policy = policy;
+		testing::memory_storage = true; // the voters wait on no device; the relays' mirrors stay on disk
 		Cluster group;
 		group.until([&] { return group.nodes[0]->worker().role() == Role::Leader; });
 		Command open;
