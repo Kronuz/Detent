@@ -3853,6 +3853,38 @@
       "title": "http handlers on task: design, S1-S2 and the T6/T7 gate (W2a)",
       "updated": "2026-11-08T15:38:30"
     },
+    "http-tls-small-reply-cost": {
+      "accepted": {},
+      "after": [
+        "http-idle-cost"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "*.h",
+        "bench/**",
+        "test/**",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
+      "updated": "2026-11-16T10:54:36"
+    },
     "ipv6": {
       "accepted": {},
       "after": [
