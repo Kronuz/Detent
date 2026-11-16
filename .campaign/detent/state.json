@@ -3631,6 +3631,55 @@
       "updated": "2026-11-11T15:55:18",
       "worktree": ""
     },
+    "journal-driver": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "test/**",
+        "bench/**",
+        "fuzz/**",
+        "examples/**",
+        "docs/**",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "drivers-task-wheel",
+        "drivers-completion-seam"
+      ],
+      "provides": [
+        "journal:driver"
+      ],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
+      "updated": "2026-11-15T23:07:54"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
