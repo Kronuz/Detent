@@ -1223,7 +1223,8 @@
         "src/**",
         "test/transport/**",
         "CHANGELOG.md",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        ".github/workflows/ci.yml"
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-macos",
       "landed": [],
@@ -1235,7 +1236,7 @@
       "risk": "normal",
       "status": "active",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-16T03:13:56",
+      "updated": "2026-11-16T06:39:38",
       "worktree": "../consensus-wt/detent/consensus-fetch-macos"
     },
     "consensus-late-append": {
@@ -4174,7 +4175,60 @@
       "updated": "2026-11-08T15:38:25"
     },
     "logger-burst-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-16T06:36:36",
+          "base": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:29fc5eab36fcfc38936e33dca0207ecf992cabfc",
+            "CHANGELOG.md": "100644:730fa4cbaca440055bdc81173eafbe2f95ba4c73",
+            "bench/ab_build.sh": "100755:4d6dda963a6fdc5067d5a3331d49bcbb7a8d6292",
+            "bench/logger_ab.py": "100644:89b54f7a94c486a1b3439665e8691b53a25d29d2",
+            "docs/perf/burst-cost.md": "100644:117b9b4931094c1825d177729661fd64c9d97a54",
+            "logger.cc": "100644:894b2c8d518833f34be4d973c9b4166b20c5feac",
+            "logger.h": "100644:221ea6064f3cb42d97e18712bd6847f84e0e020a",
+            "test/wake.cc": "100644:c9a13b4da24dc9a2d031f7277045d63107e7e38a",
+            "test/wake_mutant.sh": "100755:35c1e1c2d40c9135095db209651c564a96bc7f0b"
+          },
+          "by": "review",
+          "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+          "criteria": "131a819a661670c1",
+          "diffs": {
+            "ARCHITECTURE.md": "15fdc270c9865340",
+            "CHANGELOG.md": "7043afe1b000924d",
+            "bench/ab_build.sh": "474931c49110f1e4",
+            "bench/logger_ab.py": "881513081ddb03e3",
+            "docs/perf/burst-cost.md": "7dbe103601e6e07f",
+            "logger.cc": "49f32d1bba57b9e8",
+            "logger.h": "88fef37c7815dd6f",
+            "test/wake.cc": "2ef798ed77b0e0f2",
+            "test/wake_mutant.sh": "d7a2fae39e901b0b"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh test/wake_mutant.sh .scratch/mutant both",
+                  "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261116-051126-efae89",
+                  "level": "light",
+                  "seconds": 84.2,
+                  "state": "done",
+                  "what": "sh test/wake_mutant.sh .scratch/mutant both at 6e7ab9ea0157"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "eb847b1826438a4e69445a57b9c072f688bbe170",
+          "reviewed": "7e261c14b4329d7e4820938b4ab7c7de6d34b51e",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
       "branch": "quest/detent/logger-burst-cost",
@@ -4205,20 +4259,55 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/logger-burst-cost",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-16T06:36:52",
+          "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+          "criteria": {
+            "A1": "261116-055710-a2ac8d, 261116-055715-c27489",
+            "A2": "261116-051126-efae89, 261116-051231-438ea0, 261116-051232-7ae5c2, 261116-051234-d8445e; fails without: 261116-005551-2b2823, 261116-012205-11c16c, 261116-012402-971dec",
+            "A3": "261116-051125-83a3c9; fails without: 261116-012411-484c4f, 261116-051253-d01271",
+            "A4": "logger `CHANGELOG.md` \"2026-11-16 (a producer's burst cost)\" (logger:35ad331, wording at 7e261c1)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-051125-83a3c9",
+              "level": "light",
+              "seconds": 76.9,
+              "state": "done",
+              "what": "logger-burst-cost check suite at 6e7ab9ea0157"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "6e7ab9ea01578d60e459137940e9e645a6727744",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
+          "reason": "",
+          "tested": "6e7ab9ea01578d60e459137940e9e645a6727744"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T00:04:58",
-      "worktree": "../logger-wt/detent/logger-burst-cost"
+      "updated": "2026-11-16T06:36:57",
+      "worktree": ""
     },
     "logger-exit-crash": {
       "accepted": {},
@@ -11424,6 +11513,47 @@
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
       "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
+    },
+    "voter-read-freshness": {
+      "accepted": {},
+      "after": [
+        "namespace-s8-wiring"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "include/detent_authority/**",
+        "tests/detent_relay/**",
+        "tests/detent_authority/**",
+        "docs/status/namespace-s8.md",
+        "website/src/content/docs/reference/http-api/authority.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Voters serve history only after a leader-confirmed read",
+      "updated": "2026-11-16T08:21:55"
     },
     "warm-graph-5m": {
       "accepted": {
