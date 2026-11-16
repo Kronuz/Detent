@@ -4054,6 +4054,8 @@
     "logger-burst-cost": {
       "accepted": {},
       "after": [],
+      "base": "907d27f01d79111fe4dc9e15acfa65101dd8585b",
+      "branch": "quest/detent/logger-burst-cost",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4081,6 +4083,7 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/logger-burst-cost",
       "landed": [],
       "lenses": [
         "correctness"
@@ -4090,9 +4093,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T00:04:47"
+      "updated": "2026-11-16T00:04:58",
+      "worktree": "../logger-wt/detent/logger-burst-cost"
     },
     "logger-exit-crash": {
       "accepted": {},
