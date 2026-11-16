@@ -358,6 +358,13 @@
       "closed": "files added to namespace-s8-wiring's set",
       "id": "msg-58",
       "text": "namespace-s8-wiring D3 touches files outside its set: website/src/content/docs/reference/configuration.md, reference/http-api/authority.md and reference/errors.md (the history routes, history_unavailable, the relay mirror keys and application_limits.layout fields), so check-docs passes. No docs_exceptions entries added."
+    },
+    {
+      "at": "2026-11-16T00:20:38",
+      "by": "namespace-s8-wiring",
+      "closed": "files added to namespace-s8-wiring's set",
+      "id": "msg-59",
+      "text": "namespace-s8-wiring (follow-up to msg-58): documenting application_limits.layout in reference/configuration.md makes the docs_exceptions.txt entry 'source-only config application_limits' stale, so I removed that line (tests/docs/docs_exceptions.txt, outside the set). The configuration area quest still owns the rest of application_limits."
     }
   ],
   "quests": {
