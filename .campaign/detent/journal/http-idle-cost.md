@@ -26,6 +26,20 @@ head, strict, phase timings), suite 261115-234631-7d23fc (done, 13/13), TSan 261
 check 261115-234701-d86b6a, OpenSSL mutant 261115-234713-2ebecb (fresh checkout), load A/B
 261115-234731-d07ab8 and 261115-234735-ec89ec.
 
+Diagnosis (local, quiet light, 30K plain, head binary at f1e173f, .scratch/diag): the client's close loop is
+quadratic. Closes 1-10K took 27.8 s, 10-20K 9.5 s, 20-30K 1.5 s; the server's stop took 0.1 s. Killing the
+server first changes nothing (first 10K closes 29.4 s), so the cost is in the client process's closes, not
+the server. 10K teardown 1.8 s; 100K extrapolates to about 430 s, which is the 100K jobs' timeout.
+Next experiment: close newest first (.scratch/diag/run_rev.py).
+
+OpenSSL: e336643's -I did not take (clang drops an -I that repeats an -isystem dir; /usr/local/include is
+searched before -isystem). 8740b29 sets NO_SYSTEM_FROM_IMPORTED on tls_asio_test. Jobs: OpenSSL 3.6 config
+261116-000620-05c3f6 (headers 3.6.5 = library 3.6.5, -I/usr/local/opt/openssl@3/include), default config
+261116-000626-9f041e (4.1.0 = 4.1.0), mutant 261116-000631-893b28 running. The pre-fix 3.6 config
+261115-235445-d74933 fails its version check (headers 4.1.0, library 3.6.5): the problem reproduced.
+Merged main (4279a49; http_accept.h, test.cc, ARCHITECTURE.md, CHANGELOG.md). 6ef5cd8: 10K numbers and
+CHANGELOG.
+
 ## Next
 
 1. Read the diagnosis; fix the teardown stall; submit 100K one arm per job (base/head x plain/TLS, owners
