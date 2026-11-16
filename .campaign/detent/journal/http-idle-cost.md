@@ -1,9 +1,6 @@
 # http-idle-cost: journal
 
-State: waiting on jobs 261116-051657-9fb383 261116-051659-5e726e 261116-051701-9a7b14 261116-051703-05a11f
-261116-051705-06d314 261116-051707-2cc499 261116-051709-086f5f 261116-051730-1f186a (A2 fix, lead's option 1, at
-http:47d6726); 100K TLS reruns 261116-051828-751348 261116-051830-d5c0df 261116-051832-2c02b3 261116-051834-bb242b
-261116-051836-032449
+State: blocked: A2 not met at http:47d6726 after the third experiment (measured gap under Blocked on)
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -78,47 +75,91 @@ A2 fix (lead: option 1, profile first, three experiments at most):
 - One load job measures both against base with an A/A arm (the defer arm attributes); the head arm is the
   fresh A/B. Third experiment held in reserve.
 
+A2 fix results, jobs at http:47d6726 (resubmitted by the lead; the 0517xx ids were malformed, exit 127):
+build 261116-055924-00f72e; load TLS c1/c64 base/defer/head/A/A 261116-055927-af0541; TLS 1 MiB, TLS close,
+plain 1 MiB 261116-055931-6dcd9b; 10K TLS 261116-055934-9fc4ec; counts 261116-055939-c54ec0; suite
+261116-055945-264897; TSan 261116-055954-8acab6; 100K TLS ABBA base0 261116-060000-d56d24, head0
+261116-060007-067b1b, head1 261116-060012-60b2e7, base1 261116-060018-27237b, owners 261116-060022-c30d0a; join
+mutant 261116-051730-1f186a. All exit 0.
+- D77 paired (median of 5 per-round ratios vs base, [min-max] = 93.8% distribution-free interval):
+  | row | arm | req/s | CPU/req | A/A req/s | A/A CPU |
+  |---|---|---:|---:|---:|---:|
+  | TLS / c1 keep | defer 74d5d7b | 0.939 [0.860-0.966] | 1.143 [1.120-1.251] | 0.995 [0.967-1.028] | 1.014 [0.977-1.032] |
+  | TLS / c1 keep | head 47d6726 | 0.921 [0.885-0.992] | 1.143 [1.073-1.189] | | |
+  | TLS / c64 keep | defer | 0.791 [0.754-0.798] | 1.286 [1.254-1.327] | 1.028 [0.975-1.093] | 0.973 [0.915-1.025] |
+  | TLS / c64 keep | head | 0.821 [0.791-0.872] | 1.218 [1.148-1.264] | | |
+  | TLS 1 MiB c8 | head | 1.102 [1.035-1.131] | 0.933 [0.907-0.994] | 0.978 [0.942-1.038] | 1.023 [0.962-1.062] |
+  | TLS / c8 close | head | 0.992 [0.945-1.044] | 1.007 [0.947-1.050] | 1.013 [0.995-1.101] | 0.964 [0.953-1.004] |
+  | plain 1 MiB c8 | head | 1.006 [0.967-1.039] | 0.994 [0.962-1.034] | 0.999 [0.983-1.021] | 1.001 [0.979-1.018] |
+  Absolute CPU/req: c1 27.58 base, 32.41 defer, 30.79 head us; c64 16.12, 20.84, 19.43 us.
+  Read-ahead's share, head/defer paired: c1 req/s 1.002 [0.974-1.056], CPU 0.976 [0.939-1.007] (noise); c64
+  req/s 1.036 [1.029-1.114], CPU 0.949 [0.897-0.972] (5 of 5 rounds better, median inside the A/A band).
+  Defer's share: none measurable. The counts show it removed no syscall, and its arm sits where 76f698d sat
+  (c64 0.791x here vs 0.760x in 261116-012337-d0d5f6, a different job, so not a paired comparison).
+- Counts (261116-055939-c54ec0, per request, median of 2): recvfrom c1 2 base / 2 head, c64 2.005 / 2.010
+  (read-ahead removed the split-header recv: 76f698d had 3); kevent c1 1.976 / 3, c64 0.019 / 1.020 (unchanged
+  from 76f698d's 1.018); io_context execute 0 / 1 (now a defer). sendto 1 / 1.
+- The kevent is not the post's. Asio's async_wait always starts non-speculatively (reactive_socket_service_base
+  async_wait passes allow_speculative=false), and kqueue_reactor::start_op's non-speculative branch re-arms with
+  kevent(EV_ADD|EV_CLEAR) every time the read queue is empty (deps/asio-src .../kqueue_reactor.ipp:263-273).
+  TlsStream waits for readability with async_wait after SSL_read's EAGAIN: one kevent per request. Base's
+  asio::ssl::stream uses async_receive, which is speculative and registers without a syscall once armed.
+- Idle at 47d6726: 10K TLS base 96,680 -> head 39,935 B/conn (-58.7%; spread 101 / 32 B; 76f698d had 39,932),
+  per GiB 11,106 -> 26,887 (2.42x). 100K TLS ABBA base 96,447 / 96,494, head 39,790 / 39,803 B/conn: per-round
+  ratio 0.4126, 0.4125 (-58.7%), per GiB 11,133 / 11,128 -> 26,985 / 26,976. Read-ahead costs no idle memory
+  (+3 B at 10K, +2 to +15 B at 100K vs 76f698d, inside the spread): RELEASE_BUFFERS frees the emptied read
+  buffer. Owners at 100K head: OpenSSL 27,909 B requested, heap blocks 9,504 B, 5 task frames, socket mbufs 0.
+
 ## Next
 
-1. Read 261116-051659-5e726e (exp: base, defer 74d5d7b, head 47d6726 = defer + read-ahead, A/A; TLS c1, c64)
-   and 261116-051701-9a7b14 (TLS 1 MiB, TLS close, plain 1 MiB): both small-reply rows, req/s and CPU/req,
-   inside their A/A bands at head, or name the gap. Attribute defer vs read-ahead from the defer arm.
-2. 261116-051703-05a11f: 10K TLS idle at 47d6726 must stay ~39.9 KB/conn. 261116-051705-06d314: counts at
-   head should be recvfrom 2/req and kevent ~0.02/req at c64, io_context execute 0.
-3. Suite 261116-051707-2cc499, TSan 261116-051709-086f5f, join mutant 261116-051730-1f186a at 47d6726.
-4. If green: update docs/perf/idle.md (cause, fix, fresh load table) and CHANGELOG, set ready for review.
-   A1 (lead's ruling): plain connections do not include http_asio_tls.h, so the plain 10K and 100K rows at
-   76f698d stand. Read-ahead can hold buffered bytes on an idle TLS connection, so the 100K TLS rows rerun at
-   47d6726, ABBA after the load jobs: base0 261116-051828-751348, head0 261116-051830-d5c0df, head1
-   261116-051832-2c02b3, base1 261116-051834-bb242b, head owners 261116-051836-032449; 10K TLS is
-   261116-051703-05a11f.
-   If not green and the three experiments are spent: write the measured cause and gap under Blocked on.
+1. The lead rules on Blocked on. Nothing runs; no jobs pending.
 
 ## Blocked on
 
-Nothing while the A2 fix jobs run (the lead chose option 1, at most three experiments).
+A2: small-reply TLS keep-alive is still outside its A/A band at http:47d6726, after the three experiments
+(write join 76f698d, defer 74d5d7b, read-ahead 47d6726), CPU/req included:
+- TLS / c1 keep: req/s 0.921x [0.885-0.992] vs A/A [0.967-1.028]; CPU/req 1.143x [1.073-1.189] (+3.2 us) vs
+  A/A [0.977-1.032].
+- TLS / c64 keep: req/s 0.821x [0.791-0.872] vs A/A [0.975-1.093]; CPU/req 1.218x [1.148-1.264] (+3.3 us) vs
+  A/A [0.915-1.025].
+- Measured residual cause: one kevent(EV_ADD) per request from TlsStream's async_wait re-arm (1.020/req vs
+  0.019 at c64), plus one deferred io_context op per request; the counts do not apportion the 3.3 us between
+  them, a profile would.
+- Everything else meets A2: idle TLS -58.7% at 10K and 100K, read-ahead adds nothing idle; TLS 1 MiB 1.102x
+  better; TLS close and plain 1 MiB inside their bands.
+Options:
+1. A fourth experiment (needs the lead's budget): wait for readability without async_wait, through a
+   speculative Asio receive. Either MSG_PEEK async_receive of one byte (no kevent, but about 2 more recvfrom
+   per request) or a BIO whose read is Asio's async_receive into the connection's read-ahead buffer (no extra
+   syscall; it is the BIO pair's job without its 34,928 B, buffer released while idle). Then the count and
+   load jobs again. Cost: about a day; the BIO variant changes the TlsStream design.
+2. Accept the trade (owner's call: it changes A2): -58.7% idle TLS memory, 2.42x connections per GiB, against
+   -8% c1 / -18% c64 req/s and +14% / +22% CPU/req on small TLS keep-alive replies.
+3. Land without TlsStream: keep asio::ssl::stream (with SSL_MODE_RELEASE_BUFFERS) and only the transport-neutral
+   cuts (read scratch off the frame, header read-ahead); keeps the load numbers, gives up most of the TLS idle
+   win (the 2 x 17,408 B staging and 34,928 B BIO pair stay). Needs a 10K/100K rerun to state what remains.
+Recommendation: 1 with the BIO variant, one experiment, bounded by the count job first (kevent ~0.02/req at
+c64 and no io_context execute before any load job); if it does not reach the band, 2 goes to the owner.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Exclusive, http:76f698d vs http:a17b197, bench 76f698d; results `docs/perf/idle.md` (runs in `docs/perf/idle/`). 10K: TLS 261116-012341-188fac, plain 261116-012345-cba126 (3 rounds + owners). 100K ABBA, one arm and round per job: TLS 261116-012350-66ef55, 261116-012355-6cbb4e, 261116-012359-7fcd7c, 261116-012405-815b06; plain 261116-012410-6d7174, 261116-012414-ba9ee6, 261116-012418-4d5602, 261116-012423-dcb492; owners 261116-012427-2c38f4, 261116-012431-fec7c5, 261116-012436-2ce3c9, 261116-012441-481714 |
-| A2 | Idle: TLS 96,742 -> 39,932 B/conn at 10K (-58.7%, spread 152/31 B), 96,527 -> 39,788 at 100K (-58.8%, per-round 0.4123, 0.4121; base A/A 44 B): jobs as A1. Load 261116-012332-c66999, 261116-012337-d0d5f6 (5 rounds, A/A arm): FAILS, TLS keep-alive c1 req/s 0.924x (0.850-0.985) vs A/A (0.963-1.079), c64 0.760x (0.753-0.851) vs A/A (0.941-1.055); TLS 1 MiB 1.137x (better, outside band); TLS close c8 0.989x and plain 1 MiB 0.978x inside band. See Blocked on |
-| A3 | Suite 261116-012446-eb31d6 (13/13), TSan 261116-012459-659c51 (13/13, instrumentation asserted), join mutant 261116-012504-cf1398 (2 records without the join, test fails), all at 76f698d; OpenSSL header/library check 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28. Idle release/reacquire tests: readahead_test "[I] a request after a long idle is served", "[I] and a body after it gets the scratch back", "[I] after another idle, a body and a request pipelined behind it"; tls_asio_test "a request after a long idle is served on every connection, twice", "an idle TLS connection holds no record or BIO buffers" |
-| A4 | `docs/perf/idle.md`: "an idle connection costs 58.7% less at 10K" |
+| A1 | Exclusive, bench http:47d6726, results `docs/perf/idle.md` (runs in `docs/perf/idle/`). TLS at http:47d6726 vs http:a17b197: 10K 261116-055934-9fc4ec (3 rounds + owners); 100K ABBA, one arm and round per job, 261116-060000-d56d24, 261116-060007-067b1b, 261116-060012-60b2e7, 261116-060018-27237b; owners 261116-060022-c30d0a. Plain at http:76f698d (plain does not include http_asio_tls.h, the lead's ruling): 10K 261116-012345-cba126; 100K 261116-012410-6d7174, 261116-012414-ba9ee6, 261116-012418-4d5602, 261116-012423-dcb492; owners 261116-012436-2ce3c9, 261116-012441-481714 (plain base owners at a17b197 in the same set) |
+| A2 | NOT MET. Idle met: TLS 96,680 -> 39,935 B/conn at 10K (-58.7%), 96,447 / 96,494 -> 39,790 / 39,803 at 100K (per-round 0.4126, 0.4125), jobs as A1. Load 261116-055927-af0541 (TLS c1/c64, base/defer/head/A/A, 5 rounds) and 261116-055931-6dcd9b (TLS 1 MiB, TLS close, plain 1 MiB, A/A): TLS c1 req/s 0.921x vs A/A [0.967-1.028], CPU 1.143x; c64 0.821x vs [0.975-1.093], CPU 1.218x; the other three rows inside or better. Counts 261116-055939-c54ec0. See Blocked on |
+| A3 | At http:47d6726: suite 261116-055945-264897, TSan 261116-055954-8acab6, join mutant 261116-051730-1f186a (passed: 2 records without the join, the test fails). OpenSSL header/library check 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28. Idle release/reacquire tests: readahead_test "[I] a request after a long idle is served", "[I] and a body after it gets the scratch back", "[I] after another idle, a body and a request pipelined behind it"; tls_asio_test "a request after a long idle is served on every connection, twice", "an idle TLS connection holds no record or BIO buffers" |
+| A4 | `docs/perf/idle.md`: "an idle connection costs 58.7% less at 10K" (load section still states the 76f698d regression; not updated, A2 unmet) |
 
 ## Result
 
-At http:76f698d against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs (`docs/perf/idle.md`):
-- TLS idle: 96,742 -> 39,932 B/conn at 10K, 96,527 -> 39,788 at 100K (58.8% less); 11,124 -> 26,987 per GiB
-  (2.42x). Per 100K: 8.99 GiB -> 3.71 GiB, 5.28 GiB saved; the before arm had 5.8-6.1 GB compressed by macOS.
-- Plain idle: 14,327 -> 8,637 B/conn at 100K (39.7% less, 14,367 -> 8,661 at 10K); 74,945 -> 124,318 per GiB
-  (1.66x); 0.53 GiB saved per 100K.
-- Owners: TlsStream removes the 2 x 17,408 B Asio staging and the 34,928 B BIO pair; the 64 KiB read scratch
-  left the frame (98,304 -> 2,560 B block). What remains of idle TLS is OpenSSL session state (~28 KB, 70%).
-- Wakeups: 0.2/s idle in both arms.
-- Load: small TLS replies on keep-alive regress (0.924x c1, 0.760x c64 req/s, outside A/A); 1 MiB TLS 1.137x
-  better; TLS close and plain 1 MiB noise. A2 not met.
+At http:47d6726 against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs:
+- TLS idle: 96,680 -> 39,935 B/conn at 10K, 96,447 -> 39,790 at 100K (58.7% less); 11,106 -> 26,887 per GiB
+  (2.42x). Read-ahead costs no idle memory. Per 100K: 8.98 GiB -> 3.71 GiB.
+- Plain idle (76f698d, unchanged since): 14,327 -> 8,637 B/conn at 100K (39.7% less); 74,945 -> 124,318 per GiB.
+- Owners: what remains of idle TLS is OpenSSL session state (27.9 KB requested, 70%).
+- Load: small TLS keep-alive replies regress, c1 0.921x req/s / 1.143x CPU, c64 0.821x / 1.218x, outside A/A;
+  1 MiB TLS 1.102x better; TLS close and plain 1 MiB noise. A2 not met; `docs/perf/idle.md` and the CHANGELOG
+  were not updated for 47d6726.
 
 ## Rulings I made
 
@@ -149,3 +190,8 @@ At http:76f698d against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs (
   libsystem, so recvfrom/sendto are the syscall counts). Counts only, never timing.
 - Both fixes measured in one exclusive job with a defer-only arm instead of two jobs: same rounds, and the
   arm attributes the gain; read-ahead was dropped earlier on a noisy light-hold run, not an exclusive one.
+- The A2 fix's diagnosis was half wrong: the extra recvfrom was the split header (read-ahead removed it), but
+  the extra kevent is async_wait's re-arm, not asio::post (defer removed the post's lock path and no kevent).
+  Recorded with the Asio source lines; no fourth experiment started without the lead (Blocked on).
+- D77 statistic computed per round from load.jsonl with .scratch/http-idle/paired.py (home checkout); its
+  numbers equal load_ab.py's cells for the arm/base rows and add the head/defer pairing.
