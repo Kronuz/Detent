@@ -1,6 +1,6 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (gate fix at Detent:bf52fca4; waiting on jobs 261116-073923-0d3f9a native, 261116-073946-b0ee94 relay suite, mutants 261116-073925-5d2f6a absence-trusted, 261116-073927-c36fd9 history-not-gated, 261116-073930-d0f58f refusal-not-skipped; pins 261116-073923-5297d0 passed)
+State: ready for review (A5 per D101 at Detent:11057903; waiting on jobs 261116-082652-fee406 relay suite, 261116-082655-e15f57 and 261116-082658-3a05d9 soak halves, 261116-082634-2fbb70 native, 261116-082634-e969e2 pins, mutants 261116-082702-991d63 absence-trusted, 261116-082706-2a4c28 history-not-gated, 261116-082709-6a5056 refusal-not-skipped)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
@@ -9,14 +9,45 @@ Nothing: the jobs remain.
 
 ## Next
 
-1. When the jobs end, record them in the Evidence table (the A5 round).
-2. If native fails outside the relay and the authority's leader gate, compare with a job at main.
+1. When the jobs end, record them in the Evidence table (the D101 round).
+2. A soak or suite failure in A5's test: read its log before changing anything; the D101 window
+   is no longer asserted, so a failure there is new.
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+Fifth round (D101, owner 2026-11-16): the readiness gate stays and narrows a relay's exposure
+to a voter cut off from its leader to at most the election timeout; never adopting from such a
+voter moves to voter-read-freshness (its A2). The suite at Detent:bf52fca4 (261116-073946-b0ee94)
+failed exactly there: relay D `ready` with 15 syncs, 2 entries, from voter x alone. A5 is now
+[decision] D101; the test asserts what it says, deterministically (Detent:11057903, test and
+`docs/status/namespace-s8.md` only, no src/ change):
+1. `refuses(i)`: once voter i reports not ready, for 1 s both routes answer 503 `not_ready` and
+   it never reports ready again (no leader can reach it: the others are stopped).
+2. `refuses(x, returned)`: x stopped at least 2.5 s (past `election_max`, so its owner loop notes
+   the absence and its last contact is stale), resumed alone; every request for 1 s from the
+   resume answers 503 `not_ready`. The routes answer on the owner after its first pass, which
+   sets the hold first, so this holds within the 2 s hold; health (published every 250 ms) may
+   lag, so it is checked only once it first reports not ready. `absence-trusted` serves 200 once
+   the queued frames arrive (~100 ms).
+3. Relay D [x, stopped y] converges with the live quorum after y resumes, and again after the
+   at-seal case; relay C (proxy 503, deterministic) is the skip check that kills
+   `refusal-not-skipped` (C never ready).
+Moved, verbatim: the old `a5` as `a5_voter_read_freshness` (uncalled), with "relay D adopted from
+a voter that knows no leader" and "relay D synced from a voter that knows no leader". The soak is
+two 10-run halves (a light job is capped at 30 min; a --long one is deferred).
+
+| Criterion | Evidence (Detent:11057903) |
+|---|---|
+| A1-A3 | relay suite 261116-082652-fee406 (pending) |
+| A5 | [decision] D101 (PLAN.md); test: suite 261116-082652-fee406, soak 261116-082655-e15f57 + 261116-082658-3a05d9 (20 runs beside 6 `yes` hogs), mutants absence-trusted 261116-082702-991d63, history-not-gated 261116-082706-2a4c28, refusal-not-skipped 261116-082709-6a5056 (all pending) |
+| A4 | [artifact] `docs/status/namespace-s8.md`, "The service" (the window and D101; step 4 as tested now) |
+| checks | native 261116-082634-2fbb70, pins 261116-082634-e969e2 (pending) |
+
+Fourth-round evidence (superseded for A5 and the checks by the above):
 
 Fourth round (native 261116-055648-ea95b0 failed A5's start case: relay D `ready` with 6 files
 from voter x). Mechanism, traced at Detent:3023f2d0 with a temporary patch logging each `serving`
@@ -202,6 +233,9 @@ open there: streamed fetch of large files (a file above the reply bound is refus
     steps it down within it). The queued frames drain in under 100 ms in the trace. A voter
     whose owner loop stalls 1 s or more under load reports not ready for 2 s after: honest, it
     could have missed an election. W5 next stays ungated (ruling 15).
+19. A5's test asserts only what D101 keeps (the gate while not ready, the absence rule from a
+    return, convergence); relay D's two no-adoption assertions are parked uncalled in
+    `a5_voter_read_freshness`, not deleted, so voter-read-freshness enables them as its A2.
 14. `test_relay_chain`'s voters run on the harness's memory storage: the test proves the relays'
     files and answers against the voters, and the voters' own durability is the authority suites';
     the relays' mirrors stay on disk.
