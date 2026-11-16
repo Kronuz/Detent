@@ -1,6 +1,6 @@
 # consensus-fetch-macos review: correctness
 
-Commit: consensus:d32288992df0c0a215d0412cc5d62e0a6d1d169f (re-review; diff against consensus:38f2022)
+Commit: consensus:6efc34bde48773d220d73678bff43b8b28fb8f38 (re-review of the fixes since consensus:d322889)
 Verdict: CHANGES
 Date: 2026-11-16
 
@@ -10,104 +10,112 @@ REJECT: the approach is wrong; the quest is re-planned.
 
 ## Evidence I relied on
 
-- 261116-063848-502982: suite `ctest -LE timing`, CI flags, at d322889: 25 of 25 pass.
-- 261116-063855-f9b06f: `ctest -L timing` x10 under local TSan: 10 of 10 pass.
-- 261116-063852-11f15e: `ctest -L timing` x20 beside 8 hogs: 19 of 20. Run 3 failed at :1281 with
-  `retried fetch: Socket is not connected in 0 ms (stopped 1100 ms placed, 0 ms more: covered, must
-  succeed)`. This is the CI :1281 signature, now locally in the stalls variant.
-- CI 43888069939 at d322889: green. linux-tsan `consensus_transport_peers` 13.57 s and `_peers_fetch`
-  7.94 s, both under 30 s (F1). macos-x86_64 `_peers_fetch` 7.21 s.
-- CI 43881340661 attempt 1, the macos log (`~/.scratch/fetch-macos/ci-43881340661/m1.log:453-459`).
-  The runner fetched at 49 MiB/s, its busiest iteration was 176 ms, and the scenario before had
-  stalled 192 ms. Then: `frozen peer: fetch failed after 503 ms`, `retried fetch: Socket is not
-  connected in 1 ms`.
-- Mutant jobs from rounds 2-3 (late_deadline, uncapped, fetch-wall, no-cpu, wait-only) for F3, F5
-  and F6. The code under test has not changed since 2998cbf/746c6f4: `git diff 2998cbf..d322889`
-  touches only peers_test fetch_failures, CMakeLists and ci.yml.
+- CI 43921692140 at 6efc34b: green on all ten jobs. linux-asan-ubsan builds and passes
+  `consensus_transport_deadline` (0.66 s), so F10's test runs under ASan in CI. The pipe entry
+  (`completed_read_after_stop`) passes on every platform.
+- F10/F11 mutants at c676998. `session.h` and `peers.h` are unchanged since then
+  (`git diff c676998..6efc34b` touches only peers_test.cc). These mutants still count:
+  - 261116-075838-18b79c: a raw-pointer wait gives ASan heap-use-after-free in `owed`, reached from `dropped_timer`.
+  - 261116-075841-ac7334: without the cancel check, `cancelled_wait` takes 600 ms.
+  - 261116-075845-6213af: without the cancel check, `completed_read_after_stop` returns 401 ms after resuming.
+- ASan suite 261116-075819-d191ee (c676998): 26 of 26.
+- Pre-existing failures, not from the branch:
+  - `consensus_worker` timed out in suite 090705-9ef515. It also timed out at main in
+    091746-638010 (1 of 3, 180 s; the others took 168 s and 147 s).
+  - `consensus_retained_state` hits a TSan stack overflow in 085702-ace127. Main fails the same
+    way in 091753-223f76 (3 of 3, `_tlv_get_addr`).
+  - Both tests link only `consensus::consensus` (CMakeLists.txt:66-69). No non-transport header
+    includes `transport/`, and `git diff 771e1bb..6efc34b` touches only `include/consensus/transport/`,
+    `test/transport/`, CMakeLists, CHANGELOG and ci.yml.
+  - The TSan suite 090713-a40815 passes every other entry: deadline, peers, peers_fetch, tls, pipe.
+- Probes for 6efc34b's test changes:
+  - F12 passes-after 090729-506c4f: 450 ms stop in the drain, 5 of 5.
+  - D2 090736-314495: x30 beside 16 hogs.
+- F16 probe 090743-9828cb: TSan, stalls entry, x10. `reopened` timed out in 2 of 10 runs, after
+  505 ms and 523 ms.
 
 ## What I checked myself
 
-The scripts are in `.scratch/review-consensus-fetch-macos-correctness/r2/`.
+The scripts are in `.scratch/review-consensus-fetch-macos-correctness/r3/`.
 
 | Probe | Job | Result |
 |---|---|---|
-| U1 `uaf.sh`: `detail::async_deadline` on a timer that a handler queued ahead destroys after it has expired (the `await_reply` shape) | 261116-064445-14b4ec | **ASan heap-use-after-free at session.h:117** (`owed` reads the freed timer) |
-| D1 `drain.sh 5 0 450`: a 450 ms stop inside fetch-failures' drain window, ending before the second fetch deadline | 261116-064419-0b494b | **5 of 5 reproduce the CI signature**: drain ~500 ms (450 ms of it stalled), the lane closed (connections 3, reconnects +1; one run 4 lanes already redialed), `retried fetch: Socket is not connected in 0 ms (... 0 ms more: covered, must succeed)` |
-| D2 `drain.sh 30 16 0`: fetch-failures instrumented (drain ms, stall in the drain, lanes, reconnects) beside 16 hogs | 261116-064422-68a9fe | 27 of 30 pass. Drain min 124, median 201, max 502 ms. Run 19 shows the CI signature **with no injected stop**: drain 502 ms, 21 ms stalled, lane closed (connections 3, reconnects +1). Contention alone can push the drain past one deadline. Runs 8 and 26 fail at :1325 `!reopened->error` (the fetch after voter two restarts); the error is not printed (F16) |
-| C1 `cancel.sh 10`: a 4 KiB frame's bytes arrive during a 600 ms stop of the reader; how long receive() takes to return after resuming | 261116-064753-dbad0d | **10 of 10: receive() returns 200-201 ms after resuming**, the whole capped extension (timeout 200 ms), though the frame was complete on resume |
-| C2 the same at 38f2022, the coroutine `expiry` (baseline) | 261116-064756-fa9d59 | 10 of 10 return 0 ms after resuming: the regression is new in this diff |
+| W1 `wake.sh`: the timer of an `async_deadline` wait expires during a 600 ms stop. In the first handler batch after the stop, something wakes the wait in one of three ways. *slot*: a cancellation-slot emit (the `\|\|` path, F11's fix). *same-pass*: `timer->cancel()` from a completion in the same reactor pass, as a reply that ends or `close()` does in `await_reply`. *posted*: `timer->cancel()` posted from another thread during the stop, as `resolved()` does with the resolver's answer. Exit 0 iff no wake waits out the extension | 261116-095049-326a05 | **exit 1**. slot: 3 of 3 `operation_aborted` at 0 ms. same-pass: 3 of 3 complete with **success after 592-598 ms**. posted: 3 of 3 complete with **success after 592-600 ms**. Each waited the whole extension |
+| M1 `drain-mutant.sh`, the no-drain mutant: a failed fetch keeps its entry when its late reply ends, so the bulk lane always closes at the second deadline. It runs every untimed transport entry and `fetch-failures` x5, at CI flags. Exit 0 iff killed | 261116-095107-3f85ff | **survived**. 10 of 10 untimed entries pass. Every `fetch-failures` run passes, printing `drain: 500 ms, the bulk lane closed at its deadline`, `retried fetch: Socket is not connected in 0 ms (... lane closed in the drain, bounded)` |
+| F16a `f16.sh tsan 20 0`: `reopened` instrumented. It prints when voter two's reader served it, the bytes and first byte at any fetch deadline, and the stall meanwhile | 261116-095058-dc6ca9 | 40 of 40 pass (stalls 20, untimed 20). Voter two serves the request at **+1-2 ms** every time. `reopened` takes 173-378 ms in the stalls entry (median ~285) and 158-245 ms in the untimed one, with 0 ms stalled |
+| F16b `f16.sh tsan 15 12`: the same beside 12 hogs | 261116-100908-f28132 | **Reproduced, and it is a transfer, not a lost request.** `reopened` timed out in 9 of 15 stalls runs and 13 of 15 untimed runs, after 505-558 ms. Every time, voter two served at +2-4 ms and the first byte came at +20-65 ms. At the deadline **3.0-7.7 MiB of 8 had arrived** (~7-16 MiB/s), with 4 lanes and a stall measure of 0-117 ms. Of the other failures, the covered retried fetch at :1312 failed in 2 runs (5.6-5.7 MiB at its deadline). The stalls entry's silent check at :1326 failed in 5; I did not trace those, and the timing entry is off CI. 1 untimed run passed. Under contention, a TSan executor cannot carry 8 MiB in 500 ms, and the stall measure does not see starvation |
 
 ## Answers to the lead's questions
 
-1. F1-F5 are resolved (rows below), and the deadline rule is in one place. `owed` and
-   `async_deadline` serve the lane `timed`, `await_reply` and the lookup. The dial loop uses
-   `owed` inline. Every extension is capped at one deadline and applied once, so nothing waits
-   unbounded. But `async_deadline` keeps only a reference to the timer, and that is new: in
-   `await_reply` the timer is owned by the `Fetching` entry. When the timer has expired and its
-   completion is queued, `close()` (peers.h:326-330) or the reply's end (peers.h:403-412)
-   cancels the timer and erases the entry. The cancel cannot abort a completion that is already
-   queued. The step then calls `owed(timer)` and `expires_after`/`async_wait` on freed memory
-   (U1, F10). The parent's handler never touched the timer. There is also a second, bounded
-   cost: the step re-arms without checking `self.cancelled()`. If `||` cancels after the expiry
-   was dequeued, a lane whose op completed waits out the extension, up to one timeout. The
-   38f2022 coroutine threw at that `co_await` instead (asio `throw_if_cancelled`,
-   awaitable.hpp:192). C1/C2 measure it (F11).
-2. :1281 is not a lane that was closed and then picked. `not_connected` comes only from
-   `!connection` in `fetch()` (peers.h:215-217), so the bulk lane was gone when the fetch was
-   asked. The one path in this scenario that closes it is the designed second deadline of
-   `await_reply` (peers.h:353-355): the frozen peer's 8 MiB late reply did not finish within one
-   `fetch_deadline` after the first. On the CI runner the drain alone needs about 165 ms of
-   running time at 49 MiB/s. A stop or deschedule that ends *before* the second deadline steals
-   that time with no extension, because lateness cannot see it (the journal's Open). The test
-   takes `lost` only after the drain (peers_test.cc:1267), so it reads that loss as "0 ms more:
-   covered, must succeed". So the transport behaves as designed, and the test is wrong to call
-   the case covered. The same signature appeared locally beside hogs (11f15e run 3). D1/D2 were
-   still running when I wrote this. They should show `connections < 4` and a reconnect with the
-   placed stop, and the drain-time distribution under load. Read them before closing F12. F12
-   itself is not blocking: the stack holds without D1/D2.
-3. The `deadline/4` threshold is sound for stops it measures: an 8 MiB fetch needs ≤ 210 ms of the
-   500. The bounded branch accepts any error with `ran ≤ deadline + margin`. A no-extension
-   defect therefore passes in runs that take that branch. The fetch-wall and late-deadline
-   mutants are killed only because most runs take the covered branch. The real hole is the one
-   in answer 2: stops before `lost` is taken are counted in neither branch (F12).
-4. Nothing else is hidden. `CONSENSUS_TIMING_TESTS` removes only `consensus_transport_peers_stalls`
-   (stall-accounting, fetch-alongside-stalls, fetch-failures-stalls). All three inject or measure
-   stops, and their non-stall halves still run in `--fetch`. Two side effects follow. CI no
-   longer exercises the F2 fetch-deadline extension or the Peers-level cap; only local jobs and
-   the tls pipe `late_deadline` do (F13). And `late_deadline` in `consensus_transport_pipe` is
-   wall-clock too (a 600 ms sleep, 150-300 ms window), yet it stays on CI.
+1. **F10 is fixed at the cause. F11 is fixed only for the `||` caller.**
+   - F10: `async_deadline` owns a `shared_ptr` timer, and all three callers pass one:
+     `timed` (session.h:270-279), `await_reply` (peers.h:338-341) and the lookup (peers.h:566-569).
+     A completion that runs after its owner dropped the timer touches only memory the wait owns.
+     `dropped_timer` under CI's ASan fails with the raw-pointer mutant (18b79c).
+   - F11: the cause is that a wake landing after the expiry is queued is invisible to the
+     extension step. The fix sees one kind of wake, a cancellation-slot emit (`||` in `timed`).
+     The other three callers wake by `timer->cancel()`: `resolved()` and `abandon_lookups()`
+     (peers.h:585, :600), and in `await_reply` the reply's end and `close()` (peers.h:403, :327).
+     Once the expiry is queued, `cancel()` finds no pending wait. The step then sees success and
+     re-arms for the whole lateness. W1 measures it: 6 of 6 waited ~595 ms of a 600 ms stop.
+   - Reach of the gap:
+     - The lookup is new in this quest (main's had no extension). After a stop during which the
+       DNS answer arrived, the dial waits up to `resolve_deadline` (1 s) more, and the stop
+       counts as a `lookup_timeout`.
+     - `abandon_lookups()` at shutdown, and a reply that ends or a `close()` in the deadline's
+       batch, keep `drained()` false for up to the lateness. That is at most `resolve_deadline`
+       or `fetch_deadline` (30 s default).
+     - The bound is the same as F11's, so F17 is blocking on the same grounds.
+2. **F16 is a wall-clock artifact of TSan under CPU contention, not a defect.**
+   - With the timeline printed (F16b), every timeout shows the reopened request served at
+     +2-4 ms. Its reply was flowing (3.0-7.7 MiB of 8 at the deadline) on 4 established lanes.
+     It is not a lost request, a missing redial, or a lane waiting on an extension.
+   - The deadline fired on time, so the lateness was a few ms and the extension added that
+     much. At ~7-16 MiB/s, an 8 MiB reply needs more than the fixed 500 ms.
+   - Without hogs, 40 of 40 TSan runs pass (F16a). In those runs `reopened` takes 158-378 ms;
+     the stalls entry is slower (median ~285 ms vs ~165 ms).
+   - At CI flags, the untimed entry is clean beside 16 hogs (D2 314495, 30 of 30).
+   - It is **not** confined to the `timing` entry. Under TSan beside 12 hogs, the untimed
+     `fetch-failures` fails 14 of 15, and CI's linux-tsan runs that entry. The same starvation
+     also fails the covered retried fetch (:1312), because the stall measure cannot see it.
+     CI linux-tsan has passed it so far (43921692140, 43888069939).
+
+3. **Yes, the drain-outcome assertion hides a real failure (F18).** The closed outcome is
+   accepted whenever the drain took ≥ 350 ms. A transport that never drains a failed fetch's late
+   reply therefore passes the whole untimed suite (M1). That regression costs the bulk lane on
+   every fetch timeout. The scenario's own header (peers_test.cc:1240-1241, "the late reply
+   drains into the failed fetch over the same lanes") is no longer asserted anywhere. At d322889
+   the covered branch required it.
+   `bulk_ready` itself hides nothing. It accepts only `not_connected` while it retries, fails on
+   any other error, and requires a redial within 3 s. Polling a small fetch is the right probe,
+   since `connections()` counts a closing lane. The never-early check (`drained >= deadline -
+   margin`) does catch a premature close.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | no | resolved | linux-tsan timeout: the peers test is split into entries, all under 30 s. | CI 43888069939 linux-tsan 13.57 s / 7.94 s | — |
-| F2 | no | resolved | The fetch reply, lookup and dial deadlines now use the late-timer rule. | peers.h:341, :569, :649-653; fetch-wall mutant 261116-051644-3f2fc9 | — |
-| F3 | no | resolved | Deterministic session-level `late_deadline` over pipes; the late-deadline mutant fails 10 of 10. | 261116-035757-247722 | — |
-| F4 | no | resolved | `stall_floor` is 20 ms: with no stop the bound stays 64 ms (6 of 6). | 261116-035758-6930b0; peers_test.cc:53, :384 | — |
-| F5 | no | resolved | The extension is capped at one deadline (`owed` clamps to `cap`); the uncapped mutant fails. | session.h:103-106; 261116-035758-c40bdd, 261116-051638-3e833e | — |
-| F10 | yes | defect | Use-after-free in `async_deadline` via `await_reply`. The fetch timer is owned by `fetching[id]`, and `async_deadline` keeps only `&timer`. If `close()` or the reply's end erases the entry after the timer expired but before its completion runs, the step reads and re-arms the freed timer. Reachable whenever a reply ends, or the lane closes (e.g. another fetch's second deadline), within one handler batch of a fetch deadline. | U1 261116-064445-14b4ec (ASan, session.h:117); peers.h:326-330, :338-345, :403-412 | Give the wait ownership. Capture the `shared_ptr<steady_timer>` in `await_reply`'s handler, or make `async_deadline` take a `shared_ptr`. Test: U1's shape as a suite test (timer destroyed after expiry is queued). It must pass under CI's linux-asan-ubsan and fail without the fix. |
-| F11 | yes | defect | `async_deadline` re-arms without checking `self.cancelled()`. When `||` cancels after the expiry was dequeued, a lane op that completed waits out the extension, up to one `timeout_`. Bounded, but new: the 38f2022 coroutine threw at its re-arm. It most likely hits after a stop, when the bytes and the late timer are ready in one reactor pass. | C1 261116-064753-dbad0d (10 of 10 wait 200 ms, one whole timeout) vs C2 261116-064756-fa9d59 at 38f2022 (0 ms); awaitable.hpp:192; session.h:113-121 | `if (self.cancelled() != asio::cancellation_type::none) return self.complete(asio::error::operation_aborted);` before re-arming. Test: C1's shape (bytes arrive during the stop; receive() returns within ~20 ms of resuming). |
-| F12 | no | gap | :1281 (CI attempt 1, and 11f15e run 3) is the designed lane close: the late reply was not done one deadline after the first. A stop or slow drain *before* `lost` is taken is invisible to `covered`, so the test calls it "must succeed". It is a test defect plus the stated Open (lateness misses stops that end before the deadline), not a transport defect. | m1.log:453-459; 11f15e run 3; peers.h:215-217, :353-355; peers_test.cc:1263-1281; D1/D2 pending | Take `lost` before `frozen = false`, and either require the drain to finish within one deadline of running time or skip the retried check when the lane closed. Or move `fetch-failures` under `timing`. Owner's call. |
-| F13 | no | gap | With the stalls entry off CI, no CI test exercises the Peers-level fetch-deadline extension or the cap. Only local jobs do. | ci.yml; CMakeLists.txt:128-132 | Accept (D100), or add a deterministic Peers-level late-fetch-timer test. |
-| F16 | yes | gap | The untimed `--fetch` entry fails 2 of 30 under 16 hogs at peers_test.cc:1325: the `reopened` fetch, after voter two restarts and `fully_connected`, returns an error. The error is not printed, and it is not the :1281 mechanism. It is unexplained, so I cannot tell whether it is a runner artifact or a defect (F10 or F11 are candidates). | D2 261116-064422-68a9fe runs 8, 26 | Print `reopened->error` and rerun D2. Name the mechanism. If it is a defect, fix it with a test. |
-| F14 | no | nit | The CHANGELOG headline "no longer fails when the process itself did not run past it" overclaims. A stop that ends before the deadline still costs the peer that time (journal Open). | CHANGELOG.md:13 | Say "when its timer fires late". |
-| F15 | no | nit | The dial loop's `owed(race->wake, …)` measures lateness from `next_start` when the wake was a stagger wake. It over-extends, still within the cap. | peers.h:646-653 | Measure from `deadline`. |
+| F10 | no | resolved | The wait owns its timer; all three callers pass a `shared_ptr`. | session.h:112-128; 18b79c (mutant killed under ASan); CI 43921692140 linux-asan-ubsan | — |
+| F11 | no | resolved | For the `\|\|` caller, a slot cancel after the expiry is queued completes with `operation_aborted`, with no extension. Other wakes are under F17. | session.h:119-120; ac7334, 6213af; W1 slot 0 ms | — |
+| F12 | no | resolved | `fetch-failures` reads the drain outcome. A lane the drain closes makes the retried fetch bounded, and the close is never early. The CI :1281 signature now passes. | 506c4f, 314495, CI 43921692140 | — (but see F18) |
+| F13 | no | gap | Accepted per D100: no CI test exercises the Peers-level fetch-deadline extension. | ci.yml; CMakeLists.txt:128-132 | — |
+| F14 | no | resolved | CHANGELOG now says "when its timer fires late" and names the stop before the deadline. | CHANGELOG.md:13-21 | — |
+| F15 | no | resolved | The dial loop measures lateness from `deadline`. | peers.h:652 | — |
+| F16 | no | gap | `reopened` timeouts are a slow transfer: TSan's executor starved by contention moves 8 MiB at ~7-16 MiB/s, under a fixed 500 ms deadline. Served at +2-4 ms, the reply flowing at the deadline, lanes up, no lateness. Not a transport defect. It also hits the untimed `--fetch` entry under TSan with hogs (14 of 15), so it is a flake risk for CI linux-tsan, not only for the timing entry. | 9828cb; F16a dc6ca9 (40 of 40 without hogs); F16b f28132 (3.0-7.7 MiB at the deadline) | Scale the scenario's transfer to the executor, one shape with the round-trip rule (64/256 ms by measured MiB/s). For example, size the file or the `fetch_deadline` from a measured speed, or use a smaller file in the must-succeed fetches (`retried`, `reopened`). Or accept it under D100 while CI linux-tsan stays green |
+| F17 | yes | defect | F11's cause remains for wakes by `timer->cancel()`. When the lookup's answer (`resolved`), `abandon_lookups`, a reply's end or `close()` lands in the first batch after the timer fired late, the step sees success and waits out the whole extension. The lookup then delays its dial by up to `resolve_deadline` and counts a timeout. `drained()` stays false for up to the lateness (≤ `fetch_deadline`). New relative to main: the lookup and reply waits had no extension there. | W1 326a05 (same-pass 592-598 ms, posted 592-600 ms, slot 0 ms); peers.h:327, :403, :585, :600; session.h:116-123 | One wake mechanism the step can see. Options: (a) owners wake through the wait's cancellation slot (`route.waiting` and `Fetching` hold a `cancellation_signal`), one shape with `\|\|`, and the lookup then reads `operation_aborted`; (b) owners wake with `expires_at(time_point::max())`, so `owed` returns zero; (c) the caller passes a "still waiting" predicate checked before extending. Test: W1's same-pass and posted cases in `deadline_test` (complete within ~20 ms of the stop). They must fail at 6efc34b |
+| F18 | yes | gap | The drain-outcome assertion accepts a lane closed at the second deadline whenever the drain took ≥ 350 ms. So nothing asserts that a late reply drains over the same lanes. The no-drain mutant (every failed fetch costs its bulk lane) survives every untimed entry. | M1 3f85ff (survived; drain 500-507 ms, lane closed, 5 of 5 pass); peers_test.cc:1240-1241, :1296-1298, :1304-1313 | Assert the kept outcome where it does not depend on load. For example, a second frozen fetch with a small late reply (e.g. 64 KiB, which drains in milliseconds even under TSan) must keep the lanes and let the retried fetch succeed. The 8 MiB case keeps either outcome. Test: M1 must be killed by `ctest -LE timing` |
+| F19 | no | nit | `completed_read_after_stop` runs on CI (pipe entry) with a wall-clock bound of 150 ms after a 1000 ms sleep. A runner stop of more than 150 ms after `resumed` fails it, the D100 class. It passed on all platforms in 43921692140. | tls_test.cc:342-427 | Keep, or widen the bound toward the 400 ms extension (it still separates the 400 ms defect) |
 
-F6-F9 from the earlier review: F6 is resolved (no-cpu mutant 261116-035759-7a3624), F8 is resolved
-(wait-only mutant), and F7 and F9 stay non-blocking as before.
+F1-F5 resolved earlier; F6-F9 as in the earlier rounds.
 
 ## Not run
 
-- D1 finished after I handed back and confirms F12: a stop inside the drain window closes the lane
-  through the second deadline, and the test calls it covered.
-- D2 finished later. Its run 19 shows that CPU contention alone, with no stop, closes the lane
-  (F12). Runs 8 and 26 add an unexplained :1325 failure (F16, blocking gap).
-- C1 and C2 finished later. They make F11 deterministic: every frame complete on resume is held one whole timeout (0 ms at 38f2022), so F11 is blocking. F11's delay and F12's mechanism rest on
-  the code reading and the matching signatures above until those jobs are read. Their scripts are
-  ready to rerun.
-- 261116-063859-5287f5 (TSan suite) and 261116-063903-d4c64d (fetch x20 with hogs) were still queued.
-- U1 shows the defect in the helper's contract. I did not reproduce it end to end inside Peers.
-  That takes a reply or close() landing in the same handler batch as a fetch deadline.
-- The U1 job log keeps only its end. The plain `async_wait` control line is not in the retained
-  output.
+- A Peers-level reproduction of F17: a resolver answering during a stop, or a reply ending in
+  the deadline's batch. W1 reproduces the helper's contract with the same wake orderings
+  `resolved()` and `received()` produce. The asio scheduler queues the reactor's expired timers
+  after a handler posted during the stop.
+- M1 against the `timing` entry. CI configures that entry out (D100), so it cannot be what
+  kills the mutant.
+- I did not rerun the F10/F11 mutants at 6efc34b. The code under test is byte-identical to c676998.
+- The 5 silent-check failures (:1326) in the stalls entry under TSan beside 12 hogs (F16b). That
+  entry is `timing` and off CI. I read them as the same starvation, but did not trace them.
