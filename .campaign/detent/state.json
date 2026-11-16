@@ -3194,6 +3194,8 @@
     "http-idle-cost": {
       "accepted": {},
       "after": [],
+      "base": "a17b197f8c5f114a93412f6de39c99367f83854b",
+      "branch": "quest/detent/http-idle-cost",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3212,6 +3214,7 @@
         "README.md",
         "ARCHITECTURE.md"
       ],
+      "journal": "../Detent-wt/detent/http-idle-cost",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3219,9 +3222,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "HTTP idle cost: cheaper idle connections, TLS first",
-      "updated": "2026-11-13T13:33:36"
+      "updated": "2026-11-15T21:03:55",
+      "worktree": "../http-wt/detent/http-idle-cost"
     },
     "http-task-h1": {
       "accepted": {},
