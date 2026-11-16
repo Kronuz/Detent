@@ -3177,9 +3177,9 @@
       ],
       "repo": "../completion",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-15T21:59:15",
+      "updated": "2026-11-16T00:09:49",
       "worktree": "../completion-wt/detent/drivers-completion-seam"
     },
     "drivers-task-wheel": {
