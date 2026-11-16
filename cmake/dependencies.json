@@ -98,7 +98,7 @@
   {
     "name": "reactor",
     "repository": "https://github.com/Kronuz/reactor.git",
-    "revision": "411f1f56559a26e7ca385d76d5b3d86f098e3b1e",
+    "revision": "ab69cf26e556f7108fb800d89c324648779e2549",
     "source_subdir": "."
   },
   {
@@ -152,7 +152,7 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "fd2608aa484884d9a27acc6a15f7e72c9cfef4f2",
+    "revision": "560c288b40ba55a8d42ff048bcb1c7eaa3624645",
     "source_subdir": "."
   },
   {
