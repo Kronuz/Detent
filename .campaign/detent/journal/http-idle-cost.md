@@ -1,6 +1,7 @@
 # http-idle-cost: journal
 
-State: ready for review (code at 76f698d, docs f21dacf); waiting on jobs 261116-012327-17683d 261116-012332-c66999 261116-012337-d0d5f6 261116-012341-188fac 261116-012345-cba126 261116-012350-66ef55 261116-012355-6cbb4e 261116-012359-7fcd7c 261116-012405-815b06 261116-012410-6d7174 261116-012414-ba9ee6 261116-012418-4d5602 261116-012423-dcb492 261116-012427-2c38f4 261116-012431-fec7c5 261116-012436-2ce3c9 261116-012441-481714 261116-012446-eb31d6 261116-012459-659c51 261116-012504-cf1398
+State: blocked on A2 (small TLS replies on keep-alive regress outside their A/A band at http:76f698d); every
+Evidence row filled; docs http:2d8a5dd. No jobs pending.
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -49,7 +50,7 @@ TLS load regression (A2), found and fixed:
   base 5,454 5,688, join 5,491 5,642, join+SSL_set_read_ahead 5,720 5,573. read_ahead: no measured gain,
   dropped.
 
-Queued at 76f698d (supersedes f3d6be6's): build 261116-012327-17683d; load A/B 261116-012332-c66999,
+Done at 76f698d, all passed (supersede f3d6be6's): build 261116-012327-17683d; load A/B 261116-012332-c66999,
 -012337-d0d5f6; 10K TLS -012341-188fac, plain -012345-cba126 (3 rounds + owners); 100K one arm and round per
 job, ABBA: TLS base0 -012350-66ef55, head0 -012355-6cbb4e, head1 -012359-7fcd7c, base1 -012405-815b06; plain
 base0 -012410-6d7174, head0 -012414-ba9ee6, head1 -012418-4d5602, base1 -012423-dcb492; owners TLS base
@@ -58,27 +59,52 @@ base0 -012410-6d7174, head0 -012414-ba9ee6, head1 -012418-4d5602, base1 -012423-
 
 ## Next
 
-1. When the jobs land: merge the 100K jobs' out/runs into docs/perf/idle/ and run summarize.py over them
-   (rounds 0 and 1 give the spread); replace the 10K rows with 261116-012341-188fac / -012345-cba126 at
-   76f698d; fill docs/perf/idle.md's 100K section, connections per GiB, and the load row (A2).
-2. If a 100K owners job times out (owners setup is ~4.5x slower), report owners at 10K and 100K head only.
+1. The lead rules on "Blocked on". If option 1: count syscalls per small TLS request in both arms (a bench
+   counter of bio_read/bio_write calls), then one exclusive load A/B per hypothesis, re-running the 10K TLS
+   idle row after any change that touches reads.
 
 ## Blocked on
 
-Nothing.
+A2's "no throughput or latency regression beyond the A/A band" fails at http:76f698d (load 261116-012332-c66999,
+five rounds, median per-round ratio after/before, min-max = 93.8% distribution-free interval):
+- TLS `/` c1 keep-alive: req/s 0.924x (0.850-0.985) vs A/A 1.019x (0.963-1.079); CPU/req 1.177x (1.086-1.257)
+  vs A/A 0.991x (0.931-1.042); p50 1.140x.
+- TLS `/` c64 keep-alive: req/s 0.760x (0.753-0.851) vs A/A 0.992x (0.941-1.055); CPU/req 1.311x (1.177-1.324)
+  vs A/A 1.008x (0.950-1.059); p50 1.281x, p99 1.508x.
+The write join narrowed it (0.616x / 0.596x at 4279a49) but did not close it.
+
+Options:
+1. Diagnose and fix, budget three experiments (recommended). Ranked hypotheses from reading http_asio_tls.h:
+   (a) without read-ahead OpenSSL reads a record's 5-byte header and its body in two recv() calls, and each
+   read first tries SSL_read and gets EAGAIN before async_wait, where asio::ssl::stream did one 17 KiB recv
+   into its staging: more syscalls per request, matching CPU/req rising with load. SSL_set_read_ahead(1)
+   with SSL_MODE_RELEASE_BUFFERS should keep idle cost (the buffer goes when empty); the earlier local try
+   was a noisy light hold, not a verdict. (b) every immediately complete read and write is posted, one
+   extra scheduler pass each. (c) the joined write's per-reply allocation.
+2. Accept the trade as a Decisions row: 2.42x idle TLS connections per GiB for 7.6% (c1) to 24% (c64) fewer
+   small-reply TLS requests per second. Changes A2, so the lead's or the owner's call.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261115-214321-2a3f2c, 261115-214324-a3838f (10K at f1e173f, done); at 76f698d: 10K 261116-012341-188fac, -012345-cba126; 100K 261116-012350-66ef55 .. -012441-481714 (queued) |
-| A2 | TLS 10K -58.7% (261115-214324-a3838f); watch_ab noise 261115-214354-19da72; load at 4279a49 found a regression (fixed at 76f698d); load at 76f698d 261116-012332-c66999, -012337-d0d5f6 (queued) |
-| A3 | suite 261115-234631-7d23fc and TSan 261115-234650-cd3ef5 at e336643 (passed); OpenSSL 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28 (passed); at 76f698d suite 261116-012446-eb31d6, TSan -012459-659c51, join mutant -012504-cf1398 (queued) |
-| A4 | docs/perf/idle.md at f21dacf: where the bytes go, what changed, 10K numbers, owners; 100K pending its jobs |
+| A1 | Exclusive, http:76f698d vs http:a17b197, bench 76f698d; results `docs/perf/idle.md` (runs in `docs/perf/idle/`). 10K: TLS 261116-012341-188fac, plain 261116-012345-cba126 (3 rounds + owners). 100K ABBA, one arm and round per job: TLS 261116-012350-66ef55, 261116-012355-6cbb4e, 261116-012359-7fcd7c, 261116-012405-815b06; plain 261116-012410-6d7174, 261116-012414-ba9ee6, 261116-012418-4d5602, 261116-012423-dcb492; owners 261116-012427-2c38f4, 261116-012431-fec7c5, 261116-012436-2ce3c9, 261116-012441-481714 |
+| A2 | Idle: TLS 96,742 -> 39,932 B/conn at 10K (-58.7%, spread 152/31 B), 96,527 -> 39,788 at 100K (-58.8%, per-round 0.4123, 0.4121; base A/A 44 B): jobs as A1. Load 261116-012332-c66999, 261116-012337-d0d5f6 (5 rounds, A/A arm): FAILS, TLS keep-alive c1 req/s 0.924x (0.850-0.985) vs A/A (0.963-1.079), c64 0.760x (0.753-0.851) vs A/A (0.941-1.055); TLS 1 MiB 1.137x (better, outside band); TLS close c8 0.989x and plain 1 MiB 0.978x inside band. See Blocked on |
+| A3 | Suite 261116-012446-eb31d6 (13/13), TSan 261116-012459-659c51 (13/13, instrumentation asserted), join mutant 261116-012504-cf1398 (2 records without the join, test fails), all at 76f698d; OpenSSL header/library check 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28. Idle release/reacquire tests: readahead_test "[I] a request after a long idle is served", "[I] and a body after it gets the scratch back", "[I] after another idle, a body and a request pipelined behind it"; tls_asio_test "a request after a long idle is served on every connection, twice", "an idle TLS connection holds no record or BIO buffers" |
+| A4 | `docs/perf/idle.md`: "an idle connection costs 58.7% less at 10K" |
 
 ## Result
 
-<pending>
+At http:76f698d against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs (`docs/perf/idle.md`):
+- TLS idle: 96,742 -> 39,932 B/conn at 10K, 96,527 -> 39,788 at 100K (58.8% less); 11,124 -> 26,987 per GiB
+  (2.42x). Per 100K: 8.99 GiB -> 3.71 GiB, 5.28 GiB saved; the before arm had 5.8-6.1 GB compressed by macOS.
+- Plain idle: 14,327 -> 8,637 B/conn at 100K (39.7% less, 14,367 -> 8,661 at 10K); 74,945 -> 124,318 per GiB
+  (1.66x); 0.53 GiB saved per 100K.
+- Owners: TlsStream removes the 2 x 17,408 B Asio staging and the 34,928 B BIO pair; the 64 KiB read scratch
+  left the frame (98,304 -> 2,560 B block). What remains of idle TLS is OpenSSL session state (~28 KB, 70%).
+- Wakeups: 0.2/s idle in both arms.
+- Load: small TLS replies on keep-alive regress (0.924x c1, 0.760x c64 req/s, outside A/A); 1 MiB TLS 1.137x
+  better; TLS close and plain 1 MiB noise. A2 not met.
 
 ## Rulings I made
 
@@ -99,3 +125,8 @@ Nothing.
   copying into a buffer the write owns; SSL_set_read_ahead was tried and dropped (no measured gain).
 - 10K rows are rerun at 76f698d so every published row names the final product; the after-POST rows stay at
   f1e173f (the write join does not touch idle memory) and are labelled so.
+- D77 on the load rows: load_ab.py's cell is already the median of per-round ratios with the min-max over
+  rounds, which for five rounds is the distribution-free interval at 93.8% (95% needs six); stated so, no
+  rerun. A row counts as regressed when its median lies outside the A/A arm's interval.
+- The 10K and 100K runs at 76f698d and both load logs are kept under http docs/perf/idle/ (220 KB) so
+  summarize.py reproduces every table; the CHANGELOG's "inside the noise" claim is corrected there.
