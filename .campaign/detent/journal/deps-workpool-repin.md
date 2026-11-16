@@ -1,18 +1,19 @@
 # deps-workpool-repin: journal
 
-State: waiting on jobs 261115-211005-c53012 261115-211114-08a706 261115-211119-30f359 261115-211133-54acbc 261115-211055-4ef209 261115-211059-ed1a5a
+State: ready for review (A4 jobs 261115-214405-b29364 A/A and 261115-214410-6f1bd9 A/B still to finish; A1-A3 and native done)
 Quest: .campaign/detent/quests/deps-workpool-repin.md (the lead's; never edit it)
 
 ## Doing
 
-Work is committed at Detent:7712f4eb; only jobs remain (below). The sources use neither the scheduler
-library nor the ThreadPool family (git grep of src/, include/, tests/, benchmarks/*.cc, tools/ finds
-only asio::thread_pool, Python's ThreadPoolExecutor and asyncio.TaskGroup), so no message to the lead.
+Work is committed at Detent:8d7561a3. A1-A3 and the native suite are green. A4: the first benchmark failed
+for a reason the repin did not cause; replaced by the logger's own producer-cost bench (below). Only jobs remain.
 
 ## Next
 
-1. When the jobs finish: fill the A4 numbers (median CPU and RSS, before/after, with the A/A band from
-   `$HOME/.scratch/deps-workpool-repin/aa-1/report.json` and `ab-1/report.json`), then set "ready for review".
+1. When 261115-214405-b29364 (A/A) and 261115-214410-6f1bd9 (A/B) finish, read `report.json` in
+   `$HOME/.scratch/deps-workpool-repin/lgaa-1` and `lgab-1` (the job logs end with the per-metric table)
+   and copy the median ns, ratios and the A/A band into the Evidence row; a ratio above the A/A band is a
+   regression to report to the lead, not to bury.
 
 ## Blocked on
 
@@ -25,7 +26,7 @@ Nothing.
 | A1 | pins job 261115-211006-0337c2 (done, exit 0); manifest, CMake and check_pins grep job 261115-211114-08a706 |
 | A2 | native suite 261115-211005-c53012 at 7712f4eb (includes `test_logging` and every daemon test that logs); logger's own suite at 907d27f, 261115-211133-54acbc (`logger_deferred`, `_stress`, `_ties`, `logger_queue`, `logger_wake`, `logger_exit`, transcript golden) |
 | A3 | grep job 261115-211119-30f359 (allow-list below) |
-| A4 | benchmark `benchmarks/logging_compare.py` (daemon CPU, RSS and log volume of `detentd -v` under conditional polling; filtered, verbose-plain, verbose-rgb); builds 261115-211037-d13558 (before, 079444b1) and 261115-211040-bfbd6d (after, 7712f4eb); A/A 261115-211055-4ef209; A/B 261115-211059-ed1a5a |
+| A4 | `benchmarks/logger_ab.py` over logger_bench (logger bench/lg.cc, producer cost per L_INFO call: burst, back to back, end-to-end; 1 and 4 producers), the same lg.cc built at logger:f61d8df (the old pin, binary lg-before, job 261115-213951-ab003c) and logger:907d27f (new pin, lg-after, job 261115-213955-6ce382); 30 paired rounds under exclusive: A/A 261115-214405-b29364, A/B 261115-214410-6f1bd9. Numbers: see Result when the jobs finish |
 
 ## Result
 
@@ -49,6 +50,17 @@ fails if one returns).
 The tell-the-Xapiand-lead step in the quest's Decisions is the lead's, after landing.
 
 ## Rulings I made
+
+0. A4 benchmark: `benchmarks/logging_compare.py` cannot run at current detentd, before or after the repin: A/A and A/B
+   (261115-211055-4ef209, 261115-211059-ed1a5a) exit with `detentd: unknown argument: --persist-path` (the
+   daemon is now `detentd --authority CONFIG`, TLS, no `/v1/snapshot`), and a probe of the before binary
+   at `-vv` over a single-voter authority (HTTPS, 3 `/v1/health` polls) logs only its start and shutdown
+   lines: detentd no longer logs per HTTP request, so the script's workload (verbose HTTP logs under
+   conditional polling) does not exist. Fixing it means inventing a logging workload in the daemon, not a
+   few edits. The script stays as the October record. Used instead: the logger's own producer-cost bench
+   (an existing logging-heavy bench, built from one lg.cc against both logger commits), wrapped by
+   `benchmarks/logger_ab.py`; the logger is the changed component, and the bench exercises exactly its
+   producer path and LOG-thread drain.
 
 1. stash is dropped with scheduler: only scheduler declared it (checked over every pinned Kronuz library's
    FetchContent_Declare calls), D72 retires it, and nothing in Detent uses it.
