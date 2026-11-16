@@ -24,7 +24,7 @@ Nothing.
 |---|---|
 | A1 | suite 261115-230509-d8b5df (green at completion:f579c4e), rerun at completion:269a4c4 as 261116-000744-e8ac8c; mutants at completion:269a4c4: 261116-000751-c47e20 (sync_data runs sync), 261116-000752-68fa7c (error swallowed) |
 | A2 | same suites; mutants at completion:269a4c4: 261116-000752-06ce40 (ticket ignored: reorder), 261116-000753-959b2b (Inline ignores token), 261116-000807-2563be (drop delivers), 261116-000808-2719f9 (Held ignores token) |
-| A3 | grep 261115-230511-307b75 (at completion:f579c4e; test/sync_data_test.cc is new, so the byte-identical set is unchanged) and the suites; mutant at completion:269a4c4: 261116-000809-5174e5 (a second loop in InlineCompletion) |
+| A3 | grep 261116-000911-53e42f (rerun of 261115-230511-307b75 at completion:269a4c4; test/sync_data_test.cc is new, so the byte-identical set is unchanged) and the suites; mutant at completion:269a4c4: 261116-000809-5174e5 (a second loop in InlineCompletion) |
 | A4 | docs/MEASUREMENTS.md "Turn lane": smoke 261115-225743-cc7228, row 261115-230734-0b0a3e (exclusive, base completion:8656f12 vs head completion:f579c4e), controls 261115-230745-462b77; mutant (lane ignored) at completion:269a4c4: 261116-000808-b88aed |
 
 ## Result
