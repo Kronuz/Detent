@@ -934,6 +934,55 @@
       "updated": "2026-11-11T09:22:24",
       "worktree": ""
     },
+    "consensus-driver": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/driver.h",
+        "include/consensus/snapshot_channel.h",
+        "include/consensus/types.h",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "journal-driver"
+      ],
+      "provides": [
+        "consensus:driver"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
+      "updated": "2026-11-15T23:07:59"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
