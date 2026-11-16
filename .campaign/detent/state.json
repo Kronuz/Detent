@@ -8430,7 +8430,10 @@
         "include/detent_relay/**",
         "tests/detent_relay/**",
         "src/detent_authority/**",
-        "docs/status/namespace-s8.md"
+        "docs/status/namespace-s8.md",
+        "tests/docs/docs_exceptions.txt",
+        "website/src/content/docs/reference/configuration.md",
+        "website/src/content/docs/reference/http-api/authority.md"
       ],
       "history": [
         {
@@ -8490,7 +8493,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-15T23:01:32",
+      "updated": "2026-11-16T00:52:52",
       "worktree": "../Detent-wt/detent/namespace-s8-wiring"
     },
     "namespace-s9-s10": {
