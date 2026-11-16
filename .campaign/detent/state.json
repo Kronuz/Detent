@@ -2970,9 +2970,9 @@
       ],
       "repo": "../task",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-15T21:59:12",
+      "updated": "2026-11-15T22:45:43",
       "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
