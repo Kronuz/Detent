@@ -4344,6 +4344,8 @@
     "journal-driver": {
       "accepted": {},
       "after": [],
+      "base": "8f3e410d4209c3e739d3bcbf62087d0d6876681d",
+      "branch": "quest/detent/journal-driver",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4372,6 +4374,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-driver",
       "landed": [],
       "lenses": [
         "durability"
@@ -4386,9 +4389,10 @@
       ],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
-      "updated": "2026-11-15T23:07:54"
+      "updated": "2026-11-16T12:12:50",
+      "worktree": "../journal-wt/detent/journal-driver"
     },
     "legacy-h": {
       "accepted": {},
