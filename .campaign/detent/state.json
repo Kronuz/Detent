@@ -1330,6 +1330,52 @@
       "updated": "2026-11-15T22:53:38",
       "worktree": ""
     },
+    "consensus-transport": {
+      "accepted": {},
+      "after": [
+        "consensus-fetch-macos"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "bench/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "consensus-driver"
+      ],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
+      "updated": "2026-11-15T23:08:03"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
