@@ -26,3 +26,5 @@ D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 nod
 ## May land early
 
 Tests; Driver is additive beside the Worker.
+
+Note (journal-driver R14): journal drops `migrate`, `layout` and `finish_migration`; consensus `worker.h:167-181` must drop those calls when it repins journal.
