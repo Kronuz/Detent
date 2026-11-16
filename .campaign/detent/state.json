@@ -1188,20 +1188,59 @@
         "CHANGELOG.md",
         "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-late-append",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-15T22:53:35",
+          "ci_skipped": "only macos-x86_64 fails, in consensus_transport_peers fetch_alongside_consensus (peers_test.cc:1102 then :1128 on rerun); the same test fails on consensus main a95847e at :1155, before this quest; this quest changes core.h only, linux-tsan and every other job are green; tracked in consensus-fetch-macos",
+          "commit": "771e1bb820ca2f90145a40625997d7efc703ad1a",
+          "criteria": {
+            "A1": "261115-213819-1f8a35 (passed at 615e760652fa; ignores docs-only ARCHITECTURE.md); fails without: 261115-213822-6700e2",
+            "A2": "261115-214258-d68788 (passed at 615e760652fa; ignores docs-only ARCHITECTURE.md); fails without: 261115-213824-79ec49",
+            "A3": "261115-213811-8d0872 (passed at 615e760652fa; ignores docs-only ARCHITECTURE.md)",
+            "A4": "`CHANGELOG.md` 2026-11-15 \"Fixed\": \"A leader counts a late append success\" (consensus:3178a27)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "615e760652fa5c7e1cb03225d473c656a05a56da",
+              "docs": [
+                "ARCHITECTURE.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261115-213811-8d0872",
+              "level": "light",
+              "seconds": 207.9,
+              "state": "done",
+              "what": "consensus-late-append check suite at 615e760652fa"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "771e1bb820ca2f90145a40625997d7efc703ad1a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a95847e9b3b9a621a814fe3e178fb15eb268a51b",
+          "reason": "",
+          "tested": "771e1bb820ca2f90145a40625997d7efc703ad1a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus: accept late append responses that still match the log",
-      "updated": "2026-11-15T22:42:45",
-      "worktree": "../consensus-wt/detent/consensus-late-append"
+      "updated": "2026-11-15T22:53:38",
+      "worktree": ""
     },
     "container-selection": {
       "accepted": {},
