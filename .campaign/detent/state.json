@@ -2850,6 +2850,49 @@
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
       "updated": "2026-11-10T11:59:38"
     },
+    "drivers-completion-seam": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/**",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "examples/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [
+        "completion:seam"
+      ],
+      "repo": "../completion",
+      "risk": "normal",
+      "status": "planned",
+      "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
+      "updated": "2026-11-15T21:58:36"
+    },
     "drivers-task-wheel": {
       "accepted": {},
       "after": [],
