@@ -9,13 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs queued at task:627aca3: suite 261115-224042-c56fa6, ASan+UBSan 261115-224045-7cef95, TSan
-261115-224052-f3ced1, mutant 261115-224059-7bf17d, offloop-arm control 261115-224121-def07d
-(after the suite). A5: msg-47 to the Xapiand lead with the diff, reply pending.
-
-Local Debug, before the jobs: every ctest green except one `task_asio` abort under `ctest -j2`
-(output not kept); 12 serial and 15 three-way-parallel reruns of task_asio_test all passed. If
-a job reproduces it, rerun the same at main's commit to attribute it.
+All five jobs at task:627aca3 passed: suite 261115-224042-c56fa6 (9/9), ASan+UBSan
+261115-224045-7cef95 (9/9), TSan 261115-224052-f3ced1 (9/9), mutant 261115-224059-7bf17d
+(reentry and model exited 1), control 261115-224121-def07d (owner assertion aborts). The local
+`task_asio` abort under `ctest -j2` did not recur in any job. A5: msg-47 to the Xapiand lead,
+reply pending; the review lens is the lead's to launch.
 
 ## Next
 
@@ -58,7 +56,7 @@ Nothing.
 | A2 | suite 261115-224042-c56fa6 (`deadline_test manual`, `reentry`, `model`, `long`, `post_call`); mutant 261115-224059-7bf17d (`test/wheel_mutant.py rearm-fires-early`, killed by `reentry` and `model`; locally both exited 1) |
 | A3 | ASan+UBSan 261115-224045-7cef95 and TSan 261115-224052-f3ced1 (`asio_test` unchanged, `deadline_asio_test offloop`, `teardown`, `roots`, `loops`; `deadline_alloc_test` asio 0 allocations); control 261115-224121-def07d (`offloop-arm` aborts) |
 | A4 | TSan 261115-224052-f3ced1 (`blocking_test` cancel-thread, deadline-steady, lost-wake, lost-wake-live-token, rounds, wakes) |
-| A5 | [artifact] task `ARCHITECTURE.md` "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current; Xapiand lead review: msg-47 sent, reply pending |
+| A5 | [artifact] task `ARCHITECTURE.md` "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current; Xapiand lead review: msg-47 sent 2026-11-15 22:42, no reply yet |
 
 ## Result
 
