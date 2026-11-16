@@ -1,15 +1,16 @@
 # namespace-s8-wiring: journal
 
-State: ready for review
+State: folding in the durability review (D1-D4 fixed in the tree, building)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: the jobs below remain.
+Durability review (CHANGES) fixes: D1 seal-ordered layouts, D2 busy retry, D3 docs, D4 413 and backoff.
 
 ## Next
 
-1. Fold in the durability review's findings.
+1. Build and run test_relay_mirror, test_relay_chain, test_relay_service locally; commit.
+2. Refresh the mutant patches; submit suite, mutant and probe jobs at the new head.
 
 ## Blocked on
 
