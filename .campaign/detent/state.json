@@ -1135,7 +1135,34 @@
       "worktree": ""
     },
     "consensus-late-append": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-15T22:42:45",
+          "base": "a95847e9b3b9a621a814fe3e178fb15eb268a51b",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:0445a633c4d49f305bcf7486827397cf5d727267",
+            "CHANGELOG.md": "100644:e20ca98f961bc494fc5b1cdf9c0d6eba14771dcc",
+            "include/consensus/core.h": "100644:becf5fac352c2dd431ea1c95bccf215389a668cb",
+            "test/consensus_test.cc": "100644:3e55f9b7ec97af83bb8c4bcf26eab83ae4962f53",
+            "test/transport/peers_test.cc": "100644:acf4c49694362166bee0a3f1fffc4e54229c1554"
+          },
+          "by": "review",
+          "commit": "771e1bb820ca2f90145a40625997d7efc703ad1a",
+          "criteria": "3781798e1c6151ac",
+          "diffs": {
+            "ARCHITECTURE.md": "9561ec082d54c5c9",
+            "CHANGELOG.md": "1ae4ab089f4e4e4b",
+            "include/consensus/core.h": "d35123778c7c03e1",
+            "test/consensus_test.cc": "913b1f326e9ba011",
+            "test/transport/peers_test.cc": "6c772cab77ea40cd"
+          },
+          "findings": {},
+          "note": "",
+          "review": "6b506851958b3c0d6ff0a01ecefb549144e28430",
+          "reviewed": "771e1bb820ca2f90145a40625997d7efc703ad1a",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "a95847e9b3b9a621a814fe3e178fb15eb268a51b",
       "branch": "quest/detent/consensus-late-append",
@@ -1173,7 +1200,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: accept late append responses that still match the log",
-      "updated": "2026-11-15T21:44:08",
+      "updated": "2026-11-15T22:42:45",
       "worktree": "../consensus-wt/detent/consensus-late-append"
     },
     "container-selection": {
