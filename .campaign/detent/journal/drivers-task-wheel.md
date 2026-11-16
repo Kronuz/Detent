@@ -105,11 +105,11 @@ branch pushed, the lead's):
 
 | Criterion | Evidence |
 |---|---|
-| A1 | the gap list above (G1-G8 built in task:627aca3; row 15 amended by task:a30bb0f) |
+| A1 | [manual] the lead checked the gap list above against design row 1 on 2026-11-16 (G1-G8 built in task:627aca3, row 15 amended by task:a30bb0f); the correctness review's Q4 found every clause mapped |
 | A2 | suite 261116-001402-b63645; mutant `rearm-fires-early` 261116-001404-0ac481 (fails without) |
 | A3 | ASan+UBSan 261116-001403-5aedbf; TSan 261116-001403-f48e86; controls `offloop-arm` 261116-001403-70a81e, `closed-arm` 261116-001403-d41f81; mutant `closed-arm-allowed` 261116-001405-816273 (fails without) |
 | A4 | TSan 261116-001403-f48e86; X1 `wakes-unarmed` under TSan 261116-001403-4a12f6; F1/F2 `race`, `race-forced`, `window-forced` under TSan 261116-001420-de8395; control `offthread-cancel` 261116-001403-a03d3e; mutants (fails without) `unarmed-returns` 261116-001404-83681c, `fire-skips-settle` 261116-001426-a47947, `blocking-lost-wake` 261116-001432-f76e78, `expire-when-idle` 261116-001404-86ccb0, `drop-calls-dead-scheduler` 261116-001404-fd0781, `blocking-cancel-unchecked` 261116-001405-54a740 |
-| A5 | [artifact] task `ARCHITECTURE.md` "Schedulers" (Xapiand's BlockingScheduler and D5's entry on `drive`) and "Timers on the wheel"; `docs/mechanisms/cancellation.md`, `deadlines.md` current. Xapiand lead: msg-1 CHANGES on task:627aca3 (X1 blocking), fixed in task:a30bb0f, re-check asked in msg-48 |
+| A5 | `ARCHITECTURE.md`: "wheel"; the Xapiand lead reviewed the diff: msg-1 CHANGES (fixed in task:a30bb0f), msg-2 APPROVE at a30bb0f, msg-3 APPROVE at 412b2c2 |
 
 Superseded: task:a30bb0f, all 14 passed (suite 261115-230919-11321d, ASan+UBSan
 261115-230928-237422, TSan 261115-230935-8e4110, the rest 261115-230951-3981e7 to
