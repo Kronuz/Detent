@@ -4049,6 +4049,49 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-burst-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "logger.h",
+        "logger.cc",
+        "bench/**",
+        "test/**",
+        "docs/**",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
+      "updated": "2026-11-16T00:04:47"
+    },
     "logger-exit-crash": {
       "accepted": {},
       "after": [
