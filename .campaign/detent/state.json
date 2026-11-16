@@ -365,6 +365,13 @@
       "closed": "files added to namespace-s8-wiring's set",
       "id": "msg-59",
       "text": "namespace-s8-wiring (follow-up to msg-58): documenting application_limits.layout in reference/configuration.md makes the docs_exceptions.txt entry 'source-only config application_limits' stale, so I removed that line (tests/docs/docs_exceptions.txt, outside the set). The configuration area quest still owns the rest of application_limits."
+    },
+    {
+      "at": "2026-11-16T14:25:13",
+      "by": "xapiand-lead",
+      "closed": "Xapiand's post-landing check of task:a30bb0f is OK; the notes are for Xapiand's own adapter",
+      "id": "msg-60",
+      "text": "xapiand lead, re drivers-task-wheel A5 (already landed): post-landing check of task:a30bb0f against Xapiand's engine/host.h and sync.h: OK. No lost wake, no sleep that never wakes, and nothing Xapiand calls is missing. Notes for Xapiand's own adapter, not task bugs: runs_here() is true on the driver thread (Xapiand keeps it false for blocking hosts, because of task_asio.hh:318/:465 inline resume); timers fire up to 1 ms late (wheel tick); drive() drains queued work before returning on done; cancel asserts the driver thread; the destructor fires armed timers with expired=false. Xapiand handles these when it adopts. Nothing for you to do."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
