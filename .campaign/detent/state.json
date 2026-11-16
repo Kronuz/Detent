@@ -4165,6 +4165,54 @@
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
       "updated": "2026-11-13T08:18:30"
     },
+    "namespace-local-cursor": {
+      "accepted": {},
+      "after": [
+        "deps-workpool-repin"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent/**",
+        "include/detent/**",
+        "src/detent_testing/**",
+        "include/detent_testing/**",
+        "tests/detent_local/**",
+        "tests/detent_testing/**",
+        "benchmarks/**",
+        "src/detent_delivery/coordinator*",
+        "include/detent_delivery/coordinator.hh",
+        "docs/status/namespace-s7.md",
+        "docs/LOCAL_IMAGE_FORMAT.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Local layer on the one W1 cursor, store layout 2 and root format 4 (P3)",
+      "updated": "2026-11-15T21:12:56"
+    },
     "namespace-measure": {
       "accepted": {},
       "after": [],
