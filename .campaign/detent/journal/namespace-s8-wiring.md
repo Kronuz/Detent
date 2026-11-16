@@ -1,17 +1,16 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (waiting on jobs at Detent:dd16de65: suite 261116-041454-245173, native 261116-041526-b91daa, pins 261116-041526-5b27e2 and the mutants below)
+State: A5 (D11) fixed at Detent:45acbe9f; local test_relay_service run pending, then jobs
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: the jobs below remain.
+D11 / A5 (D99): voters refuse the history routes with 503 `not_ready` without a live leader.
 
 ## Next
 
-1. When the jobs end, record their results; the suite 261116-041454-245173 confirms D9 and D10
-   (`campaign accept` is the lead's).
-2. If native 261116-041526-b91daa fails only tests outside the relay, compare with a job at main.
+1. Local test_relay_service green, then submit suite, native, pins and the mutants whose tests
+   changed (all test_relay_service mutants: its flow changed), set "ready for review".
 
 ## Blocked on
 
