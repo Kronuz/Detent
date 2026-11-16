@@ -1,7 +1,6 @@
 # http-idle-cost: journal
 
-State: blocked: A2 not met at http:ad6771f after experiment 4 (c1 CPU/req and TLS close req/s just outside
-their A/A bands; Blocked on). Waiting on TSan flake probes 261116-104619-51831f (ad6771f), 261116-104630-0feb00 (main)
+State: ready for review at http:2d53cef (product http:ad6771f; 2d53cef adds docs only). A2 per D103.
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -154,44 +153,44 @@ changes). Not in the receive BIO path. TSan at 47d6726 passed the same test, so 
 probes run coroutine_test 10x under TSan at main eb08b59 (261116-104630-0feb00) and at ad6771f
 (261116-104619-51831f).
 
+TSan flake probes (coroutine_test x10 under TSan, the full job's flags): main http:eb08b59 261116-104630-0feb00
+5 of 10 runs fail, ad6771f 261116-104619-51831f 5 of 10. Same races (http_asio.h serve_connection_body /
+channel_service start_receive_op) in the affinity death test, whose forked child reads a BodyStream from a
+foreign thread on purpose; under NDEBUG the assertion is compiled out and the race is real. Pre-existing on
+main, the lead's; not fixed here (the lead asked only to report it).
+
+Owner accepted the trade (D103, Detent:6a507816); main merged into the journal worktree; A2 amended to the
+bounds at ad6771f. http:2d53cef: docs/perf/idle.md and CHANGELOG at ad6771f's numbers, runs copied into
+docs/perf/idle/ (10k-tls from 261116-090554-1c2b25, 100k-tls from the 47d6726 ABBA jobs, load from
+261116-090524-ec6fc0 and 261116-090550-a7dfdc).
+
 ## Next
 
-1. Read the two TSan probes: failures at main too = pre-existing, the lead's (report); only at ad6771f = mine.
-2. The lead takes the A2 trade to the owner (Blocked on).
+1. Reviews (security, correctness) and CI: the lead's.
 
 ## Blocked on
 
-A2 at http:ad6771f, after four experiments (write join, defer, read-ahead, receive BIO). By the rule (a row
-regresses when its median lies outside the A/A interval):
-- TLS / c1 keep: CPU/req 1.100x [0.997-1.144] vs A/A [0.910-1.084]: outside, +3.2 us/req (31.07 vs 27.87).
-  req/s 0.935x is inside its (wide) A/A band [0.915-1.106].
-- TLS / c8 close: req/s 0.967x [0.948-0.981] vs A/A [0.968-1.021]: outside by 0.001; CPU 1.052x inside
-  [0.994-1.053] by 0.001. At 47d6726 the row was 0.992x; this experiment did not touch the handshake path.
-- TLS / c64 keep is inside on both: 0.920x req/s, 1.088x CPU (+0.9 us/req). TLS 1 MiB 1.138x better.
-What remains per request vs base (counts, 261116-081537-cfec36): syscalls equal; one deferred io_context op for
-the write's immediate completion. Unmeasured per-request costs at head: a malloc + memcpy of the received
-bytes, a malloc + copy of the joined reply, the custom BIO. The c1 3.2 us is not apportioned; a profile would.
-The trade for the owner: idle TLS -58.5% (40,054 vs 96,608 B/conn at 10K, 2.41x connections per GiB) against
-small TLS keep-alive c1 +11% CPU/req (req/s -6.5%, inside noise) and c64 -8% req/s / +9% CPU (inside noise).
+Nothing. Reported for the lead: coroutine_test's affinity death test races under TSan at main too (5 of 10).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Exclusive, results `docs/perf/idle.md` (runs in `docs/perf/idle/`). TLS at http:47d6726 vs http:a17b197: 10K 261116-055934-9fc4ec (3 rounds + owners); 100K ABBA, one arm and round per job, 261116-060000-d56d24, 261116-060007-067b1b, 261116-060012-60b2e7, 261116-060018-27237b; owners 261116-060022-c30d0a. TLS 10K at http:ad6771f 261116-090554-1c2b25. Plain at http:76f698d (plain does not include http_asio_tls.h, the lead's ruling): 10K 261116-012345-cba126; 100K 261116-012410-6d7174, 261116-012414-ba9ee6, 261116-012418-4d5602, 261116-012423-dcb492; owners 261116-012436-2ce3c9, 261116-012441-481714 |
-| A2 | NOT MET at http:ad6771f. Idle met: TLS 96,608 -> 40,054 B/conn at 10K (-58.5%) 261116-090554-1c2b25; 100K at 47d6726 -58.7% (jobs as A1). Load 261116-090524-ec6fc0, 261116-090550-a7dfdc (5 rounds, A/A): c1 CPU/req 1.100x vs A/A [0.910-1.084], TLS close req/s 0.967x vs [0.968-1.021] outside; c64 and the 1 MiB rows inside or better. Counts 261116-081537-cfec36. See Blocked on |
-| A3 | At http:ad6771f: suite 261116-090540-ddc83e (13/13), join mutant 261116-090609-eca92c (killed: 2 records). TSan 261116-090602-ef2c7e failed in coroutine_test's affinity death test (see Doing; probes 261116-104619-51831f, 261116-104630-0feb00); at 47d6726 TSan 261116-055954-8acab6 13/13. OpenSSL header/library check 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28. Idle release/reacquire tests: readahead_test "[I] a request after a long idle is served", "[I] and a body after it gets the scratch back", "[I] after another idle, a body and a request pipelined behind it"; tls_asio_test "a request after a long idle is served on every connection, twice", "an idle TLS connection holds no record or BIO buffers" |
-| A4 | `docs/perf/idle.md`: "an idle connection costs 58.7% less at 10K" (load section states the 76f698d regression; not updated, A2 unmet) |
+| A1 | Exclusive, results `docs/perf/idle.md`, runs `docs/perf/idle/`. TLS 10K at http:ad6771f vs http:a17b197 261116-090554-1c2b25 (3 rounds + owners: 96,608 -> 40,054 B/conn). TLS 100K at http:47d6726 (idle state equal to ad6771f's but the receive's 112 B of handler blocks), ABBA one arm and round per job: 261116-060000-d56d24, 261116-060007-067b1b, 261116-060012-60b2e7, 261116-060018-27237b; owners 261116-060022-c30d0a, before 261116-012427-2c38f4. Plain at http:76f698d (plain does not include http_asio_tls.h): 10K 261116-012345-cba126; 100K 261116-012410-6d7174, 261116-012414-ba9ee6, 261116-012418-4d5602, 261116-012423-dcb492; owners 261116-012436-2ce3c9, 261116-012441-481714 |
+| A2 | Met per D103. Idle: TLS -58.5% at 10K (261116-090554-1c2b25), -58.7% at 100K (per-round 0.4126, 0.4125; jobs as A1). Load at http:ad6771f, 5 rounds with A/A: 261116-090524-ec6fc0 (TLS c1, c64; base, prev 47d6726, head) and 261116-090550-a7dfdc (TLS 1 MiB, TLS close, plain 1 MiB): every cell inside its A/A band or better except the two D103 accepts, c1 CPU/req 1.100x (bound 1.10x) and TLS close c8 req/s 0.967x (bound 0.967x). Counts 261116-081537-cfec36 (kevent c64 0.021 vs base 0.020) |
+| A3 | At http:ad6771f: suite 261116-090540-ddc83e (13/13); join mutant 261116-090609-eca92c (killed: 2 records); TSan 261116-090602-ef2c7e 12/13 with tls_asio, readahead, asio, timeouts passing and coroutine_test's affinity death test racing, pre-existing: probes 261116-104619-51831f (ad6771f, 5/10 fail) and 261116-104630-0feb00 (main eb08b59, 5/10 fail). OpenSSL header/library check 261116-000620-05c3f6, 261116-000626-9f041e, mutant 261116-000631-893b28. Idle release/reacquire tests: readahead_test "[I] a request after a long idle is served", "[I] and a body after it gets the scratch back", "[I] after another idle, a body and a request pipelined behind it"; tls_asio_test "a request after a long idle is served on every connection, twice", "an idle TLS connection holds no record or BIO buffers", "a 4 MiB upload arrives whole" (the received-bytes leftover path) |
+| A4 | `docs/perf/idle.md`: "an idle connection costs 58.5% less at 10K" |
 
 ## Result
 
-At http:ad6771f against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs:
-- TLS idle: 96,608 -> 40,054 B/conn at 10K (58.5% less), 11,114 -> 26,808 per GiB (2.41x); 100K at 47d6726:
-  96,447 -> 39,790 (58.7% less).
-- Plain idle (76f698d, unchanged since): 14,327 -> 8,637 B/conn at 100K (39.7% less); 74,945 -> 124,318 per GiB.
-- Load: the receive BIO removed the per-request kevent (c64 1.021 -> 0.021/req) and recovered c64 to 0.920x
-  req/s / 1.088x CPU (inside A/A); c1 CPU 1.100x and TLS close req/s 0.967x stay just outside; TLS 1 MiB
-  1.138x better. A2 not met; docs/perf/idle.md and the CHANGELOG not updated for ad6771f.
+http:ad6771f (docs at http:2d53cef) against http:a17b197, i9-9980HK, OpenSSL 3.6.5, exclusive jobs
+(`docs/perf/idle.md`, CHANGELOG):
+- TLS idle: 96,608 -> 40,054 B/conn at 10K (58.5% less), 11,114 -> 26,808 per GiB (2.41x); 100K (47d6726)
+  96,471 -> 39,797 (58.7% less), 5.27 GiB saved per 100K idle connections.
+- Plain idle (76f698d): 14,327 -> 8,637 B/conn at 100K (39.7% less); 74,945 -> 124,318 per GiB.
+- Load: syscalls per request equal base. c64 0.920x req/s, 1.088x CPU (inside A/A); c1 0.935x req/s inside,
+  CPU 1.100x (+3.2 us) and TLS close 0.967x req/s just outside, accepted (D103; http-tls-small-reply-cost
+  attributes them); TLS 1 MiB 1.138x better; plain 1 MiB noise.
 
 ## Rulings I made
 
