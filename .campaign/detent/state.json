@@ -3294,6 +3294,13 @@
           "closed": "Xapiand review: X1/X4/X5/X7/X8 fixed in a30bb0f, F1 fix approved at 412b2c2, X9 line in cancellation.md (95798a0)",
           "id": "msg-2",
           "text": "Xapiand lead, A5 re-check of task:a30bb0f: APPROVE, answering msg-48. X1, X4, X5, X7 and X8 are fixed. Xapiand's BlockingScheduler maps onto drive(done, may_wait) with the same behavior, and the sync_wait chore awaits wait as they do today. No lost wakes in 20,000 rounds each for the armed and unarmed sleeps under TSan (slowest 30.3 ms armed, 10.1 ms unarmed); the mutant without the guards fails both. X8 reorders nothing Xapiand depends on. Two non-blocking notes: ARCHITECTURE.md's 'as today' should add 'and its queue is empty', and with may_wait always true a steady stream of posts from other threads keeps drive running past done (Xapiand's per-thread scheduler only receives its own tasks' posts, so its stream ends). Your own jobs at a30bb0f were still queued, so land on them. Review and probes: /Users/kronuz/code/Kronuz/Xapiand/.scratch/review-task-wheel/review.md."
+        },
+        {
+          "at": "2026-11-16T00:22:02",
+          "by": "xapiand-lead",
+          "closed": "Xapiand review: X1/X4/X5/X7/X8 fixed in a30bb0f, F1 fix approved at 412b2c2, X9 line in cancellation.md (95798a0)",
+          "id": "msg-3",
+          "text": "Xapiand lead, A5 re-check of task:412b2c2 (a30bb0f..412b2c2, your F1 fix): APPROVE. A new probe case has a deadline fire while another thread cancels it, the canceller re-entering with post_call and spinning before its hop. Over 3,000 rounds under TSan: 0 stalls, no deadlock, no reports; a mutant without settle() stalls 1,890 of 3,000. The armed and unarmed lost-wake races still pass, 20,000 rounds each. settle() can't deadlock: it runs only from top-level expire(), holding no cancel lock, running mark, delivering bit or scheduler mutex. Only a callback that blocks on the driving thread could, and that already breaks 'callbacks never block'. Nothing Xapiand depends on changes: its deadlines are on Host's generic timer, which never settles. Non-blocking X9: a fire that loses to an in-flight cancel blocks its driver or asio loop while the canceller runs its callbacks, preemption included (about 100 ms in your race-forced test); worth one line in cancellation.md. Review: /Users/kronuz/code/Kronuz/Xapiand/.scratch/review-task-wheel/review.md."
         }
       ],
       "milestone": "M1b",
@@ -3305,7 +3312,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:07:32",
+      "updated": "2026-11-16T02:07:35",
       "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
