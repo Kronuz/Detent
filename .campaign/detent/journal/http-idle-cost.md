@@ -2,7 +2,8 @@
 
 State: waiting on jobs 261116-051657-9fb383 261116-051659-5e726e 261116-051701-9a7b14 261116-051703-05a11f
 261116-051705-06d314 261116-051707-2cc499 261116-051709-086f5f 261116-051730-1f186a (A2 fix, lead's option 1, at
-http:47d6726)
+http:47d6726); 100K TLS reruns 261116-051828-751348 261116-051830-d5c0df 261116-051832-2c02b3 261116-051834-bb242b
+261116-051836-032449
 Quest: .campaign/detent/quests/http-idle-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -86,8 +87,11 @@ A2 fix (lead: option 1, profile first, three experiments at most):
    head should be recvfrom 2/req and kevent ~0.02/req at c64, io_context execute 0.
 3. Suite 261116-051707-2cc499, TSan 261116-051709-086f5f, join mutant 261116-051730-1f186a at 47d6726.
 4. If green: update docs/perf/idle.md (cause, fix, fresh load table) and CHANGELOG, set ready for review.
-   The 100K and plain idle rows ran at 76f698d; 47d6726 changes only http_asio_tls.h's read and completion
-   path, so A1's 100K rows need the lead's call: rerun them at 47d6726 (12 exclusive jobs) or accept 76f698d's.
+   A1 (lead's ruling): plain connections do not include http_asio_tls.h, so the plain 10K and 100K rows at
+   76f698d stand. Read-ahead can hold buffered bytes on an idle TLS connection, so the 100K TLS rows rerun at
+   47d6726, ABBA after the load jobs: base0 261116-051828-751348, head0 261116-051830-d5c0df, head1
+   261116-051832-2c02b3, base1 261116-051834-bb242b, head owners 261116-051836-032449; 10K TLS is
+   261116-051703-05a11f.
    If not green and the three experiments are spent: write the measured cause and gap under Blocked on.
 
 ## Blocked on
