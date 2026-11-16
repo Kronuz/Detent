@@ -1,6 +1,6 @@
 # journal-driver: journal
 
-State: waiting on jobs 261116-141845-fc7862 261116-141849-473b2c 261116-141853-1c95eb 261116-141857-2492f6 261116-141901-fea9cf 261116-141905-228948 261116-141908-6c54a9 261116-141912-bac21f 261116-141915-1284ed 261116-141919-d95bce 261116-141922-5664cd 261116-141925-5a860e 261116-141928-26c106 261116-141931-c71579 261116-141934-eac4e0 261116-141937-ca8803 261116-141941-8771b6 261116-141944-59a147 261116-141947-a9566f 261116-141950-c5319b 261116-141954-c7b068 261116-141957-09e890 261116-142000-26d170 261116-142003-5516c2 261116-142006-c0c1df 261116-142008-75d3a1 261116-142011-b6fe5a 261116-142013-74b933
+State: ready for review (G1 jobs pending: 261116-145650-a3da03 261116-145654-bee7a1 261116-145658-156376 261116-145702-d5d15f 261116-145705-6f3623 261116-145709-f3235b 261116-145713-99f553)
 Quest: .campaign/detent/quests/journal-driver.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,8 +15,8 @@ in (journal:d4b6380..5a959a1). Evidence for every criterion resubmitted at journ
 
 ## Next
 
-1. When the round-1 jobs finish: mark each in the Fix round 1 table, then set "ready for review"
-   (the lead accepts with `campaign accept journal-driver durability --confirm F1=... F2=... F3=...`).
+1. The lead accepts: re-review at journal:5a959a1 confirmed F1-F4; G1 fixed at journal:87e4f03
+   (final commit). Confirming jobs: F1/F2/F3 suite 261116-141838-acebfd, G1 261116-145650-a3da03.
 
 ## Blocked on
 
@@ -31,6 +31,7 @@ logs (R13 updated), and N1 fixed in completion:7731315 (repinned, R21).
 | F2 | table transitions go through `Host::update` (change, commit, restore on failure); `close_group` commits before `forget` (journal:d4b6380) | `host_test failed_close`: 261116-142011-b6fe5a | close-forgets-first 261116-141941-8771b6, update-keeps-change 261116-141944-59a147 | suite 261116-141838-acebfd; probe rerun 261116-142006-c0c1df |
 | F3 | `recover_shared` takes the table's record only when `TurnDriver::holds` is false (no durable or staged record); otherwise Corruption (journal:d4b6380) | `host_test second_recovery`: 261116-142013-74b933 | recover-twice-from-table 261116-141947-a9566f | suite 261116-141838-acebfd; probe rerun 261116-142006-c0c1df |
 | F4 | same `Host::update` rollback: memory never ahead of the disk | `failed_close` checks the entry stays open | update-keeps-change | as F2 |
+| G1 (re-review) | `driver_test cancel_hops`: cancel from another thread between drives, join, the waiter stays linked until the loop's hop (journal:87e4f03) | passes at the fix: 261116-145650-a3da03 | cancel-without-hop, no TSan, now on `cancel_hops`: 261116-145654-bee7a1, -145658-156376, -145702-d5d15f | 261116-145650-a3da03; suite 261116-145705-6f3623, ASan 261116-145709-f3235b, TSan 261116-145713-99f553 at journal:87e4f03 |
 | F5 | not changed: noted (low-water `mark` probes every serial since a pinned artifact) | - | - | - |
 | F6 | not changed: refusing a scheduler without `post_call` needs task's `scheduler_ref` to expose it (task repo, outside the file set) | - | - | - |
 | F7 | documented in `blocking.h`: a stalled entry's scheduler is not driven again (journal:286582c) | - | - | - |
