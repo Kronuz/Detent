@@ -7019,8 +7019,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T03:22:43",
-      "worktree": "../Detent-wt/detent/namespace-s7"
+      "updated": "2026-11-15T23:15:48",
+      "worktree": ""
     },
     "namespace-s7-ids": {
       "accepted": {
