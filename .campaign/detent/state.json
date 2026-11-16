@@ -2896,6 +2896,8 @@
     "drivers-task-wheel": {
       "accepted": {},
       "after": [],
+      "base": "f51aafb74028fb5b2dcb0c43db7b7e7c1abd848b",
+      "branch": "quest/detent/drivers-task-wheel",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -2925,6 +2927,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/drivers-task-wheel",
       "landed": [],
       "lenses": [
         "correctness"
@@ -2936,9 +2939,10 @@
       ],
       "repo": "../task",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-15T21:58:35"
+      "updated": "2026-11-15T21:59:12",
+      "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
       "accepted": {},
