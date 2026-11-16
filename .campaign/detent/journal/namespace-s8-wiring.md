@@ -1,6 +1,6 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (waiting on jobs at Detent:3023f2d0: suite 261116-055643-30fa1f, native 261116-055648-ea95b0, pins 261116-055655-92aa4f and the mutants under A5 below)
+State: ready for review (at Detent:3023f2d0 suite 261116-055643-30fa1f and pins 261116-055655-92aa4f passed; waiting on native 261116-055648-ea95b0 and the 8 service mutants in the Evidence table)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
