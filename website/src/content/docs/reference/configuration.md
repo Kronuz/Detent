@@ -185,7 +185,7 @@ A relay configuration may carry a `mirror` object. The relay then mirrors namesp
 | `directory` | required | The mirror's own directory, mode `0700` |
 | `cluster` | required | The authority's cluster identity, 32 hex digits |
 | `namespaces` | required | The names mirrored, in increasing order, at most 4,096 |
-| `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure moves to the next |
+| `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure, or an answer older than the mirror, moves to the next |
 | `token` | required | The relay's credential at its upstream |
 | `hostname`, `ca` | `localhost`, the relay's `ca` | How the relay verifies its upstream |
 | `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to 30 seconds or one interval |

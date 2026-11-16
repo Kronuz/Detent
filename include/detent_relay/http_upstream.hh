@@ -11,7 +11,7 @@
 // credential and no consensus. Blocking, one request per connection, one caller at a time.
 namespace detent::relay {
 struct HttpUpstreamOptions {
-	std::vector<asio::ip::tcp::endpoint> endpoints; // read in turn: a failure moves to the next
+	std::vector<asio::ip::tcp::endpoint> endpoints; // read in turn: a failure or a lagging answer moves on
 	std::string hostname, token;
 	std::shared_ptr<asio::ssl::context> tls; // a client context that verifies the upstream
 	std::chrono::milliseconds timeout{10000};
@@ -33,6 +33,8 @@ class HttpUpstream final : public Upstream {
 	// carries its positions with `wait_ms` 0. An idle answer (204) is a body with no frames. A
 	// session still retiring its previous answer (409 `session_busy`) is asked again after a wait.
 	std::string frames(std::span<const Position>) override;
+	std::size_t sources() const noexcept override;
+	void skip() override;
 	struct Stats {
 		std::uint64_t requests = 0, failures = 0, rotations = 0, sessions = 0;
 		std::uint64_t fetched_files = 0, fetched_bytes = 0;

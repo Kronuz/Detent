@@ -6,7 +6,7 @@ namespace detent::relay {
 namespace d = distribution;
 namespace h = authority::history;
 namespace {
-constexpr int sync_attempts = 3;
+constexpr std::size_t sync_attempts = 3;
 
 struct Entry {
 	std::string key;
@@ -248,7 +248,7 @@ SyncStats NamespaceRelay::sync(std::span<const std::string> names) {
 		std::adjacent_find(names.begin(), names.end()) != names.end())
 		throw std::invalid_argument("relay sync: names must be strictly increasing");
 	SyncStats total;
-	for (int i = 0;; ++i) {
+	for (std::size_t moved = 0, behind = 0;;) {
 		try {
 			const auto stats = impl_->attempt(names);
 			total.files.fetched_files += stats.files.fetched_files;
@@ -258,8 +258,13 @@ SyncStats NamespaceRelay::sync(std::span<const std::string> names) {
 			total.entries += stats.entries;
 			return total;
 		} catch (const UpstreamMoved &) {
-			if (i + 1 == sync_attempts)
+			if (++moved == sync_attempts)
 				throw;
+		} catch (const UpstreamBehind &) {
+			// A lagging source: the next one may be current.
+			if (++behind >= impl_->upstream.sources())
+				throw;
+			impl_->upstream.skip();
 		}
 	}
 }

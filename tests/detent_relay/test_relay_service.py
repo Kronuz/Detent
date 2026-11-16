@@ -3,7 +3,9 @@
 Three detentd voters; relay A reads them, relay B reads A, both as W8 readers with a credential.
 A1: every block, base and section, and every W5/W6 answer (none, another incarnation, R = 0 ..
 head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's and B's disks,
-also when every other W5 next answers `409 session_busy`.
+also when every other W5 next answers `409 session_busy`; the answer at no cursor, read here
+without HttpUpstream, equals the probe's at every endpoint. Relay C reads a voter that lags behind
+its mirror and moves to the current one.
 A2: A and B restart, fetch no file their mirror holds, and answer unchanged.
 A3: the relays refuse member routes and a `voters` configuration and link no consensus.
 
@@ -55,14 +57,21 @@ def check(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-class BusyProxy:
-    """A TLS proxy in front of one voter that answers every other W5 next `409 session_busy` itself,
-    as a voter does while the session's previous answer retires; the rest it forwards unchanged."""
+class Proxy:
+    """A TLS proxy in front of one voter that forwards every request unchanged, except: when `busy`,
+    it answers every other W5 next `409 session_busy` itself, as a voter does while the session's
+    previous answer retires; when `lagging`, it answers every layouts request with the first one it
+    forwarded, as a voter cut off from the quorum does."""
 
     def __init__(
-        self, certificates: Path, context: ssl.SSLContext, upstream: int
+        self,
+        certificates: Path,
+        context: ssl.SSLContext,
+        upstream: int,
+        busy: bool = False,
     ) -> None:
-        self.busy = 0
+        self.busy, self.lagging, self.stale = 0, False, 0
+        self.first: tuple[int, dict[str, str], bytes] | None = None
         nexts = itertools.count()
         proxy = self
 
@@ -71,13 +80,22 @@ class BusyProxy:
 
             def do_POST(self) -> None:
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-                if self.path == "/v2/distribution/session/next" and next(nexts) % 2:
+                if (
+                    busy
+                    and self.path == "/v2/distribution/session/next"
+                    and next(nexts) % 2
+                ):
                     proxy.busy += 1
                     self.answer(
                         409,
                         {"Content-Type": "application/json"},
                         b'{"error":"session_busy"}',
                     )
+                    return
+                layouts = self.path == "/v2/history/layouts"
+                if layouts and proxy.lagging and proxy.first:
+                    proxy.stale += 1
+                    self.answer(*proxy.first)
                     return
                 connection = http.client.HTTPSConnection(
                     "localhost", upstream, context=context, timeout=10
@@ -100,7 +118,10 @@ class BusyProxy:
                         if k.lower() == "content-type"
                         or k.lower().startswith("x-detent-")
                     }
-                    self.answer(response.status, headers, response.read())
+                    answer = (response.status, headers, response.read())
+                    if layouts and answer[0] == 200 and not proxy.first:
+                        proxy.first = answer
+                    self.answer(*answer)
                 finally:
                     connection.close()
 
@@ -157,7 +178,8 @@ class Run:
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
         self.peers = [free_port() for _ in range(3)]
         self.http = [free_port() for _ in range(3)]
-        self.relay_ports = {"a": free_port(), "b": free_port()}
+        self.relay_ports = {"a": free_port(), "b": free_port(), "c": free_port()}
+        self.upstreams: dict[str, tuple[list[int], str]] = {}
         self.children: dict[str, subprocess.Popen[bytes]] = {}
         self.sequence = 0
         self.leading: int | None = None
@@ -272,10 +294,7 @@ class Run:
         return private(self.directory / f"relay-{name}.json", configuration)
 
     def start_relay(self, name: str) -> None:
-        upstreams, token = (
-            (self.http, MIRROR) if name == "a" else ([self.relay_ports["a"]], READER)
-        )
-        path = self.relay_configuration(name, upstreams, token)
+        path = self.relay_configuration(name, *self.upstreams[name])
         self.start(
             f"relay-{name}",
             [
@@ -399,6 +418,33 @@ class Run:
         check(result.returncode == 0, f"probe of {port} failed: {result.stderr}")
         return json.loads(result.stdout)
 
+    def direct(self, port: int, token: str) -> str:
+        """The W6 body at no cursor for every name, read with this module's HTTP and DTDIST01
+        parsing rather than HttpUpstream: the digest of the raw fragments' payloads."""
+        names = [[name] for name in NAMES]
+        status, body = self.call(
+            port,
+            "/v2/distribution/session/open",
+            {"version": 2, "profile": 1, "coding": "raw", "namespaces": names},
+            token,
+        )
+        check(status == 200, f"session open at {port} answered {status}: {body!r}")
+        session = json.loads(body)["session"]
+        status, body = self.call(
+            port,
+            "/v2/distribution/session/next",
+            {"version": 2, "session": session, "namespaces": names, "wait_ms": 0},
+            token,
+        )
+        check(status == 200, f"next at {port} answered {status}: {body[:256]!r}")
+        payload = b""
+        while body:  # a 96-byte header, its payload size big-endian at byte 12
+            check(body[:8] == b"DTDIST01", f"next at {port}: not a fragment")
+            size = int.from_bytes(body[12:16], "big")
+            payload, body = payload + body[96 : 96 + size], body[96 + size :]
+        check(bool(payload), f"next at {port} carried no frames")
+        return hashlib.sha256(payload).hexdigest()
+
     def converged(self, ports: dict[str, tuple[int, str]]) -> dict[str, dict[str, Any]]:
         """Probes every endpoint until all answer alike; the writes are done, so the leader's is final."""
         deadline = time.monotonic() + 60
@@ -494,24 +540,53 @@ def main() -> int:
         run.leader()
         run.write("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
         run.churn(12, 0)  # history before any relay
-        run.start_relay("a")
-        run.start_relay("b")
-        run.relay_ready("a")
-        run.relay_ready("b")
+        # Relay C reads a proxy of the leader first, then the leader itself.
+        leader = run.http[run.leader()]
+        lagging = Proxy(run.certificates, run.context, leader)
+        run.upstreams = {
+            "a": (run.http, MIRROR),
+            "b": ([run.relay_ports["a"]], READER),
+            "c": ([lagging.port, leader], MIRROR),
+        }
+        for name in ("a", "b", "c"):
+            run.start_relay(name)
+        for name in ("a", "b", "c"):
+            run.relay_ready(name)
         run.churn(27, 1)  # history the relays follow live
         run.log("writes done")
-        first = run.converged(run.endpoints())
+        first = run.converged(run.endpoints() | {"c": (run.relay_ports["c"], READER)})
         kinds = {file["kind"] for file in first["authority"]["files"]}
         check(kinds == {"base", "block", "section"}, f"the layouts reach only {kinds}")
         for name in ("a", "b"):
             run.on_disk(name, first[name])
-        answers = len(first["authority"]["frames"])
+        # The comparison holds frames: every name reached, the answers at R = 0 and at the head
+        # differ, and the answer at no cursor read without HttpUpstream is the probe's everywhere.
+        heads = first["authority"]["heads"]
+        check(
+            sorted(heads) == NAMES and all(at > 0 for at in heads.values()),
+            f"the authority's answers reach heads {heads}",
+        )
+        frames = first["authority"]["frames"]
+        for name, at in heads.items():
+            check(
+                frames[f"raw {name} 0"] != frames[f"raw {name} {at}"],
+                f"{name}'s answers at 0 and at its head are alike",
+            )
+        for name, where in run.endpoints().items():
+            check(
+                run.direct(*where) == frames["raw *"],
+                f"{name}'s answer at no cursor differs from the probe's",
+            )
+        answers = len(frames)
         run.log(
             f"A1: {len(first['authority']['files'])} files ({sorted(kinds)}) and {answers} W5/W6 answers "
-            f"byte-identical at the authority, A and B; heads {first['authority']['heads']}"
+            f"byte-identical at the authority, A and B, the answer at no cursor also read directly; "
+            f"heads {heads}"
         )
+        # Relay C is at the authority's seal; its first upstream now answers an older one.
+        lagging.lagging = True
         # W5's session contract: a next on a busy session (409 session_busy) is asked again.
-        proxy = BusyProxy(run.certificates, run.context, run.http[run.leader()])
+        proxy = Proxy(run.certificates, run.context, run.http[run.leader()], busy=True)
         try:
             via = run.probe(proxy.port, MIRROR)
         finally:
@@ -542,9 +617,14 @@ def main() -> int:
                 again[name] == first[name],
                 f"relay {name} answers differently after a restart",
             )
-        # The next seals: the restarted relays follow them again.
+        # The next seals: the restarted relays follow them again, and C moves off its lagging voter.
         run.churn(12, 2)
-        later = run.converged(run.endpoints())
+        later = run.converged(run.endpoints() | {"c": (run.relay_ports["c"], READER)})
+        lagging.close()
+        check(lagging.stale > 0, "the lagging voter answered no layouts request")
+        run.log(
+            f"D9: relay C refused {lagging.stale} older layouts answers and followed the leader"
+        )
         new = {file["name"] for file in later["authority"]["files"]} - held
         check(bool(new), "the later writes sealed no new file")
         for name in ("a", "b"):

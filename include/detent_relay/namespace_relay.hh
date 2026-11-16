@@ -25,6 +25,10 @@ class Upstream {
 	virtual std::string fetch(std::string_view name_space, const MirrorFile &) = 0;
 	// The W6 body answering W5 positions, in strictly increasing name order.
 	virtual std::string frames(std::span<const Position>) = 0;
+	// The sources read in turn (the voters), and a move to the next one after an answer older than
+	// the mirror's: a sync tries each source once before it fails.
+	virtual std::size_t sources() const noexcept { return 1; }
+	virtual void skip() {}
 };
 // The upstream answered below its own ring: it sealed between its layout and its frames.
 class UpstreamMoved : public std::runtime_error {
@@ -53,7 +57,7 @@ class NamespaceRelay final : public Upstream {
 	// Brings `names` (strictly increasing) to the upstream: adopts their layouts, fetching only
 	// the files the mirror lacks and dropping a name the upstream no longer holds, then reads the
 	// entries after each ring's head. Throws UpstreamMoved when the upstream sealed in between, and
-	// UpstreamBehind when its answer is older than the mirror's.
+	// UpstreamBehind when every source's answer is older than the mirror's.
 	SyncStats sync(std::span<const std::string> names);
 	const MirrorStore &mirror() const noexcept;
 	// Where the relay holds a namespace: its incarnation and newest position.

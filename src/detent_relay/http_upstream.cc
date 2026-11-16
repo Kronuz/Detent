@@ -228,6 +228,8 @@ HttpUpstream::HttpUpstream(HttpUpstreamOptions options) : impl_(std::make_unique
 }
 HttpUpstream::~HttpUpstream() = default;
 HttpUpstream::Stats HttpUpstream::stats() const noexcept { return impl_->stats; }
+std::size_t HttpUpstream::sources() const noexcept { return impl_->options.endpoints.size(); }
+void HttpUpstream::skip() { impl_->rotate(); }
 
 MirrorTable HttpUpstream::layouts(std::span<const std::string> names) {
 	std::string body = "{\"namespaces\":[";
