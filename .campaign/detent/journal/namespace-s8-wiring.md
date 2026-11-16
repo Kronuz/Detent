@@ -1,6 +1,6 @@
 # namespace-s8-wiring: journal
 
-State: ready for review (waiting on jobs 261116-005109-0f20c5, 261116-005055-6d0652, 261116-005056-465976, the mutants and probe below, baseline 261116-004118-3871c0)
+State: ready for review (waiting on jobs 261116-030647-709c5f, native 261116-030743-567511, pins 261116-030743-72753a and the mutants below, all at Detent:1eea5261, code Detent:3fa0dfeb)
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
@@ -9,8 +9,9 @@ Nothing: the jobs below remain.
 
 ## Next
 
-1. When the jobs end, record their results here; the suite job 261116-005109-0f20c5 confirms D1 and D2 (`campaign accept` is the lead's); D3 is `check_docs.py` locally and the Docs CI once pushed.
-2. If native 261116-005055-6d0652 fails only the four system tests, compare with baseline 261116-004118-3871c0 at main.
+1. When the jobs end, record their results; the suite 261116-030647-709c5f confirms D9 and D10
+   (`campaign accept` is the lead's).
+2. If native 261116-030743-567511 fails only tests outside the relay, compare with a job at main.
 
 ## Blocked on
 
@@ -27,11 +28,17 @@ an unsealed drop leaves it unchanged), `test_relay_service` 49 s (incl. the busy
 
 | Criterion | Evidence |
 |---|---|
-| A1 | suite 261116-005109-0f20c5 (`test_relay_service`, `test_relay_mirror`, `test_relay_chain`, `test_relay_mirror_crash`); mutants 261116-005111-5eb137 (`older-seal-adopted`), 261116-005113-852cae (`same-seal-adopted`), 261116-005128-226477 (`busy-not-retried`), 261116-005130-cf3b1c (`layouts-no-enable`), 261116-005133-947e51 (`upstream-drops-frames`), 261116-005123-e69b7a (`hide-failed`), 261116-005125-7e45d6 (`keep-dropped`), 261116-005116-bf5989 (`fetch-reached`), 261116-005118-7f277f (`no-collector`), 261116-005121-6ea6c5 (`trust-first-read`) |
-| A2 | suite 261116-005109-0f20c5; mutant 261116-005135-178dd4 (`mirror-forgotten`) |
-| A3 | suite 261116-005109-0f20c5; mutant 261116-005138-b4f850 (`member-route-admitted`) |
-| A4 | [artifact] `docs/status/namespace-s8.md`, "The service" (updated: seal order, busy retry, 413, backoff) |
-| checks | native 261116-005055-6d0652, pins 261116-005056-465976 |
+| A1 | suite 261116-030647-709c5f (`test_relay_service` incl. relay C and the direct read, `test_relay_mirror`, `test_relay_chain`, `test_relay_mirror_crash`); mutants 261116-030651-aed823 (`behind-not-skipped`), 261116-030655-48d932 (`upstream-drops-frames`), 261116-030659-51b9bc (`busy-not-retried`), 261116-030703-1475aa (`layouts-no-enable`), 261116-030714-3d4167 (`older-seal-adopted`), 261116-030717-1f35ed (`same-seal-adopted`), 261116-030721-281010 (`fetch-reached`), 261116-030726-64b0c4 (`no-collector`), 261116-030729-92134f (`trust-first-read`), 261116-030734-f2b77b (`hide-failed`), 261116-030737-7ecbfd (`keep-dropped`) |
+| A2 | suite 261116-030647-709c5f; mutant 261116-030707-b72321 (`mirror-forgotten`) |
+| A3 | suite 261116-030647-709c5f; mutant 261116-030710-c9e363 (`member-route-admitted`) |
+| A4 | [artifact] `docs/status/namespace-s8.md`, "The service" (updated: seal order, busy retry, 413, backoff, skip past a lagging voter) |
+| checks | native 261116-030743-567511, pins 261116-030743-72753a |
+
+Second round (D9, D10) at Detent:3fa0dfeb, main merged at Detent:eba70ec5. Local run (Release,
+loaded host): `test_relay_service` 56 s: heads {a: 19, b: 17, c: 21, d: 8}, 111 answers, the
+answer at no cursor read directly equal at the authority, A and B; relay C refused 1 older layouts
+answer and followed the leader. `test_relay_mirror` 10 s. Earlier evidence at Detent:e09d3690
+(suite 261116-005109-0f20c5, native 261116-005055-6d0652) is superseded.
 
 Review findings:
 
@@ -99,3 +106,9 @@ open there: streamed fetch of large files (a file above the reply bound is refus
     tests/docs/docs_exceptions.txt. Six stale mutant patches (four already stale at d77c332d) are
     regenerated with the same mutation.
 11. `test_relay_service.py` is ruff-formatted and lint-clean (three `check=False`).
+12. D9's bound lives in `NamespaceRelay::sync`: `Upstream` reports its `sources()` and `skip()`s
+    one (defaults 1 and nothing, so a relay upstream and the test fakes are unchanged); a sync
+    tries each source once, then throws `UpstreamBehind` and the service backs off as before.
+13. D10's independent read is the W5 answer at no cursor, parsed in Python (DTDIST01: 96-byte
+    header, payload size at byte 12); the per-cursor answers stay with the probe, now checked to
+    reach every name and to differ between R = 0 and the head.
