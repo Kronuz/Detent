@@ -1223,7 +1223,8 @@
         "src/**",
         "test/transport/**",
         "CHANGELOG.md",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        ".github/workflows/ci.yml"
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-macos",
       "landed": [],
@@ -1235,7 +1236,7 @@
       "risk": "normal",
       "status": "active",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-16T03:13:56",
+      "updated": "2026-11-16T06:39:38",
       "worktree": "../consensus-wt/detent/consensus-fetch-macos"
     },
     "consensus-late-append": {
