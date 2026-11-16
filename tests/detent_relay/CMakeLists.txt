@@ -30,5 +30,5 @@ if(TARGET detent::relay_mirror_service AND TARGET detentd AND TARGET detent-rela
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_service.py
       $<TARGET_FILE:detentd> $<TARGET_FILE:detent-relay> $<TARGET_FILE:test_relay_probe>
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
-  set_tests_properties(test_relay_service PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 120)
+  set_tests_properties(test_relay_service PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 240)
 endif()

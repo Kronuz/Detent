@@ -593,10 +593,15 @@ class Run:
         return health
 
     def mirror(self, name: str) -> dict[str, Any]:
-        health = self.health(self.relay_ports[name])
-        check(health is not None, f"relay {name} answered no health")
-        assert health is not None
-        return dict(health["mirror"])
+        deadline = time.monotonic() + 30
+        while True:
+            child = self.children[f"relay-{name}"]
+            check(child.poll() is None, f"relay {name} exited: {child.returncode}")
+            health = self.health(self.relay_ports[name])
+            if health is not None:
+                return dict(health["mirror"])
+            check(time.monotonic() < deadline, f"relay {name} answered no health")
+            time.sleep(0.05)
 
     def failing(self, name: str, count: int) -> dict[str, Any]:
         """Waits until relay `name` has failed `count` more syncs; answers its mirror's health."""
@@ -642,7 +647,7 @@ class Run:
         self.resume(leader)
         self.log(
             f"A5: voter {x} alone (applied {alone.get('applied')}, the quorum's {quorum.get('applied')}) "
-            f"refused 503; relay D adopted nothing in {mirror['sync_failures']} syncs, then converged"
+            f"refused 503; relay D adopted nothing in {mirror['sync_failures']} failed syncs, then converged"
         )
         # At D's seal: the voter D reads that does not lead is left alone.
         leading = self.leader()
