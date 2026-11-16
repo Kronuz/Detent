@@ -2447,7 +2447,9 @@
     },
     "deps-workpool-repin": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "logger-burst-cost"
+      ],
       "base": "ea5933784f1df18fdc49168990eb21f3ba2def14",
       "branch": "quest/detent/deps-workpool-repin",
       "checks": [
@@ -2485,7 +2487,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Repin logger on workpool, drop scheduler, rename threadpool to workpool",
-      "updated": "2026-11-15T21:03:49",
+      "updated": "2026-11-16T00:04:51",
       "worktree": "../Detent-wt/detent/deps-workpool-repin"
     },
     "detent-brand": {
