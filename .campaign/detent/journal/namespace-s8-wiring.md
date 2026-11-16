@@ -42,6 +42,19 @@ Review findings:
 | D3 | reference/configuration.md (mirror keys, `application_limits.layout`), reference/http-api/authority.md (routes, `history_unavailable`, 413, `session_busy`); stale `application_limits` exception removed | `check_docs.py`: 43 gaps, 43 listed, 0 unlisted, 0 stale | Docs run 43820854964 at d77c332d |
 | D4 | `LayoutExport::file` refuses a file above `reply_bytes - 256` with 413 `reply_bound`, before reading when a layouts answer sized it; the mirror thread doubles its wait after each failed sync, up to 30 s or one interval | `test_relay_chain` (length_error at size - 1, bytes at size) | none: the post-read bound also throws, so a mutant of the pre-read check survives; the saving is the read, not the answer |
 
+Re-review (CHANGES, D9 and D10 blocking), the quest's last fix round:
+
+| ID | Fix | Test | Fails without |
+|---|---|---|---|
+| D9 | `Upstream` gains `sources()` and `skip()`; `NamespaceRelay::sync` on `UpstreamBehind` skips to the next source and starts over, each source once per sync, then throws (the service backs off as before); `HttpUpstream` answers its endpoint count and rotates | `test_relay_service` relay C reads `[lagging proxy, leader]`: the proxy forwards until C holds the authority's seal, then answers every layouts request with the first one it forwarded; C converges with the authority after 12 more writes, and the proxy served a stale answer | mutant `behind-not-skipped` (rethrow at once) |
+| D10 | `test_relay_service` checks the authority's heads hold every name at a position > 0, that each name's answers at 0 and at its head differ, and that the answer at no cursor read at the authority, A and B with the test's own HTTP and DTDIST01 parsing (no HttpUpstream) equals the probe's | the same | mutant `upstream-drops-frames` |
+
+The earlier failed job 261116-005133-947e51 (listed under A1 without a note) was that mutant
+surviving, not a flake: every 200 next read as an empty body, so the probe reached no head, asked
+only the two `*` answers, and they were empty and equal everywhere (the review's rerun
+261116-023219-318dfb logs `heads {}`, 2 answers). Its kill at 591511ce (261115-230049-08c459) was
+an unrelated 404. D10's checks make the comparison hold frames read without the code under test.
+
 D5-D8 (nits): D6 fixed (relay history routes answer 403 `scope_forbidden`), D7 fixed (only a layouts
 request sets `history_wanted`). D5 (history routes skip the cluster/group/epoch context check) and D8
 (`free_port` bind-and-close race in `test_relay_service`; the new proxy binds port 0 itself) are left for
