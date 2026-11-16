@@ -1,6 +1,6 @@
 # journal-driver: journal
 
-State: ready for review (G1 jobs pending: 261116-145650-a3da03 261116-145654-bee7a1 261116-145658-156376 261116-145702-d5d15f 261116-145705-6f3623 261116-145709-f3235b 261116-145713-99f553)
+State: waiting on jobs 261116-151448-ca1b3a 261116-151451-52b783 261116-151454-68acc6
 Quest: .campaign/detent/quests/journal-driver.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,8 +15,8 @@ in (journal:d4b6380..5a959a1). Evidence for every criterion resubmitted at journ
 
 ## Next
 
-1. The lead accepts: re-review at journal:5a959a1 confirmed F1-F4; G1 fixed at journal:87e4f03
-   (final commit). Confirming jobs: F1/F2/F3 suite 261116-141838-acebfd, G1 261116-145650-a3da03.
+1. The lead accepts: re-review at journal:5a959a1 confirmed F1-F4; G1 fixed at journal:87e4f03;
+   placement split for CI TSan at journal:7c08540 (final commit). Confirming jobs: F1/F2/F3 suite 261116-141838-acebfd, G1 261116-145650-a3da03.
 
 ## Blocked on
 
@@ -32,6 +32,7 @@ logs (R13 updated), and N1 fixed in completion:7731315 (repinned, R21).
 | F3 | `recover_shared` takes the table's record only when `TurnDriver::holds` is false (no durable or staged record); otherwise Corruption (journal:d4b6380) | `host_test second_recovery`: 261116-142013-74b933 | recover-twice-from-table 261116-141947-a9566f | suite 261116-141838-acebfd; probe rerun 261116-142006-c0c1df |
 | F4 | same `Host::update` rollback: memory never ahead of the disk | `failed_close` checks the entry stays open | update-keeps-change | as F2 |
 | G1 (re-review) | `driver_test cancel_hops`: cancel from another thread between drives, join, the waiter stays linked until the loop's hop (journal:87e4f03) | passes at the fix: 261116-145650-a3da03 | cancel-without-hop, no TSan, now on `cancel_hops`: 261116-145654-bee7a1, -145658-156376, -145702-d5d15f | 261116-145650-a3da03; suite 261116-145705-6f3623, ASan 261116-145709-f3235b, TSan 261116-145713-99f553 at journal:87e4f03 |
+| CI linux-tsan | `journal_placement` timed out at 600 s; now one ctest entry per case plus `remap` in 8 shards (`placement_test remap SHARD 8`), which together cut every point (journal:7c08540). ASan runs the unsharded sweep | expected under TSan: each entry well under 600 s (about 1/8 of the old remap each), around 5 min wall at -j4; measured by 261116-151448-ca1b3a (macOS, -O1 TSan as CI); CI on Linux is the gate | - | suite 261116-151451-52b783, ASan 261116-151454-68acc6 at journal:7c08540 |
 | F5 | not changed: noted (low-water `mark` probes every serial since a pinned artifact) | - | - | - |
 | F6 | not changed: refusing a scheduler without `post_call` needs task's `scheduler_ref` to expose it (task repo, outside the file set) | - | - | - |
 | F7 | documented in `blocking.h`: a stalled entry's scheduler is not driven again (journal:286582c) | - | - | - |
@@ -101,6 +102,8 @@ history (967 points per mode at seed 1, identical operation counts). Docs: journ
   idempotently, and the group's own journal is fenced by the failure.
 - R25. F3 refuses a second recovery on one host (Corruption, the pre-quest behavior) rather than
   rereading the log; `TurnDriver::holds` also covers a reopen whose record is still staged.
+- R27. Placement splits by ctest entry and remap crash-point shard, not by a TSan-only sample: every
+  build keeps full crash coverage.
 - R26. The new cases are named `damaged_absent`, `failed_close`, `second_recovery` so the review's
   probes, which include the test files, rerun unchanged. `entry_threads_busy` runs 200 rounds: at 20
   the cancel-without-hop mutant survived one TSan run of three (261116-134559-acb5ec).
