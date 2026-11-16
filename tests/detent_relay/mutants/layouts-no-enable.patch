@@ -1,0 +1,12 @@
+diff --git a/src/detent_authority/service.cc b/src/detent_authority/service.cc
+index 81b35a33..f8915e28 100644
+--- a/src/detent_authority/service.cc
++++ b/src/detent_authority/service.cc
+@@ -2960,7 +2960,6 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
+ 				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
+ 					// W8: this voter's own history, by name; immutable files need no quorum read. A
+ 					// relay's layouts want positions as a W5 next does.
+-					history_wanted = history_wanted || !node.state().positions_enabled();
+ 					complete(first, Service::history_reply(*first, node, layout_export));
+ 					first.reset();
+ 				}

@@ -15,7 +15,7 @@ namespace d = detent::distribution;
 namespace r = detent::relay;
 namespace {
 std::string sha(std::string_view bytes) {
-	SHA256 hash;
+	class SHA256 hash;
 	hash.add(bytes.data(), bytes.size());
 	return hash.getHash();
 }
@@ -34,7 +34,7 @@ struct Heads final : d::FrameSink {
 		heads[std::string(name)] = to;
 	}
 	void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
-	void record(std::string_view, std::uint64_t, const d::KnobDef *) override {}
+	void record(std::string_view, std::uint64_t, const detent::KnobDef *) override {}
 };
 std::map<std::string, d::NamespaceCursor> heads(std::string_view body) {
 	Heads sink;

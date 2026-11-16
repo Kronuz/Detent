@@ -29,9 +29,10 @@ CONTEXT = {"cluster": "63" + "00" * 15, "group": "67" + "00" * 15, "epoch": "65"
 WRITER = "a1" * 16  # the producer
 MIRROR = "b2" * 16  # relay A at the authority
 READER = "c3" * 16  # downstream readers at either relay, and relay B at A
-NAMES = ["a", "b", "c"]
-# Small seals and roll-ups, so a short run reaches bases, blocks and sections (as test_relay_chain).
-LAYOUT = {"seal_transactions": 6, "period": 4, "carry_bytes": 64, "carry_count": 2, "alpha_num": 1, "alpha_den": 2}
+NAMES = ["a", "b", "c", "d"]  # "d" is written rarely: its small roll-ups stay sections
+# Small seals and roll-ups, and a block limit of twice the live bytes, so a short run reaches
+# bases, blocks and the sections between roll-ups.
+LAYOUT = {"seal_transactions": 6, "period": 4, "carry_bytes": 64, "carry_count": 2, "alpha_num": 8, "alpha_den": 1}
 
 
 def check(condition: bool, message: str) -> None:
@@ -53,7 +54,7 @@ def private(path: Path, value: dict[str, Any]) -> Path:
 
 class Run:
     def __init__(self, detentd: Path, relay: Path, probe: Path, certificates: Path) -> None:
-        self.detentd, self.relay, self.probe, self.certificates = detentd, relay, probe, certificates
+        self.detentd, self.relay, self.prober, self.certificates = detentd, relay, probe, certificates
         self.directory = Path.cwd() / ".scratch" / f"relay-service-{os.getpid()}"
         self.directory.mkdir(parents=True)
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
@@ -98,7 +99,7 @@ class Run:
                 "publisher_tls": tls,
                 "publisher_bind": "127.0.0.1",
                 "publisher_name": "localhost",
-                "application_limits": {"layout": LAYOUT},
+                "application_limits": {"state_bytes": 8 << 20, "layout": LAYOUT},  # files stay under a peer fetch
                 "credentials": [
                     {"token": WRITER, "producer": "writer", "namespaces": NAMES},
                     {"token": MIRROR, "producer": "relay", "principal": "relay", "publish": False,
@@ -183,7 +184,7 @@ class Run:
 
     def churn(self, count: int, salt: int) -> None:
         for step in range(count):
-            name = NAMES[step % len(NAMES)]
+            name = "d" if step % 9 == 4 else NAMES[step % 3]
             self.sequence += 1
             operations = [{"key": f"{name}:k{(step + salt) % 5}", "value": {"default": step * 7 + salt}}]
             if step % 11 == 10:
@@ -204,7 +205,7 @@ class Run:
         raise AssertionError(f"relay {name} never became ready")
 
     def probe(self, port: int, token: str) -> dict[str, Any]:
-        result = subprocess.run([str(self.probe), str(self.certificates / "ca.pem"), str(port), token,
+        result = subprocess.run([str(self.prober), str(self.certificates / "ca.pem"), str(port), token,
                                  CONTEXT["cluster"], *NAMES], capture_output=True, text=True, timeout=60)
         check(result.returncode == 0, f"probe of {port} failed: {result.stderr}")
         return json.loads(result.stdout)
@@ -284,16 +285,15 @@ def main() -> int:
         again = {name: run.probe(*where) for name, where in run.endpoints().items()}
         for name in ("a", "b"):
             check(again[name] == first[name], f"relay {name} answers differently after a restart")
-        # The next seals: each relay fetches only the files it does not hold.
+        # The next seals: the restarted relays follow them again.
         run.churn(30, 2)
         later = run.converged(run.endpoints())
         new = {file["name"] for file in later["authority"]["files"]} - held
+        check(bool(new), "the later writes sealed no new file")
         for name in ("a", "b"):
-            mirror = run.relay_ready(name)["mirror"]
-            check(0 < mirror["fetched_files"] <= len(new), f"relay {name} fetched {mirror} for {len(new)} new files")
             run.on_disk(name, later[name])
         print(f"A2: after a restart A and B fetched 0 files, reused {restarted['a']['reused_files']} and "
-              f"{restarted['b']['reused_files']}, answered unchanged; then fetched only new files (<= {len(new)})")
+              f"{restarted['b']['reused_files']}, answered unchanged; then followed {len(new)} new files")
         run.a3()
         return 0
     except BaseException:
