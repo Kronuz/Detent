@@ -5,27 +5,22 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Detent's authority runs on the drivers, per `docs/design/async-drivers.md` (Detent) Build plan row 6: the owner-loop table, `AuthorityPeers` on the host transport, no 1 ms timer in the authority; journal and consensus pins move to the driver commits.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The owner-loop table and `AuthorityPeers` run on the drivers and the host transport, and the authority has no 1 ms timer: the native suite, a grep job and an idle-CPU job
+- A2 CPU per request and p99 stay within the November 2 item 7 gate: before/after exclusive jobs at named commits
+- A3 The pins check passes with journal and consensus at their driver commits: the pins check
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes consensus-transport, consensus-driver, journal-driver.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 node identity). Xapiand cluster-release (Xapiand:15c3e05ac) orders after this quest by this id.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.

@@ -5,27 +5,24 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+journal runs on task: `TurnDriver::run` and `Store` are tasks over completion's seam, and `journal::run` drives them to completion with no `io_context` (D2, D5, D8), per `docs/design/async-drivers.md` (Detent) Build plan row 3. One directory and owner lock per host holds every group (Q3 (b), D97): artifacts named by opaque fixed-width group id and incarnation, turn logs named by (generation, loop), a per-host group table, and a re-partition when L changes that keeps lost groups lost.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `TurnDriver::run` and `Store` are tasks; the crash-point suites run through `HeldCompletion` with the sync driver's histories, unchanged in outcome: the suite
+- A2 `journal::run` with no `io_context` returns only after staged records are written (an append cancelled after staging included) and throws `journal::stalled` with the waiting groups' ids on every lost wake, a live token included, over `blocking_scheduler`: tests (the `blocking_entry rules` and `lost-wake-live-token` cases) under TSan
+- A3 Layout (Q3 (b)): zero descriptors per idle group (an idle-cost job); artifacts named by opaque group id and incarnation so nested indexes never collide and reclaiming one never touches another (test); reclamation and admission by name with no directory scan; a per-host group table reopens a closed group without scanning the turn log; one owner lock per host, the same lock strata's cold tier takes (cold-tier Q1): tests and the idle-cost job
+- A4 Re-partition when L changes is crash-tested at every durable step over a damaged old generation; recovery's lost ids stay lost after commit and after a crash at every step, and a lost id stays lost across retention (async-drivers note): `placement_test remap`, `repartition_lost` and a retention test
+- A5 No Asio in `include/` and the on-disk layout is documented: a grep job and [artifact] `docs/`: "one directory per host"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `journal::TurnDriver`, `journal::Store`, `journal::run` on task and completion's seam, and the per-host on-disk layout (a format change Xapiand 7b writes on; nothing reads the old layout, D43).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 node identity). Xapiand cluster-release (Xapiand:15c3e05ac) orders after this quest by this id.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests of the existing state machines; the layout lands whole.

@@ -5,27 +5,23 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Idle consensus groups cost bytes, not CPU (Track C D12, D97 Q4): a quiescent follower stops heartbeats, a closed or quiescent group reopens on a frame or a request without an election when its leader is unchanged, and failure detection runs once per node pair on the shared connection, raising `LeaderGone` for every group it hosts (`Wake`, `LeaderGone` in Core).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A quiescent group reopens on a frame or a request with no election and no term change when its leader is unchanged: tests in `simulation_test`
+- A2 One failure detector per node pair raises `LeaderGone` for every group on that pair, and those groups elect within their timeout; a leader change while quiescent is never missed: tests, plus a mutant that drops LeaderGone for one group, killed
+- A3 Safety: quiescence never lets two leaders commit in one term nor a stale leader serve a read: the simulation suite under random partitions and TSan
+- A4 Idle CPU per group measured at 1M groups (wakes per second per host, CPU per idle group), against the per-group-heartbeat baseline: an exclusive job and a results doc
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `Wake` and `LeaderGone` in Core and the per-node-pair detector on the host transport; Xapiand orders after it (`--after detent:consensus-quiescence`).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 node identity). Xapiand cluster-release (Xapiand:15c3e05ac) orders after this quest by this id.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: it changes Core's protocol.
