@@ -13,7 +13,7 @@ detent-relay serves namespace history to its clients from its `NamespaceRelay` m
 - A2 A relay process restart fetches nothing the mirror holds and answers every R at or above the cut unchanged: the same test with bytes fetched
 - A3 The relay never joins consensus and refuses member endpoints (W8): a test
 - A4 [artifact] `docs/status/namespace-s8.md`: "service"
-- A5 A voter that knows no live leader refuses the history and layouts (W5) routes with 503, as `/v1/health` reports it not ready, so a relay never follows a voter cut off from the quorum: `test_relay_service` stops two voters (SIGSTOP) and the relay converges with the live quorum's seal; a mutant without the check is killed (D99)
+- A5 [decision] Voters that know no live leader refuse history and layouts with 503 (the `/v1/health` ready predicate, with the absence rule of ruling 18) and the relay skips such a source; the remaining window, up to the election timeout, moves to voter-read-freshness (D101)
 
 ## Contracts
 
