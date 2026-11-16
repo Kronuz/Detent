@@ -6329,23 +6329,44 @@
           "reason": "",
           "voided": [],
           "weakened": []
+        },
+        {
+          "at": "2026-11-15T21:13:12",
+          "lenses": [
+            [
+              "design",
+              "correctness"
+            ],
+            [
+              "durability",
+              "correctness"
+            ]
+          ],
+          "reason": "the design lens was this quest's plan review, done (reviews/namespace-s6-v1-removal-design.md, CHANGES applied as the P1-P5 split, D94); its build is reviewed by durability and correctness",
+          "voided": [],
+          "weakened": [
+            "lens design removed"
+          ]
         }
       ],
       "landed": [],
       "lenses": [
-        "design",
+        "durability",
         "correctness"
       ],
       "milestone": "N1",
       "needs": [
-        "namespace-s6-cutover"
+        "namespace-s6-cutover",
+        "namespace-s8-wiring",
+        "namespace-s6-hardening",
+        "namespace-local-cursor"
       ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
-      "updated": "2026-11-15T21:03:05"
+      "updated": "2026-11-15T21:13:12"
     },
     "namespace-s7": {
       "accepted": {
