@@ -159,14 +159,17 @@ MirrorStore::~MirrorStore() = default;
 const MirrorTable &MirrorStore::table() const noexcept { return impl_->table; }
 std::span<const std::string> MirrorStore::failed() const noexcept { return impl_->failed; }
 
-AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::span<const std::string> dropped,
-							  const MirrorFetch &from) {
+AdoptStats MirrorStore::adopt(std::uint64_t seal, std::span<const NamespaceLayout> layouts,
+							  std::span<const std::string> dropped, const MirrorFetch &from) {
 	auto &s = *impl_;
 	if (s.poisoned)
 		throw std::logic_error("relay mirror needs a restart after a failed adoption");
+	if (seal < s.table.seal)
+		throw std::invalid_argument("relay mirror adoption: a seal older than the table's");
 	// Validation: the next table, whole, before anything is fetched or written.
 	MirrorTable next = s.table;
 	next.sequence = s.table.sequence + 1;
+	next.seal = seal;
 	std::set<std::string_view> touched;
 	auto locate = [&](std::string_view name) {
 		return std::lower_bound(next.entries.begin(), next.entries.end(), name,
@@ -212,7 +215,7 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 			}
 			wanted.push_back({entry.name, &file, std::move(name), {}, {}});
 		}
-	if (wanted.empty() && next.entries == s.table.entries)
+	if (wanted.empty() && next.entries == s.table.entries && next.seal == s.table.seal)
 		return stats; // the durable table already holds this layout
 	auto clean = [&] {
 		for (auto &want : wanted)

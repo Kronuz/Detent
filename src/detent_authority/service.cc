@@ -1142,7 +1142,8 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 
 // W8, on the owner: a relay's layouts, or one file of a granted namespace's layout, from this voter's
 // history at its latest seal (docs/status/namespace-s8.md, "The service").
-Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter) {
+// A file above `maximum` (the reply bound) is refused 413, before it is read once a layout sized it.
+Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum) {
 	const Reply unavailable{503, "{\"error\":\"history_unavailable\"}"};
 	auto *files = node.history_files();
 	if (!files || !node.history()->ready() || !node.sealed())
@@ -1150,15 +1151,17 @@ Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport
 	try {
 		const auto &table = node.history()->layout().table();
 		if (task.kind == Task::Kind::HistoryFile) {
-			auto bytes = LayoutExport::file(task.name_space, task.keys.front(), table, *files, node.state().limits());
+			auto bytes = exporter.file(task.name_space, task.keys.front(), table, *files, node.sealed()->limits(), maximum);
 			if (!bytes)
 				return {404, "{\"error\":\"not_found\"}"};
 			return {200, std::move(*bytes), true, {}, "application/octet-stream"};
 		}
-		auto layouts = exporter.layouts(task.keys, node.state(), *node.sealed(), table, *files);
+		auto layouts = exporter.layouts(task.keys, *node.sealed(), table, *files);
 		if (!layouts)
 			return unavailable;
-		return {200, relay::encode_mirror_table({0, std::move(*layouts)}), true, {}, "application/vnd.detent.layouts"};
+		return {200, relay::encode_mirror_table(*layouts), true, {}, "application/vnd.detent.layouts"};
+	} catch (const std::length_error &) {
+		return {413, "{\"error\":\"reply_bound\"}"};
 	} catch (const std::exception &) {
 		return unavailable;
 	}
@@ -2960,8 +2963,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
 					// W8: this voter's own history, by name; immutable files need no quorum read. A
 					// relay's layouts want positions as a W5 next does.
-					history_wanted = history_wanted || !node.state().positions_enabled();
-					complete(first, Service::history_reply(*first, node, layout_export));
+					history_wanted = history_wanted ||
+									 (first->kind == Task::Kind::HistoryLayouts && !node.state().positions_enabled());
+					complete(first, Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256));
 					first.reset();
 				}
 				if (first) {

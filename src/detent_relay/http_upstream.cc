@@ -7,6 +7,7 @@
 #include <map>
 #include <rapidjson/document.h>
 #include <reactor_tls.h>
+#include <thread>
 
 namespace detent::relay {
 namespace d = distribution;
@@ -228,14 +229,14 @@ HttpUpstream::HttpUpstream(HttpUpstreamOptions options) : impl_(std::make_unique
 HttpUpstream::~HttpUpstream() = default;
 HttpUpstream::Stats HttpUpstream::stats() const noexcept { return impl_->stats; }
 
-std::vector<NamespaceLayout> HttpUpstream::layouts(std::span<const std::string> names) {
+MirrorTable HttpUpstream::layouts(std::span<const std::string> names) {
 	std::string body = "{\"namespaces\":[";
 	for (std::size_t i = 0; i < names.size(); ++i)
 		body += (i ? "," : "") + json_string(names[i]);
 	body += "]}";
 	const auto response = impl_->expect("/v2/history/layouts", body, 200, "application/vnd.detent.layouts");
 	try {
-		return decode_mirror_table(response.body).entries;
+		return decode_mirror_table(response.body);
 	} catch (const MirrorRefused &error) {
 		impl_->rotate();
 		throw UpstreamUnavailable(std::string("relay upstream: ") + error.what());
@@ -256,7 +257,9 @@ std::string HttpUpstream::frames(std::span<const Position> positions) {
 	delivery::Following following;
 	for (const auto &position : positions)
 		following.namespaces.push_back({position.name, position.cursor});
-	for (int attempt = 0;; ++attempt) {
+	// One reopen after 410; while the session is busy, up to busy_attempts waits doubling from 1 ms.
+	constexpr int busy_attempts = 10;
+	for (int expired = 0, busy = 0;;) {
 		if (!p.session)
 			p.session = p.open(following);
 		const auto body = delivery::namespace_session_body(delivery::SessionResponsePurpose::Next, following,
@@ -266,8 +269,13 @@ std::string HttpUpstream::frames(std::span<const Position> positions) {
 			return d::encode_session_frames(std::nullopt, {});
 		if (response.status == 200)
 			return p.defragment(response);
+		if (response.status == 409 && response.body.find("\"session_busy\"") != std::string::npos &&
+			busy < busy_attempts) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(1 << busy++));
+			continue;
+		}
 		p.session.reset();
-		if (response.status != 410 || attempt)
+		if (response.status != 410 || expired++)
 			throw UpstreamUnavailable("relay upstream: next answered " + std::to_string(response.status) + ": " +
 									  response.body.substr(0, 256));
 	}

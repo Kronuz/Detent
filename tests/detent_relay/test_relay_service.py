@@ -2,7 +2,8 @@
 
 Three detentd voters; relay A reads them, relay B reads A, both as W8 readers with a credential.
 A1: every block, base and section, and every W5/W6 answer (none, another incarnation, R = 0 ..
-head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's and B's disks.
+head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's and B's disks,
+also when every other W5 next answers `409 session_busy`.
 A2: A and B restart, fetch no file their mirror holds, and answer unchanged.
 A3: the relays refuse member routes and a `voters` configuration and link no consensus.
 
@@ -13,6 +14,8 @@ from __future__ import annotations
 
 import hashlib
 import http.client
+import http.server
+import itertools
 import json
 import os
 import shutil
@@ -21,23 +24,110 @@ import socket
 import ssl
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
-CONTEXT = {"cluster": "63" + "00" * 15, "group": "67" + "00" * 15, "epoch": "65" + "00" * 15}
+CONTEXT = {
+    "cluster": "63" + "00" * 15,
+    "group": "67" + "00" * 15,
+    "epoch": "65" + "00" * 15,
+}
 WRITER = "a1" * 16  # the producer
 MIRROR = "b2" * 16  # relay A at the authority
 READER = "c3" * 16  # downstream readers at either relay, and relay B at A
 NAMES = ["a", "b", "c", "d"]  # "d" is written rarely: its small roll-ups stay sections
 # Small seals and roll-ups, and a block limit of twice the live bytes, so a short run reaches
 # bases, blocks and the sections between roll-ups.
-LAYOUT = {"seal_transactions": 3, "period": 4, "carry_bytes": 64, "carry_count": 2, "alpha_num": 8, "alpha_den": 1}
+LAYOUT = {
+    "seal_transactions": 3,
+    "period": 4,
+    "carry_bytes": 64,
+    "carry_count": 2,
+    "alpha_num": 8,
+    "alpha_den": 1,
+}
 
 
 def check(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+class BusyProxy:
+    """A TLS proxy in front of one voter that answers every other W5 next `409 session_busy` itself,
+    as a voter does while the session's previous answer retires; the rest it forwards unchanged."""
+
+    def __init__(
+        self, certificates: Path, context: ssl.SSLContext, upstream: int
+    ) -> None:
+        self.busy = 0
+        nexts = itertools.count()
+        proxy = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_POST(self) -> None:
+                body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                if self.path == "/v2/distribution/session/next" and next(nexts) % 2:
+                    proxy.busy += 1
+                    self.answer(
+                        409,
+                        {"Content-Type": "application/json"},
+                        b'{"error":"session_busy"}',
+                    )
+                    return
+                connection = http.client.HTTPSConnection(
+                    "localhost", upstream, context=context, timeout=10
+                )
+                try:
+                    connection.request(
+                        "POST",
+                        self.path,
+                        body,
+                        {
+                            "Authorization": self.headers["Authorization"],
+                            "Content-Type": "application/json",
+                            "Connection": "close",
+                        },
+                    )
+                    response = connection.getresponse()
+                    headers = {
+                        k: v
+                        for k, v in response.getheaders()
+                        if k.lower() == "content-type"
+                        or k.lower().startswith("x-detent-")
+                    }
+                    self.answer(response.status, headers, response.read())
+                finally:
+                    connection.close()
+
+            def answer(self, status: int, headers: dict[str, str], body: bytes) -> None:
+                self.send_response(status)
+                for name, value in headers.items():
+                    self.send_header(name, value)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_: Any) -> None:
+                pass
+
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.load_cert_chain(
+            str(certificates / "one.pem"), str(certificates / "one.key")
+        )
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.socket = tls.wrap_socket(self.server.socket, server_side=True)
+        self.port = int(self.server.server_address[1])
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
 
 
 def free_port() -> int:
@@ -53,8 +143,15 @@ def private(path: Path, value: dict[str, Any]) -> Path:
 
 
 class Run:
-    def __init__(self, detentd: Path, relay: Path, probe: Path, certificates: Path) -> None:
-        self.detentd, self.relay, self.prober, self.certificates = detentd, relay, probe, certificates
+    def __init__(
+        self, detentd: Path, relay: Path, probe: Path, certificates: Path
+    ) -> None:
+        self.detentd, self.relay, self.prober, self.certificates = (
+            detentd,
+            relay,
+            probe,
+            certificates,
+        )
         self.directory = Path.cwd() / ".scratch" / f"relay-service-{os.getpid()}"
         self.directory.mkdir(parents=True)
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
@@ -69,7 +166,9 @@ class Run:
     # Processes.
     def start(self, name: str, command: list[str]) -> None:
         log = (self.directory / f"{name}.log").open("ab")
-        self.children[name] = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
+        self.children[name] = subprocess.Popen(
+            command, stdout=log, stderr=subprocess.STDOUT
+        )
         log.close()
 
     def stop(self, name: str) -> None:
@@ -85,14 +184,23 @@ class Run:
     def voters(self) -> None:
         voters = []
         for index, node in enumerate(("one", "two", "three")):
-            der = ssl.PEM_cert_to_DER_cert((self.certificates / f"{node}.pem").read_text())
+            der = ssl.PEM_cert_to_DER_cert(
+                (self.certificates / f"{node}.pem").read_text()
+            )
             voters.append(
-                {"id": index + 1, "host": "127.0.0.1", "port": self.peers[index],
-                 "certificate_sha256": hashlib.sha256(der).hexdigest()}
+                {
+                    "id": index + 1,
+                    "host": "127.0.0.1",
+                    "port": self.peers[index],
+                    "certificate_sha256": hashlib.sha256(der).hexdigest(),
+                }
             )
         for index, node in enumerate(("one", "two", "three")):
-            tls = {"certificate": str(self.certificates / f"{node}.pem"),
-                   "key": str(self.certificates / f"{node}.key"), "ca": str(self.certificates / "ca.pem")}
+            tls = {
+                "certificate": str(self.certificates / f"{node}.pem"),
+                "key": str(self.certificates / f"{node}.key"),
+                "ca": str(self.certificates / "ca.pem"),
+            }
             configuration = CONTEXT | {
                 "node": index + 1,
                 "voters": voters,
@@ -101,21 +209,40 @@ class Run:
                 "publisher_tls": tls,
                 "publisher_bind": "127.0.0.1",
                 "publisher_name": "localhost",
-                "application_limits": {"state_bytes": 8 << 20, "layout": LAYOUT},  # files stay under a peer fetch
+                "application_limits": {
+                    "state_bytes": 8 << 20,
+                    "layout": LAYOUT,
+                },  # files stay under a peer fetch
                 "credentials": [
                     {"token": WRITER, "producer": "writer", "namespaces": NAMES},
-                    {"token": MIRROR, "producer": "relay", "principal": "relay", "publish": False,
-                     "namespaces": ["*"]},
+                    {
+                        "token": MIRROR,
+                        "producer": "relay",
+                        "principal": "relay",
+                        "publish": False,
+                        "namespaces": ["*"],
+                    },
                 ],
             }
             if sys.platform.startswith("linux"):
                 configuration["storage_backend"] = "native"
             path = private(self.directory / f"voter-{index}.json", configuration)
-            self.start(f"voter-{index}", [str(self.detentd), "--authority", str(path), "--port",
-                                          str(self.http[index]), "--runtime-dir",
-                                          str(self.directory / f"runtime-{index}")])
+            self.start(
+                f"voter-{index}",
+                [
+                    str(self.detentd),
+                    "--authority",
+                    str(path),
+                    "--port",
+                    str(self.http[index]),
+                    "--runtime-dir",
+                    str(self.directory / f"runtime-{index}"),
+                ],
+            )
 
-    def relay_configuration(self, name: str, upstreams: list[int], token: str, **extra: Any) -> Path:
+    def relay_configuration(
+        self, name: str, upstreams: list[int], token: str, **extra: Any
+    ) -> Path:
         configuration = {
             "address": "127.0.0.1",
             "port": self.relay_ports[name],
@@ -127,24 +254,50 @@ class Run:
                 "directory": str(self.directory / f"mirror-{name}"),
                 "cluster": CONTEXT["cluster"],
                 "namespaces": NAMES,
-                "upstreams": [{"address": "127.0.0.1", "port": port} for port in upstreams],
+                "upstreams": [
+                    {"address": "127.0.0.1", "port": port} for port in upstreams
+                ],
                 "token": token,
                 "interval_ms": 100,
             },
-            "credentials": [{"token": READER, "principal": "reader", "policy_epoch": 1, "namespaces": ["*"]}],
+            "credentials": [
+                {
+                    "token": READER,
+                    "principal": "reader",
+                    "policy_epoch": 1,
+                    "namespaces": ["*"],
+                }
+            ],
         } | extra
         return private(self.directory / f"relay-{name}.json", configuration)
 
     def start_relay(self, name: str) -> None:
-        upstreams, token = (self.http, MIRROR) if name == "a" else ([self.relay_ports["a"]], READER)
+        upstreams, token = (
+            (self.http, MIRROR) if name == "a" else ([self.relay_ports["a"]], READER)
+        )
         path = self.relay_configuration(name, upstreams, token)
-        self.start(f"relay-{name}", [str(self.relay), "--config", str(path), "--runtime-dir",
-                                     str(self.directory / f"relay-run-{name}")])
+        self.start(
+            f"relay-{name}",
+            [
+                str(self.relay),
+                "--config",
+                str(path),
+                "--runtime-dir",
+                str(self.directory / f"relay-run-{name}"),
+            ],
+        )
 
     # HTTP.
-    def call(self, port: int, path: str, body: dict[str, Any] | None = None,
-             token: str = WRITER) -> tuple[int, bytes]:
-        connection = http.client.HTTPSConnection("localhost", port, context=self.context, timeout=10)
+    def call(
+        self,
+        port: int,
+        path: str,
+        body: dict[str, Any] | None = None,
+        token: str = WRITER,
+    ) -> tuple[int, bytes]:
+        connection = http.client.HTTPSConnection(
+            "localhost", port, context=self.context, timeout=10
+        )
         try:
             headers = {"Connection": "close"}
             if body is None:
@@ -181,7 +334,9 @@ class Run:
             if self.leading is None:
                 self.leading = self.leader()
             try:
-                status, body = self.call(self.http[self.leading], path, CONTEXT | fields)
+                status, body = self.call(
+                    self.http[self.leading], path, CONTEXT | fields
+                )
             except (OSError, http.client.HTTPException):
                 status, body = 0, b""
             if status == 200:
@@ -194,11 +349,25 @@ class Run:
         for step in range(count):
             name = "d" if step % 9 == 4 else NAMES[step % 3]
             self.sequence += 1
-            operations = [{"key": f"{name}:k{(step + salt) % 5}", "value": {"default": step * 7 + salt}}]
+            operations = [
+                {
+                    "key": f"{name}:k{(step + salt) % 5}",
+                    "value": {"default": step * 7 + salt},
+                }
+            ]
             if step % 11 == 10:
-                operations.append({"key": f"{name}:k{(step + salt + 1) % 5}", "value": None})
-            receipt = self.write("/v2/transactions", {"generation": 1, "sequence": self.sequence,
-                                                       "namespace": name, "operations": operations})
+                operations.append(
+                    {"key": f"{name}:k{(step + salt + 1) % 5}", "value": None}
+                )
+            receipt = self.write(
+                "/v2/transactions",
+                {
+                    "generation": 1,
+                    "sequence": self.sequence,
+                    "namespace": name,
+                    "operations": operations,
+                },
+            )
             check(receipt.get("status") == "applied", f"transaction refused: {receipt}")
 
     def relay_ready(self, name: str) -> dict[str, Any]:
@@ -213,8 +382,20 @@ class Run:
         raise AssertionError(f"relay {name} never became ready")
 
     def probe(self, port: int, token: str) -> dict[str, Any]:
-        result = subprocess.run([str(self.prober), str(self.certificates / "ca.pem"), str(port), token,
-                                 CONTEXT["cluster"], *NAMES], capture_output=True, text=True, timeout=60)
+        result = subprocess.run(
+            [
+                str(self.prober),
+                str(self.certificates / "ca.pem"),
+                str(port),
+                token,
+                CONTEXT["cluster"],
+                *NAMES,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
         check(result.returncode == 0, f"probe of {port} failed: {result.stderr}")
         return json.loads(result.stdout)
 
@@ -227,39 +408,83 @@ class Run:
             if all(answer == last["authority"] for answer in last.values()):
                 return last
             time.sleep(0.2)
-        differing = {name for name, answer in last.items() if answer != last["authority"]}
+        differing = {
+            name for name, answer in last.items() if answer != last["authority"]
+        }
         raise AssertionError(f"answers never converged; differing: {differing}")
 
     def on_disk(self, name: str, answer: dict[str, Any]) -> None:
         """Each file the relay serves is its own durable copy: m-<hash of its name>, these bytes."""
         for file in answer["files"]:
-            stored = self.directory / f"mirror-{name}" / ("m-" + hashlib.sha256(file["name"].encode()).hexdigest()[:32])
+            stored = (
+                self.directory
+                / f"mirror-{name}"
+                / ("m-" + hashlib.sha256(file["name"].encode()).hexdigest()[:32])
+            )
             check(stored.is_file(), f"relay {name} holds no copy of {file['name']}")
-            check(hashlib.sha256(stored.read_bytes()).hexdigest() == file["sha"],
-                  f"relay {name}'s copy of {file['name']} differs")
+            check(
+                hashlib.sha256(stored.read_bytes()).hexdigest() == file["sha"],
+                f"relay {name}'s copy of {file['name']} differs",
+            )
 
     def log(self, line: str) -> None:
         print(f"[{time.monotonic() - self.started:6.1f}s] {line}", flush=True)
 
     def endpoints(self) -> dict[str, tuple[int, str]]:
-        return {"authority": (self.http[self.leader()], MIRROR), "a": (self.relay_ports["a"], READER),
-                "b": (self.relay_ports["b"], READER)}
+        return {
+            "authority": (self.http[self.leader()], MIRROR),
+            "a": (self.relay_ports["a"], READER),
+            "b": (self.relay_ports["b"], READER),
+        }
 
     def a3(self) -> None:
-        for path in ("/v2/open", "/v2/close", "/v2/transactions", "/v2/read", "/v2/result", "/v2/distribution",
-                     "/v1/transactions", "/v2/administer"):
+        for path in (
+            "/v2/open",
+            "/v2/close",
+            "/v2/transactions",
+            "/v2/read",
+            "/v2/result",
+            "/v2/distribution",
+            "/v1/transactions",
+            "/v2/administer",
+        ):
             for name in ("a", "b"):
-                status, _ = self.call(self.relay_ports[name], path, CONTEXT | {"expected_generation": 0}, READER)
-                check(status == 404, f"relay {name} answered member route {path} with {status}")
+                status, _ = self.call(
+                    self.relay_ports[name],
+                    path,
+                    CONTEXT | {"expected_generation": 0},
+                    READER,
+                )
+                check(
+                    status == 404,
+                    f"relay {name} answered member route {path} with {status}",
+                )
         # A relay configured as a member does not start.
         bad = self.relay_configuration("a", self.http, MIRROR, voters=[{"id": 1}])
-        refused = subprocess.run([str(self.relay), "--config", str(bad), "--status", "--runtime-dir",
-                                  str(self.directory / "relay-run-refused")], capture_output=True, timeout=30)
+        refused = subprocess.run(
+            [
+                str(self.relay),
+                "--config",
+                str(bad),
+                "--status",
+                "--runtime-dir",
+                str(self.directory / "relay-run-refused"),
+            ],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
         check(refused.returncode != 0, "a relay configuration with voters was accepted")
         # W8: the relay links no consensus (Itanium-mangled kronuz::consensus).
-        symbols = subprocess.run(["nm", str(self.relay)], capture_output=True, timeout=120).stdout
-        check(b"6kronuz9consensus" not in symbols, "detent-relay links kronuz::consensus")
-        self.log("A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols")
+        symbols = subprocess.run(
+            ["nm", str(self.relay)], capture_output=True, timeout=120, check=False
+        ).stdout
+        check(
+            b"6kronuz9consensus" not in symbols, "detent-relay links kronuz::consensus"
+        )
+        self.log(
+            "A3: member routes 404 on both relays; a voters configuration refused; no consensus symbols"
+        )
 
 
 def main() -> int:
@@ -281,8 +506,24 @@ def main() -> int:
         for name in ("a", "b"):
             run.on_disk(name, first[name])
         answers = len(first["authority"]["frames"])
-        run.log(f"A1: {len(first['authority']['files'])} files ({sorted(kinds)}) and {answers} W5/W6 answers "
-              f"byte-identical at the authority, A and B; heads {first['authority']['heads']}")
+        run.log(
+            f"A1: {len(first['authority']['files'])} files ({sorted(kinds)}) and {answers} W5/W6 answers "
+            f"byte-identical at the authority, A and B; heads {first['authority']['heads']}"
+        )
+        # W5's session contract: a next on a busy session (409 session_busy) is asked again.
+        proxy = BusyProxy(run.certificates, run.context, run.http[run.leader()])
+        try:
+            via = run.probe(proxy.port, MIRROR)
+        finally:
+            proxy.close()
+        check(
+            via == first["authority"],
+            "the probe through busy nexts answered differently",
+        )
+        check(proxy.busy > 0, "the proxy answered no next busy")
+        run.log(
+            f"W5: {proxy.busy} nexts answered 409 session_busy; the reader asked again, answers unchanged"
+        )
 
         held = {file["name"] for file in first["authority"]["files"]}
         run.stop("relay-b")
@@ -291,11 +532,16 @@ def main() -> int:
         run.start_relay("b")
         restarted = {name: run.relay_ready(name)["mirror"] for name in ("a", "b")}
         for name, mirror in restarted.items():
-            check(mirror["fetched_files"] == 0 and mirror["reused_files"] > 0,
-                  f"relay {name} fetched again after a restart: {mirror}")
+            check(
+                mirror["fetched_files"] == 0 and mirror["reused_files"] > 0,
+                f"relay {name} fetched again after a restart: {mirror}",
+            )
         again = {name: run.probe(*where) for name, where in run.endpoints().items()}
         for name in ("a", "b"):
-            check(again[name] == first[name], f"relay {name} answers differently after a restart")
+            check(
+                again[name] == first[name],
+                f"relay {name} answers differently after a restart",
+            )
         # The next seals: the restarted relays follow them again.
         run.churn(12, 2)
         later = run.converged(run.endpoints())
@@ -303,13 +549,17 @@ def main() -> int:
         check(bool(new), "the later writes sealed no new file")
         for name in ("a", "b"):
             run.on_disk(name, later[name])
-        run.log(f"A2: after a restart A and B fetched 0 files, reused {restarted['a']['reused_files']} and "
-              f"{restarted['b']['reused_files']}, answered unchanged; then followed {len(new)} new files")
+        run.log(
+            f"A2: after a restart A and B fetched 0 files, reused {restarted['a']['reused_files']} and "
+            f"{restarted['b']['reused_files']}, answered unchanged; then followed {len(new)} new files"
+        )
         run.a3()
         return 0
     except BaseException:
         for log in sorted(run.directory.glob("*.log")):
-            print(f"--- {log.name}\n{log.read_text(errors='replace')[-3000:]}", flush=True)
+            print(
+                f"--- {log.name}\n{log.read_text(errors='replace')[-3000:]}", flush=True
+            )
         raise
     finally:
         for name in list(run.children):

@@ -59,8 +59,10 @@ class MirrorStore {
 	// The fetched files and the directory sync as one group; then the table is written under a `.tmp-`
 	// name, fsynced, renamed over `mirror` and the directory synced; then every file the new table no
 	// longer reaches is unlinked. Nothing is published when a fetch fails or disagrees (FetchRefused),
-	// and nothing is written when the durable table already holds the layout.
-	AdoptStats adopt(std::span<const NamespaceLayout>, std::span<const std::string> dropped, const MirrorFetch &);
+	// and nothing is written when the durable table already holds the layout. `seal` is the upstream
+	// seal of the answer adopted, never below the table's (std::invalid_argument).
+	AdoptStats adopt(std::uint64_t seal, std::span<const NamespaceLayout>, std::span<const std::string> dropped,
+					 const MirrorFetch &);
 	// The bytes of a file the table reaches. Its digest is checked at its first read in this process;
 	// a file that fails is fetched again by name, replaced durably, and its new bytes returned.
 	std::string read(const MirrorFile &, const MirrorFetch &);

@@ -39,9 +39,11 @@ struct NamespaceLayout {
 	std::uint64_t end() const noexcept;  // s
 	bool operator==(const NamespaceLayout &) const = default;
 };
-// `mirror`: replaced atomically, read whole. Entries are sorted by name; no file name repeats.
+// `mirror`: replaced atomically, read whole. Entries are sorted by name; no file name repeats. A
+// layouts answer is the same table, sequence 0, at the seal it was built from.
 struct MirrorTable {
-	std::uint64_t sequence = 0;
+	std::uint64_t sequence = 0; // the mirror's own write count
+	std::uint64_t seal = 0;     // the upstream seal the entries are at: the newest the mirror adopted
 	std::vector<NamespaceLayout> entries;
 	const NamespaceLayout *find(std::string_view name) const noexcept;
 	bool operator==(const MirrorTable &) const = default;

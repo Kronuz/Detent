@@ -121,7 +121,7 @@ std::string encode_mirror_table(const MirrorTable &table) {
 	put(out, mirror_layout, 4);
 	put(out, table.entries.size(), 4);
 	put(out, table.sequence, 8);
-	out.resize(table_header, '\0');
+	put(out, table.seal, 8);
 	std::set<std::string> names;
 	for (std::size_t i = 0; i < table.entries.size(); ++i) {
 		const auto &entry = table.entries[i];
@@ -160,8 +160,7 @@ MirrorTable decode_mirror_table(std::span<const char> in) {
 	refuse(count <= maximum_entries, "entry count");
 	MirrorTable table;
 	table.sequence = r.integer(8);
-	refuse(std::all_of(in.begin() + r.at, in.begin() + table_header, [](char byte) { return byte == 0; }), "padding");
-	r.at = table_header;
+	table.seal = r.integer(8);
 	std::set<std::string> names;
 	for (std::uint64_t i = 0; i < count; ++i) {
 		NamespaceLayout entry;

@@ -12,6 +12,7 @@ namespace detent::relay {
 namespace d = distribution;
 namespace {
 using Clock = std::chrono::steady_clock;
+constexpr std::chrono::milliseconds backoff_limit{30000}; // or one interval, when that is longer
 std::string hex(std::span<const char> bytes) {
 	std::string out;
 	for (unsigned char byte : bytes) {
@@ -190,19 +191,19 @@ struct MirrorService::Impl {
 			std::vector<std::string> names;
 			for (const auto &position : job.positions) {
 				if (!job.grants || !job.grants->allows(position.name)) {
-					control(job, 400, "{\"error\":\"invalid_request\"}");
+					control(job, 403, "{\"error\":\"scope_forbidden\"}");
 					return finish(job);
 				}
 				names.push_back(position.name);
 			}
 			std::sort(names.begin(), names.end());
 			names.erase(std::unique(names.begin(), names.end()), names.end());
-			stream(job, "application/vnd.detent.layouts", encode_mirror_table({0, relay->layouts(names)}));
+			stream(job, "application/vnd.detent.layouts", encode_mirror_table(relay->layouts(names)));
 			break;
 		}
 		case MirrorJob::Kind::File: {
 			if (!job.grants || !job.grants->allows(job.name_space)) {
-				control(job, 400, "{\"error\":\"invalid_request\"}");
+				control(job, 403, "{\"error\":\"scope_forbidden\"}");
 				break;
 			}
 			const MirrorFile *file = nullptr;
@@ -228,7 +229,8 @@ struct MirrorService::Impl {
 		std::lock_guard lock(mutex);
 		++state.idle;
 	}
-	void sync() {
+	// True when the mirror reached the upstream.
+	bool sync() {
 		try {
 			const auto stats = relay->sync(options.namespaces);
 			std::lock_guard lock(mutex);
@@ -241,6 +243,7 @@ struct MirrorService::Impl {
 			state.collected_files += stats.files.collected_files;
 			state.failed_namespaces = relay->mirror().failed().size();
 			state.error.clear();
+			return true;
 		} catch (const std::invalid_argument &error) {
 			failure(error.what());
 		} catch (const std::logic_error &error) {
@@ -251,6 +254,7 @@ struct MirrorService::Impl {
 		} catch (const std::exception &error) {
 			failure(error.what());
 		}
+		return false;
 	}
 	void failure(const char *what) {
 		std::lock_guard lock(mutex);
@@ -305,6 +309,7 @@ struct MirrorService::Impl {
 			state.error = std::string("relay mirror: ") + error.what();
 		}
 		auto next_sync = Clock::now();
+		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to backoff_limit
 		for (;;) {
 			std::deque<std::shared_ptr<MirrorJob>> jobs;
 			{
@@ -333,9 +338,10 @@ struct MirrorService::Impl {
 			}
 			const bool synced = now >= next_sync;
 			if (synced) {
-				sync();
+				failing = sync() ? 0 : std::min(failing + 1, 16u);
 				now = Clock::now();
-				next_sync = now + options.interval;
+				next_sync = now + std::min(options.interval * (1u << failing),
+										   std::max<std::chrono::milliseconds>(options.interval, backoff_limit));
 				std::erase_if(sessions, [&](const auto &entry) {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});

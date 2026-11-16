@@ -71,8 +71,9 @@ int main(int argc, char **argv) {
 		};
 		auto raw = upstream(false), zstd = upstream(true);
 		std::string out = "{";
-		const auto layouts = raw->layouts(names);
-		out += "\"layouts\":\"" + sha(r::encode_mirror_table({0, layouts})) + "\",\"files\":[";
+		const auto table = raw->layouts(names);
+		const auto &layouts = table.entries;
+		out += "\"layouts\":\"" + sha(r::encode_mirror_table(table)) + "\",\"files\":[";
 		bool first = true;
 		for (const auto &layout : layouts)
 			for (const auto &file : layout.files) {

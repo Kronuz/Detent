@@ -27,10 +27,11 @@ class HttpUpstream final : public Upstream {
   public:
 	explicit HttpUpstream(HttpUpstreamOptions);
 	~HttpUpstream() override;
-	std::vector<NamespaceLayout> layouts(std::span<const std::string> names) override;
+	MirrorTable layouts(std::span<const std::string> names) override;
 	std::string fetch(std::string_view name_space, const MirrorFile &) override;
 	// One W5 session per endpoint, opened on first use and again when it expires; every next
-	// carries its positions with `wait_ms` 0. An idle answer (204) is a body with no frames.
+	// carries its positions with `wait_ms` 0. An idle answer (204) is a body with no frames. A
+	// session still retiring its previous answer (409 `session_busy`) is asked again after a wait.
 	std::string frames(std::span<const Position>) override;
 	struct Stats {
 		std::uint64_t requests = 0, failures = 0, rotations = 0, sessions = 0;

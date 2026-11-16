@@ -7,6 +7,7 @@
 #include "cluster_harness.hh"
 #include "detent_relay/namespace_relay.hh"
 #include "history.hh"
+#include "layout_export.hh"
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -201,11 +202,11 @@ struct Voter final : r::Upstream {
 				K::Section, h::seal_name(b.seal) + "/" + h::block_name(n.name, n.incarnation, b.first, b.last), b));
 		return out;
 	}
-	std::vector<r::NamespaceLayout> layouts(std::span<const std::string> wanted) override {
-		std::vector<r::NamespaceLayout> out;
+	r::MirrorTable layouts(std::span<const std::string> wanted) override {
+		r::MirrorTable out{0, table().index, {}};
 		for (const auto &name : wanted)
 			if (const auto *n = table().find(name))
-				out.push_back(layout(*n));
+				out.entries.push_back(layout(*n));
 		return out;
 	}
 	std::string fetch(std::string_view, const r::MirrorFile &file) override {
@@ -232,7 +233,7 @@ struct Counted final : r::Upstream {
 	std::uint64_t fetched_files = 0;
 	bool files = true;
 	explicit Counted(r::Upstream &inner) : inner(&inner) {}
-	std::vector<r::NamespaceLayout> layouts(std::span<const std::string> n) override { return inner->layouts(n); }
+	r::MirrorTable layouts(std::span<const std::string> n) override { return inner->layouts(n); }
 	std::string fetch(std::string_view n, const r::MirrorFile &f) override {
 		CHECK(files);
 		++fetched_files;
@@ -262,8 +263,18 @@ std::vector<std::optional<d::NamespaceCursor>> cursors(const Identity &cluster, 
 	return out;
 }
 struct Totals {
-	std::uint64_t files = 0, answers = 0, answer_bytes = 0, steps = 0;
+	std::uint64_t files = 0, answers = 0, answer_bytes = 0, steps = 0, unsealed_drops = 0;
 };
+// Voter `i`'s own layouts answer (W8's `/v2/history/layouts`), encoded; nothing between its table and
+// its sealed state.
+std::array<LayoutExport, 3> exporters;
+std::optional<std::string> exported(Cluster &group, unsigned i) {
+	auto &node = *group.nodes[i];
+	if (!node.sealed() || !node.history_files() || !node.history()->ready())
+		return std::nullopt;
+	const auto answer = exporters[i].layouts(names, *node.sealed(), node.history()->layout().table(), *node.history_files());
+	return answer ? std::optional(r::encode_mirror_table(*answer)) : std::nullopt;
+}
 // A1: every relay holds every file of every voter's layout under the same name and bytes. A5: every
 // relay answers every store cursor with the oracle's W6 bytes.
 void compare(Cluster &group, Voter &voter, std::span<r::NamespaceRelay *const> relays,
@@ -271,7 +282,10 @@ void compare(Cluster &group, Voter &voter, std::span<r::NamespaceRelay *const> r
 	const auto reference = voter.index;
 	for (unsigned i = 0; i < 3; ++i) {
 		voter.index = i;
-		const auto layouts = voter.layouts(names);
+		const auto layouts = voter.layouts(names).entries;
+		// The voter's export is the oracle's layouts at its table's seal.
+		const auto answer = exported(group, i);
+		CHECK(answer && r::decode_mirror_table(*answer) == voter.layouts(names));
 		for (std::size_t k = 0; k < relays.size(); ++k) {
 			CHECK(relays[k]->mirror().table().entries == layouts);
 			for (const auto &layout : layouts)
@@ -283,7 +297,7 @@ void compare(Cluster &group, Voter &voter, std::span<r::NamespaceRelay *const> r
 	}
 	voter.index = reference;
 	const auto served = voter.frames_served;
-	for (const auto &layout : voter.layouts(names)) {
+	for (const auto &layout : voter.layouts(names).entries) {
 		const auto head = head_of(*voter.table().find(layout.name));
 		for (auto *relay : relays)
 			CHECK(relay->head(layout.name) == d::NamespaceCursor(group.context.cluster, layout.incarnation, head));
@@ -357,17 +371,30 @@ int main(int argc, char **argv) {
 				CHECK(group.administer(0, 3, set).results[0].status == Status::Applied);
 				++policy_changes;
 			}
+			// A drop applied after the latest seal leaves the export unchanged until the next seal: the
+			// answer is a function of its seal, whichever voter gives it.
+			auto unsealed = [&](const std::optional<std::string> &before) {
+				const auto after = exported(group, 0);
+				if (before && after && r::decode_mirror_table(*before).seal == r::decode_mirror_table(*after).seal) {
+					CHECK(*after == *before);
+					++totals.unsealed_drops;
+				}
+			};
 			if (step == 10) { // a drop for good: every relay drops the name
+				const auto before = exported(group, 0);
 				const auto incarnation = group.nodes[0]->state().namespace_entry("e")->incarnation;
 				AdministrativeCommand drop{group.context, AdministrativeKind::DropNamespace, {}, "e", incarnation, {}};
 				CHECK(group.administer(0, 5, drop).results[0].status == Status::Applied);
+				unsealed(before);
 				retired.insert("e");
 				++drops;
 			}
 			if (step == 7) { // a drop; the next write re-creates the name under a new incarnation
+				const auto before = exported(group, 0);
 				const auto incarnation = group.nodes[0]->state().namespace_entry("c")->incarnation;
 				AdministrativeCommand drop{group.context, AdministrativeKind::DropNamespace, {}, "c", incarnation, {}};
 				CHECK(group.administer(0, 4, drop).results[0].status == Status::Applied);
+				unsealed(before);
 				++drops;
 				// Relays sync at the first seal of the re-creation, while its base is empty (no file).
 				commit(group, "c", "k0", 5);
@@ -391,7 +418,7 @@ int main(int argc, char **argv) {
 					incarnations_of_c.insert(e.incarnation);
 			}
 		}
-		CHECK(group.nodes[0]->state().policy().period == 8 && policy_changes == 1 && drops == 2);
+		CHECK(group.nodes[0]->state().policy().period == 8 && policy_changes == 1 && drops == 2 && totals.unsealed_drops);
 		CHECK(incarnations_of_c.size() == 2 && empty_base); // the re-creation, its empty base mirrored
 		for (auto *relay : {a.get(), b.get(), c.get()})
 			CHECK(!relay->mirror().table().find("e") && !relay->head("e"));
@@ -448,6 +475,25 @@ int main(int argc, char **argv) {
 		const auto after = c->sync(names);
 		CHECK(after.files.collected_files == 0 && after.files.fetched_files == 0 && from_b.fetched_files == served_to_c);
 		compare(group, voter, relays, roots, totals);
+		// A file above the reply bound is refused, by the size its exported layout gave.
+		{
+			auto &node = *group.nodes[0];
+			voter.index = 0;
+			const auto layouts = voter.layouts(names).entries;
+			const auto &layout = *std::find_if(layouts.begin(), layouts.end(), [](const auto &l) { return !l.files.empty(); });
+			const auto &file = layout.files.front();
+			auto read = [&](std::uint64_t maximum) {
+				return exporters[0].file(layout.name, file.name, node.history()->layout().table(), *node.history_files(),
+										 node.sealed()->limits(), maximum);
+			};
+			bool refused = false;
+			try {
+				read(file.size - 1);
+			} catch (const std::length_error &) {
+				refused = true;
+			}
+			CHECK(refused && read(file.size) == voter.read(file.name));
+		}
 		std::cout << "relay chain: " << totals.steps << " steps over 3 voters and 3 relays, " << totals.files
 				  << " file comparisons byte-identical, " << totals.answers << " cursors answered with identical W6 bytes ("
 				  << totals.answer_bytes << " bytes per hop); voter files fetched " << voter.fetched_files << " ("

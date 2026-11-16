@@ -22,12 +22,9 @@ template <class F> void for_each_file(const history::TableNamespace &n, F &&f) {
 }
 } // namespace
 
-std::optional<std::vector<r::NamespaceLayout>> LayoutExport::layouts(std::span<const std::string> names,
-																	 const State &state, const State &sealed,
-																	 const history::Table &table,
-																	 history::Files &files) {
-	if (!state.positions_enabled() || !sealed.positions_enabled() || !table.index ||
-		table.index != sealed.applied_index())
+std::optional<r::MirrorTable> LayoutExport::layouts(std::span<const std::string> names, const State &sealed,
+													const history::Table &table, history::Files &files) {
+	if (!sealed.positions_enabled() || !table.index || table.index != sealed.applied_index())
 		return std::nullopt;
 	if (pruned_at_ != table.index) {
 		std::set<std::string, std::less<>> reached;
@@ -39,9 +36,9 @@ std::optional<std::vector<r::NamespaceLayout>> LayoutExport::layouts(std::span<c
 		pruned_at_ = table.index;
 	}
 	const auto policy = encode_policy(table.policy);
-	std::vector<r::NamespaceLayout> out;
+	r::MirrorTable out{0, table.index, {}};
 	for (const auto &name : std::set<std::string>(names.begin(), names.end())) {
-		const auto *entry = state.namespace_entry(name);
+		const auto *entry = sealed.namespace_entry(name);
 		if (!entry || !entry->live)
 			continue;
 		r::NamespaceLayout layout{name, entry->incarnation, table.index, table.ordinal, entry->origin, policy, {}};
@@ -50,21 +47,21 @@ std::optional<std::vector<r::NamespaceLayout>> LayoutExport::layouts(std::span<c
 			for_each_file(*n, [&](r::MirrorFile::Kind kind, std::string file, const history::TableBlock &b) {
 				auto size = sizes_.find(file);
 				if (size == sizes_.end())
-					size = sizes_.emplace(file, history::tier_bytes(*n, b, files, state.limits()).size()).first;
+					size = sizes_.emplace(file, history::tier_bytes(*n, b, files, sealed.limits()).size()).first;
 				r::MirrorFile mirrored{kind, std::move(file), b.first, b.last, size->second, {}};
 				std::memcpy(mirrored.digest.data(), b.digest.data(), mirrored.digest.size());
 				layout.files.push_back(std::move(mirrored));
 			});
 		}
 		r::check_layout(layout);
-		out.push_back(std::move(layout));
+		out.entries.push_back(std::move(layout));
 	}
 	return out;
 }
 
 std::optional<std::string> LayoutExport::file(std::string_view name_space, std::string_view name,
-											  const history::Table &table, history::Files &files,
-											  const Limits &limits) {
+											  const history::Table &table, history::Files &files, const Limits &limits,
+											  std::uint64_t maximum) const {
 	const auto *n = table.find(name_space);
 	if (!n)
 		return std::nullopt;
@@ -75,6 +72,11 @@ std::optional<std::string> LayoutExport::file(std::string_view name_space, std::
 	});
 	if (!found)
 		return std::nullopt;
-	return history::tier_bytes(*n, *found, files, limits);
+	if (const auto size = sizes_.find(name); size != sizes_.end() && size->second > maximum)
+		throw std::length_error("history file above the reply bound");
+	auto bytes = history::tier_bytes(*n, *found, files, limits);
+	if (bytes.size() > maximum)
+		throw std::length_error("history file above the reply bound");
+	return bytes;
 }
 } // namespace detent::authority

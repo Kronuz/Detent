@@ -170,7 +170,7 @@ class Service final : public http::HttpHandler {
 	void enqueue(const std::shared_ptr<Task> &task);
 	Outcome reply_for(Task &task, task::cancel_reason why);
 	Reply enveloped(Reply reply) const;
-	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter);
+	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum);
 	// Answers a submitted request through an owned stream that keeps the connection (D8).
 	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
 					 std::chrono::steady_clock::time_point outcome_deadline);

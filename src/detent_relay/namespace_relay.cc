@@ -182,20 +182,29 @@ class RingSink final : public d::FrameSink {
 } // namespace
 
 SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
-	const auto layouts = upstream.layouts(names);
+	// A layout is a function of its upstream seal: an older answer, or another one at the same seal,
+	// is a voter that lags, and neither adopts nor drops anything.
+	const auto answer = upstream.layouts(names);
+	const auto &layouts = answer.entries;
+	const auto &table = store.table();
+	if (answer.seal < table.seal)
+		throw UpstreamBehind("relay: the upstream answered a seal older than the mirror's");
 	std::vector<std::string> dropped;
 	for (const auto &name : names)
-		if (std::none_of(layouts.begin(), layouts.end(), [&](const auto &layout) { return layout.name == name; }))
+		if (std::none_of(layouts.begin(), layouts.end(), [&](const auto &layout) { return layout.name == name; })) {
+			if (const auto *held = table.find(name); held && held->seal >= answer.seal)
+				throw UpstreamBehind("relay: the upstream lacks a namespace at the mirror's seal: " + name);
 			dropped.push_back(name);
+		}
 	for (const auto &layout : layouts) {
-		if (!std::binary_search(names.begin(), names.end(), layout.name))
-			throw std::runtime_error("relay: the upstream sent a namespace it was not asked for");
-		if (const auto *held = store.table().find(layout.name);
-			held && held->incarnation == layout.incarnation && held->seal > layout.seal)
+		if (!std::binary_search(names.begin(), names.end(), layout.name) || layout.seal > answer.seal)
+			throw std::runtime_error("relay: the upstream sent a namespace it was not asked for, or past its seal");
+		if (const auto *held = table.find(layout.name);
+			held && (held->seal > layout.seal || (held->seal == layout.seal && *held != layout)))
 			throw UpstreamBehind("relay: the upstream's layout is older than the mirror's: " + layout.name);
 	}
 	SyncStats stats;
-	stats.files = store.adopt(layouts, dropped, fetcher());
+	stats.files = store.adopt(answer.seal, layouts, dropped, fetcher());
 	for (const auto &name : dropped)
 		if (const auto at = rings.find(name); at != rings.end())
 			rings.erase(at);
@@ -264,11 +273,12 @@ std::optional<d::NamespaceCursor> NamespaceRelay::head(std::string_view name) co
 
 // A namespace failed at startup is still offered: its missing files are fetched by name from this
 // relay's upstream when a downstream reads them, so the downstream keeps what it holds.
-std::vector<NamespaceLayout> NamespaceRelay::layouts(std::span<const std::string> names) {
-	std::vector<NamespaceLayout> out;
+MirrorTable NamespaceRelay::layouts(std::span<const std::string> names) {
+	const auto &table = impl_->store.table();
+	MirrorTable out{0, table.seal, {}};
 	for (const auto &name : names)
-		if (const auto *layout = impl_->store.table().find(name))
-			out.push_back(*layout);
+		if (const auto *layout = table.find(name))
+			out.entries.push_back(*layout);
 	return out;
 }
 
