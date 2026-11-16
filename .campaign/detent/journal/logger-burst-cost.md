@@ -1,6 +1,6 @@
 # logger-burst-cost: journal
 
-State: ready for review (correctness CHANGES folded in at logger:6e7ab9e; jobs pending, see Review round 1)
+State: waiting on jobs 261116-051125-83a3c9 261116-051126-efae89 261116-051231-438ea0 261116-051232-7ae5c2 261116-051234-d8445e 261116-051244-8b7915 261116-051244-4388be 261116-051253-d01271 (correctness CHANGES folded in at logger:6e7ab9e)
 Quest: .campaign/detent/quests/logger-burst-cost.md (the lead's; never edit it)
 
 ## Doing
