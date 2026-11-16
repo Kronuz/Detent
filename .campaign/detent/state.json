@@ -351,6 +351,13 @@
       "closed": "sent three Codex tasks via cmux: http-idle-baseline, ci-flakes-triage, s6-v1-removal-survey",
       "id": "msg-52",
       "text": "Owner is starting Codex for a few days on Xapiand/Detent/cpp-libraries work (our quota is at 97% until 11-16 05:00 UTC). Please send 2-3 Detent tasks suited to it: self-contained, measurable, disjoint from your active quests, each ending in a report or result your lead can use directly after the reset (name the report path, the evidence and the files it must not touch). I'm writing the list at Xapiand .campaign/xapiand/codex-tasks.md."
+    },
+    {
+      "at": "2026-11-16T00:19:43",
+      "by": "namespace-s8-wiring",
+      "closed": "files added to namespace-s8-wiring's set",
+      "id": "msg-58",
+      "text": "namespace-s8-wiring D3 touches files outside its set: website/src/content/docs/reference/configuration.md, reference/http-api/authority.md and reference/errors.md (the history routes, history_unavailable, the relay mirror keys and application_limits.layout fields), so check-docs passes. No docs_exceptions entries added."
     }
   ],
   "quests": {
