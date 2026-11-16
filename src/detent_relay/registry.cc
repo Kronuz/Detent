@@ -19,7 +19,7 @@ struct Registry::Impl {
 		 std::span<const ConfiguredCredential> authorized)
 		: account(std::move(ledger)), arena(*account, 4096), bindings(d::StorageAllocator<Binding>(account)),
 		  credentials(d::StorageAllocator<ConfiguredCredential>(account)) {
-		if (configured.empty() || configured.size() > 256 || authorized.empty() || authorized.size() > 10000)
+		if (configured.size() > 256 || authorized.empty() || authorized.size() > 10000)
 			throw std::invalid_argument("relay registry capacity");
 		bindings.reserve(configured.size());
 		for (const auto &value : configured) {
@@ -55,7 +55,9 @@ struct Registry::Impl {
 						throw std::invalid_argument("relay registry credential binding mismatch");
 					granted = true;
 				}
-			if (!granted || credential.authorization.grants == d::ScopeIdentity{})
+			const bool namespaces = credential.namespaces && !credential.namespaces->empty();
+			if ((!granted && !namespaces) || credential.authorization.grants == d::ScopeIdentity{} ||
+				credential.authorization.namespaces != credential.namespaces.get())
 				throw std::invalid_argument("empty relay registry grant");
 			credentials.push_back(credential);
 		}

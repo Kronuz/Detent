@@ -2,6 +2,7 @@
 // layout (cuts, squashes, policy, incarnations, drops), restart without re-fetching, repair by name,
 // and a relay chain byte-identical at every hop.
 #include "mirror_fixture.hh"
+#include "detent_relay/namespace_relay.hh"
 #include <cstdio>
 
 using namespace fixture;
@@ -40,7 +41,7 @@ void codec() {
 	up.roll_up("app/flags");
 	up.advance({{"app/flags", 2}});
 	up.histories.at("beta").copy = true;
-	r::MirrorTable table{7, up.layouts()};
+	r::MirrorTable table{7, up.seal, up.layouts()};
 	const auto bytes = r::encode_mirror_table(table);
 	check(r::decode_mirror_table(bytes) == table);
 	check(r::encode_mirror_table(r::decode_mirror_table(bytes)) == bytes);
@@ -60,7 +61,7 @@ void codec() {
 	r::NamespaceLayout empty{"empty", identity('e'), 3, 3, 5, "policy-1", {}};
 	r::check_layout(empty);
 	check(empty.end() == 5);
-	r::MirrorTable sparse{8, {baseless, empty}};
+	r::MirrorTable sparse{8, 3, {baseless, empty}};
 	check(r::decode_mirror_table(r::encode_mirror_table(sparse)) == sparse);
 	auto broken = [&](auto edit) {
 		auto copy = layout;
@@ -162,7 +163,7 @@ void follows(const std::filesystem::path &root) {
 		std::uint64_t files = 0;
 		const auto expected = bytes_of_new(before, layouts, files);
 		const auto fetched = script.up.fetched_bytes;
-		const auto stats = store.adopt(layouts, dropped, fetch);
+		const auto stats = store.adopt(script.up.seal, layouts, dropped, fetch);
 		check(script.up.fetched_bytes - fetched == expected && stats.fetched_bytes == expected && stats.fetched_files == files);
 		check(store.table().entries == layouts && store.table().sequence == before.sequence + 1);
 		check(mirror_matches(root, store.table()));
@@ -190,7 +191,7 @@ void restart(const std::filesystem::path &root) {
 		r::MirrorStore store(io_at(root), {});
 		for (int i = 0; i < 20; ++i) {
 			const auto dropped = script.next();
-			store.adopt(script.up.layouts(), dropped, fetch);
+			store.adopt(script.up.seal, script.up.layouts(), dropped, fetch);
 		}
 		before = reads(store, fetch);
 	}
@@ -201,7 +202,7 @@ void restart(const std::filesystem::path &root) {
 		check(store.failed().empty() && mirror_matches(root, store.table()));
 		check(reads(store, fetch) == before);
 		// The same layout again: every file reused, nothing fetched.
-		const auto stats = store.adopt(script.up.layouts(), {}, fetch);
+		const auto stats = store.adopt(script.up.seal, script.up.layouts(), {}, fetch);
 		check(stats.fetched_files == 0 && stats.reused_files > 0 && stats.collected_files == 0);
 		check(script.up.fetched_bytes == fetched);
 		std::fprintf(stderr, "restart: %zu files read unchanged, 0 bytes fetched, %llu files reused\n",
@@ -213,7 +214,7 @@ void restart(const std::filesystem::path &root) {
 		const auto layouts = script.up.layouts();
 		std::uint64_t files = 0;
 		const auto expected = bytes_of_new(table, layouts, files);
-		const auto stats2 = store.adopt(layouts, {}, fetch);
+		const auto stats2 = store.adopt(script.up.seal, layouts, {}, fetch);
 		check(stats2.fetched_bytes == expected && script.up.fetched_bytes - fetched == expected);
 	}
 }
@@ -228,7 +229,7 @@ void repair(const std::filesystem::path &root) {
 		r::MirrorStore store(io_at(root), {});
 		for (int i = 0; i < 6; ++i) {
 			const auto dropped = script.next();
-			store.adopt(script.up.layouts(), dropped, fetch);
+			store.adopt(script.up.seal, script.up.layouts(), dropped, fetch);
 		}
 	}
 	const auto table = r::decode_mirror_table(slurp(root / "mirror"));
@@ -249,7 +250,7 @@ void repair(const std::filesystem::path &root) {
 	check(slurp(root / r::mirror_file_name(rotted.name)) == bytes_of(rotted.name));
 	check(store.read(rotted, fetch) == bytes_of(rotted.name) && script.up.fetched_files == files + 1);
 	files = script.up.fetched_files;
-	const auto stats = store.adopt(script.up.layouts(), {}, fetch);
+	const auto stats = store.adopt(script.up.seal, script.up.layouts(), {}, fetch);
 	check(stats.fetched_files == 1 && stats.fetched_bytes == lost.size && script.up.fetched_files == files + 1);
 	check(store.failed().empty() && mirror_matches(root, store.table()));
 }
@@ -262,14 +263,14 @@ void collect_missing(const std::filesystem::path &root) {
 	{
 		r::MirrorStore store(io_at(root), {});
 		const auto dropped = script.next();
-		store.adopt(script.up.layouts(), dropped, fetch);
+		store.adopt(script.up.seal, script.up.layouts(), dropped, fetch);
 	}
 	const auto table = r::decode_mirror_table(slurp(root / "mirror"));
 	std::filesystem::remove(root / r::mirror_file_name(table.find("gamma")->files.back().name));
 	r::MirrorStore store(io_at(root), {});
 	check(store.failed().size() == 1 && store.failed()[0] == "gamma");
 	std::vector<std::string> dropped{"gamma"};
-	const auto stats = store.adopt({}, dropped, fetch);
+	const auto stats = store.adopt(script.up.seal, {}, dropped, fetch);
 	check(stats.fetched_files == 0 && store.failed().empty() && !store.table().find("gamma"));
 	check(mirror_matches(root, store.table()));
 }
@@ -281,27 +282,127 @@ void refused(const std::filesystem::path &root) {
 	auto fetch = script.up.fetch();
 	r::MirrorStore store(io_at(root), {});
 	const auto dropped = script.next();
-	store.adopt(script.up.layouts(), dropped, fetch);
+	store.adopt(script.up.seal, script.up.layouts(), dropped, fetch);
 	const auto table = store.table();
 	script.next();
 	const auto layouts = script.up.layouts();
 	refuses<r::FetchRefused>([&] {
-		store.adopt(layouts, {}, [](const r::MirrorFile &f) { return bytes_of(f.name) + "!"; });
+		store.adopt(script.up.seal, layouts, {}, [](std::string_view, const r::MirrorFile &f) { return bytes_of(f.name) + "!"; });
 	});
 	check(store.table() == table && mirror_matches(root, table));
 	refuses<std::runtime_error>([&] {
-		store.adopt(layouts, {}, [](const r::MirrorFile &) -> std::string { throw std::runtime_error("down"); });
+		store.adopt(script.up.seal, layouts, {}, [](std::string_view, const r::MirrorFile &) -> std::string { throw std::runtime_error("down"); });
 	});
 	check(store.table() == table && mirror_matches(root, table));
 	// An upstream that changes an immutable name's bytes is refused before anything is fetched.
 	auto changed = table.entries;
 	changed[0].files[0].digest[0] ^= 1;
-	refuses<r::FetchRefused>([&] { store.adopt(changed, {}, fetch); });
+	refuses<r::FetchRefused>([&] { store.adopt(script.up.seal, changed, {}, fetch); });
 	check(store.table() == table);
-	store.adopt(layouts, {}, fetch);
-	check(store.table().entries == layouts && mirror_matches(root, store.table()));
+	store.adopt(script.up.seal, layouts, {}, fetch);
+	check(store.table().entries == layouts && store.table().seal == script.up.seal && mirror_matches(root, store.table()));
+	// The table never goes back to an older upstream seal.
+	const auto adopted = store.table();
+	refuses<std::invalid_argument>([&] { store.adopt(script.up.seal - 1, {}, {}, fetch); });
+	check(store.table() == adopted);
 	// One writer per directory.
 	refuses<std::exception>([&] { r::MirrorStore second(io_at(root), {}); });
+}
+
+// A relay that read a newer upstream (voter V1) refuses an older one (a lagging V3, which HttpUpstream
+// reads after it rotates): another incarnation, a dropped name, a name not created yet, and another
+// layout at the same seal. Nothing is adopted, fetched or collected; the newer upstream still is.
+struct Scripted final : r::Upstream {
+	fixture::Upstream *at = nullptr;
+	r::MirrorTable layouts(std::span<const std::string> names) override {
+		r::MirrorTable out{0, at->seal, {}};
+		for (const auto &name : names)
+			if (at->histories.contains(name))
+				out.entries.push_back(at->layout(name));
+		return out;
+	}
+	std::string fetch(std::string_view name_space, const r::MirrorFile &file) override {
+		return at->fetch()(name_space, file);
+	}
+	std::string frames(std::span<const r::Position>) override {
+		return detent::distribution::encode_session_frames(std::nullopt, {});
+	}
+};
+void refuses_older(const std::filesystem::path &root, Upstream &newer, Upstream &older,
+				   const std::vector<std::string> &names, bool older_first = false) {
+	prepare(root);
+	Scripted up;
+	r::MirrorTable held;
+	std::vector<std::string> listed;
+	for (int life = 0; life < 2; ++life) { // the table's seal survives a restart
+		r::NamespaceRelay relay(io_at(root), identity('C'), up);
+		if (!life) {
+			if (older_first) {
+				up.at = &older;
+				relay.sync(names);
+			}
+			up.at = &newer;
+			relay.sync(names);
+			held = relay.mirror().table();
+			listed = listing(root);
+		}
+		up.at = &older;
+		const auto fetched = older.fetched_files;
+		refuses<r::UpstreamBehind>([&] { relay.sync(names); });
+		check(relay.mirror().table() == held && listing(root) == listed && older.fetched_files == fetched);
+		up.at = &newer;
+		const auto again = relay.sync(names);
+		check(relay.mirror().table() == held && again.files.fetched_files == 0 && again.files.collected_files == 0);
+	}
+}
+void behind(const std::filesystem::path &scratch) {
+	auto lagging = [] {
+		Upstream lag;
+		lag.add("x");
+		lag.add("y");
+		lag.advance({{"x", 3}, {"y", 2}});
+		return lag;
+	};
+	const std::vector<std::string> both{"x", "y"}, only_x{"x"}, only_y{"y"};
+	std::size_t refused = 0;
+	auto scenario = [&](const char *name, Upstream newer, Upstream older, const std::vector<std::string> &names,
+						bool older_first = false) {
+		refuses_older(scratch / name, newer, older, names, older_first);
+		++refused;
+	};
+	{
+		auto lag = lagging(), now = lag;
+		now.advance({{"x", 2}, {"y", 1}});
+		scenario("same-incarnation", now, lag, only_x);
+	}
+	{
+		auto lag = lagging(), now = lag;
+		now.reincarnate("x", 'b', 9);
+		now.advance({{"x", 2}, {"y", 1}});
+		scenario("incarnation-both", now, lag, both);
+		scenario("incarnation-x", now, lag, only_x);
+	}
+	{
+		auto lag = lagging(), now = lag;
+		now.histories.erase("x");
+		now.advance({{"y", 1}});
+		scenario("dropped-x", now, lag, only_x, true);
+	}
+	{
+		Upstream lag;
+		lag.add("x");
+		lag.advance({{"x", 3}});
+		auto now = lag;
+		now.add("y");
+		now.advance({{"x", 1}, {"y", 2}});
+		scenario("created-y", now, lag, only_y);
+	}
+	{
+		auto lag = lagging(), now = lag;
+		now.reincarnate("x", 'b', 9);
+		scenario("same-seal", now, lag, both);
+	}
+	std::fprintf(stderr, "behind: %zu older upstreams refused, nothing adopted, fetched or collected\n", refused);
 }
 
 // A1, the relay half: a chain authority -> A -> B -> C. Each hop fetches from the one before by name,
@@ -316,7 +417,7 @@ void chain(const std::filesystem::path &scratch) {
 	r::MirrorStore a(io_at(ra), {}), b(io_at(rb), {}), c(io_at(rc), {});
 	std::uint64_t from_a = 0, from_b = 0;
 	auto via = [](r::MirrorStore &store, const r::MirrorFetch &upstream, std::uint64_t &served) -> r::MirrorFetch {
-		return [&store, upstream, &served](const r::MirrorFile &f) {
+		return [&store, upstream, &served](std::string_view, const r::MirrorFile &f) {
 			auto bytes = store.read(f, upstream);
 			served += bytes.size();
 			return bytes;
@@ -327,10 +428,10 @@ void chain(const std::filesystem::path &scratch) {
 	for (int i = 0; i < 24; ++i) {
 		const auto dropped = script.next();
 		const auto layouts = script.up.layouts();
-		a.adopt(layouts, dropped, authority);
+		a.adopt(script.up.seal, layouts, dropped, authority);
 		const auto fetched = script.up.fetched_bytes;
-		b.adopt(a.table().entries, dropped, fetch_b);
-		c.adopt(b.table().entries, dropped, fetch_c);
+		b.adopt(a.table().seal, a.table().entries, dropped, fetch_b);
+		c.adopt(b.table().seal, b.table().entries, dropped, fetch_c);
 		check(script.up.fetched_bytes == fetched); // B and C never reach past their upstream
 		check(a.table().entries == layouts && b.table().entries == layouts && c.table().entries == layouts);
 		for (const auto &e : layouts)
@@ -361,6 +462,7 @@ int main(int argc, char **argv) {
 		repair(scratch / "repair");
 		collect_missing(scratch / "collect-missing");
 		refused(scratch / "refused");
+		behind(scratch / "behind");
 		chain(scratch);
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_relay_mirror: %s\n", error.what());

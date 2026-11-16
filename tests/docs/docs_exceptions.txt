@@ -2,7 +2,6 @@
 # check_docs.py fails on a gap not listed here and on a listed gap that no longer exists, so area
 # quests delete a line when they document the name (or remove it from the page).
 
-source-only config application_limits -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config baseline_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config bootstrap_transfers -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config cache_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it

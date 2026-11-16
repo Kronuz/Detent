@@ -64,6 +64,10 @@ class Layout {
 // `current` when that is the seal holding it), checked against the table's digest and range.
 Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
 				  const SealFile *current = nullptr);
+// The same tier's bytes as stored, checked against the table's digest (a section cut from its seal
+// file): what a relay mirrors byte for byte.
+std::string tier_bytes(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
+					   const SealFile *current = nullptr);
 // L = ⌊|st| · α / 4⌋, exact in integers (D6 "Every input is replicated").
 std::uint64_t block_limit(const LayoutPolicy &policy, std::uint64_t live) noexcept;
 } // namespace detent::authority::history

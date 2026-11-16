@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 24bb070c..94d22ec9 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -262,7 +262,7 @@ SyncStats NamespaceRelay::sync(std::span<const std::string> names) {
+ 				throw;
+ 		} catch (const UpstreamBehind &) {
+ 			// A lagging source: the next one may be current.
+-			if (++behind >= impl_->upstream.sources())
++			if (true || ++behind >= impl_->upstream.sources())
+ 				throw;
+ 			impl_->upstream.skip();
+ 		}

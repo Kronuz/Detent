@@ -10,6 +10,8 @@ struct RegistryBundle {
 struct ConfiguredCredential {
 	std::array<unsigned char, 32> token_hash{};
 	SessionAuthorization authorization;
+	// The patterns `authorization.namespaces` points into; the registry keeps a copy alive.
+	std::shared_ptr<const distribution::NamespaceGrants> namespaces;
 };
 // Immutable after startup; the host retains this registry through intake drain.
 class Registry {

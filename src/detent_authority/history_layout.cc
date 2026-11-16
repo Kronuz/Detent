@@ -44,10 +44,8 @@ std::uint64_t block_limit(const LayoutPolicy &p, std::uint64_t live) noexcept {
 	return static_cast<std::uint64_t>(Wide{live} * p.alpha_num / (Wide{4} * p.alpha_den));
 }
 
-Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
-				  const SealFile *current) {
-	if (!block.first && !block.bytes)
-		return {}; // An empty base has no file.
+std::string tier_bytes(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
+					   const SealFile *current) {
 	std::string bytes;
 	if (block.seal) {
 		SealFile holder;
@@ -63,6 +61,13 @@ Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files
 		bytes = files.read(block.first ? block_name(n.name, n.incarnation, block.first, block.last)
 									   : base_name(n.name, n.incarnation, block.last));
 	require(sha256(bytes) == block.digest, "history file digest mismatch");
+	return bytes;
+}
+Changes read_tier(const TableNamespace &n, const TableBlock &block, Files &files, const Limits &limits,
+				  const SealFile *current) {
+	if (!block.first && !block.bytes)
+		return {}; // An empty base has no file.
+	const auto bytes = tier_bytes(n, block, files, limits, current);
 	auto decoded = block.first ? decode_block(bytes, limits) : decode_base(bytes, limits);
 	require(decoded.name_space == n.name && decoded.incarnation == n.incarnation && decoded.first == block.first &&
 				decoded.last == block.last,
