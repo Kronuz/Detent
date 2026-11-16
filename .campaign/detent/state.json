@@ -1137,6 +1137,8 @@
     "consensus-fetch-macos": {
       "accepted": {},
       "after": [],
+      "base": "771e1bb820ca2f90145a40625997d7efc703ad1a",
+      "branch": "quest/detent/consensus-fetch-macos",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -1158,6 +1160,7 @@
         "test/transport/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-fetch-macos",
       "landed": [],
       "lenses": [],
       "milestone": "N1",
@@ -1165,9 +1168,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-15T22:54:00"
+      "updated": "2026-11-15T22:54:05",
+      "worktree": "../consensus-wt/detent/consensus-fetch-macos"
     },
     "consensus-late-append": {
       "accepted": {
