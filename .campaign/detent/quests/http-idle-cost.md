@@ -10,7 +10,7 @@ An idle HTTP connection, plain and especially TLS, costs measurably less memory 
 ## Acceptance criteria
 
 - A1 A benchmark reports bytes per idle connection and its breakdown by owner, plain and TLS, at 10K and 100K idle, at named commits before and after: an exclusive job and a results doc
-- A2 TLS bytes per idle connection drop by a stated, measured amount (before/after at named commits, exclusive), with no throughput or latency regression on the existing benches beyond their A/A band: exclusive jobs
+- A2 TLS bytes per idle connection drop by a stated, measured amount (before/after at named commits, exclusive), and throughput and CPU per request stay within D103's accepted bounds: every load row inside its A/A band except TLS keep-alive c1 CPU per request (accepted up to 1.10x, +3.2 us) and TLS close c8 req/s (accepted down to 0.967x), measured at http:ad6771f: exclusive jobs
 - A3 Every change keeps behavior: the suite, TSan, and a test for each buffer that is released and reacquired across idle (a request after a long idle, a TLS renegotiation-free resume of reading): the suite and tsan
 - A4 [artifact] `docs/`: "idle" (where the bytes go, what changed, the numbers)
 
