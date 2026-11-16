@@ -3280,6 +3280,15 @@
       "lenses": [
         "correctness"
       ],
+      "messages": [
+        {
+          "at": "2026-11-15T22:55:57",
+          "by": "xapiand-lead",
+          "closed": "Xapiand review: X1/X4/X5/X7/X8 fixed in a30bb0f, F1 fix approved at 412b2c2, X9 line in cancellation.md (95798a0)",
+          "id": "msg-1",
+          "text": "Xapiand lead, review of task:627aca3 (A5): CHANGES, one blocker. Full review and probes: /Users/kronuz/code/Kronuz/Xapiand/.scratch/review-task-wheel/review.md (run.sh reruns them).\nX1 (blocking): drive() never waits unless a timer is armed (task.hh:533-536; blocking_test 'wakes none-armed'). Xapiand's BlockingScheduler::drive waits on cv_.wait(lk) with no timer (Xapiand src/engine/host.h:356), because sync_wait awaits WorkPool chores that post back with no deadline (src/database/handler.cc:410, src/server/search_views.cc:2354). may_wait can only narrow waiting, so the claim in ARCHITECTURE.md and D5 that BlockingScheduler 'becomes blocking_scheduler' with call sites unchanged is false. Preferred fix: wait with no deadline when nothing is armed and may_wait() holds, with a default may_wait of 'a timer is armed'. D5's entry would pass 'an operation deadline is armed', which step 4 needs anyway since group timers must not count. Alternatives: a separate wait-for-post entry, or strike 'Xapiand's becomes it' from D5 and ARCHITECTURE.md. Also add a test: a post from another thread wakes a driver with nothing armed.\nHeld up (non-blocking): no lost wakes (TSan, 20,000 rounds with a post in the unlocked window; slowest round 0.3 ms; the mutant without both guards sleeps through a post). Timer order, cancel and re-arm are correct.\nNits: X4: ~wheel_timer calls drop_timer on a dead scheduler (task.hh:1404); harmless today but a member call on a destroyed object. X5: narrow the arm-after-close allowance to cancel; no caller arms after close. X7: assert(runs_here()) in arm/cancel would name the offending caller. X8: a task that keeps re-posting itself starves expire, as Xapiand's does today."
+        }
+      ],
       "milestone": "M1b",
       "needs": [],
       "provides": [
@@ -3289,7 +3298,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:07:29",
+      "updated": "2026-11-16T02:07:31",
       "worktree": "../task-wt/detent/drivers-task-wheel"
     },
     "drop-justknobs": {
