@@ -1330,6 +1330,49 @@
       "updated": "2026-11-15T22:53:38",
       "worktree": ""
     },
+    "consensus-quiescence": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/driver.h",
+        "include/consensus/transport/**",
+        "test/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "consensus-driver",
+        "consensus-transport"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
+      "updated": "2026-11-15T23:08:07"
+    },
     "consensus-transport": {
       "accepted": {},
       "after": [
