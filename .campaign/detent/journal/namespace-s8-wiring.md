@@ -1,19 +1,15 @@
 # namespace-s8-wiring: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/namespace-s8-wiring.md (the lead's; never edit it)
 
 ## Doing
 
-End-to-end test tests/detent_relay/test_relay_service.cc (A1/A2/A3) over real detentd voters and two
-detent-relay processes (A reads the voters, B reads A).
+Nothing: the jobs below remain.
 
 ## Next
 
-1. Write test_relay_service.cc and its CMake entry (fixture authority_tls), build, run locally.
-2. A3 test: member routes 404 on the relay, `voters` config refused, no consensus symbols.
-3. docs/status/namespace-s8.md "The service" section (A4).
-4. Submit jobs (check + A1..A3 + mutants), set State ready for review.
+1. Fold in the durability review's findings.
 
 ## Blocked on
 
@@ -21,16 +17,26 @@ Nothing.
 
 ## Evidence
 
+Local run (Release, loaded host): `test_relay_service` passes in 45 s: 12 files (base, block, section)
+and 111 W5/W6 answers byte-identical at the leader, relay A and relay B; after a restart both fetched
+0 files (12 reused) and answered unchanged; member routes 404.
+
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
-| A2 | pending |
-| A3 | pending |
-| A4 | pending |
+| A1 | job 261115-230037-c02ee6 (`test_relay_service`, plus `test_relay_mirror`, `test_relay_chain`); mutants 261115-230043-562639 (`layouts-no-enable`), 261115-230049-08c459 (`upstream-drops-frames`) |
+| A2 | job 261115-230037-c02ee6; mutant 261115-230054-1ddbbb (`mirror-forgotten`) |
+| A3 | job 261115-230037-c02ee6; mutant 261115-230058-44d37f (`member-route-admitted`) |
+| A4 | [artifact] `docs/status/namespace-s8.md`, "The service" |
+| checks | native 261115-230026-744f5e, pins 261115-230026-c0f570 |
 
 ## Result
 
-Pending.
+detent-relay serves its namespace mirror over HTTPS (W8). `MirrorService` (src/detent_relay/mirror_service.cc)
+owns `NamespaceRelay` on one thread, syncs from `HttpUpstream` (src/detent_relay/http_upstream.cc), and
+answers W5 version 2 and the history routes; version 1 stays with the bundles. The authority adds
+`POST /v2/history/layouts` and `/v2/history/file` (src/detent_authority/layout_export.cc) and takes
+`application_limits.layout`. How it works and the routes in Contracts terms: docs/status/namespace-s8.md,
+"The service". Left open there: streamed fetch of large files, a bound on the ring.
 
 ## Rulings I made
 
@@ -46,3 +52,7 @@ Pending.
    source_behind before the first sync; history routes share the opens lane.
 6. A relay may run with no v1 bundles when a mirror is configured; credentials may carry W13
    `namespaces` beside or instead of `bundles`.
+7. The authority's configuration takes `application_limits.layout` (validated as SetLayout), so a
+   process-level test reaches bases, blocks and sections; additive and optional.
+8. The relay's file route answers only files its current layout names (404 otherwise); a layouts
+   request from the relay lists only the names it mirrors and the credential grants.
