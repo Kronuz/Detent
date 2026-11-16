@@ -3249,11 +3249,46 @@
         "CHANGELOG.md",
         "examples/**"
       ],
-      "journal": "../Detent-wt/detent/drivers-completion-seam",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-16T12:12:31",
+          "commit": "90411863d5e421c99da18568b07432954aa83615",
+          "criteria": {
+            "A1": "261116-120246-3b843b; fails without: 261115-224728-819f14, 261115-224732-958849, 261116-000751-c47e20, 261116-000752-68fa7c, 261116-012344-89db09, 261116-012345-ea6cca",
+            "A2": "261116-120246-3b843b, 261116-115022-8681d8; fails without: 261115-224736-cd1941, 261115-224740-5020c7, 261115-225629-cc929a, 261115-225635-dfd490, 261116-000752-06ce40, 261116-000753-959b2b, 261116-000807-2563be, 261116-000808-2719f9, 261116-012345-7b04f7, 261116-012346-79eed8, 261116-012346-6a78e9, 261116-012347-926a78, 261116-012459-d9a1ad, 261116-012505-7c4a10",
+            "A3": "261116-120246-3b843b, 261116-120246-1274a1; fails without: 261115-225644-8bef23, 261116-000809-5174e5, 261116-012347-8e2ea8",
+            "A4": "261116-120246-b413db, 261116-120246-051fa9, 261116-120246-6543f0; fails without: 261115-225640-e43a57, 261116-000808-b88aed, 261116-012453-97e70b, 261116-012511-fb3dc5"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "90411863d5e421c99da18568b07432954aa83615",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-120246-3b843b",
+              "level": "light",
+              "seconds": 31.2,
+              "state": "done",
+              "what": "drivers-completion-seam check suite at 90411863d5e4"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "90411863d5e421c99da18568b07432954aa83615",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "fd2608aa484884d9a27acc6a15f7e72c9cfef4f2",
+          "reason": "",
+          "tested": "90411863d5e421c99da18568b07432954aa83615"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [],
       "provides": [
@@ -3261,10 +3296,10 @@
       ],
       "repo": "../completion",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-16T11:54:22",
-      "worktree": "../completion-wt/detent/drivers-completion-seam"
+      "updated": "2026-11-16T12:12:34",
+      "worktree": ""
     },
     "drivers-task-wheel": {
       "accepted": {
