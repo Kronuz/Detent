@@ -4198,7 +4198,13 @@
         "src/detent_delivery/coordinator*",
         "include/detent_delivery/coordinator.hh",
         "docs/status/namespace-s7.md",
-        "docs/LOCAL_IMAGE_FORMAT.md"
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "src/detent_delivery/configuration*",
+        "include/detent_delivery/configuration.hh",
+        "tests/detent_delivery/**",
+        "docs/**",
+        "website/src/content/docs/**",
+        "tests/detent_system/**"
       ],
       "landed": [],
       "lenses": [
@@ -4211,7 +4217,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Local layer on the one W1 cursor, store layout 2 and root format 4 (P3)",
-      "updated": "2026-11-15T21:12:56"
+      "updated": "2026-11-15T21:17:23"
     },
     "namespace-measure": {
       "accepted": {},
