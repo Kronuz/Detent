@@ -155,11 +155,14 @@ open there: streamed fetch of large files (a file above the reply bound is refus
     the sync and backs off as before. Relay C now reads `[gated, lagging]` and starts once A is
     ready, so its first sync must skip a 503 source; `behind-not-skipped` now dies with C never
     ready (the mutant throws without `skip`, so C stays on the closed proxy).
-17. A lone voter and bootstrap: a single voter leads itself, so `serving` holds once it elects
-    itself (the same moment `/v1/health` turns ready); before that a history route answers 503,
-    as it already did before positions were enabled. Not tested separately: no single-voter
-    history-route test exists, and the cluster test covers the bootstrap path (A relay starts
-    with the voters).
+17. A lone voter and bootstrap: detentd refuses fewer than three voters ("fixed voter count: an
+    odd number of voters, at least 3", probed locally), so a single-voter authority exists only
+    in-process; there it is `Role::Leader` with `leader_known` once it elects itself, so `serving`
+    holds exactly when its `/v1/health` reports `ready`. No single-voter test reads a history route,
+    and the tests that would host one (tests/detent_authority) are outside this quest's files. At
+    bootstrap the routes answer 503 until the first leader is known, as they already did until
+    positions were enabled; `test_relay_service` starts relays right after the election and they
+    become ready (suite).
 14. `test_relay_chain`'s voters run on the harness's memory storage: the test proves the relays'
     files and answers against the voters, and the voters' own durability is the authority suites';
     the relays' mirrors stay on disk.
