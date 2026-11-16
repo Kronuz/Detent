@@ -5,27 +5,23 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Kronuz/completion gains the seam the drivers run through (`docs/design/async-drivers.md` (Detent), Build plan row 2): `SyncData` on every backend, `completion_ref` with a token, `InlineCompletion` and `HeldCompletion`, and `drive_synchronously` becomes `InlineCompletion`'s loop. It is additive; existing callers are unchanged.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `SyncData` works on every backend, including under injected faults: fault tests per backend
+- A2 `completion_ref` with a token, `InlineCompletion` and `HeldCompletion` exist, and `HeldCompletion` lets a test hold, reorder and release completions step by step: tests
+- A3 `drive_synchronously` is `InlineCompletion`'s loop, with no second implementation, and existing callers and suites are unchanged: the suite and a grep job
+- A4 Turn primitives are ordered ahead of artifact and snapshot I/O, measured before and after at named commits (X13): an exclusive job pair
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides completion's seam (`completion_ref`, `InlineCompletion`, `HeldCompletion`, `SyncData`) for journal-driver and consensus-driver.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+async-drivers split (D96, lead): quest 2 of the design's build plan; Q5 (task and completion join the split) follows the design's recommendation.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Everything: it is additive.
