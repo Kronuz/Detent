@@ -11387,8 +11387,8 @@
       "risk": "high",
       "status": "landed",
       "title": "A delta on a 5M store fails warm validation",
-      "updated": "2026-11-12T16:42:24",
-      "worktree": "../Detent-wt/detent/warm-graph-5m"
+      "updated": "2026-11-15T23:16:11",
+      "worktree": ""
     },
     "wheel-evidence": {
       "accepted": {},
