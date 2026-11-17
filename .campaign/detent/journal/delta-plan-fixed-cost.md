@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: waiting on jobs 261117-082529-cab3b1 261117-082541-c33f79 261117-082545-ce3a24 261117-082549-9d332b 261117-082606-309a87 261117-082610-950015 261117-082613-608b61 261117-082637-6ca688 261117-082707-120fda
+State: waiting on jobs 261117-093217-e1c42f 261117-093230-64daa8
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,13 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Session 4 (2026-11-17): the evidence jobs at Detent:c3bba179 failed in the harness. Merged main
+(Detent:1a98a291, authority and relay only). build.sh now creates each side's .scratch/ (the ref-base
+checkout has none); the probe decodes, builds, validates and recovers with format-wide limits
+(Detent:15b44583), since 1M exceeded the default 500K-record wire limit. A4 mutant re-cut on the new head:
+Detent:7ada2496. Smokes: 261117-093217-e1c42f (build.sh both sides, ab and identity at 100K),
+261117-093230-64daa8 (the test, then the probe at 600K).
 
 Session 3 (2026-11-17): D107 answered Blocked on (option 2 with 3's restatement; DTPAGE03 and the bytes
 stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
