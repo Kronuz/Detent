@@ -95,3 +95,72 @@ cancelled after publication started reaching the Sink, or of a detached checkpoi
 blocking entry's own stop (my attempt, probe `entry_orphan_checkpoint`, finished every checkpoint
 inside the entry, so the case did not arise). No Linux run of the idle bench beyond CI's pass. No
 review of the transport (consensus-transport) or Xapiand's group-core use of the contract.
+
+# Round 2: re-check of the fixes
+
+Commit: consensus:57745e8541d7101c82b8f3f1bdd5472397875edf
+Verdict: APPROVE
+Date: 2026-11-17
+
+Reviews only the delta consensus:ff0cdbc..57745e8 (ccc9a3e, 41ee584, bf66941, 57745e8): F1 is
+fixed at the cause with a real test; R16, R17, the waiter split and the new mutant commands hold.
+No blocking finding.
+
+### Evidence and checks
+
+Evidence accepted as recorded: F1/F2/F5 tests at ccc9a3e 261116-200811-c09651 (driver_test `fence`
+12 checks, `sink_throws` 4, membership_test 135, 0 failures); mutants killed, read from their logs:
+close-after-stop-links 261116-200759-6d46f3 (`fence`: "close after shutdown completes with
+task::cancelled" and "links no waiter" FAIL), sink-throw-unfenced 261116-200803-9752be (both
+`sink_throws` checks FAIL), witness-becomes-data 261116-200807-369184. At 57745e8: suite
+261116-233050-28a49e and 261117-000432-6d02da, ASan+UBSan ctest with the 11 waiter entries
+261116-233053-a64e8a (all 11 ran and passed), ASan close cases 261116-233057-b2e74f, TSan
+261116-233102-3f74e5, A2 261117-000456-6f48af. include/ is unchanged from ccc9a3e to 57745e8.
+
+1. F1 (Q1). `close` now fails `task::cancelled` when `stopping_` right after `enter`
+   (driver.h:341), the same check `Call::begin` makes (driver.h:410) and the cause: close never
+   reached it. The test is real: at ff0cdbc's close (mutant 6d46f3) close does not complete and a
+   waiting group remains; at the fix both pass. DRIVER.md states the shutdown order.
+2. R16 (Q2). The rule sits only in the leader's `handle(ChangeMembership)` (core.h:673-678);
+   recovery and followers apply committed configurations without it, so no recovered log is
+   refused. It adds one reachable refusal: witness to learner. Witness to voter was already
+   refused (`changed += 2`, membership.h:134), and a removed witness cannot return under its
+   incarnation ("reuses an incarnation", membership.h:128), so no path bypasses it; learner to
+   witness stays allowed. Simulation (8 seeds plus driver simulation) passes in the suite.
+3. R17 (Q2). `Worker::fence` is the existing `fail` (worker.h:1120), the path a storage fault and
+   `application_failed` take: an IO completion arriving after it is ignored (`failed_`,
+   worker.h:234), the Sink hears `Fenced` once (`fence_seen`, driver.h:812/829), and a Sink that
+   throws again on `Fenced` is caught with no second fence. No ordering is new.
+4. Waiter split (Q3). Each `explore` builds its own `Explorer` (seed 1) and the limits are the
+   old ones (20,000; threads 100). Probe job 261117-001610-a7b6f2 (`waiter_split.sh`) compiled
+   ff0cdbc's waiter_test.cc beside 57745e8's and ran the old no-argument run and the 11 ctest
+   commands: every spec's schedule line is identical and the runs sum to the same 129,439.
+5. New mutant commands (Q4). From their logs, none stops on an unknown case:
+   complete-resumes-before-unlink 261116-233131-9cd406 and hop-resumes-before-unlink
+   -233135-802056 abort in ASan inside `explore` of the first case, rows-propose
+   (driver.h:555 `unlink`, driver.h:462 `Cancel::hop`); destructor-leaves-linked -233139-3d5a9c
+   runs rows-* and close, close-read (119/29/514/20,000/20,000/20,000 schedules) and fails in
+   teardown ("a destroyed frame's waiter stays linked"); close-frees-with-waiters -233142-a02ec6
+   runs rows-* and fails in close at run 10,029 ("a proposal completed with no placement").
+
+Round 2 status of round 1's rows: F1 fixed (ccc9a3e; test `fence`, mutant 261116-200759-6d46f3).
+F2 resolved by R16, option (a). F3 fixed for linking: `close` links change_membership, transfer,
+repair and checkpoint waiters, queued and not admitted (an admitted transfer or repair at close
+stays untested; my round 1 probe covered an admitted checkpoint). F5 fixed by R17 (`sink_throws`,
+mutant 261116-200803-9752be). F6, F7 fixed. F4, F8 left by the lead.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | no | defect | Fixed: `close` after shutdown completes `task::cancelled` and links no waiter (driver.h:341, the check `Call::begin` makes at :410). | test driver_test `fence` passes at the fix, job 261116-200811-c09651 (ccc9a3e; include/ unchanged to 57745e8), suite 261117-000432-6d02da; mutant close-after-stop-links 261116-200759-6d46f3 fails both new checks | Done. |
+| F9 | no | gap | The A1 driver checks job at 57745e8, 261116-233128-09ff0c, failed: `consensus_driver_idle 1000` hit driver_checks.sh's 300 s alarm (exit 142). Every other case passed; the bench code is unchanged since ccc9a3e, where it passed (261116-200753-e0161a), and it passes in suite 261117-000432-6d02da and ASan ctest (77 s); disk and load, like R18. | job 261116-233128-09ff0c log; test/driver_checks.sh:18 | Rerun the checks job, or raise driver_idle's alarm as R18 did for the Worker, before citing it for A1. |
+| F10 | no | nit | membership_test `witness_stays_witness`'s second check (witness to voter) is refused by validate_change's voter-witness rule, not R16; under the mutant it fails only because the first change was accepted. The learner check alone tests R16. | test/membership_test.cc:508; membership.h:134; job 261116-200807-369184 | None needed; or say so in the check's message. |
+| F11 | no | nit | R16 is a role-transition rule placed in Core beside `validate_change`, its one caller, which already holds the per-member role rules. | core.h:673-678; membership.h:121-140 | Move the check into `validate_change` (one place). |
+| F12 | no | nit | DRIVER.md:73 still says `~Driver` runs "after run() returned and every group closed", while :143 and the F1 test (a Driver destroyed with group h open after stop) say it frees what groups hold. | docs/DRIVER.md:73, 141-143; test/driver_test.cc `fence_and_shutdown` | Drop "and every group closed" from :73. |
+
+### Not run
+
+No probe of a Sink throwing while its group is closing (`Worker::fail`'s closing branch
+keeps `io_job_`); no rerun of the failed checks job (F9); no Linux or CI run at 57745e8 (CI not
+run at head).

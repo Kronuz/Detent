@@ -1,0 +1,12 @@
+diff --git a/src/detent_authority/history.cc b/src/detent_authority/history.cc
+index 08106b52..8951ffa5 100644
+--- a/src/detent_authority/history.cc
++++ b/src/detent_authority/history.cc
+@@ -505,7 +505,6 @@ void History::bounded(const Step &step, const std::optional<std::string> &table,
+ 		if (bytes > bound)
+ 			throw std::length_error("history file " + std::string(name) + " is above its kind's bound");
+ 	};
+-	within("seal", step.bytes.size(), bounds.seal);
+ 	for (const auto &[name, bytes] : step.written) {
+ 		const auto output = std::find_if(step.seal.outputs.begin(), step.seal.outputs.end(),
+ 										 [&](const Output &o) { return o.name() == name; });
