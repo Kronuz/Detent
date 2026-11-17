@@ -184,7 +184,7 @@ class Upstream {
 	}
 	// The upstream's fetch by name: counts what it serves.
 	r::MirrorFetch fetch() {
-		return [this](const r::MirrorFile &f) {
+		return [this](std::string_view, const r::MirrorFile &f) {
 			if (!reachable)
 				throw std::runtime_error("upstream unreachable");
 			++fetched_files;

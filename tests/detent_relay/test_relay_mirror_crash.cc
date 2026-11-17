@@ -160,7 +160,7 @@ std::string fingerprint(const std::map<std::string, std::string> &files) {
 }
 
 r::MirrorFetch upstream_fetch() {
-	return [](const r::MirrorFile &f) { return bytes_of(f.name); };
+	return [](std::string_view, const r::MirrorFile &f) { return bytes_of(f.name); };
 }
 // One step of a run: an adoption, or a read of one file (a repair when it rotted).
 struct Step {
@@ -168,6 +168,7 @@ struct Step {
 	std::vector<r::NamespaceLayout> layouts;
 	std::vector<std::string> dropped;
 	std::optional<r::MirrorFile> read;
+	std::uint64_t seal = 0; // the upstream seal of the adoption
 };
 struct Lineage {
 	std::vector<r::MirrorTable> tables;
@@ -183,7 +184,7 @@ void apply(r::MirrorStore &store, const Step &step, Lineage &lineage) {
 		check(store.read(*step.read, upstream_fetch()) == bytes_of(step.read->name));
 		return;
 	}
-	store.adopt(step.layouts, step.dropped, upstream_fetch());
+	store.adopt(step.seal, step.layouts, step.dropped, upstream_fetch());
 	lineage.tables.push_back(store.table());
 }
 
@@ -204,7 +205,7 @@ void recovered(const std::filesystem::path &root, const std::map<std::string, st
 			check(store.failed().empty());
 			check(mirror_matches(root, opened));
 			if (again) {
-				store.adopt(again->layouts, again->dropped, upstream_fetch());
+				store.adopt(again->seal, again->layouts, again->dropped, upstream_fetch());
 				++counts.readopted;
 				check(store.table().entries == again->layouts && store.failed().empty() &&
 					  mirror_matches(root, store.table()));
@@ -375,7 +376,7 @@ int main(int argc, char **argv) {
 		up.advance({{"app/flags", 2}, {"beta", 2}});
 		up.roll_up("app/flags");
 		up.advance({{"app/flags", 1}});
-		const Step first{"first", up.layouts(), {}, {}};
+		const Step first{"first", up.layouts(), {}, {}, up.seal};
 		// The next seal: app/flags squashes and cuts, beta rolls up under a new policy, gamma is
 		// dropped and delta appears: reused, fetched and collected files in one adoption.
 		up.advance({{"app/flags", 2}, {"beta", 1}});
@@ -387,7 +388,7 @@ int main(int argc, char **argv) {
 		up.histories.erase("gamma");
 		up.add("delta");
 		up.advance({{"delta", 2}});
-		const Step second{"second", up.layouts(), {"gamma"}, {}};
+		const Step second{"second", up.layouts(), {"gamma"}, {}, up.seal};
 		const auto root = scratch / "run";
 
 		// 1. The first adoption into a new mirror.
@@ -458,7 +459,7 @@ int main(int argc, char **argv) {
 						check(slurp(scratch / "cut" / shrunk_name) == bytes_of(shrunk_file.name));
 					else
 						check(store.failed().size() == 1 && store.failed()[0] == first.layouts[0].name);
-					store.adopt(first.layouts, {}, upstream_fetch());
+					store.adopt(first.seal, first.layouts, {}, upstream_fetch());
 					check(store.failed().empty() && mirror_matches(scratch / "cut", store.table()));
 				}
 		check(std::count(run4.labels.begin(), run4.labels.end(), "rename replacement") == 1);

@@ -4,7 +4,6 @@
 #include <map>
 #include <random>
 #include <set>
-#include <sha256.h>
 #include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
@@ -12,10 +11,7 @@
 namespace detent::relay {
 namespace c = kronuz::io::completion;
 namespace {
-constexpr std::string_view table_magic = "DTMIRR01", table_name = "mirror", owner_name = "owner.lock",
-						   temporary = ".tmp-";
-constexpr std::size_t table_header = 32, maximum_policy = 1u << 16, maximum_files = 1u << 16,
-					  maximum_entries = 1u << 20;
+constexpr std::string_view table_name = "mirror", owner_name = "owner.lock", temporary = ".tmp-";
 
 void (*testing_hook)(void *, const char *) noexcept = nullptr;
 void *testing_context = nullptr;
@@ -23,198 +19,11 @@ void primitive(const char *what) noexcept {
 	if (testing_hook)
 		testing_hook(testing_context, what);
 }
-Digest digest(std::string_view bytes) {
-	SHA256 hash;
-	hash.add(bytes.data(), bytes.size());
-	Digest out{};
-	hash.getHash(reinterpret_cast<unsigned char *>(out.data()));
-	return out;
-}
-bool valid_name(std::string_view name) {
-	return !name.empty() && name.size() <= 255 && name.find('\0') == std::string_view::npos;
-}
-void put(std::string &out, std::uint64_t value, unsigned width) {
-	for (unsigned i = 0; i < width; ++i)
-		out.push_back(char((value >> (8 * i)) & 0xff));
-}
-template <std::size_t N> void put(std::string &out, const std::array<char, N> &value) {
-	out.append(value.data(), N);
-}
-void put(std::string &out, std::string_view bytes, unsigned width) {
-	put(out, bytes.size(), width);
-	out.append(bytes);
-}
-void refuse(bool ok, const char *what) {
-	if (!ok)
-		throw MirrorRefused(std::string("relay mirror table: ") + what);
-}
-struct Reader {
-	std::span<const char> in;
-	std::size_t at = 0;
-	std::uint64_t integer(unsigned width) {
-		refuse(in.size() - at >= width, "truncated");
-		std::uint64_t value = 0;
-		for (unsigned i = 0; i < width; ++i)
-			value |= std::uint64_t(static_cast<unsigned char>(in[at + i])) << (8 * i);
-		at += width;
-		return value;
-	}
-	std::string bytes(std::size_t size) {
-		refuse(in.size() - at >= size, "truncated");
-		std::string out(in.data() + at, size);
-		at += size;
-		return out;
-	}
-	template <std::size_t N> void array(std::array<char, N> &value) {
-		refuse(in.size() - at >= N, "truncated");
-		std::copy_n(in.begin() + at, N, value.begin());
-		at += N;
-	}
-};
-bool is_tier(MirrorFile::Kind kind) { return kind == MirrorFile::Kind::Block || kind == MirrorFile::Kind::Section; }
 } // namespace
 
 void MirrorTesting::install(void (*hook)(void *, const char *) noexcept, void *context) noexcept {
 	testing_hook = hook;
 	testing_context = context;
-}
-
-std::uint64_t NamespaceLayout::end() const noexcept {
-	for (auto at = files.rbegin(); at != files.rend(); ++at)
-		if (is_tier(at->kind))
-			return at->last;
-	return cut;
-}
-
-const NamespaceLayout *MirrorTable::find(std::string_view name) const noexcept {
-	auto at = std::lower_bound(entries.begin(), entries.end(), name,
-							   [](const NamespaceLayout &entry, std::string_view key) { return entry.name < key; });
-	return at != entries.end() && at->name == name ? &*at : nullptr;
-}
-
-std::string mirror_file_name(std::string_view upstream_name) {
-	static constexpr char hex[] = "0123456789abcdef";
-	const auto sum = digest(upstream_name);
-	std::string name = "m-";
-	for (std::size_t i = 0; i < 16; ++i) {
-		name.push_back(hex[static_cast<unsigned char>(sum[i]) >> 4]);
-		name.push_back(hex[static_cast<unsigned char>(sum[i]) & 15]);
-	}
-	return name;
-}
-
-void check_layout(const NamespaceLayout &layout) {
-	auto fail = [](const char *what) { throw std::invalid_argument(std::string("relay mirror layout: ") + what); };
-	if (!valid_name(layout.name) || layout.policy.size() > maximum_policy || layout.files.size() > maximum_files)
-		fail("namespace");
-	std::set<std::string_view> names;
-	auto previous = MirrorFile::Kind::Base;
-	std::uint64_t end = layout.cut;
-	for (std::size_t i = 0; i < layout.files.size(); ++i) {
-		const auto &file = layout.files[i];
-		if (!valid_name(file.name) || !names.insert(file.name).second)
-			fail("file name");
-		if (file.kind == MirrorFile::Kind::Base) {
-			if (i != 0 || file.first != 0 || file.last != layout.cut)
-				fail("the base is first, at the cut");
-			continue;
-		}
-		if (file.kind < previous || (file.kind == MirrorFile::Kind::Section && previous == MirrorFile::Kind::Copy))
-			fail("tier order");
-		if (is_tier(file.kind)) {
-			if (file.first != end + 1 || file.last < file.first)
-				fail("tiers are not contiguous");
-			end = file.last;
-		} else if (i + 1 != layout.files.size() || file.first != 0 || file.last != end)
-			fail("the copy is at s, last");
-		previous = file.kind;
-	}
-}
-
-std::string encode_mirror_table(const MirrorTable &table) {
-	if (table.entries.size() > maximum_entries)
-		throw std::length_error("relay mirror table entries");
-	std::string out(table_magic);
-	put(out, mirror_layout, 4);
-	put(out, table.entries.size(), 4);
-	put(out, table.sequence, 8);
-	out.resize(table_header, '\0');
-	std::set<std::string> names;
-	for (std::size_t i = 0; i < table.entries.size(); ++i) {
-		const auto &entry = table.entries[i];
-		check_layout(entry);
-		if (i && !(table.entries[i - 1].name < entry.name))
-			throw std::invalid_argument("relay mirror table entry order");
-		put(out, entry.name, 1);
-		put(out, entry.incarnation);
-		put(out, entry.seal, 8);
-		put(out, entry.ordinal, 8);
-		put(out, entry.cut, 8);
-		put(out, entry.policy, 4);
-		put(out, entry.files.size(), 4);
-		for (const auto &file : entry.files) {
-			if (!names.insert(mirror_file_name(file.name)).second)
-				throw std::invalid_argument("relay mirror table: a file name repeats");
-			put(out, std::uint64_t(file.kind), 1);
-			put(out, file.first, 8);
-			put(out, file.last, 8);
-			put(out, file.size, 8);
-			put(out, file.digest);
-			put(out, file.name, 1);
-		}
-	}
-	put(out, digest(out));
-	return out;
-}
-
-MirrorTable decode_mirror_table(std::span<const char> in) {
-	refuse(in.size() >= table_header + 32 && std::string_view(in.data(), 8) == table_magic, "header");
-	const auto sum = digest({in.data(), in.size() - 32});
-	refuse(std::equal(sum.begin(), sum.end(), in.end() - 32), "digest");
-	Reader r{in.first(in.size() - 32), 8};
-	refuse(r.integer(4) == mirror_layout, "layout");
-	const auto count = r.integer(4);
-	refuse(count <= maximum_entries, "entry count");
-	MirrorTable table;
-	table.sequence = r.integer(8);
-	refuse(std::all_of(in.begin() + r.at, in.begin() + table_header, [](char byte) { return byte == 0; }), "padding");
-	r.at = table_header;
-	std::set<std::string> names;
-	for (std::uint64_t i = 0; i < count; ++i) {
-		NamespaceLayout entry;
-		entry.name = r.bytes(r.integer(1));
-		r.array(entry.incarnation);
-		entry.seal = r.integer(8);
-		entry.ordinal = r.integer(8);
-		entry.cut = r.integer(8);
-		const auto policy = r.integer(4);
-		refuse(policy <= maximum_policy, "policy");
-		entry.policy = r.bytes(policy);
-		const auto files = r.integer(4);
-		refuse(files <= maximum_files, "file count");
-		for (std::uint64_t j = 0; j < files; ++j) {
-			MirrorFile file;
-			const auto kind = r.integer(1);
-			refuse(kind >= 1 && kind <= 4, "file kind");
-			file.kind = MirrorFile::Kind(kind);
-			file.first = r.integer(8);
-			file.last = r.integer(8);
-			file.size = r.integer(8);
-			r.array(file.digest);
-			file.name = r.bytes(r.integer(1));
-			refuse(names.insert(mirror_file_name(file.name)).second, "a file name repeats");
-			entry.files.push_back(std::move(file));
-		}
-		try {
-			check_layout(entry);
-		} catch (const std::invalid_argument &) {
-			refuse(false, "entry");
-		}
-		refuse(table.entries.empty() || table.entries.back().name < entry.name, "entry order");
-		table.entries.push_back(std::move(entry));
-	}
-	refuse(r.at == r.in.size(), "trailing bytes");
-	return table;
 }
 
 struct MirrorStore::Impl {
@@ -223,8 +32,12 @@ struct MirrorStore::Impl {
 	std::unique_ptr<c::OwnerLock> lock;
 	MirrorTable table;
 	std::vector<std::string> failed;
-	// Mirror name -> the file the durable table reaches under it.
-	std::map<std::string, const MirrorFile *, std::less<>> reached;
+	// Mirror name -> the file the durable table reaches under it, and its namespace.
+	struct Reach {
+		std::string_view name_space;
+		const MirrorFile *file;
+	};
+	std::map<std::string, Reach, std::less<>> reached;
 	std::set<std::string, std::less<>> missing, verified;
 	std::mt19937_64 random{std::random_device{}()};
 	bool poisoned = false;
@@ -265,7 +78,7 @@ struct MirrorStore::Impl {
 		reached.clear();
 		for (const auto &entry : table.entries)
 			for (const auto &file : entry.files)
-				reached.emplace(mirror_file_name(file.name), &file);
+				reached.emplace(mirror_file_name(file.name), Reach{entry.name, &file});
 		failed.clear();
 		for (const auto &entry : table.entries)
 			for (const auto &file : entry.files)
@@ -275,9 +88,9 @@ struct MirrorStore::Impl {
 				}
 	}
 	// Fetches `file` and checks it against the layout.
-	std::string fetch(const MirrorFile &file, const MirrorFetch &from) {
-		auto bytes = from(file);
-		if (bytes.size() != file.size || digest(bytes) != file.digest)
+	std::string fetch(std::string_view name_space, const MirrorFile &file, const MirrorFetch &from) {
+		auto bytes = from(name_space, file);
+		if (bytes.size() != file.size || digest_of(bytes) != file.digest)
 			throw FetchRefused("relay mirror: fetched bytes differ from the layout: " + file.name);
 		return bytes;
 	}
@@ -320,8 +133,8 @@ struct MirrorStore::Impl {
 			table = decode_mirror_table(*bytes);
 		}
 		rebuild();
-		for (const auto &[name, file] : reached)
-			if (!holds(name, *file))
+		for (const auto &[name, reach] : reached)
+			if (!holds(name, *reach.file))
 				missing.insert(name);
 		rebuild();
 		std::vector<std::string> leftovers;
@@ -346,14 +159,17 @@ MirrorStore::~MirrorStore() = default;
 const MirrorTable &MirrorStore::table() const noexcept { return impl_->table; }
 std::span<const std::string> MirrorStore::failed() const noexcept { return impl_->failed; }
 
-AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::span<const std::string> dropped,
-							  const MirrorFetch &from) {
+AdoptStats MirrorStore::adopt(std::uint64_t seal, std::span<const NamespaceLayout> layouts,
+							  std::span<const std::string> dropped, const MirrorFetch &from) {
 	auto &s = *impl_;
 	if (s.poisoned)
 		throw std::logic_error("relay mirror needs a restart after a failed adoption");
+	if (seal < s.table.seal)
+		throw std::invalid_argument("relay mirror adoption: a seal older than the table's");
 	// Validation: the next table, whole, before anything is fetched or written.
 	MirrorTable next = s.table;
 	next.sequence = s.table.sequence + 1;
+	next.seal = seal;
 	std::set<std::string_view> touched;
 	auto locate = [&](std::string_view name) {
 		return std::lower_bound(next.entries.begin(), next.entries.end(), name,
@@ -376,6 +192,7 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 			next.entries.insert(at, layout);
 	}
 	struct Wanted {
+		std::string_view name_space;
 		const MirrorFile *file;
 		std::string name, temporary;
 		std::unique_ptr<c::File> handle;
@@ -389,16 +206,16 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 			if (!names.insert(name).second)
 				throw std::invalid_argument("relay mirror adoption: a file name repeats");
 			if (const auto found = s.reached.find(name); found != s.reached.end()) {
-				if (*found->second != file)
+				if (*found->second.file != file)
 					throw FetchRefused("relay mirror: the upstream changed an immutable file: " + file.name);
 				if (!s.missing.contains(name)) {
 					++stats.reused_files;
 					continue;
 				}
 			}
-			wanted.push_back({&file, std::move(name), {}, {}});
+			wanted.push_back({entry.name, &file, std::move(name), {}, {}});
 		}
-	if (wanted.empty() && next.entries == s.table.entries)
+	if (wanted.empty() && next.entries == s.table.entries && next.seal == s.table.seal)
 		return stats; // the durable table already holds this layout
 	auto clean = [&] {
 		for (auto &want : wanted)
@@ -410,7 +227,7 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 	for (auto &want : wanted) {
 		std::string bytes;
 		try {
-			bytes = s.fetch(*want.file, from);
+			bytes = s.fetch(want.name_space, *want.file, from);
 		} catch (...) {
 			clean();
 			throw;
@@ -486,20 +303,20 @@ std::string MirrorStore::read(const MirrorFile &file, const MirrorFetch &from) {
 		throw std::logic_error("relay mirror needs a restart after a failed adoption");
 	const auto name = mirror_file_name(file.name);
 	const auto found = s.reached.find(name);
-	if (found == s.reached.end() || *found->second != file)
+	if (found == s.reached.end() || *found->second.file != file)
 		throw std::invalid_argument("relay mirror read: a file the table does not reach: " + file.name);
 	if (!s.missing.contains(name)) {
 		auto bytes = s.slurp(name, file.size);
 		if (bytes && bytes->size() == file.size && s.verified.contains(name))
 			return std::move(*bytes);
-		if (bytes && bytes->size() == file.size && digest(*bytes) == file.digest) {
+		if (bytes && bytes->size() == file.size && digest_of(*bytes) == file.digest) {
 			s.verified.insert(name);
 			primitive("verify");
 			return std::move(*bytes);
 		}
 	}
 	// Repair (D6 Recovery): the same bytes by name from the upstream, replacing the name durably.
-	auto bytes = s.fetch(file, from);
+	auto bytes = s.fetch(found->second.name_space, file, from);
 	try {
 		std::string temporary_name;
 		auto handle = s.stage(temporary_name, bytes);

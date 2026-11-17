@@ -1,145 +1,140 @@
 # drivers-completion-seam review: correctness
 
-Commit: completion:269a4c4cbfed20a9dbd2616c0e7793adf7a32db4 (branch quest/detent/drivers-completion-seam, against main completion:3f82cda)
-Verdict: CHANGES
+Commit: completion:90411863d5e421c99da18568b07432954aa83615 (branch quest/detent/drivers-completion-seam; re-review of the fixes since completion:269a4c4cbfed20a9dbd2616c0e7793adf7a32db4)
+Verdict: APPROVE
 Date: 2026-11-16
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+Scope: the fixes completion:6d4cef8, completion:28e639f, completion:b8b7f3b and the merge
+completion:9041186, whose only change is the task pin bdafa5f -> 18eb516 (`CMakeLists.txt:32`).
+`git diff b8b7f3b 9041186 -- include test` is empty.
+
 ## Evidence I relied on
 
-- CI run 43829040088 at completion:269a4c4: all nine jobs green, freebsd-x86_64 included, so f2dc801's
-  test fix holds on FreeBSD (`completion_sync_data` Passed, log lines 1129-1130).
-- Mutant jobs at completion:269a4c4, each exit 0 (killed): 261116-000751-c47e20, 261116-000752-68fa7c,
-  261116-000752-06ce40, 261116-000753-959b2b, 261116-000807-2563be, 261116-000808-2719f9,
-  261116-000808-b88aed, 261116-000809-5174e5; grep job 261116-000911-53e42f (exit 0).
-- A4 rows 261115-230734-0b0a3e (exclusive) and controls 261115-230745-462b77 at completion:f579c4e:
-  `git diff f579c4e 269a4c4 -- include bench` is empty, so they measured this code.
-- Not relied on: suite 261116-000744-e8ac8c was still queued when I wrote this; CI covers it.
+- Jobs at completion:b8b7f3b, all exit 0: mutants 261116-012459-d9a1ad (no cancel callback while
+  waiting), 261116-012505-7c4a10 (pass_slot grants a cancelled waiter), 261116-012511-fb3dc5 (no
+  one-Turn-source assertion), the quest's eight re-run (261116-012344-89db09 ... 261116-012347-8e2ea8),
+  lane mutant 261116-012453-97e70b; TSan 261116-012524-159a96 (1000 racing rounds). The seam's
+  include and test trees are identical at 9041186, so they stand for its seam code; the task pin is
+  covered by my jobs below.
+- CI run 43839792440 at completion:b8b7f3b: all nine jobs green; `completion_sync_data` Passed on
+  linux-x86_64-gcc, linux-x86_64-clang, linux-arm64-gcc, linux-asan-ubsan and linux-tsan;
+  `completion_asio_seam` Passed on linux-tsan (200 racing rounds). Neither the workflow nor the
+  shared `cpp-libraries` workflow nor the log sets `COMPLETION_TEST_NO_IO_URING` (0 matches), so
+  each Linux pass ran the ring section (see C2).
 
 ## What I checked myself
 
 Scripts under `.scratch/review-drivers-completion-seam-correctness/` in the Detent home checkout.
 
-- `lane_review.sh` + `lane_review_probe.cc` (job 261116-001827-3663c6, light, macOS, 16 Bulk tasks, 60
-  turns): open-loop turns at a fixed period, a cancelled Bulk "victim" every 40 ms with its token
-  requested as soon as it waits, and two Turn sources. Light level, so rows are noisy (lane rows
-  spread 1.8-23.8 MiB/s); only the large effects below are read from it.
-- `stress.sh` + `stress_probe.cc` (job 261116-010643-1e71d2): 400 seeded rounds of 2-10 concurrent operations on
-  one `AsioCompletionDriver`, random lanes, lengths, `run`/`run_one`, tokens requested before, from a
-  completion hook, or from another thread; every fifth round stops the loop mid-flight and tears down
-  (close, destroy_roots), Debug + ASan/UBSan. Checks against a sequential model: never two primitives
-  in flight, nothing issued or completed after its run returned, issued == completed, every run ends,
-  outcome matches the token, queue idle and slot free after the round. Result: 400 rounds (80 teardown),
-  0 violations, ASan/UBSan clean. The first runs (261116-001737-80225e, 261116-002001-ff4d65,
-  261116-003320-48157b, 261116-010521-f2acb6) were probe bugs: a build-dir path, a name clash, and a
-  teardown that destroyed the queue undrained, which `~BsdCompletionQueue` answers with
-  `std::terminate` by contract (`bsd_completion.h:70-72`; see C8).
-- `extra_mutants.sh` (job 261116-002636-bc1cb7): seven seam mutants the quest's eight leave out; six killed, one
-  equivalent survivor (Q5).
-- Read: the full include diff, `seam.h`, the Asio slot (`asio_completion.h:120-205`), the BSD and Linux
-  queue paths, `sync_data_test.cc`, `seam_test.cc`, `asio_seam_test.cc`, `check_seam.py`, the CI log.
+- Suite at 9041186, Debug, full ctest (job 261116-115020-1ea488): 24/24 passed.
+- TSan at 9041186 (task 18eb516), `completion_asio_seam_test 1000` (job 261116-115022-8681d8): clean;
+  1000 rounds, 2013 cancelled, 2987 finished; cancelled waiter released in 120 us.
+- `rereview.sh` + `rereview_probe.cc` (job 261116-115025-9b0388, Debug + ASan/UBSan, 50 iterations
+  each) forces three interleavings the suite reaches only at random or not at all:
+  - P1, grant then cancel: the holder's Hold grants b by a post; its awaiting caller resumes first and
+    requests b's token on the owner. Release loses the claim; b resumes once, throws `cancelled`
+    unissued, and passes the slot to c.
+  - P2, a claimed waiter still linked: b's token is requested from a's `on_completed`, so b's claim
+    wins and its resume is posted, but b is still linked when a reaches its next Admit. a yields,
+    `pass_slot` skips b and grants c; log `a:write c:write a:sync_data`; the slot is free afterwards.
+  - P3, legitimate Turn re-entry: a Turn cancelled while waiting, then the next Turn started as soon
+    as its caller resumes, driven by two `run_one` calls. No assertion fires.
 
-### Q1: the token at primitive boundaries
+  Passed on the real code. Both mutants were killed under ASan: `release-ignores-claim` (Release
+  posts even when the grant won: double resume, BUS) and `pass-grants-claimed` (SEGV).
+- `suite_vs_claim_mutant.sh` (jobs 261116-115204-3e98f5, 261116-115244-944d13; the first printed the
+  forked child's expected assertion as the cause, the second the real one): the suite's own
+  `asio_seam` test kills `release-ignores-claim` in 5 of 5 runs under ASan (BUS), so the grant-wins
+  path is reached by the racing rounds, not only by my probe.
+- Read: `asio_completion.h` at 9041186 (Waiter, Admit, Release, pass_slot, TurnSource, drive);
+  task 18eb516's `cancel_callback` (`task.hh:1205-1245`: the destructor deregisters and waits for a
+  callback running on another thread, invokes inline if already requested, and an empty token
+  never runs it) and `asio_scheduler::post` (`task_asio.hh:76-80`: cross-thread safe, dropped once
+  closed); `sync_data_test.cc:197-208`; the task log bdafa5f..18eb516 against every task symbol the
+  seam uses.
 
-Two cases, with different answers.
+### Q1 (C1): cancel while waiting for the slot
 
-1. **In flight: acceptable as is.** A cancelled caller waits for the one primitive it issued (one
-   64 KiB write, or one `F_FULLFSYNC`, about 20 ms on this Mac, longer under load). Releasing it earlier
-   needs a reaper that outlives the caller's frame; the operation's buffers are already kept by the
-   queue (`pending_`), so it is a latency cost, not a safety one. It fits journal-driver A2 (staged
-   records written before return) and consensus-driver A3: at teardown the slot holder's `Hold` posts to
-   a closed scheduler (dropped, task teardown phase 2) and `~Admit` unlinks a waiter. D8's row "only the
-   caller is released" should be amended to say the caller is released when the primitive completes.
-2. **Waiting for the slot: must change.** The token is read only when the slot reaches the waiter, and
-   no cancel callback is registered, so a cancelled caller waits out the whole queue ahead of it. The
-   ruling's "costs at most one primitive's latency" is false. Measured (probe 261116-001827-3663c6):
-   one Turn source, 16 Bulk: release p50 187-218 ms, max 247 ms (FIFO 24 ms); two Turn sources:
-   1,430 and 1,807 ms, i.e. until the turns stopped. D8's first row (a call waiting for admission:
-   unlinked, never submitted, completes with `task::cancelled`) is what this wait is, and deadlines
-   (D8) cannot bound a fan-out while it holds. Fix: register a `cancel_callback` in `Admit` that claims
-   the waiter and hops to the owner (`post_call`), which unlinks it if still linked and resumes it to
-   throw; a waiter already handed the slot loses the claim and proceeds as now (D8's waiter protocol).
+Fixed. Each primitive's Admit has a fresh Waiter whose atomic state goes `waiting` to `granted`
+(by `pass_slot`, owner) or `cancelled` (by Release, any thread) through one CAS, so exactly one wins:
 
-### Q2: concurrent runs on the Asio driver
+1. **Released once, never resumed after cancellation.** Cancel wins: only Release posts the handle;
+   `pass_slot` skips the waiter. Grant wins: only `pass_slot` posts; the waiter resumes holding the
+   slot and the re-check after Admit throws, if the token's bit is visible by then; otherwise the
+   request counts as arriving after admission, and the next pre-check reads it.
+2. **No slot leak.** A cancelled waiter never holds the slot. `pass_slot` loops past claimed waiters
+   and clears `slot_taken_` only when both queues are empty, so the slot is never free while a live
+   waiter is queued (P2). A granted-then-cancelled waiter sets `holding` and its `Hold` passes the
+   slot on (P1).
+3. **No use after free.** Release copies the handle and `owner_` before its CAS and touches nothing
+   of the Admit after it. `~Admit` resets the callback before leaving the queue, and that reset
+   waits for a Release running elsewhere. A post that lands after teardown closed the scheduler is
+   dropped.
+4. **The window between the pre-check and registration.** It is covered: `cancel_callback` runs
+   Release inline when the token is already requested.
 
-No race, double completion or late completion found. All slot state is touched on the owner only;
-`slot_taken_` stays true while anyone waits (`pass_slot` hands it over, `asio_completion.h:180-188`), a
-popped waiter is unlinked before its resume is posted, the timer and notification descriptor are used
-by the slot holder only, and `parallel_group` reaps both waits before resuming. The stress probe above
-checks these against a model, teardown included: 400 rounds, 0 violations (261116-010643-1e71d2). Two drives of the same operation are
-no longer refused (the old `active_` refusal is gone and `in_flight()` is false while it waits): a
-misuse that now interleaves the two drives' primitives instead of failing (C5).
+TSan is clean on macOS (1000 rounds) and on Linux CI (200 rounds).
 
-### Q3: SyncData per backend
+### Q2 (C2): the ring SyncData section on Linux
 
-- Linux ring: `IORING_OP_FSYNC` + `IORING_FSYNC_DATASYNC` on a zeroed SQE (`linux_completion.h:109`,
-  `:278-285`), errors as `system_error(-res, generic_category)` like Sync; `fdatasync` semantics. CI
-  cannot show it ran: `native_ring` returns early, printing to stdout, when the ring is unavailable
-  (`sync_data_test.cc:197-200`), ctest prints no stdout on a pass, and no other completion test uses
-  `RequireNative`. The Linux runners are Ubuntu 24.04 VMs, so io_uring is likely there, but nothing
-  proves it (C2).
-- FreeBSD: `aio_fsync(O_DSYNC)` is `fdatasync` semantics. A closed file's EBADF at submission becomes
-  the operation's error, `system_error(EBADF, generic_category)`, the same as the worker path, and
-  counts `native_rejected` as Read/Write/Sync refused at submission already do; the product behaviour is
-  right and f2dc801 fixes only the test. Any refusal other than ENOSYS/ENOTSUP/EAGAIN is completed as an
-  error, not sent to the worker; on a FreeBSD without `O_DSYNC` support (before 13.0) SyncData would
-  fail with EINVAL (C7).
-- Worker: `file_sync_data` (`posix.h:184-192`): `fdatasync` on Linux, `F_FULLFSYNC` on macOS (correct:
-  macOS `fdatasync` does not flush the drive cache), `fsync` elsewhere, so FreeBSD's worker path is
-  stronger than its native path. Both meet `io.h:82-84`'s contract.
+Fixed. Without io_uring the section prints the reason to stderr and `std::exit(1)` unless
+`COMPLETION_TEST_NO_IO_URING=1` (`sync_data_test.cc:200-207`), so ctest fails rather than skips. With
+io_uring it passed on all five Linux CI jobs at b8b7f3b with no opt-out set anywhere, so the ring
+SyncData path and its EIO fault ran. The fail branch itself is never executed (no ring-less host); it
+is seven lines and read only.
 
-### Q4: strict priority and Bulk throughput
+### Q3 (C3): one Turn source per driver
 
-Strict priority at admission is X13's literal ask ("turn primitives go ahead of artifact and snapshot
-IO"). The -85% is mostly the probe's closed loop, not starvation: the lane arm runs 2.4x as many turns
-per second (37-40/s against 15/s in my closed rows), and each turn holds the one slot for its ~20 ms
-SyncData. Under FIFO, every turn primitive waits for all 16 Bulk waiters, so Bulk gets a fixed ~32
-chunks (2 MiB) per turn (1,939-2,016 Bulk writes per 60 turns in every flat row), and FIFO cannot even
-serve the offered turn rate: open loop at 45 ms it served 14-17 turns/s of 22, at 30 ms 9-16 of 33,
-turn p99 up to 1.3 s. The lane served the offered rate and gave Bulk the rest of the slot (up to 23.8
-MiB/s at 45 ms). With one Turn source per driver (D2, D6), Bulk is never starved: `pass_slot` at the
-end of each turn operation goes to the Bulk head before the next turn queues, so Bulk gets at least one
-primitive per turn. With two Turn sources it is starved outright: 17 Bulk writes in a whole run
-(0.6-0.7 MiB/s, against 976 flat). A bounded share (one Bulk primitive per Turn primitive once Bulk
-has waited) would add at most one 64 KiB chunk (~1.5 ms here) to each turn primitive's wait, keeping
-most of the 21 ms to 0.5 ms win; I did not implement it. Recommendation: keep strict priority, and
-either state and check one Turn source per driver or add the aging bound (C3, the lead's call).
+Fixed. `TurnSource` is constructed in `drive` (`asio_completion.h:265-267`), the one body behind
+`run` and `run_one`, after the misuse checks that throw and before `Hold`. Its destructor runs on every
+exit: completion, exception, cancellation, and frame destruction at teardown. Locals die before
+`final_suspend`, so the flag is clear before the caller resumes. Legitimate re-entry (sequential
+`run_one` steps, a new Turn right after a cancelled one) does not fire it (P3). The suite's control
+in the child process covers a Turn with a Bulk beside it and a second Turn after it. The killed mutant
+261116-012511-fb3dc5 shows the assertion test is live. The assertion exists in Debug only; CI's build
+type decides whether CI runs it, and the local Debug suite does.
 
-### Q5: the mutants
+### Q4: the task pin bdafa5f -> 18eb516
 
-The eight cover SyncData dispatch and error, Held ticket order, Held drop, the token in Inline and
-Held, the lane, and a second loop beside `drive_synchronously`. They leave out the Asio token checks,
-the slot hand-over and Held's posting and teardown; `extra_mutants.sh` (261116-002636-bc1cb7) adds
-seven. Killed: `completion_ref` dropping the token, no token re-check after the slot wait, Held
-resuming inside `deliver`, a Bulk holder not yielding to Bulk waiters, `~Hold` not passing the slot,
-`~Wait` not leaving the queue. Survived: a Turn holder yielding to Bulk waiters too; it is equivalent,
-since `pass_slot` takes the Turn lane first and hands the slot straight back (one extra post), so no
-test can tell it apart by order. With these, the eight plus the existing tests cover Held ordering,
-token propagation through the reference and every driver, and Inline as the one loop (the grep and
-its mutant). The Asio cancel-while-waiting gap (C1) is uncovered because the behaviour is missing.
+Nothing the seam relies on changes behaviour. The seam uses `task`, `cancel_token`,
+`cancel_callback`, `cancelled`, `current`, `schedule_on`, `scheduler_ref`, `asio_scheduler` and
+`await_asio`:
+
+1. **Cancellation.** `cancel_callback`'s contract is unchanged; `cancel_state` gains a timed variant
+   and a refactored `link`.
+2. **Deadlines.** They now fire on the scheduler's wheel (the owner thread), so Release then runs
+   inline on the owner. P2 exercises that path.
+3. **`scheduler_ref`.** It packs a heavy-lane bit, and `operator==` still compares `self_` only, so
+   `current() != owner_` is unaffected.
+4. **Posting.** `post` dispatches by that bit; the driver's `owner_` comes from `scheduler_ref::of`,
+   which is light.
+5. **`await_asio`.** It skips inline resume for heavy refs only.
+6. **`schedule_on`.** Unchanged.
+7. **18eb516 itself.** It touches `demote`'s thread check only.
+
+The suite and TSan pass at 9041186. One consequence is N3.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| C1 | yes | defect | A caller cancelled while waiting for the Asio slot is not released until the slot reaches it: 187-247 ms with one Turn source, 1.4-1.8 s (until turns stop) with two, against D8's admission row and the ruling's "at most one primitive's latency" | probe 261116-001827-3663c6; `asio_completion.h:148-170` (`Admit` registers no callback) | `cancel_callback` in `Admit`, hop by `post_call`, unlink if linked, resume to throw; test: a waiter behind a gated holder, token requested from another thread, completes `cancelled` while the holder's primitive is still blocked (gate opened after the release is observed); amend the journal ruling and D8's in-kernel row to "released when the primitive completes" |
-| C2 | yes | gap | The Linux ring SyncData path and its EIO fault are not shown to run in CI: the section skips silently when io_uring is unavailable | `sync_data_test.cc:197-200`; CI log 43829040088 shows Passed only | make the ring section fail on Linux unless an opt-out env names the host as ring-less (or construct with `RequireNative` there); CI green then proves A1 for the ring |
-| C3 | no | gap | Strict priority starves Bulk (catch-up, snapshot install) when two Turn-lane sources share a driver; the one-Turn-source assumption is stated nowhere and nothing checks it | probe 261116-001827-3663c6 two-source rows: 17 Bulk writes per run | lead's call: document and Debug-assert one Turn operation at a time per driver, or admit one Bulk primitive after N Turn primitives while Bulk waits |
-| C4 | no | gap | MEASUREMENTS "Turn lane" reads the -85% Bulk drop as the designed trade; it is mostly the closed loop's turn rate (2.4x more turns served); an open-loop row would show the real trade | probe 261116-001827-3663c6 open rows | add an open-loop row (fixed turn period) to `docs/MEASUREMENTS.md`, or say in the text that FIFO's Bulk rate is ~32 chunks per turn |
-| C5 | no | nit | Two concurrent `run`s of one operation are no longer refused; their primitives interleave | `asio_completion.h:202-204` (only `in_flight()` checked) | a per-operation "driving" guard, or document it as misuse |
-| C6 | no | nit | The closed-file case checks only that an error came back, not EBADF, although the comment names it | `sync_data_test.cc:166-169` | `check_errno(bad.error, EBADF, ...)` |
-| C7 | no | nit | FreeBSD native SyncData completes EINVAL as an error instead of falling back where `aio_fsync(O_DSYNC)` is unsupported (FreeBSD < 13) | `bsd_completion.h:139-147` | none needed while CI's FreeBSD is 13+; or add EINVAL to the fallback set for SyncData |
-| C8 | no | gap | Phase-3 teardown with a primitive in flight leaves the queue undrained, and `~BsdCompletionQueue` then calls `std::terminate`; pre-existing contract (the old single-run driver had it too), but D8 and consensus-driver A3's teardown need the host to drain the queue after `destroy_roots`, which nothing states | stress 261116-010521-f2acb6 backtrace; `bsd_completion.h:70-72` | state the drain step in `completion-seam.md` (or let the driver drain on destruction); consensus-driver's teardown test should cover it |
-| C9 | no | nit | `check_seam.py`'s docstring says `--base` checks every public header declaration remains; the code checks only test/ files | `check_seam.py:11`, `:74-86` | drop the claim or implement it |
-| C10 | no | nit | No ring test distinguishes SyncData from Sync (dropping `IORING_FSYNC_DATASYNC` survives); the mutant is stronger, not weaker, so durability is unaffected | `linux_completion.h:284-285` | none required |
+| C1 | no (resolved) | defect | Fixed: a caller cancelled while waiting for the slot is released by a `cancel_callback` claim, once, unissued, without leaking the slot; race-free against a concurrent grant | 28e639f; mutants 261116-012459-d9a1ad, 261116-012505-7c4a10; TSan 261116-012524-159a96, 261116-115022-8681d8; probe 261116-115025-9b0388 (P1, P2, two more mutants killed) | none |
+| C2 | no (resolved) | gap | Fixed: the ring section exits 1 on Linux without io_uring unless opted out; CI's five Linux jobs ran it and passed | 6d4cef8; `sync_data_test.cc:200-207`; CI 43839792440 | none |
+| C3 | no (resolved) | gap | Fixed: one Turn source per driver documented and Debug-asserted in `drive`, the path every run takes; no false fire on sequential re-entry | b8b7f3b; `asio_completion.h:229-246,265-267`; mutant 261116-012511-fb3dc5; probe P3 | none |
+| C4, C6, C8, C9 | no (resolved) | gap/nit | MEASUREMENTS now explains the closed-loop Bulk drop; the closed-file case checks EBADF; the host drain at teardown is stated; `check_seam.py`'s docstring matches the code | diff 269a4c4..9041186; suite 261116-115020-1ea488 | none |
+| C5, C7, C10 | no | nit | Unchanged from the first review (two drives of one operation interleave; FreeBSD < 13 `aio_fsync(O_DSYNC)` EINVAL; no ring test tells SyncData from Sync) | first review | as stated there |
+| N1 | no | nit | `turn_running_` and `TurnSource` exist only without NDEBUG, so `AsioCompletionDriver`'s layout differs between Debug and NDEBUG translation units: a program mixing them breaks ODR with a real size skew, not only a differing assert | `asio_completion.h:229-246` | keep the bool unconditionally (one byte) and make only the `assert` conditional |
+| N2 | no | nit | The grant-then-cancel and claimed-but-linked interleavings are reached by the racing rounds (the suite kills `release-ignores-claim` 5/5), not by a deterministic test | jobs 261116-115244-944d13, 261116-115025-9b0388 | optionally lift P1 and P2 from `rereview_probe.cc` into `asio_seam_test.cc` |
+| N3 | no | nit | With task 18eb516's heavy lane, the driver resumes waiters and yields through `owner_`, a light ref, so a caller running in a heavy scope continues in the light lane after a slot wait or the 16-step yield; nothing uses heavy with the driver today | `asio_completion.h:84,224,274`; `task.hh:209` | none now; when a heavy-lane IO caller appears, post with the caller's lane (`current().with_heavy(...)`) |
 
 ## Not run
 
-- Linux and FreeBSD locally (no host); the ring path is C2's gap.
-- TSan on the stress probe (sanitizers are CI's; the driver is single-threaded on its owner, the only
-  cross-thread touch is `token.requested()`, an acquire load).
-- An implementation of the bounded share in Q4; its cost is estimated, not measured.
-- A4's exclusive rows were not rerun; my lane probe ran at light level and is not a replacement for them.
+- CI at completion:9041186: run 43942262357 was still queued when I wrote this. CI at b8b7f3b is
+  green, and 9041186 differs only by the task pin, which my macOS suite and TSan jobs cover; Linux
+  and FreeBSD with task 18eb516 rest on that CI run.
+- The ring section's failure branch on a ring-less Linux host (no such host).
+- The A4 lane rows were not rerun: the seam's include and bench trees are unchanged since they ran.

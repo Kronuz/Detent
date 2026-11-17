@@ -12,7 +12,7 @@ consensus runs on task through a `Driver` over the I/O-free `Core`, per `docs/de
 - A1 `simulation_test` runs through `Driver` on `inline_scheduler` plus `HeldCompletion`; every D2 call completes per its D8 row (`propose` at ProposalPlaced, `committed` at commit or `superseded`), and Detent's and the Worker suites' uses of `try_submit` are expressible without it: tests
 - A2 A lone voter with no witness campaigns at `Start`, so its first proposal after `create` and after `recover` succeeds with no clock advance (X5, R9): `lone_voter` and a recover test
 - A3 The waiter protocol per interleaving, close with linked waiters of every kind, a cancel racing close and teardown (`waiter_test` and its close/teardown cases, the resume-before-unlink mutants killed) under ASan, and close racing cancel and teardown on real threads under TSan: tests and mutant jobs
-- A4 `consensus::run` follows D5's five steps (`stalled` on a lost wake with a heartbeat armed, `needs_peer` for a group with another voting member, a lone voter beside a witness included, staged-then-cancelled written before return; cross-thread cancel returns `cancelled`) under TSan; a witness member votes, never applies or holds state (simulation test): tests
+- A4 `consensus::run` follows D5's five steps (`stalled` on a lost wake with a heartbeat armed, `needs_peer` for a group with another voting member, two voters beside a witness included (a lone voter beside a witness is not a valid membership, membership.h D9; journal R8), staged-then-cancelled written before return; cross-thread cancel returns `cancelled`) under TSan; a witness member votes, never applies or holds state (simulation test): tests
 - A5 Idle cost per group: 0 threads, frames, armed timers and descriptors, and a 3-voter member's consensus state within 8 KiB on the Linux gate host (Y9); Worker suites green; ASan+UBSan and TSan: an idle-cost job and the CI
 
 ## Contracts
@@ -26,3 +26,5 @@ D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 nod
 ## May land early
 
 Tests; Driver is additive beside the Worker.
+
+Note (journal-driver R14): journal drops `migrate`, `layout` and `finish_migration`; consensus `worker.h:167-181` must drop those calls when it repins journal.

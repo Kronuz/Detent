@@ -1,5 +1,6 @@
 #pragma once
 #include "bundle.hh"
+#include "detent_distribution/grants.hh"
 #include "detent_distribution/session_table.hh"
 
 namespace detent::relay {
@@ -12,6 +13,8 @@ struct SessionAuthorization {
 	distribution::SubscriptionPrincipal principal;
 	distribution::ScopeIdentity grants{};
 	std::array<std::uint64_t, 4> bundles{};
+	// W13 patterns for version-2 sessions and history routes, owned by the configured credential.
+	const distribution::NamespaceGrants *namespaces = nullptr;
 	bool allows(std::size_t index) const noexcept {
 		return index < 256 && (bundles[index / 64] & (std::uint64_t{1} << (index % 64)));
 	}

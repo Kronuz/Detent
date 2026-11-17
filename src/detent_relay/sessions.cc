@@ -9,7 +9,7 @@ struct Sessions::Impl {
 	Impl(std::shared_ptr<d::StorageLedger> account, std::span<const SessionBinding> configured,
 		 d::SubscriptionLimits limits)
 		: bindings(d::StorageAllocator<SessionBinding>(account)), table(account, limits) {
-		if (!account || configured.empty() || configured.size() > 256)
+		if (!account || configured.size() > 256)
 			throw std::invalid_argument("relay session binding limit");
 		for (const auto &binding : configured) {
 			if (!binding.bundle || binding.principal.identity == d::ScopeIdentity{} ||
