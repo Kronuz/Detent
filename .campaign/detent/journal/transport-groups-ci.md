@@ -47,7 +47,7 @@ Nothing.
 | A1 | 261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report |
 | A2 | 261117-084320-74416f: threads 200x, 4 at once, pass (consensus:27a403b; docs-only after); fails without: 261117-084310-26bb40 (mutant reads-after-posts) |
 | A3 | suite 261117-084822-a16425 at consensus:0ed76ef; branch CI run 44130104547 at consensus:0ed76ef: linux-tsan, linux-arm64-gcc, macos-arm64 and every other job green, only macos-x86_64 failed (the peers flake, peers-retry-flake's) |
-| A5 | [manual] Linux TSan CI reported the race at consensus:e4e394b (run 44119963752, groups_driver; also run 44120112658, groups_threads) and passes at consensus:0ed76ef (run 44130104547). macOS TSan does not reproduce it: 261117-084234-d7c1d4 and 261117-084243-55886d at the uncached-context mutant ran with no report |
+| A5 | [manual] lead, 2026-11-17: Linux TSan CI reported the race at consensus:e4e394b (runs 44119963752 and 44120112658) and is clean at consensus:0ed76ef (run 44130104547, linux-tsan). The macOS TSan mutant jobs did not reproduce it, so the Linux CI runs carry this proof |
 
 Mutants: consensus:8afc5d7 (uncached-context: Links' call removed), consensus:a1eeac6
 (reads-after-posts: old counting), each one commit on consensus:27a403b, written with
