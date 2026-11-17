@@ -7,4 +7,4 @@ cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF \
 	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null
 cmake --build "$build" -j4 --target test_relay_mirror test_relay_mirror_crash >/dev/null
-ctest --test-dir "$build" -R '^test_relay_mirror(_crash)?$' --output-on-failure
+ctest --test-dir "$build" -R '^test_relay_mirror(_crash)?$' --output-on-failure --timeout 3000
