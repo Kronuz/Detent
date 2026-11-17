@@ -24,6 +24,14 @@ inline std::span<const char> checked_page_bytes(const SegmentInput &segment,
 		reference.length > segment.bytes.size() - reference.offset)
 		throw std::invalid_argument("invalid paged segment reference");
 	const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
+	if (segment.pages && bytes.size() >= paged::page_header_bytes && segment.pages->test(reference.offset)) {
+		// A verified page's header is checked: the reference need only match its fields.
+		if (read_integer(bytes, 8, 4) != reference.length || read_integer(bytes, 16, 8) != reference.keys ||
+			static_cast<unsigned char>(bytes[24]) != reference.height ||
+			std::memcmp(bytes.data() + 32, reference.digest.data(), reference.digest.size()))
+			throw ReadSourceFailure("local page reference differs from reached header");
+		return bytes;
+	}
 	const auto header = paged::decode_page_header(bytes, paged_format_limits());
 	if (header.length != reference.length || header.keys != reference.keys ||
 		header.height != reference.height || header.digest != reference.digest)
