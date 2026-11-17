@@ -1,19 +1,51 @@
 # transport-groups: journal
 
-State: ready for review
+State: fix round 1 (review CHANGES: F1, F2, F3); waiting on jobs at consensus `6b2c6fa`
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Every job at consensus `81339c2` passed; each mutant failed its case (exit 8).
+Fix round 1 at consensus `6b2c6fa` (on `81339c2`): `4daed86` drops `TCP_NOTSENT_LOWAT` (F1);
+`6b2c6fa` adds `refill` (F3), signed pacing ticks and hang diagnostics in `groups_test` (F2).
+Jobs queued, listed under Fix round 1.
 
 ## Next
 
-1. Correctness review (the lead launches it).
+1. Read the fix-round jobs; record ids and values in Evidence.
+2. The lead pushes `quest/detent/transport-groups`; CI must be green on all five Linux jobs (F1)
+   and both macOS jobs (F2).
 
 ## Blocked on
 
 Nothing.
+
+## Fix round 1 (review .campaign/detent/reviews/transport-groups-correctness.md)
+
+- F1 (`4daed86`). Cause: on Linux `TCP_NOTSENT_LOWAT` also gates `tcp_sendmsg` (a write
+  queues only while unsent bytes are under the mark), not only `EPOLLOUT`, so the kernel
+  stops absorbing a steady slow reader's backlog and write progress comes only as the
+  receiver's window opens; the connection's stuck deadline (`dead_after` without write
+  progress) then ends a link N2 of transport-connection says is not stuck. CI: with lowat,
+  run 44089495483 fails `connection_test.cc:614` on all five Linux jobs; the lead's no-lowat
+  mutant `a0a355b` (branch probe/transport-groups-no-lowat; the push trigger skips probe/*, so
+  I dispatched it, run 44097748266) passes every Linux job, `groups_upload` included. A2 does
+  not need lowat: macOS gap 233 ms without, 195 ms with (reviewer 109ee5). Removed; docs say
+  why. The existing `read_slowly` is the failing test (Linux only; CI is the proof).
+- F2 (`6b2c6fa`). Cause: `reader` and `upload` paced with `sleep_until(start + (tick + 1) * P)`,
+  `tick` a `std::uint64_t`. That makes the time point's rep unsigned, and libc++'s
+  `sleep_until` for `steady_clock` is `sleep_for(t - now())` (SDK `__thread/this_thread.h:65`),
+  so a slot already past (one 10 ms tick overrun on a loaded runner) underflows to centuries.
+  libstdc++ loops on `now() < t`, which is why Linux never hung. The no-lowat run's
+  macos-x86_64 still hangs both cases, so lowat is not it. Fix: signed ticks. Diagnostics
+  anyway: stdout line-buffered, a step printed as each starts, and a 100 s watchdog that prints
+  the step, each loop's turning/blocked/stopped state and counters, and every stack (`sample`
+  on macOS, `gdb` on Linux with `PR_SET_PTRACER`), then exits 3.
+- F3 (`6b2c6fa`). `refill`: 40 KiB frames against a 64 KiB window go one at a time, so any
+  lost credit wedges the group; a marker must arrive after 1 s of refusals and after the
+  receiver restarts with a frame outstanding. Mutants `no-credit-on-refuse`, `no-reset-on-end`
+  are in `mutant_commit.py` (which now takes several edits per mutant).
+- N3 not done: a tighter `upload` gap bound needs Linux numbers first (CI prints a passing
+  case's output nowhere).
 
 ## Evidence
 
