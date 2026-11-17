@@ -1,6 +1,6 @@
 # transport-connection: journal
 
-State: ready for review (security fix round 1 at consensus 2f6f210; every job below passed)
+State: waiting on jobs 261117-024444-856be1 261117-024445-1c6a25 261117-024447-c8c390 261117-024515-fdecab 261117-024518-eb8beb 261117-024521-a9f6d0
 Quest: .campaign/detent/quests/transport-connection.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -43,10 +43,27 @@ dead stack; fixed at `35ebaba`). `575671e` makes `~Links` abandon a refreshing l
 
 Fix head: consensus `2f6f210` (`f0a50db` connection, `48ba519` links, `2f6f210` doc and mutants).
 
+## Fix round 2 (CI macos-x86_64: `slow_reader` dialer dead, 7 of 64 frames in 643 ms)
+
+Cause: the test. Both ends share one process, so a host stop silences the reader's keepalives
+too, which no two hosts do. Forced at `2f6f210` (probes, working tree = head, light):
+- no stop 0 of 10 failed; CPU starvation (2 x ncpu spinners, strict) 0 of 15
+  (261117-023507-f1cb6b, 261117-023812-a2fe7a): the stuck deadline and keepalives hold.
+- SIGSTOP 200-400 ms, 100-900 ms in, fixed seed: 16 of 40 failed, 15 "dialer 3, acceptor 2"
+  (CI's signature), one dialer `failed` (261117-023507-f1cb6b). Deaths cluster at stops of
+  204-319 ms: the dialer's dead deadline lands just after the stop ends, too little late to
+  extend, while the reader's own keepalive timer fired late and extended.
+- Same stops, keepalive timer without the late extension (probe-only patch, reverted): 1 of 40
+  (261117-023724-01de87). See "For the lead".
+Fix (consensus `76426af`, test only): `stall_watch` (a thread sleeping 1 ms records the longest
+gap); a failed `slow_reader` run the host stalled >= 100 ms (a third of dead_after) reruns, at
+most twice; only a whole run passes; a failure without such a stall fails at once. Same 40 stops:
+0 failed, 13 retried, each retry whole (probe 261117-024148-dffbff); plain runs report 1 ms
+stalls. `test/transport/slow_reader_stops.py` forces the stops. No product change.
+
 ## Next
 
-1. Push for CI (the lead's; Linux was red at `35ebaba`, see above), then `campaign accept
-   transport-connection security --confirm S1=<suite> S2=<suite> ...`.
+1. Read the six jobs in State; push for CI (the lead's).
 
 ## For the lead (review notes not fixed here)
 
@@ -54,12 +71,24 @@ Fix head: consensus `2f6f210` (`f0a50db` connection, `48ba519` links, `2f6f210` 
   `~Links`-with-live-resolver test (latch, ASan) is not written.
 - N6: `Connection` does not assert the context's verify mode and `SSL_OP_NO_RENEGOTIATION`.
 - N7: two pin matchers (`NodePins::authenticate`, `authenticated_voter`) until `Peers` goes (D106).
+- Keepalive and the late rule (found in fix round 2): the keepalive timer is a `late_deadline`,
+  so after a stall its late fire extends by up to one keepalive interval before the keepalive
+  goes. The extension protects nobody there; it costs a stalled sender one interval of the
+  peer's dead_after (1 s of 5 s). Under shared stops it turned 1 of 40 deaths into 16 of 40.
+  Options: (a) the keepalive sends at once on a late fire (a `late_deadline` flag or a plain
+  wheel timer, ~5 lines, a mutant, re-review); (b) keep it, documented. Recommend (a) as a
+  follow-up; not done here (the doc names the keepalive interval as a rule consumer).
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+At `76426af` (fix round 2): suite 261117-024444-856be1; `connection` 261117-024445-1c6a25; TSan
+261117-024447-c8c390; mutant stuck-spans-flush (`a8914e5`) 261117-024515-fdecab; 40 forced
+SIGSTOPs 261117-024518-eb8beb; `connection` x10 beside 2 x ncpu spinners (strict)
+261117-024521-a9f6d0.
 
 At `2f6f210` (fix round 1): suite 261117-020930-674e37; `deadline` 261117-020940-345e4b,
 `connection` 261117-020944-e6a5b4, `node_hello` 261117-020950-becb2a, `links` 261117-020957-62fbbb;
@@ -124,6 +153,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - Tie-break: a dial counts once its hello is sent; the lower node's dial wins. A dial that
   finds a link established before its hello gives up quietly (asymmetric reachability cannot
   make an unsent dial refuse a working one).
+- `slow_reader` reruns a failed run only when the process stalled >= 100 ms (dead_after / 3),
+  at most twice: a stop shared by both ends is a test artifact; no run passes unless whole.
 - Wall-clock tests assert only bounds a runner's process stop cannot break (never early; open
   under keepalives) and print the timings, so no new entry needs the `timing` label (D100).
   `deadline_test` injects stops on `inline_scheduler`'s manual clock, with no wall clock.
