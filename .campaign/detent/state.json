@@ -5632,7 +5632,63 @@
       "updated": "2026-11-08T15:38:06"
     },
     "namespace-followups": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T01:42:11",
+          "base": "e7c3b4d082ebdd6643cfc346e4209befb698ffdb",
+          "blobs": {
+            "src/detent_authority/history.cc": "100644:08106b52bac97c6e73d34be688f6353260429f0a",
+            "src/detent_authority/history.hh": "100644:8a2d2aa79641cd8828e42f6f6242caed5b912f7e",
+            "src/detent_authority/history_format.cc": "100644:fc0bb49ccba36f9e7750f083fc7a27c04bbb5767",
+            "src/detent_authority/history_format.hh": "100644:a5d0fb23689ccc28b429185b9454424e04dc9f5b",
+            "src/detent_relay/host.cc": "100644:453aafdfbb4889ac78e22be1331bbe73611af5f6",
+            "src/detent_relay/mirror.cc": "100644:a29de5a952bac10bbaa9266144ddc6aaadf84596",
+            "tests/detent_authority/test_history_mutant.sh": "100755:6dc376a40e7351ce74adb0d2967518c9bb68effc",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "100644:d57d52aa3f35d9ee7220c45517e0a97c22154cef",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "100644:a0345f28c6d6ac896818387d74737c58ddf9b30f",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "100644:e14fbdd79e27810cf6bde43e41406e7491d29f8c",
+            "tests/detent_authority/test_history_power_cut.cc": "100644:8030975ec08bf3fca8e40269ee906ef9a1cfcaae",
+            "tests/detent_relay/mirror_mutant.sh": "100755:bdafa7abd401516fb5495cc930d8a8c494a03d2a",
+            "tests/detent_relay/mirror_tests.sh": "100755:9dfc5054a6ce5169959803c60aa6ea7478890d8f",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "100644:dd7af621d5da229cd6222910b084835e9c323fa2",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "100644:64bb1fac41763e3c63ae7007c0a99041b23bd51b",
+            "tests/detent_relay/relay_health_check.sh": "100755:ea6da39df4d56c2d65b4584964ac50f228579f33",
+            "tests/detent_relay/service_mutant.sh": "100755:22ef972c0c507ae7aea568c5d5285193b4c8eebb",
+            "tests/detent_relay/test_relay_mirror.cc": "100644:ec1482134bb4ec07bdf2dab147e5ae4f941a378a",
+            "tests/detent_relay/test_relay_service.py": "100644:e81b1a3dddf264496ddc107542a7bd18396f6f59"
+          },
+          "by": "review",
+          "commit": "07b8d8bf45868a7277978ad577b857c41029ad06",
+          "criteria": "4c70446b37cae0b1",
+          "diffs": {
+            "": "b44706b94072752e",
+            "src/detent_authority/history.cc": "631b386186f62a8b",
+            "src/detent_authority/history.hh": "bce111ee9864254a",
+            "src/detent_authority/history_format.cc": "8c46a6aabfcc6f86",
+            "src/detent_authority/history_format.hh": "bd604ff86ea7fede",
+            "src/detent_relay/host.cc": "fd597caa7d4f343f",
+            "src/detent_relay/mirror.cc": "6a3a59486f19998a",
+            "tests/detent_authority/test_history_mutant.sh": "2e68a1f9375b388e",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "5e17470a90dd1d55",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "cfd09450400b59dd",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "01b98be4381b14ac",
+            "tests/detent_authority/test_history_power_cut.cc": "ee910165e6a9e404",
+            "tests/detent_relay/mirror_mutant.sh": "b316edd8b2172451",
+            "tests/detent_relay/mirror_tests.sh": "c1a1357b9ddc7010",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "a11c6e1751a977bd",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "3651ad4a39b7517a",
+            "tests/detent_relay/relay_health_check.sh": "6b55b4161101a441",
+            "tests/detent_relay/service_mutant.sh": "c174248e143ee2f5",
+            "tests/detent_relay/test_relay_mirror.cc": "0fc8923847431147",
+            "tests/detent_relay/test_relay_service.py": "f087d5125d90bf12"
+          },
+          "findings": {},
+          "note": "",
+          "review": "40c9c20967ce66b08e20916e17ac03afd774ed65",
+          "reviewed": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s6-cutover"
       ],
@@ -5661,7 +5717,9 @@
         "tests/detent_relay/**"
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -5669,7 +5727,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-17T01:20:42",
+      "updated": "2026-11-17T01:42:11",
       "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
