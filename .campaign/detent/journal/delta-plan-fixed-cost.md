@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: working
+State: waiting on jobs 261117-082529-cab3b1 261117-082541-c33f79 261117-082545-ce3a24 261117-082549-9d332b 261117-082606-309a87 261117-082610-950015 261117-082613-608b61 261117-082637-6ca688 261117-082707-120fda
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -38,8 +38,18 @@ stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
 
 ## Next
 
-1. Smoke 261117-082340-afb229; then A2 strict, A3 identity, A4 suite + probe, mutant jobs (chained).
-2. Results into docs/perf/delta-plan-scaling.md (A5); the 5M exclusive round after A2's strict job.
+1. Jobs at Detent:c3bba179 (all after smoke 261117-082529-cab3b1, the overlay/validator tests):
+   - A2 strict 261117-082541-c33f79: ab.sh at 100K (5 rounds) and 1M (3 rounds), arms 0.05 and c0.05,
+     fix against main (--ref base=main), digest by ab_digest.py (ns plan CPU per rewritten byte, cut,
+     clustered bound 2 x keys x 13.8 us). Then the exclusive 5M round 261117-082707-120fda (full, 0.05,
+     c0.05; T9_BUDGET_S 540; main's 5M f 0.05 plan was 13.80 s wall, 261112-184757-fefadb).
+   - A2 mutant 261117-082549-9d332b (one_knob_mutant.sh, byte comparison dropped).
+   - A3 identity 261117-082545-ce3a24 (100K: 0.05, c0.05, 0.5; 1M: 0.05, c0.05).
+   - A4: suite 261117-082637-6ca688 (all ctest; the quest's gate is pins only, 261117-082613-608b61),
+     probe at 100K and 1M 261117-082606-309a87, probe --fails-without at mutant commit
+     Detent:f359a0c0 (moved() matches nothing) 261117-082610-950015.
+2. A5: before/after per size and phase into docs/perf/delta-plan-scaling.md from those jobs.
+3. Merge main again before review (status: main moved since the merge).
 
 ## Blocked on
 
