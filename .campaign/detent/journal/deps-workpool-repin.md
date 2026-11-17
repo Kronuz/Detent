@@ -13,7 +13,10 @@ Findings so far:
 1. Paged test is pre-existing on main, not the repin: it failed in linux-tsan on main at 39b5314a (11-13),
    ea3d591e (11-13), 06fa2a03 (11-15), c02504e9 (11-16), ce7faa41 (11-16), all with logger f61d8df and
    scheduler, each passing on rerun; this branch at 881b188f (same logger/workpool/wheel pins) passed
-   linux-tsan (run 43921954698). Scan: 200 CI runs since 11-11, failed logs grepped.
+   linux-tsan (run 43921954698). Scan: 200 CI runs since 11-11, failed logs grepped. Rate on main: the
+   paged test failed 5 of 73 completed linux-tsan jobs (65 passed, 8 failed for any reason), about 7%;
+   on this branch 2 of 3 (881b188f passed). Two in a row at 7% is about 0.5%, so the repro jobs compare
+   the local rate at both commits before calling the branch rate unchanged.
 2. Cause (from code, probe pending): `PagedDeltaPlanBuilder::take()` resets `work_`, so the builder's Work
    owner (leaves, overlay, finalizer scratch, and the pin on the input delta's RetiredInput) retires on the
    RetirementRuntime worker thread, releasing `account` bytes after the caller returns. The test's pressure
