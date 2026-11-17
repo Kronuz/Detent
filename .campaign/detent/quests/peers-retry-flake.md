@@ -1,31 +1,22 @@
-# peers-retry-flake: Peers retried-fetch flake on loaded macOS x86_64
-
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status peers-retry-flake`.
+# peers-retry-flake
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus `test/transport/peers_test.cc:1196` (the retried 8 MiB fetch after a frozen peer) stops failing on
+loaded macOS x86_64 CI (run 44074119964). Cause, inferred by ci-test-flakes A7: the 500 ms `fetch_deadline`
+set for the frozen-peer check also bounds the whole retried reply, which a loaded runner cannot always deliver.
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 The cause is forced: a reader delay over 500 ms on the retried fetch fails the unchanged test the same way, and the fixed test passes with it: jobs, `--fails-without`
+- A2 The fixed test still checks the frozen fetch's timeout (timed_out, no bytes, waited >= the deadline) and that the retry reuses the same lanes, and passes 200 runs under a parallel load: a job
+- A3 The suite passes: the suite check
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Peers and DTFT0001 go away in worker-pump-removal (D106); this keeps consensus CI green until then.
+Test-only: the product's deadline semantics do not change.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing; it is one change.
