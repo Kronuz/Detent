@@ -1601,6 +1601,45 @@
       "updated": "2026-11-17T00:48:42",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
+    "consensus-wave-open": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/store*.h",
+        "test/worker_*",
+        "test/wave_open_test.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
+      "updated": "2026-11-17T15:04:04"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
