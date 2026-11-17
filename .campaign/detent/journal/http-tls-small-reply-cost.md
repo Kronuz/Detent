@@ -1,6 +1,6 @@
 # http-tls-small-reply-cost: journal
 
-State: waiting on jobs 261116-195707-1d58eb 261116-195720-666362 261116-195723-32a71d 261116-195740-090f5c 261116-195804-80be60 261116-195807-5f942e 261116-195818-4f8352 261116-200117-b61cf4 261116-200140-8e96ee
+State: waiting on jobs 261116-200117-b61cf4 261116-200140-8e96ee 261116-200630-22b325 261116-200643-d30410 261116-200646-529fc3 261116-200648-8f78b8 261116-200651-b6727f 261116-200653-56d463 261116-200704-3f19a7
 Quest: .campaign/detent/quests/http-tls-small-reply-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -39,20 +39,40 @@ TLS close c8 (handshake per request):
 - Fresh load (1dac8f): req/s 1.049 [0.956-1.061] (A/A 1.028 [0.956-1.070]), CPU/req 0.968 (546.1 vs
   550.3 us): the 0.967x of 261116-090550-a7dfdc does not reproduce. E2 tests the extra recvs.
 
-E1 (8d177a1): a write whose SSL_write_ex finished without waiting completes in place (await_asio continues
-in place); one started inside that completion is deferred (thread_local flag), so nesting is one level.
-Jobs: build 261116-195707-1d58eb; load base/prev ad6771f/head/A/A, c1 c64 close, 261116-195720-666362
-(A2); counts 261116-195723-32a71d; suite 261116-195740-090f5c (A4); TSan 261116-195804-80be60 (A4); mutant
-(in-place off, tls_asio_test must fail) 261116-195807-5f942e (A2); 10K TLS idle 261116-195818-4f8352 (A3).
+E1 (8d177a1): dropped on the lead's ruling (msg: completing in place breaks the Asio rule that a handler
+never runs inside its initiating call; http-idle-cost review Q6). Reverted in 12b79cc; its jobs cancelled
+(195707-1d58eb, 195720-666362, 195723-32a71d, 195740-090f5c, 195804-80be60, 195807-5f942e, 195818-4f8352).
 
-E2 (8368ea9): SSL_set_read_ahead moved after SSL_set_accept_state/connect_state. Jobs: build
-261116-200117-b61cf4 (slot tls-small2), counts 261116-200140-8e96ee. If recvfrom drops to base's 4.6, an
-exclusive load at E2 (base, e1, head, A/A; c1 keep, c8 close) and suite/TSan/10K rerun at E2; else revert.
+Allocation vs hop in the deferred completion (profile 78aa9b, c1, own time per request, frames of the
+executor machinery: executor_function, any_executor_base, initiate_defer, send_op do_complete/async_send,
+handler_work, scheduler post/work, plus ICF'd frames directly under them): head 0.93 + 0.48 = 1.41 us,
+base 0.27, A/A 0.21; allocation under it (recycled thread_info block, malloc) 0.05 us. So the cost is the
+hop (type-erased any_io_executor defer, the composed op moved into an executor_function and out), not the
+allocation: bind_allocator would save at most 0.05 us. A continuation dispatch does not apply: the
+immediate result is always found inside the initiating call (Phase::start).
+
+E2 (8368ea9): SSL_set_read_ahead after SSL_set_accept_state/connect_state (tests the close row's +4.8
+recvs). Kept as the lead asked. Build 261116-200117-b61cf4, counts 261116-200140-8e96ee (arms base,
+e1 8d177a1, head 8368ea9; recv counts do not depend on E1).
+
+E3 (0eb4c52): an immediate result completes through a zero-byte socket_.async_send instead of asio::defer.
+Asio makes no syscall for an empty send on a stream socket and, for a handler without its own immediate
+executor, queues the reactor op itself via reactor::post_immediate_completion: private queue under
+io_context(1), no lock or wake, never inside the initiating call (asio::ssl::stream's send path). Test:
+tls_asio_test "a TLS write found done completes after its initiating call" (and nested). Jobs at 0eb4c52:
+build 261116-200630-22b325; load base/prev ad6771f/head/A/A, c1 c64 close, 261116-200643-d30410 (A2);
+counts 261116-200646-529fc3; 10K TLS idle 261116-200648-8f78b8 (A3); suite 261116-200651-b6727f (A4); TSan
+261116-200653-56d463 (A4); inline-completion mutant (must fail) 261116-200704-3f19a7.
+
+Close c8 (A2), paired with A/A at ad6771f (1dac8f, median of 5 per-round ratios [min-max]): head req/s
+1.049 [0.956-1.061] vs A/A 1.028 [0.956-1.070]; CPU/req 0.968 [0.952-1.063] vs A/A 0.996 [0.939-1.040].
+Head's medians sit inside the A/A intervals: the 0.967x of 261116-090550-a7dfdc was noise. Nothing fixed for
+it (E2 is the recv-count experiment, kept by the lead's ruling).
 
 ## Next
 
-1. Read E1 load/counts/mutant/10K/suite/TSan and E2 counts.
-2. E2 kept: load + gates at its commit. E2 not: revert it (the suite/TSan/10K at 8d177a1 stand).
+1. Read E2 counts and E3 load/counts/10K/suite/TSan/mutant.
+2. If E3 loses (c1 CPU not below prev's), revert it to the defer and rerun the gates.
 3. docs/perf/idle.md + CHANGELOG: the attribution and the new numbers; Evidence table; ready for review.
 
 ## Blocked on
