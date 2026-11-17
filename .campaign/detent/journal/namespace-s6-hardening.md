@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261117-075322-afbd3a 261117-075322-b090a5 (tests), mutants 261117-075322-9e1c41 -55a56b -92def8 261117-075323-d98365 -bc058a -0f145c, gates 261117-075327-c3d9ec (native) 261117-075327-25508b (pins)
+State: waiting on jobs 261117-121439-c334b3 -d3c6d0 (tests), mutants 261117-121444-739234 (new, F1) 261117-121452-7c08c8 261117-121453-54d979 -d4a5f8, gates 261117-121447-835ddc (native) 261117-121447-455b19 (pins)
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Built and green once; two mutants survived (no staging charge, no directory admission), so bfcb4159 adds tests that kill them (frames reporting 32 MiB against a 16 MiB ledger; the directory block's size pinned). All evidence, mutant and gate jobs resubmitted at bfcb4159.
+Review F1 (correctness): fixed at 892e121b, main merged (5c19e6cc). plan_frames sends no Dropped to a same-cluster store above the drop's position (Ahead rule). The probe became a scenario in test_namespace_history (voter 2 cut off across the re-creation; store at the new incarnation gets no request, a store of the old one still gets Dropped). Jobs resubmitted at 892e121b, with a new mutant removing the guard. The first native gate failed test_authority_transport_peers and test_authority_multivoter under load (3 of 3 passed alone); rerun at the new head.
 
 ## Next
 
-0. When the jobs finish: if a mutant job fails (test passed without the fix) tighten its test; fix any red test; paste `campaign brief`'s table into Evidence; set ready for review.
+0. When the jobs finish: if native fails again, name the tests here; if the F1 mutant passes the test, tighten it; then set ready for review.
 
 ## Blocked on
 
@@ -40,6 +40,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- F1: the F1 probe lives in test_namespace_history.cc (in my set), not a new test file (CMake is outside it). F2 (Dropped through the HTTP service) is a non-blocking gap, left for the lead.
 
 - src/detent_authority/service.cc is outside my file set but A3/A4 need it: the request-building moved to `plan_frames` (frames_export.cc, in set), service.cc keeps a 3-line call and a `FramesBehind` catch (503 source_behind). Lead to confirm or reassign.
 - A4 answer is 503 `source_behind` (existing client mapping SourceBehind), not a retry frame: no client change, whole-answer, directory cursor untouched. Applies to followed names and to directory entries `all` brings.
