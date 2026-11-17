@@ -1,6 +1,6 @@
 # transport-groups: journal
 
-State: fix round 1; waiting on jobs at consensus `c050123` (ids under Fix round 1)
+State: fix round 1 done at consensus `c050123` except TSan; waiting on jobs 261117-061836-5144dd, 261117-061846-41a9fa
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -50,9 +50,8 @@ Nothing.
   lost credit wedges the group; a marker must arrive after 1 s of refusals and after the
   receiver restarts with a frame outstanding. Mutants `no-credit-on-refuse`, `no-reset-on-end`
   are in `mutant_commit.py` (which now takes several edits per mutant).
-- Ruling: `stuck-spans-flush` (deadline spans the whole flush) is likely equivalent now,
-  since a drained queue re-arms; job 261117-061930-8a6ec4 runs it on `slow_reader` and
-  `coarse_writer` to see.
+- `stuck-spans-flush` stays killed: 261117-061930-8a6ec4, `slow_reader` 12 of 64 frames,
+  dialer failed at 398 ms (a flush that waits for one drain at its end still expires).
 - N3 not done: a tighter `upload` gap bound needs Linux numbers first (CI prints a passing
   case's output nowhere).
 
@@ -70,6 +69,12 @@ At `c050123`: suite 261117-061637-0e42df; cases `refill` 061640-d3fe59, `reader`
 061808-cec7df, `no-hand-off` 061815-051c26; TSan 061836-5144dd, TSan reader/upload
 061846-41a9fa (races only); stress (reader+upload two at a time x4, `taskpolicy -b`)
 061854-7f8033; probe 061903-02bdd4; `stuck-spans-flush` 061930-8a6ec4. All ids 261117-.
+Results: suite, every case and `connection` passed; every mutant failed its case (exit 8).
+`connection` a84d63: `coarse_writer` 48 of 48 in 3,180 ms, `slow_reader` 64 of 64 in 1,790 ms,
+`busy_reader` 6 of 6; `stuck-ignores-drain` 5deb78: `coarse_writer` 6 of 48, dialer failed
+at 399 ms. `refill` d3fe59: 100 refused then a marker; a marker after the restart. `reader`
+ac84a6 gap 104 ms; `upload` 881206 gap 229 ms; stress 7f8033 (E-cores, two at a time, x4)
+passed, worst gaps upload 601 ms, reader 262 ms. TSan jobs still running.
 
 ## Evidence
 
