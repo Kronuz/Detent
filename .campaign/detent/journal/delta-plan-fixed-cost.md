@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: waiting on jobs 261117-093217-e1c42f 261117-093230-64daa8
+State: waiting on jobs 261117-094249-72b228 261117-094300-81c23c 261117-094306-7bde05 261117-094318-dc96be 261117-094322-764850 261117-094323-69e26d 261117-094335-a15eaa 261117-094340-baa902 261117-094351-8b7ee4 261117-094355-e06b99
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,10 +11,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Session 4 (2026-11-17): the evidence jobs at Detent:c3bba179 failed in the harness. Merged main
 (Detent:1a98a291, authority and relay only). build.sh now creates each side's .scratch/ (the ref-base
-checkout has none); the probe decodes, builds, validates and recovers with format-wide limits
-(Detent:15b44583), since 1M exceeded the default 500K-record wire limit. A4 mutant re-cut on the new head:
-Detent:7ada2496. Smokes: 261117-093217-e1c42f (build.sh both sides, ab and identity at 100K),
-261117-093230-64daa8 (the test, then the probe at 600K).
+checkout has none): smoke 261117-093217-e1c42f passed (both sides built, x86_64; one ab round and identity at
+100K). The probe aborted past 500K on default limits twice: the wire decode (Detent:15b44583) and the
+fixture's install (Detent:bd51ade2) now take format-wide limits; smoke 261117-093230-64daa8 failed on the
+second. A4 mutant re-cut on the new head: Detent:afeb7a64. Early signal, not evidence: the 100K smoke cut
+per rewritten byte is 4.6% (one light round, 99.8 to 95.2 ns/byte) and 11.7% in the identity run; A2 may
+miss 30%, and the head profile (e06b99) says where the rest goes.
 
 Session 3 (2026-11-17): D107 answered Blocked on (option 2 with 3's restatement; DTPAGE03 and the bytes
 stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
@@ -45,18 +47,17 @@ stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
 
 ## Next
 
-1. Jobs at Detent:c3bba179 (all after smoke 261117-082529-cab3b1, the overlay/validator tests):
-   - A2 strict 261117-082541-c33f79: ab.sh at 100K (5 rounds) and 1M (3 rounds), arms 0.05 and c0.05,
-     fix against main (--ref base=main), digest by ab_digest.py (ns plan CPU per rewritten byte, cut,
-     clustered bound 2 x keys x 13.8 us). Then the exclusive 5M round 261117-082707-120fda (full, 0.05,
-     c0.05; T9_BUDGET_S 540; main's 5M f 0.05 plan was 13.80 s wall, 261112-184757-fefadb).
-   - A2 mutant 261117-082549-9d332b (one_knob_mutant.sh, byte comparison dropped).
-   - A3 identity 261117-082545-ce3a24 (100K: 0.05, c0.05, 0.5; 1M: 0.05, c0.05).
-   - A4: suite 261117-082637-6ca688 (all ctest; the quest's gate is pins only, 261117-082613-608b61),
-     probe at 100K and 1M 261117-082606-309a87, probe --fails-without at mutant commit
-     Detent:f359a0c0 (moved() matches nothing) 261117-082610-950015.
-2. A5: before/after per size and phase into docs/perf/delta-plan-scaling.md from those jobs.
-3. Merge main again before review (status: main moved since the merge).
+1. Jobs at Detent:bd51ade2, all queued:
+   - Smoke 261117-094249-72b228 (the test, then the probe at 600K); after it the A4 probe at 100K and 1M
+     261117-094300-81c23c and its --fails-without at the mutant 261117-094306-7bde05.
+   - A4: suite 261117-094318-dc96be, pins 261117-094322-764850. A2 mutant 261117-094323-69e26d.
+   - A2 strict 261117-094335-a15eaa (100K 5 rounds, 1M 3; 0.05 and c0.05, fix vs main at Detent:186d5f1d),
+     then the exclusive 5M round 261117-094351-8b7ee4 (full, 0.05, c0.05; main's 5M f 0.05 plan was
+     13.80 s, 261112-184757-fefadb).
+   - A3 identity 261117-094340-baa902. Profile of the fix at 1M 261117-094355-e06b99 (main's profile saved
+     at ~/.scratch/dpfc/profile-1m-main).
+2. A5: before and after per size and phase into docs/perf/delta-plan-scaling.md from those jobs. If the
+   uniform cut is under 30%, the measured number and where the rest goes go under Blocked on.
 
 ## Blocked on
 
@@ -79,6 +80,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- The A4 probe takes format-wide limits (ViewLimits::prepared(), wire records 8M) everywhere, as the T9
+  harness does: one shape for every size, and the default 500K-record limits are not what it tests.
+- The A1 profile rerun at the head (261117-094355-e06b99, campaign's freshness rule) profiles the fix, not
+  main; A1's cause stays cited to main's profile 261117-075622-1f24d9, the rerun says where the rest goes.
 
 - Profiled with a scratch port of main's T9 harness (.scratch/dpfc/t9/), since main's copy does not build;
   the harness is outside the file set, so it is the lead's to fix on main.
