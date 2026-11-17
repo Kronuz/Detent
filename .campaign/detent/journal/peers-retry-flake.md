@@ -1,9 +1,11 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-085956-c4843d (probe naming the retry failure)
+State: waiting on jobs 261117-100413-28c01b (probe 2: drain time and lane state)
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Probe 261117-085956-c4843d: 4 of 200 retries fail at once with not_connected (error 57), 0 ms. peers.h documents that fetch() "fails at once without a bulk lane to the peer", so the product behaves as documented. A lane is gone when the second fetch_deadline (await_reply, `late`) closes it, or the peer closed it. The test's `occupancy().fetches == 0` wait is satisfied by either the drain or that close, so it cannot tell them apart. Hypothesis: under load the 8 MiB late reply does not drain within the second deadline, the lane closes, and the retry finds no lane. Probe 2 (consensus:e1f2b0e) prints the drain time, connections, admitted and reconnects before the retry. Next: if confirmed, fix in the test (check that the lane survived the drain; give the drain a deadline sized for the reply), no Peers change. Then force it, and rerun A1-A3 with --for.
 
 lead msg: A2 (5d9c03) and suite (2d5307) failed at peers_test.cc:1203 with the 2 s deadline, so the deadline is not the whole cause. consensus:78a7ab2 prints the retried fetch error, bytes and time; probe 261117-085956-c4843d runs fetch-failures x200 4-way and shows the log. Next: read its output, fix the cause in the test (or Blocked on a Peers defect), then resubmit A1-A3 with --for at the new head.
 
