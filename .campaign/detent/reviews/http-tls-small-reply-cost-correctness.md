@@ -94,3 +94,30 @@ ratios. I submitted no job: the committed data settles the question.
   confirming its medians reproduce.
 - An immediate-error completion on the read path has no test of its own. It shares the
   `Phase::start` branch that the write test covers.
+
+## Round 2
+
+Commit: http:2671470a488e6fe45148146e98cf3b264308ac82
+Verdict: APPROVE
+Date: 2026-11-17
+
+The fix changes docs only: `git diff ad6a52e 2671470` touches `docs/perf/idle.md` and
+`CHANGELOG.md` alone, so the code evidence from round 1 still holds.
+
+- F1 is fixed. CHANGELOG and idle.md no longer give +2.61 us as a contrast. They state the paired
+  c1 result against ad6771f, 1.009 (0.882-1.038) and +0.28 us, with head costing the same or more
+  in 3 of 5 rounds, and call E3's c1 effect unresolved. They give the reason E3 stays: the Asio
+  rule and the handler counts from job 529fc3. All of these figures match `load_table.py`.
+- F2 is fixed. The close bullet keeps the measured 2x `recvfrom` count. It now says the system
+  (1.064x) and user (0.972x) deltas are inside the A/A band, so neither is a measured cost or
+  saving.
+- No overstated figure is left. `git grep` for "2.61", "3.5 us", "15.6" and "outweigh" in
+  `docs/` and `CHANGELOG.md` finds only raw data rows and older, unrelated docs.
+- N1 is still open, non-blocking: the CHANGELOG "Changed" bullet, idle.md and
+  `http_asio_tls.h:166` still credit the trick to asio::ssl::stream's "speculative send". The
+  stream actually posts through a zero-sized read. N2 and N3 are unchanged.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | no | gap | Fixed at 2671470. | `git diff ad6a52e 2671470`; `load_table.py` | None. |
+| F2 | no | gap | Fixed at 2671470. | same | None. |
