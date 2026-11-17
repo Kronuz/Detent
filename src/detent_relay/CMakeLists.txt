@@ -28,7 +28,7 @@ endif()
 add_library(detent_relay_core EXCLUDE_FROM_ALL bundle.cc sessions.cc registry.cc)
 target_link_libraries(detent_relay_core PUBLIC detent::distribution detent::local_export)
 add_library(detent::relay ALIAS detent_relay_core)
-if(TARGET detent::distribution_http)
+if(TARGET detent::distribution_http AND TARGET detent::relay_mirror_service)
   find_package(OpenSSL 3.0 REQUIRED)
   add_library(detent_relay_http EXCLUDE_FROM_ALL service.cc)
   target_link_libraries(detent_relay_http PUBLIC detent::relay detent::distribution_http detent::relay_mirror_service
