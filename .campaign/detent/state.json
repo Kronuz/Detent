@@ -4787,8 +4787,49 @@
       "worktree": "../journal-wt/detent/journal-driver"
     },
     "journal-host-guards": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-17T04:59:08",
+          "base": "555b69fa425621682c42bd8a52d3353a25300222",
+          "blobs": {
+            "CHANGELOG.md": "100644:456e763ee11b30557db874ec8f24e2e0846bbd6f",
+            "CMakeLists.txt": "100644:d963faffd8133eea52ed97676e4d42af0470b5f6",
+            "docs/design/host-layout.md": "100644:837554b68facaada0af179c8daa7f8ed9616fa21",
+            "docs/mechanisms/turn-seal.md": "100644:62694cc0d5c71639997844da5a8bd65b7f4ca2f1",
+            "include/journal/host.h": "100644:5e59f0519d2773df7d258798f9ec0d318bab02de",
+            "include/journal/journal.h": "100644:3ae33df2785bbdb9e1505c74b98dc3cac6699551",
+            "include/journal/turn_driver.h": "100644:7f983ad38ff6301a84832ca122c9da184a26fc34",
+            "test/host_test.cc": "100644:b87bb0368aec79498b6e1c49fe567bb8fe1dc412",
+            "test/shared_store_test.cc": "100644:6207be19b210370b1d014c02eacd04434c41df0d",
+            "test/turn_seal_mutants.sh": "100644:c8aea4be1229552c8ff92dbe3664880994cac7ed",
+            "test/turn_seal_test.cc": "100644:ed3203864371730a6a4d8f48d320f0afb8de987b"
+          },
+          "by": "review",
+          "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "criteria": "e001961e3170d1ac",
+          "diffs": {
+            "CHANGELOG.md": "159068005739ca28",
+            "CMakeLists.txt": "5bc970df8ee50050",
+            "docs/design/host-layout.md": "9ffc5c788d8a4b55",
+            "docs/mechanisms/turn-seal.md": "d2ce7707c92d51d8",
+            "include/journal/host.h": "e20eee480f8de6ad",
+            "include/journal/journal.h": "0af1d510fabd0882",
+            "include/journal/turn_driver.h": "c30a2c05b5640bc5",
+            "test/host_test.cc": "cf279097778e691b",
+            "test/shared_store_test.cc": "edc681e34d26ee74",
+            "test/turn_seal_mutants.sh": "9f545891d4291db4",
+            "test/turn_seal_test.cc": "bba5afe13467bae5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "80648400c15495a35bdb2ae4404ead28629eaea2",
+          "reviewed": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
+      "base": "555b69fa425621682c42bd8a52d3353a25300222",
+      "branch": "quest/detent/journal-host-guards",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4813,6 +4854,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-host-guards",
       "landed": [],
       "lenses": [
         "durability"
@@ -4822,9 +4864,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
-      "updated": "2026-11-17T02:53:32"
+      "updated": "2026-11-17T04:59:08",
+      "worktree": "../journal-wt/detent/journal-host-guards"
     },
     "legacy-h": {
       "accepted": {},
@@ -11628,6 +11671,8 @@
     "rpc-lane-codec": {
       "accepted": {},
       "after": [],
+      "base": "677c8645623b8fdc856416f4a9914557926b061a",
+      "branch": "quest/detent/rpc-lane-codec",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -11651,6 +11696,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/rpc-lane-codec",
       "landed": [],
       "lenses": [
         "security",
@@ -11663,11 +11709,13 @@
       "provides": [
         "consensus:rpc-lane"
       ],
+      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal with 0 code commits, and needs this quest; transport-groups and rpc-lane-codec share only CMakeLists.txt test registrations and docs, each in its own lines (rpc-lane-codec writes transport/rpc* only)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T00:46:43"
+      "updated": "2026-11-17T04:27:37",
+      "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
       "accepted": {},
@@ -12676,52 +12724,54 @@
     "transport-connection": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T02:25:39",
+          "at": "2026-11-17T04:18:31",
           "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
           "blobs": {
             "CHANGELOG.md": "100644:31a14e8b743563ba0b7ba3060d97fb42ce9c0b2a",
             "CMakeLists.txt": "100644:7f4085e457557992cae33e1904ae98faef8286fe",
-            "docs/mechanisms/host-connection.md": "100644:ab271b743d564576f1eb353f719bd9d83009e774",
+            "docs/mechanisms/host-connection.md": "100644:f32e0e71c72e635a21d8c49f50982dcbe0c819d6",
             "fuzz/corpus/decoders/92cba8759543da45fe5b5a6f421a1b9e9935ec9a": "100644:6c619f6e24d6345aebfde4603b6de942a30c6140",
             "fuzz/corpus/decoders/db9a5f8875d8a19c434be2b0991658b3f967f70f": "100644:996a98cb4e3ecb160c9fb17a319ec0e991bfc7b2",
             "fuzz/fuzz_decoders.cc": "100644:543810775f17369035b9cc6a10424c69ea11f85d",
             "fuzz/seed.cc": "100644:39d821e6c6d25372550cb80d06b3080002278246",
-            "include/consensus/transport/connection.h": "100644:7d6a5c38a677cc1471e4da975f7e789601d75db7",
-            "include/consensus/transport/deadline.h": "100644:602348fb56b80acc562995de57b0e6a801c2e186",
+            "include/consensus/transport/connection.h": "100644:fc5dbba01257cab66e95fe1301bdd6a169dc8cad",
+            "include/consensus/transport/deadline.h": "100644:b29dfddd15f0379c92fb05d1af4edb7845995c61",
             "include/consensus/transport/links.h": "100644:a4816330e17334f68ab2bc8051621af537465134",
             "include/consensus/transport/node_hello.h": "100644:a5bcf326f552ff48d4a37722f0f453b0e6e88390",
             "include/consensus/transport/node_pins.h": "100644:4ec8ab35d842fe8430521cd0388df76f3c755553",
-            "test/transport/connection_test.cc": "100644:6d5b28e6c03dced8d41271bdd428b28033f11376",
-            "test/transport/deadline_test.cc": "100644:2bce6799171f2148f850b99bf3279e334baafcbe",
+            "test/transport/connection_test.cc": "100644:1a9250ab2c5a2ddba0a79aa5f76de0312b8f18e4",
+            "test/transport/deadline_test.cc": "100644:75a06675f4fa8e7ee864d60ff90b13f304b8d34a",
             "test/transport/links_test.cc": "100644:663620ece5b304d9842b361c26bd51f264003264",
-            "test/transport/mutant_commit.py": "100755:051e56342d61bfc7fccccbcbc76c985e025fc602",
-            "test/transport/node_hello_test.cc": "100644:e884b08f14da8b7294ec1a67c51ddf232a595894"
+            "test/transport/mutant_commit.py": "100755:76aa074e1d78e50a41e2e1f5076d90c8adf613a7",
+            "test/transport/node_hello_test.cc": "100644:e884b08f14da8b7294ec1a67c51ddf232a595894",
+            "test/transport/slow_reader_stops.py": "100755:3fd3a1959af7a6c7277433640ede8b7e00fad53c"
           },
           "by": "review",
-          "commit": "2f6f210597ae3fce94beacedfca90172381cf312",
+          "commit": "677c8645623b8fdc856416f4a9914557926b061a",
           "criteria": "1714f364a5864605",
           "diffs": {
             "": "a05042b9ec2ddf03",
             "CHANGELOG.md": "fa0d95bbf0aa26e6",
             "CMakeLists.txt": "68c5dbe6048d9c98",
-            "docs/mechanisms/host-connection.md": "7d68f0afd709ab4b",
+            "docs/mechanisms/host-connection.md": "06cda11f0e8beac5",
             "fuzz/fuzz_decoders.cc": "79a9c364929ab7e3",
             "fuzz/seed.cc": "27f3e686bb329d1a",
-            "include/consensus/transport/connection.h": "cf48d2624224948c",
-            "include/consensus/transport/deadline.h": "9311132068955d20",
+            "include/consensus/transport/connection.h": "f4b3dcaeda389c3e",
+            "include/consensus/transport/deadline.h": "b744d031c361f8e4",
             "include/consensus/transport/links.h": "ffdd4f44babf4a39",
             "include/consensus/transport/node_hello.h": "d85e272fbf9c2e5f",
             "include/consensus/transport/node_pins.h": "8ea0461719e37110",
-            "test/transport/connection_test.cc": "624ebefc7cff212f",
-            "test/transport/deadline_test.cc": "bfc76a7befba5c88",
+            "test/transport/connection_test.cc": "539505fca70835e8",
+            "test/transport/deadline_test.cc": "f3a1ca80ded75383",
             "test/transport/links_test.cc": "a3ca3708a4e506de",
-            "test/transport/mutant_commit.py": "200e0f6c4ce74a42",
-            "test/transport/node_hello_test.cc": "f0fe2282c3e2d651"
+            "test/transport/mutant_commit.py": "c5a3433df9649d0a",
+            "test/transport/node_hello_test.cc": "f0fe2282c3e2d651",
+            "test/transport/slow_reader_stops.py": "7bae7140b8691144"
           },
           "findings": {},
           "note": "",
-          "review": "044d2d1b4fc551f0e1ce21de423d57855d90dae7",
-          "reviewed": "2f6f210597ae3fce94beacedfca90172381cf312",
+          "review": "df81d37865d39615ba7eff39f408e9fa298f41b8",
+          "reviewed": "677c8645623b8fdc856416f4a9914557926b061a",
           "verdict": "APPROVE"
         }
       },
@@ -12753,10 +12803,45 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/transport-connection",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T04:26:29",
+          "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+          "criteria": {
+            "A1": "261117-032550-6206a7, 261117-032548-ab81be; fails without: 261117-012000-205e0e, 261117-012004-35b740, 261117-012009-0d6a0f, 261117-012013-dbd982, 261117-012021-795811, 261117-012118-209628, 261117-021037-4df123, 261117-021041-dbab12, 261117-021046-535d94, 261117-021051-2d4cc4, 261117-021055-8114e8, 261117-021221-3c6fba, 261117-032608-c60abe",
+            "A2": "261117-032553-0e82fd, 261117-032548-ab81be; fails without: 261117-012027-32b241, 261117-012033-e1cceb, 261117-012039-9c2239, 261117-021101-69bcf2, 261117-021120-6cfd3d, 261117-021125-b0806f",
+            "A3": "261117-032548-ab81be",
+            "A4": "261117-032553-0e82fd, 261117-032556-fc0b12, 261117-032548-ab81be, 261117-032611-97f801, 261117-032620-2cee82; fails without: 261117-012045-b8df9d, 261117-012052-5bfa60, 261117-012059-910de1, 261117-012105-586789, 261117-012109-4f9a7a, 261117-012114-7d6e0c, 261117-021130-36cdcc, 261117-021136-2134e3, 261117-021141-a71c31, 261117-021146-625f2d, 261117-021151-7f0a64, 261117-021157-d2b65d, 261117-021205-c58e50, 261117-021211-381e3c, 261117-021216-ebf15b, 261117-021226-2e4b1a, 261117-021232-a56084, 261117-021238-0c6d91, 261117-021243-1aac9a, 261117-032600-4ce9d8, 261117-032604-d35a2f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-032548-ab81be",
+              "level": "light",
+              "seconds": 121.9,
+              "state": "done",
+              "what": "transport-connection check suite at 677c8645623b"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "reason": "",
+          "tested": "677c8645623b8fdc856416f4a9914557926b061a"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "consensus-driver"
@@ -12766,14 +12851,16 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T02:31:49",
+      "updated": "2026-11-17T04:26:38",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
       "accepted": {},
       "after": [],
+      "base": "677c8645623b8fdc856416f4a9914557926b061a",
+      "branch": "quest/detent/transport-groups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -12798,6 +12885,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/transport-groups",
       "landed": [],
       "lenses": [
         "correctness"
@@ -12809,11 +12897,13 @@
       "provides": [
         "consensus:transport"
       ],
+      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal with 0 code commits, and needs this quest; transport-groups and rpc-lane-codec share only CMakeLists.txt test registrations and docs, each in its own lines (rpc-lane-codec writes transport/rpc* only)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T00:46:41"
+      "updated": "2026-11-17T04:27:28",
+      "worktree": "../consensus-wt/detent/transport-groups"
     },
     "transport-identity": {
       "accepted": {},
