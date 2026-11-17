@@ -9,15 +9,31 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Attributing the bytes. consensus:69890f8 has `bench/transport_idle.cc` (cost, hop; ctest
+`consensus_transport_idle` runs `cost --quick`; fixture gains nodes four, five). Local smoke runs
+(strict holds, not evidence) on this Mac (i9-9980HK, macOS 15.8.1, OpenSSL 4.1.0):
+
+- Per idle group: 0 fds, 0 timers, every frame delivered; C++ heap 0.0 B/group, but zone stats
+  +36..56 B/group in ~2 non-C++ blocks per group (experiment 1: nano zone on/off).
+- Per connection end: 69-86 KB zone (C++ 20-37 KB of it, incl. the per-loop task wheel, one
+  >=64 KiB block per loop); host 166-181% of `29 KB + 2P x 41 KB`. OpenSSL alone: 40,732 B/end,
+  context 29,408 B (Detent job 261117-082142-0a2ca2, conn_cost 64, same OpenSSL 4.1.0).
+- H=5 at 10,000 groups: connections die mid-run (links 40 -> 46..61). `sample`: loops pegged in
+  `HostTransport::feed` (11,387 of ~15k samples): `next()` scans `lane.groups` per frame and
+  `erase_if` per feed, O(groups) each, while groups wait for credit; the loop stalls past
+  `dead_after`. A transport bug outside the file set: goes to Blocked on.
+- Hop smoke (1 round): stream control +156 ns/frame (A/A 5), data +201 (A/A 25), alone +26.6 us
+  per wake (A/A 3.3k); receiver 85 us CPU per lone frame (madvise/nanov2 churn in the profile).
 
 ## Next
 
-1. <step>
+1. Finish attribution (experiment 1), then the evidence jobs: `cost` and `hop 7` exclusive with
+   `--build`, and Detent `run.sh hop_cost` beside it.
+2. docs/perf/transport-idle-cost.md; Blocked on: the feed scan, and budgets over.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
