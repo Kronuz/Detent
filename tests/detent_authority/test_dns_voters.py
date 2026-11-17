@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import os
 import shutil
 import socket
 import ssl
@@ -219,7 +220,7 @@ def main() -> None:
         lambda: run(
             binary,
             certificates,
-            Path.cwd() / ".scratch" / f"dns-voters-{scenario}",
+            Path.cwd() / ".scratch" / f"dns-voters-{scenario}-{os.getpid()}",
             hosts,
             scenario,
         )
