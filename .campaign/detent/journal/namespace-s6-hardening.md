@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261117-121951-d4c328 (build check of the fixed test; the 892e121b jobs all failed to build and prove nothing)
+State: waiting on jobs (build check 261117-121951-d4c328, then the full set chained after it; see `campaign job list --quest namespace-s6-hardening`)
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,7 +17,7 @@ Review F1 (correctness): fixed at 892e121b, main merged (5c19e6cc). plan_frames 
 
 ## Blocked on
 
-F2 (a dropped followed name through the HTTP service in test_frames_service.cc): the test cannot drop a namespace. A drop is an AdministrativeCommand, proposed only on the node inside Service::Runtime (private); Service exposes no way to propose one, and nothing in the HTTP surface drops. Options: 1. add a small test-only seam to Service (service.hh, outside my set) to propose an administrative command; 2. let ServiceOptions carry commands to propose at start. Recommendation: 1. Until then the Dropped path is covered at plan_frames (test_namespace_history, every voter, byte-decoded) and the 503/frames path through the service by the existing cases.
+Nothing. F2 dropped by the lead: HTTP has no drop path; the Dropped encoding is covered by the history and session tests.
 
 ## Evidence
 
