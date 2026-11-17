@@ -256,3 +256,107 @@ Round 1's N1 to N5 stand unchanged; N3 is not done, as the journal says. N6 did 
 - `nonreader` on Linux or FreeBSD (it needs CI), and `coarse_writer` with the F4 fix.
 - A forced close_notify behind a full buffer (N7).
 - The `refill` mutants on CI platforms other than this macOS host.
+
+## Round 3
+
+Commit: consensus:e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb
+Verdict: APPROVE
+Date: 2026-11-17
+
+The diff `c050123..e4e394b` closes F4 and F5, and N7 to N9. CI is green on every platform,
+macos-x86_64 included, and no finding blocks.
+
+### Evidence I relied on
+
+- GitHub Actions CI run 44116972577 at e4e394b: concluded success, with all nine jobs green (five Linux, freebsd-x86_64, macos-arm64, macos-x86_64 and plan; the headers matrix was skipped). On macos-x86_64,
+  `consensus_transport_connection` passed in 20.0 s, and `groups_reader`, `groups_upload` and
+  `refill` passed. The logs are in `.scratch/review-transport-groups-correctness/ci-r3/`.
+- The contributor's jobs at e4e394b, whose logs I read (all ids 261117-):
+  - Suite 073408-7f66d4 and TSan 073414-ce6391.
+  - `connection` 073411-513aec: `coarse_writer` read 48 of 48 in 6,421 ms with 1 drained
+    expiry and a longest hold of 265 ms. `nonreader` failed at 409 ms.
+  - Background QoS 073418-e06e0e, strict, two processes, 10 rounds each: every `coarse_writer`
+    passed on its first try with 2 drained expiries and holds of 278 to 696 ms. Every
+    `nonreader` ended `failed`.
+  - Mutants, each run on `connection` and each failing as it must:
+    - `stuck-never-fails` 073422-360ef2 and `stuck-equal-drains` 073427-26d576 left the
+      `nonreader` writer open at 10 s with 32 drained expiries (`connection_test.cc:806`).
+      Their commits differ from e4e394b by the one intended line each.
+    - `stuck-samples-before-flush` 073431-413a4a (16 of 48) and `stuck-ignores-drain`
+      073436-adb7b0 (17 of 48) ended `coarse_writer` at its first expiry. Their holds were
+      264 to 267 ms, so the held-queue retry did not hide them.
+    - `stuck-spans-flush` 073441-916a42 and `no-close-notify` 073445-25fcd7 also failed.
+
+### What I checked myself
+
+The script is `probe_r3_commit.py REPO REF`, under `.scratch/review-transport-groups-correctness/`
+in the home checkout. It writes a commit on no branch that adds the case `slow_then_stops` to
+`connection_test.cc`. It also checks that every search string in `mutant_commit.py` occurs
+exactly once at REF. All job ids are 261117-.
+
+- **`slow_then_stops`** (probe commit `948d5e5`, job 074439-dd5c1e). The writer is coarse:
+  1.5 MiB send buffer and low-water mark, 2 s `dead_after`. It writes to a relay that forwards
+  64 KiB every 125 ms for 6 s and then stops forwarding for good. The peer keeps sending
+  keepalives.
+  - 3 of 3 runs stayed open through the slow phase with 2 drained expiries.
+  - Each run then ended `failed` 2,008 to 2,016 ms after the stop. That is one `dead_after`,
+    with no extra window.
+  - In the same job, `nonreader` failed at 405 ms.
+- **Mutant search strings.** All 34 occur exactly once at e4e394b. The three that `ff0d58b`
+  repaired are each killed by an assertion, not by a build failure:
+  - `no-extension` 074451-9cb882: `deadline_test.cc:68`, `stop_extends`.
+  - `twice` 074455-8ee11e: `deadline_test.cc:103`, `once`.
+  - `abandon-keeps-dial` 074458-95a996: `links_test.cc:340`, which reports "the given-up
+    connection still held".
+- **Code reading** (`connection.h` at e4e394b).
+  - `want_written` samples the queue after the flush's own writes, right before each wait. The
+    send queue grows only on this end's writes and shrinks only on the peer's ACKs (or a reset,
+    which fails the next write), and the comparison is strict.
+  - At expiry the caller retries its write, so the next wait samples the queue again. A peer
+    whose kernel stops accepting therefore ends the connection at the first window with no ACK.
+  - The extension is bounded by what the peer's kernel still buffers, which the probe shows.
+  - `flush` without a deadline and the `close_notify` loop both go through `want_written`, so
+    there is one stuck rule (N7). The hellos keep the handshake deadline.
+  - `unacknowledged()` runs only before a wait and at its expiry (N8). A failed reading is
+    `nullopt`, which never counts as a drain (N9).
+
+### Answers to the lead's questions
+
+1. **F4.**
+   - **No window.** A peer that never drains does not survive a deadline. The only bytes that
+     can shrink the sample are the peer's ACKs. Once its buffer fills, the next wait ends the
+     connection: `slow_then_stops` ends at one `dead_after` after the stop, and `nonreader`
+     at 405 to 547 ms.
+   - **The margin hides nothing.** The margin is in how often the queue drains, about once
+     every 125 ms against a 2 s window, not in whether the rule is reached. Each wait runs
+     3 s or more, so where the low-water mark takes (macOS and FreeBSD) every pass needs a
+     drained expiry, and the case asserts one. Both mutants that break the rule fail at the
+     first expiry.
+   - **Linux.** The case cannot assert that it reaches the rule there (N10).
+2. **F5.** Yes. `nonreader` ends a peer that never reads in 405 to 547 ms, here and under
+   background QoS. Both ported mutants fail it (360ef2, 26d576), and the suite now carries it.
+3. **N7 to N9 and `ff0d58b`.** All are sound.
+   - No case forces `close_notify` behind a full buffer. N7 rests on the code being shared.
+   - All 34 mutant search strings resolve exactly once, and the three repaired mutants are
+     killed by their cases.
+4. **CI.** Run 44116972577: concluded success, with all nine jobs green (five Linux, freebsd-x86_64, macos-arm64, macos-x86_64 and plan; the headers matrix was skipped).
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F4 | no | defect | Closed. Each write wait samples the queue after its own writes and has its own `dead_after`. macos-x86_64 CI is green, and background QoS passes 20 of 20 on the first try. | CI run 44116972577; jobs 513aec, e06e0e, 413a4a, adb7b0; probe dd5c1e | Done. |
+| F5 | no | gap | Closed. `nonreader` is in the suite and kills `stuck-never-fails` and `stuck-equal-drains`. | Jobs 513aec, 360ef2, 26d576 | Done. |
+| N7 | no | defect | Closed in code: `close_notify` uses `want_written`. No test forces that path. | `connection.h:333` | Done. |
+| N8 | no | nit | Closed: the syscall runs only before a wait and at its expiry. | `connection.h:228-229` | Done. |
+| N9 | no | nit | Closed: a failed reading is `nullopt` and never counts as a drain. | `connection.h:241-262` | Done. |
+| N10 | no | gap | On Linux, `SO_SNDLOWAT` is refused, so `coarse_wakes` is false and `coarse_writer` asserts nothing about reaching the drain rule. CI's ctest prints no case lines for a passing test, so no record shows whether any Linux run reaches a drained expiry. The `stuck-*` mutants ran only on macOS. | `connection_test.cc:589-599`, `:687`; CI run 44116972577 logs | Optional: have CI print `connection`'s lines, for example with `-V` for that test. Or run one `stuck-ignores-drain` mutant on a Linux CI runner. |
+| N11 | no | nit | Lines the diff adds to `CHANGELOG.md` (line 20, 129 columns) and `host-connection.md` (line 17, 116 columns) are not rewrapped. | Those lines | Rewrap. |
+
+Round 1's N1 to N5 stand as they were.
+
+### Not run
+
+- `slow_then_stops` on Linux or FreeBSD, and under background QoS.
+- A forced `close_notify` behind a full buffer (N7).
+- A Linux run of any `stuck-*` mutant.
