@@ -386,6 +386,13 @@
       "closed": "consensus-driver is in review and lands first; asked Xapiand to order consensus-rpc-lane --after detent:consensus-driver",
       "id": "msg-62",
       "text": "xapiand:consensus-rpc-lane started and may change files your consensus-driver changes; order them (--after xapiand:consensus-rpc-lane) or narrow the files"
+    },
+    {
+      "at": "2026-11-16T19:44:08",
+      "by": "campaign xapiand",
+      "closed": "consensus-driver adds Driver beside the Worker and does not change the transport; consensus-rpc-lane is already after detent:consensus-transport",
+      "id": "msg-63",
+      "text": "xapiand:consensus-rpc-lane started and builds against contract consensus:transport, which your consensus-driver is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
