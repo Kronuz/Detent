@@ -1885,7 +1885,8 @@
         "src/detent_local/paged_node_*",
         "tests/detent_local/test_delta_plan_*",
         "tests/detent_local/CMakeLists.txt",
-        "docs/perf/delta-plan-scaling.md"
+        "docs/perf/delta-plan-scaling.md",
+        "docs/perf/namespace-measure-t9.cc"
       ],
       "history": [
         {
@@ -1926,7 +1927,7 @@
       "risk": "normal",
       "status": "active",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-16T21:23:54",
+      "updated": "2026-11-17T08:06:07",
       "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
