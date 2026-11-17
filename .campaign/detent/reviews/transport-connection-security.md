@@ -96,3 +96,125 @@ By reading, against the six questions:
 - No test of `~Links` with a live resolver thread (N5).
 - No adversarial TLS client (a malformed handshake, KeyUpdate floods); OpenSSL's own handling is
   assumed.
+
+# transport-connection review: security, round 2
+
+Commit: consensus:2f6f210597ae3fce94beacedfca90172381cf312
+Verdict: APPROVE
+Date: 2026-11-17
+
+Round 2 re-checks round 1's CHANGES at the fix head: `git diff 35ebaba 2f6f210` (6 files, 391
+lines: connection.h, links.h, host-connection.md, connection_test, links_test, mutant_commit.py).
+
+## Evidence I relied on
+
+All at consensus:2f6f210, every one read from its log:
+
+- `connection` 261117-020944-e6a5b4 and `links` 261117-020957-62fbbb (exit 0). The transport tests
+  build with `-UNDEBUG` (CMakeLists.txt:151-163), so their asserts are live in the Release jobs.
+- TSan 261117-021002-3a215c; g++-16 `connection` and `links` 261117-021006-6e7652 (exit 0).
+- The new mutants, each exit 8 at the case's own assertion: `fail-closes-fd` 261117-021146-625f2d
+  at `port_of(old) == port` (connection_test.cc:446, the fd still this socket's after `abort()`);
+  `ssl-after-end` 261117-021151-7f0a64 ("20 unread, 24 written onto it"); `stuck-spans-flush`
+  261117-021157-d2b65d (`slow_reader`); `abandon-keeps-dial` 261117-021226-2e4b1a ("still held");
+  `refuse-newest` 261117-021232-a56084 and `no-source-cap` 261117-021238-0c6d91 (`flood`'s eviction
+  count); `dial-one-expression` 261117-021243-1aac9a (g++-16, the `dial` assertion).
+- My round-1 probe rerun by the contributor, 261117-021249-cfd240: `abandoned_dial` now exits 0
+  ("released, its socket closed"). Its two fd cases exit 1 by the probe's construction, not by a
+  defect: they `dup2` the stranger onto a number the connection now still owns and keep no second
+  fd, so `run()`'s close takes the stranger's only descriptor. The round-2 probe replaces them.
+
+`fd_reuse_reader` and `fd_reuse_writer` are real tests: each asserts the fd is still this socket's
+right after `abort()` (killed by `fail-closes-fd`), then puts a stranger on the number with a
+second fd kept, and asserts its 25 bytes unread and nothing written (killed by `ssl-after-end`).
+
+## What I checked myself
+
+Probe job 261117-022229-d28475 (exit 0, 78 s), from `review_probe2_test.cc` and `run2.sh` in
+`.scratch/review-transport-connection-security/` in the Detent home. Rerun with
+`campaign job submit --quest transport-connection --fresh --force -- sh <dir>/run2.sh <dir>`.
+
+- `after_end`, 3 runs: the handler aborts on the first of three frames that arrive in one record;
+  the fd is still this socket's after `abort()`, the handler is called once (the `deliver` guard),
+  and the stranger's 25 bytes stay unread with 0 written onto it. Every run: end `failed`.
+- The reader's yield is guarded: `slow_reader` passes 3 of 3 at the head (64 of 64 frames, about
+  1.75 s) and fails 3 of 3 with the `co_await task::yield()` line deleted (11 to 13 of 64 frames,
+  dialer `dead` at about 350 ms), on clang here as well as the contributor's gcc.
+- `churn RATE`: idle TCP connections from 127.0.0.1 (the real dialer's own address, so the
+  per-source cap applies and 2 newer arrivals evict a real handshake) held until 200 newer exist,
+  while node 1 dials node 2, at most 20 tries. Unthrottled (3,236 connects/s from one thread): 0 of
+  20 dials linked in 0.29 s, 2,533 evicted. About 1,000/s: linked on the 2nd try; 1,356/s: the 5th;
+  159/s and below: the 1st.
+
+By reading, against the questions:
+
+1. S1. `fail()` sets `closing_`, then only on the first end sets `end_`, `::shutdown(SHUT_RDWR)`
+   and `socket_.cancel()` (connection.h:136-145); a second `fail()` touches no socket. The fd is
+   closed only at the end of `run()` (connection.h:96-98) and by the socket's destructor; nothing
+   else calls `close`. `run()` returns only after both coroutines finish, and `end_` is never
+   `open` then, so a later `abort()` from `Links` is a no-op on the number. Every SSL call is behind
+   `open_or_throw`: `handshake` (71), `fill` (171), `flush` (190), and after every wait in `want`
+   (164); `SSL_shutdown` runs only when `end_ == open` (270) and its retries pass through `want`.
+   A cancelled wait throws on its error code before reaching SSL. `deliver` stops at the end (210),
+   and the reader's new yield is followed by `deliver` (guarded) and `fill` (guarded). Resolved.
+2. S2. `offer()`'s give-up now aborts and forgets (links.h:120-126). The other give-ups were already
+   released: `connect()` forgets on a throw or on stopping (destroyed with its socket), and
+   `offer()`'s later failure path aborts and forgets. Resolved.
+3. The new mechanisms:
+   - N2. `flush(.., true)` returns when a write made progress and the next must wait; the writer's
+     loop then builds a fresh `late_deadline` (connection.h:254-257), so `dead_after` now bounds
+     time without progress. The retry passes the same pointer and length, as OpenSSL requires after
+     `WANT_*` (and `SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER` is set). Progress is one record, so a peer
+     reading at least about 16 KiB per `dead_after` (about 3.3 KB/s) keeps the connection; only an
+     authenticated node gets there, and the queue's bound is the caller's (`queued()`). Sound.
+   - The yield. `task::yield` posts the handle through `asio::post` (task:95798a0 task.hh:1025-1033,
+     task_asio.hh:76-80), behind the timers and the writer's wake already queued, so a steady inflow
+     no longer runs the reader without a loop turn. One post per record (16 KiB). Sound, and guarded
+     (probe above).
+   - `flush` advances `sent_` instead of erasing the front; `queued()` subtracts it; `sending_` is
+     released when done and `sent_` reset, and nothing replaces `sending_` mid-flush (the writer
+     swaps only when it is empty; `write_hello` runs once, before `run()`). Sound.
+   - The pre-authentication pool. `admit` runs before the TLS handshake, evicts the source's oldest
+     when the source is at its cap, else the pool's oldest when full, and aborts it; the evicted
+     task's wait is cancelled and it forgets its connection. `authenticated` drops the entry when
+     the pins pass, before the hellos, and again on every exit. A one-address flooder now keeps 2
+     slots and cannot lock a real dialer out; `flood` shows it. Replace-oldest under churn: N9.
+   - SIGPIPE. `SO_NOSIGPIPE` where it exists; the header and the doc say the host ignores `SIGPIPE`
+     on Linux; detentd does (Detent src/detentd/main.cc:185) and both tests do. N4 resolved.
+   - gcc. `dial()` splits `co_await offer(..)` out of `&&` (links.h:85-90), same meaning; the
+     g++-16 mutant shows the one-expression form fails. No other `co_await` sits in an operand of
+     `&&`, `||` or `?:` in `include/`.
+
+On the churn question: the handshake deadline bounds each attacker connection to 5 s, not the
+attack. What the attacker must sustain is the pool's size per handshake time: 4 connects per
+handshake from addresses below their cap (2 from the real peer's own address, as behind a NAT).
+On loopback that is thousands per second (measured above); across a WAN the acceptor's handshake
+lasts at least one round trip, so at 100 ms it is about 40 connects per second, which is cheap. It
+must also hit both ends, since an unflooded end's own dial is accepted by the flooded one's tie-break
+(`wins` with no own offer). Round 1's refuse-newest needed one connect per second; this is strictly
+better, and any bounded pre-authentication pool has such a rate. I judge it acceptable to land,
+with the doc corrected (N10); keeping out an unauthenticated flood belongs to the network
+(an allowlist of the cluster's addresses), or to N9's option.
+
+## Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| S1 | no | defect | Resolved. The fd closes only when `run()` returns; `fail()` ends once with shutdown and cancel; no SSL call and no frame after the end. | connection.h:96-98, 136-149, 164, 171, 190, 210; `fd_reuse_reader`, `fd_reuse_writer` with mutants 261117-021146-625f2d, 261117-021151-7f0a64; probe 261117-022229-d28475 `after_end` 3 of 3 | None. |
+| S2 | no | defect | Resolved. The given-up dial is aborted and forgotten. | links.h:120-126; `abandoned_dial` with mutant 261117-021226-2e4b1a; probe 261117-021249-cfd240 `abandoned_dial` exit 0 | None. |
+| N9 | no | gap | Replace-oldest can be churned: new connections from addresses below their cap evict a real handshake that has not authenticated within 4 (or, from its own address, 2) arrivals. The rate needed is about pool size per handshake time: thousands per second on loopback, about 40 per second at a 100 ms round trip, at both ends. | Probe 261117-022229-d28475 `churn`: unthrottled 3,236/s from 127.0.0.1, 0 of 20 dials linked; 1,000/s linked on the 2nd try. links.h:328-342 | Owner's call: keep it (documented, the network's allowlist does the rest); or never let an unknown source evict a connection whose source is a configured peer's address (`routes`), which makes the flood originate from a peer's address; or a larger pool. |
+| N10 | no | nit | The doc says the attacker must open connections "faster than a handshake takes (milliseconds)"; across a WAN a handshake is one or more round trips, so tens per second suffice, and from a NAT-shared address 2 arrivals, not 4. | host-connection.md, Before authentication | State the rate as the pool's size per handshake time, round-trip bound. |
+| N11 | no | nit | The per-source cap keys on the exact address; an IPv6 attacker holds a /64 of sources, so there the pool of 4 is the only bound. | links.h:329-331 | Optionally key IPv6 sources by /64; or say so in the doc. |
+| N12 | no | nit | A connection leaves the pool once its pins pass, before the hellos: a pinned node can hold any number of hello-phase connections, each up to `handshake` (5 s). Round 1 counted them to the end of `accept`. Only an authenticated node gets there. | links.h:173, 192 | Keep, or count the hello phase per authenticated node. |
+| N13 | no | gap | No suite test asserts that no frame reaches the handler after the end (`deliver`'s guard); `ssl-after-end` does not remove it. My probe shows it holds. | connection.h:210; probe `after_end` "handler calls 1" | Count handler calls in `fd_reuse_reader` (send the frames in one `loop.call`) and assert 1. |
+
+Round 1's N2 and N4 are resolved by the fix; N5's lifetime comment is in (links.h:19); N8 is in the
+doc; N3, N6 and N7 stand as round 1 left them.
+
+## Not run
+
+- CI at 2f6f210 (Linux, the sanitizers) was still running; I did not read it. The SIGPIPE and gcc
+  fixes are judged from the code and the g++-16 job, not from Linux.
+- No churn from several distinct addresses (macOS loopback has only 127.0.0.1), and none over a
+  link with real round-trip time; the 40/s figure is arithmetic from the code, not a measurement.
+- No ASan or UBSan run of `connection` or `links` locally (CI's).
