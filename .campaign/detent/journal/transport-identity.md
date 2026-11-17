@@ -1,6 +1,6 @@
 # transport-identity: journal
 
-State: waiting on jobs 261117-093903-345ea0 261117-093908-5f7414 261117-093917-b0da65 261117-093923-dd6ee7
+State: waiting on jobs 261117-121758-d594d8 261117-121804-c9cf0c 261117-121816-b25730 261117-121846-795592 and the 14 mutant/control jobs 261117-121906-918deb .. 261117-122127-8bcba2
 Quest: .campaign/detent/quests/transport-identity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,37 +9,44 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Evidence jobs at consensus `1b94858` (the whole change: `include/consensus/transport/host_transport.h`,
-`test/transport/admission_test.cc`, `groups_test.cc` cases `identity`, `joiner`, `lagging`,
-`relayout`, mutants in `test/transport/mutant_commit.py`, docs
-`docs/mechanisms/host-transport.md` Identity). A probe in the worktree passed all nine
-(admission, groups identity/joiner/lagging/relayout/driver/refill/threads, 261117-082953-4f19e5).
+Security review (Detent:1f91509c, `.campaign/detent/reviews/transport-identity-security.md`):
+CHANGES on S1. Folded in at consensus `9fe84c9` (merge of main `0ed76ef` at `23e87e5`, clean):
 
-Jobs: suite 261117-083329-29d3d7; cases A1 261117-083341-09b068; relayout A2
-261117-083354-74485c; TSan 261117-083409-90840d. Mutants (`mutant_commit.py 1b94858 NAME`,
-`--fails-without` on `^consensus_transport_(admission|groups_identity)$`): admit-unstored
-aa0196, admit-unopened 824101, admit-misrouted cc7d19, admit-spoofed 3b8076, open-cluster
-6cfcce, open-group 54ea6f, open-epoch 36b07f, open-profile 3d1151, closed-ignored 0b9d69,
-open-once e936b2 (ids 261117-0834xx..0836xx). Control voters-only on joiner 261117-083655-e2029f,
-on lagging 261117-083704-f48fcf.
+- S1 (fixed, `fe42cc2`): `Connection::reader` runs `on_read` for the frames a read handed over
+  before it rethrows a failure (oversized length, a throwing handler), so a batch always leaves
+  under the connection its frames came on. Chose the flush over dropping: the frames are
+  authenticated and checked per frame like any other; only their attribution was wrong. New
+  groups case `leftover` (the reviewer's probe, asserting): node 1 never opens g, sends g's
+  frame and then an oversized one; host 2 must refuse it `unopened`. Mutant
+  `read-fails-unflushed` (on_read after the rethrow) on `groups_leftover`.
+- N2 (fixed): `store()` refuses a zero cluster, group or epoch; `identity` checks all three throw;
+  mutant `store-zero`.
+- N3 (fixed): host-transport.md Identity says to store a group once `member_of` answers; the test
+  `Node` now stores after create/recover completes.
+- N4 (fixed, by wording): `forget()`'s comment and the doc say frames already queued still go.
+- N1 (follow-up): `lane.closes` (like `grants`) grows per distinct refused group id while a peer
+  does not read; bounded by the peer's own bytes. A cap or a refusal bound that ends the
+  connection is left for a follow-up quest.
 
-TSan 261117-083409-90840d failed on `lagging` (its log keeps the output): no TSan report;
-`Assertion failed ... groups_test.cc:970` after "promoting 4 did not commit" at once (2790 ms).
-Cause: test timing, not product. `add_voter_4` promoted 4 once it applied `seen`, but the
-learner's own configuration entry commits after `seen`, and core D3 (c) refuses the promotion
-as NotReady until the leader hears 4 matched its commit index; under TSan that ack trailed.
-Fix consensus `c84e64e`: retry the promotion on NotReady only (10 s bound, prints the count);
-any other reason still fails. Not the OpenSSL race of transport-groups-ci.
+Jobs at `9fe84c9`: suite 261117-121758-d594d8; cases A1 (admission, identity, joiner, lagging,
+leftover) 261117-121804-c9cf0c; relayout A2 261117-121816-b25730; TSan admission + every groups
+case, `--output-on-failure` 261117-121846-795592. Mutants re-made at `9fe84c9`
+(`mutant_commit.py 9fe84c9 NAME`, `--fails-without`, admission+groups_identity): admit-unstored
+261117-121906-918deb, admit-unopened 261117-121920-e422e4, admit-misrouted 261117-121929-694e4a,
+admit-spoofed 261117-121939-c2d42f, open-cluster 261117-121953-0f5f8b, open-group
+261117-122010-ffc421, open-epoch 261117-122026-10df2c, open-profile 261117-122035-0f8c5e,
+closed-ignored 261117-122045-dc679e, open-once 261117-122053-2dc66a, store-zero
+261117-122101-b62389; read-fails-unflushed on groups_leftover 261117-122111-4dfd63; control
+voters-only on joiner 261117-122119-6a7f7a, on lagging 261117-122127-8bcba2.
 
-Jobs at `c84e64e`: suite 261117-093903-345ea0; cases A1 261117-093908-5f7414; relayout A2
-261117-093917-b0da65; TSan x3 (`--repeat until-fail:3`, output kept) 261117-093923-dd6ee7.
+Earlier: TSan 261117-083409-90840d's `lagging` abort was the test's race with core D3 (c), fixed
+in `c84e64e` (NotReady-only retry); its jobs passed (suite 261117-093903-345ea0, TSan
+261117-093923-dd6ee7, 0 NotReady retries), per the review.
 
 ## Next
 
-1. Read the c84e64e jobs into Evidence (TSan: the NotReady count it absorbed); set "ready for review".
-2. Lead's note (transport-groups-ci lands first): merge main into this branch when told, then
-   re-run the gates; a red groups_driver or groups_threads under TSan is that quest's, so the
-   TSan job here runs only admission and groups identity/joiner/lagging/relayout.
+1. When the jobs pass, paste `campaign brief`'s table into Evidence; set "ready for review"
+   for the same security reviewer's re-check.
 
 ## Blocked on
 
@@ -80,6 +87,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   `groups-<case>/` in the build dir) since a shared in-memory disk is not thread-safe and a
   re-partition needs one journal per host.
 - The lagging abort under TSan was the test's race with D3 (c), so the fix is in the test: retry
-  only NotReady, the documented transient refusal, not a longer sleep. Mutant and control jobs
-  stay at their 1b94858-based commits: the change touches only the promotion after 4 caught up,
-  which no mutant reaches (identity/admission mutants fail earlier; voters-only fails at catch-up).
+  only NotReady, the documented transient refusal, not a longer sleep.
+- S1's fix is in `Connection` (on_read also after a failed read), the one place every frame
+  passes; every mutant and control is re-made at `9fe84c9` since the merge and S1 touch
+  host_transport.h and connection.h.
