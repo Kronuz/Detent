@@ -4250,6 +4250,8 @@
       "after": [
         "http-idle-cost"
       ],
+      "base": "2d53cef78de262df1417f25560c72e53034dd001",
+      "branch": "quest/detent/http-tls-small-reply-cost",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4266,6 +4268,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/http-tls-small-reply-cost",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -4273,9 +4276,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-16T10:54:36"
+      "updated": "2026-11-16T18:58:29",
+      "worktree": "../http-wt/detent/http-tls-small-reply-cost"
     },
     "ipv6": {
       "accepted": {},
