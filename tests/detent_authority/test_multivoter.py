@@ -12,6 +12,7 @@ import ssl
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -27,6 +28,35 @@ CONTEXT = {
 
 class StartupBindCollision(RuntimeError):
     pass
+
+
+def bind_collisions(
+    children: dict[int, subprocess.Popen[bytes]], directory: Path
+) -> list[int]:
+    """Nodes that exited because another process bound their reserved port first."""
+    return [
+        index
+        for index, child in children.items()
+        if child.poll() is not None
+        and "bind: Address already in use"
+        in (directory / f"node-{index}.log").read_text()
+    ]
+
+
+def with_fresh_ports(run: Callable[[], None]) -> None:
+    """Runs a cluster on reserved-then-released ports, again on fresh ports when
+    another process takes one before startup (at most three attempts)."""
+    for attempt in range(3):
+        try:
+            run()
+            return
+        except StartupBindCollision:
+            if attempt == 2:
+                raise
+            print(
+                "Retrying initial startup with fresh ports after a bind collision",
+                file=sys.stderr,
+            )
 
 
 def request(
@@ -193,13 +223,7 @@ def main() -> None:
                 "/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15}
             )
         except AssertionError as error:
-            collisions = [
-                index
-                for index, child in children.items()
-                if child.poll() is not None
-                and "bind: Address already in use"
-                in (directory / f"node-{index}.log").read_text()
-            ]
+            collisions = bind_collisions(children, directory)
             if collisions:
                 raise StartupBindCollision(
                     f"reserved ports were taken before startup: nodes {collisions}"
@@ -498,14 +522,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    for attempt in range(3):
-        try:
-            main()
-            break
-        except StartupBindCollision:
-            if attempt == 2:
-                raise
-            print(
-                "Retrying initial startup with fresh ports after a bind collision",
-                file=sys.stderr,
-            )
+    with_fresh_ports(main)

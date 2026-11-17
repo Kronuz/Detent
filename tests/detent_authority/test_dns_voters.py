@@ -22,7 +22,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from test_multivoter import CONTEXT, TOKEN, request
+from test_multivoter import (
+    CONTEXT,
+    TOKEN,
+    StartupBindCollision,
+    bind_collisions,
+    request,
+    with_fresh_ports,
+)
 
 NAMES = ["one", "two", "three"]
 
@@ -140,6 +147,10 @@ def run(
 
         def health(index: int) -> dict[str, Any] | None:
             if children[index].poll() is not None:
+                if collisions := bind_collisions(dict(enumerate(children)), directory):
+                    raise StartupBindCollision(
+                        f"reserved ports were taken before startup: nodes {collisions}"
+                    )
                 raise AssertionError(f"node {index} exited at startup")
             try:
                 return request(ports[index + 3], context, "/v1/health")[1]
@@ -204,12 +215,14 @@ def main() -> None:
         "names": ["localhost"] * 3,
         "unresolvable": ["localhost", "localhost", "voter-3.invalid"],
     }[scenario]
-    run(
-        binary,
-        certificates,
-        Path.cwd() / ".scratch" / f"dns-voters-{scenario}",
-        hosts,
-        scenario,
+    with_fresh_ports(
+        lambda: run(
+            binary,
+            certificates,
+            Path.cwd() / ".scratch" / f"dns-voters-{scenario}",
+            hosts,
+            scenario,
+        )
     )
     print(f"dns voters {scenario}: passed")
 
