@@ -1,6 +1,6 @@
 # namespace-followups: journal
 
-State: waiting on jobs 261117-005923-b9915c 261117-005929-a909be 261117-005901-b41eac 261117-005901-990548 261117-005901-f7ee1a
+State: waiting on jobs 261117-010638-a2e07b 261117-010643-82f97f 261117-010647-bddad5 261117-010651-144dd2 261117-010654-b0ab28 261117-010655-21b41d
 Quest: .campaign/detent/quests/namespace-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,6 +15,9 @@ Round 1 (head 9cdbff4c): suite 261116-213212-4cf92a, A3 261116-213225-1c4d20 and
 - native 261116-213241-2beb28: only test_authority_snapshot_catchup failed (a read timeout in test_multivoter.py during 100 transactions). Checking whether it is mine (a history bound stall) or a flake: the same test at my head 261117-003147-0c5227 and at main 261117-003152-59ad5a.
 
 ## Next
+
+000. Round 3 (head b0a2e4c3): seal_unbounded survived (261117-005901-990548): the tight-limits case trips the base bound first, so the seal check never decided. Added `refused_seal` with a growing log under a one-byte seal policy and loose limits except namespaces/request_bytes/mutations, which must refuse naming the seal file. Suite, the three mutants and the gate rerun at b0a2e4c3: ids in State above. When all pass and `campaign brief` shows evidence for A1-A4, fill the Evidence table and set ready for review.
+000. For ci-test-flakes: `test_delivery_repair_scrub-worker` fails at main too (261117-005929-a909be) and at this branch (261117-005923-b9915c): tests/detent_delivery/test_repair.cc:499 `scripted invariant` (scrub-carry: after_swap + 200000 < new_root; seen 2561074 hashed after the delta against a new root of 2752016). Not from this quest. test_authority_snapshot_catchup is the known flake (Detent:55b6474a).
 
 00. Round 2 (head dfef6d59): A4 mirror_tests 003209-5a78d9 passed, both A4 mutants killed, pins passed, snapshot_catchup passed at my head (known flake). Native 003229-8c7477 also failed test_delivery_repair_scrub-worker: `scripted invariant at line 499` of tests/detent_delivery/test_repair.cc (scrub-carry: a pass hashed 2561074 bytes after the delta against a new root of 2752016, bound 200000), a coordinator hashing-count test that never touches the relay host. Attribution: `ctest --repeat until-fail:8` at my head 261117-005923-b9915c and at main 261117-005929-a909be. History mutants resubmitted by the lead as 261117-005901-b41eac, -990548, -f7ee1a (queue fault).
 
