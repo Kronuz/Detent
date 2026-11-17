@@ -27,6 +27,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
+| A1 | 261117-075322-afbd3a, 261117-075322-b090a5, 261117-075327-25508b; fails without: 261117-075322-55a56b, 261117-075322-92def8 |
+| A2 | same tests; fails without: 261117-075322-9e1c41 (early apply; 261116-214157-4dc912 is the older run) |
+| A3 | same tests; fails without: 261117-075323-d98365 (pending) |
+| A4 | same tests; fails without: 261117-075323-bc058a, 261117-075323-0f145c (pending) |
 | A5 | include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); lead to review [manual] |
 
 ## Result
