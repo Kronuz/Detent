@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261116-213553-6a52ae
+State: waiting on jobs 261116-214142-1af04d (A1-A4 tests + relay build), mutants 261116-214157-4dc912 -214200-d9e9ff -214203-3b731e -214206-789966 -214209-bdfa24 -214212-4ab1c1
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,8 @@ Implemented A1-A5 (code, tests, docs) uncompiled; first build job queued. Fix co
 
 ## Next
 
-1. Build and run test_distribution_session_frames, test_distribution_storage, test_delivery_namespace_session, test_authority_namespace_history, test_authority_frames_service, test_authority_lagging_incarnation, plus the relay build (SessionFramesEncoder gained an optional ledger).
+0. When the jobs finish: fix compile/test failures; add `campaign brief` table to Evidence; full suite job; ready for review.
+1. (queued as 261116-214142-1af04d) Build and run test_distribution_session_frames, test_distribution_storage, test_delivery_namespace_session, test_authority_namespace_history, test_authority_frames_service, test_authority_lagging_incarnation, plus the relay build (SessionFramesEncoder gained an optional ledger).
 2. Evidence jobs --for A1..A4; mutants --fails-without: early apply (StagedFrames::frame publishes at once), decoder without ledger admission, plan_frames omits unfreezable instead of FramesBehind, no Dropped frame.
 3. Full suite job; set ready for review.
 
