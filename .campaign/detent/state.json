@@ -13019,11 +13019,45 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/transport-groups",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T07:55:30",
+          "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "criteria": {
+            "A1": "261117-073408-7f66d4, 261117-073414-ce6391, 261117-073411-513aec, 261117-073418-e06e0e; fails without: 261117-050133-bf0e3f, 261117-050139-527d2f, 261117-050145-d84fdc, 261117-061106-10ebae, 261117-061111-ec7e09, 261117-061119-a21950, 261117-061123-0ceeb2, 261117-061127-967d78, 261117-061722-5deb78, 261117-061730-bc6eb9, 261117-061738-572024, 261117-061758-f087b3, 261117-061808-cec7df, 261117-061815-051c26, 261117-071200-899f1b, 261117-071204-847ba9, 261117-071208-83ccf6, 261117-071212-a2710f, 261117-071217-ff4aa1, 261117-071221-7964d2, 261117-071226-56996e, 261117-071231-42c1a9, 261117-071240-908cac, 261117-071245-458051, 261117-071249-042e02, 261117-073422-360ef2, 261117-073427-26d576, 261117-073431-413a4a, 261117-073436-adb7b0, 261117-073441-916a42, 261117-073445-25fcd7, 261117-073450-fffdc8, 261117-073455-428006, 261117-073503-d1eae9, 261117-073508-10b088, 261117-073512-e52928",
+            "A2": "261117-073408-7f66d4; fails without: 261117-050128-1bc50d, 261117-061115-de4c08, 261117-061749-92f169, 261117-071236-d8d3bd, 261117-073459-b53bec",
+            "A3": "261117-073408-7f66d4"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-073408-7f66d4",
+              "level": "light",
+              "seconds": 116.9,
+              "state": "done",
+              "what": "transport-groups check suite at e4e394b06482"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "677c8645623b8fdc856416f4a9914557926b061a",
+          "reason": "",
+          "tested": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-connection"
@@ -13033,10 +13067,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T07:55:07",
-      "worktree": "../consensus-wt/detent/transport-groups"
+      "updated": "2026-11-17T07:55:40",
+      "worktree": ""
     },
     "transport-identity": {
       "accepted": {},
