@@ -299,3 +299,5 @@ Nothing.
   validate_change is a two-line move if the lead adds membership.h.
 - R17 (F5) A throw out of a Driver step fences the Worker (`Worker::fence`), since the batch it
   interrupted is lost: the Sink hears Fenced on the next step, waiters complete `fenced`.
+- R18 consensus_worker TIMEOUT 600 s (was 180): flush-bound on macOS (F_FULLFSYNC), 144-168 s
+  alone, not hung (see Doing). The waiter runs as 11 ctest entries, one per spec (R13).
