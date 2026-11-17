@@ -7962,9 +7962,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-16T21:41:07",
+      "updated": "2026-11-17T08:04:57",
       "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
