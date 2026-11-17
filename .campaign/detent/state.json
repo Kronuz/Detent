@@ -11506,6 +11506,50 @@
       "updated": "2026-11-09T10:10:20",
       "worktree": ""
     },
+    "rpc-lane-codec": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/rpc*",
+        "test/transport/rpc*",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "transport-connection"
+      ],
+      "provides": [
+        "consensus:rpc-lane"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
+      "updated": "2026-11-17T00:46:43"
+    },
     "s3b-followups": {
       "accepted": {},
       "after": [
