@@ -174,7 +174,11 @@ def main() -> None:
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             index = leader()
-            status, body = request(ports[index + 3], context, path, fields)
+            try:
+                status, body = request(ports[index + 3], context, path, fields)
+            except (OSError, http.client.HTTPException):
+                # Outcome unknown: the retry carries the same producer sequence and reconciles.
+                status, body = 0, {}
             if status == 200:
                 return index, body
             time.sleep(0.02)
@@ -320,12 +324,15 @@ def main() -> None:
             surviving = [index for index in range(3) if children[index].poll() is None]
             deadline = time.monotonic() + 15
             while True:
-                checkpoints = [
-                    request(ports[index + 3], context, "/v1/health")[1]
-                    for index in surviving
-                ]
+                try:
+                    checkpoints = [
+                        request(ports[index + 3], context, "/v1/health")[1]
+                        for index in surviving
+                    ]
+                except (OSError, http.client.HTTPException) as error:
+                    checkpoints = [{"error": str(error)}]
                 if all(
-                    health["checkpoint_published_boundary"] > offline_commit
+                    health.get("checkpoint_published_boundary", 0) > offline_commit
                     for health in checkpoints
                 ):
                     break
