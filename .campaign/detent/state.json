@@ -10722,6 +10722,32 @@
       "updated": "2026-11-12T03:46:56",
       "worktree": ""
     },
+    "peers-retry-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build -R consensus_transport_peers --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Peers retried-fetch flake on loaded macOS x86_64",
+      "updated": "2026-11-17T08:08:33"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
