@@ -12994,9 +12994,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "active",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T06:27:54",
+      "updated": "2026-11-17T06:53:09",
       "worktree": "../consensus-wt/detent/transport-groups"
     },
     "transport-identity": {
