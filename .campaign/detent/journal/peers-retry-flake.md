@@ -1,6 +1,6 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-140450-74d009 261117-140502-89e916 (attribution) and the A1/A2 reruns at aa7fa35
+State: ready for review
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -23,9 +23,9 @@ Nothing. No Peers defect: both modes are the test's deadline too small for its r
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-122246-95e8bd (passed at bac4f8162c4a; only merges from main since), 261117-122252-5e4bf2 (passed at bac4f8162c4a; only merges from main since); fails without: 261117-122236-68fffc, 261117-122241-9dae77 |
-| A2 | 261117-134718-1c12ce (full peers test x60 4-way at 5e0ab05); 261117-122257-901974 (passed at bac4f8162c4a; only merges from main since) |
-| A3 | 261117-122228-c010f0 (passed at bac4f8162c4a; only merges from main since) |
+| A1 | 261117-140518-49afa2, 261117-140519-808620; fails without: 261117-122236-68fffc, 261117-122241-9dae77 |
+| A2 | 261117-140519-27f287 |
+| A3 | 261117-134723-98cca7 (passed at 5e0ab0575ceb; only merges from main since) |
 
 ## Result
 
@@ -40,3 +40,7 @@ Fix: reply 2 MiB (32 frames of 64 KiB) and `fetch_deadline` 1 s. `PEERS_RETRY_LA
 - Why the proof is the same: the frozen fetch still times out at the deadline holding its slot with no bytes (`waited >= 1000`); the late reply still drains into the failed fetch over the same lanes (`admitted` and 4 connections unchanged); the retry returns identical bytes. Only the size and the deadline moved, to leave the reply room.
 - The earlier 2 s deadline run (probe 2) hit one lane loss with the freeze equal to Cluster's 2 s `options.deadline`; I chose 1 s to stay below it, not measured as the cause.
 - Cost: the frozen step waits 1 s instead of 0.5 s.
+
+## Follow-up
+
+Candidate flake, not this quest's: peers_test.cc:1155 (control round trips under 8 MiB fetches) failed 3 of 60 runs under 4-way load in 261117-134718-1c12ce. The attribution reruns passed 60 of 60 both at consensus:aa7fa35 (261117-140450-74d009) and at main consensus:361d5d2 (261117-140502-89e916). The quest's diff does not touch that case.
