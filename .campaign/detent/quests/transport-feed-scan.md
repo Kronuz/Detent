@@ -1,31 +1,23 @@
-# transport-feed-scan: HostTransport feed without a per-frame scan of every group
-
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status transport-feed-scan`.
+# transport-feed-scan
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`HostTransport::feed` does work proportional to the frames and groups that are ready, not to every group the
+host stores. At 10,000 idle groups a host stays responsive: no connection ends at `dead_after` (D109; job
+261117-092742-231632 failed 3 of 3 at main's code).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 The cause is shown and removed: a counting probe shows groups visited per fed frame is constant across 100, 1,000 and 10,000 groups (it grows with the group count at main's code): jobs, `--fails-without`
+- A2 At 10,000 groups, the idle-cost run that failed (261117-092742-231632) passes 3 of 3, with no connection ending and every frame delivered: a job
+- A3 Ordering and fairness hold: control before bulk, per-group credit, and round robin across ready groups, each tested with values, and TSan passes the groups tests: jobs
+- A4 The suite passes, plus CI
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Recommended by transport-idle-cost: per-lane ready lists. Ordered after transport-identity and
+transport-groups-ci, which also edit host_transport.h.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
