@@ -1,7 +1,7 @@
 // A delta's warm validation reads only the definitions it changes. A definition the delta moves unchanged to a
 // new page meets its old leaf and neither is read, so at f 0.05 the leaf work is twice the changed keys at every
 // store size; a moved definition whose bytes differ is validated, and rejected when invalid.
-//   test_delta_plan_moved_definitions [SIZE ...]   the store sizes to probe (default 2000 32000)
+//   test_delta_plan_moved_definitions [SIZE ...]   only the probe, at these store sizes
 #include "detent_local/paged_definition.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_large_fixture.hh"
@@ -192,12 +192,13 @@ void corrupt_moved_definition() {
 }
 } // namespace
 int main(int argc, char **argv) {
-	corrupt_moved_definition();
-	if (argc > 1)
+	if (argc > 1) {
 		for (int i = 1; i < argc; ++i)
 			probe(unsigned(std::stoul(argv[i])));
-	else
-		for (unsigned count : {2000u, 32000u})
-			probe(count);
+		return 0;
+	}
+	corrupt_moved_definition();
+	for (unsigned count : {2000u, 32000u})
+		probe(count);
 	std::cout << "moved definitions are matched, changed and corrupt ones validated\n";
 }
