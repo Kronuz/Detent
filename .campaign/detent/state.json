@@ -13177,6 +13177,47 @@
       "updated": "2026-11-17T04:26:38",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
+    "transport-feed-scan": {
+      "accepted": {},
+      "after": [
+        "transport-identity",
+        "transport-groups-ci"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "test/transport/groups_test.cc",
+        "bench/transport_idle.cc",
+        "docs/mechanisms/host-transport.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "HostTransport feed without a per-frame scan of every group",
+      "updated": "2026-11-17T09:42:45"
+    },
     "transport-groups": {
       "accepted": {
         "correctness": {
