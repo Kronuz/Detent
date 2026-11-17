@@ -1,17 +1,15 @@
 # transport-groups: journal
 
-State: waiting on jobs 261117-050041-9d19b2 261117-050055-032a41 261117-050100-6bc00a 261117-050103-ed123d 261117-050107-41c3d7 261117-050110-b75526 261117-050114-a4b2ed 261117-050128-1bc50d 261117-050133-bf0e3f 261117-050139-527d2f 261117-050145-d84fdc
+State: ready for review
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs queued at consensus `81339c2` (code worktree consensus-wt/detent/transport-groups). Local
-runs of all five cases, `links` and `connection` passed; the bulk-ahead-of-control mutant was
-seen to fail `upload` locally (gap 4,007 ms).
+Nothing. Every job at consensus `81339c2` passed; each mutant failed its case (exit 8).
 
 ## Next
 
-1. Read the jobs; paste `campaign brief`'s table under Evidence; set "ready for review".
+1. Correctness review (the lead launches it).
 
 ## Blocked on
 
@@ -28,17 +26,21 @@ bulk-ahead-of-control `f58c8af` on `upload` 261117-050128-1bc50d (A2); no-credit
 `credit` 261117-050133-bf0e3f; reader-loop-delivers `223d7d9` on `threads`
 261117-050139-527d2f; no-hand-off `b8726e2` on `threads` 261117-050145-d84fdc (A1).
 
-Local values (macOS, light hold, before the jobs): `reader_test: group2_heartbeats=51
-group2_longest_gap_ms=103 group1_delivered=200 group1_refused=300`; `credit`: the reader held 2
-of 40 frames (window 3), group 2's longest gap 59 ms; `upload`: 126 MiB in 4,005 ms, 55
-heartbeats and votes, longest gap 226 ms (mutant: 3, 4,007 ms); `threads`: 10,240 of 10,240,
-26 reads, 78 cross-loop posts, 98.5 frames a post.
+Values from the job logs: `reader_test: group2_heartbeats=51 group2_longest_gap_ms=103
+group1_delivered=200 group1_refused=300` (ed123d); `credit`: the reader held 2 of 40 frames
+during the 1.5 s stall (bound 4), group 2's longest gap 60 ms (6bc00a; no-credit: 39 of 40);
+`upload`: 128 MiB in 4,009 ms, 55 heartbeats and votes, longest gap 195 ms (41c3d7;
+bulk-ahead-of-control: 3, gap 4,005 ms); `threads`: 10,240 of 10,240 in order on their loops,
+26 reads, 78 cross-loop posts, 98.5 frames a post (032a41; reader-loop-delivers: 7,440
+misplaced; no-hand-off: the link count assertion); `driver`: two groups commit on all three,
+the leader (node 1) restarts, both commit again on all three (b75526). TSan passed `groups_threads`,
+`groups_credit`, `groups_driver`, `connection`, `links` (a4b2ed).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: jobs above |
-| A2 | pending: jobs above |
-| A3 | pending: jobs above |
+| A1 | 261117-050041-9d19b2, 261117-050055-032a41, 261117-050100-6bc00a, 261117-050103-ed123d, 261117-050114-a4b2ed; fails without: 261117-050133-bf0e3f, 261117-050139-527d2f, 261117-050145-d84fdc |
+| A2 | 261117-050041-9d19b2, 261117-050107-41c3d7; fails without: 261117-050128-1bc50d |
+| A3 | 261117-050041-9d19b2, 261117-050110-b75526 |
 
 ## Result
 
