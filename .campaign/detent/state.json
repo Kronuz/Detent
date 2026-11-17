@@ -5847,19 +5847,59 @@
         "include/detent_relay/**",
         "tests/detent_relay/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T08:10:09",
+          "commit": "7a62c03d4a2716eb6dc4cec6d35578b482f34fb2",
+          "criteria": {
+            "A1": "261117-010638-a2e07b; fails without: 261116-213218-af4bac, 261117-005901-b41eac, 261117-010643-82f97f, 261117-010647-bddad5",
+            "A2": "261117-010638-a2e07b; fails without: 261117-005901-f7ee1a, 261117-010651-144dd2",
+            "A3": "261117-012018-6adf36",
+            "A4": "261117-012018-21ab2b; fails without: 261117-003213-cb3f66, 261117-003217-2c3b4a, 261117-012018-251683, 261117-012019-5f6244"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-010654-b0ab28",
+              "level": "light",
+              "seconds": 559.6,
+              "state": "done",
+              "what": "namespace-followups check native at b0a2e4c3aa0c"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-010655-21b41d",
+              "level": "none",
+              "seconds": 5.8,
+              "state": "done",
+              "what": "namespace-followups check pins at b0a2e4c3aa0c"
+            }
+          ],
+          "final": true,
+          "from": "99aff81cf90722031cf15025f22d6203bf987980",
+          "reason": "",
+          "tested": "c1d6fc2846e3b873920b88c06a6bec2ed2b9cd94"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-17T01:42:11",
-      "worktree": "../Detent-wt/detent/namespace-followups"
+      "updated": "2026-11-17T08:14:38",
+      "worktree": ""
     },
     "namespace-local-cursor": {
       "accepted": {},
