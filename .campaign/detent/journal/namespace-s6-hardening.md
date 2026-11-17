@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261116-214142-1af04d (A1-A4 tests + relay build), mutants 261116-214157-4dc912 -214200-d9e9ff -214203-3b731e -214206-789966 -214209-bdfa24 -214212-4ab1c1
+State: waiting on jobs 261117-075322-afbd3a 261117-075322-b090a5 (tests), mutants 261117-075322-9e1c41 -55a56b -92def8 261117-075323-d98365 -bc058a -0f145c, gates 261117-075327-c3d9ec (native) 261117-075327-25508b (pins)
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Implemented A1-A5 (code, tests, docs) uncompiled; first build job queued. Fix compile errors, then queue the evidence jobs and mutants (see Next).
+Built and green once; two mutants survived (no staging charge, no directory admission), so bfcb4159 adds tests that kill them (frames reporting 32 MiB against a 16 MiB ledger; the directory block's size pinned). All evidence, mutant and gate jobs resubmitted at bfcb4159.
 
 ## Next
 
-0. When the jobs finish: fix compile/test failures; add `campaign brief` table to Evidence; full suite job; ready for review.
-1. (queued as 261116-214142-1af04d) Build and run test_distribution_session_frames, test_distribution_storage, test_delivery_namespace_session, test_authority_namespace_history, test_authority_frames_service, test_authority_lagging_incarnation, plus the relay build (SessionFramesEncoder gained an optional ledger).
-2. Evidence jobs --for A1..A4; mutants --fails-without: early apply (StagedFrames::frame publishes at once), decoder without ledger admission, plan_frames omits unfreezable instead of FramesBehind, no Dropped frame.
-3. Full suite job; set ready for review.
+0. When the jobs finish: if a mutant job fails (test passed without the fix) tighten its test; fix any red test; paste `campaign brief`'s table into Evidence; set ready for review.
 
 ## Blocked on
 
