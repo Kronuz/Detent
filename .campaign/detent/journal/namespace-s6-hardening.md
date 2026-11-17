@@ -31,7 +31,7 @@ checked what), and answer each message by its id (msg-N).
 | A2 | same tests; fails without: 261117-075322-9e1c41 (early apply; 261116-214157-4dc912 is the older run) |
 | A3 | same tests; fails without: 261117-075323-d98365 (pending) |
 | A4 | same tests; fails without: 261117-075323-bc058a, 261117-075323-0f145c (pending) |
-| A5 | include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); lead to review [manual] |
+| A5 | include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); checked by the lead 2026-11-17: Ahead is tested first for a same-cluster store above head whatever its incarnation, and FullCopy only for another incarnation at or below head, which is the cutover review F1 fix (position before identity) [manual] |
 
 ## Result
 
