@@ -4464,9 +4464,9 @@
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-16T18:58:29",
+      "updated": "2026-11-17T08:02:23",
       "worktree": "../http-wt/detent/http-tls-small-reply-cost"
     },
     "ipv6": {
