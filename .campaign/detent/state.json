@@ -4854,20 +4854,53 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-host-guards",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T05:07:26",
+          "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "criteria": {
+            "A1": "261117-045930-84375d, 261117-042733-4089ce, 261117-042749-c43f37; fails without: 261117-030534-8c79e2, 261117-030542-f27966, 261117-042807-0ddf36, 261117-042815-331f75, 261117-042823-cca3f2, 261117-042830-3f7a05",
+            "A2": "261117-045930-84375d, 261117-042749-c43f37, 261117-042733-4089ce; fails without: 261117-030549-c16cac"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-045930-84375d",
+              "level": "light",
+              "seconds": 49.6,
+              "state": "done",
+              "what": "journal-host-guards check suite at cc95ba636dee"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "555b69fa425621682c42bd8a52d3353a25300222",
+          "reason": "",
+          "tested": "cc95ba636dee73b494daef7bbd8d341505aea9a1"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
-      "updated": "2026-11-17T04:59:08",
-      "worktree": "../journal-wt/detent/journal-host-guards"
+      "updated": "2026-11-17T05:07:28",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {},
