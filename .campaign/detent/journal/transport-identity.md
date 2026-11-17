@@ -1,6 +1,6 @@
 # transport-identity: journal
 
-State: working
+State: waiting on jobs 261117-083329-29d3d7 261117-083341-09b068 261117-083354-74485c 261117-083409-90840d and the 12 mutant/control jobs (261117-083434-aa0196 .. 261117-083704-f48fcf)
 Quest: .campaign/detent/quests/transport-identity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -26,7 +26,9 @@ on lagging 261117-083704-f48fcf.
 ## Next
 
 1. Read the jobs' values into Evidence; set "ready for review".
-2. msg (lead, transport-groups-ci): merge main once that quest lands, then re-run the gates.
+2. Lead's note (transport-groups-ci lands first): merge main into this branch when told, then
+   re-run the gates; a red groups_driver or groups_threads under TSan is that quest's, so the
+   TSan job here runs only admission and groups identity/joiner/lagging/relayout.
 
 ## Blocked on
 
