@@ -13,7 +13,7 @@ v2 gets stricter while v1 still serves every consumer: session codecs and the cl
 - A2 A two-namespace response with namespace 1 complete in fragment 1 and fragment 2 corrupt leaves the table, `change` words and coordinator cursors unchanged and the ledger at its prior use (design F9): a test plus the early-apply mutant, killed
 - A3 A dropped followed namespace is signalled to the session (cutover review F5): a test that a follower learns of the drop
 - A4 A live followed namespace the voter cannot freeze gets an explicit answer (503 or a retry frame) and the client keeps its cursor (design F6): tests for both cases
-- A5 The tier comment in `include/detent_distribution/history.hh` matches the cutover's F1 rule (msg-50): `include/detent_distribution/history.hh` reviewed by the lead [manual]
+- A5 [manual] The tier comment in `include/detent_distribution/history.hh` matches the cutover's F1 rule (msg-50): `include/detent_distribution/history.hh` reviewed by the lead
 
 ## Contracts
 
