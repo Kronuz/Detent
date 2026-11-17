@@ -11704,7 +11704,7 @@
     "rpc-lane-codec": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T06:11:30",
+          "at": "2026-11-17T06:12:48",
           "base": "677c8645623b8fdc856416f4a9914557926b061a",
           "blobs": {
             "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
@@ -11726,10 +11726,10 @@
             "fuzz/rpc_fuzz.cc": "100644:b71616d518a3c170b3e8a0ff96af2be1031c41b8",
             "include/consensus/transport/rpc.h": "100644:9462b7597c735fbe62c1a6f905c171b400784726",
             "test/transport/rpc_mutants.py": "100644:79f5ed897142ea9feb6c57909704854cc4799d05",
-            "test/transport/rpc_test.cc": "100644:e1f2e2e7675c23b4e15fdde9b26f76c870c1e853"
+            "test/transport/rpc_test.cc": "100644:544dbecd1c570e901a5a6555a3ad119115444f1e"
           },
           "by": "review",
-          "commit": "8db3ce393f63cfb42c9b16de70084ecf08e540af",
+          "commit": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
           "criteria": "d57e274b9cc45c17",
           "diffs": {
             "": "495bd41ab933f933",
@@ -11739,12 +11739,12 @@
             "fuzz/rpc_fuzz.cc": "5a3bd2dbe89ed7ce",
             "include/consensus/transport/rpc.h": "e9fd091e2472248a",
             "test/transport/rpc_mutants.py": "4a5af4d983f5101e",
-            "test/transport/rpc_test.cc": "8c9f9fd23b7f4355"
+            "test/transport/rpc_test.cc": "45c046729db79533"
           },
           "findings": {},
           "note": "",
-          "review": "ecbad9904dd14836a728a44937f0eb90378bf7d7",
-          "reviewed": "8db3ce393f63cfb42c9b16de70084ecf08e540af",
+          "review": "05dc3a35452f24ba973fdc78e5595204ed128827",
+          "reviewed": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
           "verdict": "APPROVE"
         }
       },
@@ -11809,7 +11809,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T06:11:30",
+      "updated": "2026-11-17T06:12:48",
       "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
