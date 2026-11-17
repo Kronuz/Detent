@@ -128,8 +128,9 @@ definition is read on both sides: 40 reads per changed key at 100K (job 261117-0
 Profile job 261117-094355-e06b99 sampled 3 runs of the fix at 1M (uniform f 0.05) with macOS `sample`. That
 gave 8,684 samples under `PagedDeltaPlanBuilder::Work::step`, with these inclusive shares:
 
-1. SHA-256, `kronuz::sha256` `compress_portable`, 24.6%. That is the scalar path, since this Intel host has no
-   SHA extensions. The share splits into first-touch verification of old pages (9.5%), the new pages'
+1. SHA-256, `kronuz::sha256` `compress_portable`, 24.6%. That is the scalar path: this host's i9-9980HK has
+   no SHA-NI, while target hosts run the SHA-NI kernel (`sha256_x86.cc`) or the ARMv8 one (`sha256_arm.cc`),
+   so this share is smaller there. The share splits into first-touch verification of old pages (9.5%), the new pages'
    commitments in `PagedPacker` (7.9%) and the new packs' checksums in `SegmentBuilder` (7.2%).
 2. First touch of old pages other than SHA-256: a 30.6% share in `checked_page_bytes`, minus the 9.5% above.
    `verify_page_structure` takes 9.8%. The first `decode_page_header` of each page takes about 10%, although
@@ -144,9 +145,13 @@ gave 8,684 samples under `PagedDeltaPlanBuilder::Work::step`, with these inclusi
 The work removed was about 8% of main's plan by its profile, and the strict A/B measured 4.1% at 1M. The rest is per rewritten byte, and most of it lies outside
 this quest's reach:
 
-1. The SHA-256 implementation (another library) costs a quarter of the plan.
-2. The commitments and checksums the format requires (about 15%) are fixed by DTPAGE03.
+1. SHA-256 is a quarter of the plan on this host only because it runs the portable kernel. Target hosts have
+   accelerated kernels, so no SHA-256 work follows from it.
+2. The commitments and checksums the format requires (about 15% here) are fixed by DTPAGE03.
 3. Re-packing the unchanged clusters a uniform delta touches would need a DTPAGE03 change (D107).
+
+D110 restates A2 on these numbers. It requires the clustered delta's 30% cut and its 2x bound at every size.
+For the uniform delta, it requires the measured cut, stated with where the CPU goes: 4.1% at 1M, as above.
 
 ## Method
 

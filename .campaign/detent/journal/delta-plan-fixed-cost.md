@@ -59,26 +59,7 @@ stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
 
 ## Blocked on
 
-A2's uniform 30% is missed. Strict A/B 261117-094335-a15eaa (beside 7 light holds): at 1M a uniform f 0.05
-plan's CPU per rewritten byte fell 4.1% (68.1 to 65.3 ns/byte; 2.823 to 2.706 s), 25.9 points short; at 100K
-the pairs are inconclusive (median -20%, fix/main per round 1.34, 1.34, 0.89, 0.99, 1.20). At 5M (exclusive
-261117-094351-8b7ee4) apply CPU fell 3.5% against main's round (12.14 to 11.72 s), and the delta now applies
-in 0.88x the full copy (13.95 against 15.83 s). The clustered half holds: 30.2% at 1M (199 to 139 ns/byte) and
-within the 2x bound at every size (0.064, 0.396, 1.961 s against 0.138, 1.380, 6.90 s).
-Where the uniform plan's CPU goes now (profile 261117-094355-e06b99, 1M, 8,684 samples): SHA-256 24.6%
-(kronuz::sha256 compress_portable, the scalar path: old-page verify 9.5%, new-page commitments 7.9%, pack
-checksums 7.2%); old-page first touch besides SHA 21% (verify_page_structure 9.8%, the first header read about
-10%, likely faults on the mapped base); packing besides SHA about 14%; warm validation of new pages 22.1%;
-overlay walk about 9%. What remains outside the file set or the format:
-1. SHA-256 speed (Kronuz/sha256): a quarter of the plan; a SIMD or SHA-NI/ARMv8 backend is that library's change.
-2. The page commitments and pack checksums DTPAGE03 requires (about 15%), and re-packing the unchanged
-   clusters a uniform delta touches (D107 reserves the format change).
-3. First-touch verification of the touched old pages (about 20%) runs once per mapping. Each T9 run is a fresh
-   process with fresh mappings, so every plan pays it; an agent that keeps its base mapping across plans may
-   pay it once (not measured; VerifiedPages lives in verified_pages.hh, outside the file set).
-Options: (a) restate A2's uniform target to the measured 4% and land on the clustered result, A3 and A4;
-(b) measure a warm second plan on one mapping to see how much of the 20% a long-lived agent already skips;
-(c) a SHA-256 quest in Kronuz/sha256. Recommendation: (a) now, then (c), which pays every paged path.
+Nothing. The uniform miss was ruled by D110 (option a): A2 is restated, and there is no SHA-256 quest.
 
 ## Evidence
 
@@ -89,7 +70,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261117-075622-1f24d9 (profile, f 0.05 at 1M, main's code; 100K: 261117-075635-2d7760): the delta rewrites 81-82% of the store's bytes; OverlayAssembler re-packs every touched page (39-44%), WarmGraphValidator re-validates every new page (23-28%), TrieOverlay first-touch verify_page per old page (~15-20%). Per store page, not per changed key. The fix's profile at the head: 261117-094355-e06b99. |
-| A2 | Strict 261117-094335-a15eaa: uniform 4.1% at 1M (MISSED, Blocked on), clustered 30.2% at 1M and within 2x at 100K and 1M; 5M exclusive 261117-094351-8b7ee4 (clustered 1.961 s against 6.90 s); mutant 261117-121549-7a86f2 (at bd51ade2: 261117-094323-69e26d killed). |
+| A2 | Strict 261117-094335-a15eaa: uniform 4.1% at 1M (stated with where its CPU goes, as D110 restates A2), clustered 30.2% at 1M and within 2x at 100K and 1M; 5M exclusive 261117-094351-8b7ee4 (clustered 1.961 s against 6.90 s); mutant 261117-121549-7a86f2 (at bd51ade2: 261117-094323-69e26d killed). |
 | A3 | 261117-094340-baa902: identical at 100K (0.05, c0.05, 0.5) and 1M (0.05, c0.05). |
 | A4 | Suite 261117-121549-83f289 (at bd51ade2: 268/268, 261117-094318-dc96be), pins 261117-121554-a6db7d, probe 261117-121529-6da30a, fails without 261117-121537-35314f; smoke 261117-121521-315097 (600K: 2 leaf reads per key). |
 | A5 | docs/perf/delta-plan-scaling.md "The fixed part: moved definitions and repeated page reads". |
