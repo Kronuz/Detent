@@ -393,6 +393,20 @@
       "closed": "consensus-driver adds Driver beside the Worker and does not change the transport; consensus-rpc-lane is already after detent:consensus-transport",
       "id": "msg-63",
       "text": "xapiand:consensus-rpc-lane started and builds against contract consensus:transport, which your consensus-driver is changing"
+    },
+    {
+      "at": "2026-11-17T02:05:39",
+      "by": "campaign xapiand",
+      "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
+      "id": "msg-64",
+      "text": "xapiand:group-core started and builds against contract consensus:driver, which your consensus-transport is changing"
+    },
+    {
+      "at": "2026-11-17T02:05:40",
+      "by": "campaign xapiand",
+      "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
+      "id": "msg-65",
+      "text": "xapiand:group-core started and builds against contract consensus:driver, which your transport-connection is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -688,7 +702,8 @@
         "tests/detent_authority/test_service.cc",
         "tests/detent_authority/CMakeLists.txt",
         "tests/detent_local/test_paged_publication_artifacts.cc",
-        ".github/workflows/**"
+        ".github/workflows/**",
+        "tests/detent_delivery/test_repair.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -699,7 +714,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Three CI test flakes: managed relay, writer failover, authority admission",
-      "updated": "2026-11-16T21:23:44",
+      "updated": "2026-11-17T01:05:48",
       "worktree": "../Detent-wt/detent/ci-test-flakes"
     },
     "client-local-source": {
@@ -987,7 +1002,62 @@
       "worktree": ""
     },
     "consensus-driver": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T00:22:53",
+          "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:f00bf1bbc82f21ba64ccb7f186aa8641f8793fb7",
+            "CHANGELOG.md": "100644:ad2a9bb2337b5f288a3b8d663991c19569ba7c5c",
+            "CMakeLists.txt": "100644:fdc32d4afa51820dde996b4f8a5562fb522412c4",
+            "bench/driver_idle.cc": "100644:2fce1c26e4719df4080d6fdfb9df417795c0f460",
+            "docs/DRIVER.md": "100644:84f7538910eda84ab9b1213a77eb2a255a8d3b18",
+            "include/consensus/core.h": "100644:09e36ed0c2e72b2a4d34ef156fb55bc8f2cf151b",
+            "include/consensus/driver.h": "100644:1dd370ee6b3ac7df916e100cbdd31089d8177f4a",
+            "include/consensus/snapshot_channel.h": "100644:a13f56d23b86905ed80dee29537bed1a8350a3d5",
+            "include/consensus/worker.h": "100644:03be79bb33c5882aa86f824ee96df09c3ba1aeb3",
+            "test/blocking_entry_test.cc": "100644:e9689a985519c9125a81149cf993fd7aa080a7a4",
+            "test/driver_checks.sh": "100755:2161f378863373a869de7b80db9ac5929041de7d",
+            "test/driver_mutants.py": "100644:9ed2d16c0ed5ed0727f2878ebf247a930377d9aa",
+            "test/driver_simulation.cc": "100644:35d1bdd39f8d647498a9bc4d8ecaf96e7f321794",
+            "test/driver_test.cc": "100644:87687d9cd12d06799e19bf7505354d45c8a5e90a",
+            "test/membership_test.cc": "100644:4ea1d90612cf095ac6d81df22e31fd4d2ecb868a",
+            "test/shared_cluster_test.cc": "100644:537d42e42cfb14daf388354bba2a15a9d3e01551",
+            "test/shared_worker_test.cc": "100644:fb0ea22e289326b727059c9dcf6c5026d3eb8bc0",
+            "test/simulation_test.cc": "100644:0e5ca81b06f8159ec19fe3f6319995a675a404f8",
+            "test/waiter_test.cc": "100644:e69c13cb1cd5378715d84df3dfb5c69a04e5fa1b"
+          },
+          "by": "review",
+          "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "criteria": "820f374de32b948a",
+          "diffs": {
+            "ARCHITECTURE.md": "71e74d7c13cd5ee9",
+            "CHANGELOG.md": "f3e1c0e45d8815a0",
+            "CMakeLists.txt": "07bf98300fa4b6d1",
+            "bench/driver_idle.cc": "8bd388f363b5fa17",
+            "docs/DRIVER.md": "fe1e7fad1bb5fa10",
+            "include/consensus/core.h": "57ffe2284107805d",
+            "include/consensus/driver.h": "2962205af176c433",
+            "include/consensus/snapshot_channel.h": "ae1d1bbe55214675",
+            "include/consensus/worker.h": "f2b364d2425b0a91",
+            "test/blocking_entry_test.cc": "a1e6acc6d78af006",
+            "test/driver_checks.sh": "f5ce51e7bc529c43",
+            "test/driver_mutants.py": "f35c2452e5226ed9",
+            "test/driver_simulation.cc": "172225a7a64344b5",
+            "test/driver_test.cc": "0e94418b80f58b6b",
+            "test/membership_test.cc": "f580d47186def214",
+            "test/shared_cluster_test.cc": "77ca9666ce73b742",
+            "test/shared_worker_test.cc": "b49aa60198359e10",
+            "test/simulation_test.cc": "8339749d4fb44d9f",
+            "test/waiter_test.cc": "f21af9c3a8f8ea40"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9400ca8062ada6743aec680a38cc01d328155950",
+          "reviewed": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
       "branch": "quest/detent/consensus-driver",
@@ -1022,9 +1092,53 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/consensus-driver",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T00:38:20",
+          "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "criteria": {
+            "A1": "261117-000432-6d02da, 261116-233050-28a49e; fails without: 261116-211614-de2c80",
+            "A2": "261117-000456-6f48af",
+            "A3": "261116-233102-3f74e5, 261116-233053-a64e8a, 261116-233057-b2e74f; fails without: 261116-181603-cd6670, 261116-181606-eb2d58, 261116-181610-202809, 261116-183524-cafa97, 261116-183527-9bf51b, 261116-183530-fa0ab5, 261116-183534-65a204, 261116-190314-982145, 261116-190314-f367e1, 261116-190314-15400c, 261116-190314-421b11, 261116-200754-558f94, 261116-200754-e360fd, 261116-200754-31e9a0, 261116-200755-ef4201, 261116-200759-6d46f3, 261116-200803-9752be, 261116-200807-369184, 261116-211622-5ec061, 261116-211623-aa6b04, 261116-211623-26af3a, 261116-211624-b7832c, 261116-211624-1eba2e, 261116-211624-5b7e94, 261116-211625-c6dfcd, 261116-233131-9cd406, 261116-233135-802056, 261116-233139-3d5a9c, 261116-233142-a02ec6",
+            "A4": "261116-233102-3f74e5",
+            "A5": "261116-233102-3f74e5, 261116-233053-a64e8a"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-000432-6d02da",
+              "level": "light",
+              "seconds": 485.6,
+              "state": "done",
+              "what": "consensus-driver check suite at 57745e8541d7"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+          "reason": "",
+          "tested": "57745e8541d7101c82b8f3f1bdd5472397875edf"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "57745e8541d7",
+          "at": "2026-11-16T20:53:09",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From Xapiand's strata design review (Xapiand:dc0590b32 document-gate-design F1, probe Xapiand/.scratch/review-document-gate-design/supersede.cc, job 261116-203118-487c1b): RFTW0001 accepts a checkpoint only at the group's last seq + 1, and it drops every earlier record of the group. With seq 2 acknowledged, a checkpoint naming X=seq 1 written at seq 3 lost seq 2 on recovery. Can the consensus Worker or Driver ever write a checkpoint that covers less than an acknowledged record (a checkpoint taken at applied index N while records above N are acknowledged)? Answer in the journal with a test or probe, and fix it if so."
+        }
       ],
       "milestone": "M1b",
       "needs": [
@@ -1035,9 +1149,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-16T15:43:51",
+      "updated": "2026-11-17T00:38:49",
       "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
@@ -1268,7 +1382,7 @@
         "CMakeLists.txt",
         ".github/workflows/ci.yml"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-macos",
+      "journal": "",
       "landed": [],
       "lenses": [],
       "milestone": "N1",
@@ -1279,8 +1393,8 @@
       "risk": "normal",
       "status": "dropped",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-16T10:26:15",
-      "worktree": "../consensus-wt/detent/consensus-fetch-macos"
+      "updated": "2026-11-16T21:41:06",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {
@@ -1436,8 +1550,11 @@
     "consensus-transport": {
       "accepted": {},
       "after": [
-        "consensus-fetch-macos"
+        "transport-identity",
+        "transport-idle-cost"
       ],
+      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "branch": "quest/detent/consensus-transport",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -1456,11 +1573,14 @@
       "files": [
         "include/consensus/transport/**",
         "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
         "bench/**",
         "docs/**",
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
         "security",
@@ -1468,16 +1588,18 @@
       ],
       "milestone": "M1b",
       "needs": [
-        "consensus-driver"
+        "transport-groups",
+        "rpc-lane-codec"
       ],
       "provides": [
         "consensus:transport"
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-15T23:08:03"
+      "updated": "2026-11-17T00:48:42",
+      "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "container-selection": {
       "accepted": {},
@@ -1743,6 +1865,8 @@
     "delta-plan-fixed-cost": {
       "accepted": {},
       "after": [],
+      "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
+      "branch": "quest/detent/delta-plan-fixed-cost",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -1761,7 +1885,8 @@
         "src/detent_local/paged_node_*",
         "tests/detent_local/test_delta_plan_*",
         "tests/detent_local/CMakeLists.txt",
-        "docs/perf/delta-plan-scaling.md"
+        "docs/perf/delta-plan-scaling.md",
+        "docs/perf/namespace-measure-t9.cc"
       ],
       "history": [
         {
@@ -1800,9 +1925,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-12T18:58:45"
+      "updated": "2026-11-17T08:06:07",
+      "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
       "accepted": {
@@ -2588,7 +2714,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Repin logger on workpool, drop scheduler, rename threadpool to workpool",
-      "updated": "2026-11-16T21:21:53",
+      "updated": "2026-11-16T21:38:24",
       "worktree": ""
     },
     "detent-brand": {
@@ -3380,7 +3506,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-16T12:12:34",
+      "updated": "2026-11-16T21:38:17",
       "worktree": ""
     },
     "drivers-task-wheel": {
@@ -3537,7 +3663,7 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:24:44",
+      "updated": "2026-11-16T21:41:11",
       "worktree": ""
     },
     "drop-justknobs": {
@@ -4212,7 +4338,7 @@
       "risk": "high",
       "status": "landed",
       "title": "HTTP idle cost: cheaper idle connections, TLS first",
-      "updated": "2026-11-16T11:21:13",
+      "updated": "2026-11-16T21:38:20",
       "worktree": ""
     },
     "http-task-h1": {
@@ -4339,9 +4465,9 @@
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-16T18:58:29",
+      "updated": "2026-11-17T08:02:23",
       "worktree": "../http-wt/detent/http-tls-small-reply-cost"
     },
     "ipv6": {
@@ -4660,6 +4786,122 @@
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
       "updated": "2026-11-16T15:41:59",
       "worktree": "../journal-wt/detent/journal-driver"
+    },
+    "journal-host-guards": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-17T04:59:08",
+          "base": "555b69fa425621682c42bd8a52d3353a25300222",
+          "blobs": {
+            "CHANGELOG.md": "100644:456e763ee11b30557db874ec8f24e2e0846bbd6f",
+            "CMakeLists.txt": "100644:d963faffd8133eea52ed97676e4d42af0470b5f6",
+            "docs/design/host-layout.md": "100644:837554b68facaada0af179c8daa7f8ed9616fa21",
+            "docs/mechanisms/turn-seal.md": "100644:62694cc0d5c71639997844da5a8bd65b7f4ca2f1",
+            "include/journal/host.h": "100644:5e59f0519d2773df7d258798f9ec0d318bab02de",
+            "include/journal/journal.h": "100644:3ae33df2785bbdb9e1505c74b98dc3cac6699551",
+            "include/journal/turn_driver.h": "100644:7f983ad38ff6301a84832ca122c9da184a26fc34",
+            "test/host_test.cc": "100644:b87bb0368aec79498b6e1c49fe567bb8fe1dc412",
+            "test/shared_store_test.cc": "100644:6207be19b210370b1d014c02eacd04434c41df0d",
+            "test/turn_seal_mutants.sh": "100644:c8aea4be1229552c8ff92dbe3664880994cac7ed",
+            "test/turn_seal_test.cc": "100644:ed3203864371730a6a4d8f48d320f0afb8de987b"
+          },
+          "by": "review",
+          "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "criteria": "e001961e3170d1ac",
+          "diffs": {
+            "CHANGELOG.md": "159068005739ca28",
+            "CMakeLists.txt": "5bc970df8ee50050",
+            "docs/design/host-layout.md": "9ffc5c788d8a4b55",
+            "docs/mechanisms/turn-seal.md": "d2ce7707c92d51d8",
+            "include/journal/host.h": "e20eee480f8de6ad",
+            "include/journal/journal.h": "0af1d510fabd0882",
+            "include/journal/turn_driver.h": "c30a2c05b5640bc5",
+            "test/host_test.cc": "cf279097778e691b",
+            "test/shared_store_test.cc": "edc681e34d26ee74",
+            "test/turn_seal_mutants.sh": "9f545891d4291db4",
+            "test/turn_seal_test.cc": "bba5afe13467bae5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "80648400c15495a35bdb2ae4404ead28629eaea2",
+          "reviewed": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "555b69fa425621682c42bd8a52d3353a25300222",
+      "branch": "quest/detent/journal-host-guards",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "tests/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T05:07:26",
+          "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "criteria": {
+            "A1": "261117-045930-84375d, 261117-042733-4089ce, 261117-042749-c43f37; fails without: 261117-030534-8c79e2, 261117-030542-f27966, 261117-042807-0ddf36, 261117-042815-331f75, 261117-042823-cca3f2, 261117-042830-3f7a05",
+            "A2": "261117-045930-84375d, 261117-042749-c43f37, 261117-042733-4089ce; fails without: 261117-030549-c16cac"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-045930-84375d",
+              "level": "light",
+              "seconds": 49.6,
+              "state": "done",
+              "what": "journal-host-guards check suite at cc95ba636dee"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "555b69fa425621682c42bd8a52d3353a25300222",
+          "reason": "",
+          "tested": "cc95ba636dee73b494daef7bbd8d341505aea9a1"
+        }
+      ],
+      "lenses": [
+        "durability"
+      ],
+      "messages": [],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "landed",
+      "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
+      "updated": "2026-11-17T05:07:28",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {},
@@ -4984,7 +5226,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T06:36:57",
+      "updated": "2026-11-16T21:41:09",
       "worktree": ""
     },
     "logger-exit-crash": {
@@ -5521,7 +5763,63 @@
       "updated": "2026-11-08T15:38:06"
     },
     "namespace-followups": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T01:42:11",
+          "base": "e7c3b4d082ebdd6643cfc346e4209befb698ffdb",
+          "blobs": {
+            "src/detent_authority/history.cc": "100644:08106b52bac97c6e73d34be688f6353260429f0a",
+            "src/detent_authority/history.hh": "100644:8a2d2aa79641cd8828e42f6f6242caed5b912f7e",
+            "src/detent_authority/history_format.cc": "100644:fc0bb49ccba36f9e7750f083fc7a27c04bbb5767",
+            "src/detent_authority/history_format.hh": "100644:a5d0fb23689ccc28b429185b9454424e04dc9f5b",
+            "src/detent_relay/host.cc": "100644:453aafdfbb4889ac78e22be1331bbe73611af5f6",
+            "src/detent_relay/mirror.cc": "100644:a29de5a952bac10bbaa9266144ddc6aaadf84596",
+            "tests/detent_authority/test_history_mutant.sh": "100755:6dc376a40e7351ce74adb0d2967518c9bb68effc",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "100644:d57d52aa3f35d9ee7220c45517e0a97c22154cef",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "100644:a0345f28c6d6ac896818387d74737c58ddf9b30f",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "100644:e14fbdd79e27810cf6bde43e41406e7491d29f8c",
+            "tests/detent_authority/test_history_power_cut.cc": "100644:8030975ec08bf3fca8e40269ee906ef9a1cfcaae",
+            "tests/detent_relay/mirror_mutant.sh": "100755:bdafa7abd401516fb5495cc930d8a8c494a03d2a",
+            "tests/detent_relay/mirror_tests.sh": "100755:9dfc5054a6ce5169959803c60aa6ea7478890d8f",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "100644:dd7af621d5da229cd6222910b084835e9c323fa2",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "100644:64bb1fac41763e3c63ae7007c0a99041b23bd51b",
+            "tests/detent_relay/relay_health_check.sh": "100755:ea6da39df4d56c2d65b4584964ac50f228579f33",
+            "tests/detent_relay/service_mutant.sh": "100755:22ef972c0c507ae7aea568c5d5285193b4c8eebb",
+            "tests/detent_relay/test_relay_mirror.cc": "100644:ec1482134bb4ec07bdf2dab147e5ae4f941a378a",
+            "tests/detent_relay/test_relay_service.py": "100644:e81b1a3dddf264496ddc107542a7bd18396f6f59"
+          },
+          "by": "review",
+          "commit": "07b8d8bf45868a7277978ad577b857c41029ad06",
+          "criteria": "4c70446b37cae0b1",
+          "diffs": {
+            "": "b44706b94072752e",
+            "src/detent_authority/history.cc": "631b386186f62a8b",
+            "src/detent_authority/history.hh": "bce111ee9864254a",
+            "src/detent_authority/history_format.cc": "8c46a6aabfcc6f86",
+            "src/detent_authority/history_format.hh": "bd604ff86ea7fede",
+            "src/detent_relay/host.cc": "fd597caa7d4f343f",
+            "src/detent_relay/mirror.cc": "6a3a59486f19998a",
+            "tests/detent_authority/test_history_mutant.sh": "2e68a1f9375b388e",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "5e17470a90dd1d55",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "cfd09450400b59dd",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "01b98be4381b14ac",
+            "tests/detent_authority/test_history_power_cut.cc": "ee910165e6a9e404",
+            "tests/detent_relay/mirror_mutant.sh": "b316edd8b2172451",
+            "tests/detent_relay/mirror_tests.sh": "c1a1357b9ddc7010",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "a11c6e1751a977bd",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "3651ad4a39b7517a",
+            "tests/detent_relay/relay_health_check.sh": "6b55b4161101a441",
+            "tests/detent_relay/service_mutant.sh": "c174248e143ee2f5",
+            "tests/detent_relay/test_relay_mirror.cc": "0fc8923847431147",
+            "tests/detent_relay/test_relay_service.py": "f087d5125d90bf12"
+          },
+          "findings": {},
+          "note": "",
+          "review": "40c9c20967ce66b08e20916e17ac03afd774ed65",
+          "reviewed": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s6-cutover"
       ],
@@ -5550,15 +5848,17 @@
         "tests/detent_relay/**"
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-16T21:23:49",
+      "updated": "2026-11-17T01:42:11",
       "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
@@ -7624,6 +7924,8 @@
       "after": [
         "namespace-s8-wiring"
       ],
+      "base": "58804a6e1e1028e14dd775a67e462be5c9be8d52",
+      "branch": "quest/detent/namespace-s6-hardening",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7651,7 +7953,8 @@
         "src/detent_delivery/namespace_session.cc",
         "include/detent_delivery/namespace_session.hh",
         "tests/detent_delivery/test_namespace_session.cc",
-        "docs/status/namespace-s6-cutover.md"
+        "docs/status/namespace-s6-cutover.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -7660,9 +7963,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-15T21:12:51"
+      "updated": "2026-11-17T08:04:57",
+      "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
@@ -11398,6 +11702,117 @@
       "updated": "2026-11-09T10:10:20",
       "worktree": ""
     },
+    "rpc-lane-codec": {
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T06:12:48",
+          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "blobs": {
+            "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
+            "CMakeLists.txt": "100644:efbea5ab4460ed77821157a8853c50a6a3c79ca8",
+            "docs/mechanisms/rpc-lane.md": "100644:84310f3a7a2fb044bc6d2b5ae4cf27ca381bdf77",
+            "fuzz/corpus/rpc/crash-send-past-credit": "100644:ade736df0974f8833da9b9da0f61b80be71247fc",
+            "fuzz/corpus/rpc/seed-0": "100644:40748c1675a2843be5092b41c0d623e7210cec81",
+            "fuzz/corpus/rpc/seed-1": "100644:fc8fcf3e408188bff383ae722e20554fc4a52bd6",
+            "fuzz/corpus/rpc/seed-10": "100644:3544378d00f23743669bc5be26d16b29cec1a076",
+            "fuzz/corpus/rpc/seed-11": "100644:5f247e1b237d988d1ba85b5a6926133435be88f8",
+            "fuzz/corpus/rpc/seed-2": "100644:396e1cd8d7c5626a488a40230fd6e8b61cfb1d12",
+            "fuzz/corpus/rpc/seed-3": "100644:219bbadf9900be9792cac46e57c92602658d74f0",
+            "fuzz/corpus/rpc/seed-4": "100644:fb2cd16611a399ad45f649289c7c06bed8a65fce",
+            "fuzz/corpus/rpc/seed-5": "100644:7c38f1663739c711b5301d7b39a7d568ac57a34e",
+            "fuzz/corpus/rpc/seed-6": "100644:93201daa6e4ff8371f38183a8a6f0b475db3ef4a",
+            "fuzz/corpus/rpc/seed-7": "100644:66cd6c613b9a88ad18abb0e67685c79da33cb26f",
+            "fuzz/corpus/rpc/seed-8": "100644:db4ecf2acd998a153ec7af952464c2c68a243916",
+            "fuzz/corpus/rpc/seed-9": "100644:35c5da4533de40edb3a6b0d62bb97711d87af465",
+            "fuzz/rpc_fuzz.cc": "100644:b71616d518a3c170b3e8a0ff96af2be1031c41b8",
+            "include/consensus/transport/rpc.h": "100644:9462b7597c735fbe62c1a6f905c171b400784726",
+            "test/transport/rpc_mutants.py": "100644:79f5ed897142ea9feb6c57909704854cc4799d05",
+            "test/transport/rpc_test.cc": "100644:544dbecd1c570e901a5a6555a3ad119115444f1e"
+          },
+          "by": "review",
+          "commit": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
+          "criteria": "d57e274b9cc45c17",
+          "diffs": {
+            "": "495bd41ab933f933",
+            "CHANGELOG.md": "ee0ebe38c4330a3d",
+            "CMakeLists.txt": "ca55e466c76a7546",
+            "docs/mechanisms/rpc-lane.md": "d8d7b20cc18eff99",
+            "fuzz/rpc_fuzz.cc": "5a3bd2dbe89ed7ce",
+            "include/consensus/transport/rpc.h": "e9fd091e2472248a",
+            "test/transport/rpc_mutants.py": "4a5af4d983f5101e",
+            "test/transport/rpc_test.cc": "45c046729db79533"
+          },
+          "findings": {},
+          "note": "",
+          "review": "05dc3a35452f24ba973fdc78e5595204ed128827",
+          "reviewed": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "677c8645623b8fdc856416f4a9914557926b061a",
+      "branch": "quest/detent/rpc-lane-codec",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/rpc*",
+        "test/transport/rpc*",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-17T05:06:09",
+          "lenses": [
+            [
+              "security",
+              "correctness"
+            ],
+            [
+              "security"
+            ]
+          ],
+          "reason": "one reviewer by default: the security review carries the correctness questions (call table, pools, TSan) in the same pass",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/rpc-lane-codec",
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "transport-connection"
+      ],
+      "provides": [
+        "consensus:rpc-lane"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "review",
+      "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
+      "updated": "2026-11-17T06:12:48",
+      "worktree": "../consensus-wt/detent/rpc-lane-codec"
+    },
     "s3b-followups": {
       "accepted": {},
       "after": [
@@ -12363,6 +12778,395 @@
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
       "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
+    },
+    "transport-admission": {
+      "accepted": {},
+      "after": [
+        "transport-identity"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "M1b",
+      "needs": [
+        "transport-connection"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Pre-authentication admission favors configured peers; transport-connection's notes",
+      "updated": "2026-11-17T02:26:03"
+    },
+    "transport-connection": {
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T04:18:31",
+          "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "blobs": {
+            "CHANGELOG.md": "100644:31a14e8b743563ba0b7ba3060d97fb42ce9c0b2a",
+            "CMakeLists.txt": "100644:7f4085e457557992cae33e1904ae98faef8286fe",
+            "docs/mechanisms/host-connection.md": "100644:f32e0e71c72e635a21d8c49f50982dcbe0c819d6",
+            "fuzz/corpus/decoders/92cba8759543da45fe5b5a6f421a1b9e9935ec9a": "100644:6c619f6e24d6345aebfde4603b6de942a30c6140",
+            "fuzz/corpus/decoders/db9a5f8875d8a19c434be2b0991658b3f967f70f": "100644:996a98cb4e3ecb160c9fb17a319ec0e991bfc7b2",
+            "fuzz/fuzz_decoders.cc": "100644:543810775f17369035b9cc6a10424c69ea11f85d",
+            "fuzz/seed.cc": "100644:39d821e6c6d25372550cb80d06b3080002278246",
+            "include/consensus/transport/connection.h": "100644:fc5dbba01257cab66e95fe1301bdd6a169dc8cad",
+            "include/consensus/transport/deadline.h": "100644:b29dfddd15f0379c92fb05d1af4edb7845995c61",
+            "include/consensus/transport/links.h": "100644:a4816330e17334f68ab2bc8051621af537465134",
+            "include/consensus/transport/node_hello.h": "100644:a5bcf326f552ff48d4a37722f0f453b0e6e88390",
+            "include/consensus/transport/node_pins.h": "100644:4ec8ab35d842fe8430521cd0388df76f3c755553",
+            "test/transport/connection_test.cc": "100644:1a9250ab2c5a2ddba0a79aa5f76de0312b8f18e4",
+            "test/transport/deadline_test.cc": "100644:75a06675f4fa8e7ee864d60ff90b13f304b8d34a",
+            "test/transport/links_test.cc": "100644:663620ece5b304d9842b361c26bd51f264003264",
+            "test/transport/mutant_commit.py": "100755:76aa074e1d78e50a41e2e1f5076d90c8adf613a7",
+            "test/transport/node_hello_test.cc": "100644:e884b08f14da8b7294ec1a67c51ddf232a595894",
+            "test/transport/slow_reader_stops.py": "100755:3fd3a1959af7a6c7277433640ede8b7e00fad53c"
+          },
+          "by": "review",
+          "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+          "criteria": "1714f364a5864605",
+          "diffs": {
+            "": "a05042b9ec2ddf03",
+            "CHANGELOG.md": "fa0d95bbf0aa26e6",
+            "CMakeLists.txt": "68c5dbe6048d9c98",
+            "docs/mechanisms/host-connection.md": "06cda11f0e8beac5",
+            "fuzz/fuzz_decoders.cc": "79a9c364929ab7e3",
+            "fuzz/seed.cc": "27f3e686bb329d1a",
+            "include/consensus/transport/connection.h": "f4b3dcaeda389c3e",
+            "include/consensus/transport/deadline.h": "b744d031c361f8e4",
+            "include/consensus/transport/links.h": "ffdd4f44babf4a39",
+            "include/consensus/transport/node_hello.h": "d85e272fbf9c2e5f",
+            "include/consensus/transport/node_pins.h": "8ea0461719e37110",
+            "test/transport/connection_test.cc": "539505fca70835e8",
+            "test/transport/deadline_test.cc": "f3a1ca80ded75383",
+            "test/transport/links_test.cc": "a3ca3708a4e506de",
+            "test/transport/mutant_commit.py": "c5a3433df9649d0a",
+            "test/transport/node_hello_test.cc": "f0fe2282c3e2d651",
+            "test/transport/slow_reader_stops.py": "7bae7140b8691144"
+          },
+          "findings": {},
+          "note": "",
+          "review": "df81d37865d39615ba7eff39f408e9fa298f41b8",
+          "reviewed": "677c8645623b8fdc856416f4a9914557926b061a",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "branch": "quest/detent/transport-connection",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "journal": "../Detent-wt/detent/transport-connection",
+      "landed": [
+        {
+          "at": "2026-11-17T04:26:29",
+          "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+          "criteria": {
+            "A1": "261117-032550-6206a7, 261117-032548-ab81be; fails without: 261117-012000-205e0e, 261117-012004-35b740, 261117-012009-0d6a0f, 261117-012013-dbd982, 261117-012021-795811, 261117-012118-209628, 261117-021037-4df123, 261117-021041-dbab12, 261117-021046-535d94, 261117-021051-2d4cc4, 261117-021055-8114e8, 261117-021221-3c6fba, 261117-032608-c60abe",
+            "A2": "261117-032553-0e82fd, 261117-032548-ab81be; fails without: 261117-012027-32b241, 261117-012033-e1cceb, 261117-012039-9c2239, 261117-021101-69bcf2, 261117-021120-6cfd3d, 261117-021125-b0806f",
+            "A3": "261117-032548-ab81be",
+            "A4": "261117-032553-0e82fd, 261117-032556-fc0b12, 261117-032548-ab81be, 261117-032611-97f801, 261117-032620-2cee82; fails without: 261117-012045-b8df9d, 261117-012052-5bfa60, 261117-012059-910de1, 261117-012105-586789, 261117-012109-4f9a7a, 261117-012114-7d6e0c, 261117-021130-36cdcc, 261117-021136-2134e3, 261117-021141-a71c31, 261117-021146-625f2d, 261117-021151-7f0a64, 261117-021157-d2b65d, 261117-021205-c58e50, 261117-021211-381e3c, 261117-021216-ebf15b, 261117-021226-2e4b1a, 261117-021232-a56084, 261117-021238-0c6d91, 261117-021243-1aac9a, 261117-032600-4ce9d8, 261117-032604-d35a2f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-032548-ab81be",
+              "level": "light",
+              "seconds": 121.9,
+              "state": "done",
+              "what": "transport-connection check suite at 677c8645623b"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "reason": "",
+          "tested": "677c8645623b8fdc856416f4a9914557926b061a"
+        }
+      ],
+      "lenses": [
+        "security"
+      ],
+      "messages": [],
+      "milestone": "M1b",
+      "needs": [
+        "consensus-driver"
+      ],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "landed",
+      "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
+      "updated": "2026-11-17T04:26:38",
+      "worktree": "../consensus-wt/detent/transport-connection"
+    },
+    "transport-groups": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T07:55:07",
+          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:a695576fa02e8615d246a691525ede170a290720",
+            "CHANGELOG.md": "100644:401b48f6fba16dd59b46d0eee688f0877528cabc",
+            "CMakeLists.txt": "100644:07cd12c54e8b1b106805f7dbf58673541dba614b",
+            "docs/mechanisms/host-connection.md": "100644:56b5f5d6cf8113277e73279a6a592322c1b0fd3a",
+            "docs/mechanisms/host-transport.md": "100644:b377361078927722364afc70f63946fd7773e2de",
+            "include/consensus/transport/connection.h": "100644:2fb94146a1ec958959875c7005910ac8274d633c",
+            "include/consensus/transport/host_transport.h": "100644:b51b66b544a97a2b1940dc32090fc7a76f169650",
+            "include/consensus/transport/links.h": "100644:31d96e44851399e3e85bf076fa382a3e357fe133",
+            "test/transport/connection_test.cc": "100644:5f9ad51412b9978b55efb929c7abd6c5ae40a9a5",
+            "test/transport/groups_test.cc": "100644:7e758fdef9ef2d161170e96abd0fa4a3ae7e9587",
+            "test/transport/mutant_commit.py": "100755:7c2d6385ffa2025eca33779dd3a8ded4e9cc30ca"
+          },
+          "by": "review",
+          "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "criteria": "fdb9509984cf386b",
+          "diffs": {
+            "ARCHITECTURE.md": "f2b01236d09720f9",
+            "CHANGELOG.md": "04867ae3c40d20d3",
+            "CMakeLists.txt": "e2a86b6c264ecb02",
+            "docs/mechanisms/host-connection.md": "4852bd2130dcc10a",
+            "docs/mechanisms/host-transport.md": "e1eec6fd0be7c859",
+            "include/consensus/transport/connection.h": "7504096c8bfe0af3",
+            "include/consensus/transport/host_transport.h": "1ee60906c5924079",
+            "include/consensus/transport/links.h": "a060574d0c21821d",
+            "test/transport/connection_test.cc": "8771ab474818f55a",
+            "test/transport/groups_test.cc": "e5ceb5ee0ed4fe53",
+            "test/transport/mutant_commit.py": "0a161b5482be2b82"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9cbad09f48f0dd2527bf20749686154374ff4c03",
+          "reviewed": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "677c8645623b8fdc856416f4a9914557926b061a",
+      "branch": "quest/detent/transport-groups",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T07:55:30",
+          "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "criteria": {
+            "A1": "261117-073408-7f66d4, 261117-073414-ce6391, 261117-073411-513aec, 261117-073418-e06e0e; fails without: 261117-050133-bf0e3f, 261117-050139-527d2f, 261117-050145-d84fdc, 261117-061106-10ebae, 261117-061111-ec7e09, 261117-061119-a21950, 261117-061123-0ceeb2, 261117-061127-967d78, 261117-061722-5deb78, 261117-061730-bc6eb9, 261117-061738-572024, 261117-061758-f087b3, 261117-061808-cec7df, 261117-061815-051c26, 261117-071200-899f1b, 261117-071204-847ba9, 261117-071208-83ccf6, 261117-071212-a2710f, 261117-071217-ff4aa1, 261117-071221-7964d2, 261117-071226-56996e, 261117-071231-42c1a9, 261117-071240-908cac, 261117-071245-458051, 261117-071249-042e02, 261117-073422-360ef2, 261117-073427-26d576, 261117-073431-413a4a, 261117-073436-adb7b0, 261117-073441-916a42, 261117-073445-25fcd7, 261117-073450-fffdc8, 261117-073455-428006, 261117-073503-d1eae9, 261117-073508-10b088, 261117-073512-e52928",
+            "A2": "261117-073408-7f66d4; fails without: 261117-050128-1bc50d, 261117-061115-de4c08, 261117-061749-92f169, 261117-071236-d8d3bd, 261117-073459-b53bec",
+            "A3": "261117-073408-7f66d4"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-073408-7f66d4",
+              "level": "light",
+              "seconds": 116.9,
+              "state": "done",
+              "what": "transport-groups check suite at e4e394b06482"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "677c8645623b8fdc856416f4a9914557926b061a",
+          "reason": "",
+          "tested": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
+      "milestone": "M1b",
+      "needs": [
+        "transport-connection"
+      ],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "landed",
+      "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
+      "updated": "2026-11-17T07:55:40",
+      "worktree": ""
+    },
+    "transport-identity": {
+      "accepted": {},
+      "after": [],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/transport-identity",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "journal": "../Detent-wt/detent/transport-identity",
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "transport-groups"
+      ],
+      "provides": [
+        "consensus:transport"
+      ],
+      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "active",
+      "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
+      "updated": "2026-11-17T07:56:16",
+      "worktree": "../consensus-wt/detent/transport-identity"
+    },
+    "transport-idle-cost": {
+      "accepted": {},
+      "after": [
+        "transport-identity"
+      ],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/transport-idle-cost",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "bench/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "docs/**"
+      ],
+      "journal": "../Detent-wt/detent/transport-idle-cost",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "transport-groups"
+      ],
+      "provides": [],
+      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
+      "updated": "2026-11-17T07:56:22",
+      "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {
       "accepted": {},
