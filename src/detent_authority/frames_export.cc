@@ -40,7 +40,8 @@ FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d:
 			return; // Not created on this voter.
 		if (entry->live)
 			throw FramesBehind("namespace history is not at the sealed state");
-		if (store) // The session still holds a namespace that is gone.
+		// A store above the drop is at a later incarnation this voter has not applied: it gets no frame.
+		if (store && !(store->cluster == cluster && store->position > entry->position))
 			plan.requests.push_back({name, nullptr, store, d::NamespaceCursor{cluster, entry->incarnation, entry->position}});
 	};
 	for (const auto &[name, store] : follows)

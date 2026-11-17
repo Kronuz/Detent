@@ -424,7 +424,36 @@ int main() {
 			check(plan({{"c", old}}, std::nullopt, unsealed).requests.at(0).dropped == expected);
 		}
 	}
+	// A voter that applied the drop but not the re-creation sends no Dropped frame to a store already at
+	// the new incarnation (the store is above the drop, as Ahead is): it would forget a live namespace.
+	group.link(0, 2, false);
+	group.link(1, 2, false);
 	commit(group, "c", {{"k1", 5}, {"k2", 6}});
+	group.until([&] {
+		return std::all_of(group.nodes.begin(), group.nodes.begin() + 2, [&](const auto &node) {
+			return node->state().applied_index() == group.nodes[0]->state().applied_index() &&
+				   !node->worker().busy() && node->state().applied_index() == node->worker().committed();
+		});
+	});
+	group.step();
+	{
+		const auto fresh = freeze(group, 0, "c")->head();
+		const auto *lag = group.nodes[2]->state().namespace_entry("c");
+		check(lag && !lag->live && lag->incarnation == old.incarnation && fresh.incarnation != old.incarnation &&
+			  fresh.position > lag->position);
+		auto &node = *group.nodes[2];
+		const std::string_view everything[] = {"*"};
+		const d::NamespaceGrants grants{std::span<const std::string_view>(everything)};
+		const auto plan = [&](const d::NamespaceCursor &store) {
+			return plan_frames({{"c", store}}, std::nullopt, grants, node.state(), group.context.cluster,
+							   *node.sealed(), node.history()->layout().table(), *node.history_files(),
+							   *rings[2]->inner);
+		};
+		check(plan(fresh).requests.empty());
+		check(plan(old).requests.at(0).dropped.has_value()); // A store of the dropped incarnation is told.
+	}
+	group.link(0, 2, true);
+	group.link(1, 2, true);
 	settle(group);
 	// W7: a store of the old incarnation, even at its head, gets a full copy of the new one under
 	// the new cursor; positions continue from the old incarnation's end.
