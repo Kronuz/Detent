@@ -10976,12 +10976,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: overlap is by glob only: this quest writes test/transport/peers_test.cc alone, which transport-identity and transport-idle-cost do not touch (Peers is retired in worker-pump-removal)",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "active",
+      "status": "review",
       "title": "Peers retried-fetch flake on loaded macOS x86_64",
-      "updated": "2026-11-17T08:09:48",
+      "updated": "2026-11-17T13:30:07",
       "worktree": "../consensus-wt/detent/peers-retry-flake"
     },
     "persistent-map-adoption": {
