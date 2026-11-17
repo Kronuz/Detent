@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: fixing waiter_test cases (rows, close, close-read) after the step fix
+State: waiting on jobs 261116-181515-ef4372 261116-181539-39a1fe 261116-181542-c2c05b 261116-181545-cd3453 261116-181548-59f717 261116-181552-e2e990 261116-181603-cd6670 261116-181606-eb2d58 261116-181610-202809 261116-181613-a0f1e6 261116-181622-f1e840
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -79,6 +79,18 @@ Driver and blocking-entry cases all pass locally.
 - 261116-163455-2e4958 cancelled (superseded). 261116-164245-3db927 tools/driver_checks.sh: queued.
 - Fixed since: an unopened group was stepped (run_one threw, fencing it); turn watches now end at
   shutdown; close runs retirement turns at once; a lone leader arms no heartbeat.
+
+Jobs at consensus:79092fb (all criteria):
+- 261116-181515-ef4372 suite (`campaign verify`, A1)
+- 261116-181539-39a1fe test/driver_checks.sh Release, WAITER_LIMIT=500000 (A1)
+- 261116-181542-c2c05b driver_test lone_voter: create and recover halves (A2)
+- 261116-181545-cd3453 ASan+UBSan ctest: driver, waiter, entry, simulation, idle, Worker suites (A3, A5)
+- 261116-181548-59f717 ASan waiter close, close-read, close-open, close-late, teardown at 100k (A3)
+- 261116-181552-e2e990 TSan: blocking entry (all), waiter threads 300, driver_test (A3, A4, A5)
+- mutants, --fails-without, ASan (A3): complete-resumes-before-unlink 261116-181603-cd6670,
+  hop-resumes-before-unlink 261116-181606-eb2d58, destructor-leaves-linked 261116-181610-202809,
+  close-frees-with-waiters 261116-181613-a0f1e6
+- 261116-181622-f1e840 driver_idle 1000, exclusive (A5)
 
 ## Next
 
