@@ -13342,7 +13342,7 @@
     "transport-groups-ci": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-17T10:12:17",
+          "at": "2026-11-17T10:20:44",
           "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
           "blobs": {
             "CHANGELOG.md": "100644:bae939764dc4bdf786fc8da51e46fc32fc65e52a",
@@ -13355,7 +13355,7 @@
           },
           "by": "review",
           "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
-          "criteria": "d6f0eaa1cb4d2e02",
+          "criteria": "1f511eaf4f63cb82",
           "diffs": {
             "CHANGELOG.md": "f7f024e0d8bbf5ff",
             "docs/mechanisms/host-connection.md": "f6fb4fc756bd577a",
@@ -13444,7 +13444,7 @@
       "risk": "high",
       "status": "review",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T10:12:17",
+      "updated": "2026-11-17T10:20:44",
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
