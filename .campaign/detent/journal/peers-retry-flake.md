@@ -1,9 +1,11 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-134718-1c12ce 261117-134723-98cca7 (close-step fix at consensus:5e0ab05)
+State: waiting on jobs 261117-140450-74d009 261117-140502-89e916 (attribution) and the A1/A2 reruns at aa7fa35
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Full peers x60 4-way (1c12ce) failed 3 of 60 at peers_test.cc:1155 (F2 fetch-alongside-consensus: control round trips while 8 MiB fetches run), a case this diff does not touch. Attribution: the same full-test x60 4-way at aa7fa35 (261117-140450-74d009) and at main 361d5d2 (261117-140502-89e916), run under `script` for a pty so stdout is line-buffered and failing runs print their `fetching:` numbers. First attempt at e4e394b was superseded by quest-job replacement. If main fails at a similar rate: pre-existing, message detent:ci-test-flakes (or tell the lead if its file set lacks peers_test.cc). A1 fixed jobs and A2 rerun at aa7fa35; A3 cites 261117-134723-98cca7.
 
 Linux CI at 291dae2 failed deterministically at peers_test.cc:1220: the Close step fetched the F3 table, now 2 MiB, which a fast host finishes before cluster.stop(1) lands, so no connection_aborted. consensus:5e0ab05: the close step fetches its own 8 MiB "history/large" (the table stays 2 MiB for the frozen fetch, retry and reopen); the abort expectation is unchanged. Done at bac4f81 and passing: A1 pair (122236 and 122241 exit 134 as mutants, 122246 and 122252 pass), A2 fetch-failures x200 (122257), suite (122228). Queued at 5e0ab05: A2 full peers test x60 4-way (261117-134718-1c12ce) and the suite (261117-134723-98cca7). Not forced on macOS: the failure needs a host that drains 2 MiB before the stop lands (Linux CI); the lead's CI run is its evidence.
 
