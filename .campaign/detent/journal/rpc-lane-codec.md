@@ -1,6 +1,6 @@
 # rpc-lane-codec: journal
 
-State: waiting on jobs 261117-045655-128e01 261117-045727-831947 261117-045731-952efa 261117-045736-6254de 261117-045748-3c9de3 261117-045802-b15bed 261117-045808-2d42af 261117-045813-e45d39 261117-045819-a9a7f2 261117-045825-90b1dc 261117-045831-8f2ed2 261117-045836-0de6ee 261117-045841-f3bb33
+State: waiting on jobs 261117-050434-95ef3e 261117-050435-5170c5 261117-050439-c01d2b 261117-050443-3fb2a3 261117-050447-ac8101 261117-050452-8737e6 261117-050457-ef5f13 261117-050501-e5a32f 261117-050506-7d6860 261117-050511-765547 261117-050516-fffbe9 261117-050521-7a5f49 261117-050526-8966c1
 Quest: .campaign/detent/quests/rpc-lane-codec.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,9 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Built consensus:0fe4d15 (one commit on 677c864); its evidence jobs are queued.
+Head consensus:8db3ce3 (0fe4d15 the lane, 8db3ce3 the fuzz harness fix); its evidence jobs are
+queued. At 0fe4d15 the suite, rpc test, TSan, ASan+UBSan and all eight mutant jobs passed; the
+fuzz job 261117-045748-3c9de3 failed on the harness (below), so everything reruns at 8db3ce3.
 
 ## Next
 
@@ -27,10 +29,10 @@ hold it, it splits cleanly at the codec (`encode`/`decode`/`violation`, decoder 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | queued: rpc test + replay 261117-045727-831947; ASan+UBSan 261117-045736-6254de; fuzz 20 min 261117-045748-3c9de3; suite 261117-045655-128e01 |
-| A2 | queued: 261117-045727-831947, TSan 261117-045731-952efa, ASan 261117-045736-6254de |
-| A3 | queued: 261117-045727-831947, TSan 261117-045731-952efa (cases pools-threads, pipes) |
-| A4 | queued, --fails-without at mutant commits from test/transport/rpc_mutants.py: forget-is-violation 261117-045802-b15bed, grant-without-reserve 261117-045808-2d42af, no-release-on-close 261117-045813-e45d39, no-regrant 261117-045819-a9a7f2, grant-on-receive 261117-045825-90b1dc, split-release 261117-045831-8f2ed2, drain-ignored 261117-045836-0de6ee, id-at-call 261117-045841-f3bb33 |
+| A1 | queued at 8db3ce3: rpc test + replay 261117-050435-5170c5; ASan+UBSan 261117-050443-3fb2a3; fuzz 20 min 261117-050447-ac8101; suite 261117-050434-95ef3e |
+| A2 | queued: 261117-050435-5170c5, TSan 261117-050439-c01d2b, ASan 261117-050443-3fb2a3 |
+| A3 | queued: 261117-050435-5170c5, TSan 261117-050439-c01d2b (cases pools-threads, pipes) |
+| A4 | queued, --fails-without at mutants of 8db3ce3 (test/transport/rpc_mutants.py): forget-is-violation 261117-050452-8737e6, grant-without-reserve 261117-050457-ef5f13, no-release-on-close 261117-050501-e5a32f, no-regrant 261117-050506-7d6860, grant-on-receive 261117-050511-765547, split-release 261117-050516-fffbe9, drain-ignored 261117-050521-7a5f49, id-at-call 261117-050526-8966c1 |
 
 ## Result
 
@@ -64,3 +66,6 @@ works). Not on Bulk: no I/O, no hello, no `hold`; consensus-transport wires it.
   on it before the fix (local run, not a job).
 - R10 Each mutant job runs the whole rpc test at the mutant, so the first failing case kills it;
   each case of the mutant's name was checked locally to fail on its own.
+- R11 Fuzz job 261117-045748-3c9de3 crashed after 7,293 runs on the target's own server, which
+  sent "ok" (2 bytes) against a 1-byte window; `Lane::send` refusing it is correct. The harness
+  now sends what credit allows, and the input is `fuzz/corpus/rpc/crash-send-past-credit`.
