@@ -3383,7 +3383,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-16T12:12:34",
+      "updated": "2026-11-16T21:38:17",
       "worktree": ""
     },
     "drivers-task-wheel": {
