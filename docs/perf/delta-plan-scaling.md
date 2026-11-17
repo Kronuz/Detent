@@ -103,7 +103,7 @@ from the exclusive round 261117-094351-8b7ee4. The before figures come from main
 | 5M | clustered | 250,000 | 13.6 MB | (no arm) | 1.961 s | (no arm) to 144 | (none) |
 
 The 100K pairs (fix over main: 1.34, 1.34, 0.89, 0.99, 1.20) are inconclusive under the shared hold, so the
-1M rows are the uniform result: a 4.1% cut, not 30%.
+1M rows are the uniform result: a 4.1% median cut over 3 runs whose ranges overlap, so no clear gain; not 30%.
 
 The clustered delta meets its bound at every size. 2 x keys x 13.8 µs is 0.138 s at 100K (worst run 0.064 s),
 1.380 s at 1M (0.396 s) and 6.90 s at 5M (1.961 s). Its plan cost per key is flat: 10.6, 7.6 and 7.8 µs at
@@ -112,7 +112,8 @@ The clustered delta meets its bound at every size. 2 x keys x 13.8 µs is 0.138 
 
 Other phases are unchanged within noise. At 1M, decode takes 0.04-0.06 s, and publish takes 0.36-0.56 s for a
 uniform delta and 0.11 s for a clustered one. At 5M the uniform delta now applies in 13.95 s against the full
-copy's 15.83 s in the same round (0.88x). In main's round it was 14.38 s against 14.50 s (0.99x). The
+copy's 15.83 s in the same round (0.88x), but most of that ratio is the full copy running slower in that round:
+the delta's own apply improved 3% (14.38 s to 13.95 s), and main's round had 14.38 s against 14.50 s (0.99x). The
 clustered delta applies in 2.49 s (0.16x).
 
 ### Counting probe
@@ -143,7 +144,7 @@ gave 8,684 samples under `PagedDeltaPlanBuilder::Work::step`, with these inclusi
    (job 261117-075622-1f24d9), including `validate_definition`; a moved definition no longer reaches it.
 5. The overlay walk outside first touch: about 9%, of which `TrieOverlay::Impl::keys` is 4.5%.
 
-The work removed was about 8% of main's plan by its profile, and the strict A/B measured 4.1% at 1M. The rest is per rewritten byte, and most of it lies outside
+The work removed was about 8% of main's plan by its profile, and the strict A/B measured a 4.1% median at 1M, within the runs' spread. The rest is per rewritten byte, and most of it lies outside
 this quest's reach:
 
 1. SHA-256 is a quarter of the plan on this host only because it runs the portable kernel. Target hosts have
