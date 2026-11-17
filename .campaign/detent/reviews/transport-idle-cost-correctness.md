@@ -83,3 +83,26 @@ OpenSSL state (F1) and the scheduler's wheels (which the doc discloses).
 - I did not check the transport-identity merge itself (F4 is a prediction from its diff, not a
   measurement).
 - No sanitizer runs (CI's).
+
+## Round 2
+
+Commit: consensus:e0ae1b92abc364f03a3cc4771b7b1009022096fa
+Verdict: APPROVE
+Date: 2026-11-17
+
+consensus:e0ae1b9 is docs only (`git diff cbcd563 e0ae1b9`: docs/perf/transport-idle-cost.md), so
+the round-1 evidence and probes still apply to the code.
+
+- F1, resolved. "How it is counted" now names the warm-up, its configuration and its measured
+  size (422,176 against 141,160 B per host, probe 27f2ae), and it says D108 budgets the steady
+  state. PLAN.md D111 (Detent:206d5aa0) records the same.
+- F2, resolved. The doc says "this Mac stands in for it (D111)" and no longer says "is met". D111
+  records the change, and quest A2 names the Mac (Detent:fd73d79d).
+- F5-F7, resolved in wording: "on average over G x H groups", "when a frame is not delivered",
+  "inferred, not counted per thread", and "exactly on this Mac" with the glibc caveat.
+- F3 and F4 stand as non-blocking: the wheel cut, and rerunning A1/A2 after merging
+  transport-identity.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F8 | no | nit | The doc and D111 call the one-time cost "about 281 KB more per host, once" and attribute it to "a host's TLS context". Later hosts in the same process also build their own contexts and certificate stores without paying it, so most of it is process-wide OpenSSL state. The probe split 562 KB over the warm-up's 2 hosts, so a one-host process may pay up to about 562 KB. | probe 261117-133940-27f2ae; doc "How it is counted" | Say "about 562 KB per process, once (281 KB per host of the warm-up's two)", or split it with a one-host warm-up. |
