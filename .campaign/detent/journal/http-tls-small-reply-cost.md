@@ -1,6 +1,6 @@
 # http-tls-small-reply-cost: journal
 
-State: waiting on jobs 261116-200117-b61cf4 261116-200140-8e96ee 261116-200630-22b325 261116-200643-d30410 261116-200646-529fc3 261116-200648-8f78b8 261116-200651-b6727f 261116-200653-56d463 261116-200704-3f19a7
+State: ready for review (http:ad6a52e; code at http:0eb4c52)
 Quest: .campaign/detent/quests/http-tls-small-reply-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -69,11 +69,32 @@ Close c8 (A2), paired with A/A at ad6771f (1dac8f, median of 5 per-round ratios 
 Head's medians sit inside the A/A intervals: the 0.967x of 261116-090550-a7dfdc was noise. Nothing fixed for
 it (E2 is the recv-count experiment, kept by the lead's ruling).
 
+E3 results (load 200643, exclusive, 5 rounds, median per-round ratio to base [min-max]):
+- c1 keep: CPU/req head 1.037 [0.999-1.268], prev 1.094 [0.999-1.222], A/A 0.982 [0.874-1.066]; req/s head
+  0.989, A/A 1.015 [0.929-1.157]. Paired diff head-base CPU +1.17 us (user +1.37, system -0.20), prev +2.61.
+- c64 keep: CPU head 1.000 [0.901-1.060] (A/A 0.986 [0.854-1.129]); req/s 1.001.
+- c8 close: req/s head 1.037 [0.981-1.073] (A/A 1.055 [0.878-1.218]); CPU 0.980 (A/A 0.980).
+- head/prev paired: c1 CPU 1.009 [0.882-1.038]; c64 CPU 0.968 [0.945-0.995], req/s 1.033 [1.006-1.054] (5/5
+  rounds, but inside A/A); close req/s 1.006.
+- Counts (200646), c1 per request: head = base (1 socket async_send, 0 io_context execute, 2 socket
+  handlers); prev 0 / 1 / 1. Syscalls equal (2 recvfrom incl 1 EAGAIN, 1 sendto, 2 kevent).
+- E2 counts (200140): close recvfrom per connection head 9.20, e1 9.11, base 4.67: read-ahead placement is not
+  the cause. At 0eb4c52: 9.51 vs 4.75 (EAGAIN 2.10 vs 2.00).
+- A3 (200648): TLS 10K idle 40,075 B/conn (spread 11) vs 40,054: +0.05%. Base 96,788.
+
+A2 by named cost (c1, per request):
+1. Deferred completion (~0.85 us): replaced by the zero-byte send (E3); handler profile now equal to base's.
+2. take() copy 0.34 us: kept, D103's idle trade (no receive buffer while idle).
+3. Joined reply copy 0.20 us: kept, one record and one send per reply (76f698d: two records cost +65% CPU).
+4. OpenSSL record path (libssl +0.75, libcrypto +0.64 in the ad6771f profile, nothing above 0.11 us): not
+   separable at this band.
+Remaining: +1.17 us/request (1.037x), inside A/A; 0.54 us of it is the two kept copies.
+Close c8: req/s 1.037 inside A/A, CPU 0.980x; the extra 4.76 recvs cost ~+3.5 us system per connection
+(system 1.064x), outweighed by -15.6 us user. Cause open (E2 ruled out read-ahead placement).
+
 ## Next
 
-1. Read E2 counts and E3 load/counts/10K/suite/TSan/mutant.
-2. If E3 loses (c1 CPU not below prev's), revert it to the defer and rerun the gates.
-3. docs/perf/idle.md + CHANGELOG: the attribution and the new numbers; Evidence table; ready for review.
+Review. CI has no run at http:ad6a52e (needs the branch pushed, the lead's call).
 
 ## Blocked on
 
@@ -87,14 +108,29 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261116-200646-529fc3 (counts at 0eb4c52); profile 261116-190828-78aa9b, counts 261116-190816-f47f92, load 261116-190832-1dac8f (at 996f1fc, product ad6771f) |
+| A2 | 261116-200643-d30410 (exclusive load, A/A); fails without: 261116-200704-3f19a7 |
+| A3 | 261116-200648-8f78b8 |
+| A4 | 261116-200651-b6727f (suite), 261116-200653-56d463 (TSan); fails without: 261116-200704-3f19a7 |
+
+All passed at http:0eb4c52 and count at ad6a52e (docs-only). No messages listed by `campaign brief`.
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+http:0eb4c52: an immediate TlsStream result completes through a zero-byte socket async_send (as
+asio::ssl::stream does) instead of asio::defer; 8368ea9 sets read-ahead after the handshake state (no
+measured effect). Small TLS reply at c1: +1.17 us/request over a17b197 (1.037x, A/A 0.874-1.066) vs
+ad6771f's +2.61 us in the same job; c64 1.000x; close c8 req/s 1.037x. Idle TLS 40,075 B/conn at 10K.
+Docs: docs/perf/idle.md "Small TLS replies", runs in docs/perf/idle/small-reply/, CHANGELOG 2026-11-17.
+Open: a TLS handshake makes 9.5 recvfrom per connection vs 4.75 (+~3.5 us system, net CPU still lower).
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Kept E3 although its c1 gain over ad6771f is not resolved (head/prev 1.009 [0.882-1.038]): it restores the
+  old stream's handler profile exactly, is Asio-rule compliant (tested, mutant 200704 fails), and at c64 every
+  round favors it (0.968 CPU, 1.033 req/s). The journal's earlier "revert if c1 not below prev" rule assumed
+  a resolved c1 delta; this band cannot resolve 1%.
+- Tagged the E3 mutant 200704 for A2 (fails-without) by an identical resubmit: the only A2 fails-without was
+  E1's cancelled mutant 195807, dropped with E1.
+- Stopped at three experiments (E1 dropped, E2 no effect, E3 kept); the close-row recvs are recorded open,
+  inside the band.
