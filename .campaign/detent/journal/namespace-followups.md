@@ -43,6 +43,10 @@ checked what), and answer each message by its id (msg-N).
 | A3 | 261117-012018-6adf36 (rerun of 261116-213225-1c4d20 at the head) |
 | A4 | 261117-012018-21ab2b; fails without: 261117-012018-251683, 261117-012019-5f6244 (reruns at the head) |
 
+## Review probes
+
+The correctness reviewer's mutant probes (`.scratch/review-namespace-followups-correctness/`), failing as they must: 261117-012644-d5c583 (a1-no-outputs), 261117-012650-98465f (a1-swap-kind), 261117-012654-4c5b67 (a4-repair-leaks), 261117-012659-5596bb (a4-adopt-stage-leaks). N1 (the table check survives, probe 261117-012638-2ca5d9), N3 (`CompletionScheduler` has no users) and N7 (seven runners on the old exit convention) go to a follow-up.
+
 ## Result
 
 - A1: `History::seal` refuses a seal file, block, base or table above `file_bounds` (history.cc `bounded`) before queuing; two tests in test_history_power_cut.cc (`refused_seal`), three mutants killed.
