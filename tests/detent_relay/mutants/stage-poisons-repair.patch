@@ -1,0 +1,12 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index a29de5a9..ecb6fecb 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -320,6 +320,7 @@ std::string MirrorStore::read(const MirrorFile &file, const MirrorFetch &from) {
+ 		primitive("sync repair");
+ 	} catch (...) {
+ 		s.io->remove(temporary_name);
++		s.poisoned = true;
+ 		throw;
+ 	}
+ 	try {

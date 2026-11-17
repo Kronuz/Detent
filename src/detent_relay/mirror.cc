@@ -222,24 +222,18 @@ AdoptStats MirrorStore::adopt(std::uint64_t seal, std::span<const NamespaceLayou
 			if (!want.temporary.empty())
 				s.io->remove(want.temporary);
 	};
-	// Fetch and stage, one file in memory at a time. A failed or refused fetch publishes nothing and
-	// leaves the mirror as it was; only an I/O error needs a restart.
+	// Fetch and stage, one file in memory at a time. A failed fetch or staging publishes nothing and
+	// leaves the mirror as it was; only an I/O error after the first link needs a restart.
 	for (auto &want : wanted) {
-		std::string bytes;
 		try {
-			bytes = s.fetch(want.name_space, *want.file, from);
+			const auto bytes = s.fetch(want.name_space, *want.file, from);
+			want.handle = s.stage(want.temporary, bytes);
+			++stats.fetched_files;
+			stats.fetched_bytes += bytes.size();
 		} catch (...) {
 			clean();
 			throw;
 		}
-		try {
-			want.handle = s.stage(want.temporary, bytes);
-		} catch (...) {
-			s.poisoned = true;
-			throw;
-		}
-		++stats.fetched_files;
-		stats.fetched_bytes += bytes.size();
 	}
 	try {
 		// Link. An existing name may be one the durable table reaches (failed at startup), so its
@@ -317,12 +311,18 @@ std::string MirrorStore::read(const MirrorFile &file, const MirrorFetch &from) {
 	}
 	// Repair (D6 Recovery): the same bytes by name from the upstream, replacing the name durably.
 	auto bytes = s.fetch(found->second.name_space, file, from);
+	std::string temporary_name;
+	std::unique_ptr<c::File> handle;
 	try {
-		std::string temporary_name;
-		auto handle = s.stage(temporary_name, bytes);
+		handle = s.stage(temporary_name, bytes);
 		c::File *sync[] = {handle.get()};
 		s.io->sync_files(sync);
 		primitive("sync repair");
+	} catch (...) {
+		s.io->remove(temporary_name);
+		throw;
+	}
+	try {
 		s.io->replace(temporary_name, name);
 		primitive("rename repair");
 		s.io->sync_directory();

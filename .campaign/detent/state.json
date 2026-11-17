@@ -4435,7 +4435,46 @@
       "updated": "2026-11-08T15:38:30"
     },
     "http-tls-small-reply-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T08:24:01",
+          "base": "2d53cef78de262df1417f25560c72e53034dd001",
+          "blobs": {
+            "CHANGELOG.md": "100644:53897f2db8ebb882837a55efd2a342bb7b328ccd",
+            "bench/idle-cost/ab.sh": "100755:996020e9e15845d6fef988f2859afba4075c3885",
+            "bench/idle-cost/load_ab.py": "100644:e7ddf7f94a04585fb16000befb3b33ff2a33edbc",
+            "bench/idle-cost/pyrefly.toml": "100644:0e1009555945955c50f014367a62d4101b3157ee",
+            "bench/idle-cost/sample_summary.py": "100644:e631f239d08a37fa6b510eb4c5ce7c954e604455",
+            "bench/idle-cost/server.cc": "100644:a7d62a59cc29bdc39cd79434d0ca97c100f45c52",
+            "docs/perf/idle.md": "100644:1cad14e25735d9df4ce661bec3cde9596896669e",
+            "docs/perf/idle/small-reply/count.jsonl": "100644:2d0911711b71eba7980b78bf7d308310f365f71a",
+            "docs/perf/idle/small-reply/load.jsonl": "100644:64899d9d6548c12dafa1453bc973efe4fe311084",
+            "http_asio_tls.h": "100644:0869f57143699c34b68616e830e5ccf96465ff6f",
+            "test/tls_asio_test.cc": "100644:f52112635b13687284b95b23b3c78c930c3f4459"
+          },
+          "by": "review",
+          "commit": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "criteria": "e4a15adca3dbd479",
+          "diffs": {
+            "CHANGELOG.md": "7c5dd0864f1e7513",
+            "bench/idle-cost/ab.sh": "0736fad84beaded6",
+            "bench/idle-cost/load_ab.py": "f29309641f6d6ddf",
+            "bench/idle-cost/pyrefly.toml": "cff33d919cc54c75",
+            "bench/idle-cost/sample_summary.py": "fd4d9b842e8a87d5",
+            "bench/idle-cost/server.cc": "ef2af234dd8a6a07",
+            "docs/perf/idle.md": "01d465449b8d5891",
+            "docs/perf/idle/small-reply/count.jsonl": "f5fc1981cef5cc9a",
+            "docs/perf/idle/small-reply/load.jsonl": "79b72e0ef867544d",
+            "http_asio_tls.h": "2bcc6b1bebf684b1",
+            "test/tls_asio_test.cc": "acbdd61d936092a1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "98ccd45afc49fa077a31cb7c7d4b4c5b0033ddc4",
+          "reviewed": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "http-idle-cost"
       ],
@@ -4457,18 +4496,55 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/http-tls-small-reply-cost",
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T08:33:55",
+          "commit": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "criteria": {
+            "A1": "261116-200646-529fc3 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A2": "261116-200643-d30410 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7",
+            "A3": "261116-200648-8f78b8 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A4": "261116-200651-b6727f (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl), 261116-200653-56d463 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "0eb4c52f0751f6331ccb07ad889bfe7e0b160d2e",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/idle.md",
+                "docs/perf/idle/small-reply/count.jsonl",
+                "docs/perf/idle/small-reply/load.jsonl"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-200651-b6727f",
+              "level": "light",
+              "seconds": 110.1,
+              "state": "done",
+              "what": "http-tls-small-reply-cost check suite at 0eb4c52f0751"
+            }
+          ],
+          "final": true,
+          "from": "2d53cef78de262df1417f25560c72e53034dd001",
+          "reason": "",
+          "tested": "2671470a488e6fe45148146e98cf3b264308ac82"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-17T08:02:23",
-      "worktree": "../http-wt/detent/http-tls-small-reply-cost"
+      "updated": "2026-11-17T08:34:07",
+      "worktree": ""
     },
     "ipv6": {
       "accepted": {},
@@ -5733,6 +5809,84 @@
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
       "updated": "2026-11-08T17:30:06"
     },
+    "namespace-cleanup": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-hardening"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent_delivery/completion_scheduler.hh",
+        "src/detent_delivery/completion_scheduler.cc",
+        "tests/detent_delivery/test_completion_scheduler.cc",
+        "include/detent_delivery/coordinator.hh",
+        "src/detent_delivery/coordinator.cc",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/**/*_mutant.sh",
+        "tests/detent_authority/test_namespace_history.cc",
+        "src/detent_authority/history.cc",
+        "**/CMakeLists.txt",
+        "docs/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-17T08:15:48",
+          "checks": [
+            [
+              {
+                "cmd": "scripts/check suite",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              }
+            ]
+          ],
+          "reason": "replacing a placeholder suite command with namespace-followups' real gate checks before the quest starts",
+          "voided": [],
+          "weakened": [
+            "gate check suite removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
+      "updated": "2026-11-17T08:15:48"
+    },
     "namespace-design": {
       "accepted": {},
       "after": [],
@@ -5847,19 +6001,59 @@
         "include/detent_relay/**",
         "tests/detent_relay/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T08:10:09",
+          "commit": "7a62c03d4a2716eb6dc4cec6d35578b482f34fb2",
+          "criteria": {
+            "A1": "261117-010638-a2e07b; fails without: 261116-213218-af4bac, 261117-005901-b41eac, 261117-010643-82f97f, 261117-010647-bddad5",
+            "A2": "261117-010638-a2e07b; fails without: 261117-005901-f7ee1a, 261117-010651-144dd2",
+            "A3": "261117-012018-6adf36",
+            "A4": "261117-012018-21ab2b; fails without: 261117-003213-cb3f66, 261117-003217-2c3b4a, 261117-012018-251683, 261117-012019-5f6244"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-010654-b0ab28",
+              "level": "light",
+              "seconds": 559.6,
+              "state": "done",
+              "what": "namespace-followups check native at b0a2e4c3aa0c"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-010655-21b41d",
+              "level": "none",
+              "seconds": 5.8,
+              "state": "done",
+              "what": "namespace-followups check pins at b0a2e4c3aa0c"
+            }
+          ],
+          "final": true,
+          "from": "99aff81cf90722031cf15025f22d6203bf987980",
+          "reason": "",
+          "tested": "c1d6fc2846e3b873920b88c06a6bec2ed2b9cd94"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-17T01:42:11",
-      "worktree": "../Detent-wt/detent/namespace-followups"
+      "updated": "2026-11-17T08:14:38",
+      "worktree": ""
     },
     "namespace-local-cursor": {
       "accepted": {},
@@ -10722,6 +10916,37 @@
       "updated": "2026-11-12T03:46:56",
       "worktree": ""
     },
+    "peers-retry-flake": {
+      "accepted": {},
+      "after": [],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/peers-retry-flake",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build -R consensus_transport_peers --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc"
+      ],
+      "journal": "../Detent-wt/detent/peers-retry-flake",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: overlap is by glob only: this quest writes test/transport/peers_test.cc alone, which transport-identity and transport-idle-cost do not touch (Peers is retired in worker-pump-removal)",
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "low",
+      "status": "active",
+      "title": "Peers retried-fetch flake on loaded macOS x86_64",
+      "updated": "2026-11-17T08:09:48",
+      "worktree": "../consensus-wt/detent/peers-retry-flake"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
@@ -13072,6 +13297,84 @@
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
       "updated": "2026-11-17T07:55:40",
       "worktree": ""
+    },
+    "transport-groups-ci": {
+      "accepted": {},
+      "after": [],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/transport-groups-ci",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/connection.h",
+        "include/consensus/transport/links.h",
+        "include/consensus/transport/host_transport.h",
+        "include/consensus/transport/tls*.h",
+        "test/transport/groups_test.cc",
+        "test/transport/connection_test.cc",
+        "CHANGELOG.md",
+        "docs/mechanisms/host-*.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-17T08:28:53",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
+      "journal": "../Detent-wt/detent/transport-groups-ci",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: main is red: this fix lands first; transport-identity merges main after (told), and its edits to host_transport.h and groups_test.cc are additive",
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "active",
+      "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
+      "updated": "2026-11-17T08:29:01",
+      "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
       "accepted": {},
