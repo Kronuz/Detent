@@ -1,6 +1,6 @@
 # namespace-followups: journal
 
-State: waiting on jobs 261117-003147-0c5227 261117-003152-59ad5a 261117-003156-733f78 261117-003201-6360a8 261117-003205-8a9074 261117-003209-5a78d9 261117-003213-cb3f66 261117-003217-2c3b4a (and the verify rerun)
+State: waiting on jobs 261117-005923-b9915c 261117-005929-a909be 261117-005901-b41eac 261117-005901-990548 261117-005901-f7ee1a
 Quest: .campaign/detent/quests/namespace-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,6 +15,8 @@ Round 1 (head 9cdbff4c): suite 261116-213212-4cf92a, A3 261116-213225-1c4d20 and
 - native 261116-213241-2beb28: only test_authority_snapshot_catchup failed (a read timeout in test_multivoter.py during 100 transactions). Checking whether it is mine (a history bound stall) or a flake: the same test at my head 261117-003147-0c5227 and at main 261117-003152-59ad5a.
 
 ## Next
+
+00. Round 2 (head dfef6d59): A4 mirror_tests 003209-5a78d9 passed, both A4 mutants killed, pins passed, snapshot_catchup passed at my head (known flake). Native 003229-8c7477 also failed test_delivery_repair_scrub-worker: `scripted invariant at line 499` of tests/detent_delivery/test_repair.cc (scrub-carry: a pass hashed 2561074 bytes after the delta against a new root of 2752016, bound 200000), a coordinator hashing-count test that never touches the relay host. Attribution: `ctest --repeat until-fail:8` at my head 261117-005923-b9915c and at main 261117-005929-a909be. History mutants resubmitted by the lead as 261117-005901-b41eac, -990548, -f7ee1a (queue fault).
 
 0. Lead (msg): test_authority_snapshot_catchup is a known flake that ci-test-flakes fixes on its branch (Detent:55b6474a: a transport timeout retries with the same sequence). Debug it only if my head fails it and main passes it more than once.
 
