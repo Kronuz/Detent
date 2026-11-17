@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261117-121439-c334b3 -d3c6d0 (tests), mutants 261117-121444-739234 (new, F1) 261117-121452-7c08c8 261117-121453-54d979 -d4a5f8, gates 261117-121447-835ddc (native) 261117-121447-455b19 (pins)
+State: waiting on jobs 261117-121951-d4c328 (build check of the fixed test; the 892e121b jobs all failed to build and prove nothing)
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,7 +17,7 @@ Review F1 (correctness): fixed at 892e121b, main merged (5c19e6cc). plan_frames 
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+F2 (a dropped followed name through the HTTP service in test_frames_service.cc): the test cannot drop a namespace. A drop is an AdministrativeCommand, proposed only on the node inside Service::Runtime (private); Service exposes no way to propose one, and nothing in the HTTP surface drops. Options: 1. add a small test-only seam to Service (service.hh, outside my set) to propose an administrative command; 2. let ServiceOptions carry commands to propose at start. Recommendation: 1. Until then the Dropped path is covered at plan_frames (test_namespace_history, every voter, byte-decoded) and the 503/frames path through the service by the existing cases.
 
 ## Evidence
 
