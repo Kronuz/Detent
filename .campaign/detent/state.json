@@ -11930,11 +11930,11 @@
     "rpc-lane-codec": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T06:12:48",
-          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "at": "2026-11-17T12:28:17",
+          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
           "blobs": {
-            "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
-            "CMakeLists.txt": "100644:efbea5ab4460ed77821157a8853c50a6a3c79ca8",
+            "CHANGELOG.md": "100644:86106e7f971d0904b63535bd9616bd51022d65c6",
+            "CMakeLists.txt": "100644:df72542db3b71af85c0f651138df890960fa3589",
             "docs/mechanisms/rpc-lane.md": "100644:84310f3a7a2fb044bc6d2b5ae4cf27ca381bdf77",
             "fuzz/corpus/rpc/crash-send-past-credit": "100644:ade736df0974f8833da9b9da0f61b80be71247fc",
             "fuzz/corpus/rpc/seed-0": "100644:40748c1675a2843be5092b41c0d623e7210cec81",
@@ -11955,7 +11955,7 @@
             "test/transport/rpc_test.cc": "100644:544dbecd1c570e901a5a6555a3ad119115444f1e"
           },
           "by": "review",
-          "commit": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
           "criteria": "d57e274b9cc45c17",
           "diffs": {
             "": "495bd41ab933f933",
@@ -12035,7 +12035,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T06:12:48",
+      "updated": "2026-11-17T12:28:17",
       "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
