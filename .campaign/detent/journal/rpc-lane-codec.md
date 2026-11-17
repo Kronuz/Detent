@@ -34,6 +34,8 @@ hold it, it splits cleanly at the codec (`encode`/`decode`/`violation`, decoder 
 | A3 | queued: 261117-050435-5170c5, TSan 261117-050439-c01d2b (cases pools-threads, pipes) |
 | A4 | queued, --fails-without at mutants of 8db3ce3 (test/transport/rpc_mutants.py): forget-is-violation 261117-050452-8737e6, grant-without-reserve 261117-050457-ef5f13, no-release-on-close 261117-050501-e5a32f, no-regrant 261117-050506-7d6860, grant-on-receive 261117-050511-765547, split-release 261117-050516-fffbe9, drain-ignored 261117-050521-7a5f49, id-at-call 261117-050526-8966c1 |
 
+Review probes (security review, scripts in the home checkout's `.scratch/review-rpc-lane-codec-security/`): 261117-051541-d571c4 (mutants by case, v1: clean runs not rebuilt), 261117-051544-a4d308 and 261117-052700-54817b (failed to build, superseded), 261117-055231-96b757 (oracle, flood, overrun, reenter), 261117-055301-75aff3 (each mutant fails its named case), 261117-055239-13601d (10-min fuzz at max_len 70000 with rpc.h coverage).
+
 ## Result
 
 consensus:0fe4d15 adds `include/consensus/transport/rpc.h` (codec, `Lane` call table, `ByteBudget`
