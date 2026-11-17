@@ -13340,7 +13340,38 @@
       "worktree": ""
     },
     "transport-groups-ci": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T12:12:35",
+          "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "blobs": {
+            "CHANGELOG.md": "100644:bae939764dc4bdf786fc8da51e46fc32fc65e52a",
+            "docs/mechanisms/host-connection.md": "100644:023ecfe2b66620f7c2623655d966bdf902e16385",
+            "include/consensus/transport/host_transport.h": "100644:390c11b258e75c3ddce2e23d9d8ba4846baa260d",
+            "include/consensus/transport/links.h": "100644:b420be4f6e2b73d623315f2b4575e775e0dd7e09",
+            "include/consensus/transport/tls.h": "100644:0404274f0d065bec0c13099e536202f18db2bed2",
+            "test/transport/connection_test.cc": "100644:fa48154896960e5502ca9c7d250b476953802fd9",
+            "test/transport/groups_test.cc": "100644:741e092fbacd83d42d59a2420cf3e5a0f55d5e9a"
+          },
+          "by": "review",
+          "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "criteria": "1f511eaf4f63cb82",
+          "diffs": {
+            "CHANGELOG.md": "f7f024e0d8bbf5ff",
+            "docs/mechanisms/host-connection.md": "f6fb4fc756bd577a",
+            "include/consensus/transport/host_transport.h": "aa9767e2f9ecaa0c",
+            "include/consensus/transport/links.h": "fca9c5d455fc7d6f",
+            "include/consensus/transport/tls.h": "eae89cbab4c36315",
+            "test/transport/connection_test.cc": "5e8b3c7c4046cd30",
+            "test/transport/groups_test.cc": "d5c375233cedf9af"
+          },
+          "findings": {},
+          "note": "",
+          "review": "640bbc265ea8b147e5cde8e0476b2bd20ca35f1c",
+          "reviewed": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
       "branch": "quest/detent/transport-groups-ci",
@@ -13441,7 +13472,7 @@
       "risk": "high",
       "status": "review",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T12:12:32",
+      "updated": "2026-11-17T12:12:35",
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
