@@ -987,7 +987,62 @@
       "worktree": ""
     },
     "consensus-driver": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T00:22:53",
+          "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:f00bf1bbc82f21ba64ccb7f186aa8641f8793fb7",
+            "CHANGELOG.md": "100644:ad2a9bb2337b5f288a3b8d663991c19569ba7c5c",
+            "CMakeLists.txt": "100644:fdc32d4afa51820dde996b4f8a5562fb522412c4",
+            "bench/driver_idle.cc": "100644:2fce1c26e4719df4080d6fdfb9df417795c0f460",
+            "docs/DRIVER.md": "100644:84f7538910eda84ab9b1213a77eb2a255a8d3b18",
+            "include/consensus/core.h": "100644:09e36ed0c2e72b2a4d34ef156fb55bc8f2cf151b",
+            "include/consensus/driver.h": "100644:1dd370ee6b3ac7df916e100cbdd31089d8177f4a",
+            "include/consensus/snapshot_channel.h": "100644:a13f56d23b86905ed80dee29537bed1a8350a3d5",
+            "include/consensus/worker.h": "100644:03be79bb33c5882aa86f824ee96df09c3ba1aeb3",
+            "test/blocking_entry_test.cc": "100644:e9689a985519c9125a81149cf993fd7aa080a7a4",
+            "test/driver_checks.sh": "100755:2161f378863373a869de7b80db9ac5929041de7d",
+            "test/driver_mutants.py": "100644:9ed2d16c0ed5ed0727f2878ebf247a930377d9aa",
+            "test/driver_simulation.cc": "100644:35d1bdd39f8d647498a9bc4d8ecaf96e7f321794",
+            "test/driver_test.cc": "100644:87687d9cd12d06799e19bf7505354d45c8a5e90a",
+            "test/membership_test.cc": "100644:4ea1d90612cf095ac6d81df22e31fd4d2ecb868a",
+            "test/shared_cluster_test.cc": "100644:537d42e42cfb14daf388354bba2a15a9d3e01551",
+            "test/shared_worker_test.cc": "100644:fb0ea22e289326b727059c9dcf6c5026d3eb8bc0",
+            "test/simulation_test.cc": "100644:0e5ca81b06f8159ec19fe3f6319995a675a404f8",
+            "test/waiter_test.cc": "100644:e69c13cb1cd5378715d84df3dfb5c69a04e5fa1b"
+          },
+          "by": "review",
+          "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "criteria": "820f374de32b948a",
+          "diffs": {
+            "ARCHITECTURE.md": "71e74d7c13cd5ee9",
+            "CHANGELOG.md": "f3e1c0e45d8815a0",
+            "CMakeLists.txt": "07bf98300fa4b6d1",
+            "bench/driver_idle.cc": "8bd388f363b5fa17",
+            "docs/DRIVER.md": "fe1e7fad1bb5fa10",
+            "include/consensus/core.h": "57ffe2284107805d",
+            "include/consensus/driver.h": "2962205af176c433",
+            "include/consensus/snapshot_channel.h": "ae1d1bbe55214675",
+            "include/consensus/worker.h": "f2b364d2425b0a91",
+            "test/blocking_entry_test.cc": "a1e6acc6d78af006",
+            "test/driver_checks.sh": "f5ce51e7bc529c43",
+            "test/driver_mutants.py": "f35c2452e5226ed9",
+            "test/driver_simulation.cc": "172225a7a64344b5",
+            "test/driver_test.cc": "0e94418b80f58b6b",
+            "test/membership_test.cc": "f580d47186def214",
+            "test/shared_cluster_test.cc": "77ca9666ce73b742",
+            "test/shared_worker_test.cc": "b49aa60198359e10",
+            "test/simulation_test.cc": "8339749d4fb44d9f",
+            "test/waiter_test.cc": "f21af9c3a8f8ea40"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9400ca8062ada6743aec680a38cc01d328155950",
+          "reviewed": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
       "branch": "quest/detent/consensus-driver",
@@ -1037,7 +1092,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-16T15:43:51",
+      "updated": "2026-11-17T00:22:53",
       "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
