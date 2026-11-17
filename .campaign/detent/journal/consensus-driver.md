@@ -44,7 +44,13 @@ close-read, driver_idle (script cd). Causes fixed at consensus:8c32f07:
   `run()` parked in Idle with an empty token. The entry rearms the Driver when it returns.
 - tests: blocking Sink applies its ranges; fence read waits on an unapplied range; threads case counts
   rounds as runs (the "0 runs"); scripts moved to test/ (tools/ is outside the file set).
-Driver and blocking-entry cases all pass locally; now: waiter rows/close/close-read.
+Driver and blocking-entry cases all pass locally.
+- consensus:b3b9580 waiter harness: a posted apply drained loop A inside its own step (cleared the
+  outer `running`, stepped an empty queue: rows read SIGSEGV, ASan container-overflow). Fixed in
+  the harness; runs end by applying, so placed commands reach the Sink before the commit check.
+- consensus:18aa864 `waiter_test CASE LIMIT`; no-arg (ctest) run is 20,000 per case; checks script
+  WAITER_LIMIT=1,000,000. Local Release: close-read exhaustive 916,524 in 191 s; close 2,000,000
+  (limit) in 454 s, 0 failures. complete-resumes-before-unlink is killed by rows at 20,000 under ASan.
 
 ## Done
 
@@ -111,5 +117,11 @@ Nothing.
 - R9 Idle cost: a lone voter arms no timer (a leader with no peers arms no heartbeat); a
   three-voter member's one wheel entry (election or heartbeat) is the design's per-group timer
   (idle-CPU table), so driver_idle allows at most one per member.
+- R10 A Tick-only turn (TurnResult::Idle) counts as step progress only when `Worker::runnable()`
+  (added, worker.h): otherwise an idle group would spin through its turn budget every step.
+- R11 consensus::run rearms the Driver (stopping_, shutdown_) when it returns: its stop ends that
+  entry only. A reactor `run()`'s shutdown stays final (calls after it complete `cancelled`).
+- R12 tools/driver_checks.sh and tools/driver_mutants.py moved to test/ (tools/ is outside the file
+  set); the checks script takes an absolute BUILD (the idle case's `cd` broke its output path).
 - R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
   re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
