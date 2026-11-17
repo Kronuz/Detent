@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-181515-ef4372 261116-181539-39a1fe 261116-181542-c2c05b 261116-181545-cd3453 261116-181548-59f717 261116-181552-e2e990 261116-181603-cd6670 261116-181606-eb2d58 261116-181610-202809 261116-181613-a0f1e6 261116-181622-f1e840
+State: waiting on jobs 261116-183506-b70d93 261116-183508-5b3d98 261116-183511-7e7c3d 261116-183514-e5671d 261116-183517-ba5db0 261116-183520-e949c4 261116-183524-cafa97 261116-183527-9bf51b 261116-183530-fa0ab5 261116-183534-65a204 261116-183537-4a957b
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -80,17 +80,26 @@ Driver and blocking-entry cases all pass locally.
 - Fixed since: an unopened group was stepped (run_one threw, fencing it); turn watches now end at
   shutdown; close runs retirement turns at once; a lone leader arms no heartbeat.
 
-Jobs at consensus:79092fb (all criteria):
-- 261116-181515-ef4372 suite (`campaign verify`, A1)
-- 261116-181539-39a1fe test/driver_checks.sh Release, WAITER_LIMIT=500000 (A1)
-- 261116-181542-c2c05b driver_test lone_voter: create and recover halves (A2)
-- 261116-181545-cd3453 ASan+UBSan ctest: driver, waiter, entry, simulation, idle, Worker suites (A3, A5)
-- 261116-181548-59f717 ASan waiter close, close-read, close-open, close-late, teardown at 100k (A3)
-- 261116-181552-e2e990 TSan: blocking entry (all), waiter threads 300, driver_test (A3, A4, A5)
-- mutants, --fails-without, ASan (A3): complete-resumes-before-unlink 261116-181603-cd6670,
-  hop-resumes-before-unlink 261116-181606-eb2d58, destructor-leaves-linked 261116-181610-202809,
-  close-frees-with-waiters 261116-181613-a0f1e6
-- 261116-181622-f1e840 driver_idle 1000, exclusive (A5)
+Jobs at consensus:79092fb: suite 261116-181515-ef4372 failed (consensus_worker Timeout 180 s, run beside
+the fsync-bound driver_idle; alone it takes 144 s here, CI 4.8 s) -> file_sync RESOURCE_LOCK, idle
+ctest 100 groups. Mutant close-frees-with-waiters 261116-181613-a0f1e6 survived (exit 0): bounded DFS
+only varied late choices and completed callers' values were unchecked -> result checks + seeded
+sampling past half the limit (killed in 28 sampled schedules locally), driver_test close also built
+with the mutant. Passed there: checks 261116-181539-39a1fe (every case; waiter 500k each, 0 failures;
+idle 0.000 descriptors; sim 8 seeds), A2 261116-181542-c2c05b, ASan ctest 261116-181545-cd3453,
+TSan 261116-181552-e2e990, the three resume/unlink mutants killed (exit 134, 134, 1).
+
+Jobs at consensus:2aa7551 (final; all criteria):
+- 261116-183506-b70d93 suite (`campaign verify`, A1)
+- 261116-183508-5b3d98 test/driver_checks.sh Release, WAITER_LIMIT=500000 (A1)
+- 261116-183511-7e7c3d driver_test lone_voter: create and recover halves (A2)
+- 261116-183514-e5671d ASan+UBSan ctest: driver, waiter, entry, simulation, idle, Worker suites (A3, A5)
+- 261116-183517-ba5db0 ASan waiter close, close-read, close-open, close-late, teardown at 100k (A3)
+- 261116-183520-e949c4 TSan: blocking entry (all), waiter threads 300, driver_test (A3, A4, A5)
+- mutants, --fails-without, ASan (A3): complete-resumes-before-unlink 261116-183524-cafa97,
+  hop-resumes-before-unlink 261116-183527-9bf51b, destructor-leaves-linked 261116-183530-fa0ab5,
+  close-frees-with-waiters 261116-183534-65a204
+- 261116-183537-4a957b driver_idle 1000, exclusive (A5)
 
 ## Next
 
