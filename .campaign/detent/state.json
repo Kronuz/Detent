@@ -13409,12 +13409,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: main is red: this fix lands first; transport-identity merges main after (told), and its edits to host_transport.h and groups_test.cc are additive",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T08:29:01",
+      "updated": "2026-11-17T10:03:11",
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
