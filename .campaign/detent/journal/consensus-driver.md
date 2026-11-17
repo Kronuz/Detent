@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: CI-timing fix: waiter split at consensus:bf66941; consensus_worker timing probe 261116-232514-1fb60a queued
+State: waiting on jobs 261116-232514-1fb60a 261116-233050-28a49e 261116-233053-a64e8a 261116-233057-b2e74f 261116-233102-3f74e5 261116-233128-09ff0c 261116-233131-9cd406 261116-233135-802056 261116-233139-3d5a9c 261116-233142-a02ec6 (at consensus:57745e8)
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -44,6 +44,20 @@ CI-timing fix (lead's assignment after consensus:41ee584):
   out (261116-091746-638010; the others 168 s, 147 s); CI ASan 9.4 s. Probe 261116-232514-1fb60a
   times each call of its default run on macOS Release (script
   consensus-driver/.scratch/worker-timing/timed.sh).
+- Ruling R18: consensus_worker is too tight, not hung. Its real-file cases flush with F_FULLFSYNC
+  (completion posix.h:176): 144 s alone here (79092fb), 147 s and 168 s at main, CI 4.8-9.4 s;
+  every timeout is a run that is still progressing past 180 s on a loaded disk. consensus:57745e8
+  sets its TIMEOUT to 600 s. The probe's per-call times confirm no single step stalls.
+- Jobs at consensus:57745e8: suite 261116-233050-28a49e (A1); checks WAITER_LIMIT=500000
+  261116-233128-09ff0c (A1); ASan+UBSan ctest with the 11 waiter entries 261116-233053-a64e8a
+  (A3, A5; its per-entry times are the local split evidence); ASan close/teardown cases at 100k
+  261116-233057-b2e74f (A3); TSan 261116-233102-3f74e5 (A3-A5); mutants, fails-without, with the
+  split case names: complete-resumes-before-unlink 261116-233131-9cd406, hop-resumes-before-unlink
+  261116-233135-802056, destructor-leaves-linked 261116-233139-3d5a9c, close-frees-with-waiters
+  261116-233142-a02ec6. Not rerun (unchanged code paths): A2, F1/F2/F5, idle, driver_test mutants.
+- Lead: the old waiter mutant commands start with `consensus_waiter_test rows`, now an unknown
+  case (exit 2): a plain rerun of them at the head would pass --fails-without vacuously. Use the
+  ids above instead.
 
 Correctness review round 1 (CHANGES, reviews/consensus-driver-correctness.md) folded in at
 consensus:ccc9a3e:
