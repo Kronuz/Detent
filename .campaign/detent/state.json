@@ -12019,11 +12019,46 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/rpc-lane-codec",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T12:28:43",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "criteria": {
+            "A1": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A2": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A3": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A4": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since); fails without: 261117-045802-b15bed, 261117-045808-2d42af, 261117-045813-e45d39, 261117-045819-a9a7f2, 261117-045825-90b1dc, 261117-045831-8f2ed2, 261117-045836-0de6ee, 261117-045841-f3bb33, 261117-050452-8737e6, 261117-050457-ef5f13, 261117-050501-e5a32f, 261117-050506-7d6860, 261117-050511-765547, 261117-050516-fffbe9, 261117-050521-7a5f49, 261117-050526-8966c1"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "2810f00b1ad680d65d65a9f46fdff42998ff19d5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-075708-1cb2b3",
+              "level": "light",
+              "seconds": 149.2,
+              "state": "done",
+              "what": "rpc-lane-codec check suite at 2810f00b1ad6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "reason": "",
+          "tested": "84814a9c457c67aaa47299b97314d0adb285a4ab"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-connection"
@@ -12033,10 +12068,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T12:28:17",
-      "worktree": "../consensus-wt/detent/rpc-lane-codec"
+      "updated": "2026-11-17T12:28:58",
+      "worktree": ""
     },
     "s3b-followups": {
       "accepted": {},
