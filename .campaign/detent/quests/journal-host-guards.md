@@ -5,27 +5,21 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+journal's Host can't lose an acknowledged record through close, and `TurnDriver::wake()` never drops a wake silently. Both come from Xapiand's turn-seal durability review (landed at journal:555b69f).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `Host::close_group` (host.h:321-328 at journal:555b69f) refuses a close sequence below the group's last acknowledged record instead of forgetting the records after it, the same rule as TurnLog's supersede guard; recovery after a refused close keeps every acknowledged record: a test with values, a mutant without the check killed, and the crash sweep
+- A2 `wake()` never ignores a refused `post_call`: a refusal is an error the caller sees (or the wake is retried on the driver's own loop), and the scheduler requirement for calling it from any thread is stated in the API doc; Detent's and consensus's schedulers used with it either provide a thread-safe `post_call` or wake from their own loop: a test of the refusal, TSan
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Changes journal's Host and TurnDriver contracts; consumed by consensus-driver's Worker and Xapiand's strata.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead: Detent owns journal's Host (journal-driver), so the fix is Detent's; findings from the Xapiand lead, 2026-11-17.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests.
