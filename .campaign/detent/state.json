@@ -1077,9 +1077,53 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/consensus-driver",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T00:38:20",
+          "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "criteria": {
+            "A1": "261117-000432-6d02da, 261116-233050-28a49e; fails without: 261116-211614-de2c80",
+            "A2": "261117-000456-6f48af",
+            "A3": "261116-233102-3f74e5, 261116-233053-a64e8a, 261116-233057-b2e74f; fails without: 261116-181603-cd6670, 261116-181606-eb2d58, 261116-181610-202809, 261116-183524-cafa97, 261116-183527-9bf51b, 261116-183530-fa0ab5, 261116-183534-65a204, 261116-190314-982145, 261116-190314-f367e1, 261116-190314-15400c, 261116-190314-421b11, 261116-200754-558f94, 261116-200754-e360fd, 261116-200754-31e9a0, 261116-200755-ef4201, 261116-200759-6d46f3, 261116-200803-9752be, 261116-200807-369184, 261116-211622-5ec061, 261116-211623-aa6b04, 261116-211623-26af3a, 261116-211624-b7832c, 261116-211624-1eba2e, 261116-211624-5b7e94, 261116-211625-c6dfcd, 261116-233131-9cd406, 261116-233135-802056, 261116-233139-3d5a9c, 261116-233142-a02ec6",
+            "A4": "261116-233102-3f74e5",
+            "A5": "261116-233102-3f74e5, 261116-233053-a64e8a"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-000432-6d02da",
+              "level": "light",
+              "seconds": 485.6,
+              "state": "done",
+              "what": "consensus-driver check suite at 57745e8541d7"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+          "reason": "",
+          "tested": "57745e8541d7101c82b8f3f1bdd5472397875edf"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "57745e8541d7",
+          "at": "2026-11-16T20:53:09",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From Xapiand's strata design review (Xapiand:dc0590b32 document-gate-design F1, probe Xapiand/.scratch/review-document-gate-design/supersede.cc, job 261116-203118-487c1b): RFTW0001 accepts a checkpoint only at the group's last seq + 1, and it drops every earlier record of the group. With seq 2 acknowledged, a checkpoint naming X=seq 1 written at seq 3 lost seq 2 on recovery. Can the consensus Worker or Driver ever write a checkpoint that covers less than an acknowledged record (a checkpoint taken at applied index N while records above N are acknowledged)? Answer in the journal with a test or probe, and fix it if so."
+        }
       ],
       "milestone": "M1b",
       "needs": [
@@ -1090,9 +1134,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-17T00:22:53",
+      "updated": "2026-11-17T00:38:49",
       "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
