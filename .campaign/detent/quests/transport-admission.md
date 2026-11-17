@@ -11,7 +11,6 @@ The host's pre-authentication pool can't be churned into refusing the cluster's 
 
 - A1 N9 (transport-connection security review round 2): under the reviewer's churn probe (about 3,200 connects/s from one unknown address), dials from configured peer addresses still link; an unknown flood cannot evict a configured peer's pending handshake: a test, and a mutant without the priority killed
 - A2 The round 2 notes N10-N13 and the journal's N5 test, N6 and N7 are fixed or each dropped with a reason in the journal: tests for the fixed ones
-- A3 A keepalive whose timer fires late after a process stop goes out at once instead of taking the late-deadline extension (transport-connection journal: removing the extension cut slow_reader's stop failures from 16 of 40 to 1 of 40); the dead-peer deadline keeps its extension: a test with a placed stop, and a mutant restoring the extension killed
 
 ## Contracts
 
