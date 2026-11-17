@@ -5525,6 +5525,8 @@
       "after": [
         "namespace-s6-cutover"
       ],
+      "base": "e7c3b4d082ebdd6643cfc346e4209befb698ffdb",
+      "branch": "quest/detent/namespace-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5554,9 +5556,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-13T08:18:30"
+      "updated": "2026-11-16T21:23:49",
+      "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
       "accepted": {},
