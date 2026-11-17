@@ -4825,9 +4825,9 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
-      "updated": "2026-11-17T04:11:59",
+      "updated": "2026-11-17T04:50:11",
       "worktree": "../journal-wt/detent/journal-host-guards"
     },
     "legacy-h": {
