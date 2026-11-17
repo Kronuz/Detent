@@ -688,7 +688,8 @@
         "tests/detent_authority/test_service.cc",
         "tests/detent_authority/CMakeLists.txt",
         "tests/detent_local/test_paged_publication_artifacts.cc",
-        ".github/workflows/**"
+        ".github/workflows/**",
+        "tests/detent_delivery/test_repair.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -699,7 +700,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Three CI test flakes: managed relay, writer failover, authority admission",
-      "updated": "2026-11-16T21:23:44",
+      "updated": "2026-11-17T01:05:48",
       "worktree": "../Detent-wt/detent/ci-test-flakes"
     },
     "client-local-source": {
