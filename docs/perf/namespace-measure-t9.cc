@@ -379,14 +379,13 @@ struct Store {
 	d::RetirementDomain domain = runtime.domain(heap, 4096);
 	l::DiskStoreOptions options;
 	std::shared_ptr<l::DiskStore> disk;
-	l::StorageIdentity identity{};
 	double open_seconds = 0;
 
 	explicit Store(std::filesystem::path p) : path(std::move(p)) {
 		const auto start = Clock::now();
 		std::filesystem::create_directories(path);
 		::chmod(path.c_str(), 0700);
-		options.mode = std::filesystem::exists(path / "storage.meta") ? l::StoreOpenMode::ExistingManaged
+		options.mode = std::filesystem::exists(path / "owner.lock") ? l::StoreOpenMode::ExistingManaged
 																	   : l::StoreOpenMode::FreshEmpty;
 		options.limits = {256ull << 30, 10'000'000, 1000};
 		options.recovery_limits = l::ViewLimits::prepared();
@@ -396,10 +395,6 @@ struct Store {
 		drive();
 		if (disk->status() != l::StoreStatus::Ready)
 			throw std::runtime_error("store did not open: " + path.string());
-		std::array<char, l::storage_identity_bytes> bytes{};
-		std::ifstream in(path / "storage.meta", std::ios::binary);
-		in.read(bytes.data(), bytes.size());
-		identity = l::decode_storage_identity(bytes);
 		open_seconds = seconds(Clock::now() - start);
 	}
 	~Store() {
@@ -416,26 +411,13 @@ struct Store {
 			if (turns > 1'000'000'000)
 				throw std::runtime_error("store made no progress");
 			disk->advance();
-			auto operation = disk->operation();
-			if (!operation) {
-				if (disk->needs_work())
-					continue;
+			auto work = disk->work();
+			if (!work)
 				break;
-			}
-			operation->submitted();
-			if (!operation->complete(
-					kronuz::journal::detail::execute_primitive(operation->io(), operation->request())))
-				throw std::runtime_error("store completion refused");
+			work->run();
 		}
 		if (auto error = disk->error())
 			std::rethrow_exception(error);
-	}
-	l::GenerationId generation(std::uint64_t seed) {
-		std::mt19937_64 random(seed);
-		l::GenerationId g{};
-		for (auto &byte : g)
-			byte = static_cast<char>(random());
-		return g;
 	}
 	std::optional<l::RecoveredGeneration> actual() {
 		if (!disk->selection().descriptor)
@@ -539,7 +521,7 @@ int main(int argc, char **argv) {
 			t.decode = seconds(Clock::now() - start);
 			const auto planned = Clock::now();
 			l::detail::PagedSnapshotPlanBuilder builder(snapshot, std::nullopt, store.disk->directory_identity(),
-														store.identity, store.generation(1), store.domain.factory(),
+														store.domain.factory(),
 														store.heap, store.options.recovery_limits);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
@@ -555,8 +537,7 @@ int main(int argc, char **argv) {
 			t.decode = seconds(Clock::now() - start);
 			const auto planned = Clock::now();
 			const auto bounds = l::detail::paged_limits(store.options.recovery_limits, l::paged::root_bytes);
-			l::detail::PagedDeltaPlanBuilder builder(*actual, source, store.generation(seed + 2),
-													 store.domain.factory(), store.heap, bounds);
+			l::detail::PagedDeltaPlanBuilder builder(*actual, source, store.domain.factory(), store.heap, bounds);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
