@@ -2591,7 +2591,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Repin logger on workpool, drop scheduler, rename threadpool to workpool",
-      "updated": "2026-11-16T21:21:53",
+      "updated": "2026-11-16T21:38:24",
       "worktree": ""
     },
     "detent-brand": {
