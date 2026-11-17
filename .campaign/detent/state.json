@@ -1863,7 +1863,42 @@
       "worktree": ""
     },
     "delta-plan-fixed-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T12:51:48",
+          "base": "d1987783ab7c667ca96baec10d8a60c4f19cc764",
+          "blobs": {
+            "docs/perf/delta-plan-scaling.md": "100644:ea3a34b844c7f8156b11091f5773807fcbfcf4f1",
+            "docs/perf/namespace-measure-t9.cc": "100644:56f9c60af5a7ce855f50e89d2834d62376e21a02",
+            "src/detent_local/paged_navigation.hh": "100644:fcef4a765b42cb41e088f0d0e013d4689b9f063a",
+            "src/detent_local/paged_trie_overlay.cc": "100644:f3a241555aaffbb14b59d7b4d07f286f7523e3e9",
+            "src/detent_local/paged_warm_validator.cc": "100644:5b9530b5042922dd7f460c5b9846aa52358ac972",
+            "src/detent_local/paged_warm_validator.hh": "100644:aa7c30be5984e94288c497a941ca140e3ba4f19e",
+            "tests/detent_local/CMakeLists.txt": "100644:17fac23ad55da3763a1fc43bfdff0a6c7adfc10d",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "100644:5652485975951f3d435dd72548d718ab26f49dfc",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "100644:8312b0d4a6251e9d475a2f4ef09cc5f6830f0463"
+          },
+          "by": "review",
+          "commit": "6efa63bf85017c39429eb9b618a8d8397f48a65f",
+          "criteria": "e7c966698fc6837b",
+          "diffs": {
+            "docs/perf/delta-plan-scaling.md": "7edd01fbc70bd1ef",
+            "docs/perf/namespace-measure-t9.cc": "8931e48a77639e27",
+            "src/detent_local/paged_navigation.hh": "31bfee675cf58f8b",
+            "src/detent_local/paged_trie_overlay.cc": "f26cc641083d4dff",
+            "src/detent_local/paged_warm_validator.cc": "88b3e384108ab260",
+            "src/detent_local/paged_warm_validator.hh": "920828db4f29290c",
+            "tests/detent_local/CMakeLists.txt": "d8528df2612b20bf",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "990d6e9fef033c7e",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "38093996dc2c714c"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e53ef87ceceb78f383ac77df520bcedef96a40bc",
+          "reviewed": "ae9a25456ecb18247e8e82b29c3bf088dab1a181",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
       "branch": "quest/detent/delta-plan-fixed-cost",
@@ -1917,7 +1952,9 @@
         }
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [
         "namespace-s7-ids"
@@ -1927,7 +1964,7 @@
       "risk": "normal",
       "status": "review",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T12:30:19",
+      "updated": "2026-11-17T12:51:48",
       "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
