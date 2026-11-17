@@ -11696,11 +11696,29 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-17T05:06:09",
+          "lenses": [
+            [
+              "security",
+              "correctness"
+            ],
+            [
+              "security"
+            ]
+          ],
+          "reason": "one reviewer by default: the security review carries the correctness questions (call table, pools, TSan) in the same pass",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/rpc-lane-codec",
       "landed": [],
       "lenses": [
-        "security",
-        "correctness"
+        "security"
       ],
       "milestone": "M1b",
       "needs": [
@@ -11709,12 +11727,11 @@
       "provides": [
         "consensus:rpc-lane"
       ],
-      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal with 0 code commits, and needs this quest; transport-groups and rpc-lane-codec share only CMakeLists.txt test registrations and docs, each in its own lines (rpc-lane-codec writes transport/rpc* only)",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T04:27:37",
+      "updated": "2026-11-17T05:06:09",
       "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
