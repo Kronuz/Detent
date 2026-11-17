@@ -11003,18 +11003,46 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
-      "journal": "../Detent-wt/detent/peers-retry-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T14:41:45",
+          "commit": "aa7fa351239719a365e211bace4fed5f8ec823f3",
+          "criteria": {
+            "A1": "261117-140518-49afa2, 261117-140519-808620; fails without: 261117-122236-68fffc, 261117-122241-9dae77",
+            "A2": "261117-140519-27f287",
+            "A3": "261117-134723-98cca7 (passed at 5e0ab0575ceb; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build -R consensus_transport_peers --output-on-failure",
+              "commit": "5e0ab0575ceb1521d8b325f92607f6f4b5d1e693",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-134723-98cca7",
+              "level": "light",
+              "seconds": 88.0,
+              "state": "done",
+              "what": "peers-retry-flake check suite at 5e0ab0575ceb"
+            }
+          ],
+          "final": true,
+          "from": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+          "reason": "",
+          "tested": "aa7fa351239719a365e211bace4fed5f8ec823f3"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "review",
+      "status": "landed",
       "title": "Peers retried-fetch flake on loaded macOS x86_64",
-      "updated": "2026-11-17T13:30:07",
-      "worktree": "../consensus-wt/detent/peers-retry-flake"
+      "updated": "2026-11-17T14:43:31",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
