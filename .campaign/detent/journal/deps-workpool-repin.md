@@ -1,6 +1,6 @@
 # deps-workpool-repin: journal
 
-State: ready for review (A4 jobs 261115-214405-b29364 A/A and 261115-214410-6f1bd9 A/B still to finish; A1-A3 and native done)
+State: ready for review (A4 jobs 261116-185810-43f708 A/A and 261116-185811-e33c44 A/B still to finish; A1-A3 and native done)
 Quest: .campaign/detent/quests/deps-workpool-repin.md (the lead's; never edit it)
 
 ## Doing
@@ -10,7 +10,7 @@ for a reason the repin did not cause; replaced by the logger's own producer-cost
 
 ## Next
 
-1. When 261115-214405-b29364 (A/A) and 261115-214410-6f1bd9 (A/B) finish, read `report.json` in
+1. When 261116-185810-43f708 (A/A) and 261116-185811-e33c44 (A/B) finish, read `report.json` in
    `$HOME/.scratch/deps-workpool-repin/lgaa-1` and `lgab-1` (the job logs end with the per-metric table)
    and copy the median ns, ratios and the A/A band into the Evidence row; a ratio above the A/A band is a
    regression to report to the lead, not to bury.
@@ -23,10 +23,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pins job 261115-211006-0337c2 (done, exit 0); manifest, CMake and check_pins grep job 261115-211114-08a706 |
-| A2 | native suite 261115-211005-c53012 at 7712f4eb (includes `test_logging` and every daemon test that logs); logger's own suite at 907d27f, 261115-211133-54acbc (`logger_deferred`, `_stress`, `_ties`, `logger_queue`, `logger_wake`, `logger_exit`, transcript golden) |
-| A3 | grep job 261115-211119-30f359 (allow-list below) |
-| A4 | `benchmarks/logger_ab.py` over logger_bench (logger bench/lg.cc, producer cost per L_INFO call: burst, back to back, end-to-end; 1 and 4 producers), the same lg.cc built at logger:f61d8df (the old pin, binary lg-before, job 261115-213951-ab003c) and logger:907d27f (new pin, lg-after, job 261115-213955-6ce382); 30 paired rounds under exclusive: A/A 261115-214405-b29364, A/B 261115-214410-6f1bd9. Numbers: see Result when the jobs finish |
+| A1 | pins job 261116-094703-763b98 (done, exit 0); manifest, CMake and check_pins grep job 261116-185753-a4efde |
+| A2 | native suite 261116-094703-efabe8 at 7712f4eb (includes `test_logging` and every daemon test that logs); logger's own suite at 6e7ab9e (logger-burst-cost landed), 261115-211133-54acbc (`logger_deferred`, `_stress`, `_ties`, `logger_queue`, `logger_wake`, `logger_exit`, transcript golden) |
+| A3 | grep job 261116-094719-348619 (allow-list below) |
+| A4 | `benchmarks/logger_ab.py` over logger_bench (logger bench/lg.cc, producer cost per L_INFO call: burst, back to back, end-to-end; 1 and 4 producers), the same lg.cc built at logger:f61d8df (the old pin, binary lg-before, job 261115-213951-ab003c) and logger:907d27f (new pin, lg-after, job 261115-213955-6ce382); 30 paired rounds under exclusive: A/A 261116-185810-43f708, A/B 261116-185811-e33c44. Numbers: see Result when the jobs finish |
 
 ## Result
 
