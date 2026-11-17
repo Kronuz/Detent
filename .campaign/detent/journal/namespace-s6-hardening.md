@@ -44,4 +44,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - A3 is a new v2 FrameKind::Dropped (4) frame (no piece), sent only when the session holds a store of a dropped namespace; session_frames_version stays 1 (no users).
 - A2: `next_namespace_session` takes a `FramePreparer` and stages all frames (ledger-admitted) until the response is verified, then publishes together (F9's unit: prepared generations). The agent's real preparer lands with P4.
 - A1: encoder takes an optional ledger (private default when none: relay's call in namespace_relay.cc is outside my set; P2 should pass its ledger). Decoder/client use Limits::storage_account. Added Ticket::absorb to merge incremental admissions.
-- The 503 mapping inside service.cc is not reachable by a test (needs an unsealed-table race); plan_frames' FramesBehind and the client's SourceBehind are tested.
+- The 503 mapping moved out of service.cc into `frames_failure` (frames_export.cc), tested in test_namespace_history (FramesBehind -> source_behind, else distribution_unavailable); service.cc calls it. Lead confirmed service.cc is in my set.
+
+Follow-up for the lead: namespace_relay.cc's SessionFramesEncoder call still uses the encoder's private default ledger (out of my scope); P2 should pass the relay's ledger.

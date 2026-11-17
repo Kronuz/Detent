@@ -19,6 +19,12 @@ FramesExport::FramesExport(std::vector<FramesRequest> requests, std::optional<d:
 }
 FramesExport::~FramesExport() = default;
 
+FramesFailure frames_failure(const std::exception &error) noexcept {
+	if (dynamic_cast<const FramesBehind *>(&error))
+		return {503, "{\"error\":\"source_behind\"}"};
+	return {503, "{\"error\":\"distribution_unavailable\"}"};
+}
+
 FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d::DirectoryCursor> &all,
 					   const d::NamespaceGrants &grants, const State &state, const Identity &cluster,
 					   const State &sealed, const history::Table &table, history::Files &files,

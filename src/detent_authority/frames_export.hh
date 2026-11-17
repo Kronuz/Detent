@@ -7,6 +7,8 @@
 #include "detent_distribution/session_frames.hh"
 #include "namespace_history.hh"
 #include <deque>
+#include <stdexcept>
+#include <string_view>
 
 namespace detent::authority {
 struct FramesRequest {
@@ -21,6 +23,13 @@ class FramesBehind : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
+// The status and body a failed next answers: FramesBehind is 503 source_behind, which the client
+// reads as SourceBehind; anything else is 503 distribution_unavailable.
+struct FramesFailure {
+	unsigned status;
+	std::string_view body;
+};
+FramesFailure frames_failure(const std::exception &) noexcept;
 struct FramesPlan {
 	std::vector<FramesRequest> requests; // in name order
 	std::optional<distribution::DirectoryUpdate> directory;

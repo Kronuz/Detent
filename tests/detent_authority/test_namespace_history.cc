@@ -416,6 +416,10 @@ int main() {
 			};
 			check(behind({{"a", std::nullopt}}, std::nullopt));
 			check(behind({}, d::DirectoryCursor{group.context.cluster, 0}));
+			// The service answers FramesBehind with 503 source_behind, any other failure with 503 unavailable.
+			check(frames_failure(FramesBehind("x")).status == 503 &&
+				  frames_failure(FramesBehind("x")).body == "{\"error\":\"source_behind\"}" &&
+				  frames_failure(d::HistoryFailure("x")).body == "{\"error\":\"distribution_unavailable\"}");
 			// What is gone needs no layout: the drop is still told.
 			check(plan({{"c", old}}, std::nullopt, unsealed).requests.at(0).dropped == expected);
 		}

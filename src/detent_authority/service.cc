@@ -2683,12 +2683,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							frames_idle.add();
 							complete(held, {204, {}});
 						}
-					} catch (const FramesBehind &) {
+					} catch (const std::exception &error) {
 						frames_errors.add();
-						complete(held, {503, "{\"error\":\"source_behind\"}"});
-					} catch (const std::exception &) {
-						frames_errors.add();
-						complete(held, {503, "{\"error\":\"distribution_unavailable\"}"});
+						const auto failure = frames_failure(error);
+						complete(held, {static_cast<int>(failure.status), std::string(failure.body)});
 					}
 				}
 				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.
