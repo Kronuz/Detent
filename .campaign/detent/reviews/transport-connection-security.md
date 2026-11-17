@@ -218,3 +218,104 @@ doc; N3, N6 and N7 stand as round 1 left them.
 - No churn from several distinct addresses (macOS loopback has only 127.0.0.1), and none over a
   link with real round-trip time; the 40/s figure is arithmetic from the code, not a measurement.
 - No ASan or UBSan run of `connection` or `links` locally (CI's).
+
+# transport-connection review: security, round 3
+
+Commit: consensus:677c8645623b8fdc856416f4a9914557926b061a
+Verdict: APPROVE
+Date: 2026-11-17
+
+Round 3 re-checks the fix for CI's macOS x86_64 failure (a busy but live reader declared dead):
+`git diff 2f6f210 677c864` (7 files, 180 lines). consensus:76426af reruns `slow_reader` when the
+process stalled; consensus:677c864 gives `late_deadline` an `extend_late` flag (default true) and
+the writer's keepalive wait passes false.
+
+## Evidence I relied on
+
+All at consensus:677c864 unless noted, every one read from its log:
+
+- Suite 261117-032548-ab81be (42 of 42); `deadline` 261117-032550-6206a7; `connection`
+  261117-032553-0e82fd; TSan 261117-032556-fc0b12 (4 of 4); `connection` x6 beside 2 x ncpu
+  spinners 261117-032620-2cee82 (exit 0).
+- Mutants, each exit 8 at the case's own assertion, each commit exactly one line off 677c864:
+  `keepalive-extends` 261117-032600-4ce9d8 (consensus:56d978c): `busy_reader` "4 of 6 frames ...
+  dialer 3, acceptor 2; 2 keepalives ... stalled 1 ms at most", then the rerun assert fails at
+  once, with no stall; `late-always-extends` 261117-032608-c60abe (consensus:0545423):
+  `late_expires`, deadline_test.cc:116; `stuck-spans-flush` 261117-032604-d35a2f was still queued.
+- 40 forced SIGSTOPs of 200-400 ms, 261117-032611-97f801: 0 of 40 failed, 1 rerun (run 12: a
+  284 ms stop at 273 ms, dialer and acceptor `failed`, 2, not `dead`; the rerun passed). At
+  consensus:76426af the same 40 stops needed 13 reruns: most of those were this bug.
+
+## What I checked myself
+
+Probe job 261117-032945-3c2d82 (exit 0, 239 s), from `run3.sh` and `stops3.py` in
+`.scratch/review-transport-connection-security/` in the Detent home. `stops3.py` prints every
+attempt line, so a failure the stall rerun absorbed shows. Rerun with
+`campaign job submit --quest transport-connection --fresh --force -- sh <dir>/run3.sh <dir>`.
+
+- Head, one SIGSTOP per run: `slow_reader` 15 runs of 200-400 ms, `busy_reader` 15 runs of
+  300-600 ms. First attempt failed 0 of 30, final 0. With the keepalive going at once and the
+  dead-peer and stuck waits extended, a stop of the whole process costs neither end its link.
+- Mutant `dead-no-extend` (the reader's dead-peer wait passes `false`): the whole
+  `connection_test` passes (exit 0). Under the same stops the first attempt fails 9 of 15
+  (`slow_reader`) and 11 of 15 (`busy_reader`, "dialer 3", `dead`), and the stall rerun absorbs
+  every one: 0 final failures. N14, N15.
+
+By reading, against the questions:
+
+1. `extend_late` (the late rule, deadline.h:79-86; the one opt-out, connection.h:261).
+   - The keepalive is right to take no extension. The extension exists to give the peer back
+     time this end's stall took from it; the keepalive interval times this end's own duty, and
+     extending it only delays what the peer is waiting for. With the extension, the trace is
+     deterministic: idle armed at T, due T+50, the loop busy until T+400 extends to T+450, the
+     next busy turn ends at T+800, which expires and sends: 800 ms apart against 600 ms. Without
+     it a keepalive goes at every loop turn. The peer cannot influence this wait: an expired
+     idle sends one empty frame and re-arms a full interval, so nothing amplifies.
+   - Every other wait times the peer, the network or the resolver, and must extend: dead-peer
+     (connection.h:232) and the stuck write (255, 271) wait on the peer's bytes or its reading,
+     which a stall of this end leaves sitting in the socket; the handshake and hello deadlines
+     (links.h:105, 131, 171) on the peer's handshake; the lookup (links.h:377) on a resolver
+     thread whose answer may be posted but not yet run; the dial total (404) on the network.
+     The probe shows what dropping it on dead-peer costs: 9 to 11 of 15 links lost to a stall.
+     The connect race's `step` (links.h:420) is this end's pacing, like the keepalive, but
+     extending it only starts the next address up to one stagger later, bounded by `total`:
+     harmless, keep.
+   - A1 holds. The rule is still one function (`on_wheel`) in one class; the flag selects
+     whether it applies, and only one call site opts out, commented and in the doc. The bare
+     `false` at the call site reads less plainly than a named value (N16).
+2. The tests prove the fix. `late_expires` fails at the mutant (extended 30 ms, ended at 160 ms,
+   not 130). `busy_reader` fails at `keepalive-extends` on its first attempt with a 1 ms stall,
+   so the rerun cannot hide it, and passes at the head 15 of 15 under forced stops, 6 of 6 beside
+   spinners. The busy_reader gap is 400 ms against 600 ms at the head, 800 ms at the mutant, so
+   both sides have 200 ms of margin. The new `extend_late` path is the only product change.
+3. The stall rerun.
+   - It cannot hide a deterministic failure: the third attempt asserts whatever the stall, and a
+     failed attempt without a stall of a third of `dead_after` fails at once. A crash or a hang
+     is never rerun. The watcher is an independent thread that only sleeps, so only the host
+     (a stop, starvation) can raise its reading, not the code under test.
+   - It does hide one class completely: a peer-timing wait that loses the late rule (N14). That
+     is the very behavior a host stall exercises, and nothing else in the suite guards it.
+   - It is still needed, narrowly: a stop that ends just before a deadline is due fires that
+     deadline on time, so no lateness is seen, while the peer, being in the same process, lost
+     that time too. No two hosts do this (a stalled host's peer keeps sending and reading into
+     the socket). Measured: 1 rerun in 40 at the head (the contributor's run 12, `failed`), 0 in
+     30 (mine). At most two reruns after a 100 ms (200 ms for `busy_reader`) stall is acceptable
+     for that, provided N14's guard exists outside the rerun.
+
+## Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| N14 | no | gap | No suite test guards the late rule at its peer-timing call sites. With the dead-peer wait passing `false`, `connection_test` passes whole, and under forced stops the first attempt fails 9 to 11 of 15 runs but the stall rerun passes every one. The new flag puts that defect one token away. | Probe 261117-032945-3c2d82, `dead-no-extend`; connection.h:232, 255, 271 | A deterministic `connection_test` case that blocks only the dialer's loop for longer than `dead_after` (post a sleep onto it) while the acceptor keeps sending keepalives, asserting the link stays `open`; mutant `dead-no-extend`. It needs no rerun, since only one end stalls. |
+| N15 | no | nit | `slow_reader_stops.py` reports only final failures, so reruns are invisible in its summary; the 13 reruns at 76426af read "0 of 40 failed". | test/transport/slow_reader_stops.py:58-66; job 261117-032611-97f801 | Count runs with more than one attempt line, as `stops3.py` does, and print them in the summary. |
+| N16 | no | nit | `late_deadline(loop, timeout, false)` is a bare positional `bool`; the call site needs its comment to read. The checks table credits the stall rerun to `slow_reader` only; `busy_reader` reruns too, at 200 ms. | connection.h:261; host-connection.md checks table | Optionally an `enum class lateness { extend, expire }`; name both cases in the table. |
+
+Round 2's findings stand as written; round 3 adds no blocking finding.
+
+## Not run
+
+- `stuck-spans-flush` 261117-032604-d35a2f at 677c864 was still queued; its mutant line is
+  unchanged since round 2's kill.
+- CI at 677c864 (Linux, macOS x86_64, the sanitizers) not read; the fix is judged from the macOS
+  arm64 jobs and probes above.
+- No stop of one end only across two processes; N14's test would be the in-process stand-in.
