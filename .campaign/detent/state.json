@@ -11702,7 +11702,52 @@
       "worktree": ""
     },
     "rpc-lane-codec": {
-      "accepted": {},
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T06:11:30",
+          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "blobs": {
+            "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
+            "CMakeLists.txt": "100644:efbea5ab4460ed77821157a8853c50a6a3c79ca8",
+            "docs/mechanisms/rpc-lane.md": "100644:84310f3a7a2fb044bc6d2b5ae4cf27ca381bdf77",
+            "fuzz/corpus/rpc/crash-send-past-credit": "100644:ade736df0974f8833da9b9da0f61b80be71247fc",
+            "fuzz/corpus/rpc/seed-0": "100644:40748c1675a2843be5092b41c0d623e7210cec81",
+            "fuzz/corpus/rpc/seed-1": "100644:fc8fcf3e408188bff383ae722e20554fc4a52bd6",
+            "fuzz/corpus/rpc/seed-10": "100644:3544378d00f23743669bc5be26d16b29cec1a076",
+            "fuzz/corpus/rpc/seed-11": "100644:5f247e1b237d988d1ba85b5a6926133435be88f8",
+            "fuzz/corpus/rpc/seed-2": "100644:396e1cd8d7c5626a488a40230fd6e8b61cfb1d12",
+            "fuzz/corpus/rpc/seed-3": "100644:219bbadf9900be9792cac46e57c92602658d74f0",
+            "fuzz/corpus/rpc/seed-4": "100644:fb2cd16611a399ad45f649289c7c06bed8a65fce",
+            "fuzz/corpus/rpc/seed-5": "100644:7c38f1663739c711b5301d7b39a7d568ac57a34e",
+            "fuzz/corpus/rpc/seed-6": "100644:93201daa6e4ff8371f38183a8a6f0b475db3ef4a",
+            "fuzz/corpus/rpc/seed-7": "100644:66cd6c613b9a88ad18abb0e67685c79da33cb26f",
+            "fuzz/corpus/rpc/seed-8": "100644:db4ecf2acd998a153ec7af952464c2c68a243916",
+            "fuzz/corpus/rpc/seed-9": "100644:35c5da4533de40edb3a6b0d62bb97711d87af465",
+            "fuzz/rpc_fuzz.cc": "100644:b71616d518a3c170b3e8a0ff96af2be1031c41b8",
+            "include/consensus/transport/rpc.h": "100644:9462b7597c735fbe62c1a6f905c171b400784726",
+            "test/transport/rpc_mutants.py": "100644:79f5ed897142ea9feb6c57909704854cc4799d05",
+            "test/transport/rpc_test.cc": "100644:e1f2e2e7675c23b4e15fdde9b26f76c870c1e853"
+          },
+          "by": "review",
+          "commit": "8db3ce393f63cfb42c9b16de70084ecf08e540af",
+          "criteria": "d57e274b9cc45c17",
+          "diffs": {
+            "": "495bd41ab933f933",
+            "CHANGELOG.md": "ee0ebe38c4330a3d",
+            "CMakeLists.txt": "ca55e466c76a7546",
+            "docs/mechanisms/rpc-lane.md": "d8d7b20cc18eff99",
+            "fuzz/rpc_fuzz.cc": "5a3bd2dbe89ed7ce",
+            "include/consensus/transport/rpc.h": "e9fd091e2472248a",
+            "test/transport/rpc_mutants.py": "4a5af4d983f5101e",
+            "test/transport/rpc_test.cc": "8c9f9fd23b7f4355"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ecbad9904dd14836a728a44937f0eb90378bf7d7",
+          "reviewed": "8db3ce393f63cfb42c9b16de70084ecf08e540af",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "677c8645623b8fdc856416f4a9914557926b061a",
       "branch": "quest/detent/rpc-lane-codec",
@@ -11764,7 +11809,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T05:06:12",
+      "updated": "2026-11-17T06:11:30",
       "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
