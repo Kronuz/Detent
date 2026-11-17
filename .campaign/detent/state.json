@@ -12595,6 +12595,44 @@
       "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
     },
+    "transport-admission": {
+      "accepted": {},
+      "after": [
+        "transport-identity"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "M1b",
+      "needs": [
+        "transport-connection"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Pre-authentication admission favors configured peers; transport-connection's notes",
+      "updated": "2026-11-17T02:26:03"
+    },
     "transport-connection": {
       "accepted": {
         "security": {
