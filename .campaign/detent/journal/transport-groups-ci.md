@@ -1,20 +1,15 @@
 # transport-groups-ci: journal
 
-State: waiting on jobs 261117-084234-d7c1d4 261117-084243-55886d 261117-084839-8524ae 261117-084310-26bb40 261117-084320-74416f 261117-084822-a16425
+State: ready for review
 Quest: .campaign/detent/quests/transport-groups-ci.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting on the A1/A2 jobs and the suite at consensus:0ed76ef (docs only after consensus:27a403b).
+Nothing: ready for review.
 
 ## Next
 
-1. Read the job logs: the mutant jobs must fail for the named reason (TSan report in libcrypto; the
-   threads bound), not setup noise; the head jobs must pass.
-2. If the uncached-context groups job (055886d) survives (timing), rely on connection_test
-   shared_context (d7c1d4) as the deterministic `--fails-without`.
-3. A2's head job 74416f ran at consensus:27a403b (code identical to 0ed76ef); rerun at head if the
-   gate wants it. Then ready for review (CI needs the branch pushed: the lead's).
+1. Fold in the correctness review's findings.
 
 ## Blocked on
 
@@ -49,9 +44,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261117-084234-d7c1d4 (mutant uncached-context, shared_context, fails-without), 261117-084243-55886d (mutant, groups 50x, fails-without), 261117-084839-8524ae (head: shared_context + groups threads/driver 50x each, TSan) |
-| A2 | pending: 261117-084310-26bb40 (mutant reads-after-posts, 200x 4 at once, fails-without), 261117-084320-74416f (head, 200x 4 at once) |
-| A3 | pending: suite 261117-084822-a16425; CI after push |
+| A1 | 261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report |
+| A2 | 261117-084320-74416f: threads 200x, 4 at once, pass (consensus:27a403b; docs-only after); fails without: 261117-084310-26bb40 (mutant reads-after-posts) |
+| A3 | suite 261117-084822-a16425 at consensus:0ed76ef; branch CI run 44130104547 at consensus:0ed76ef: linux-tsan, linux-arm64-gcc, macos-arm64 and every other job green, only macos-x86_64 failed (the peers flake, peers-retry-flake's) |
+| A5 | [manual] Linux TSan CI reported the race at consensus:e4e394b (run 44119963752, groups_driver; also run 44120112658, groups_threads) and passes at consensus:0ed76ef (run 44130104547). macOS TSan does not reproduce it: 261117-084234-d7c1d4 and 261117-084243-55886d at the uncached-context mutant ran with no report |
 
 Mutants: consensus:8afc5d7 (uncached-context: Links' call removed), consensus:a1eeac6
 (reads-after-posts: old counting), each one commit on consensus:27a403b, written with
