@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: working
+State: waiting on jobs 261116-164245-3db927
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -34,7 +34,8 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
-Debugging driver_test (a case hangs outside the spin guard), close retirement, waiter cases.
+Waiting on 261116-164245-3db927: tools/driver_checks.sh (every driver, blocking-entry, waiter,
+idle and Driver-simulation case under its own alarm) at the quest head.
 
 ## Done
 
@@ -51,7 +52,9 @@ Debugging driver_test (a case hangs outside the spin guard), close retirement, w
 
 - 261116-162515-04c287 waiter_test: rows 328 runs, teardown 187,185 runs, threads 300 rounds pass;
   close cases failed (retirement waited for a timer) -> fixed; rows propose pair failed (open).
-- 261116-163455-2e4958 every case under a per-case alarm: pending.
+- 261116-163455-2e4958 cancelled (superseded). 261116-164245-3db927 tools/driver_checks.sh: queued.
+- Fixed since: an unopened group was stepped (run_one threw, fencing it); turn watches now end at
+  shutdown; close runs retirement turns at once; a lone leader arms no heartbeat.
 
 ## Next
 
