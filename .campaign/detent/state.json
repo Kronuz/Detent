@@ -4496,20 +4496,55 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/http-tls-small-reply-cost",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T08:33:55",
+          "commit": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "criteria": {
+            "A1": "261116-200646-529fc3 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A2": "261116-200643-d30410 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7",
+            "A3": "261116-200648-8f78b8 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A4": "261116-200651-b6727f (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl), 261116-200653-56d463 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "0eb4c52f0751f6331ccb07ad889bfe7e0b160d2e",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/idle.md",
+                "docs/perf/idle/small-reply/count.jsonl",
+                "docs/perf/idle/small-reply/load.jsonl"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-200651-b6727f",
+              "level": "light",
+              "seconds": 110.1,
+              "state": "done",
+              "what": "http-tls-small-reply-cost check suite at 0eb4c52f0751"
+            }
+          ],
+          "final": true,
+          "from": "2d53cef78de262df1417f25560c72e53034dd001",
+          "reason": "",
+          "tested": "2671470a488e6fe45148146e98cf3b264308ac82"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-17T08:24:01",
-      "worktree": "../http-wt/detent/http-tls-small-reply-cost"
+      "updated": "2026-11-17T08:34:07",
+      "worktree": ""
     },
     "ipv6": {
       "accepted": {},
