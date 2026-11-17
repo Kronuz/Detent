@@ -127,3 +127,22 @@ Answers to the lead's questions:
 - No fuzzing longer than 10 minutes. No Linux, and no fuzzing under g++.
 - I did not confirm that the 20-minute fuzz corpus reached the pool paths either: its corpus was
   lost with the job's checkout, and my 10-minute corpus did not reach them.
+
+## Round 2
+
+Commit: consensus:ecc0735ae1fdc07f252484c8fd588dbcf7460766
+Verdict: APPROVE
+Date: 2026-11-17
+
+ecc0735 changes one line, and only in the test: `constexpr int calls = 12` becomes
+`static constexpr` in `pipes()` (`rpc_test.cc:666`). gcc rejects the nested `done` lambda at :678
+reading an uncaptured `constexpr` local; a variable with static storage needs no capture. The
+value, the case's behavior and `rpc.h` are unchanged, so round 1's probes and evidence still hold
+for the header. The gcc build itself is proven by Linux CI, not by me.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| N1 | no | gap | A peer that sends but never reads grows the unsent queue without bound: refused Calls and empty end Bodies are never charged to `rpc_outgoing_bytes` | probe `flood`, job 261117-055231-96b757 | Owner's call: (a) a bound on unsent small frames, (b) charge them, or (c) record it in Limits for consensus-transport's reader |
+| N2 | no | defect | `Lane::send` accepts bytes past a known total without `end`, which wedges the call | probe `overrun`, job 261117-055231-96b757 | Check `bytes.size() > o.total - o.sent` in `send`, with a test |
+| N3 | no | defect | A `ready` callback that closes the lane is a use-after-free (`rpc.h:703`, `:654-656`, `:429-433`) | probe `reenter`, job 261117-055231-96b757 | Before consensus-transport wires the lane: forbid re-entry in the contract, or defer `close()` from inside a callback; add a test |
+| N4 | no | gap | The fuzz target never contends a pool or reaches rule 7.6, and the shipped job runs at `max_len` 4,096 | job 261117-055239-13601d | Smaller harness pools; `-max_len=65600` |
