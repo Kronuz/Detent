@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: waiting on jobs 261117-075622-1f24d9 261117-075635-2d7760
+State: blocked on the lead: A2's 2x bound needs a change to what a delta rewrites (published bytes), see Blocked on
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,13 +40,44 @@ from clones of one prepared store, compares every file's SHA-256).
 
 ## Next
 
-1. Read the profiles; name the cause by function and per-page work (A1 row).
-2. If the rewrite dominates: Blocked on the lead (A2's bound against the fixed page format), with the
-   per-page constants the profile shows as the options. Otherwise counting probe (A4) and the fix.
+1. Lead's ruling on Blocked on. Then, for option 2: counting probe (A4), the cuts, before/after exclusive
+   paired rounds with an A/A band, A3 identity (.scratch/dpfc/identity.sh, ported harness).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+The lead (owner: page format and published bytes are a contract). Profile 261117-075622-1f24d9 (1M, 3 runs)
+and 261117-075635-2d7760 (100K, 5 runs), main's code, light jobs (wall times noisy; CPU and bytes are not):
+
+- A uniform f 0.05 delta rewrites 81-82% of the store's bytes at both sizes: 1M 41,478,579 B in 84 new files
+  of a 49,784 KiB store; 100K 4,097,650 B of 4,880 KiB. Apply CPU 5.22-5.73 s at 1M vs 0.55-0.57 s at
+  100K (9.8x for 10x the store at the same f): the "fixed part" is the rewrite, proportional to the store.
+- At 1M the f 0.05 plan (7.4-9.7 s wall) costs more than the full copy's plan (5.38 s wall, same job).
+- A2 target at 1M: 50,208 keys x 13.8 us = 0.69 s, 2x = 1.39 s.
+- Where the plan goes (samples under PagedDeltaPlanBuilder::Work::step, runs 2 and 3), all per rewritten page:
+  1. OverlayAssembler (re-pack every removed page's unchanged clusters, PagedPacker SHA-256 per page,
+     SegmentBuilder SHA-256 per pack, verify_page of old pages): 44% / 39%.
+  2. WarmGraphValidator on the new pages (PageValidator + decode_node per node, validate_definition per leaf,
+     though most are unchanged definitions moved to new pages): 28% / 23%.
+  3. TrieOverlay change walk: 25% / 35%, of which 61% (run 2) is first-touch verify_page (SHA-256 +
+     structure) and decode_page_header of each old page; the per-key part is the rest.
+  SHA-256 (portable compress, no SHA-NI on this Intel host) is about 21% of the plan.
+- Floor inside the contract: the assembly alone is about 40% of about 4.5 s plan CPU, about 1.8 s > 1.39 s.
+  Dropping validation and old-page verification entirely would still miss A2's 2x.
+
+Options:
+1. Format change: let a delta keep unchanged sub-page clusters in place (reference them, or smaller leaf
+   pages) so the rewrite is proportional to changed keys. Reaches A2; changes the published bytes (contract).
+2. Keep the bytes, cut the per-page constants: carry the base's validation proofs for moved-but-unchanged
+   definitions instead of re-validating them, and reuse the first-touch verification. Estimate 30-45% off the
+   plan at f 0.05 (1M about 4.5 -> 2.5-3 s CPU), store-proportional still; A2 restated per rewritten byte.
+3. Restate A2 only: the bound holds for deltas whose keys cluster in pages (the rewrite is per touched page),
+   and measure a clustered f 0.05 alongside the uniform one.
+Recommendation: 2 with 3's restatement now (inside the contract, A3 byte identity holds); 1 as a separate
+format quest if T9 at 5M needs a delta to beat the full copy.
+
+Also, pre-existing on main and outside this file set: docs/perf/namespace-measure-t9.cc does not compile
+since namespace-s7-ids (jobs 261116-213146-06b640, 261116-213150-f47767 failed in its build). The port is in
+.scratch/dpfc/t9/ (owner.lock, DiskStore::work()->run(), no GenerationId arguments).
 
 ## Evidence
 
@@ -56,7 +87,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261117-075622-1f24d9 (profile, f 0.05 at 1M, main's code; 100K: 261117-075635-2d7760): the delta rewrites 81-82% of the store's bytes; OverlayAssembler re-packs every touched page (39-44%), WarmGraphValidator re-validates every new page (23-28%), TrieOverlay first-touch verify_page per old page (~15-20%). Per store page, not per changed key. Details under Blocked on. |
 
 ## Result
 
@@ -66,4 +97,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Profiled with a scratch port of main's T9 harness (.scratch/dpfc/t9/), since main's copy does not build;
+  the harness is outside the file set, so it is the lead's to fix on main.
+- Profile jobs are light: sampling shares; shares and bytes decide A1, not wall times.
