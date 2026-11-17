@@ -13643,10 +13643,43 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/transport-identity",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T13:50:52",
+          "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+          "criteria": {
+            "A1": "261117-132845-3bee70, 261117-132844-0baa78, 261117-132845-6ffba0; fails without: 261117-083434-aa0196, 261117-083450-824101, 261117-083506-cc7d19, 261117-083522-3b8076, 261117-083538-6cfcce, 261117-083553-54ea6f, 261117-083608-36b07f, 261117-083621-3d1151, 261117-083633-0b9d69, 261117-083644-e936b2, 261117-083655-e2029f, 261117-083704-f48fcf, 261117-121906-918deb, 261117-121920-e422e4, 261117-121929-694e4a, 261117-121939-c2d42f, 261117-121953-0f5f8b, 261117-122010-ffc421, 261117-122026-10df2c, 261117-122035-0f8c5e, 261117-122045-dc679e, 261117-122053-2dc66a, 261117-122101-b62389, 261117-122111-4dfd63, 261117-122119-6a7f7a, 261117-122127-8bcba2",
+            "A2": "261117-132845-3bee70, 261117-132846-18b589"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-132845-3bee70",
+              "level": "light",
+              "seconds": 187.5,
+              "state": "done",
+              "what": "transport-identity check suite at 361d5d243ccc"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "reason": "",
+          "tested": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-groups"
@@ -13656,9 +13689,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T13:50:39",
+      "updated": "2026-11-17T13:51:01",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
