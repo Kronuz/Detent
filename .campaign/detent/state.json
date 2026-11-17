@@ -1951,10 +1951,43 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T13:54:53",
+          "commit": "7c0db735c5d8a5426f85422fa95a7303474a5595",
+          "criteria": {
+            "A1": "261117-125210-2dc4f7",
+            "A2": "261117-121549-7a86f2 (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md)",
+            "A3": "261117-125209-0234f0",
+            "A4": "261117-121554-a6db7d (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md), 261117-121549-83f289 (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md), 261117-121529-6da30a (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md); fails without: 261117-082610-950015, 261117-121537-35314f",
+            "A5": "docs/perf/delta-plan-scaling.md \"The fixed part: moved definitions and repeated page reads\"."
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "0b759d101a579ed930fe0c564b01fdce264c2668",
+              "docs": [
+                "docs/perf/delta-plan-scaling.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-121554-a6db7d",
+              "level": "none",
+              "seconds": 6.1,
+              "state": "done",
+              "what": "delta-plan-fixed-cost check pins at 0b759d101a57"
+            }
+          ],
+          "final": true,
+          "from": "8e7d0892856ccd8eaef53c342db7f3369c4c81d7",
+          "reason": "",
+          "tested": "586783c166dc23e0669d846b916c19f4d9a370f8"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "namespace-s7-ids"
@@ -1962,9 +1995,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T12:51:48",
+      "updated": "2026-11-17T13:58:16",
       "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
