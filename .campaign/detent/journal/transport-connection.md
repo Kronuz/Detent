@@ -1,6 +1,6 @@
 # transport-connection: journal
 
-State: waiting on jobs 261117-024444-856be1 261117-024445-1c6a25 261117-024447-c8c390 261117-024515-fdecab 261117-024518-eb8beb 261117-024521-a9f6d0
+State: waiting on jobs 261117-032548-ab81be 261117-032550-6206a7 261117-032553-0e82fd 261117-032556-fc0b12 261117-032600-4ce9d8 261117-032604-d35a2f 261117-032608-c60abe 261117-032611-97f801 261117-032620-2cee82
 Quest: .campaign/detent/quests/transport-connection.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -61,9 +61,32 @@ most twice; only a whole run passes; a failure without such a stall fails at onc
 0 failed, 13 retried, each retry whole (probe 261117-024148-dffbff); plain runs report 1 ms
 stalls. `test/transport/slow_reader_stops.py` forces the stops. No product change.
 
+## Fix round 2b (CI at `76426af`: dialer dead again, no stall; msg from the lead)
+
+State 3 is `dead`: the dialer's reader heard nothing from the acceptor for dead_after (the
+stuck write ends `failed`, 2). Cause: the product. The keepalive interval took the late rule's
+extension, so on a reader whose loop is busy longer than the interval the fire comes late,
+extends, comes late again inside the next busy turn, and only then sends: every other turn.
+Probes at `76426af` with trace (261117-030425-64d591, 261117-031100-13184a; probe-only patch,
+reverted): handler 150 or 200 ms per frame, dialer dead 12 of 12 (trace: keepalive held 50 ms
+by the extension, sent 13 ms after the dialer's 300 ms expired); without the extension 0 of 12,
+64 keepalives for 64 frames. 120 ms per frame passed both ways (gap ~250 ms, thin).
+Fix, consensus `677c864` (product, goes back to the reviewer): `late_deadline(loop, timeout,
+bool extend_late = true)`; `on_wheel` extends only if `extend_late_`; `Connection::writer`'s
+idle wait passes false. Tests: `deadline_test` `late_expires`; `connection_test` `busy_reader`
+(6 x 64 KiB, 400 ms per frame, dead_after 600 ms) on `slow_reader`'s harness (`read_slowly`,
+stall rerun at dead_after / 3). Mutants `late-always-extends`, `keepalive-extends`. Doc: the
+late rule paragraph and the checks table.
+Jobs 261117-024445-1c6a25..-024521-a9f6d0 exited 127 (`$Q` was one word in zsh); resubmitted
+at `677c864` instead.
+CI `consensus_transport_peers` abort: `peers_test.cc:1196` frozen-peer retry check, the Peers
+fetch flake on macos-x86_64 (D102); same check failed at `35ebaba` (run 44055780068) and on
+consensus-fetch-macos `38f2022` (run 43839418972, then line 1244). This branch does not touch
+`peers.h` or `peers_test.cc`. Pre-existing, the lead's.
+
 ## Next
 
-1. Read the six jobs in State; push for CI (the lead's).
+1. Read the jobs in State; send `677c864` to the reviewer (product change); push for CI.
 
 ## For the lead (review notes not fixed here)
 
@@ -71,19 +94,24 @@ stalls. `test/transport/slow_reader_stops.py` forces the stops. No product chang
   `~Links`-with-live-resolver test (latch, ASan) is not written.
 - N6: `Connection` does not assert the context's verify mode and `SSL_OP_NO_RENEGOTIATION`.
 - N7: two pin matchers (`NodePins::authenticate`, `authenticated_voter`) until `Peers` goes (D106).
-- Keepalive and the late rule (found in fix round 2): the keepalive timer is a `late_deadline`,
-  so after a stall its late fire extends by up to one keepalive interval before the keepalive
-  goes. The extension protects nobody there; it costs a stalled sender one interval of the
-  peer's dead_after (1 s of 5 s). Under shared stops it turned 1 of 40 deaths into 16 of 40.
-  Options: (a) the keepalive sends at once on a late fire (a `late_deadline` flag or a plain
-  wheel timer, ~5 lines, a mutant, re-review); (b) keep it, documented. Recommend (a) as a
-  follow-up; not done here (the doc names the keepalive interval as a rule consumer).
+- Keepalive and the late rule: fixed in `677c864` (fix round 2b).
+- Stuck-write progress counts whole TLS records (`SSL_write` > 0). With 16 KiB socket buffers
+  (smaller than a record) a record took 100-300 ms on loopback and slow_reader ended dialer
+  `failed` 12 of 12, with or without the keepalive fix (probe 261117-031100-13184a). Default
+  buffers (and 32 KiB, 64 KiB) pass; production's dead_after is 5 s. Counting socket-level
+  progress needs `SO_NWRITE`/`SIOCOUTQ`; not done.
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+At `677c864` (fix round 2b): suite 261117-032548-ab81be; `deadline` 261117-032550-6206a7;
+`connection` 261117-032553-0e82fd; TSan 261117-032556-fc0b12; mutants, each `--fails-without`:
+keepalive-extends 261117-032600-4ce9d8, stuck-spans-flush 261117-032604-d35a2f,
+late-always-extends 261117-032608-c60abe; 40 forced SIGSTOPs 261117-032611-97f801; `connection`
+x6 beside 2 x ncpu spinners (strict) 261117-032620-2cee82.
 
 At `76426af` (fix round 2): suite 261117-024444-856be1; `connection` 261117-024445-1c6a25; TSan
 261117-024447-c8c390; mutant stuck-spans-flush (`a8914e5`) 261117-024515-fdecab; 40 forced
