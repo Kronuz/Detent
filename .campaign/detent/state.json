@@ -4987,7 +4987,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T06:36:57",
+      "updated": "2026-11-16T21:41:09",
       "worktree": ""
     },
     "logger-exit-crash": {
