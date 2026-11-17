@@ -10725,6 +10725,8 @@
     "peers-retry-flake": {
       "accepted": {},
       "after": [],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/peers-retry-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build -R consensus_transport_peers --output-on-failure",
@@ -10737,16 +10739,19 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
+      "journal": "../Detent-wt/detent/peers-retry-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: overlap is by glob only: this quest writes test/transport/peers_test.cc alone, which transport-identity and transport-idle-cost do not touch (Peers is retired in worker-pump-removal)",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Peers retried-fetch flake on loaded macOS x86_64",
-      "updated": "2026-11-17T08:08:33"
+      "updated": "2026-11-17T08:09:48",
+      "worktree": "../consensus-wt/detent/peers-retry-flake"
     },
     "persistent-map-adoption": {
       "accepted": {},
