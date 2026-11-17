@@ -13263,6 +13263,41 @@
       "updated": "2026-11-17T07:55:40",
       "worktree": ""
     },
+    "transport-groups-ci": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/connection.h",
+        "include/consensus/transport/links.h",
+        "include/consensus/transport/host_transport.h",
+        "include/consensus/transport/tls*.h",
+        "test/transport/groups_test.cc",
+        "test/transport/connection_test.cc",
+        "CHANGELOG.md",
+        "docs/mechanisms/host-*.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
+      "updated": "2026-11-17T08:28:48"
+    },
     "transport-identity": {
       "accepted": {},
       "after": [],
