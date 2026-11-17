@@ -12564,12 +12564,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal, with 0 code commits; it needs transport-connection by way of transport-groups, so no two writers touch these files at once",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T00:49:16",
+      "updated": "2026-11-17T01:27:44",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
