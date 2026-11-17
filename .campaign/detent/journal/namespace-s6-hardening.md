@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: working (first build and tests queued)
+State: waiting on jobs 261116-213553-6a52ae
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
