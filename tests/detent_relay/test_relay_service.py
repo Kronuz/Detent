@@ -426,6 +426,8 @@ class Run:
             check(child.poll() is None, f"relay {name} exited: {child.returncode}")
             health = self.health(self.relay_ports[name])
             if health and health.get("ready") and health.get("mirror", {}).get("ready"):
+                stale = sorted(key for key in health if key.startswith("disk_"))
+                check(not stale, f"relay health reports unfed disk fields: {stale}")
                 return health
             time.sleep(0.05)
         raise AssertionError(f"relay {name} never became ready")
