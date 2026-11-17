@@ -19,10 +19,23 @@ the warm validator re-walks about the whole store (new walk: PageValidator + val
 walk: every node of every removed page; first-touch verify_page of every removed page). The new-bytes figure
 says how much of the store the delta rewrites.
 
+Reading so far (no numbers yet): pages carry at most page_capacity (4 KiB) of nodes, and the test store holds
+about 100 small definitions per page, so a uniform 5% answer touches about 1 - 0.95^k of the pages (87% at
+k = 40, 99% at k = 100). The overlay assembler re-packs every removed page's unchanged clusters
+(push_cluster); old pages above 4 KiB are pushed by reference. Fitting namespace-measure's plan times
+(f 0.05 and f 0.5) gives a marginal 8.8-9.4 us per changed key and a fixed part of about 2.3 us per store key
+(0.24 s at 100K, about 2.2 s at 1M, 11.5 s at 5M), the snapshot build's per-key cost. If the profile confirms
+the rewrite is the fixed part, the published bytes (contract) fix how many pages a delta rewrites, so only
+the per-page constant can move: that bears on A2's 2x bound and is a question for the lead.
+
+Prepared: .scratch/dpfc/identity.sh (A3: builds main via --ref base and the head, publishes each fraction
+from clones of one prepared store, compares every file's SHA-256).
+
 ## Next
 
 1. Read the profiles; name the cause by function and per-page work (A1 row).
-2. Counting probe (A4) and the fix inside the file set.
+2. If the rewrite dominates: Blocked on the lead (A2's bound against the fixed page format), with the
+   per-page constants the profile shows as the options. Otherwise counting probe (A4) and the fix.
 
 ## Blocked on
 
