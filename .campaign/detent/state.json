@@ -13461,18 +13461,48 @@
         }
       ],
       "journal": "../Detent-wt/detent/transport-groups-ci",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T12:12:42",
+          "ci_skipped": "owner-approved 2026-11-17: Linux TSan and arm64, the two jobs this fixes, pass at 0ed76ef (run 44130104547); macos-x86_64 fails only on the known peers retry flake (quest peers-retry-flake) and one groups_upload stall (0 bytes in 4 s on the slow runner, filed to ci-test-flakes)",
+          "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "criteria": {
+            "A2": "261117-084320-74416f (passed at 27a403b08d4a; ignores docs-only CHANGELOG.md, docs/mechanisms/host-connection.md); fails without: 261117-084310-26bb40",
+            "A3": "261117-084822-a16425",
+            "A5": "[manual] lead, 2026-11-17: Linux TSan CI reported the race at consensus:e4e394b (runs 44119963752 and 44120112658) and is clean at consensus:0ed76ef (run 44130104547, linux-tsan). The macOS TSan mutant jobs did not reproduce it, so the Linux CI runs carry this proof",
+            "A6": "261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-084822-a16425",
+              "level": "light",
+              "seconds": 225.3,
+              "state": "done",
+              "what": "transport-groups-ci check suite at 0ed76ef4035d"
+            }
+          ],
+          "final": true,
+          "from": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "reason": "",
+          "tested": "0ed76ef4035d6b95d16bed569b004c71443c0fbe"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T12:12:35",
+      "updated": "2026-11-17T12:12:46",
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
