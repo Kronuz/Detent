@@ -1,23 +1,45 @@
 # deps-workpool-repin: journal
 
-State: ready for review (A4 jobs 261116-185810-43f708 A/A and 261116-185811-e33c44 A/B still to finish; A1-A3 and native done)
+State: waiting on jobs 261116-195652-960b07 (probe), 261116-195705-9ed96d (TSan repro, branch), 261116-195707-ca2128 (TSan repro, main ce7faa41)
 Quest: .campaign/detent/quests/deps-workpool-repin.md (the lead's; never edit it)
 
 ## Doing
 
-Work is committed at Detent:8d7561a3. A1-A3 and the native suite are green. A4: the first benchmark failed
-for a reason the repin did not cause; replaced by the logger's own producer-cost bench (below). Only jobs remain.
+A1-A4 met (see Evidence). Landing is blocked by CI linux-tsan (run 44007470799, both attempts):
+`test_local_paged_publication_artifacts` aborts ("invalid paged artifact operation accepted"), and attempt 2
+also failed `test_system_managed_all-down` (authority member 2 refused connections for the whole 10 s drain).
+
+Findings so far:
+1. Paged test is pre-existing on main, not the repin: it failed in linux-tsan on main at 39b5314a (11-13),
+   ea3d591e (11-13), 06fa2a03 (11-15), c02504e9 (11-16), ce7faa41 (11-16), all with logger f61d8df and
+   scheduler, each passing on rerun; this branch at 881b188f (same logger/workpool/wheel pins) passed
+   linux-tsan (run 43921954698). Scan: 200 CI runs since 11-11, failed logs grepped.
+2. Cause (from code, probe pending): `PagedDeltaPlanBuilder::take()` resets `work_`, so the builder's Work
+   owner (leaves, overlay, finalizer scratch, and the pin on the input delta's RetiredInput) retires on the
+   RetirementRuntime worker thread, releasing `account` bytes after the caller returns. The test's pressure
+   branch (`account->admit(limit - used)` right after the plan block) can run before those frees; the frees
+   then reopen headroom and `populate` (a few small allocations) succeeds, so `rejects<StoragePressure>`
+   (line 69) throws. Timing only; TSan widens the window. The product behaves correctly.
+3. Fix (test only, tests/detent_local/test_paged_publication_artifacts.cc, outside this quest's file set):
+   wait for the builder's scratch owners to retire before taking the pressure admission, as
+   tests/detent_distribution/test_retirement_factory.cc:77 already does (`eventually(residents == N)`,
+   then admit). Probe 261116-195652-960b07 measures resident counts and checks the fix against a
+   forced window (PROBE_SLEEP_MS).
+4. all-down: one failure in 200 runs (this branch, attempt 2). The member's output lands in
+   `<repo>/.scratch/stage6/all-down-*/events.jsonl`, which CI's failure_artifacts patterns
+   (build/tests/**/.scratch/**) never upload, so the CI run kept no member log. Repro jobs run it 5x at
+   both commits and dump member output on failure.
 
 ## Next
 
-1. When 261116-185810-43f708 (A/A) and 261116-185811-e33c44 (A/B) finish, read `report.json` in
-   `$HOME/.scratch/deps-workpool-repin/lgaa-1` and `lgab-1` (the job logs end with the per-metric table)
-   and copy the median ns, ratios and the A/A band into the Evidence row; a ratio above the A/A band is a
-   regression to report to the lead, not to bury.
+1. Read the three jobs. Probe: which line accepts, residents before/after take, fix/no-fix failure counts.
+   Repro: paged and all-down failure counts at branch vs main.
+2. Write the Blocked-on entry with the exact fix diff for the lead; settle all-down (flake rate on main or
+   a member crash with its log).
 
 ## Blocked on
 
-Nothing.
+Pending the probe: the paged test fix is outside the file set (tests/**/*.cc); it will go here with the diff.
 
 ## Evidence
 
