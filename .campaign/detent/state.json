@@ -4786,6 +4786,46 @@
       "updated": "2026-11-16T15:41:59",
       "worktree": "../journal-wt/detent/journal-driver"
     },
+    "journal-host-guards": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "tests/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
+      "updated": "2026-11-17T02:53:32"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
