@@ -44,7 +44,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report |
+| A6 | 261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report |
 | A2 | 261117-084320-74416f: threads 200x, 4 at once, pass (consensus:27a403b; docs-only after); fails without: 261117-084310-26bb40 (mutant reads-after-posts) |
 | A3 | suite 261117-084822-a16425 at consensus:0ed76ef; branch CI run 44130104547 at consensus:0ed76ef: linux-tsan, linux-arm64-gcc, macos-arm64 and every other job green, only macos-x86_64 failed (the peers flake, peers-retry-flake's) |
 | A5 | [manual] lead, 2026-11-17: Linux TSan CI reported the race at consensus:e4e394b (runs 44119963752 and 44120112658) and is clean at consensus:0ed76ef (run 44130104547, linux-tsan). The macOS TSan mutant jobs did not reproduce it, so the Linux CI runs carry this proof |
