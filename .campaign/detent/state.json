@@ -1863,7 +1863,42 @@
       "worktree": ""
     },
     "delta-plan-fixed-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T12:51:48",
+          "base": "d1987783ab7c667ca96baec10d8a60c4f19cc764",
+          "blobs": {
+            "docs/perf/delta-plan-scaling.md": "100644:ea3a34b844c7f8156b11091f5773807fcbfcf4f1",
+            "docs/perf/namespace-measure-t9.cc": "100644:56f9c60af5a7ce855f50e89d2834d62376e21a02",
+            "src/detent_local/paged_navigation.hh": "100644:fcef4a765b42cb41e088f0d0e013d4689b9f063a",
+            "src/detent_local/paged_trie_overlay.cc": "100644:f3a241555aaffbb14b59d7b4d07f286f7523e3e9",
+            "src/detent_local/paged_warm_validator.cc": "100644:5b9530b5042922dd7f460c5b9846aa52358ac972",
+            "src/detent_local/paged_warm_validator.hh": "100644:aa7c30be5984e94288c497a941ca140e3ba4f19e",
+            "tests/detent_local/CMakeLists.txt": "100644:17fac23ad55da3763a1fc43bfdff0a6c7adfc10d",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "100644:5652485975951f3d435dd72548d718ab26f49dfc",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "100644:8312b0d4a6251e9d475a2f4ef09cc5f6830f0463"
+          },
+          "by": "review",
+          "commit": "6efa63bf85017c39429eb9b618a8d8397f48a65f",
+          "criteria": "e7c966698fc6837b",
+          "diffs": {
+            "docs/perf/delta-plan-scaling.md": "7edd01fbc70bd1ef",
+            "docs/perf/namespace-measure-t9.cc": "8931e48a77639e27",
+            "src/detent_local/paged_navigation.hh": "31bfee675cf58f8b",
+            "src/detent_local/paged_trie_overlay.cc": "f26cc641083d4dff",
+            "src/detent_local/paged_warm_validator.cc": "88b3e384108ab260",
+            "src/detent_local/paged_warm_validator.hh": "920828db4f29290c",
+            "tests/detent_local/CMakeLists.txt": "d8528df2612b20bf",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "990d6e9fef033c7e",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "38093996dc2c714c"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e53ef87ceceb78f383ac77df520bcedef96a40bc",
+          "reviewed": "ae9a25456ecb18247e8e82b29c3bf088dab1a181",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
       "branch": "quest/detent/delta-plan-fixed-cost",
@@ -1917,7 +1952,9 @@
         }
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [
         "namespace-s7-ids"
@@ -1925,9 +1962,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T08:06:07",
+      "updated": "2026-11-17T12:51:48",
       "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
@@ -11930,11 +11967,11 @@
     "rpc-lane-codec": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T06:12:48",
-          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "at": "2026-11-17T12:28:17",
+          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
           "blobs": {
-            "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
-            "CMakeLists.txt": "100644:efbea5ab4460ed77821157a8853c50a6a3c79ca8",
+            "CHANGELOG.md": "100644:86106e7f971d0904b63535bd9616bd51022d65c6",
+            "CMakeLists.txt": "100644:df72542db3b71af85c0f651138df890960fa3589",
             "docs/mechanisms/rpc-lane.md": "100644:84310f3a7a2fb044bc6d2b5ae4cf27ca381bdf77",
             "fuzz/corpus/rpc/crash-send-past-credit": "100644:ade736df0974f8833da9b9da0f61b80be71247fc",
             "fuzz/corpus/rpc/seed-0": "100644:40748c1675a2843be5092b41c0d623e7210cec81",
@@ -11955,7 +11992,7 @@
             "test/transport/rpc_test.cc": "100644:544dbecd1c570e901a5a6555a3ad119115444f1e"
           },
           "by": "review",
-          "commit": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
           "criteria": "d57e274b9cc45c17",
           "diffs": {
             "": "495bd41ab933f933",
@@ -12019,11 +12056,46 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/rpc-lane-codec",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T12:28:43",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "criteria": {
+            "A1": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A2": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A3": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A4": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since); fails without: 261117-045802-b15bed, 261117-045808-2d42af, 261117-045813-e45d39, 261117-045819-a9a7f2, 261117-045825-90b1dc, 261117-045831-8f2ed2, 261117-045836-0de6ee, 261117-045841-f3bb33, 261117-050452-8737e6, 261117-050457-ef5f13, 261117-050501-e5a32f, 261117-050506-7d6860, 261117-050511-765547, 261117-050516-fffbe9, 261117-050521-7a5f49, 261117-050526-8966c1"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "2810f00b1ad680d65d65a9f46fdff42998ff19d5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-075708-1cb2b3",
+              "level": "light",
+              "seconds": 149.2,
+              "state": "done",
+              "what": "rpc-lane-codec check suite at 2810f00b1ad6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "reason": "",
+          "tested": "84814a9c457c67aaa47299b97314d0adb285a4ab"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-connection"
@@ -12033,10 +12105,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T06:12:48",
-      "worktree": "../consensus-wt/detent/rpc-lane-codec"
+      "updated": "2026-11-17T12:28:58",
+      "worktree": ""
     },
     "s3b-followups": {
       "accepted": {},
@@ -13177,6 +13249,47 @@
       "updated": "2026-11-17T04:26:38",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
+    "transport-feed-scan": {
+      "accepted": {},
+      "after": [
+        "transport-identity",
+        "transport-groups-ci"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "test/transport/groups_test.cc",
+        "bench/transport_idle.cc",
+        "docs/mechanisms/host-transport.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "HostTransport feed without a per-frame scan of every group",
+      "updated": "2026-11-17T09:42:45"
+    },
     "transport-groups": {
       "accepted": {
         "correctness": {
@@ -13299,7 +13412,38 @@
       "worktree": ""
     },
     "transport-groups-ci": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T12:12:35",
+          "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "blobs": {
+            "CHANGELOG.md": "100644:bae939764dc4bdf786fc8da51e46fc32fc65e52a",
+            "docs/mechanisms/host-connection.md": "100644:023ecfe2b66620f7c2623655d966bdf902e16385",
+            "include/consensus/transport/host_transport.h": "100644:390c11b258e75c3ddce2e23d9d8ba4846baa260d",
+            "include/consensus/transport/links.h": "100644:b420be4f6e2b73d623315f2b4575e775e0dd7e09",
+            "include/consensus/transport/tls.h": "100644:0404274f0d065bec0c13099e536202f18db2bed2",
+            "test/transport/connection_test.cc": "100644:fa48154896960e5502ca9c7d250b476953802fd9",
+            "test/transport/groups_test.cc": "100644:741e092fbacd83d42d59a2420cf3e5a0f55d5e9a"
+          },
+          "by": "review",
+          "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "criteria": "1f511eaf4f63cb82",
+          "diffs": {
+            "CHANGELOG.md": "f7f024e0d8bbf5ff",
+            "docs/mechanisms/host-connection.md": "f6fb4fc756bd577a",
+            "include/consensus/transport/host_transport.h": "aa9767e2f9ecaa0c",
+            "include/consensus/transport/links.h": "fca9c5d455fc7d6f",
+            "include/consensus/transport/tls.h": "eae89cbab4c36315",
+            "test/transport/connection_test.cc": "5e8b3c7c4046cd30",
+            "test/transport/groups_test.cc": "d5c375233cedf9af"
+          },
+          "findings": {},
+          "note": "",
+          "review": "640bbc265ea8b147e5cde8e0476b2bd20ca35f1c",
+          "reviewed": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
       "branch": "quest/detent/transport-groups-ci",
@@ -13309,12 +13453,6 @@
           "level": "light",
           "minutes": 30,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -13358,22 +13496,85 @@
           "reason": "",
           "voided": [],
           "weakened": []
+        },
+        {
+          "at": "2026-11-17T12:12:32",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "the ci gate check is replaced by --no-ci for this landing; owner-approved 2026-11-17: Linux TSan and arm64, the two jobs this fixes, pass at 0ed76ef (run 44130104547); macos-x86_64 fails only on the known peers retry flake (quest peers-retry-flake) and one groups_upload stall (0 bytes in 4 s on the slow runner, filed to ci-test-flakes)",
+          "voided": [
+            "correctness"
+          ],
+          "weakened": [
+            "gate check ci removed"
+          ]
         }
       ],
       "journal": "../Detent-wt/detent/transport-groups-ci",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T12:12:42",
+          "ci_skipped": "owner-approved 2026-11-17: Linux TSan and arm64, the two jobs this fixes, pass at 0ed76ef (run 44130104547); macos-x86_64 fails only on the known peers retry flake (quest peers-retry-flake) and one groups_upload stall (0 bytes in 4 s on the slow runner, filed to ci-test-flakes)",
+          "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "criteria": {
+            "A2": "261117-084320-74416f (passed at 27a403b08d4a; ignores docs-only CHANGELOG.md, docs/mechanisms/host-connection.md); fails without: 261117-084310-26bb40",
+            "A3": "261117-084822-a16425",
+            "A5": "[manual] lead, 2026-11-17: Linux TSan CI reported the race at consensus:e4e394b (runs 44119963752 and 44120112658) and is clean at consensus:0ed76ef (run 44130104547, linux-tsan). The macOS TSan mutant jobs did not reproduce it, so the Linux CI runs carry this proof",
+            "A6": "261117-084839-8524ae: TSan at consensus:0ed76ef, shared_context then groups threads and driver 50x each, no report"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-084822-a16425",
+              "level": "light",
+              "seconds": 225.3,
+              "state": "done",
+              "what": "transport-groups-ci check suite at 0ed76ef4035d"
+            }
+          ],
+          "final": true,
+          "from": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "reason": "",
+          "tested": "0ed76ef4035d6b95d16bed569b004c71443c0fbe"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: main is red: this fix lands first; transport-identity merges main after (told), and its edits to host_transport.h and groups_test.cc are additive",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T08:29:01",
+      "updated": "2026-11-17T12:12:46",
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
@@ -13417,12 +13618,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T07:56:16",
+      "updated": "2026-11-17T10:12:52",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
