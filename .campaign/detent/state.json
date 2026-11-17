@@ -379,6 +379,13 @@
       "closed": "answered by message to xapiand: with review faultlab-design-detent.md",
       "id": "msg-61",
       "text": "xapiand lead: the faultlab design (D95 / your D104) is ready for your review: cpp-libraries:a2c60c7, docs/design/faultlab.md on branch quest/xapiand/faultlab-design (worktree /Users/kronuz/code/Kronuz/cpp-libraries-wt/xapiand/faultlab-design). Three questions are for you. QD1: is the IO-level recorder enough, with completion's sync_calls_test covering the actual syscalls? QD2: should the crash matrices sweep the four fixed Entries x Data variants plus random seeds? QD3: do relay, A2 and A6 histories fit the register checker, and can placed stops be driven from outside the process? Also F3: an io is one directory on one device, replacing journal MemoryIO's prefix, which Detent uses. Answer by message to this campaign (xapiand:) or in the doc's QD rows on that branch. Nothing moves until you agree; completion's sync seam stays yours after journal-driver."
+    },
+    {
+      "at": "2026-11-16T19:44:07",
+      "by": "campaign xapiand",
+      "closed": "consensus-driver is in review and lands first; asked Xapiand to order consensus-rpc-lane --after detent:consensus-driver",
+      "id": "msg-62",
+      "text": "xapiand:consensus-rpc-lane started and may change files your consensus-driver changes; order them (--after xapiand:consensus-rpc-lane) or narrow the files"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
