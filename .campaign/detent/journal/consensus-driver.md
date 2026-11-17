@@ -51,6 +51,15 @@ Driver and blocking-entry cases all pass locally.
 - consensus:18aa864 `waiter_test CASE LIMIT`; no-arg (ctest) run is 20,000 per case; checks script
   WAITER_LIMIT=1,000,000. Local Release: close-read exhaustive 916,524 in 191 s; close 2,000,000
   (limit) in 454 s, 0 failures. complete-resumes-before-unlink is killed by rows at 20,000 under ASan.
+- CI at consensus:d03b8b6 (run 43990149040) also aborted consensus_shared_cluster on every platform
+  (main is green: introduced by the repin). A power cut while pumping between TurnDriver::begin and
+  the write left the turn's operations submitted; ~Host terminated in ~AppendMutation. Fixed in the
+  test at consensus:417be8c (24 seeds, 469 cuts, 0 failures locally).
+- consensus:79092fb driver_idle: 1 shared descriptor over 1000 groups failed "no descriptor per idle
+  group"; baseline now after a warm-up group, non-rotating segments: 0.000 descriptors per group.
+  Local macOS: lone voter 7,626 B, three-voter 7,372 B + channel 1,648 B = 9,020 B (bytes checked on
+  Linux only; CI linux-gcc at d03b8b6 measured 8,082 B <= 8,192). ctest runs 250 groups (fsync-bound
+  here: 1000 groups took 195 s).
 
 ## Done
 
@@ -123,5 +132,7 @@ Nothing.
   entry only. A reactor `run()`'s shutdown stays final (calls after it complete `cancelled`).
 - R12 tools/driver_checks.sh and tools/driver_mutants.py moved to test/ (tools/ is outside the file
   set); the checks script takes an absolute BUILD (the idle case's `cd` broke its output path).
+- R13 The waiter ctest (no case) runs every case to 20,000 schedules (threads 100 rounds) so the
+  sanitized CI fits its 600 s; the full exploration is driver_checks.sh with WAITER_LIMIT.
 - R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
   re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
