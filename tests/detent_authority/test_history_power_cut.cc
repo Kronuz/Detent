@@ -136,7 +136,7 @@ struct Log : Seals {
 // carry keeps a block per roll-up until the count cut takes the oldest (file bounds, F9).
 struct Growth : Seals {
 	static constexpr unsigned seal_count = 40;
-	Growth() {
+	explicit Growth(std::uint64_t seal_bytes = 64 * 1024) {
 		State s(context());
 		std::uint64_t index = 0, sequence = 0;
 		auto entry = [&](std::uint64_t bytes) {
@@ -153,7 +153,7 @@ struct Growth : Seals {
 		start = s;
 		LayoutPolicy policy;
 		policy.seal_transactions = 1;
-		policy.seal_bytes = 64 * 1024;
+		policy.seal_bytes = seal_bytes;
 		policy.period = 1;
 		policy.carry_bytes = 64;
 		policy.carry_count = 0;
@@ -284,6 +284,31 @@ void restarted(const Seals &log, const Reference &base) {
 		assert(files(disk) == base.expected);
 	}
 }
+// The first seal of `log` that `limits` refuses: nothing it queues is written, history stalls, and the
+// refusal names `what` (any file when empty).
+void refused_seal(const Seals &log, const Limits &limits, std::string_view what) {
+	mem::Disk disk;
+	h::History history(io(disk), limits);
+	history.recover(log.start);
+	drain(history, disk);
+	std::string refused;
+	Files before;
+	std::uint64_t failed = 0;
+	for (const auto &s : log.seals) {
+		before = files(disk);
+		try {
+			history.seal(s);
+		} catch (const std::length_error &error) {
+			refused = error.what();
+			failed = s.applied_index();
+			break;
+		}
+		drain(history, disk);
+	}
+	assert(refused.find("above its kind's bound") != std::string::npos && refused.starts_with(what));
+	assert(!history.ready() && history.queued() == 0 && !drive(history, disk));
+	assert(files(disk) == before && !before.contains(h::seal_name(failed)));
+}
 std::set<std::string> sections;
 bool section(const char *name) { return sections.empty() || sections.contains(name); }
 } // namespace
@@ -324,32 +349,18 @@ int main(int argc, char **argv) {
 	// A seal that would write a file above its kind's bound fails before writing anything (F8): the
 	// writer's limits are below the ones the log was applied under, so its bounds are too small.
 	if (section("cuts")) {
-		Limits tight;
+		Limits tight; // The base bound trips first.
 		tight.namespaces = 1;
 		tight.request_bytes = 1;
 		tight.mutations = 1;
 		tight.state_bytes = 1;
-		mem::Disk disk;
-		h::History history(io(disk), tight);
-		history.recover(log.start);
-		drain(history, disk);
-		std::string refused;
-		Files before;
-		std::uint64_t failed = 0;
-		for (const auto &s : log.seals) {
-			before = files(disk);
-			try {
-				history.seal(s);
-			} catch (const std::length_error &error) {
-				refused = error.what();
-				failed = s.applied_index();
-				break;
-			}
-			drain(history, disk);
-		}
-		assert(refused.find("above its kind's bound") != std::string::npos);
-		assert(!history.ready() && history.queued() == 0 && !drive(history, disk));
-		assert(files(disk) == before && !before.contains(h::seal_name(failed)));
+		refused_seal(log, tight, "");
+		// Only the seal file's bound is tight here: a growing seal outgrows it alone.
+		Limits narrow;
+		narrow.namespaces = 1;
+		narrow.request_bytes = 1;
+		narrow.mutations = 1;
+		refused_seal(Growth(1), narrow, "history file seal ");
 	}
 
 	// A count-cut seal: a restart, and a cut at every primitive, recover the same bytes (F9).
