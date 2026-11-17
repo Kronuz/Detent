@@ -1,6 +1,6 @@
 # transport-groups: journal
 
-State: fix round 1 done at consensus `c050123` except TSan; waiting on jobs 261117-061836-5144dd, 261117-061846-41a9fa
+State: fix round 1 done at consensus `c050123`; waiting on the lead to push for CI
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -11,8 +11,7 @@ a draining send queue as write progress (F1, the lead's message: `read_slowly` f
 
 ## Next
 
-1. Read the jobs at `c050123`; fill Evidence.
-2. The lead pushes `quest/detent/transport-groups`: CI green on the five Linux jobs (F1) and
+1. The lead pushes `quest/detent/transport-groups`: CI green on the five Linux jobs (F1) and
    both macOS jobs (F2) is the proof neither can get here.
 
 ## Blocked on
@@ -74,7 +73,8 @@ Results: suite, every case and `connection` passed; every mutant failed its case
 `busy_reader` 6 of 6; `stuck-ignores-drain` 5deb78: `coarse_writer` 6 of 48, dialer failed
 at 399 ms. `refill` d3fe59: 100 refused then a marker; a marker after the restart. `reader`
 ac84a6 gap 104 ms; `upload` 881206 gap 229 ms; stress 7f8033 (E-cores, two at a time, x4)
-passed, worst gaps upload 601 ms, reader 262 ms. TSan jobs still running.
+passed, worst gaps upload 601 ms, reader 262 ms. TSan 5144dd (threads, credit, driver, refill,
+connection, links) and 41a9fa (reader gap 103 ms, upload 237 ms) passed with no report.
 
 ## Evidence
 
