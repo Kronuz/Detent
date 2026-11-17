@@ -1743,6 +1743,8 @@
     "delta-plan-fixed-cost": {
       "accepted": {},
       "after": [],
+      "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
+      "branch": "quest/detent/delta-plan-fixed-cost",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -1800,9 +1802,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-12T18:58:45"
+      "updated": "2026-11-16T21:23:54",
+      "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
       "accepted": {
