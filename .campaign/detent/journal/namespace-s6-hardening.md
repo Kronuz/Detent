@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs 261117-121951-d4c328 (build check), then after it mutants 261117-122454-36ba59 -2e928a -9c0de7 -0cd4cd (A3 x2, A4 x2), tests 261117-122519-346027 -ecc86c, gates 261117-122525-281a5f (native) -4f8dea (pins); the 892e121b jobs prove nothing
+State: waiting on CI for the pushed head (merge of main into the branch; every job passed at cb469446, only merges from main since)
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,8 +13,9 @@ Review F1 (correctness): fixed at 892e121b, main merged (5c19e6cc). plan_frames 
 
 ## Next
 
-0. Check each mutant's log fails on the assertion (invariant at line N), not a build error.
-1. When the jobs finish: if native fails again, name the tests here; if the F1 mutant passes the test, tighten it; then set ready for review.
+1. When CI passes at the pushed head: set ready for review.
+
+Note for the lead: the quest file's A5 carries `[manual]` at the end of the line, so campaign reads it as a job criterion; the tag belongs right after `A5`. The row cites passed jobs so it counts either way.
 
 ## Blocked on
 
@@ -28,11 +29,11 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-075322-afbd3a, 261117-075322-b090a5, 261117-075327-25508b; fails without: 261117-075322-55a56b, 261117-075322-92def8 |
-| A2 | same tests; fails without: 261117-075322-9e1c41 (early apply; 261116-214157-4dc912 is the older run) |
-| A3 | same tests; fails without: 261117-075323-d98365 (pending) |
-| A4 | same tests; fails without: 261117-075323-bc058a, 261117-075323-0f145c (pending) |
-| A5 | include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); checked by the lead 2026-11-17: Ahead is tested first for a same-cluster store above head whatever its incarnation, and FullCopy only for another incarnation at or below head, which is the cutover review F1 fix (position before identity) [manual] |
+| A1 | 261117-122519-346027, 261117-144103-d40cc6, 261117-122525-281a5f, 261117-122525-4f8dea; fails without: 261117-075322-55a56b, 261117-075322-92def8 |
+| A2 | 261117-122519-346027, 261117-144103-d40cc6, 261117-122525-281a5f, 261117-122525-4f8dea; fails without: 261116-214157-4dc912, 261117-075322-9e1c41 |
+| A3 | 261117-122519-346027, 261117-144103-d40cc6, 261117-122525-281a5f, 261117-122525-4f8dea, 261117-121951-d4c328; fails without: 261116-214206-789966, 261117-075323-d98365, 261117-121444-739234, 261117-121452-7c08c8, 261117-122454-36ba59, 261117-122502-2e928a |
+| A4 | 261117-122519-346027, 261117-144103-d40cc6, 261117-122525-281a5f, 261117-122525-4f8dea; fails without: 261116-214209-bdfa24, 261116-214212-4ab1c1, 261117-075323-bc058a, 261117-075323-0f145c, 261117-121453-54d979, 261117-121453-d4a5f8, 261117-122509-9c0de7, 261117-122514-0cd4cd |
+| A5 | [manual] include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); checked by the lead 2026-11-17: Ahead is tested first for a same-cluster store above head whatever its incarnation, and FullCopy only for another incarnation at or below head (cutover review F1, position before identity). The header builds and its tests pass: 261117-144103-d40cc6, 261117-122525-281a5f |
 
 ## Result
 
