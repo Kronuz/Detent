@@ -247,6 +247,7 @@ struct Store final : t::FramePreparer {
 	std::vector<d::DirectoryEntry> created;
 	std::map<std::string, d::FrameKind> kinds; // the last frame kind per namespace
 	unsigned prepared = 0;
+	std::size_t inflate = 0; // Extra bytes each prepared frame reports.
 	class Frame final : public Prepared {
 	  public:
 		Frame(Store &owner, std::string name, d::FrameKind kind, d::NamespaceCursor to)
@@ -264,7 +265,7 @@ struct Store final : t::FramePreparer {
 			else
 				state_.erase(std::string(key)); // a tombstone for a key the store lacks is a no-op
 		}
-		std::size_t bytes() const noexcept override { return 64 + 64 * state_.size(); }
+		std::size_t bytes() const noexcept override { return 64 + 64 * state_.size() + store_.inflate; }
 		void publish() override {
 			if (kind_ == d::FrameKind::Dropped)
 				store_.namespaces.erase(name_);
@@ -457,6 +458,17 @@ void run(const std::filesystem::path &certificates, bool compressed) {
 		limited.limits.storage_account = ledger;
 		check(fails<d::StoragePressure>(
 			io, scheduler, t::next_namespace_session(limited, session, store.following(true), 0ms, store)));
+		check(store == unrefused && ledger->used() == 0);
+	}
+	// The prepared frames' own bytes are charged while staged: frames reporting 32 MiB overflow a 16 MiB ledger.
+	{
+		auto ledger = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
+		auto limited = options;
+		limited.limits.storage_account = ledger;
+		store.inflate = 32 * 1024 * 1024;
+		check(fails<d::StoragePressure>(
+			io, scheduler, t::next_namespace_session(limited, session, store.following(true), 0ms, store)));
+		store.inflate = 0;
 		check(store == unrefused && ledger->used() == 0);
 	}
 	io.restart();

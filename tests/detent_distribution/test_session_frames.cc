@@ -512,13 +512,21 @@ void ledger_bound() {
 			decoder.feed(input, budget);
 			decoder.finish();
 			require(limits.storage_account->used() == working, "the directory's rows are refunded once delivered");
-			require(limits.storage_account->peak() > working, "the directory's rows were admitted");
+			require(limits.storage_account->peak() - working >= directory.entries.size() * sizeof(d::DirectoryEntry),
+					"the directory's rows were admitted up front");
 			d::Limits tight = limits;
 			tight.storage_account = std::make_shared<d::StorageLedger>(working + 64);
 			d::SessionFramesDecoder small(quiet, tight);
 			std::span<const char> again(body.data(), body.size());
 			std::size_t all = body.size();
 			require(pressure([&] { small.feed(again, all); }), "directory rows past the ledger are refused");
+			d::Limits rows = limits;
+			rows.storage_account = std::make_shared<d::StorageLedger>(
+				working + directory.entries.size() * sizeof(d::DirectoryEntry) - 1);
+			d::SessionFramesDecoder bounded(quiet, rows);
+			std::span<const char> third(body.data(), body.size());
+			std::size_t rest = body.size();
+			require(pressure([&] { bounded.feed(third, rest); }), "the directory's rows are refused as a block");
 		}
 		require(limits.storage_account->used() == 0, "the decoder refunds everything");
 		d::Limits none = limits;
