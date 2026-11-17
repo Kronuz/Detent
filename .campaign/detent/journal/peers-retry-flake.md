@@ -1,6 +1,6 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-122236-68fffc 261117-122241-9dae77 261117-122246-95e8bd 261117-122252-5e4bf2 261117-122257-901974 261117-122228-c010f0
+State: ready for review
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -19,9 +19,9 @@ Nothing. No Peers defect: both modes are the test's deadline too small for its r
 
 | Criterion | Evidence |
 |---|---|
-| A1 | mutants at a9283e458132 (500 ms deadline, 8 MiB): 261117-122236-68fffc (`PEERS_RETRY_LAG_MS=700`, must fail: timed_out) and 261117-122241-9dae77 (`PEERS_THAW_LAG_MS=600`, must fail: not_connected). Fixed at bac4f8162c4a, same knobs: 261117-122246-95e8bd and 261117-122252-5e4bf2 (pass). |
-| A2 | 261117-122257-901974: `fetch-failures` x200, `xargs -P4`, at bac4f8162c4a. Frozen-fetch checks (timed_out, no bytes, waited >= deadline) and same-lanes check unchanged. |
-| A3 | suite 261117-122228-c010f0 |
+| A1 | 261117-122246-95e8bd (passed at bac4f8162c4a; only merges from main since), 261117-122252-5e4bf2 (passed at bac4f8162c4a; only merges from main since); fails without: 261117-122236-68fffc, 261117-122241-9dae77 |
+| A2 | 261117-122257-901974 (passed at bac4f8162c4a; only merges from main since) |
+| A3 | 261117-122228-c010f0 (passed at bac4f8162c4a; only merges from main since) |
 
 ## Result
 
