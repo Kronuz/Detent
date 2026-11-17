@@ -7627,6 +7627,8 @@
       "after": [
         "namespace-s8-wiring"
       ],
+      "base": "58804a6e1e1028e14dd775a67e462be5c9be8d52",
+      "branch": "quest/detent/namespace-s6-hardening",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7663,9 +7665,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-15T21:12:51"
+      "updated": "2026-11-16T21:23:59",
+      "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
