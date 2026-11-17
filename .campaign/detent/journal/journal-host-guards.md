@@ -1,6 +1,6 @@
 # journal-host-guards: journal
 
-State: waiting on jobs 261117-030521-6408df 261117-030527-4555c0 261117-030534-8c79e2 261117-030542-f27966 261117-030549-c16cac
+State: ready for review
 Quest: .campaign/detent/quests/journal-host-guards.md (the lead's; never edit it)
 
 Code: journal worktree `journal-wt/detent/journal-host-guards`, branch
@@ -8,11 +8,11 @@ quest/detent/journal-host-guards; work commit journal:904037a.
 
 ## Doing
 
-Waiting on the suite, TSan and three mutant jobs at journal:904037a.
+Nothing: every criterion has evidence at journal:904037a.
 
 ## Next
 
-1. Read the jobs; fix anything red; paste `campaign brief`'s table; set "ready for review".
+1. Durability review; the lead pushes the branch for CI.
 
 ## Blocked on
 
@@ -22,8 +22,20 @@ Nothing. CI (`check ci`) runs once the lead pushes the branch; I don't push.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | suite 261117-030521-6408df (host_test `close_behind`; shared_store crash sweep with a refused close before every cycle); mutant close-behind killed by `close_behind` 261117-030534-8c79e2 and by the sweep 261117-030542-f27966 |
-| A2 | suite 261117-030521-6408df (turn_seal `wake_refused`); TSan 261117-030527-4555c0 (`turn_seal_*` incl. `wake_threads`, `wake_refused`; `journal_driver`; `journal_host`); mutant run-any-scheduler killed by `wake_refused` 261117-030549-c16cac; API doc: `include/journal/turn_driver.h` `wake()` and `run()` comments, `docs/mechanisms/turn-seal.md` "The loop's scheduler" |
+| A1 | 261117-030521-6408df; fails without: 261117-030534-8c79e2, 261117-030542-f27966 |
+| A2 | 261117-030521-6408df, 261117-030527-4555c0; fails without: 261117-030549-c16cac |
+
+- Suite 261117-030521-6408df: 43/43 at journal:904037a, incl. `journal_host` (`close_behind`),
+  `journal_shared_store` (crash sweep with a refused close before every cycle), `journal_turn_seal_wake_refused`.
+- TSan 261117-030527-4555c0: 19/19 (`turn_seal_*` incl. `wake_threads`, `wake_refused`; `journal_driver`; `journal_host`), no report.
+- Mutant close-behind, `close_behind` 261117-030534-8c79e2: the stale close is taken, and after
+  retention and a restart recovery loses a1, a2 ("recovery keeps both acknowledged batches" fails).
+- Mutant close-behind, crash sweep 261117-030542-f27966: "a close behind ... is refused" fails, then
+  the Store's own close aborts on the forgotten group (exit 134).
+- Mutant run-any-scheduler, `wake_refused` 261117-030549-c16cac: run() on a scheduler without
+  post_call is not refused and sleeps deaf to wake().
+- API doc: `include/journal/turn_driver.h` `wake()` and `run()` comments; `docs/mechanisms/turn-seal.md`
+  "The loop's scheduler".
 
 ## Result
 
