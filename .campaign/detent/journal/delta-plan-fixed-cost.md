@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: blocked on lead: A2 uniform cut 4.1%, not 30% (waiting on jobs 261117-121529-6da30a 261117-121537-35314f 261117-121549-7a86f2 261117-121549-83f289)
+State: ready for review
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -52,10 +52,8 @@ stay); A2 restated in the quest file. Merged main (Detent:a69811b1).
 
 ## Next
 
-1. Jobs at Detent:0b759d10: A4 probe 261117-121529-6da30a, its --fails-without 261117-121537-35314f,
-   suite 261117-121549-83f289, A2 mutant 261117-121549-7a86f2 (pins 261117-121554-a6db7d passed). The A2,
-   A3 and 5M jobs ran at Detent:bd51ade2; the head adds only the probe's test change.
-2. The lead's ruling on A2's uniform 30% (Blocked on).
+1. Review. The suite at the head, 261117-121549-83f289, is still running; it passed 268/268 at Detent:bd51ade2,
+   and the head adds only the probe's test change. Main moved since the merge (campaign files only).
 
 ## Blocked on
 
@@ -72,14 +70,17 @@ checked what), and answer each message by its id (msg-N).
 | A1 | 261117-075622-1f24d9 (profile, f 0.05 at 1M, main's code; 100K: 261117-075635-2d7760): the delta rewrites 81-82% of the store's bytes; OverlayAssembler re-packs every touched page (39-44%), WarmGraphValidator re-validates every new page (23-28%), TrieOverlay first-touch verify_page per old page (~15-20%). Per store page, not per changed key. The fix's profile at the head: 261117-094355-e06b99. |
 | A2 | Strict 261117-094335-a15eaa: uniform 4.1% at 1M (stated with where its CPU goes, as D110 restates A2), clustered 30.2% at 1M and within 2x at 100K and 1M; 5M exclusive 261117-094351-8b7ee4 (clustered 1.961 s against 6.90 s); mutant 261117-121549-7a86f2 (at bd51ade2: 261117-094323-69e26d killed). |
 | A3 | 261117-094340-baa902: identical at 100K (0.05, c0.05, 0.5) and 1M (0.05, c0.05). |
-| A4 | Suite 261117-121549-83f289 (at bd51ade2: 268/268, 261117-094318-dc96be), pins 261117-121554-a6db7d, probe 261117-121529-6da30a, fails without 261117-121537-35314f; smoke 261117-121521-315097 (600K: 2 leaf reads per key). |
+| A4 | Suite 261117-121549-83f289 (at bd51ade2: 268/268, 261117-094318-dc96be), pins 261117-121554-a6db7d, probe 261117-121529-6da30a (2 leaf reads per changed key at 100K and 1M; 950,000 moved unread at 1M), fails without 261117-121537-35314f (40 per key); smoke 261117-121521-315097 (600K: 2 leaf reads per key). |
 | A5 | docs/perf/delta-plan-scaling.md "The fixed part: moved definitions and repeated page reads". |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Warm validation skips definitions a delta moves unchanged; the trie overlay reads each old node once per change;
+a verified page is matched by its raw header. Published bytes are unchanged (A3). Clustered f 0.05: 30.2% less
+plan CPU per rewritten byte at 1M, within 2x of keys x 13.8 us at 100K, 1M and 5M (7.6-10.6 us per key).
+Uniform f 0.05: 4.1% at 1M (D110); at 5M a delta applies in 0.88x the full copy. Leaf reads per changed key are
+2 at every size. Results: docs/perf/delta-plan-scaling.md "The fixed part". Open: the uniform delta's plan stays
+per rewritten byte (DTPAGE03 re-packing, D107).
 
 ## Rulings I made
 

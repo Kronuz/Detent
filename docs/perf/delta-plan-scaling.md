@@ -118,10 +118,11 @@ clustered delta applies in 2.49 s (0.16x).
 ### Counting probe
 
 `tests/detent_local/test_delta_plan_moved_definitions.cc` builds a store, changes every 20th definition, and
-counts the warm validator's leaf reads. With the fix, a delta at 2K, 32K and 600K definitions makes 2 leaf reads
-per changed key: the new definition and its old one. At 600K that is 30,000 validated and 30,000 old reads,
-with 570,000 definitions moved unread (job 261117-121521-315097). With the match disabled (the mutant), every
-definition is read on both sides: 40 reads per changed key at 100K (job 261117-082610-950015).
+counts the warm validator's leaf reads. With the fix, a delta makes 2 leaf reads per changed key, the new
+definition and its old one, at every size: 2K, 32K, 600K (job 261117-121521-315097), 100K and 1M (job
+261117-121529-6da30a). At 1M that is 50,000 validated and 50,000 old reads, with 950,000 definitions moved
+unread. With the match disabled (the mutant), every definition is read on both sides: 40 reads per changed key
+at 100K (job 261117-121537-35314f).
 
 ### Where a uniform delta's plan goes now
 
