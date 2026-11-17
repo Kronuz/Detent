@@ -1,6 +1,6 @@
 # delta-plan-fixed-cost: journal
 
-State: waiting on jobs 261116-213146-06b640 261116-213150-f47767
+State: waiting on jobs 261117-075622-1f24d9 261117-075635-2d7760
 Quest: .campaign/detent/quests/delta-plan-fixed-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,13 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Session 2 (2026-11-17): the first profile jobs (261116-213146-06b640, 261116-213150-f47767) failed in the
+build, not the script: main's T9 harness (docs/perf/namespace-measure-t9.cc) does not compile since
+namespace-s7-ids landed (storage identity, DiskStore::operation/needs_work and the builders' GenerationId
+arguments are gone). Pre-existing on main; the harness is outside this file set. Ported copy in
+.scratch/dpfc/t9/ (owner.lock decides fresh vs existing, the store drives with work()->run(), no generation
+ids); profile.sh and identity.sh build it. Resubmitted: 1M 261117-075622-1f24d9, 100K 261117-075635-2d7760.
 
 A1: profile the f 0.05 plan (macOS `sample`, T9 harness on main's code) at 1M (job 261116-213146-06b640, 3 runs)
 and 100K (261116-213150-f47767, 5 runs). Scripts: .scratch/dpfc/profile.sh (build, prepare, sampled delta runs,
