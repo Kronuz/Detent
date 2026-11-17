@@ -1,4 +1,4 @@
-> Status: measured at 100K, 1M and 5M (2026-11-12).
+> Status: measured at 100K, 1M and 5M (2026-11-12; the fixed part 2026-11-17).
 
 # A delta's plan, linear in the keys it changes
 
@@ -66,9 +66,94 @@ question, not this fix's.
 Byte identity (job 261112-170932-ee31ea): every file of the published store is identical between main and
 the fix at 100K (f 0.05, 0.5, 1; 30, 32, 32 files) and 1M (f 0.5; 206 files).
 
+## The fixed part: moved definitions and repeated page reads
+
+After the index, a uniform f 0.05 delta at 5M still planned in 13.80 s, as long as a full copy (job
+261112-184757-fefadb). Profile jobs 261117-075622-1f24d9 (1M) and 261117-075635-2d7760 (100K) show why. A
+uniform delta touches nearly every leaf page and rewrites 81-82% of the store's bytes, so the plan is
+proportional to the store. The cost splits into re-packing every touched cluster (39-44%), re-validating every
+definition on a new page (23-28%) and first-touch verification of each old page (about 15-20%). DTPAGE03 is
+kept (D107), so the cuts are per rewritten byte:
+
+1. `WarmGraphValidator` walks the old tree beside the new one. A new definition whose old leaf has the same key
+   and bytes is matched, and neither side is read. Every other definition is validated as before.
+2. `TrieOverlay` reads each old node once per change, not twice, and counts an inline node's keys once.
+3. `checked_page_bytes` matches a page already verified in this mapping by its raw header fields.
+
+The published bytes are unchanged. Job 261117-094340-baa902 found main's and the fix's stores identical at
+100K (f 0.05, clustered 0.05 and 0.5: 28, 22 and 30 files) and at 1M (f 0.05 and clustered 0.05: 188 and 114
+files).
+
+### Before and after
+
+Plan CPU of the f 0.05 deltas (seed 1009). A uniform delta spreads its keys over the store. A clustered one
+(`cF`) changes one run of adjacent keys, so its keys share leaf pages. At 100K and 1M, main (Detent:186d5f1d)
+and the fix (Detent:bd51ade2) ran interleaved on clones of one prepared store: strict job
+261117-094335-a15eaa, 5 rounds at 100K and 3 at 1M, run beside 7 light holds. At 5M, the after figures come
+from the exclusive round 261117-094351-8b7ee4. The before figures come from main's 5M round
+261112-184757-fefadb, which recorded no plan CPU and had no clustered arm.
+
+| Corpus | Arm | Keys | Rewritten bytes | Plan CPU before | Plan CPU after | ns per byte, before to after | Cut |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 100K | uniform | 5,065 | 4.09 MB | 0.288 s [0.264, 0.295] | 0.346 s [0.243, 0.394] | 70.3 to 84.6 | -20%, within noise |
+| 100K | clustered | 5,000 | 0.28 MB | 0.065 s [0.046, 0.075] | 0.053 s [0.041, 0.064] | 232 to 191 | 17.7%, within noise |
+| 1M | uniform | 50,208 | 41.5 MB | 2.823 s [2.816, 3.160] | 2.706 s [2.250, 2.891] | 68.1 to 65.3 | 4.1% |
+| 1M | clustered | 50,000 | 2.73 MB | 0.545 s [0.526, 0.593] | 0.380 s [0.375, 0.396] | 199 to 139 | 30.2% (worst against best 24.6%) |
+| 5M | uniform | 250,986 | 207 MB | apply CPU 12.14 s | 10.35 s (apply CPU 11.72 s) | (not recorded) to 50.1 | apply CPU 3.5% |
+| 5M | clustered | 250,000 | 13.6 MB | (no arm) | 1.961 s | (no arm) to 144 | (none) |
+
+The 100K pairs (fix over main: 1.34, 1.34, 0.89, 0.99, 1.20) are inconclusive under the shared hold, so the
+1M rows are the uniform result: a 4.1% cut, not 30%.
+
+The clustered delta meets its bound at every size. 2 x keys x 13.8 µs is 0.138 s at 100K (worst run 0.064 s),
+1.380 s at 1M (0.396 s) and 6.90 s at 5M (1.961 s). Its plan cost per key is flat: 10.6, 7.6 and 7.8 µs at
+100K, 1M and 5M. The uniform delta's plan grows with the bytes it rewrites, not with its keys: 54 µs per key at
+1M and 41 µs at 5M.
+
+Other phases are unchanged within noise. At 1M, decode takes 0.04-0.06 s, and publish takes 0.36-0.56 s for a
+uniform delta and 0.11 s for a clustered one. At 5M the uniform delta now applies in 13.95 s against the full
+copy's 15.83 s in the same round (0.88x). In main's round it was 14.38 s against 14.50 s (0.99x). The
+clustered delta applies in 2.49 s (0.16x).
+
+### Counting probe
+
+`tests/detent_local/test_delta_plan_moved_definitions.cc` builds a store, changes every 20th definition, and
+counts the warm validator's leaf reads. With the fix, a delta at 2K, 32K and 600K definitions makes 2 leaf reads
+per changed key: the new definition and its old one. At 600K that is 30,000 validated and 30,000 old reads,
+with 570,000 definitions moved unread (job 261117-121521-315097). With the match disabled (the mutant), every
+definition is read on both sides: 40 reads per changed key at 100K (job 261117-082610-950015).
+
+### Where a uniform delta's plan goes now
+
+Profile job 261117-094355-e06b99 sampled 3 runs of the fix at 1M (uniform f 0.05) with macOS `sample`. That
+gave 8,684 samples under `PagedDeltaPlanBuilder::Work::step`, with these inclusive shares:
+
+1. SHA-256, `kronuz::sha256` `compress_portable`, 24.6%. That is the scalar path, since this Intel host has no
+   SHA extensions. The share splits into first-touch verification of old pages (9.5%), the new pages'
+   commitments in `PagedPacker` (7.9%) and the new packs' checksums in `SegmentBuilder` (7.2%).
+2. First touch of old pages other than SHA-256: a 30.6% share in `checked_page_bytes`, minus the 9.5% above.
+   `verify_page_structure` takes 9.8%. The first `decode_page_header` of each page takes about 10%, although
+   it does constant work per page. That suggests faults on the mapped base segments, an inference the samples
+   cannot separate.
+3. Packing other than SHA-256: about 14% (`PagedPacker::Impl::combine` 5.0%, cluster allocation about 5%).
+4. Warm validation of the new pages: 22.1%. Most of it is node decoding (6.3% self in `decode_node`), the old
+   walk (`old_advance` 6.5%) and `PageValidator` (4.6%). Main spent 7.7% in `WarmGraphValidator::Impl::leaf`
+   (job 261117-075622-1f24d9), including `validate_definition`; a moved definition no longer reaches it.
+5. The overlay walk outside first touch: about 9%, of which `TrieOverlay::Impl::keys` is 4.5%.
+
+The work removed was about 8% of main's plan by its profile, and the strict A/B measured 4.1% at 1M. The rest is per rewritten byte, and most of it lies outside
+this quest's reach:
+
+1. The SHA-256 implementation (another library) costs a quarter of the plan.
+2. The commitments and checksums the format requires (about 15%) are fixed by DTPAGE03.
+3. Re-packing the unchanged clusters a uniform delta touches would need a DTPAGE03 change (D107).
+
 ## Method
 
 Harness: namespace-measure's T9 (`docs/perf/namespace-measure-t9.*` on `quest/detent/namespace-measure`).
 Corpora: `corpus-100k.bin` (SHA-256 3214561e...a5740), `corpus-5m.bin` (bb87ae5d...c835), and a 1M corpus
 derived from the 5M one: its definitions whose local number is below 1,000,000 with every namespace record,
 1,000,004 records (b7f66891...6284). Host: Intel i9-9980HK, macOS 15, x86-64 Release build.
+The fixed-part rows build this branch's harness (`docs/perf/namespace-measure-t9.*`) against each side's
+library and interleave base and fix runs on clones of one prepared store, alternating order by round; plan CPU
+and rewritten bytes are the harness's `plan_cpu_s` and `plan_bytes`.
