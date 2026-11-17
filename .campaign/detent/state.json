@@ -2530,17 +2530,58 @@
         "README.md",
         "benchmarks/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-16T21:21:40",
+          "ci_skipped": "owner approved: linux-tsan fails only test_local_paged_publication_artifacts, a test race already failing main's TSan 5 of 73 runs on the old pins (Detent:39b5314a, ea3d591e, 06fa2a03, c02504e9, ce7faa41), and managed_all-down 1 of 200; the same pins passed TSan at 881b188f; every other CI job is green; the test fix lands on main separately",
+          "commit": "3875d8d919ec640a8534b710bf2c7fa645687e08",
+          "criteria": {
+            "A1": "261116-185753-a4efde (passed at 2f63137d0e0c; only merges from main since)",
+            "A2": "261116-205244-f287f7, 261116-205244-7197cb",
+            "A3": "261116-094719-348619 (passed at 881b188f13c4; only merges from main since)",
+            "A4": "261116-190351-c80854, 261116-190352-43252c"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "d9594559cfa86c81237c04cf2463219b9a9d3557",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-205244-f287f7",
+              "level": "light",
+              "seconds": 1014.6,
+              "state": "done",
+              "what": "deps-workpool-repin check native at d9594559cfa8"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "d9594559cfa86c81237c04cf2463219b9a9d3557",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-205244-7197cb",
+              "level": "none",
+              "seconds": 5.7,
+              "state": "done",
+              "what": "deps-workpool-repin check pins at d9594559cfa8"
+            }
+          ],
+          "final": true,
+          "from": "c91f1260dbc746c35c76fe260eab8b828eb56209",
+          "reason": "",
+          "tested": "d9594559cfa86c81237c04cf2463219b9a9d3557"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Repin logger on workpool, drop scheduler, rename threadpool to workpool",
-      "updated": "2026-11-16T00:04:51",
-      "worktree": "../Detent-wt/detent/deps-workpool-repin"
+      "updated": "2026-11-16T21:21:53",
+      "worktree": ""
     },
     "detent-brand": {
       "accepted": {},
