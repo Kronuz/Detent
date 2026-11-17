@@ -445,7 +445,8 @@ int main() {
 		const std::string_view everything[] = {"*"};
 		const d::NamespaceGrants grants{std::span<const std::string_view>(everything)};
 		const auto plan = [&](const d::NamespaceCursor &store) {
-			return plan_frames({{"c", store}}, std::nullopt, grants, node.state(), group.context.cluster,
+			const std::vector<Followed> follows{{"c", store}};
+			return plan_frames(follows, std::nullopt, grants, node.state(), group.context.cluster,
 							   *node.sealed(), node.history()->layout().table(), *node.history_files(),
 							   *rings[2]->inner);
 		};
