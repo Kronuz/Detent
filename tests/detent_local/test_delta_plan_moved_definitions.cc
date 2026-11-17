@@ -85,7 +85,7 @@ struct Delta {
 			for (std::size_t i = 0; i < segments.size(); ++i)
 				live.push_back(graph.segment_reachability(i));
 		}
-		install(directory, *image);
+		install(directory, *image, l::ViewLimits::prepared());
 		base.emplace(l::recover_generation(directory, view_limits()));
 		x::TrieOverlay overlay(account, image, segments, image->root(), paged_limits);
 		for (unsigned i = 0; i < count; i += stride) {
