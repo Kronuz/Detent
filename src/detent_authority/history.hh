@@ -74,7 +74,8 @@ class History final : public Files {
 	// Adopts a source's history at `state`'s seal (an install): fetches the table and the
 	// files it reaches, and the seal files above it and their outputs, all verified.
 	void install(const State &state);
-	// Queues the seal at `sealed`'s index: its seal file, its outputs, a table at a period seal.
+	// Queues the seal at `sealed`'s index: its seal file, its outputs, a table at a period seal. A file
+	// above its kind's bound fails the seal before anything is written.
 	void seal(const State &sealed);
 	// Drops a restore, or a layout the node never adopted; seals wait for the next restore.
 	void abandon() noexcept;
@@ -114,6 +115,7 @@ class History final : public Files {
 	void adopt(Table table, const State &state);
 	void chain(const State &state, Table &durable);
 	void kept(const Step &step);
+	void bounded(const Step &step, const std::optional<std::string> &table, const LayoutPolicy &previous) const;
 	void complete(std::uint64_t durable);
 	void stage(Group group);
 	void queue(Write write);

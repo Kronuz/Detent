@@ -511,6 +511,9 @@ std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy) {
 	const auto b = file_bounds(limits, policy);
 	return std::max({b.base, b.block, b.seal, b.table});
 }
+FileBounds file_bounds(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous) {
+	return file_bounds(limits, widest(policy, previous));
+}
 std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous) {
 	return file_bytes(limits, widest(policy, previous));
 }
