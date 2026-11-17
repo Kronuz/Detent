@@ -34,28 +34,31 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
-Driver tests (driver_test) on a lone voter; then multi-node simulation, waiter/teardown, blocking entry.
+Debugging driver_test (a case hangs outside the spin guard), close retirement, waiter cases.
 
 ## Done
 
 - consensus:ab82129 journal repinned to 7c08540; Worker on `Host&`; migration API gone.
 - consensus:0acfaff driver.h, Core `next_deadline/term_at/leader`, lone voter due at Start.
-- consensus:<cmake> standalone build makes task/completion available with Asio (journal turns it off).
-- driver_test cases: lone_voter, rows, checkpoints, close, fence.
+- Standalone CMake makes task/completion available with Asio (journal turns it off).
+- test/driver_test.cc (D8 rows on a lone voter), test/driver_simulation.cc (3 hosts through the
+  Driver, run by simulation_test), test/waiter_test.cc (stateless explorer over the real Driver,
+  threads case), test/blocking_entry_test.cc (D5 rules), bench/driver_idle.cc (Y6/Y9, a ctest),
+  tools/driver_mutants.py (4 seeded faults, CONSENSUS_DRIVER_MUTANT).
+- snapshot_channel.h D9: frame buffer allocated at the length prefix, freed after process().
 
 ## Jobs
 
-- 261116-155558-d9aba2 suite at ab82129: failed, CMake (task::asio/completion::asio missing) -> fixed.
-- 261116-160829-db1983 driver_test: compiled; 2 failures (test applied only the first range) -> fixed.
-- 261116-161017-a0faef driver_test, 261116-161019-c54684 suite: pending.
+- 261116-162515-04c287 waiter_test: rows 328 runs, teardown 187,185 runs, threads 300 rounds pass;
+  close cases failed (retirement waited for a timer) -> fixed; rows propose pair failed (open).
+- 261116-163455-2e4958 every case under a per-case alarm: pending.
 
 ## Next
 
-1. Fix driver_test failures; suite green.
-2. Multi-node simulation through Driver (inline_scheduler + HeldCompletion), witness member (A1, A4).
-3. waiter_test interleavings + close/teardown under ASan; real-thread close/cancel/teardown under TSan (A3).
-4. blocking_entry cases under TSan (A4).
-5. snapshot_channel.h D9; idle-cost bench exclusive (A5).
+1. Green driver_test, waiter_test, blocking_entry_test, simulation, driver_idle.
+2. Suite (`campaign verify`), ASan+UBSan and TSan builds of waiter/blocking/driver tests.
+3. Mutant jobs (`--fails-without`, ASan) for the 4 driver mutants.
+4. Idle-cost exclusive job; journal evidence rows; DRIVER.md/CHANGELOG.
 
 ## Blocked on
 
@@ -89,5 +92,12 @@ Nothing.
 - R5 A lone voter's election is due at `Start` (Core sets `election_deadline_ = now_`), and the
   Driver delivers a Tick right after Start, so it campaigns with no clock advance. admission.h is
   outside the file set, so Start itself does not campaign.
+- R7 A witness member's Committed ranges never reach the Sink: the Driver acknowledges them
+  (A4: a witness votes, never applies or holds state). Founding roles apply at `create` only.
+- R8 "A lone voter beside a witness" (D5/R6) is not a valid membership (membership.h D9: a witness
+  only in 2 + witness or a replacement window); `needs_peer` counts witnesses, tested on 2 + witness.
+- R9 Idle cost: a lone voter arms no timer (a leader with no peers arms no heartbeat); a
+  three-voter member's one wheel entry (election or heartbeat) is the design's per-group timer
+  (idle-CPU table), so driver_idle allows at most one per member.
 - R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
   re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
