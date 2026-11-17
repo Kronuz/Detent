@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-190312-344e41 261116-190312-87fdc0 261116-190313-30053b 261116-190313-51503a 261116-190313-c3161a 261116-190315-47fde6 (at consensus:ff0cdbc)
+State: waiting on jobs 261116-200752-6fa1e4 261116-200753-e0161a 261116-200753-fba16f 261116-200753-582b66 261116-200753-b2525d 261116-200754-481684 261116-200754-558f94 261116-200754-e360fd 261116-200754-31e9a0 261116-200755-ef4201 261116-200755-cb4ea8 261116-200759-6d46f3 261116-200803-9752be 261116-200807-369184 261116-200811-c09651 (at consensus:ccc9a3e)
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -34,6 +34,21 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
+Correctness review round 1 (CHANGES, reviews/consensus-driver-correctness.md) folded in at
+consensus:ccc9a3e:
+- F1 `close` after shutdown completes `task::cancelled` (it linked on a stopped loop). driver_test
+  `fence` checks it; mutant close-after-stop-links restores ff0cdbc's close.
+- F2 (R16) Core rejects a change turning a witness incarnation into a learner or voter.
+  membership_test `witness_stays_witness`; mutant witness-becomes-data.
+- F3 driver_test `close` links change_membership, transfer, repair and checkpoint waiters
+  (queued behind a held turn) and checks each completes `closed`.
+- F5 (R17) a throw out of a step fences the Worker (new `Worker::fence`); driver_test
+  `sink_throws`; mutant sink-throw-unfenced.
+- F6 ARCHITECTURE.md describes the Host constructor. F7 blocking_entry `stalled` adds a lone voter
+  plus learner leader (its heartbeat the one armed group timer). F4, F8 left as noted (lead).
+Local Release: driver_test 90 checks, membership 135, blocking entry 23, consensus 39,611: 0 failures.
+
+Y9 and FreeBSD (consensus:ff0cdbc):
 CI run 44004262278 at consensus:2aa7551 failed two ways; both fixed at consensus:ff0cdbc.
 
 1. Y9 on Linux (gcc x86-64, clang x86-64, gcc arm64): 7,077 B group + 1,744 B channel = 8,821 B.
@@ -142,12 +157,29 @@ ASan close cases 261116-190313-51503a, TSan 261116-190313-c3161a, mutants 261116
 Finished: A2 261116-190312-6f3223 exit 0; mutants killed: 982145 exit 134, f367e1 exit 134,
 15400c exit 1, 421b11 exit 1.
 
+Jobs at consensus:ccc9a3e (review round 1, final): suite 261116-200752-6fa1e4, checks
+261116-200753-e0161a (A1); A2 261116-200753-fba16f; ASan+UBSan 261116-200753-582b66, ASan close
+cases 261116-200753-b2525d, TSan 261116-200754-481684; mutants (fails-without) -558f94, -e360fd,
+-31e9a0, -ef4201, and the new close-after-stop-links 261116-200759-6d46f3 (F1),
+sink-throw-unfenced 261116-200803-9752be (F5), witness-becomes-data 261116-200807-369184 (F2);
+F1/F2/F5 tests at the fix 261116-200811-c09651; idle exclusive 261116-200755-cb4ea8.
+
 ## Next
 
 1. Green driver_test, waiter_test, blocking_entry_test, simulation, driver_idle.
 2. Suite (`campaign verify`), ASan+UBSan and TSan builds of waiter/blocking/driver tests.
 3. Mutant jobs (`--fails-without`, ASan) for the 4 driver mutants.
 4. Idle-cost exclusive job; journal evidence rows; DRIVER.md/CHANGELOG.
+
+## Contract changes
+
+- consensus:ccc9a3e, clarification (F1): DRIVER.md states the shutdown order: close groups while
+  `run()` steps, then stop; `close` after stop completes `task::cancelled` like every other call
+  (the D8 rule "calls after shutdown complete cancelled" already covered it; close broke it).
+- consensus:ccc9a3e, R16 (F2, the lead's ruling): `change_membership` rejects turning a witness
+  incarnation into a learner or voter (`InvalidMembership`); it leaves by removal.
+- consensus:ccc9a3e, F5: the Sink must not throw; a throw fences the group. Additive
+  `Worker::fence(reason)`.
 
 ## Blocked on
 
@@ -205,3 +237,9 @@ Nothing.
 - R15 driver_idle averages the channel over 1,000 instances (a single delta hid it in tcache);
   heap bytes are measured on macOS and glibc only, so FreeBSD prints them as unchecked (the Y9
   check is Linux's).
+- R16 (lead's ruling on F2) A witness incarnation never becomes a data member: Core's
+  ChangeMembership rejects witness to learner or voter. The check sits beside Core's one
+  validate_change call (core.h): membership.h is outside the file set. Moving it into
+  validate_change is a two-line move if the lead adds membership.h.
+- R17 (F5) A throw out of a Driver step fences the Worker (`Worker::fence`), since the batch it
+  interrupted is lost: the Sink hears Fenced on the next step, waiters complete `fenced`.
