@@ -5,27 +5,21 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The host transport's idle cost and hop CPU are measured and within budget.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Per idle group at most 64 bytes and 0 descriptors, frames or timers; an idle connection end within 48 KB; per host `29 KB + 2P x 41 KB` within 10%: idle-cost jobs
+- A2 The hop's CPU per frame and per idle wake, measured on the Linux gate host by `measurement.md` (paired rounds, A/A band): measurement jobs and a results doc under docs/
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `consensus:transport`, additive beside `Peers`; consumes consensus-driver's DRIVER.md (consensus:57745e8).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Split from consensus-transport by D106 (the contributor's plan, journal Detent:417daa75 B1). D96, D97, D102.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Everything: measurements and docs.

@@ -10,6 +10,7 @@ consensus's old pump API leaves its public surface: `run_one`, `take_io_operatio
 ## Acceptance criteria
 
 - A1 Those names leave the public API: a grep job over consensus and Detent finds no caller, and the suites pass
+- A3 `Peers` and its fetch lane DTFT0001 are deleted, with fetch-alongside-consensus already on the lane (D106), and Detent's `peer_history.cc` fetches over the lane: a grep job and the suites
 - A2 Detent's pin moves to the removal commit and its native suite passes: a Detent native job at the new pin
 
 ## Contracts

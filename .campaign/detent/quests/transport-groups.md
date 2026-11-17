@@ -5,27 +5,22 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus gains the host transport of `docs/design/async-drivers.md` (Detent) Build plan row 5 (Track C D16, D10) over transport-connection, beside `Peers`: one Control and one Bulk connection per peer node, each on one loop, placement `(slot x L) >> 12`, a 16-byte route, frames batched per destination loop and posted once per read, per-group credit, control before bulk, writer round-robin, and the Driver's Sink `Send` wired to it.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 D16's tests: frames batched by destination loop and posted once per read, per-group credit, control before bulk; two hosts of 4 loops each under TSan; a group with full admission never delays another group's heartbeat (`reader_test`): tests
+- A2 A maximal upload (chunk commands at the 1 MiB command and 2 MiB RPC caps, types.h) on the shared connection never delays any group's heartbeat or vote past its election timeout (Xapiand F5): a test, plus a mutant putting bulk ahead of control, killed
+- A3 The Driver's Sink `Send` runs over the host transport: a three-voter group elects, commits and survives a peer restart over it: a test
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `consensus:transport`, additive beside `Peers`; consumes consensus-driver's DRIVER.md (consensus:57745e8).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Split from consensus-transport by D106 (the contributor's plan, journal Detent:417daa75 B1). D96, D97, D102.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests and internal code behind them; nothing on the wire before the review.

@@ -5,27 +5,21 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The host transport checks identity per frame and opens groups by exchange: a frame is admitted only for a group the host stores, a destination incarnation it holds, and a source node matching the connection's node where membership names it (R7); the group-open exchange carries cluster, group, epoch and profile; a host restarted with another L serves every group from its new loop.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The per-frame rule and the group-open exchange's checks (Q7 (a)), each refusal tested with values; a joiner installs and catches up as a learner over shared connections, and a lagging follower catches up (`frame_admission`, its voter-only control failing): tests, reviewed by the security lens
+- A2 A host restarted with another L serves every group from its new loop: a test
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `consensus:transport`, additive beside `Peers`; consumes consensus-driver's DRIVER.md (consensus:57745e8).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Split from consensus-transport by D106 (the contributor's plan, journal Detent:417daa75 B1). D96, D97, D102.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests and internal code behind them; nothing on the wire before the review.
