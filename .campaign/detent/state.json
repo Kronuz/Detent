@@ -13272,6 +13272,12 @@
           "level": "light",
           "minutes": 30,
           "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
         }
       ],
       "consumes": [],
@@ -13285,6 +13291,38 @@
         "CHANGELOG.md",
         "docs/mechanisms/host-*.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-17T08:28:53",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -13296,7 +13334,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T08:28:48"
+      "updated": "2026-11-17T08:28:53"
     },
     "transport-identity": {
       "accepted": {},
