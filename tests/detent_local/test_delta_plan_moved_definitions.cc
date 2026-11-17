@@ -137,13 +137,15 @@ struct Delta {
 struct Leaves {
 	std::uint64_t validated = 0, removed = 0, moved = 0;
 };
-// Validates `root` over the base with `added` as the new segments; throws on a rejected graph.
-Leaves validate(const Delta &delta, std::span<const x::SegmentInput> added, p::Root root) {
-	x::WarmGraphValidator warm(delta.account, *delta.base, delta.result, added, root, paged_limits, x::paged_format_semantics,
-							   true);
+// Validates `root` over the base with `added` as the new segments in steps of `slice`; throws on a rejected
+// graph. The one-byte slice splits every operation; the probe's default slice keeps 1M stores fast.
+Leaves validate(const Delta &delta, std::span<const x::SegmentInput> added, p::Root root,
+				l::ValidationBudget slice = {1, 1}) {
+	x::WarmGraphValidator warm(delta.account, *delta.base, delta.result, added, root, paged_limits,
+							   x::paged_format_semantics, true);
 	for (unsigned turn = 0; !warm.done(); ++turn) {
 		check(turn < 100000000);
-		l::ValidationBudget work{1, 1};
+		auto work = slice;
 		warm.step(work);
 	}
 	const Leaves leaves{warm.definitions_validated(), warm.old_definition_headers(), warm.moved_definitions()};
@@ -157,7 +159,7 @@ Leaves validate(const Delta &delta, std::span<const x::SegmentInput> added, p::R
 // The leaf work of a uniform f 0.05 delta at `count` definitions: twice the changed keys, nothing per moved one.
 void probe(unsigned count) {
 	const Delta delta(count, 20);
-	const auto leaves = validate(delta, delta.added, delta.result->root());
+	const auto leaves = validate(delta, delta.added, delta.result->root(), l::ValidationBudget{});
 	std::cout << count << " definitions, " << delta.changed << " changed, " << delta.result->root().pages
 			  << " pages written: " << leaves.validated << " validated, " << leaves.removed << " old read, "
 			  << leaves.moved << " moved unread; leaf reads per changed key "
