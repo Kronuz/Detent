@@ -496,6 +496,25 @@ void History::kept(const Step &step) {
 		above_.push_back(o.name());
 }
 
+// Every file the seal writes is within its kind's bound, so a derivation error shows on the writer
+// and not at a later install.
+void History::bounded(const Step &step, const std::optional<std::string> &table,
+					  const LayoutPolicy &previous) const {
+	const auto bounds = file_bounds(limits_, step.seal.policy, previous);
+	auto within = [](std::string_view name, std::size_t bytes, std::uint64_t bound) {
+		if (bytes > bound)
+			throw std::length_error("history file " + std::string(name) + " is above its kind's bound");
+	};
+	within("seal", step.bytes.size(), bounds.seal);
+	for (const auto &[name, bytes] : step.written) {
+		const auto output = std::find_if(step.seal.outputs.begin(), step.seal.outputs.end(),
+										 [&](const Output &o) { return o.name() == name; });
+		within(name, bytes.size(), output != step.seal.outputs.end() && output->base ? bounds.base : bounds.block);
+	}
+	if (table)
+		within(table_name, table->size(), bounds.table);
+}
+
 // Queues the restore's writes; the layout is ready for seals at once.
 void History::complete(std::uint64_t durable) {
 	plan_.durable = durable;
@@ -537,14 +556,19 @@ void History::seal(const State &sealed) {
 	if (sealed.applied_index() <= layout_.table().index)
 		return; // The adopted table already holds this seal.
 	try {
+		const auto previous = layout_.empty() ? sealed.policy() : layout_.table().policy;
 		auto step = layout_.seal(sealed, *this);
+		std::optional<std::string> table;
+		if (step.table)
+			table = encode(*step.table);
+		bounded(step, table, previous);
 		Write write;
 		write.groups.push_back({{seal_name(step.seal.index), std::move(step.bytes)}}); // In seal order.
 		if (!step.written.empty())
 			write.groups.push_back(std::move(step.written));
 		kept(step);
 		if (step.table) {
-			write.groups.push_back({{std::string(table_name), encode(*step.table)}});
+			write.groups.push_back({{std::string(table_name), std::move(*table)}});
 			write.table = std::move(step.table);
 		}
 		write.durable = step.seal.index;
