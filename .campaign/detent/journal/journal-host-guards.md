@@ -57,6 +57,10 @@ At journal:904037a:
 - API doc: `include/journal/turn_driver.h` `wake()` and `run()` comments; `docs/mechanisms/turn-seal.md`
   "The loop's scheduler".
 
+## Review probes
+
+Durability round 2's probes: 261117-045451-7b0106 (an earlier build of probe2, superseded by 261117-045650-fb382b, which passed), 261117-045505-b3adca (the reuse-sequence mutant under the crash sweep, which survives it; F5, non-blocking, the unit test kills it).
+
 ## Result
 
 - A1: `Host::close_group` (include/journal/host.h) throws `logic_error("a close behind the group's
