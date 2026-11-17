@@ -670,6 +670,8 @@
     "ci-test-flakes": {
       "accepted": {},
       "after": [],
+      "base": "8470d9b32ef2af410fc2a853db59afbbddf7eba6",
+      "branch": "quest/detent/ci-test-flakes",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -690,9 +692,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Three CI test flakes: managed relay, writer failover, authority admission",
-      "updated": "2026-11-12T19:37:21"
+      "updated": "2026-11-16T21:23:09",
+      "worktree": "../Detent-wt/detent/ci-test-flakes"
     },
     "client-local-source": {
       "accepted": {},
