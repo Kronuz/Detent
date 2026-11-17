@@ -1,7 +1,8 @@
 #!/bin/bash
-# Applies one mutant patch from tests/detent_relay/mutants, builds TARGET and runs it. Exits 0 when the
-# run fails (the mutant is killed), 1 when it passes (it survives) and 3 when there is no verdict: the
-# patch does not apply or the mutant does not build.
+# Applies one mutant patch from tests/detent_relay/mutants, builds TARGET and runs it. Exits the run's own
+# nonzero status when it fails (the mutant is killed), 0 when it passes (it survives) and 126 when there
+# is no verdict (the patch does not apply or the mutant does not build): `campaign job submit
+# --fails-without` passes on a nonzero status but 124, 126 and 127.
 set -uo pipefail
 
 patch=${1:?mutant patch}
@@ -12,7 +13,7 @@ test "$target" = test_relay_chain && authority=ON
 build=${MIRROR_MUTANT_BUILD:-.scratch/build-mirror-mutant-$authority}
 no_verdict() {
     echo "NO VERDICT: $patch: $1"
-    exit 3
+    exit 126
 }
 git apply --check "$patch" && git apply "$patch" || no_verdict "patch does not apply"
 git diff --stat
@@ -29,7 +30,7 @@ status=$?
 git apply -R "$patch"
 if test "$status" -ne 0; then
     echo "MUTANT KILLED: $patch by $target (status $status)"
-    exit 0
+else
+    echo "MUTANT SURVIVED: $patch"
 fi
-echo "MUTANT SURVIVED: $patch"
-exit 1
+exit "$status"

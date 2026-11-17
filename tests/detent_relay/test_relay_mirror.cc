@@ -3,7 +3,9 @@
 // and a relay chain byte-identical at every hop.
 #include "mirror_fixture.hh"
 #include "detent_relay/namespace_relay.hh"
+#include <csignal>
 #include <cstdio>
+#include <sys/resource.h>
 
 using namespace fixture;
 namespace {
@@ -309,6 +311,55 @@ void refused(const std::filesystem::path &root) {
 	refuses<std::exception>([&] { r::MirrorStore second(io_at(root), {}); });
 }
 
+// A staging I/O error (a file-size limit stands in for a full disk) fails that adoption or repair, removes
+// its temporary files and leaves the mirror serving: reads work and the next attempt succeeds.
+struct FileLimit {
+	rlimit before{};
+	FileLimit(rlim_t bytes) {
+		check(::getrlimit(RLIMIT_FSIZE, &before) == 0);
+		std::signal(SIGXFSZ, SIG_IGN);
+		rlimit limit = before;
+		limit.rlim_cur = bytes;
+		check(::setrlimit(RLIMIT_FSIZE, &limit) == 0);
+	}
+	~FileLimit() { ::setrlimit(RLIMIT_FSIZE, &before); }
+};
+void staging_error(const std::filesystem::path &root) {
+	prepare(root);
+	Script script;
+	auto fetch = script.up.fetch();
+	r::MirrorTable table;
+	{
+		r::MirrorStore store(io_at(root), {});
+		const auto dropped = script.next();
+		store.adopt(script.up.seal, script.up.layouts(), dropped, fetch);
+		table = store.table();
+		const auto before = reads(store, fetch);
+		script.next();
+		{
+			FileLimit full(8);
+			refuses<std::system_error>([&] { store.adopt(script.up.seal, script.up.layouts(), {}, fetch); });
+		}
+		check(store.table() == table && mirror_matches(root, table));
+		check(reads(store, fetch) == before);
+	}
+	// A repair that cannot stage leaves the rotted name and no temporary behind.
+	const auto &rotted = table.entries.front().files.front();
+	auto bytes = slurp(root / r::mirror_file_name(rotted.name));
+	bytes[bytes.size() / 2] ^= 1;
+	write_file(root / r::mirror_file_name(rotted.name), bytes);
+	r::MirrorStore store(io_at(root), {});
+	{
+		FileLimit full(8);
+		refuses<std::system_error>([&] { store.read(rotted, fetch); });
+	}
+	check(listing(root) == expected_listing(table));
+	check(store.read(rotted, fetch) == bytes_of(rotted.name));
+	const auto layouts = script.up.layouts();
+	store.adopt(script.up.seal, layouts, {}, fetch);
+	check(store.table().entries == layouts && mirror_matches(root, store.table()));
+}
+
 // A relay that read a newer upstream (voter V1) refuses an older one (a lagging V3, which HttpUpstream
 // reads after it rotates): another incarnation, a dropped name, a name not created yet, and another
 // layout at the same seal. Nothing is adopted, fetched or collected; the newer upstream still is.
@@ -462,6 +513,7 @@ int main(int argc, char **argv) {
 		repair(scratch / "repair");
 		collect_missing(scratch / "collect-missing");
 		refused(scratch / "refused");
+		staging_error(scratch / "staging-error");
 		behind(scratch / "behind");
 		chain(scratch);
 	} catch (const std::exception &error) {
