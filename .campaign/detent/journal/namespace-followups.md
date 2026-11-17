@@ -1,6 +1,6 @@
 # namespace-followups: journal
 
-State: waiting on jobs 261116-213212-4cf92a 261116-213215-5d0339 261116-213218-af4bac 261116-213221-fa377b 261116-213225-1c4d20 261116-213228-f34142 261116-213231-3269f9 261116-213235-f29ded 261116-213241-2beb28 261116-213241-e3603b
+State: waiting on jobs 261117-003147-0c5227 261117-003152-59ad5a 261117-003156-733f78 261117-003201-6360a8 261117-003205-8a9074 261117-003209-5a78d9 261117-003213-cb3f66 261117-003217-2c3b4a (and the verify rerun)
 Quest: .campaign/detent/quests/namespace-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-All four fixes committed at 9cdbff4c (branch head); jobs submitted, none read yet. Code unbuilt: expect first-build compile or test failures (esp. the Growth log reaching a count cut in 40 seals, the tight-limits seal in test_history_power_cut.cc refusing with "above its kind's bound", and the RLIMIT_FSIZE staging test).
+Round 1 (head 9cdbff4c): suite 261116-213212-4cf92a, A3 261116-213225-1c4d20 and pins passed; mutant seal_unbounded 261116-213218-af4bac killed. Causes found and fixed at dfef6d59:
+- the mutant runners exited 0 on a kill, which `--fails-without` reads as a pass of the wrong sign: runners now return the test's own nonzero status (126 for no verdict). The no_bounds, no_count_cut (killed by the count_cuts assert) and stage-poisons-adopt (killed) runs were already kills.
+- A4 mirror_tests.sh hit ctest's 900 s timeout on test_relay_mirror_crash under load (passed in 168 s in the native gate): timeout 3000.
+- native 261116-213241-2beb28: only test_authority_snapshot_catchup failed (a read timeout in test_multivoter.py during 100 transactions). Checking whether it is mine (a history bound stall) or a flake: the same test at my head 261117-003147-0c5227 and at main 261117-003152-59ad5a.
 
 ## Next
 
-1. Read the jobs (`campaign brief`); fix any red, rerun.
-2. A mutant that survives gets a stronger test (seal_unbounded may survive: the table or block bound alone may be what the tight limits trip).
-3. Fill Evidence and Result from `campaign brief`, set "ready for review".
+1. Read the jobs; if snapshot_catchup fails at my head and passes at main, the bound check stalls history in that run: debug (journal `history failed` log, bounds vs the test's policy) and fix. If it also fails at main, report it as pre-existing.
+2. Fill Evidence from `campaign brief`; set ready for review.
 
 ## Blocked on
 
