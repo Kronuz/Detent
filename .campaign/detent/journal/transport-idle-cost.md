@@ -1,6 +1,6 @@
 # transport-idle-cost: journal
 
-State: waiting on jobs 261117-092707-067ee0 261117-092717-30ce96 261117-092732-0475d9 261117-092749-09ccf7 261117-093437-13c63f
+State: waiting on jobs 261117-122812-45a7bf 261117-122822-488d1f 261117-122836-fb319f 261117-122848-92c892 261117-122904-8a23d2
 Quest: .campaign/detent/quests/transport-idle-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,55 +9,39 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on the exclusive jobs (queued behind light holds), at consensus:2c8e710:
-261117-092707-067ee0 (A1, `cost`), 261117-092717-30ce96 (A2, `hop 7`), 261117-092732-0475d9
-(Detent `run.sh hop_cost`, beside A2), 261117-093437-13c63f (feed-scan profile),
-261117-092749-09ccf7 (suite). consensus:0264544 starts docs/perf/transport-idle-cost.md (host,
-method); its A1/A2 tables come from those jobs.
+Merged origin/main (transport-groups-ci, consensus:0ed76ef) at consensus:dc1e593. At
+consensus:0d92ef5: the bench judges each host against D108's `52 KB + 2P x 44 KB`, sets apart
+timer wheels as blocks >= sizeof(wheel::timer_wheel) (40,640 B), and the lone-frame hop arm takes
+frames per run. consensus:4c80573 writes docs/perf/transport-idle-cost.md (A1 and A2 tables).
 
-What is known, from exact counts (strict-hold smoke at 2c8e710, `cost --quick`, not evidence until
-the jobs land; OpenSSL 4.1.0 on this Mac):
+Old A1 job 261117-092707-067ee0 (exclusive, 2c8e710) failed only on the old formula; against
+D108 its hosts are 1.4-1.5% under at L = 1 and 5.8-6.9% over at L = 4 (within 10%); slope 44,454
+B (L = 1), 48,394 B (L = 4) <= 49,152. Local cost --quick at 0d92ef5: ok, same fits.
 
-- Per idle group: 0.0-0.2 bytes (OpenSSL 0, C++ <= 0.2), 0 fds, 0 timers, every frame delivered,
-  0 dropped, at H = 2, 3, 5 and L = 1, 4. Zone statistics' +25..234 B/group is not live memory:
-  `heap` walks 9,745 nodes in all after 40,004 frames.
-- Per idle connection end, fit over H = 2, 3, 5 at L = 1: 44,454 B (OpenSSL 40,831, ~= conn_cost's
-  40,732; transport C++ 3,623: Connection 464 B, Link 176 B, coroutine frames, deadlines) <= 48 KB.
-  L = 4 fit: 48,393 B (per-thread OpenSSL state of each loop that runs TLS rides on the slope).
-- Per host: 52,274 + 2P x 44,454 at L = 1: 24.2% / 16.4% / 11.6% over `29 KB + 2P x 41 KB` at
-  P = 1 / 2 / 4; L = 4: 33.4% / 26.3% / 21.0%. Over budget (Blocked on 2). Besides: one 64 KiB
-  timer wheel per loop (task::asio_scheduler's `timer_loop`), the scheduler's.
-- Idle mesh CPU: under 2 ms/s for 3 hosts (`ps` time, local).
-- 5 hosts, 1 loop, 10,000 groups: connections end mid-run, 3 of 3 attempts (job
-  261117-092742-231632, exit 1); 1,000 groups pass. Blocked on 1.
-- Hop smoke (1 round, strict): stream control +156 ns/frame (A/A 5), data +201 (A/A 25); one
-  frame per 1 ms: +26.6 us per wake (A/A 3.3-7.7k), receiver 83-85 us CPU per lone frame.
+CI run 44139926700 (at 0264544): Linux gcc/clang/arm64, TSan, ASan, FreeBSD passed the idle ctest;
+macos-x86_64 failed it: the older macOS allocator gives wheels 40,960/45,056 B, under the old
+64 KiB cut, so they rode the L = 4 slope (56,317 B). Fixed in 0d92ef5; needs CI after a push.
+macos-arm64 never got a runner.
+
+A2 from 261117-092717-30ce96 (exclusive, 7 rounds, 2c8e710): control +139 ns/frame [95, 174],
+band 73, clears; data +208 [182, 221], band 61, clears; idle wake +11.8 us [1.8, 19.3], band
+15.3, within the band. Rows rerun at 0d92ef5, one exclusive job each: 488d1f (control), fb319f
+(data), 92c892 (wake, 8,000 frames per run, 9 rounds). Feed profile 13c63f: `feed` is 11,690 of
+~14k samples at 10,000 groups (transport-feed-scan's, D109).
 
 ## Next
 
-1. On resume: read the five jobs' logs; fill the A1 and A2 tables and "where the bytes go" in
-   docs/perf/transport-idle-cost.md (job ids, commits, host); commit; `campaign verify --for A1`.
-2. Paste `campaign brief`'s Evidence table; State "ready for review" or Blocked.
+1. On resume: read the five jobs; put their numbers in docs/perf/transport-idle-cost.md's A1 and
+   A2 sections (replace 067ee0/30ce96 numbers with the 0d92ef5 jobs'); commit; paste `campaign
+   brief`'s Evidence table; State "ready for review" if 92c892's wake row has an answer (clears,
+   or within the band at 8,000 frames per run, stated so).
+2. The lead: push for CI at the current commit (macos-x86_64 is the check of the wheel cut).
 
 ## Blocked on
 
-1. Lead: `HostTransport::feed` is O(groups) per frame. `next()` scans `lane.groups` from the
-   cursor for a ready group and `erase_if` walks every group per feed; groups waiting on credit
-   stay in the map, so 10,000 groups per lane pegs the loop (local `sample`: 11,387 of ~15k
-   samples in `feed`) past `dead_after`, and connections end (job 261117-092742-231632). Fix is in
-   include/consensus/transport/host_transport.h, outside this file set (and transport-identity's
-   area). Recommend: per-lane FIFO ready lists (control-ready; data-ready within credit), a group
-   joining when it gains a frame or credit and leaving when it empties, so `next()` is O(1); erase
-   a group where it empties, not by `erase_if` per feed. The bench's `one 5 1 10000` is the check.
-2. Lead: the per-host budget is not met. Where the bytes go, at L = 1: OpenSSL's context 29,472 B
-   plus ~17.8 KB OpenSSL builds on the first handshakes (the design's 29 KB measured the context
-   before any handshake), transport C++ ~5.0 KB (Links, listener task, loops' tables), and per end
-   44,454 B (2.5 KB over the formula's 41 KB: the transport's own C++). Options: (a) amend the
-   formula to `52 KB + 2P x 44 KB`, the 64 KiB timer wheel per loop counted as the scheduler's
-   (recommended: the gap is OpenSSL's and coroutine frames, fixed cost); (b) shrink the
-   transport's per-end C++ (at most 3.6 KB/end; leaves the 23 KB intercept).
-3. Lead: CI (the Linux counts) needs the branch pushed; I do not push.
-4. A2 says "on the Linux gate host": none exists; measured on this Mac by the lead's instruction.
+1. Lead: CI at the current commit needs the branch pushed; I do not push.
+2. A2 names the Linux gate host; none was used. Measured on this Mac by the lead's instruction,
+   stated in the doc.
 
 ## Evidence
 
@@ -79,7 +63,12 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 - Bytes are counted exactly (CRYPTO_set_mem_functions + operator new, usable sizes), not by zone
   statistics, which move tens of KB per host between identical runs and count blocks `heap` does
-  not find. Blocks >= 64 KiB (the scheduler's timer wheels) are set apart from the transport.
+  not find. Blocks >= sizeof(wheel::timer_wheel) (the scheduler's timer wheels) are set apart from
+  the transport; no transport block comes near 40 KB. No local test can fail without this: only
+  the older macOS allocator (CI macos-x86_64) gives wheels under 64 KiB, so CI is its check.
+- The idle-wake row runs 8,000 frames per run, 9 rounds: the A/A band (worst round) does not
+  shrink with rounds, only with longer runs. Rule unchanged.
+- The 10,000-group arm is not in A1 (D109: transport-feed-scan's A2).
 - Per end is the slope of bytes per host against 2P (H = 2, 3, 5), so per-loop and first-handshake
   state lands in the intercept, not on the ends.
 - "Within 10%" is checked as an upper bound (over by more than 10% fails).
