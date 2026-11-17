@@ -12525,6 +12525,8 @@
     "transport-connection": {
       "accepted": {},
       "after": [],
+      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "branch": "quest/detent/transport-connection",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -12549,6 +12551,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/transport-connection",
       "landed": [],
       "lenses": [
         "security"
@@ -12560,11 +12563,13 @@
       "provides": [
         "consensus:transport"
       ],
+      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal, with 0 code commits; it needs transport-connection by way of transport-groups, so no two writers touch these files at once",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T00:46:38"
+      "updated": "2026-11-17T00:49:16",
+      "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
       "accepted": {},
