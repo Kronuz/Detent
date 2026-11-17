@@ -12914,12 +12914,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal with 0 code commits, and needs this quest; transport-groups and rpc-lane-codec share only CMakeLists.txt test registrations and docs, each in its own lines (rpc-lane-codec writes transport/rpc* only)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T04:27:28",
+      "updated": "2026-11-17T05:06:51",
       "worktree": "../consensus-wt/detent/transport-groups"
     },
     "transport-identity": {
