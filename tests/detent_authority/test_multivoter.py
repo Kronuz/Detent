@@ -86,6 +86,24 @@ def request(
         connection.close()
 
 
+def settled(
+    send: Callable[[], tuple[int, dict[str, Any]]], what: str
+) -> dict[str, Any]:
+    """Repeats `send` until it answers 200, for at most 10 s. A transport error leaves the
+    outcome unknown: the retry carries the same nonce or producer sequence, which the
+    authority reconciles."""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            status, body = send()
+        except (OSError, http.client.HTTPException):
+            status, body = 0, {}
+        if status == 200:
+            return body
+        time.sleep(0.02)
+    raise AssertionError(f"request failed: {what}")
+
+
 def main() -> None:
     binary = Path(sys.argv[1]).resolve()
     certificates = Path(sys.argv[2]).resolve()
@@ -201,18 +219,15 @@ def main() -> None:
         )
 
     def successful(path: str, fields: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
+        index = 0
+
+        def send() -> tuple[int, dict[str, Any]]:
+            nonlocal index
             index = leader()
-            try:
-                status, body = request(ports[index + 3], context, path, fields)
-            except (OSError, http.client.HTTPException):
-                # Outcome unknown: the retry carries the same producer sequence and reconciles.
-                status, body = 0, {}
-            if status == 200:
-                return index, body
-            time.sleep(0.02)
-        raise AssertionError(f"request failed: {path}")
+            return request(ports[index + 3], context, path, fields)
+
+        body = settled(send, path)
+        return index, body
 
     try:
         for index in range(3):

@@ -29,6 +29,7 @@ from test_multivoter import (
     StartupBindCollision,
     bind_collisions,
     request,
+    settled,
     with_fresh_ports,
 )
 
@@ -180,13 +181,16 @@ def run(
             f"hosts {hosts}: ready after {time.monotonic() - began:.2f} s", flush=True
         )
         leader = leaders[0]
-        status, receipt = request(
-            ports[leader + 3],
-            context,
+        receipt = settled(
+            lambda: request(
+                ports[leader + 3],
+                context,
+                "/v2/open",
+                {"expected_generation": 0, "nonce": "6e" + "00" * 15},
+            ),
             "/v2/open",
-            {"expected_generation": 0, "nonce": "6e" + "00" * 15},
         )
-        assert status == 200, (status, receipt)
+        assert receipt.get("generation") == 1, receipt
         if scenario == "names":
             check_dual_stack(ports[0])
     except BaseException:
