@@ -1,6 +1,6 @@
 # transport-connection: journal
 
-State: working
+State: waiting on jobs (listed under Evidence)
 Quest: .campaign/detent/quests/transport-connection.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,29 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Commit 1: `transport/deadline.h` and its test.
+Built at consensus `c1270f0` (6 commits on main `57745e8`): `deadline.h`, `node_hello.h`,
+`node_pins.h`, `connection.h`, `links.h`, their tests, `docs/mechanisms/host-connection.md`,
+CHANGELOG. Every case passed locally (Debug); each mutant failed its test locally. Jobs queued.
 
 ## Next
 
-Plan (D106; consensus-transport journal Detent:417daa75 row 1). Code worktree
-`consensus-wt/detent/transport-connection`; each commit lands a complete behavior with its tests.
-
-1. `transport/deadline.h` (A1): `late_deadline` on the loop's wheel (`scheduler_ref::arm`): a
-   token requested at the final expiry; `wait()` resumed by `wake()`, expiry or the parent token.
-   A fire later than one wheel tick extends once by the lateness, capped at one timeout; the
-   object owns its entry (F10); `wake()` cancels an armed extension, so a wake in the batch after
-   a late fire completes at once (F11, F17). `deadline_test` on `inline_scheduler` with injected
-   stops; mutants: no extension, uncapped, twice, wake-ignores-extension, entry left armed.
-2. `transport/node_hello.h` (A3): DTHL0002, 64 bytes, its decoder refusing each field;
-   `negotiate_rpc` (T1); `hello_test` with values; `fuzz_decoders` case 9 and seeds.
-3. `transport/connection.h` (A2, A4): `NodePins` (one certificate per node, pinned once per host),
-   the `task` connection (OpenSSL on a non-blocking socket, `SSL_MODE_RELEASE_BUFFERS`, readiness
-   by `await_asio` on `async_wait`), length-prefixed frames, a keepalive per connection (a
-   zero-length frame) and a dead-peer deadline through (1), graceful close (flush, then
-   `close_notify`); `connection_test` over loopback with the TLS fixture.
-4. `transport/links.h` (A1, A4): dial (lookup and connect through (1)) and accept, with the
-   duplicate-dial tie-break before any frame; `links_test`, the tie-break mutant, TSan.
-5. `docs/mechanisms/host-connection.md`, CHANGELOG; jobs: suite, TSan, fuzz, mutants.
+1. Read the jobs below; fix what fails. Then push the branch for CI and set "ready for review"
+   (security lens).
 
 ## Blocked on
 
@@ -39,13 +24,15 @@ Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
+Suite: 261117-011918-3232f8. Mutants are commits on no branch from
+`test/transport/mutant_commit.py c1270f01d233 NAME`; each job is `--fails-without`.
 
-| Criterion | Evidence |
+| Criterion | Jobs |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | `deadline` 261117-011920-3ac01a; `links` (lookup) 261117-011933-4f8250; mutants no-extension 261117-012000-205e0e, uncapped 261117-012004-35b740, twice 261117-012009-0d6a0f, wake-ignores-extension 261117-012013-dbd982, entry-left-armed 261117-012021-795811, lookup-no-wake 261117-012118-209628 |
+| A2 | `connection` 261117-011924-bdbea5; mutants pin-any-node 261117-012027-32b241, pin-self 261117-012033-e1cceb, pin-unpinned 261117-012039-9c2239 |
+| A3 | `node_hello` 261117-011928-060919; fuzz (FUZZ_DECODER=9, 20 min) 261117-012148-792d04 |
+| A4 | `links` 261117-011933-4f8250; TSan (deadline, connection, links) 261117-012144-faf9a5; mutants close-drops-queue 261117-012045-b8df9d, no-close-notify 261117-012052-5bfa60, no-keepalive 261117-012059-910de1, refuse-when-offered 261117-012105-586789, accept-when-offered 261117-012109-4f9a7a, draining-counts 261117-012114-7d6e0c |
 
 ## Result
 
@@ -55,4 +42,19 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- "No DTHL0001 reader kept" applies to the new connection: `node_hello.h` reads only DTHL0002.
+  `Peers` keeps its DTHL0001 (`hello.h`) until worker-pump-removal deletes `Peers` (D106).
+- DTHL0002 is 64 bytes: node, lane, flags (bit 0 `refused`, the acceptor's tie-break answer),
+  cluster, connection id, rpc_min, rpc_max (1..9,999, the lane magic's four digits). Group,
+  epoch and profile leave the hello for the group-open exchange (transport-identity).
+- Late means more than one wheel tick (1 ms) past the deadline: the wheel's own granularity is
+  not a stop, so on-time fires never re-arm.
+- The keepalive is a zero-length frame; the dead-peer deadline (`dead_after`, 5 s) restarts on
+  every read wait, and a write stuck for `dead_after` fails the connection.
+- Tie-break: a dial counts once its hello is sent; the lower node's dial wins. A dial that
+  finds a link established before its hello gives up quietly (asymmetric reachability cannot
+  make an unsent dial refuse a working one).
+- Wall-clock tests assert only bounds a runner's process stop cannot break (never early; open
+  under keepalives) and print the timings, so no new entry needs the `timing` label (D100).
+  `deadline_test` injects stops on `inline_scheduler`'s manual clock, with no wall clock.
+- `consensus_transport` links `task::asio` when the target exists (the connection awaits Asio).
