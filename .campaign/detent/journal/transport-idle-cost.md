@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: every row has evidence at consensus:0d92ef5; the doc is consensus:cbcd563.
+Nothing: every row has evidence at consensus:0d92ef5; the doc is consensus:e0ae1b9 (review fixes).
 
 ## Next
 
@@ -17,8 +17,7 @@ Nothing: every row has evidence at consensus:0d92ef5; the doc is consensus:cbcd5
 
 ## Blocked on
 
-Nothing. A2 names the Linux gate host; none was used, measured on this Mac by the lead's
-instruction, stated in the doc.
+Nothing. A2's host: this Mac stands in for the Linux gate host (D111), stated in the doc.
 
 ## Evidence
 
@@ -40,6 +39,24 @@ docs/perf/transport-idle-cost.md has the results (this Mac, OpenSSL 4.1.0, exclu
 - A2: hop adds 131 ns/frame control (band 77), 216 ns data (band 70), 15.3 us per idle wake
   [12.9, 20.8] (band 8.7); all clear their bands.
 Leaves open: `feed` scanning every group (transport-feed-scan, D109).
+
+## Review fixes
+
+Review CHANGES (Detent:5b7ee8b1, correctness, at consensus:cbcd563); statements only, no code.
+- F1: doc paragraph in "How it is counted": the per-host count is the steady state after the
+  unprinted warm-up absorbs ~281,016 B per host of one-time OpenSSL state (probe
+  261117-133940-27f2ae, D111). consensus:e0ae1b9.
+- F2: doc says this Mac stands in for the Linux gate host (D111). consensus:e0ae1b9.
+- F5, F6, F7 (nits, doc wording): the group check is an average and frames are checked by
+  delivery; the L = 4 attribution is marked inferred; counts are exact on this Mac only (glibc's
+  aligned_alloc path unverified, probe 4b45cc). consensus:e0ae1b9.
+- F3 follow-up: the wheel cut is by usable size; a transport block >= 40,640 B would vanish.
+  transport-identity's per-connection `opened` vector crosses it near 2,540 groups per connection.
+  Fix when it matters: set apart by requested size in [sizeof(timer_wheel), +1 KiB), or assert
+  large blocks == loops with a wheel.
+- F4 follow-up: A1/A2 are at consensus:0d92ef5, before transport-identity (in review, not landed
+  at this writing). Once it lands: merge main, rerun 45a7bf and the three hop rows at the merged
+  head, update the doc or record the miss.
 
 ## Rulings I made
 
