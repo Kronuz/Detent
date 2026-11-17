@@ -8,7 +8,8 @@
 //   namespace_measure_t9 full CORPUS STORE           a full copy into an empty STORE (left prepared)
 //   namespace_measure_t9 delta CORPUS STORE F SEED   a block answer touching a fraction F of the
 //                                                    definitions (5% deletes) at STORE, which holds
-//                                                    the corpus (made by `full`)
+//                                                    the corpus (made by `full`); F spread uniformly,
+//                                                    or `cF`, one run of adjacent keys (clustered)
 // One JSON line per run on stdout.
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/messagepack.hh"
@@ -238,7 +239,7 @@ struct Answer {
 
 // A block answer as one transaction (R, R + 1]: a uniform sample of the definitions, each once,
 // 5% of them deleted, the rest set to their flipped default.
-Answer delta_wire(const Records &r, const d::Cursor &base, double fraction, std::uint64_t seed) {
+Answer delta_wire(const Records &r, const d::Cursor &base, double fraction, bool clustered, std::uint64_t seed) {
 	auto target = base;
 	++target.revision;
 	std::mt19937_64 random(seed);
@@ -248,9 +249,12 @@ Answer delta_wire(const Records &r, const d::Cursor &base, double fraction, std:
 	std::uint64_t overrides = 0, strings = 0;
 	std::vector<bool> touched(r.scope.size());
 	std::vector<std::pair<const Def *, bool>> chosen;
-	chosen.reserve(std::size_t(double(r.defs.size()) * fraction) + 16);
-	for (const auto &def : r.defs) {
-		if (fraction < 1.0 && unit(random) >= fraction)
+	const auto run = std::size_t(double(r.defs.size()) * fraction);
+	chosen.reserve(run + 16);
+	const auto first = clustered ? std::size_t(unit(random) * double(r.defs.size() - run)) : 0;
+	for (std::size_t i = 0; i < r.defs.size(); ++i) {
+		const auto &def = r.defs[i];
+		if (clustered ? i < first || i >= first + run : fraction < 1.0 && unit(random) >= fraction)
 			continue;
 		const bool remove = unit(random) < 0.05;
 		chosen.emplace_back(&def, remove);
@@ -436,17 +440,20 @@ struct Store {
 };
 
 struct Timing {
-	double wall = 0, cpu = 0, decode = 0, plan = 0, publish = 0;
+	double wall = 0, cpu = 0, decode = 0, plan = 0, plan_cpu = 0, publish = 0;
+	std::uint64_t plan_bytes = 0;
 };
 
-void report(std::ostream &out, const char *arm, double fraction, const Answer &a, std::uint64_t x_raw,
+void report(std::ostream &out, const char *arm, double fraction, bool clustered, const Answer &a, std::uint64_t x_raw,
 			const Framed &framed, double encode_cpu, double encode_wall, const Timing &t, double open, double recover,
 			const l::SyncStats &sync) {
-	out << "{\"arm\":\"" << arm << "\",\"fraction\":" << fraction << ",\"keys\":" << a.keys
+	out << "{\"arm\":\"" << arm << "\",\"fraction\":" << fraction
+		<< ",\"shape\":\"" << (clustered ? "clustered" : "uniform") << "\",\"keys\":" << a.keys
 		<< ",\"deletes\":" << a.deletes << ",\"x_raw\":" << x_raw << ",\"x_framed\":" << framed.bytes.size()
 		<< ",\"fragments\":" << framed.fragments << ",\"encode_cpu_s\":" << encode_cpu
 		<< ",\"encode_wall_s\":" << encode_wall << ",\"apply_wall_s\":" << t.wall << ",\"apply_cpu_s\":" << t.cpu
-		<< ",\"decode_s\":" << t.decode << ",\"plan_s\":" << t.plan << ",\"publish_s\":" << t.publish
+		<< ",\"decode_s\":" << t.decode << ",\"plan_s\":" << t.plan << ",\"plan_cpu_s\":" << t.plan_cpu
+		<< ",\"plan_bytes\":" << t.plan_bytes << ",\"publish_s\":" << t.publish
 		<< ",\"store_open_s\":" << open << ",\"recover_s\":" << recover
 		<< ",\"sync\":{\"files\":" << sync.publication.files
 		<< ",\"directories\":" << sync.publication.directory_syncs
@@ -464,7 +471,8 @@ int main(int argc, char **argv) {
 		const bool full = mode == "full";
 		if (!full && (mode != "delta" || argc != 6))
 			throw std::invalid_argument("usage: full CORPUS STORE | delta CORPUS STORE FRACTION SEED");
-		const double fraction = full ? 1.0 : std::stod(argv[4]);
+		const bool clustered = !full && argv[4][0] == 'c';
+		const double fraction = full ? 1.0 : std::stod(argv[4] + (clustered ? 1 : 0));
 		const std::uint64_t seed = full ? 0 : std::stoull(argv[5]);
 		if (!(fraction > 0 && fraction <= 1))
 			throw std::invalid_argument("fraction in (0, 1]");
@@ -491,7 +499,7 @@ int main(int argc, char **argv) {
 				a.wire = snapshot_wire(recs, cursor);
 				a.keys = recs.defs.size();
 			} else
-				a = delta_wire(recs, cursor, fraction, seed);
+				a = delta_wire(recs, cursor, fraction, clustered, seed);
 			framed = frame(full ? d::UpdateKind::Snapshot : d::UpdateKind::Delta, a.wire);
 			encode_cpu = cpu_seconds() - c0;
 			encode_wall = seconds(Clock::now() - e0);
@@ -520,6 +528,7 @@ int main(int argc, char **argv) {
 			auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 			t.decode = seconds(Clock::now() - start);
 			const auto planned = Clock::now();
+			const auto plan_cpu = cpu_seconds();
 			l::detail::PagedSnapshotPlanBuilder builder(snapshot, std::nullopt, store.disk->directory_identity(),
 														store.domain.factory(),
 														store.heap, store.options.recovery_limits);
@@ -529,6 +538,7 @@ int main(int argc, char **argv) {
 			}
 			plan.emplace(builder.take());
 			t.plan = seconds(Clock::now() - planned);
+			t.plan_cpu = cpu_seconds() - plan_cpu;
 		} else {
 			d::DeltaDecoder decoder(cursor, scope, wire_limits(store.heap), d::UpdateKind::Delta);
 			unframe(framed, d::UpdateKind::Delta, x_raw,
@@ -536,6 +546,7 @@ int main(int argc, char **argv) {
 			auto source = std::make_shared<const d::ValidatedDelta>(decoder.finish());
 			t.decode = seconds(Clock::now() - start);
 			const auto planned = Clock::now();
+			const auto plan_cpu = cpu_seconds();
 			const auto bounds = l::detail::paged_limits(store.options.recovery_limits, l::paged::root_bytes);
 			l::detail::PagedDeltaPlanBuilder builder(*actual, source, store.domain.factory(), store.heap, bounds);
 			while (!builder.done()) {
@@ -544,11 +555,14 @@ int main(int argc, char **argv) {
 			}
 			plan.emplace(builder.take());
 			t.plan = seconds(Clock::now() - planned);
+			t.plan_cpu = cpu_seconds() - plan_cpu;
 		}
+		for (const auto &built : plan->segments())
+			t.plan_bytes += built.bytes->size();
 		t.publish = store.publish(std::move(*plan));
 		t.wall = seconds(Clock::now() - start);
 		t.cpu = cpu_seconds() - cpu;
-		report(std::cout, full ? "full" : "delta", fraction, a, x_raw, framed, encode_cpu, encode_wall, t,
+		report(std::cout, full ? "full" : "delta", fraction, clustered, a, x_raw, framed, encode_cpu, encode_wall, t,
 			   store.open_seconds, recover, store.disk->sync_stats());
 	} catch (const std::exception &e) {
 		std::cerr << "namespace_measure_t9: " << e.what() << '\n';
