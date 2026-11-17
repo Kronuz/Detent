@@ -1534,9 +1534,7 @@
     },
     "consensus-transport": {
       "accepted": {},
-      "after": [
-        "consensus-fetch-macos"
-      ],
+      "after": [],
       "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
       "branch": "quest/detent/consensus-transport",
       "checks": [
@@ -1579,7 +1577,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-17T00:39:15",
+      "updated": "2026-11-17T00:40:09",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "container-selection": {
