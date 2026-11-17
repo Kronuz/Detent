@@ -12815,6 +12815,8 @@
     "transport-groups": {
       "accepted": {},
       "after": [],
+      "base": "677c8645623b8fdc856416f4a9914557926b061a",
+      "branch": "quest/detent/transport-groups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -12839,6 +12841,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/transport-groups",
       "landed": [],
       "lenses": [
         "correctness"
@@ -12850,11 +12853,13 @@
       "provides": [
         "consensus:transport"
       ],
+      "reason": "started by force: D106: consensus-transport is the split's last step, active only for its plan journal with 0 code commits, and needs this quest; transport-groups and rpc-lane-codec share only CMakeLists.txt test registrations and docs, each in its own lines (rpc-lane-codec writes transport/rpc* only)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T00:46:41"
+      "updated": "2026-11-17T04:27:28",
+      "worktree": "../consensus-wt/detent/transport-groups"
     },
     "transport-identity": {
       "accepted": {},
