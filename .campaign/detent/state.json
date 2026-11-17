@@ -12952,7 +12952,46 @@
       "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T07:55:07",
+          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:a695576fa02e8615d246a691525ede170a290720",
+            "CHANGELOG.md": "100644:401b48f6fba16dd59b46d0eee688f0877528cabc",
+            "CMakeLists.txt": "100644:07cd12c54e8b1b106805f7dbf58673541dba614b",
+            "docs/mechanisms/host-connection.md": "100644:56b5f5d6cf8113277e73279a6a592322c1b0fd3a",
+            "docs/mechanisms/host-transport.md": "100644:b377361078927722364afc70f63946fd7773e2de",
+            "include/consensus/transport/connection.h": "100644:2fb94146a1ec958959875c7005910ac8274d633c",
+            "include/consensus/transport/host_transport.h": "100644:b51b66b544a97a2b1940dc32090fc7a76f169650",
+            "include/consensus/transport/links.h": "100644:31d96e44851399e3e85bf076fa382a3e357fe133",
+            "test/transport/connection_test.cc": "100644:5f9ad51412b9978b55efb929c7abd6c5ae40a9a5",
+            "test/transport/groups_test.cc": "100644:7e758fdef9ef2d161170e96abd0fa4a3ae7e9587",
+            "test/transport/mutant_commit.py": "100755:7c2d6385ffa2025eca33779dd3a8ded4e9cc30ca"
+          },
+          "by": "review",
+          "commit": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "criteria": "fdb9509984cf386b",
+          "diffs": {
+            "ARCHITECTURE.md": "f2b01236d09720f9",
+            "CHANGELOG.md": "04867ae3c40d20d3",
+            "CMakeLists.txt": "e2a86b6c264ecb02",
+            "docs/mechanisms/host-connection.md": "4852bd2130dcc10a",
+            "docs/mechanisms/host-transport.md": "e1eec6fd0be7c859",
+            "include/consensus/transport/connection.h": "7504096c8bfe0af3",
+            "include/consensus/transport/host_transport.h": "1ee60906c5924079",
+            "include/consensus/transport/links.h": "a060574d0c21821d",
+            "test/transport/connection_test.cc": "8771ab474818f55a",
+            "test/transport/groups_test.cc": "e5ceb5ee0ed4fe53",
+            "test/transport/mutant_commit.py": "0a161b5482be2b82"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9cbad09f48f0dd2527bf20749686154374ff4c03",
+          "reviewed": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "677c8645623b8fdc856416f4a9914557926b061a",
       "branch": "quest/detent/transport-groups",
@@ -12996,7 +13035,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5b: host transport over the connection: Control and Bulk per node, loop routing, per-group credit, control first",
-      "updated": "2026-11-17T07:40:12",
+      "updated": "2026-11-17T07:55:07",
       "worktree": "../consensus-wt/detent/transport-groups"
     },
     "transport-identity": {
