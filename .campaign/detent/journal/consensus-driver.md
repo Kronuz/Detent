@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-200752-6fa1e4 261116-200753-e0161a 261116-200753-fba16f 261116-200753-582b66 261116-200753-b2525d 261116-200754-481684 261116-200754-558f94 261116-200754-e360fd 261116-200754-31e9a0 261116-200755-ef4201 261116-200755-cb4ea8 261116-200759-6d46f3 261116-200803-9752be 261116-200807-369184 261116-200811-c09651 (at consensus:ccc9a3e)
+State: waiting on jobs 261116-211609-a0dcdf 261116-211614-de2c80 261116-211620-0abe91 261116-211621-4d8134 261116-211621-9a4a95 261116-211622-537ac1 261116-211622-6a5516 261116-211622-9fb639 261116-211622-5ec061 261116-211623-aa6b04 261116-211623-26af3a 261116-211624-b7832c 261116-211624-1eba2e 261116-211624-5b7e94 261116-211625-c6dfcd 261116-211625-c9d74d 261116-211625-e080a6 (at consensus:41ee584)
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -170,6 +170,35 @@ F1/F2/F5 tests at the fix 261116-200811-c09651; idle exclusive 261116-200755-cb4
 2. Suite (`campaign verify`), ASan+UBSan and TSan builds of waiter/blocking/driver tests.
 3. Mutant jobs (`--fails-without`, ASan) for the 4 driver mutants.
 4. Idle-cost exclusive job; journal evidence rows; DRIVER.md/CHANGELOG.
+
+## Messages
+
+**msg-1** (Xapiand strata review: a checkpoint record drops earlier records; can consensus write
+one covering less than an acknowledged record?). No. Three layers prevent it:
+1. Core captures a local checkpoint only when not busy (`checkpoint_rejection`, core.h): no
+   persist is pending, so every record Core acknowledged (ProposalPlaced follows Persisted) is a
+   durable batch. The capture carries `durable_` and the whole retained log above its boundary
+   (`state.entries` / FrozenCheckpoint count `entries_.size() - first`), so a checkpoint at
+   applied index N still holds every record above N.
+2. Core stays busy (`pending_`) from capture until the publication's Persisted, and the Worker
+   refuses inputs while busy or in `cutover_debt_` (appends received meanwhile wait in `held_`),
+   so no batch lands between capture and record. The Worker publishes at
+   `checkpoint_->sequence = store_.frontier().sequence`, taken at capture.
+3. journal's Journal (journal:7c08540 journal.h:419) refuses a publication whose covered
+   sequence is not the group's last durable batch (`covered_sequence != frontier_.sequence`), and
+   `writable()` refuses while an append is staged and unsettled (`mutation_active`), so a checkpoint
+   cannot race a staged append in the same turn. The consensus encoder also refuses a capture
+   missing its suffix ("invalid consensus checkpoint state", seen under the mutant).
+Proof: driver_test `checkpoint_keeps_acknowledged` (consensus:41ee584) publishes four checkpoints
+at the applied index with two placed, unapplied records above each and a proposal staged in the
+same held turn, recovers, and checks every record above the last checkpoint commits with its
+term: job 261116-211609-a0dcdf. Mutant checkpoint-drops-suffix (no suffix captured) fails it
+(locally 18 failures): --fails-without job 261116-211614-de2c80. Deterministic, not the
+randomized simulation (driver_simulation has no checkpoint calls).
+journal: the Journal/Store/Host layer is not exposed (point 3). The probe's hazard is the raw
+`TurnLog::append` layer, which accepts a Checkpoint record at last + 1 whatever its content
+covers: that layer trusts its caller. Not fixed here (journal is outside this repository); a
+guard there would be journal's quest. From code, not a journal-level job.
 
 ## Contract changes
 
