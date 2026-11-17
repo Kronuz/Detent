@@ -1,31 +1,26 @@
-# transport-groups-ci: Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion
-
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status transport-groups-ci`.
+# transport-groups-ci
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus main is green again after transport-groups (consensus:e4e394b). Main's CI run 44119963752 and
+rpc-lane-codec's merged run 44120112658 fail on code transport-groups landed:
+1. linux-tsan: a data race inside libcrypto between two loop threads, `ASN1_STRING_set` (under the
+   `SSL_CTX` lock created in `reactor::tls::configure`) against `ASN1_STRING_cmp` (unlocked), each resumed
+   from `Connection::want` (groups_driver, groups_threads).
+2. linux-arm64-gcc: groups_test.cc:369 `threads`, `stats(k).posts <= stats(k).reads...` fails.
+The quest-branch CI (run 44116972577) passed both, so each is timing-dependent.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 The race's cause is named (which OpenSSL object two loops share and which call writes it) and removed in the product, not suppressed: a TSan job running groups_driver and groups_threads 50x each with no report, and a `--fails-without` job showing the race without the fix
+- A2 The groups_threads assertion's cause is named: a product defect is fixed, or the test's bound is corrected with the reason the old bound was wrong; 200 runs under a parallel load pass: jobs
+- A3 The suite passes, and CI is green on linux-tsan, linux-arm64-gcc and macos (macos-x86_64's peers flake belongs to peers-retry-flake): the gate checks and CI
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+transport-identity runs in parallel and edits host_transport.h and groups_test.cc; this quest lands
+first, and transport-identity merges main after.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
