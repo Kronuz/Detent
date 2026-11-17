@@ -1,19 +1,19 @@
 # transport-groups: journal
 
-State: fix round 1 (review CHANGES: F1, F2, F3); waiting on jobs at consensus `6b2c6fa`
+State: fix round 1; waiting on jobs at consensus `c050123` (ids under Fix round 1)
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 1 at consensus `6b2c6fa` (on `81339c2`): `4daed86` drops `TCP_NOTSENT_LOWAT` (F1);
-`6b2c6fa` adds `refill` (F3), signed pacing ticks and hang diagnostics in `groups_test` (F2).
-Jobs queued, listed under Fix round 1.
+Fix round 1 at consensus `c050123` (on `81339c2`): `4daed86` drops `TCP_NOTSENT_LOWAT`;
+`6b2c6fa` adds `refill` (F3), signed pacing ticks and hang diagnostics (F2); `c050123` counts
+a draining send queue as write progress (F1, the lead's message: `read_slowly` flakes on main).
 
 ## Next
 
-1. Read the fix-round jobs; record ids and values in Evidence.
-2. The lead pushes `quest/detent/transport-groups`; CI must be green on all five Linux jobs (F1)
-   and both macOS jobs (F2).
+1. Read the jobs at `c050123`; fill Evidence.
+2. The lead pushes `quest/detent/transport-groups`: CI green on the five Linux jobs (F1) and
+   both macOS jobs (F2) is the proof neither can get here.
 
 ## Blocked on
 
@@ -21,16 +21,22 @@ Nothing.
 
 ## Fix round 1 (review .campaign/detent/reviews/transport-groups-correctness.md)
 
-- F1 (`4daed86`). Cause: on Linux `TCP_NOTSENT_LOWAT` also gates `tcp_sendmsg` (a write
-  queues only while unsent bytes are under the mark), not only `EPOLLOUT`, so the kernel
-  stops absorbing a steady slow reader's backlog and write progress comes only as the
-  receiver's window opens; the connection's stuck deadline (`dead_after` without write
-  progress) then ends a link N2 of transport-connection says is not stuck. CI: with lowat,
-  run 44089495483 fails `connection_test.cc:614` on all five Linux jobs; the lead's no-lowat
-  mutant `a0a355b` (branch probe/transport-groups-no-lowat; the push trigger skips probe/*, so
-  I dispatched it, run 44097748266) passes every Linux job, `groups_upload` included. A2 does
-  not need lowat: macOS gap 233 ms without, 195 ms with (reviewer 109ee5). Removed; docs say
-  why. The existing `read_slowly` is the failing test (Linux only; CI is the proof).
+- F1 (`4daed86`, `c050123`). Cause: the stuck-write deadline restarted only at a write that
+  made progress, so it timed how often the kernel woke the writer, not whether the peer read.
+  Linux wakes a full socket only once a third of its send buffer is free (up to ~1.3 MiB of a
+  4 MiB autotuned buffer), and with `TCP_NOTSENT_LOWAT` a write queues only under the mark
+  (`tcp_sendmsg` checks it, not only `EPOLLOUT`), so progress comes only as the window opens.
+  At a slow reader's pace either can exceed `dead_after`: `read_slowly` flaked on main
+  (linux-tsan at rpc-lane-codec `8db3ce3`, the lead's msg) and failed on all five Linux jobs
+  with lowat (run 44089495483); the lead's no-lowat mutant `a0a355b` (branch
+  probe/transport-groups-no-lowat; the push trigger skips probe/*, so I dispatched run
+  44097748266) passed every Linux job, `groups_upload` included. Fix `c050123`: at expiry, a
+  socket whose send queue (`SIOCOUTQ`, `SO_NWRITE`, `FIONWRITE`: written, unacknowledged)
+  drained since arming gets the deadline again. New case `coarse_writer` (send buffer 1 MiB
+  with a 1 MiB low-water mark where settable, reader buffer 64 KiB, 64 KiB per 60 ms against
+  300 ms); mutant `stuck-ignores-drain`. `connection_test` stdout is line-buffered so a
+  failing case's line reaches the CI log. Lowat dropped (`4daed86`): no measured A2 gain
+  (macOS 233 ms without, 195 ms with, reviewer 109ee5).
 - F2 (`6b2c6fa`). Cause: `reader` and `upload` paced with `sleep_until(start + (tick + 1) * P)`,
   `tick` a `std::uint64_t`. That makes the time point's rep unsigned, and libc++'s
   `sleep_until` for `steady_clock` is `sleep_for(t - now())` (SDK `__thread/this_thread.h:65`),
@@ -44,8 +50,26 @@ Nothing.
   lost credit wedges the group; a marker must arrive after 1 s of refusals and after the
   receiver restarts with a frame outstanding. Mutants `no-credit-on-refuse`, `no-reset-on-end`
   are in `mutant_commit.py` (which now takes several edits per mutant).
+- Ruling: `stuck-spans-flush` (deadline spans the whole flush) is likely equivalent now,
+  since a drained queue re-arms; job 261117-061930-8a6ec4 runs it on `slow_reader` and
+  `coarse_writer` to see.
 - N3 not done: a tighter `upload` gap bound needs Linux numbers first (CI prints a passing
   case's output nowhere).
+
+## Fix round 1 jobs
+
+At `6b2c6fa` (superseded, kept for F2/F3): suite 261117-061020-b68f74 passed; `refill`
+261117-061030-b1892b passed; mutants `no-credit-on-refuse` 261117-061106-10ebae and
+`no-reset-on-end` 261117-061111-ec7e09 fail `refill` (exit 8); sleep_until probe
+261117-061200-bf578c: signed tick slept 0 ms, unsigned killed by the 3 s alarm (exit 142).
+At `c050123`: suite 261117-061637-0e42df; cases `refill` 061640-d3fe59, `reader`
+061646-ac84a6, `threads` 061651-703f89, `credit` 061657-7baeb3, `upload` 061702-881206, `driver`
+061709-b22f6a, `connection` 061915-a84d63; mutants (`--fails-without`) `stuck-ignores-drain`
+061722-5deb78, `no-credit-on-refuse` 061730-bc6eb9, `no-reset-on-end` 061738-572024,
+`bulk-ahead-of-control` 061749-92f169, `no-credit` 061758-f087b3, `reader-loop-delivers`
+061808-cec7df, `no-hand-off` 061815-051c26; TSan 061836-5144dd, TSan reader/upload
+061846-41a9fa (races only); stress (reader+upload two at a time x4, `taskpolicy -b`)
+061854-7f8033; probe 061903-02bdd4; `stuck-spans-flush` 061930-8a6ec4. All ids 261117-.
 
 ## Evidence
 
