@@ -12472,6 +12472,50 @@
       "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
     },
+    "transport-connection": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
+        "docs/**",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "consensus-driver"
+      ],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
+      "updated": "2026-11-17T00:46:38"
+    },
     "voter-read-freshness": {
       "accepted": {},
       "after": [
