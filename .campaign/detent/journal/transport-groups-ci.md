@@ -1,11 +1,11 @@
 # transport-groups-ci: journal
 
-State: waiting on jobs 261117-084234-d7c1d4 261117-084243-55886d 261117-084252-8cea17 261117-084310-26bb40 261117-084320-74416f 261117-084333-32b0e6
+State: waiting on jobs 261117-084234-d7c1d4 261117-084243-55886d 261117-084839-8524ae 261117-084310-26bb40 261117-084320-74416f 261117-084822-a16425
 Quest: .campaign/detent/quests/transport-groups-ci.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting on the A1/A2 jobs and the suite at consensus:27a403b.
+Waiting on the A1/A2 jobs and the suite at consensus:0ed76ef (docs only after consensus:27a403b).
 
 ## Next
 
@@ -13,7 +13,8 @@ Waiting on the A1/A2 jobs and the suite at consensus:27a403b.
    threads bound), not setup noise; the head jobs must pass.
 2. If the uncached-context groups job (055886d) survives (timing), rely on connection_test
    shared_context (d7c1d4) as the deterministic `--fails-without`.
-3. CHANGELOG and docs/mechanisms/host-connection.md lines; then ready for review (CI at landing).
+3. A2's head job 74416f ran at consensus:27a403b (code identical to 0ed76ef); rerun at head if the
+   gate wants it. Then ready for review (CI needs the branch pushed: the lead's).
 
 ## Blocked on
 
@@ -48,9 +49,9 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261117-084234-d7c1d4 (mutant uncached-context, shared_context, fails-without), 261117-084243-55886d (mutant, groups 50x, fails-without), 261117-084252-8cea17 (head: shared_context + groups threads/driver 50x each, TSan) |
+| A1 | pending: 261117-084234-d7c1d4 (mutant uncached-context, shared_context, fails-without), 261117-084243-55886d (mutant, groups 50x, fails-without), 261117-084839-8524ae (head: shared_context + groups threads/driver 50x each, TSan) |
 | A2 | pending: 261117-084310-26bb40 (mutant reads-after-posts, 200x 4 at once, fails-without), 261117-084320-74416f (head, 200x 4 at once) |
-| A3 | pending: suite 261117-084333-32b0e6; CI after push |
+| A3 | pending: suite 261117-084822-a16425; CI after push |
 
 Mutants: consensus:8afc5d7 (uncached-context: Links' call removed), consensus:a1eeac6
 (reads-after-posts: old counting), each one commit on consensus:27a403b, written with
@@ -61,7 +62,8 @@ set; transport-identity edits it).
 
 consensus:ad53e52 Cache a context's certificates before loops share it (tls.h, links.h,
 connection_test shared_context); consensus:27a403b Count a read before its cross-loop posts
-(host_transport.h, groups_test threads).
+(host_transport.h, groups_test threads); consensus:0ed76ef CHANGELOG Fixed entries and
+docs/mechanisms/host-connection.md (The connection: the shared context).
 
 ## Rulings I made
 
