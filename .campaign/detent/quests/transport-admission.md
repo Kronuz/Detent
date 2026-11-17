@@ -5,27 +5,21 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The host's pre-authentication pool can't be churned into refusing the cluster's own peers: a dial from an address membership names is admitted ahead of unknown sources, and transport-connection's open review notes are closed.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 N9 (transport-connection security review round 2): under the reviewer's churn probe (about 3,200 connects/s from one unknown address), dials from configured peer addresses still link; an unknown flood cannot evict a configured peer's pending handshake: a test, and a mutant without the priority killed
+- A2 The round 2 notes N10-N13 and the journal's N5 test, N6 and N7 are fixed or each dropped with a reason in the journal: tests for the fixed ones
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Internal to `consensus:transport`; no wire change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead: N9 lands as a follow-up, since the flood needs both ends hit and is bounded by the handshake deadline; priority by membership needs transport-identity's membership view.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests.
