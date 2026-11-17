@@ -9,15 +9,28 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Evidence jobs at consensus `1b94858` (the whole change: `include/consensus/transport/host_transport.h`,
+`test/transport/admission_test.cc`, `groups_test.cc` cases `identity`, `joiner`, `lagging`,
+`relayout`, mutants in `test/transport/mutant_commit.py`, docs
+`docs/mechanisms/host-transport.md` Identity). A probe in the worktree passed all nine
+(admission, groups identity/joiner/lagging/relayout/driver/refill/threads, 261117-082953-4f19e5).
+
+Jobs: suite 261117-083329-29d3d7; cases A1 261117-083341-09b068; relayout A2
+261117-083354-74485c; TSan 261117-083409-90840d. Mutants (`mutant_commit.py 1b94858 NAME`,
+`--fails-without` on `^consensus_transport_(admission|groups_identity)$`): admit-unstored
+aa0196, admit-unopened 824101, admit-misrouted cc7d19, admit-spoofed 3b8076, open-cluster
+6cfcce, open-group 54ea6f, open-epoch 36b07f, open-profile 3d1151, closed-ignored 0b9d69,
+open-once e936b2 (ids 261117-0834xx..0836xx). Control voters-only on joiner 261117-083655-e2029f,
+on lagging 261117-083704-f48fcf.
 
 ## Next
 
-1. <step>
+1. Read the jobs' values into Evidence; set "ready for review".
+2. msg (lead, transport-groups-ci): merge main once that quest lands, then re-run the gates.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -37,4 +50,19 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The open exchange is one frame per direction (kind 4), checked on the group's loop in order
+  with the group's frames; a refusal is answered with `closed` (kind 5), after which the
+  sender opens again before its next frame. No acknowledgment of a match: frames follow the
+  open in TCP order, so a sender never waits on the exchange.
+- The receiver keeps per stored group the connections (node, lane, generation) whose open
+  matched; a sender keeps per lane the groups opened by store serial (16 B each). A store
+  changes the serial, so new values open again everywhere.
+- `member_of` is a host function in `HostTransportOptions` (required), called on the group's
+  loop; the transport owns the stored/opened/destination checks.
+- "A joiner installs": the joiner's host stores and creates the group (empty membership) and
+  catches up by append; a snapshot install over Bulk is consensus-transport's (rpc-lane).
+- The voter-only control is a mutant of the real rule (`voters-only`); under it `lagging`
+  fails at its joiner step too, since that rule refuses every joiner.
+- Tests use incarnation k on node k; the Driver tests keep journals on disk (`PosixIO`,
+  `groups-<case>/` in the build dir) since a shared in-memory disk is not thread-safe and a
+  re-partition needs one journal per host.
