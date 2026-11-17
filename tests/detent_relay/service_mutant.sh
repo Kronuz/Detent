@@ -1,7 +1,8 @@
 #!/bin/bash
 # Applies one mutant patch from tests/detent_relay/mutants, builds the voters, the relay and the
-# probe, and runs test_relay_service. Exits 0 when the run fails (the mutant is killed), 1 when it
-# passes (it survives) and 3 when there is no verdict: the patch does not apply or does not build.
+# probe, and runs test_relay_service. Exits the run's own nonzero status when it fails (the mutant is
+# killed), 0 when it passes (it survives) and 126 when there is no verdict (the patch does not apply or
+# does not build): `campaign job submit --fails-without` passes on a nonzero status but 124, 126, 127.
 set -uo pipefail
 
 patch=${1:?mutant patch}
@@ -9,9 +10,9 @@ build=${SERVICE_MUTANT_BUILD:-.scratch/build-service-mutant}
 no_verdict() {
     echo "NO VERDICT: $patch: $1"
     git apply -R "$patch" 2>/dev/null
-    exit 3
+    exit 126
 }
-git apply --check "$patch" && git apply "$patch" || { echo "NO VERDICT: $patch: patch does not apply"; exit 3; }
+git apply --check "$patch" && git apply "$patch" || { echo "NO VERDICT: $patch: patch does not apply"; exit 126; }
 git diff --stat
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
@@ -24,7 +25,7 @@ status=$?
 git apply -R "$patch"
 if test "$status" -ne 0; then
     echo "MUTANT KILLED: $patch by test_relay_service (status $status)"
-    exit 0
+else
+    echo "MUTANT SURVIVED: $patch"
 fi
-echo "MUTANT SURVIVED: $patch"
-exit 1
+exit "$status"

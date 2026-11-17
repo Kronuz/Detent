@@ -1,28 +1,28 @@
-# consensus-transport: async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)
+# consensus-transport: async-drivers 5f: the rpc lane on Bulk, fetch as lane method 1, process stops end to end
 
 Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
 (status, branch, checks, reviews) is in `state.json`: `campaign status consensus-transport`.
 
 ## Outcome
 
-consensus gains the host transport of `docs/design/async-drivers.md` (Detent) Build plan row 5 (Track C D16, D10) beside today's `Peers`: one Control and one Bulk connection per peer node, each on one loop, frames batched by destination loop with per-group credit and control first; node identity is one certificate per node pinned once per host with per-group checks in the group-open exchange (Q7 (a)); the fetch lane (consensus:a197efb) moves onto the shared connections.
+The request/response lane (rpc-lane-codec) runs on the host transport's Bulk connections (transport-groups, transport-identity), serving Xapiand's consensus-rpc-lane (consensus:0fd8a7f docs/design/rpc-lane.md revision 2, approved at Xapiand:a3b4b4903, T1-T8), and fetch is lane method 1. Split by D106: transport-connection, transport-groups, transport-identity, transport-idle-cost and rpc-lane-codec carry the rest of the former A1-A7; this id stays the last step, so Xapiand's orderings after it hold.
 
 ## Acceptance criteria
 
-- A1 D16's tests: frames batched by destination loop and posted once per read, per-group credit, control before bulk; two hosts of 4 loops each under TSan; a group with full admission never delays another group's heartbeat (`reader_test`): tests
-- A2 A maximal upload (chunk commands at the 1 MiB command and 2 MiB RPC caps, types.h) on the shared connection never delays any group's heartbeat or vote past its election timeout, and a fetch shares the bulk budget without delaying consensus frames (Xapiand F5): a test, plus a mutant putting bulk ahead of control, killed
-- A3 Identity (Q7 (a)): node authentication, the per-frame rule (a group the host stores, a destination incarnation it holds, the source node matching the connection's node where membership names it, R7), the hello's checks in the group-open exchange; a joiner installs and catches up as a learner over shared connections (`frame_admission`, its voter-only control failing): tests, reviewed by the security lens
-- A4 Idle cost: per idle group at most 64 bytes and 0 descriptors, frames or timers; an idle connection end within 48 KB; per host `29 KB + 2P x 41 KB` within 10%; the hop's CPU per frame and per idle wake measured on the Linux gate host: idle-cost and measurement jobs
-- A5 A host restarted with another L serves every group from its new loop; keepalives once per connection: tests
-- A6 Process stops (D102, from consensus-fetch-macos): every transport deadline (lane, fetch reply, lookup, dial) that fires late after a process stop follows one rule in one place (extend once by the lateness, capped at one timeout), the wait owns its timer (F10), and every wake (cancel, resolve, reply end, close) is seen by a wait whose timer already fired (F11, F17); fetch-alongside-consensus passes on macOS x86_64 CI three runs in a row with its skip in `peers_test.cc` removed, and a placed SIGSTOP inside a drain proves a late reply drains over the same lanes (F18: a never-drain mutant killed); timing scenarios that inject or measure stops carry the ctest label `timing`, off CI (D100)
+- A1 Bulk routes by the first 8 bytes, small frames FIFO, chunk classes alternating outside Bulk's connection window (T2); `Transport::hold(node)`/`release(node)` keep a Bulk connection to a node outside every group (T3); lane-only connections and `lane_idle` (D7): tests
+- A2 The reader hands each lane frame over synchronously from a per-connection buffer, never waiting on a shared budget (T5); call deadlines use transport-connection's late-deadline rule (T7); a graceful close sends the flushed frames, then `Drain`, then close_notify (T8), so a call racing a close never ends with an unknown outcome: tests, a mutant for T5 killed
+- A3 Queued outgoing chunks are capped per connection (R2, Xapiand:a3b4b4903), so a slow peer's Bulk socket can't stall writes to every other peer: a test with one stalled peer and one live peer, and a mutant without the cap killed
+- A4 Fetch is lane method 1 (D8) and shares the bulk budget without delaying consensus frames (Xapiand F5): a test with a fetch beside a maximal upload against heartbeats
+- A5 Process stops (D102): fetch-alongside-consensus, ported onto the lane's fetch, passes on macOS x86_64 CI three runs in a row with no skip, and a placed SIGSTOP inside a drain proves a late reply drains over the same lanes (F18: a never-drain mutant killed); timing scenarios carry the ctest label `timing`, off CI (D100). `Peers` and DTFT0001 stay until worker-pump-removal deletes them, so consensus main stays a valid Detent pin (D106): tests, CI runs
+- A6 rpc-lane-codec's review notes (Detent reviews/rpc-lane-codec-security.md) close before the lane is wired: (N3) a `ready` callback that closes the lane is no use-after-free (ASan case, rpc.h:703 at consensus:8db3ce3); (N2) `send` past a call's known total is refused at once instead of stalling to the deadline; (N1) the unsent queue a never-reading peer builds is charged to `rpc_outgoing_bytes` and bounded by A3's per-connection cap; (N4) the fuzzer reaches pool waits and rule 7.6: tests, an ASan job, a fuzz job
 
 ## Contracts
 
-Provides the host transport and the request/response lane on it (fetch moves over; streamed request bodies beyond it are Xapiand's consensus-rpc-lane, after this quest). Consumes consensus-driver.
+Provides `consensus:rpc-lane` on Bulk and fetch as lane method 1. Consumes transport-groups, transport-identity and rpc-lane-codec.
 
 ## Decisions
 
-D96, D97 (owner: Q2 Sink, Q3 one directory per host, Q4 quiescence quest, Q7 node identity). Xapiand cluster-release (Xapiand:15c3e05ac) orders after this quest by this id. consensus-fetch-macos lands first (its fetch defect).
+D96, D97, D102, D106. Xapiand cluster-release (Xapiand:15c3e05ac) and consensus-rpc-lane order after this quest by this id.
 
 ## May land early
 
