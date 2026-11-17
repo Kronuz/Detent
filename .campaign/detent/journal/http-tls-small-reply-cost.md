@@ -1,6 +1,6 @@
 # http-tls-small-reply-cost: journal
 
-State: ready for review (http:ad6a52e; code at http:0eb4c52)
+State: ready for review (http:2671470; code at http:0eb4c52)
 Quest: .campaign/detent/quests/http-tls-small-reply-cost.md (the lead's; never edit it)
 
 ## Doing
@@ -89,12 +89,23 @@ A2 by named cost (c1, per request):
 4. OpenSSL record path (libssl +0.75, libcrypto +0.64 in the ad6771f profile, nothing above 0.11 us): not
    separable at this band.
 Remaining: +1.17 us/request (1.037x), inside A/A; 0.54 us of it is the two kept copies.
-Close c8: req/s 1.037 inside A/A, CPU 0.980x; the extra 4.76 recvs cost ~+3.5 us system per connection
-(system 1.064x), outweighed by -15.6 us user. Cause open (E2 ruled out read-ahead placement).
+Close c8: req/s 1.037 inside A/A, CPU 0.980x; recvfrom is 2x (measured); the system (1.064x) and user
+(0.972x) deltas are inside A/A, so neither is a measured cost or saving. Cause open (E2 ruled out read-ahead placement).
 
 ## Next
 
 Review. CI has no run at http:ad6a52e (needs the branch pushed, the lead's call).
+
+## Review fixes
+
+Correctness review (CHANGES) F1 and F2, wording only, fix commit http:2671470 (docs/perf/idle.md,
+CHANGELOG.md):
+- F1: E3's c1 effect over ad6771f stated as unresolved (1.009, 0.882-1.038, +0.28 us, same or more in
+  3 of 5 rounds); the +2.61 us contrast and "ad6771f outside the band" removed; E3 kept for the Asio rule
+  and the identical handler path; head/base 1.037x inside A/A kept.
+- F2: close path reports the measured 2x recvfrom count; system (1.064x) and user (0.972x) deltas inside
+  A/A, so neither a measured cost nor saving.
+N1-N3 untouched (nits).
 
 ## Blocked on
 
@@ -119,10 +130,10 @@ All passed at http:0eb4c52 and count at ad6a52e (docs-only). No messages listed 
 
 http:0eb4c52: an immediate TlsStream result completes through a zero-byte socket async_send (as
 asio::ssl::stream does) instead of asio::defer; 8368ea9 sets read-ahead after the handshake state (no
-measured effect). Small TLS reply at c1: +1.17 us/request over a17b197 (1.037x, A/A 0.874-1.066) vs
-ad6771f's +2.61 us in the same job; c64 1.000x; close c8 req/s 1.037x. Idle TLS 40,075 B/conn at 10K.
+measured effect). Small TLS reply at c1: +1.17 us/request over a17b197 (1.037x, A/A 0.874-1.066) ; vs
+ad6771f paired in the same rounds 1.009x (0.882-1.038), unresolved; c64 1.000x; close c8 req/s 1.037x. Idle TLS 40,075 B/conn at 10K.
 Docs: docs/perf/idle.md "Small TLS replies", runs in docs/perf/idle/small-reply/, CHANGELOG 2026-11-17.
-Open: a TLS handshake makes 9.5 recvfrom per connection vs 4.75 (+~3.5 us system, net CPU still lower).
+Open: a TLS handshake makes 9.5 recvfrom per connection vs 4.75 (2x; time deltas inside A/A).
 
 ## Rulings I made
 
