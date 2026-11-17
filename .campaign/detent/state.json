@@ -12638,9 +12638,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T01:47:27",
+      "updated": "2026-11-17T02:18:08",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
