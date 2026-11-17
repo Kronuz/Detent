@@ -1,6 +1,6 @@
 # namespace-s6-hardening: journal
 
-State: waiting on jobs (build check 261117-121951-d4c328, then the full set chained after it; see `campaign job list --quest namespace-s6-hardening`)
+State: waiting on jobs 261117-121951-d4c328 (build check), then after it mutants 261117-122454-36ba59 -2e928a -9c0de7 -0cd4cd (A3 x2, A4 x2), tests 261117-122519-346027 -ecc86c, gates 261117-122525-281a5f (native) -4f8dea (pins); the 892e121b jobs prove nothing
 Quest: .campaign/detent/quests/namespace-s6-hardening.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,8 @@ Review F1 (correctness): fixed at 892e121b, main merged (5c19e6cc). plan_frames 
 
 ## Next
 
-0. When the jobs finish: if native fails again, name the tests here; if the F1 mutant passes the test, tighten it; then set ready for review.
+0. Check each mutant's log fails on the assertion (invariant at line N), not a build error.
+1. When the jobs finish: if native fails again, name the tests here; if the F1 mutant passes the test, tighten it; then set ready for review.
 
 ## Blocked on
 
