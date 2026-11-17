@@ -13488,12 +13488,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T07:56:16",
+      "updated": "2026-11-17T10:12:52",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
