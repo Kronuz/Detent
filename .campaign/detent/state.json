@@ -393,6 +393,20 @@
       "closed": "consensus-driver adds Driver beside the Worker and does not change the transport; consensus-rpc-lane is already after detent:consensus-transport",
       "id": "msg-63",
       "text": "xapiand:consensus-rpc-lane started and builds against contract consensus:transport, which your consensus-driver is changing"
+    },
+    {
+      "at": "2026-11-17T02:05:39",
+      "by": "campaign xapiand",
+      "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
+      "id": "msg-64",
+      "text": "xapiand:group-core started and builds against contract consensus:driver, which your consensus-transport is changing"
+    },
+    {
+      "at": "2026-11-17T02:05:40",
+      "by": "campaign xapiand",
+      "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
+      "id": "msg-65",
+      "text": "xapiand:group-core started and builds against contract consensus:driver, which your transport-connection is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -688,7 +702,8 @@
         "tests/detent_authority/test_service.cc",
         "tests/detent_authority/CMakeLists.txt",
         "tests/detent_local/test_paged_publication_artifacts.cc",
-        ".github/workflows/**"
+        ".github/workflows/**",
+        "tests/detent_delivery/test_repair.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -699,7 +714,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Three CI test flakes: managed relay, writer failover, authority admission",
-      "updated": "2026-11-16T21:23:44",
+      "updated": "2026-11-17T01:05:48",
       "worktree": "../Detent-wt/detent/ci-test-flakes"
     },
     "client-local-source": {
@@ -5631,7 +5646,63 @@
       "updated": "2026-11-08T15:38:06"
     },
     "namespace-followups": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T01:42:11",
+          "base": "e7c3b4d082ebdd6643cfc346e4209befb698ffdb",
+          "blobs": {
+            "src/detent_authority/history.cc": "100644:08106b52bac97c6e73d34be688f6353260429f0a",
+            "src/detent_authority/history.hh": "100644:8a2d2aa79641cd8828e42f6f6242caed5b912f7e",
+            "src/detent_authority/history_format.cc": "100644:fc0bb49ccba36f9e7750f083fc7a27c04bbb5767",
+            "src/detent_authority/history_format.hh": "100644:a5d0fb23689ccc28b429185b9454424e04dc9f5b",
+            "src/detent_relay/host.cc": "100644:453aafdfbb4889ac78e22be1331bbe73611af5f6",
+            "src/detent_relay/mirror.cc": "100644:a29de5a952bac10bbaa9266144ddc6aaadf84596",
+            "tests/detent_authority/test_history_mutant.sh": "100755:6dc376a40e7351ce74adb0d2967518c9bb68effc",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "100644:d57d52aa3f35d9ee7220c45517e0a97c22154cef",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "100644:a0345f28c6d6ac896818387d74737c58ddf9b30f",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "100644:e14fbdd79e27810cf6bde43e41406e7491d29f8c",
+            "tests/detent_authority/test_history_power_cut.cc": "100644:8030975ec08bf3fca8e40269ee906ef9a1cfcaae",
+            "tests/detent_relay/mirror_mutant.sh": "100755:bdafa7abd401516fb5495cc930d8a8c494a03d2a",
+            "tests/detent_relay/mirror_tests.sh": "100755:9dfc5054a6ce5169959803c60aa6ea7478890d8f",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "100644:dd7af621d5da229cd6222910b084835e9c323fa2",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "100644:64bb1fac41763e3c63ae7007c0a99041b23bd51b",
+            "tests/detent_relay/relay_health_check.sh": "100755:ea6da39df4d56c2d65b4584964ac50f228579f33",
+            "tests/detent_relay/service_mutant.sh": "100755:22ef972c0c507ae7aea568c5d5285193b4c8eebb",
+            "tests/detent_relay/test_relay_mirror.cc": "100644:ec1482134bb4ec07bdf2dab147e5ae4f941a378a",
+            "tests/detent_relay/test_relay_service.py": "100644:e81b1a3dddf264496ddc107542a7bd18396f6f59"
+          },
+          "by": "review",
+          "commit": "07b8d8bf45868a7277978ad577b857c41029ad06",
+          "criteria": "4c70446b37cae0b1",
+          "diffs": {
+            "": "b44706b94072752e",
+            "src/detent_authority/history.cc": "631b386186f62a8b",
+            "src/detent_authority/history.hh": "bce111ee9864254a",
+            "src/detent_authority/history_format.cc": "8c46a6aabfcc6f86",
+            "src/detent_authority/history_format.hh": "bd604ff86ea7fede",
+            "src/detent_relay/host.cc": "fd597caa7d4f343f",
+            "src/detent_relay/mirror.cc": "6a3a59486f19998a",
+            "tests/detent_authority/test_history_mutant.sh": "2e68a1f9375b388e",
+            "tests/detent_authority/test_history_mutant_no_bounds.patch": "5e17470a90dd1d55",
+            "tests/detent_authority/test_history_mutant_no_count_cut.patch": "cfd09450400b59dd",
+            "tests/detent_authority/test_history_mutant_seal_unbounded.patch": "01b98be4381b14ac",
+            "tests/detent_authority/test_history_power_cut.cc": "ee910165e6a9e404",
+            "tests/detent_relay/mirror_mutant.sh": "b316edd8b2172451",
+            "tests/detent_relay/mirror_tests.sh": "c1a1357b9ddc7010",
+            "tests/detent_relay/mutants/stage-poisons-adopt.patch": "a11c6e1751a977bd",
+            "tests/detent_relay/mutants/stage-poisons-repair.patch": "3651ad4a39b7517a",
+            "tests/detent_relay/relay_health_check.sh": "6b55b4161101a441",
+            "tests/detent_relay/service_mutant.sh": "c174248e143ee2f5",
+            "tests/detent_relay/test_relay_mirror.cc": "0fc8923847431147",
+            "tests/detent_relay/test_relay_service.py": "f087d5125d90bf12"
+          },
+          "findings": {},
+          "note": "",
+          "review": "40c9c20967ce66b08e20916e17ac03afd774ed65",
+          "reviewed": "b0a2e4c3aa0ccfbf4692757fb8167e431db45f2a",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s6-cutover"
       ],
@@ -5660,15 +5731,17 @@
         "tests/detent_relay/**"
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-16T21:23:49",
+      "updated": "2026-11-17T01:42:11",
       "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
@@ -12523,8 +12596,60 @@
       "worktree": "../task-wt/detent/task-wheel"
     },
     "transport-connection": {
-      "accepted": {},
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T02:25:39",
+          "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "blobs": {
+            "CHANGELOG.md": "100644:31a14e8b743563ba0b7ba3060d97fb42ce9c0b2a",
+            "CMakeLists.txt": "100644:7f4085e457557992cae33e1904ae98faef8286fe",
+            "docs/mechanisms/host-connection.md": "100644:ab271b743d564576f1eb353f719bd9d83009e774",
+            "fuzz/corpus/decoders/92cba8759543da45fe5b5a6f421a1b9e9935ec9a": "100644:6c619f6e24d6345aebfde4603b6de942a30c6140",
+            "fuzz/corpus/decoders/db9a5f8875d8a19c434be2b0991658b3f967f70f": "100644:996a98cb4e3ecb160c9fb17a319ec0e991bfc7b2",
+            "fuzz/fuzz_decoders.cc": "100644:543810775f17369035b9cc6a10424c69ea11f85d",
+            "fuzz/seed.cc": "100644:39d821e6c6d25372550cb80d06b3080002278246",
+            "include/consensus/transport/connection.h": "100644:7d6a5c38a677cc1471e4da975f7e789601d75db7",
+            "include/consensus/transport/deadline.h": "100644:602348fb56b80acc562995de57b0e6a801c2e186",
+            "include/consensus/transport/links.h": "100644:a4816330e17334f68ab2bc8051621af537465134",
+            "include/consensus/transport/node_hello.h": "100644:a5bcf326f552ff48d4a37722f0f453b0e6e88390",
+            "include/consensus/transport/node_pins.h": "100644:4ec8ab35d842fe8430521cd0388df76f3c755553",
+            "test/transport/connection_test.cc": "100644:6d5b28e6c03dced8d41271bdd428b28033f11376",
+            "test/transport/deadline_test.cc": "100644:2bce6799171f2148f850b99bf3279e334baafcbe",
+            "test/transport/links_test.cc": "100644:663620ece5b304d9842b361c26bd51f264003264",
+            "test/transport/mutant_commit.py": "100755:051e56342d61bfc7fccccbcbc76c985e025fc602",
+            "test/transport/node_hello_test.cc": "100644:e884b08f14da8b7294ec1a67c51ddf232a595894"
+          },
+          "by": "review",
+          "commit": "2f6f210597ae3fce94beacedfca90172381cf312",
+          "criteria": "1714f364a5864605",
+          "diffs": {
+            "": "a05042b9ec2ddf03",
+            "CHANGELOG.md": "fa0d95bbf0aa26e6",
+            "CMakeLists.txt": "68c5dbe6048d9c98",
+            "docs/mechanisms/host-connection.md": "7d68f0afd709ab4b",
+            "fuzz/fuzz_decoders.cc": "79a9c364929ab7e3",
+            "fuzz/seed.cc": "27f3e686bb329d1a",
+            "include/consensus/transport/connection.h": "cf48d2624224948c",
+            "include/consensus/transport/deadline.h": "9311132068955d20",
+            "include/consensus/transport/links.h": "ffdd4f44babf4a39",
+            "include/consensus/transport/node_hello.h": "d85e272fbf9c2e5f",
+            "include/consensus/transport/node_pins.h": "8ea0461719e37110",
+            "test/transport/connection_test.cc": "624ebefc7cff212f",
+            "test/transport/deadline_test.cc": "bfc76a7befba5c88",
+            "test/transport/links_test.cc": "a3ca3708a4e506de",
+            "test/transport/mutant_commit.py": "200e0f6c4ce74a42",
+            "test/transport/node_hello_test.cc": "f0fe2282c3e2d651"
+          },
+          "findings": {},
+          "note": "",
+          "review": "044d2d1b4fc551f0e1ce21de423d57855d90dae7",
+          "reviewed": "2f6f210597ae3fce94beacedfca90172381cf312",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
+      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "branch": "quest/detent/transport-connection",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -12549,6 +12674,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/transport-connection",
       "landed": [],
       "lenses": [
         "security"
@@ -12562,9 +12688,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T00:46:38"
+      "updated": "2026-11-17T02:25:39",
+      "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
       "accepted": {},
