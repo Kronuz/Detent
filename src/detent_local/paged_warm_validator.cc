@@ -3,6 +3,7 @@
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
 #include "paged_node_step.hh"
+#include <algorithm>
 #include <sha256.h>
 namespace detent::local::detail {
 namespace p = paged;
@@ -79,15 +80,26 @@ struct WarmGraphValidator::Impl {
 	std::optional<PageValidator> page;
 	std::optional<ReuseNavigator> reuse;
 	std::shared_ptr<d::OwnedBuffer> bitmap;
+	// A removed-page node on the old walk, which runs beside the new one (`old_advance`).
+	struct OldFrame {
+		p::Reference reference;
+		p::NodeView node;
+		std::span<const char> bytes;
+		std::size_t segment = 0, restore = 0, child = 0;
+		bool page_root = true;
+		NodePhase phase = NodePhase::Prefix;
+	};
 	std::array<Frame, 203> frames{};
-	std::array<char, 202> key{};
+	std::array<OldFrame, 203> old_frames{};
+	std::array<char, 202> key{}, old_key{};
 	SHA256 hash;
-	std::size_t index = 0, offset = 0, depth = 0, key_size = 0, charge = 0, bitmap_size = 0,
+	std::size_t index = 0, offset = 0, depth = 0, key_size = 0, old_depth = 0, old_key_size = 0, charge = 0,
+				bitmap_size = 0,
 				histogram_index = 0, recorded_index = 0, recorded_histogram = 0;
 	std::uint64_t frontier = 0, new_pages = 0, new_bytes = 0, removed_pages = 0, removed_bytes = 0,
 				  new_namespaces = 0, removed_namespaces = 0, physical_bytes = 0, live_segments = 0,
 				  hashed_bytes = 0, histogram_records = 0, histogram_overrides = 0, definition_checks = 0,
-				  old_headers = 0;
+				  old_headers = 0, moved_definitions = 0;
 	SegmentRegistry *recorded = nullptr;
 	Phase phase = Phase::Seed;
 	bool failed = false, discarding = false, definitions = false, own_build = false;
@@ -131,8 +143,7 @@ struct WarmGraphValidator::Impl {
 		require(found != namespaces.end() && found->name() == name);
 		return *found;
 	}
-	void push(p::Reference reference, bool old, std::span<const char> existing = {},
-			  p::NodeAt at = {}) {
+	void push(p::Reference reference, std::span<const char> existing = {}, p::NodeAt at = {}) {
 		require(depth < frames.size());
 		auto &frame = frames[depth++];
 		frame = {};
@@ -147,14 +158,9 @@ struct WarmGraphValidator::Impl {
 			return;
 		}
 		const auto prior = find_segment(base_segments, reference.segment);
-		if (old || prior != base_segments.size()) {
-			require(prior < base_segments.size());
+		if (prior != base_segments.size()) {
 			frame.segment = prior;
 			frame.bytes = checked_page_bytes(base_segments[prior], reference);
-			if (old) {
-				frame.header = p::decode_page_header(frame.bytes, limits);
-				frame.node = at.decode(frame.bytes, limits);
-			}
 			frame.phase = NodePhase::Reuse;
 		} else {
 			const auto added = find_segment(added_segments, reference.segment);
@@ -171,6 +177,108 @@ struct WarmGraphValidator::Impl {
 			states[added].live.bytes += reference.length;
 		}
 	}
+	void old_push(p::Reference reference, std::span<const char> existing = {}, p::NodeAt at = {}) {
+		require(old_depth < old_frames.size());
+		auto &frame = old_frames[old_depth++];
+		frame = {};
+		frame.reference = reference;
+		frame.restore = old_key_size;
+		frame.page_root = existing.empty();
+		if (existing.empty()) {
+			frame.segment = find_segment(base_segments, reference.segment);
+			require(frame.segment < base_segments.size());
+			frame.bytes = checked_page_bytes(base_segments[frame.segment], reference);
+		} else
+			frame.bytes = existing;
+		frame.node = at.decode(frame.bytes, limits);
+	}
+	// Walks the removed pages in the new walk's (descending) order up to `bound`, the new walk's leaf: it
+	// stops before a node whose keys all sort below the bound, and at the old leaf equal to it. A node
+	// above the bound is past the new walk, so its reused pages are already frontiers. False: no budget.
+	bool old_advance(ValidationBudget &budget, std::optional<std::string_view> bound) {
+		while (old_depth) {
+			auto &frame = old_frames[old_depth - 1];
+			const std::string_view path(old_key.data(), old_key_size);
+			switch (frame.phase) {
+			case NodePhase::Prefix:
+				if (bound && path <= *bound && !bound->starts_with(path))
+					return true;
+				if (!grant(p::page_header_bytes + frame.node.prefix.size(), budget))
+					return false;
+				if (frame.page_root && frontier < frontiers.size()) {
+					const auto &reused = frontiers[frontier];
+					if (std::string_view(reused.prefix.data(), reused.length) == path) {
+						require(frame.reference == reused.reference);
+						++frontier;
+						old_key_size = frame.restore;
+						--old_depth;
+						break;
+					}
+				}
+				if (frame.page_root) {
+					const auto live = base->registry()->reachability(frame.segment);
+					require(removed[frame.segment].pages < live.pages &&
+							frame.reference.length <= live.bytes - removed[frame.segment].bytes);
+					++removed[frame.segment].pages;
+					removed[frame.segment].bytes += frame.reference.length;
+					++removed_pages;
+					removed_bytes += frame.reference.length;
+				}
+				require(frame.node.prefix.size() <= old_key.size() - old_key_size);
+				std::copy_n(frame.node.prefix.data(), frame.node.prefix.size(), old_key.data() + old_key_size);
+				old_key_size += frame.node.prefix.size();
+				frame.phase = frame.node.kind == p::PageKind::Branch ? NodePhase::Children : NodePhase::Leaf;
+				break;
+			case NodePhase::Leaf:
+				if (bound && path <= *bound)
+					return true;
+				if (!grant(p::definition_header_bytes + old_key_size, budget))
+					return false;
+				removed_leaf(frame.node);
+				frame.phase = NodePhase::Finish;
+				break;
+			case NodePhase::Children: {
+				if (frame.child == frame.node.labels.size()) {
+					frame.phase = NodePhase::Finish;
+					break;
+				}
+				if (!grant(p::child_bytes, budget))
+					return false;
+				old_key_size = frame.restore + frame.node.prefix.size();
+				require(old_key_size < old_key.size());
+				const auto child = frame.node.labels.size() - 1 - frame.child++;
+				const auto slot = frame.node.slot(child);
+				old_key[old_key_size++] = frame.node.labels[child];
+				if (slot & 0x8000)
+					old_push(p::decode_external(frame.bytes, slot & 0x7fff, limits));
+				else
+					old_push(frame.reference, frame.bytes, p::NodeAt::child(frame.node, slot));
+				break;
+			}
+			default:
+				if (!grant(1, budget))
+					return false;
+				old_key_size = frame.restore;
+				--old_depth;
+				break;
+			}
+		}
+		return true;
+	}
+	// A definition the delta moved unchanged: the old walk stands on its old leaf, same key and body. Its
+	// base validation holds (the namespace revision only grows) and its counts cancel, so neither is read.
+	bool moved(const Frame &frame) {
+		if (!old_depth || frame.node.kind != p::PageKind::Definition)
+			return false;
+		auto &old = old_frames[old_depth - 1];
+		if (old.phase != NodePhase::Leaf || old.node.kind != p::PageKind::Definition ||
+			std::string_view(old_key.data(), old_key_size) != std::string_view(key.data(), key_size) ||
+			!std::ranges::equal(old.node.body, frame.node.body))
+			return false;
+		old.phase = NodePhase::Finish;
+		++moved_definitions;
+		return true;
+	}
 	void complete() {
 		const auto keys = frames[depth - 1].keys;
 		key_size = frames[depth - 1].restore;
@@ -182,10 +290,11 @@ struct WarmGraphValidator::Impl {
 		} else
 			require(keys == std::uint64_t(expected.records) + expected.namespaces);
 	}
-	void leaf(Frame &frame, bool old) {
-		const auto parsed = p::decode_key({key.data(), key_size});
-		require(parsed.kind == frame.node.kind);
-		const auto body = frame.node.body;
+	// Counts one leaf of `node` at `text`: added on the new walk, removed on the old one.
+	void count_leaf(const p::NodeView &node, std::string_view text, bool old) {
+		const auto parsed = p::decode_key(text);
+		require(parsed.kind == node.kind);
+		const auto body = node.body;
 		auto &ns = name_space(parsed.name_space);
 		auto &target = old ? removed_counts : new_counts;
 		if (parsed.kind == p::PageKind::Namespace) {
@@ -208,12 +317,16 @@ struct WarmGraphValidator::Impl {
 				require(definition.overrides <= semantics.overrides);
 			++target.records;
 			target.overrides += definition.overrides;
-			target.strings += key_size - 2 + definition.key_bytes;
+			target.strings += text.size() - 2 + definition.key_bytes;
 			histogram[definition.overrides] += old ? -1 : 1;
 		}
+	}
+	void leaf(Frame &frame) {
+		count_leaf(frame.node, {key.data(), key_size}, false);
 		frame.keys = 1;
 		frame.phase = NodePhase::Finish;
 	}
+	void removed_leaf(const p::NodeView &node) { count_leaf(node, {old_key.data(), old_key_size}, true); }
 };
 WarmGraphValidator::WarmGraphValidator(std::shared_ptr<d::StorageLedger> account,
 									   const RecoveredGeneration &base, std::shared_ptr<const void> owner,
@@ -318,7 +431,9 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					s.index = s.added_segments.size();
 				if (s.index == s.added_segments.size()) {
 					if (s.expected.pages)
-						s.push(s.expected.tree, false);
+						s.push(s.expected.tree);
+					if (s.base->root().pages)
+						s.old_push(s.base->root().tree);
 					s.phase = Impl::Phase::NewWalk;
 					break;
 				}
@@ -342,9 +457,6 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 				break;
 			case Impl::Phase::NewWalk: {
 				if (!s.depth) {
-					s.key_size = 0;
-					if (s.base->root().pages)
-						s.push(s.base->root().tree, true);
 					s.phase = Impl::Phase::OldWalk;
 					break;
 				}
@@ -411,9 +523,14 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 																		   : Impl::NodePhase::Leaf;
 					break;
 				case Impl::NodePhase::Leaf:
-					if (!s.grant(frame.node.body.size() + s.key_size, budget))
+					if (!s.old_advance(budget, std::string_view(s.key.data(), s.key_size)) ||
+						!s.grant(frame.node.body.size() + s.key_size, budget))
 						return;
-					s.leaf(frame, false);
+					if (s.moved(frame)) {
+						frame.keys = 1;
+						frame.phase = Impl::NodePhase::Finish;
+					} else
+						s.leaf(frame);
 					break;
 				case Impl::NodePhase::Children:
 					if (frame.child == frame.node.labels.size()) {
@@ -430,9 +547,9 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 						const auto slot = frame.node.slot(child);
 						s.key[s.key_size++] = frame.node.labels[child];
 						if (slot & 0x8000)
-							s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), false);
+							s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits));
 						else
-							s.push(frame.reference, false, frame.bytes, p::NodeAt::child(frame.node, slot));
+							s.push(frame.reference, frame.bytes, p::NodeAt::child(frame.node, slot));
 					}
 					break;
 				case Impl::NodePhase::Finish:
@@ -446,71 +563,13 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 				}
 				break;
 			}
-			case Impl::Phase::OldWalk: {
-				if (!s.depth) {
-					require(s.frontier == s.frontiers.size());
-					s.index = 0;
-					s.phase = Impl::Phase::Finalize;
-					break;
-				}
-				auto &frame = s.frames[s.depth - 1];
-				if (frame.phase == Impl::NodePhase::Reuse || frame.phase == Impl::NodePhase::Prefix) {
-					if (!s.grant(p::page_header_bytes + frame.node.prefix.size(), budget))
-						return;
-					if (frame.page_root && s.frontier < s.frontiers.size()) {
-						const auto &frontier = s.frontiers[s.frontier];
-						if (std::string_view(frontier.prefix.data(), frontier.length) ==
-							std::string_view(s.key.data(), s.key_size)) {
-							require(frame.reference == frontier.reference);
-							++s.frontier;
-							s.key_size = frame.restore;
-							--s.depth;
-							break;
-						}
-					}
-					if (frame.page_root) {
-					const auto live = s.base->registry()->reachability(frame.segment);
-					require(s.removed[frame.segment].pages < live.pages &&
-							frame.reference.length <= live.bytes - s.removed[frame.segment].bytes);
-					++s.removed[frame.segment].pages;
-					s.removed[frame.segment].bytes += frame.reference.length;
-					++s.removed_pages;
-					s.removed_bytes += frame.reference.length;
-					}
-					require(frame.node.prefix.size() <= s.key.size() - s.key_size);
-					std::copy_n(frame.node.prefix.data(), frame.node.prefix.size(),
-								s.key.data() + s.key_size);
-					s.key_size += frame.node.prefix.size();
-					frame.phase = frame.node.kind == p::PageKind::Branch ? Impl::NodePhase::Children
-																		   : Impl::NodePhase::Leaf;
-				} else if (frame.phase == Impl::NodePhase::Leaf) {
-					if (!s.grant(p::definition_header_bytes + s.key_size, budget))
-						return;
-					s.leaf(frame, true);
-				} else if (frame.phase == Impl::NodePhase::Children) {
-					if (frame.child == frame.node.labels.size()) {
-						frame.phase = Impl::NodePhase::Finish;
-						break;
-					}
-					if (!s.grant(p::child_bytes, budget))
-						return;
-					s.key_size = frame.restore + frame.node.prefix.size();
-					require(s.key_size < s.key.size());
-					const auto child = frame.node.labels.size() - 1 - frame.child++;
-					const auto slot = frame.node.slot(child);
-					s.key[s.key_size++] = frame.node.labels[child];
-					if (slot & 0x8000)
-						s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), true);
-					else
-						s.push(frame.reference, true, frame.bytes, p::NodeAt::child(frame.node, slot));
-				} else {
-					if (!s.grant(1, budget))
-						return;
-					s.key_size = frame.restore;
-					--s.depth;
-				}
+			case Impl::Phase::OldWalk:
+				if (!s.old_advance(budget, std::nullopt))
+					return;
+				require(s.frontier == s.frontiers.size());
+				s.index = 0;
+				s.phase = Impl::Phase::Finalize;
 				break;
-			}
 			case Impl::Phase::Finalize:
 				if (s.index < s.base_segments.size()) {
 					if (!s.grant(sizeof(SegmentReachability), budget))
@@ -607,6 +666,9 @@ std::uint64_t WarmGraphValidator::definitions_validated() const noexcept {
 }
 std::uint64_t WarmGraphValidator::old_definition_headers() const noexcept {
 	return impl_ ? impl_->old_headers : 0;
+}
+std::uint64_t WarmGraphValidator::moved_definitions() const noexcept {
+	return impl_ ? impl_->moved_definitions : 0;
 }
 std::uint64_t WarmGraphValidator::hashed_segment_bytes() const {
 	root();

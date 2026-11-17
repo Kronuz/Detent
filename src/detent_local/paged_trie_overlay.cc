@@ -36,6 +36,7 @@ struct TrieOverlay::Impl {
 		OverlayReference parent;
 		std::size_t child;
 		std::uint8_t label;
+		View view;
 	};
 	std::shared_ptr<d::StorageLedger> account_;
 	std::shared_ptr<const void> owner;
@@ -157,6 +158,7 @@ struct TrieOverlay::Impl {
 		}
 		return result;
 	}
+	// An inline node's key count walks its subtree, so only conversion asks for it (`counted`).
 	View inspect(OverlayReference ref) const {
 		if (ref.fresh) {
 			const auto &n = *ref.fresh;
@@ -169,10 +171,15 @@ struct TrieOverlay::Impl {
 		const auto bytes = checked_page_bytes(segments[index], reference);
 		const auto n = ref.at.decode(bytes, limits);
 		return {
-			n.kind,	  ref.at.first() ? reference.keys : keys(bytes, ref.at),
+			n.kind,	  ref.at.first() ? reference.keys : 0,
 			n.prefix, n.body,
 			bytes,	  {},
 			n,		  reference};
+	}
+	View counted(OverlayReference ref, View v) const {
+		if (!ref.fresh && !ref.at.first())
+			v.keys = keys(v.bytes, ref.at);
+		return v;
 	}
 	void remove(const p::Reference &reference) {
 		// A page's nodes share its reference: it is removed once, found by its placement.
@@ -210,14 +217,15 @@ struct TrieOverlay::Impl {
 		return {std::nullopt,
 				node(kind, 1, save({key.data() + start, key_length - start}), body, 0)};
 	}
-	void convert(Action next) {
+	// `inspected` says `view` already holds `current`, read by the walk.
+	void convert(Action next, bool inspected = false) {
 		action = next;
 		if (current.fresh) {
 			converted = current.fresh;
 			phase = Phase::Action;
 			return;
 		}
-		view = inspect(current);
+		view = counted(current, inspected ? view : inspect(current));
 		converted = nullptr;
 		copy = 0;
 		phase = Phase::Convert;
@@ -245,7 +253,7 @@ struct TrieOverlay::Impl {
 			if (!frame.inspected) {
 				if (!grant(p::page_header_bytes + p::child_bytes, budget))
 					return;
-				frame.view = inspect(frame.original);
+				frame.view = counted(frame.original, inspect(frame.original));
 				frame.inspected = true;
 			}
 			if (!frame.entered) {
@@ -445,7 +453,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
 						s.complete();
 						break;
 					}
-					s.convert(Action::Split);
+					s.convert(Action::Split, true);
 					break;
 				}
 				if (s.view.kind != p::PageKind::Branch) {
@@ -459,7 +467,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
 						break;
 					}
 					s.difference = s.incoming ? 0 : -1;
-					s.convert(Action::Leaf);
+					s.convert(Action::Leaf, true);
 					break;
 				}
 				s.offset += s.common;
@@ -481,12 +489,12 @@ void TrieOverlay::step(ValidationBudget &budget) {
 						break;
 					}
 					s.difference = 1;
-					s.convert(Action::Add);
+					s.convert(Action::Add, true);
 					break;
 				}
 				if (s.depth == s.frames.size())
 					throw std::length_error("overlay path depth");
-				s.frames[s.depth++] = {s.current, low, label};
+				s.frames[s.depth++] = {s.current, low, label, s.view};
 				s.current = s.view.child(low, s.limits);
 				break;
 			}
@@ -653,10 +661,11 @@ void TrieOverlay::step(ValidationBudget &budget) {
 					break;
 				}
 				{
-					const auto frame = s.frames[--s.depth];
+					const auto &frame = s.frames[--s.depth];
 					s.current = frame.parent;
 					s.selected = frame.child;
-					s.convert(Action::Parent);
+					s.view = frame.view;
+					s.convert(Action::Parent, true);
 				}
 				break;
 			default:
