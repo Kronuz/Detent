@@ -180,16 +180,25 @@ def run(
         print(
             f"hosts {hosts}: ready after {time.monotonic() - began:.2f} s", flush=True
         )
-        leader = leaders[0]
-        receipt = settled(
-            lambda: request(
-                ports[leader + 3],
+
+        def open_on_leader() -> tuple[int, dict[str, Any]]:
+            # Each attempt asks which node leads: one that stalled may have lost it.
+            bodies = [health(index) for index in range(3)]
+            current = [
+                index
+                for index, body in enumerate(bodies)
+                if body and body.get("role") == 2
+            ]
+            if len(current) != 1:
+                return 0, {}
+            return request(
+                ports[current[0] + 3],
                 context,
                 "/v2/open",
                 {"expected_generation": 0, "nonce": "6e" + "00" * 15},
-            ),
-            "/v2/open",
-        )
+            )
+
+        receipt = settled(open_on_leader, "/v2/open")
         assert receipt.get("generation") == 1, receipt
         if scenario == "names":
             check_dual_stack(ports[0])
