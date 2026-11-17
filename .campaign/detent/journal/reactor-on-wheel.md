@@ -1,6 +1,6 @@
 # reactor-on-wheel: journal
 
-State: waiting on jobs 261112-115020-3a3dea 261112-115026-65553f
+State: waiting on jobs 261117-083939-245653 261117-083948-d8d15e (suite and TSan at reactor:bf874dc); A2 needs the lead (Blocked on)
 Quest: .campaign/detent/quests/reactor-on-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,24 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code and docs done on the quest branch (reactor:99aff1b): accept retry and LagProbe are wheel
-entries; ARCHITECTURE.md, API, AGENTS, stop-and-accept note, CHANGELOG updated. Suite passed
-(261112-115026-65553f, Release). A local Debug+ASan+UBSan run of lag, accept_pressure, session and
-reactor tests passed (not evidence; sanitizers are CI's). Waiting on the exclusive A/B
-261112-115020-3a3dea (queued behind light holds; `benchmarks/lag_ab.sh run`, a a b b twice, idle and loaded).
+Merged origin/main (CHANGELOG and CMakeLists conflicts; task pin 18eb516 contains the wheel's 0e71a38) and
+removed PeriodicTimer with its tests and doc mentions (reactor:0d3bc71); fixed lag_ab.sh (reactor:bf874dc).
+In-repo `git grep PeriodicTimer` finds only CHANGELOG.md. Suite 261117-083939-245653 and TSan 261117-083948-d8d15e
+queued at bf874dc.
 
 ## Next
 
-1. When 261112-115020-3a3dea ends: read its lines (p50, p99, mean per mode, A vs A/A band), write A2's numbers in
-   Result and Evidence; if B is outside the A/A band, investigate before anything else.
-2. Run `campaign brief`, paste its Evidence table, set State "ready for review".
-3. A4 stays open until Xapiand's manager.cc moves (see Blocked on).
+1. When both jobs pass: `campaign brief`, paste its Evidence table, set State "ready for review".
+2. A2: see Blocked on.
 
 ## Blocked on
 
-Lead's note (no msg id): archived repos (cluster) do not count for A4's grep; WheelSleep stays private to reactor (it folds into task's sleep/periodic later); State at the end reads "A1-A3 ready for early landing at <sha>; A4 waits on Xapiand". Main merged into this journal branch.
-
-A4 (remove PeriodicTimer): its last user is Xapiand's src/manager.cc (try_shutdown_timer, `reactor_events.h` include), moved by the Xapiand campaign. Not started here; A1-A3 may land early.
+A2's exclusive A/B 261112-115020-3a3dea failed (exit 1): `benchmarks/lag_ab.sh` read `$ASIO` in run mode under
+`set -u`. Fixed in reactor:bf874dc (flags set only in build). Resubmitting it
+(`campaign job submit --quest reactor-on-wheel --for A2 --level exclusive --minutes 10 -- sh benchmarks/lag_ab.sh run
+/Users/kronuz/.scratch/reactor-on-wheel-ab 10`; binaries a, b still in that directory from build job
+261112-115009-0a0428 at e487a46, lag code unchanged since) was denied by the permission classifier; the lead must
+submit it or approve it. Not in this assignment's scope.
 
 ## Evidence
 
@@ -39,7 +39,7 @@ checked what), and answer each message by its id (msg-N).
 | A1 | suite job 261112-115026-65553f (ctest in Release: events, callback_failure, accept_pressure incl. the manual-clock retry) |
 | A2 | pending: exclusive job 261112-115020-3a3dea |
 | A3 | ARCHITECTURE.md, section "Timers: one wheel, one Asio timer per loop" (reactor:99aff1b) |
-| A4 | open: Xapiand src/manager.cc still uses PeriodicTimer; nothing removed here |
+| A4 | manual: lead grep 2026-11-17 over Kronuz default branches: no code user (Xapiand:f5e267411 moved manager.cc; cluster archived); in-repo `git grep PeriodicTimer` at reactor:bf874dc names only CHANGELOG.md (reactor:0d3bc71 removed it, its tests and docs) |
 
 ## Result
 
