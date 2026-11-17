@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-164245-3db927
+State: fixing waiter_test cases (rows, close, close-read) after the step fix
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -34,8 +34,17 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
-Waiting on 261116-164245-3db927: tools/driver_checks.sh (every driver, blocking-entry, waiter,
-idle and Driver-simulation case under its own alarm) at the quest head.
+Job 261116-164245-3db927 (at consensus:0e8134a) failed far wider than its tail showed: driver_test
+rows/checkpoints/close, blocking lone_voter/stalled/needs_peer/staged/ownership, waiter rows/close/
+close-read, driver_idle (script cd). Causes fixed at consensus:8c32f07:
+- a step stopped at a Tick-only turn (TurnResult::Idle) though the Tick left a persist or checkpoint
+  preparation behind (lone voter's election waited for the next input; checkpoint stalled after
+  chunk 1). New `Worker::runnable()`; Idle && runnable counts as progress.
+- consensus::run's own stop left `stopping_` set: every later entry cancelled its calls, and a later
+  `run()` parked in Idle with an empty token. The entry rearms the Driver when it returns.
+- tests: blocking Sink applies its ranges; fence read waits on an unapplied range; threads case counts
+  rounds as runs (the "0 runs"); scripts moved to test/ (tools/ is outside the file set).
+Driver and blocking-entry cases all pass locally; now: waiter rows/close/close-read.
 
 ## Done
 
