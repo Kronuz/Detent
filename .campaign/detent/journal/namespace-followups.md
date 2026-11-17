@@ -1,6 +1,6 @@
 # namespace-followups: journal
 
-State: waiting on jobs 261117-010638-a2e07b 261117-010643-82f97f 261117-010647-bddad5 261117-010651-144dd2 261117-010654-b0ab28 261117-010655-21b41d
+State: waiting on jobs 261117-012018-6adf36 261117-012018-21ab2b 261117-012018-251683 261117-012019-5f6244 (A3 and A4 reruns at the head; their earlier jobs ran older relay scripts)
 Quest: .campaign/detent/quests/namespace-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -38,13 +38,18 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261117-010638-a2e07b; fails without: 261116-213218-af4bac, 261117-005901-b41eac, 261117-010643-82f97f, 261117-010647-bddad5 |
+| A2 | 261117-010638-a2e07b; fails without: 261117-005901-f7ee1a, 261117-010651-144dd2 |
+| A3 | 261117-012018-6adf36 (rerun of 261116-213225-1c4d20 at the head) |
+| A4 | 261117-012018-21ab2b; fails without: 261117-012018-251683, 261117-012019-5f6244 (reruns at the head) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+- A1: `History::seal` refuses a seal file, block, base or table above `file_bounds` (history.cc `bounded`) before queuing; two tests in test_history_power_cut.cc (`refused_seal`), three mutants killed.
+- A2: test_history_power_cut.cc `cuts` now also runs a growing-namespace log that takes the count cut: a plain restart and a cut at every primitive (two checkpoint cadences) recover the uninterrupted bytes; the no-count-cut mutant is killed.
+- A3: the seven relay `disk_*` health fields and the relay's CompletionScheduler are gone; test_relay_service refuses a `disk_*` key; grep, build and service test in tests/detent_relay/relay_health_check.sh.
+- A4: relay mirror staging errors (adopt and repair) remove their temporaries and rethrow; the store is poisoned only after the first link or the rename; `staging_error` in test_relay_mirror.cc, two mutants killed.
+- Pre-existing, not from this quest: test_delivery_repair_scrub-worker (fails at main, 261117-005929-a909be) and the snapshot_catchup flake.
 
 ## Rulings I made
 
