@@ -5733,6 +5733,44 @@
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
       "updated": "2026-11-08T17:30:06"
     },
+    "namespace-cleanup": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-hardening"
+      ],
+      "checks": [
+        {
+          "cmd": "scripts/check suite",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent_delivery/completion_scheduler.hh",
+        "src/detent_delivery/completion_scheduler.cc",
+        "tests/detent_delivery/test_completion_scheduler.cc",
+        "include/detent_delivery/coordinator.hh",
+        "src/detent_delivery/coordinator.cc",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/**/*_mutant.sh",
+        "tests/detent_authority/test_namespace_history.cc",
+        "src/detent_authority/history.cc",
+        "**/CMakeLists.txt",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
+      "updated": "2026-11-17T08:15:17"
+    },
     "namespace-design": {
       "accepted": {},
       "after": [],
