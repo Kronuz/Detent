@@ -1534,7 +1534,10 @@
     },
     "consensus-transport": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "transport-identity",
+        "transport-idle-cost"
+      ],
       "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
       "branch": "quest/detent/consensus-transport",
       "checks": [
@@ -1555,6 +1558,8 @@
       "files": [
         "include/consensus/transport/**",
         "test/transport/**",
+        "CMakeLists.txt",
+        "fuzz/**",
         "bench/**",
         "docs/**",
         "ARCHITECTURE.md",
@@ -1568,7 +1573,8 @@
       ],
       "milestone": "M1b",
       "needs": [
-        "consensus-driver"
+        "transport-groups",
+        "rpc-lane-codec"
       ],
       "provides": [
         "consensus:transport"
@@ -1577,7 +1583,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-17T00:40:09",
+      "updated": "2026-11-17T00:48:42",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "container-selection": {
