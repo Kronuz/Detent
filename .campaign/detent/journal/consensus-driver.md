@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-211609-a0dcdf 261116-211614-de2c80 261116-211620-0abe91 261116-211621-4d8134 261116-211621-9a4a95 261116-211622-537ac1 261116-211622-6a5516 261116-211622-9fb639 261116-211622-5ec061 261116-211623-aa6b04 261116-211623-26af3a 261116-211624-b7832c 261116-211624-1eba2e 261116-211624-5b7e94 261116-211625-c6dfcd 261116-211625-c9d74d 261116-211625-e080a6 (at consensus:41ee584)
+State: CI-timing fix: waiter split at consensus:bf66941; consensus_worker timing probe 261116-232514-1fb60a queued
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -33,6 +33,17 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 `Read`; `consensus::run` names its `blocking_scheduler`; `peer_limits` and `state` added.
 
 ## Doing
+
+CI-timing fix (lead's assignment after consensus:41ee584):
+- CI linux-asan-ubsan at 41ee584 (run 44023022983): consensus_waiter Timeout 600 s (488 s at
+  ccc9a3e, test unchanged). consensus:bf66941 runs it as one ctest entry per explored spec (rows
+  and teardown split into their specs: 11 entries), each at the old bound (20,000 schedules,
+  threads 100 rounds). Each Explorer is local to its spec, so the entries explore exactly the
+  schedules the single run did. driver_checks.sh lists the 11 cases.
+- consensus_worker Timeout 180 s in suite 261116-211620-0abe91 (load ~12); at main 1 of 3 timed
+  out (261116-091746-638010; the others 168 s, 147 s); CI ASan 9.4 s. Probe 261116-232514-1fb60a
+  times each call of its default run on macOS Release (script
+  consensus-driver/.scratch/worker-timing/timed.sh).
 
 Correctness review round 1 (CHANGES, reviews/consensus-driver-correctness.md) folded in at
 consensus:ccc9a3e:
@@ -255,8 +266,10 @@ Nothing.
   entry only. A reactor `run()`'s shutdown stays final (calls after it complete `cancelled`).
 - R12 tools/driver_checks.sh and tools/driver_mutants.py moved to test/ (tools/ is outside the file
   set); the checks script takes an absolute BUILD (the idle case's `cd` broke its output path).
-- R13 The waiter ctest (no case) runs every case to 20,000 schedules (threads 100 rounds) so the
-  sanitized CI fits its 600 s; the full exploration is driver_checks.sh with WAITER_LIMIT.
+- R13 The waiter ctest runs each case as its own entry to 20,000 schedules (threads 100 rounds),
+  so each sanitized CI entry fits its 600 s; the full exploration is driver_checks.sh with
+  WAITER_LIMIT. Evidence commands that named `consensus_waiter$` or the old `rows`/`teardown`
+  cases now name `consensus_waiter_` and the 11 split cases.
 - R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
   re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
 - R14 Y9: state an idle group rarely uses lives behind a pointer, allocated while in use: the
