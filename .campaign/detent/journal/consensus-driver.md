@@ -34,19 +34,28 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
-Repin journal to journal:7c08540 and port the Worker's shared constructor to `journal::Host`.
+Driver tests (driver_test) on a lone voter; then multi-node simulation, waiter/teardown, blocking entry.
+
+## Done
+
+- consensus:ab82129 journal repinned to 7c08540; Worker on `Host&`; migration API gone.
+- consensus:0acfaff driver.h, Core `next_deadline/term_at/leader`, lone voter due at Start.
+- consensus:<cmake> standalone build makes task/completion available with Asio (journal turns it off).
+- driver_test cases: lone_voter, rows, checkpoints, close, fence.
+
+## Jobs
+
+- 261116-155558-d9aba2 suite at ab82129: failed, CMake (task::asio/completion::asio missing) -> fixed.
+- 261116-160829-db1983 driver_test: compiled; 2 failures (test applied only the first range) -> fixed.
+- 261116-161017-a0faef driver_test, 261116-161019-c54684 suite: pending.
 
 ## Next
 
-1. Repin journal (7c08540: task 95798a0, completion 7731315 come with it); Worker shared ctor on
-   `Host&`; drop migrate/layout/finish_migration (worker.h:166-181, R14); port
-   shared_worker_test/shared_cluster_test to Host; suite job.
-2. core.h: `next_deadline()`, `term_at()`, lone voter due at Start; `lone_voter` and recover tests.
-3. driver.h: group table, waiters, step loop, wheel entries, Sink, every call; consensus::run.
-4. Tests: driver simulation (inline_scheduler + HeldCompletion) with oracles; D8 rows; waiter
-   interleavings + close/teardown with controls (ASan); real-thread close/cancel/teardown (TSan);
-   blocking_entry rules; witness member.
-5. snapshot_channel.h D9 (frame buffers on arrival); idle-cost bench (exclusive) for A5.
+1. Fix driver_test failures; suite green.
+2. Multi-node simulation through Driver (inline_scheduler + HeldCompletion), witness member (A1, A4).
+3. waiter_test interleavings + close/teardown under ASan; real-thread close/cancel/teardown under TSan (A3).
+4. blocking_entry cases under TSan (A4).
+5. snapshot_channel.h D9; idle-cost bench exclusive (A5).
 
 ## Blocked on
 
@@ -77,3 +86,8 @@ Nothing.
   and the Driver must have been built over it (checked).
 - R4 `committed()` below the retained log throws `compacted` rather than guessing: the entry's
   term is gone there, and a committed entry at that index can carry an earlier term.
+- R5 A lone voter's election is due at `Start` (Core sets `election_deadline_ = now_`), and the
+  Driver delivers a Tick right after Start, so it campaigns with no clock advance. admission.h is
+  outside the file set, so Start itself does not campaign.
+- R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
+  re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
