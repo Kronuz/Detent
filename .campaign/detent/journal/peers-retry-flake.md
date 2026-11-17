@@ -1,9 +1,11 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-121450-50e651 (probe 3: 500 ms deadline under load)
+State: waiting on jobs 261117-121715-f99570 (probe 4: lane state around the thaw, 500 ms)
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Probe 3 (500 ms, 4-way): two failures, error 60 timed_out at 500 ms (the original CI symptom) and error 57 not_connected at 0 ms. Their drain lines were lost: stdout was buffered and the abort dropped it. Probe 4 (consensus:d9dff27) prints unbuffered lane state (connections, admitted, reconnects, fetches) after the frozen failure, after the drain and at a failed retry, and keeps xargs going; its output is a uniq -c table. Plan once read: (1) timed_out mode: size the retry for the deadline (smaller reply, a second file) or a longer deadline for the retry; (2) not_connected mode: if a healthy lane is lost during the freeze, wait for 4 connections back and admitted before the retry, and keep the same-lanes check on admitted/connections measured after that wait only if Peers did not replace a lane; otherwise report a Peers defect with paths. Force each mode (PEERS_RETRY_LAG_MS covers timed_out), fix, 200x 4-way and suite with --for.
 
 Probe 2 (261117-100413-28c01b, 2 s deadline): every drain ends 150-320 ms after the thaw with 4 lanes and 4 reconnects (the baseline), except the failing run: drain 8 ms after the thaw, 3 connections, 5 reconnects, then the retry fails not_connected at 0 ms. A drain 8 ms after the thaw is not the late-timer close (that is a fetch_deadline after the first failure); a lane died during the freeze. Hypothesis: with the freeze equal to `options.deadline` (2000 ms, Cluster default), Peers' own 2 s deadlines (append expiry, dial/write at peers.h:235, 507, 618, 709) close a lane on the hung peer. My 2 s deadline change is what lengthened the freeze to that; the original 500 ms never reached it. Probe 3 (consensus:5d1ab99) is back at 500 ms with the diagnostics, x200 4-way, to see whether the 500 ms test fails this way. If lanes die under 500 ms too, the fix is in the test (wait for fully_connected before the retry would break the same-lanes check, so the same-lanes check must instead be what is being proved); decide with probe 3's data. Then force, fix, and rerun A1-A3 with --for.
 
