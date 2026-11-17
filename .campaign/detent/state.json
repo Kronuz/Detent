@@ -12648,6 +12648,47 @@
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
       "updated": "2026-11-17T00:46:48"
     },
+    "transport-idle-cost": {
+      "accepted": {},
+      "after": [
+        "transport-identity"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "bench/**",
+        "test/transport/**",
+        "CMakeLists.txt",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "transport-groups"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
+      "updated": "2026-11-17T00:46:53"
+    },
     "voter-read-freshness": {
       "accepted": {},
       "after": [
