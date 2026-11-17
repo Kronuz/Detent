@@ -482,6 +482,11 @@ void scrub_carry(const fs::path &certificates, const fs::path &root) {
 			const auto status = coordinator->status();
 			return status.recoverable && status.recoverable->revision == 2;
 		}), coordinator, server));
+		// The status keeps the old root's count until the scrub rebases, which may hash more of the old root
+		// first; its first change is the count at the rebase.
+		const auto held = coordinator->status().scrub.bytes_hashed;
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.bytes_hashed != held; }),
+					  coordinator, server));
 		const auto swapped = coordinator->status();
 		at_swap = swapped.scrub.bytes_hashed;
 		check(swapped.scrub.passes == 0);
