@@ -11,13 +11,54 @@ FramesExport::FramesExport(std::vector<FramesRequest> requests, std::optional<d:
 	  compress_(compress) {
 	requests_.reserve(owned_.size());
 	for (const auto &request : owned_)
-		requests_.push_back({request.name, request.history.get(), request.store});
-	encoder_.emplace(directory, requests_);
+		requests_.push_back({request.name, request.history.get(), request.store, request.dropped});
+	encoder_.emplace(directory, requests_, account_);
 	empty_ = !directory || directory->entries.empty();
 	for (const auto &answer : encoder_->answers())
 		empty_ = empty_ && (answer.kind == d::AnswerKind::Current || answer.kind == d::AnswerKind::Ahead);
 }
 FramesExport::~FramesExport() = default;
+
+FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d::DirectoryCursor> &all,
+					   const d::NamespaceGrants &grants, const State &state, const Identity &cluster,
+					   const State &sealed, const history::Table &table, history::Files &files,
+					   const ChangeHistory &ring) {
+	FramesPlan plan;
+	auto request = [&](const std::string &name, const std::optional<d::NamespaceCursor> &store) {
+		if (auto frozen = AuthorityHistory::freeze(name, cluster, state, sealed, table, files, ring)) {
+			plan.requests.push_back({name, std::move(frozen), store, std::nullopt});
+			return;
+		}
+		const auto *entry = state.namespace_entry(name);
+		if (!entry)
+			return; // Not created on this voter.
+		if (entry->live)
+			throw FramesBehind("namespace history is not at the sealed state");
+		if (store) // The session still holds a namespace that is gone.
+			plan.requests.push_back({name, nullptr, store, d::NamespaceCursor{cluster, entry->incarnation, entry->position}});
+	};
+	for (const auto &[name, store] : follows)
+		request(name, store);
+	if (all) {
+		d::DirectoryUpdate update;
+		update.from = all->cluster == cluster ? all->position : 0;
+		update.to = {cluster, state.directory_position()};
+		if (update.from < update.to.position) {
+			state.for_each_directory_entry(update.from, [&](std::uint64_t, const std::string &name, const Namespace &entry) {
+				if (!grants.allows(name))
+					return;
+				update.entries.push_back({name, entry.incarnation, entry.live});
+				const bool followed = std::any_of(follows.begin(), follows.end(),
+												  [&](const auto &f) { return f.first == name; });
+				if (entry.live && !followed)
+					request(name, std::nullopt);
+			});
+			plan.directory = std::move(update);
+		}
+	}
+	std::sort(plan.requests.begin(), plan.requests.end(), [](const auto &a, const auto &b) { return a.name < b.name; });
+	return plan;
+}
 
 void FramesExport::seal_chunk() {
 	chunk_->seal_prefix();

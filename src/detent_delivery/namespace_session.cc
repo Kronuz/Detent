@@ -98,6 +98,7 @@ struct FramesResponseDecoder::Impl {
 	bool compression;
 	d::FrameSink *sink;
 	d::Limits limits;
+	static constexpr std::size_t header_node_bytes = 96; // A header's map node and string headers.
 	http_parser parser{};
 	http_parser_settings settings{};
 	std::map<std::string, std::string, std::less<>> headers;
@@ -105,6 +106,7 @@ struct FramesResponseDecoder::Impl {
 	std::size_t header_bytes = 0;
 	bool last_value = false, headers_done = false, complete = false;
 	std::exception_ptr error;
+	d::StorageLedger::Ticket header_charge, control_charge; // The headers and the control body held.
 	std::optional<d::FragmentDecoder> fragments;
 	std::optional<d::SessionFramesDecoder> frames;
 	std::optional<NamespaceSession> opened;
@@ -156,11 +158,13 @@ struct FramesResponseDecoder::Impl {
 	}
 	void admit_header(std::size_t n) {
 		require(!headers_done && n <= 65536 - header_bytes, "session response header bound");
+		header_charge.absorb(limits.storage_account->admit(n));
 		header_bytes += n;
 	}
 	void commit_header() {
-		require(!field.empty() && headers.size() < 128 && headers.emplace(field, value).second,
-				"duplicate or excessive session response headers");
+		require(!field.empty() && headers.size() < 128, "duplicate or excessive session response headers");
+		header_charge.absorb(limits.storage_account->admit(header_node_bytes));
+		require(headers.emplace(field, value).second, "duplicate or excessive session response headers");
 		field.clear();
 		value.clear();
 		last_value = false;
@@ -202,6 +206,7 @@ struct FramesResponseDecoder::Impl {
 		require(headers_done && parser.status_code != 204, "session response body unexpected");
 		if (!fragments) {
 			require(bytes.size() <= 4096 - control.size(), "session control body bound");
+			control_charge.absorb(limits.storage_account->admit(bytes.size()));
 			control.append(bytes);
 			return;
 		}
@@ -252,7 +257,12 @@ struct FramesResponseDecoder::Impl {
 };
 FramesResponseDecoder::FramesResponseDecoder(SessionResponsePurpose purpose, d::Identity session, bool compression,
 											 d::FrameSink *sink, d::Limits limits)
-	: impl_(std::make_unique<Impl>(purpose, session, compression, sink, std::move(limits))) {}
+	: impl_([&] {
+		  limits = d::detail::admitted_limits(std::move(limits));
+		  auto account = limits.storage_account;
+		  return d::make_storage_owner<Impl>(std::move(account), limits.storage_allocate, limits.storage_release,
+											 purpose, session, compression, sink, limits);
+	  }()) {}
 FramesResponseDecoder::~FramesResponseDecoder() = default;
 void FramesResponseDecoder::feed(std::span<const char> bytes) {
 	auto &p = *impl_;
@@ -364,16 +374,73 @@ task::task<NamespaceSession> open_namespace_session(ClientOptions options, Follo
 	co_await exchange(std::move(options), "/v2/distribution/session/open", std::move(body), decoder, std::move(token));
 	co_return decoder.opened();
 }
+namespace {
+// The frames of one response, prepared and charged to the ledger, and nothing published until
+// publish(): destroying it without that discards them and refunds the ledger.
+class StagedFrames final : public d::FrameSink {
+  public:
+	StagedFrames(FramePreparer &preparer, std::shared_ptr<d::StorageLedger> account)
+		: preparer_(preparer), account_(std::move(account)) {}
+	void directory(const d::DirectoryUpdate &update) override {
+		std::size_t bytes = sizeof(update) + update.entries.size() * sizeof(d::DirectoryEntry);
+		for (const auto &entry : update.entries)
+			bytes += entry.name.size();
+		held_.absorb(account_->admit(bytes));
+		directory_ = update;
+	}
+	void frame(std::string_view name, d::FrameKind kind, std::uint64_t after, const d::NamespaceCursor &to) override {
+		auto prepared = preparer_.prepare(name, kind, after, to);
+		require(static_cast<bool>(prepared), "a frame prepared nothing");
+		frames_.push_back(std::move(prepared));
+		charged_ = 0;
+		charge();
+	}
+	void piece(d::PieceKind kind, std::uint64_t first, std::uint64_t last) override {
+		frames_.back()->piece(kind, first, last);
+		charge();
+	}
+	void record(std::string_view key, std::uint64_t revision, const KnobDef *value) override {
+		frames_.back()->record(key, revision, value);
+		charge();
+	}
+	void publish() {
+		if (directory_)
+			preparer_.directory(*directory_);
+		for (auto &frame : frames_)
+			frame->publish();
+	}
+
+  private:
+	void charge() {
+		const auto held = frames_.back()->bytes();
+		if (held > charged_)
+			held_.absorb(account_->admit(held - charged_));
+		charged_ = std::max(charged_, held);
+	}
+	FramePreparer &preparer_;
+	std::shared_ptr<d::StorageLedger> account_;
+	d::StorageLedger::Ticket held_;
+	std::optional<d::DirectoryUpdate> directory_;
+	std::vector<std::unique_ptr<FramePreparer::Prepared>> frames_;
+	std::size_t charged_ = 0; // Of the open frame.
+};
+} // namespace
+
 task::task<FramesOutcome> next_namespace_session(ClientOptions options, NamespaceSession session, Following following,
-												 std::chrono::milliseconds wait, d::FrameSink &sink,
+												 std::chrono::milliseconds wait, FramePreparer &preparer,
 												 task::cancel_token token) {
 	require(session.valid() && wait >= std::chrono::milliseconds::zero() && wait <= session.maximum_wait,
 			"invalid session next");
-	FramesResponseDecoder decoder(SessionResponsePurpose::Next, session.id, options.compression, &sink,
+	options.limits = d::detail::admitted_limits(std::move(options.limits));
+	StagedFrames staged(preparer, options.limits.storage_account);
+	FramesResponseDecoder decoder(SessionResponsePurpose::Next, session.id, options.compression, &staged,
 								  options.limits);
 	auto body = namespace_session_body(SessionResponsePurpose::Next, following, options.compression, session.id, wait);
 	co_await exchange(std::move(options), "/v2/distribution/session/next", std::move(body), decoder, std::move(token));
-	co_return decoder.outcome();
+	const auto outcome = decoder.outcome();
+	if (outcome == FramesOutcome::Frames)
+		staged.publish();
+	co_return outcome;
 }
 task::task<void> close_namespace_session(ClientOptions options, NamespaceSession session, task::cancel_token token) {
 	require(session.valid(), "invalid session close");

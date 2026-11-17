@@ -61,13 +61,17 @@ class HistoryFailure : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
-// What a store at a cursor gets (D6's tiers):
-//   Current   the store is at head; nothing to send
-//   Ahead     the store is above head: no answer until this source catches up (D1)
+// What a store at a cursor gets (D6's tiers). The rules apply in this order:
+//   Ahead     a store of the same cluster above head, whatever its incarnation: positions continue
+//             across incarnations, so this source lags a drop and re-creation (D1); no answer until
+//             it catches up
+//   FullCopy  no store, another cluster, or another incarnation at or below head (W7); or R < p
+//   Current   the store is at head: nothing to send
 //   Entries   R >= s: the ring's entries (R, h]
 //   Blocks    p <= R < s: the span holding R + 1 trimmed above R, the younger spans, the ring
-//   FullCopy  R < p, another cluster or incarnation, or no store: the state at s, the ring
-enum class AnswerKind : std::uint8_t { Current = 0, Ahead = 1, Entries = 2, Blocks = 3, FullCopy = 4 };
+//   Dropped   the namespace is gone: the session's request, never a history's choice
+// A full copy is the state at s followed by the ring.
+enum class AnswerKind : std::uint8_t { Current = 0, Ahead = 1, Entries = 2, Blocks = 3, FullCopy = 4, Dropped = 5 };
 struct Answer {
 	AnswerKind kind = AnswerKind::Current;
 	std::uint64_t after = 0; // R; 0 for a full copy

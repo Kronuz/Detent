@@ -10,6 +10,7 @@
 #include "change_history.hh"
 #include "cluster_harness.hh"
 #include "detent_distribution/session_frames.hh"
+#include "frames_export.hh"
 #include "history.hh"
 #include "namespace_history.hh"
 #include <iostream>
@@ -365,6 +366,60 @@ int main() {
 	check(group.administer(0, ++request, drop).results[0].status == Status::Applied);
 	settle(group);
 	all += answer_all(group);
+	// A3 (namespace-s6-hardening): a session that follows the dropped namespace with a store of it is
+	// told, on every voter; a session with no store, or with `all`, is not sent a frame for it.
+	// A4: a live namespace the voter cannot freeze fails the answer, never omits it.
+	{
+		const auto *gone = group.nodes[0]->state().namespace_entry("c");
+		check(gone && !gone->live);
+		const std::string_view everything[] = {"*"};
+		const d::NamespaceGrants grants{std::span<const std::string_view>(everything)};
+		for (unsigned i = 0; i < 3; ++i) {
+			auto &node = *group.nodes[i];
+			const auto plan = [&](std::vector<Followed> follows, std::optional<d::DirectoryCursor> all,
+								  const h::Table &table) {
+				return plan_frames(follows, all, grants, node.state(), group.context.cluster, *node.sealed(), table,
+								   *node.history_files(), *rings[i]->inner);
+			};
+			const auto &table = node.history()->layout().table();
+			const d::NamespaceCursor expected{group.context.cluster, gone->incarnation, gone->position};
+			auto told = plan({{"a", std::nullopt}, {"c", old}}, std::nullopt, table);
+			check(told.requests.size() == 2 && told.requests[0].name == "a" && told.requests[0].history &&
+				  told.requests[1].name == "c" && !told.requests[1].history && told.requests[1].dropped == expected);
+			d::NamespaceRequest one{"c", nullptr, old, told.requests[1].dropped};
+			std::string body = d::encode_session_frames(std::nullopt, {&one, 1});
+			Decoded decoded;
+			d::SessionFramesDecoder decoder(decoded);
+			std::span<const char> input(body.data(), body.size());
+			std::size_t budget = body.size();
+			decoder.feed(input, budget);
+			decoder.finish();
+			check(decoded.frames == 1 && decoded.kind == d::FrameKind::Dropped && decoded.to == expected &&
+				  decoded.pieces.empty());
+			check(plan({{"c", std::nullopt}}, std::nullopt, table).requests.empty());
+			auto directory = plan({{"c", std::nullopt}}, d::DirectoryCursor{group.context.cluster, 0}, table);
+			check(directory.directory && !directory.requests.empty() &&
+				  std::none_of(directory.requests.begin(), directory.requests.end(),
+							   [](const auto &r) { return r.name == "c"; }) &&
+				  std::any_of(directory.directory->entries.begin(), directory.directory->entries.end(),
+							  [](const auto &e) { return e.name == "c" && !e.live; }));
+			// A4: a table that is not the sealed state's cannot freeze a live namespace.
+			auto unsealed = table;
+			++unsealed.index;
+			auto behind = [&](std::vector<Followed> follows, std::optional<d::DirectoryCursor> all) {
+				try {
+					plan(std::move(follows), all, unsealed);
+				} catch (const FramesBehind &) {
+					return true;
+				}
+				return false;
+			};
+			check(behind({{"a", std::nullopt}}, std::nullopt));
+			check(behind({}, d::DirectoryCursor{group.context.cluster, 0}));
+			// What is gone needs no layout: the drop is still told.
+			check(plan({{"c", old}}, std::nullopt, unsealed).requests.at(0).dropped == expected);
+		}
+	}
 	commit(group, "c", {{"k1", 5}, {"k2", 6}});
 	settle(group);
 	// W7: a store of the old incarnation, even at its head, gets a full copy of the new one under

@@ -10,6 +10,7 @@
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 #include <atomic>
+#include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <mutex>
@@ -40,6 +41,7 @@ struct Served {
 	d::Identity incarnation;
 	std::uint64_t directory = 0;
 	std::vector<Transaction> transactions;
+	std::optional<d::NamespaceCursor> dropped; // gone: a follower with a store is told
 	TestHistory history() const {
 		const std::uint64_t head = transactions.size(), s = head >= 3 ? head - 3 : 0, p = s / 2;
 		std::vector<d::HistorySpan> spans;
@@ -64,7 +66,7 @@ struct Server {
 	std::mutex mutex;
 	std::vector<Served> served; // by name
 	d::NamespaceGrants grants;
-	bool open_session = false, corrupt = false;
+	bool open_session = false, corrupt = false, behind = false;
 	std::atomic<unsigned> answered{0}, idle{0};
 	std::exception_ptr failure;
 	asio::io_context io;
@@ -135,6 +137,8 @@ struct Server {
 				return control("403 Forbidden", "forbidden");
 			wanted[position.name] = position.cursor;
 		}
+		if (behind)
+			return control("503 Service Unavailable", "source_behind");
 		std::optional<d::DirectoryUpdate> directory;
 		d::Identity cluster;
 		cluster.fill('\x01');
@@ -154,7 +158,13 @@ struct Server {
 		histories.reserve(wanted.size());
 		std::vector<d::NamespaceRequest> requests;
 		for (const auto &[name, cursor] : wanted) {
-			histories.push_back(find(name).history());
+			const auto &each = find(name);
+			if (each.dropped) {
+				if (cursor)
+					requests.push_back({name, nullptr, cursor, each.dropped});
+				continue;
+			}
+			histories.push_back(each.history());
 			requests.push_back({name, &histories.back(), cursor});
 		}
 		d::SessionFramesEncoder encoder(directory, requests);
@@ -171,7 +181,9 @@ struct Server {
 		std::string wire;
 		d::Identity update;
 		update.fill('u');
+		std::size_t last_fragment = 0;
 		for (std::uint64_t offset = 0; offset < payload.size() || offset == 0;) {
+			last_fragment = wire.size();
 			const auto n = std::min<std::uint64_t>(d::fragment_bytes, payload.size() - offset);
 			d::Fragment fragment{d::UpdateKind::Frames, update, offset, payload.size(), offset + n == payload.size(),
 								 payload.substr(offset, n)};
@@ -180,8 +192,8 @@ struct Server {
 			if (!n)
 				break;
 		}
-		if (corrupt)
-			wire[wire.size() / 2] ^= 0x40;
+		if (corrupt) // A byte in the last fragment's payload: the earlier fragments verify.
+			wire[last_fragment + (wire.size() - last_fragment) / 2] ^= 0x40;
 		++answered;
 		return reply("200 OK",
 					 "Content-Type: application/vnd.detent.frames\r\nX-Detent-Session-Version: 2\r\n"
@@ -226,35 +238,62 @@ struct Server {
 	}
 };
 
-// The agent's store as the frames build it: per namespace, its cursor and records.
-struct Store final : d::FrameSink {
+// The agent's store as the frames build it: per namespace, its cursor and records. A response's
+// frames are prepared per namespace and published together, which bumps each namespace's change word.
+struct Store final : t::FramePreparer {
 	std::map<std::string, std::pair<d::NamespaceCursor, State>> namespaces;
+	std::map<std::string, unsigned> change;
 	std::optional<d::DirectoryCursor> directory_at;
 	std::vector<d::DirectoryEntry> created;
-	std::string current;
 	std::map<std::string, d::FrameKind> kinds; // the last frame kind per namespace
+	unsigned prepared = 0;
+	class Frame final : public Prepared {
+	  public:
+		Frame(Store &owner, std::string name, d::FrameKind kind, d::NamespaceCursor to)
+			: store_(owner), name_(std::move(name)), kind_(kind), to_(to) {
+			if (const auto found = store_.namespaces.find(name_); found != store_.namespaces.end())
+				state_ = found->second.second;
+		}
+		void piece(d::PieceKind kind, std::uint64_t, std::uint64_t) override {
+			if (kind == d::PieceKind::FullCopy)
+				state_.clear();
+		}
+		void record(std::string_view key, std::uint64_t revision, const KnobDef *value) override {
+			if (value)
+				state_[std::string(key)] = {revision, *value};
+			else
+				state_.erase(std::string(key)); // a tombstone for a key the store lacks is a no-op
+		}
+		std::size_t bytes() const noexcept override { return 64 + 64 * state_.size(); }
+		void publish() override {
+			if (kind_ == d::FrameKind::Dropped)
+				store_.namespaces.erase(name_);
+			else
+				store_.namespaces[name_] = {to_, std::move(state_)};
+			++store_.change[name_];
+			store_.kinds[name_] = kind_;
+		}
+
+	  private:
+		Store &store_;
+		std::string name_;
+		d::FrameKind kind_;
+		d::NamespaceCursor to_;
+		State state_;
+	};
+	std::unique_ptr<Prepared> prepare(std::string_view name, d::FrameKind kind, std::uint64_t after,
+									  const d::NamespaceCursor &to) override {
+		++prepared;
+		if (kind == d::FrameKind::Entries || kind == d::FrameKind::Blocks) {
+			const auto found = namespaces.find(std::string(name));
+			check(found != namespaces.end() && found->second.first.same_identity(to) &&
+				  found->second.first.position == after);
+		}
+		return std::make_unique<Frame>(*this, std::string(name), kind, to);
+	}
 	void directory(const d::DirectoryUpdate &update) override {
 		directory_at = update.to;
 		created.insert(created.end(), update.entries.begin(), update.entries.end());
-	}
-	void frame(std::string_view name, d::FrameKind kind, std::uint64_t after, const d::NamespaceCursor &to) override {
-		current = name;
-		kinds[current] = kind;
-		auto &[cursor, state] = namespaces[current];
-		if (kind != d::FrameKind::FullCopy)
-			check(cursor.same_identity(to) && cursor.position == after);
-		cursor = to;
-	}
-	void piece(d::PieceKind kind, std::uint64_t, std::uint64_t) override {
-		if (kind == d::PieceKind::FullCopy)
-			namespaces[current].second.clear();
-	}
-	void record(std::string_view key, std::uint64_t revision, const KnobDef *value) override {
-		auto &state = namespaces[current].second;
-		if (value)
-			state[std::string(key)] = {revision, *value};
-		else
-			state.erase(std::string(key)); // a tombstone for a key the store lacks is a no-op
 	}
 	t::Following following(bool all) const {
 		t::Following out;
@@ -263,6 +302,10 @@ struct Store final : d::FrameSink {
 		if (all)
 			out.all = directory_at.value_or(d::DirectoryCursor{});
 		return out;
+	}
+	bool operator==(const Store &other) const {
+		return namespaces == other.namespaces && change == other.change && directory_at == other.directory_at &&
+			   created == other.created && kinds == other.kinds;
 	}
 };
 
@@ -304,7 +347,7 @@ void run(const std::filesystem::path &certificates, bool compressed) {
 	auto matches_server = [&] {
 		std::lock_guard lock(server.mutex);
 		for (const auto &each : server.served) {
-			if (!server.grants.allows(each.name)) {
+			if (!server.grants.allows(each.name) || each.dropped) {
 				check(!store.namespaces.contains(each.name));
 				continue;
 			}
@@ -353,15 +396,117 @@ void run(const std::filesystem::path &certificates, bool compressed) {
 	t::Following secret{{{"secret", {}}}, {}};
 	check(fails<t::SessionResetError>(io, scheduler, t::next_namespace_session(options, session, secret, 0ms, store)));
 
-	// A frame whose bytes changed in flight fails its fragment's SHA-256.
+	// A response of two namespaces over two fragments, the first complete in fragment 1 and the
+	// second corrupt in fragment 2: nothing of it is published, and the ledger is back to its use.
 	{
 		std::lock_guard lock(server.mutex);
-		server.find("pay.us").transactions.push_back({{"pay.us:k1", def(77, 0)}});
+		for (auto name : {"app", "pay.us"}) {
+			Transaction big;
+			for (int i = 0; i < 1500; ++i) {
+				char key[32];
+				std::snprintf(key, sizeof key, "%s:big%04d", name, i);
+				big.push_back({key, def(i * 10, 0)});
+			}
+			server.find(name).transactions.push_back(std::move(big));
+		}
 		server.corrupt = true;
 	}
-	check(fails<std::invalid_argument>(io, scheduler,
-									   t::next_namespace_session(options, session, store.following(true), 0ms, store)));
+	const auto before = store;
+	const auto prepared_before = store.prepared;
+	{
+		auto ledger = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
+		auto limited = options;
+		limited.limits.storage_account = ledger;
+		check(fails<std::invalid_argument>(
+			io, scheduler, t::next_namespace_session(limited, session, store.following(true), 0ms, store)));
+		check(store.prepared >= prepared_before + 2); // Both frames reached the preparer.
+		check(store == before && ledger->peak() > 0 && ledger->used() == 0);
+	}
 	server.corrupt = false;
+	std::size_t peak = 0;
+	{
+		auto ledger = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
+		auto limited = options;
+		limited.limits.storage_account = ledger;
+		io.restart();
+		outcome = transport::run_until_done(
+			io, scheduler, t::next_namespace_session(limited, session, store.following(true), 0ms, store));
+		check(outcome == t::FramesOutcome::Frames && ledger->used() == 0 && store.change.at("app") > before.change.at("app"));
+		peak = ledger->peak();
+	}
+	matches_server();
+
+	// A ledger at its bound refuses the answer (R8): at once, and part way through the staging.
+	{
+		std::lock_guard lock(server.mutex);
+		server.find("app").transactions.push_back({{"app:k8", def(8, 0)}});
+		for (auto name : {"app", "pay.us"}) {
+			Transaction big;
+			for (int i = 0; i < 1500; ++i) {
+				char key[32];
+				std::snprintf(key, sizeof key, "%s:big%04d", name, i);
+				big.push_back({key, def(i * 10 + 1, 0)});
+			}
+			server.find(name).transactions.push_back(std::move(big));
+		}
+	}
+	const auto unrefused = store;
+	for (auto limit : {std::size_t{512}, peak / 2}) {
+		auto ledger = std::make_shared<d::StorageLedger>(limit);
+		auto limited = options;
+		limited.limits.storage_account = ledger;
+		check(fails<d::StoragePressure>(
+			io, scheduler, t::next_namespace_session(limited, session, store.following(true), 0ms, store)));
+		check(store == unrefused && ledger->used() == 0);
+	}
+	io.restart();
+	outcome = transport::run_until_done(
+		io, scheduler, t::next_namespace_session(options, session, store.following(true), 0ms, store));
+	check(outcome == t::FramesOutcome::Frames);
+	matches_server();
+
+	// A voter that cannot freeze a live namespace answers 503 source_behind: the store keeps its cursors.
+	{
+		std::lock_guard lock(server.mutex);
+		server.find("app").transactions.push_back({{"app:k7", def(7, 0)}});
+		server.behind = true;
+	}
+	const auto kept = store;
+	try {
+		io.restart();
+		transport::run_until_done(io, scheduler,
+								  t::next_namespace_session(options, session, store.following(true), 0ms, store));
+		check(false);
+	} catch (const t::SessionResetError &error) {
+		check(error.reason() == t::SessionResetReason::SourceBehind);
+	}
+	check(store == kept);
+	server.behind = false;
+	io.restart();
+	check(transport::run_until_done(io, scheduler,
+									t::next_namespace_session(options, session, store.following(true), 0ms, store)) ==
+		  t::FramesOutcome::Frames);
+	matches_server();
+
+	// A followed namespace that was dropped is signalled: the store learns of it and forgets it.
+	{
+		std::lock_guard lock(server.mutex);
+		auto &gone = server.find("pay.us");
+		gone.dropped = d::NamespaceCursor{d::Identity{}, gone.incarnation, gone.transactions.size() + 1};
+		gone.dropped->cluster.fill('\x01');
+	}
+	check(store.namespaces.contains("pay.us"));
+	io.restart();
+	outcome = transport::run_until_done(
+		io, scheduler, t::next_namespace_session(options, session, store.following(true), 0ms, store));
+	check(outcome == t::FramesOutcome::Frames && !store.namespaces.contains("pay.us") &&
+		  store.kinds.at("pay.us") == d::FrameKind::Dropped);
+	matches_server();
+	// Told once: it is no longer followed, and nothing else changed.
+	io.restart();
+	check(transport::run_until_done(io, scheduler,
+									t::next_namespace_session(options, session, store.following(true), 0ms, store)) ==
+		  t::FramesOutcome::Idle);
 
 	// Close, then a next on the closed session is a reset.
 	io.restart();

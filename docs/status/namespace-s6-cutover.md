@@ -25,9 +25,24 @@ base [0, p] | blocks, then level-0 sections (p, s] | ring entries (s, h]
 
 Response headers: `Content-Type: application/vnd.detent.frames`, `X-Detent-Session-Version: 2`, `X-Detent-Session`, `X-Detent-Coding: raw|zstd`.
 
+## A drop, and a namespace that cannot be frozen
+
+`plan_frames` (`frames_export.cc`) builds a next's requests from the session's follows, `all` and the credential's grants.
+
+- A followed namespace the voter has dropped, which the session still stores (it sent a cursor), gets a Dropped frame: kind 4, `after` 0, the dropped incarnation's cursor at the drop, no pieces. The store removes the namespace and stops following it. A session with no store of it, and `all`'s directory (which lists the entry with `live` false), is not sent one. A namespace the voter has never created gets nothing.
+- A live namespace the voter cannot freeze (its layout is not the sealed state's) fails the whole next with 503 `{"error":"source_behind"}`, whether it is followed or a directory entry `all` brings. The client's `SessionResetReason::SourceBehind` leaves its cursors where they were, directory included; the next try answers once the seal catches up. Nothing is ever omitted silently.
+
+Both additions are on the version-2 wire only: the frame kind in `session_frames.hh`, the error string in `service.cc`.
+
 ## Sessions
 
 `NamespaceSessions` holds each session's principal (the SHA-256 of the credential's principal, and its policy epoch) and coding, at most one next in flight, and an idle and maximum lifetime. Every next carries its own cursors, so a session holds no position. Its maps are allocated from the delivery ledger. Results map to statuses: unknown or expired 410, another principal 403, a changed policy epoch 409, a next in flight 409 `session_busy`, the table full 503.
+
+## The client's memory and staging
+
+The session codecs admit their memory through a `StorageLedger` (S6 ruling R8): `SessionFramesEncoder` takes the ledger and admits its plan, then each piece's readers as the piece opens (the authority passes the delivery ledger); `SessionFramesDecoder` and `FramesResponseDecoder` admit their working strings, the directory's rows, the headers and the control body from `Limits::storage_account`. At the bound they throw `StoragePressure`.
+
+`next_namespace_session` takes a `FramePreparer`, not a sink. Each frame is prepared as it decodes (the agent's is a generation), its memory admitted to the ledger as it grows. Nothing is published until the whole response has been verified, fragment by fragment; then the directory and every prepared frame are published together. A corrupt or refused response, in any fragment, publishes nothing and the ledger returns to its prior use.
 
 ## Grants (W13)
 
@@ -43,3 +58,6 @@ The enabling entry (D88) is proposed by the leader the first time a version-2 ne
 - `test_authority_frames_service`: the HTTP endpoint over TLS against an oracle built from the voter's own `layout` table and files on disk plus the producer's writes. It checks every cursor's body byte for byte, raw and zstd, plus W13 grants (`all` under a narrow grant brings only granted names), and the session statuses.
 - `test_authority_lagging_incarnation`: a voter cut off before a drop and re-creation answers a store at the new incarnation with Ahead and no frame.
 - `test_distribution_session_frames` (`other_incarnation`): another incarnation is a full copy at or below the head and Ahead above it; another cluster is always a full copy.
+- `test_distribution_session_frames` (`dropped_frames`, `ledger_bound`): the Dropped frame round trip and its refusals; the encoder and decoder at a ledger's bound.
+- `test_authority_namespace_history`: `plan_frames` on three voters tells a follower of a drop, sends none to a session without a store, and fails with `FramesBehind` for a live namespace behind an unsealed table.
+- `test_delivery_namespace_session`: a two-namespace answer corrupt in its second fragment publishes nothing and refunds the ledger; a ledger at its bound refuses; 503 `source_behind` keeps the store; a dropped namespace is removed.
