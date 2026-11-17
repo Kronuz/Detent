@@ -13579,11 +13579,11 @@
     "transport-identity": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T13:27:39",
-          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "at": "2026-11-17T13:50:39",
+          "base": "84814a9c457c67aaa47299b97314d0adb285a4ab",
           "blobs": {
-            "CHANGELOG.md": "100644:678131f32aeee4a23cbee6f29641734c99e3329b",
-            "CMakeLists.txt": "100644:9a3afad4ca278b8ae6a2eb29ec6c99ba03b64359",
+            "CHANGELOG.md": "100644:9e3cc1d5349ee3f589fd84c52f951a4fc903e1a1",
+            "CMakeLists.txt": "100644:aee1693066e6cf1bcb375a7de4c678543416656e",
             "docs/mechanisms/host-connection.md": "100644:d6fffdc1d51c3c08fa4fde69bede2fc1e1141d5d",
             "docs/mechanisms/host-transport.md": "100644:aa501055fc267fc6f2d17c87a15747f7425853b1",
             "include/consensus/transport/connection.h": "100644:ce4e7706ae59b91427d4955b535a8eb1841c1a4c",
@@ -13594,7 +13594,7 @@
             "test/transport/tls_certificates.cmake": "100644:8aef02b4f0cd383ed885b24c0def42ef6625860f"
           },
           "by": "review",
-          "commit": "9fe84c9bbd5cecad85b8959d537a56261f73c396",
+          "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
           "criteria": "e176104354e899b1",
           "diffs": {
             "CHANGELOG.md": "604df2b388bd7807",
@@ -13658,7 +13658,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T13:27:39",
+      "updated": "2026-11-17T13:50:39",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
