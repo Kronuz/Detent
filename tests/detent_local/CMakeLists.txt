@@ -174,6 +174,11 @@ target_include_directories(test_local_delta_plan_removal_probes PRIVATE "${PROJE
 target_link_libraries(test_local_delta_plan_removal_probes PRIVATE detent::local_builder)
 add_test(NAME test_local_delta_plan_removal_probes COMMAND test_local_delta_plan_removal_probes)
 
+add_executable(test_local_delta_plan_moved_definitions test_delta_plan_moved_definitions.cc)
+target_include_directories(test_local_delta_plan_moved_definitions PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_delta_plan_moved_definitions PRIVATE detent::local_builder)
+add_test(NAME test_local_delta_plan_moved_definitions COMMAND test_local_delta_plan_moved_definitions)
+
 if(TARGET detent::local_publication)
   add_executable(test_local_paged_store_startup test_paged_store_startup.cc)
   target_include_directories(test_local_paged_store_startup PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
