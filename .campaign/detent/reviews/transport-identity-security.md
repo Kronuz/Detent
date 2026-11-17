@@ -82,3 +82,44 @@ By reading host_transport.h at the head, against the five questions:
 - No fuzzing of the open and closed decoders (fixed-length, length-checked before decode).
 - Linux and the CI matrix: CI's.
 - No check of how a real host computes `GroupOpen` or `member_of` (Xapiand's, later quests).
+
+## Round 2
+
+Commit: consensus:9fe84c9bbd5cecad85b8959d537a56261f73c396
+Verdict: APPROVE
+Date: 2026-11-17
+
+S1 is fixed at consensus:fe42cc2. `Connection::reader` now catches what `deliver()` throws,
+runs `on_read` for the frames that read already handed over, then rethrows (connection.h:290-299).
+Each batch leaves under the connection its frames came on.
+
+Delivering frames that arrived before the failure is right. Each is a complete frame from the
+authenticated connection, and `admit()` checks it against that connection's own open, node and
+destination, the same check it gets in any read. A peer gets exactly the same by sending the
+bad bytes in a later segment, so dropping these frames would protect nothing, and it would lose
+frames from an honest peer whose next frame was corrupt.
+
+`on_read` runs before `fail()`, so `feed()` may queue frames on the connection that is about to
+fail. They are lost as in any failure: `ended()` resets credit, and Raft resends. No finding.
+
+Merge 23e87e5 (main, transport-groups-ci) changes host_transport.h only in where `reads` is
+counted. Its tls.h and links.h certificate cache is that quest's, already reviewed, and touches
+no admission path.
+
+Evidence, read from the logs at the head: suite 261117-121758-d594d8 (54 of 54); cases
+261117-121804-c9cf0c (`leftover`: 0 delivered from incarnation 1, 1 `unopened`, 21 from 3);
+relayout 261117-121816-b25730; TSan 261117-121846-795592 (13 of 13, no report). Mutant
+`read-fails-unflushed` 261117-122111-4dfd63 is a one-hunk child of 9fe84c9 and fails `leftover`
+at its assertion, delivering node 1's frame with 0 `unopened`, exactly what my probe showed.
+`store-zero` 261117-122101-b62389 fails `identity` at `zeros == 3`. The other ten mutants and
+both controls (261117-121906 through 261117-122127) exit 8. The suite's `leftover` asserts
+`unopened >= 1`, so it cannot pass without the bad frame ever arriving.
+
+N2, N3 and N4 are addressed: `store` refuses zero identities, and host-transport.md (Identity)
+says to store a group once `member_of` answers, and that frames already queued go out after
+`forget`. N1 stays open for the follow-up.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| S1 | no | defect | Fixed. | 261117-121804-c9cf0c; mutant 261117-122111-4dfd63 | None. |
+| N1 | no | nit | Open, deferred to a follow-up. | Round 1 | Round 1 |

@@ -13578,7 +13578,44 @@
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
-      "accepted": {},
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T13:27:39",
+          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "blobs": {
+            "CHANGELOG.md": "100644:678131f32aeee4a23cbee6f29641734c99e3329b",
+            "CMakeLists.txt": "100644:9a3afad4ca278b8ae6a2eb29ec6c99ba03b64359",
+            "docs/mechanisms/host-connection.md": "100644:d6fffdc1d51c3c08fa4fde69bede2fc1e1141d5d",
+            "docs/mechanisms/host-transport.md": "100644:aa501055fc267fc6f2d17c87a15747f7425853b1",
+            "include/consensus/transport/connection.h": "100644:ce4e7706ae59b91427d4955b535a8eb1841c1a4c",
+            "include/consensus/transport/host_transport.h": "100644:21745e03dcb56c940762e44a3fd154e20c3b70a6",
+            "test/transport/admission_test.cc": "100644:f8995a25fcbedcb4af9e6d74ece6178fcee0231f",
+            "test/transport/groups_test.cc": "100644:375c96315e7f4b717a83c903d848e73bd0663031",
+            "test/transport/mutant_commit.py": "100755:8ba50ec6b8d8afec9914c2bb08a1b347d1903c49",
+            "test/transport/tls_certificates.cmake": "100644:8aef02b4f0cd383ed885b24c0def42ef6625860f"
+          },
+          "by": "review",
+          "commit": "9fe84c9bbd5cecad85b8959d537a56261f73c396",
+          "criteria": "e176104354e899b1",
+          "diffs": {
+            "CHANGELOG.md": "604df2b388bd7807",
+            "CMakeLists.txt": "2364475a7bb2b80b",
+            "docs/mechanisms/host-connection.md": "c365e163a6892788",
+            "docs/mechanisms/host-transport.md": "bac0ec6e734b2e7c",
+            "include/consensus/transport/connection.h": "9b622be7437a03f8",
+            "include/consensus/transport/host_transport.h": "4d9e5594ee301246",
+            "test/transport/admission_test.cc": "4c68311d669e89a6",
+            "test/transport/groups_test.cc": "d7943748c3be49ac",
+            "test/transport/mutant_commit.py": "2ae9d9b1a6a8e333",
+            "test/transport/tls_certificates.cmake": "6d44d972f5dfd3bb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "13a96a730d938f2550ab43fe404a93c88b5e9e0f",
+          "reviewed": "9fe84c9bbd5cecad85b8959d537a56261f73c396",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
       "branch": "quest/detent/transport-identity",
@@ -13622,7 +13659,7 @@
       "risk": "high",
       "status": "review",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T10:12:52",
+      "updated": "2026-11-17T13:27:39",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
