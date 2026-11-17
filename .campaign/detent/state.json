@@ -5088,6 +5088,44 @@
       "updated": "2026-11-17T05:07:28",
       "worktree": ""
     },
+    "journal-sync-seam": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "tests/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Journal: every sync through the IO seam",
+      "updated": "2026-11-17T15:04:05"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
