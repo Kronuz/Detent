@@ -1,31 +1,22 @@
-# namespace-cleanup: Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention
-
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status namespace-cleanup`.
+# namespace-cleanup
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The three non-blocking notes from namespace-followups' review close: the history table bound has a test
+that kills its removal (N1), the relay's last user gone, `CompletionScheduler` and its port are deleted
+(N3: greenfield, one mechanism), and every `*_mutant.sh` runner uses the fails-without convention (N7).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 A test fails when the table bound check (history.cc, around lines 508-515) is removed, on the bound itself rather than on a later decode: the suite, and a mutant job with `--fails-without`
+- A2 `CompletionScheduler`, `CompletionPort`, `CoordinatorOptions::completion_port` and test_completion_scheduler are gone, and `git grep -E "CompletionScheduler|CompletionPort|completion_port"` over src, include and tests finds nothing: the suite, and a grep job
+- A3 Every `tests/**/*_mutant.sh` exits nonzero when its mutant is killed, and each converted runner still kills its mutant: one `--fails-without` job per converted runner
+- A4 The suite and pins pass: the gate checks
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Ordered after namespace-s6-hardening, which writes test_namespace_history.cc.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Each criterion's change, once its row is met.
