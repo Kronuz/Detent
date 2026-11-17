@@ -14,6 +14,7 @@ The request/response lane (rpc-lane-codec) runs on the host transport's Bulk con
 - A3 Queued outgoing chunks are capped per connection (R2, Xapiand:a3b4b4903), so a slow peer's Bulk socket can't stall writes to every other peer: a test with one stalled peer and one live peer, and a mutant without the cap killed
 - A4 Fetch is lane method 1 (D8) and shares the bulk budget without delaying consensus frames (Xapiand F5): a test with a fetch beside a maximal upload against heartbeats
 - A5 Process stops (D102): fetch-alongside-consensus, ported onto the lane's fetch, passes on macOS x86_64 CI three runs in a row with no skip, and a placed SIGSTOP inside a drain proves a late reply drains over the same lanes (F18: a never-drain mutant killed); timing scenarios carry the ctest label `timing`, off CI (D100). `Peers` and DTFT0001 stay until worker-pump-removal deletes them, so consensus main stays a valid Detent pin (D106): tests, CI runs
+- A6 rpc-lane-codec's review notes (Detent reviews/rpc-lane-codec-security.md) close before the lane is wired: (N3) a `ready` callback that closes the lane is no use-after-free (ASan case, rpc.h:703 at consensus:8db3ce3); (N2) `send` past a call's known total is refused at once instead of stalling to the deadline; (N1) the unsent queue a never-reading peer builds is charged to `rpc_outgoing_bytes` and bounded by A3's per-connection cap; (N4) the fuzzer reaches pool waits and rule 7.6: tests, an ASan job, a fuzz job
 
 ## Contracts
 
