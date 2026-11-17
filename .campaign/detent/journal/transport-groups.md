@@ -1,22 +1,65 @@
 # transport-groups: journal
 
-State: fix round 1 done at consensus `c050123`; waiting on the lead to push for CI
+State: fix round 2 at consensus `ff0d58b`; waiting on jobs (ids under "Fix round 2 jobs")
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 1 at consensus `c050123` (on `81339c2`): `4daed86` drops `TCP_NOTSENT_LOWAT`;
-`6b2c6fa` adds `refill` (F3), signed pacing ticks and hang diagnostics (F2); `c050123` counts
-a draining send queue as write progress (F1, the lead's message: `read_slowly` flakes on main).
+Fix round 2 at consensus `ff0d58b` (on `c050123`): `3ba44aa` gives each write wait its own
+stuck deadline, sampled after its writes (F4, N7, N8, N9), widens `coarse_writer`'s margins and
+adds `nonreader` (F5); `ff0d58b` points three stale mutants at the current code.
 
 ## Next
 
-1. The lead pushes `quest/detent/transport-groups`: CI green on the five Linux jobs (F1) and
-   both macOS jobs (F2) is the proof neither can get here.
+1. Read the round 2 jobs; the lead pushes for CI (macos-x86_64 `coarse_writer`, every
+   platform's `nonreader`).
 
 ## Blocked on
 
 Nothing.
+
+## Fix round 2 (review round 2, same file)
+
+- F4 (`3ba44aa`). Product: the window sampled `unacknowledged()` before flush's writes, so a
+  record written in the window (OpenSSL writes a pending record, then returns WANT_WRITE on the
+  next) counted against the drain. Now every writer wait (`want_written`) has its own
+  `dead_after`, the queue sampled right before it, after this end's writes; at expiry a drained
+  queue returns to the caller, which retries its write. `flush` lost its `progress` early
+  return (a wait is the window now). Test: the reviewer's failing window drained 0 bytes in
+  300 ms, which no sampling point saves, so the margin is what fixes that run:
+  `coarse_writer` is 40 x 64 KiB at 125 ms per frame against a 1 s `dead_after`; the 1 MiB
+  queue empties (the low-water mark's wake) in ~2 s, the reader drains ~8 frames per window
+  (>= 4 with 100 ms timer coalescing); where the low-water mark takes (macOS, FreeBSD) it must
+  see a drained expiry (`Connection::drained_expiries()`), so it cannot pass without reaching
+  the rule; the run wait is 60 s and the `connection` ctest timeout 120 s. Local: 40 of 40 in
+  5,331 ms, 3 drained expiries. Mutant `stuck-samples-before-flush` samples when the flush
+  begins (the old point, before its writes).
+- F5 (`3ba44aa`). `nonreader` from the reviewer's probe: a relay stops forwarding to the peer
+  after the hellos; the peer keeps sending keepalives (`dead_after` 60 s); the writer
+  (`dead_after` 300 ms, 32 MiB queued) must end `failed` within 5 s (wait 10 s). Local: failed at
+  409 ms. Mutants `stuck-never-fails` and `stuck-equal-drains` are the reviewer's, ported to the
+  new code (`|| !drained(before))` -> `|| false)`; `*now < *before` -> `<=`).
+- N7 (`3ba44aa`): close_notify's waits go through `want_written`, one rule for both. No case
+  forces close_notify behind a full buffer (it needs the frames to fill the buffer exactly), so
+  that path is covered by sharing the code, not by a test of its own.
+- N8, N9 (`3ba44aa`): the syscall runs only before a wait and at its expiry; a failed reading
+  is `nullopt` and never a drain.
+- `stuck-spans-flush` follows the new code: one deadline for all of a flush's waits.
+
+## Fix round 2 jobs
+
+At consensus `ff0d58b`, all ids 261117-: suite (`campaign verify`) 071128-07f342; `connection`
+071327-13783b; TSan (threads, credit, driver, refill, connection, links) 071331-293bdd;
+background QoS (`coarse_writer` then `nonreader`, 10 times in each of two processes under
+`taskpolicy -b`, strict) 071309-6d3791. Mutants (`--fails-without`): on `connection`
+`stuck-never-fails` 071200-899f1b, `stuck-equal-drains` 071204-847ba9,
+`stuck-samples-before-flush` 071208-83ccf6, `stuck-ignores-drain` 071212-a2710f,
+`stuck-spans-flush` 071217-ff4aa1, `no-close-notify` 071221-7964d2; `no-credit-on-refuse`
+071226-56996e and `no-reset-on-end` 071231-42c1a9 on `refill`; `bulk-ahead-of-control`
+071236-d8d3bd on `upload`; `no-credit` 071240-908cac on `credit`; `reader-loop-delivers`
+071245-458051 and `no-hand-off` 071249-042e02 on `threads`. Void: 071137-07234a and
+071140-3aeac0 (my quoting ran them at the home checkout's commit, not consensus).
+Results: pending.
 
 ## Fix round 1 (review .campaign/detent/reviews/transport-groups-correctness.md)
 
@@ -136,7 +179,13 @@ handed over 64 KiB at a time when the connection drains (`Connection::on_drained
   (one code path), not one by one.
 - An accept's hellos get their own handshake deadline after the move (at most two handshake
   timeouts in all); the pre-authentication bounds still apply to the TLS handshake.
-- `TCP_NOTSENT_LOWAT` (64 KiB) is set by `Connection` itself, for every host connection.
+- `TCP_NOTSENT_LOWAT` is not set (fix round 1).
+- The stuck window is one write wait, not the time since the last write that made progress: a
+  writable wake after WANT_WRITE means the queue drained, so the waits are the progress events.
+  `Connection::drained_expiries()` counts drained expiries (a metric, and the test's proof).
+- `mutant_commit.py`: `no-extension` and `twice` were already stale at main (their search
+  predates `late-always-extends`); `abandon-keeps-dial` matched twice after this quest's accept
+  path. Fixed in `ff0d58b` (my file set).
 - Connections stay up until `stop()`; closing them when no group shares the peer is
   transport-idle-cost's.
 - A3's nodes use one in-memory journal per loop (journal's `MemoryIO` is single-threaded), with
