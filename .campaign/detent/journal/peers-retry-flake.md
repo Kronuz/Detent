@@ -1,9 +1,11 @@
 # peers-retry-flake: journal
 
-State: waiting on jobs 261117-081315-99430b 261117-081320-25df88 261117-081325-5d9c03 261117-081330-2d5307
+State: waiting on jobs 261117-085956-c4843d (probe naming the retry failure)
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
+
+lead msg: A2 (5d9c03) and suite (2d5307) failed at peers_test.cc:1203 with the 2 s deadline, so the deadline is not the whole cause. consensus:78a7ab2 prints the retried fetch error, bytes and time; probe 261117-085956-c4843d runs fetch-failures x200 4-way and shows the log. Next: read its output, fix the cause in the test (or Blocked on a Peers defect), then resubmit A1-A3 with --for at the new head.
 
 Fix is committed in consensus (branch quest/detent/peers-retry-flake): 228235f (knob), 0366b02 (fix). Jobs queued; waiting.
 
