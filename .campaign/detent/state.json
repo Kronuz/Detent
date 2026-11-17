@@ -393,6 +393,13 @@
       "closed": "consensus-driver adds Driver beside the Worker and does not change the transport; consensus-rpc-lane is already after detent:consensus-transport",
       "id": "msg-63",
       "text": "xapiand:consensus-rpc-lane started and builds against contract consensus:transport, which your consensus-driver is changing"
+    },
+    {
+      "at": "2026-11-17T02:05:39",
+      "by": "campaign xapiand",
+      "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
+      "id": "msg-64",
+      "text": "xapiand:group-core started and builds against contract consensus:driver, which your consensus-transport is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
