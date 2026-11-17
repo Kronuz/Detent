@@ -4435,7 +4435,46 @@
       "updated": "2026-11-08T15:38:30"
     },
     "http-tls-small-reply-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T08:24:01",
+          "base": "2d53cef78de262df1417f25560c72e53034dd001",
+          "blobs": {
+            "CHANGELOG.md": "100644:53897f2db8ebb882837a55efd2a342bb7b328ccd",
+            "bench/idle-cost/ab.sh": "100755:996020e9e15845d6fef988f2859afba4075c3885",
+            "bench/idle-cost/load_ab.py": "100644:e7ddf7f94a04585fb16000befb3b33ff2a33edbc",
+            "bench/idle-cost/pyrefly.toml": "100644:0e1009555945955c50f014367a62d4101b3157ee",
+            "bench/idle-cost/sample_summary.py": "100644:e631f239d08a37fa6b510eb4c5ce7c954e604455",
+            "bench/idle-cost/server.cc": "100644:a7d62a59cc29bdc39cd79434d0ca97c100f45c52",
+            "docs/perf/idle.md": "100644:1cad14e25735d9df4ce661bec3cde9596896669e",
+            "docs/perf/idle/small-reply/count.jsonl": "100644:2d0911711b71eba7980b78bf7d308310f365f71a",
+            "docs/perf/idle/small-reply/load.jsonl": "100644:64899d9d6548c12dafa1453bc973efe4fe311084",
+            "http_asio_tls.h": "100644:0869f57143699c34b68616e830e5ccf96465ff6f",
+            "test/tls_asio_test.cc": "100644:f52112635b13687284b95b23b3c78c930c3f4459"
+          },
+          "by": "review",
+          "commit": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "criteria": "e4a15adca3dbd479",
+          "diffs": {
+            "CHANGELOG.md": "7c5dd0864f1e7513",
+            "bench/idle-cost/ab.sh": "0736fad84beaded6",
+            "bench/idle-cost/load_ab.py": "f29309641f6d6ddf",
+            "bench/idle-cost/pyrefly.toml": "cff33d919cc54c75",
+            "bench/idle-cost/sample_summary.py": "fd4d9b842e8a87d5",
+            "bench/idle-cost/server.cc": "ef2af234dd8a6a07",
+            "docs/perf/idle.md": "01d465449b8d5891",
+            "docs/perf/idle/small-reply/count.jsonl": "f5fc1981cef5cc9a",
+            "docs/perf/idle/small-reply/load.jsonl": "79b72e0ef867544d",
+            "http_asio_tls.h": "2bcc6b1bebf684b1",
+            "test/tls_asio_test.cc": "acbdd61d936092a1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "98ccd45afc49fa077a31cb7c7d4b4c5b0033ddc4",
+          "reviewed": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "http-idle-cost"
       ],
@@ -4459,7 +4498,9 @@
       ],
       "journal": "../Detent-wt/detent/http-tls-small-reply-cost",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -4467,7 +4508,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-17T08:02:23",
+      "updated": "2026-11-17T08:24:01",
       "worktree": "../http-wt/detent/http-tls-small-reply-cost"
     },
     "ipv6": {
