@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-190312-344e41 261116-190312-87fdc0 261116-190312-6f3223 261116-190313-30053b 261116-190313-51503a 261116-190313-c3161a 261116-190314-982145 261116-190314-f367e1 261116-190314-15400c 261116-190314-421b11 261116-190315-47fde6 (at consensus:ff0cdbc)
+State: waiting on jobs 261116-190312-344e41 261116-190312-87fdc0 261116-190313-30053b 261116-190313-51503a 261116-190313-c3161a 261116-190315-47fde6 (at consensus:ff0cdbc)
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -139,6 +139,8 @@ checks 261116-190312-87fdc0 (A1), A2 261116-190312-6f3223, ASan+UBSan 261116-190
 ASan close cases 261116-190313-51503a, TSan 261116-190313-c3161a, mutants 261116-190314-982145,
 261116-190314-f367e1, 261116-190314-15400c, 261116-190314-421b11, idle exclusive
 261116-190315-47fde6.
+Finished: A2 261116-190312-6f3223 exit 0; mutants killed: 982145 exit 134, f367e1 exit 134,
+15400c exit 1, 421b11 exit 1.
 
 ## Next
 
