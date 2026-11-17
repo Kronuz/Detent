@@ -13699,12 +13699,11 @@
         "transport-groups"
       ],
       "provides": [],
-      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T07:56:22",
+      "updated": "2026-11-17T13:32:19",
       "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {
