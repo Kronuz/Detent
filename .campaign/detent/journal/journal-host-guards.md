@@ -1,24 +1,44 @@
 # journal-host-guards: journal
 
-State: ready for review
+State: waiting on jobs 261117-042733-4089ce 261117-042749-c43f37 261117-042807-0ddf36 261117-042815-331f75 261117-042823-cca3f2 261117-042830-3f7a05
 Quest: .campaign/detent/quests/journal-host-guards.md (the lead's; never edit it)
 
 Code: journal worktree `journal-wt/detent/journal-host-guards`, branch
-quest/detent/journal-host-guards; work commit journal:904037a.
+quest/detent/journal-host-guards; work commits journal:904037a, journal:cc95ba6 (fix round 1:
+durability review F1, F2).
 
 ## Doing
 
-Nothing: every criterion has evidence at journal:904037a.
+Fix round 1 at journal:cc95ba6: jobs queued (below), not yet read.
 
 ## Next
 
-1. Durability review; the lead pushes the branch for CI.
+1. Read the six jobs; check 261117-042830-3f7a05's log fails on "a reopened group has every
+   acknowledged batch", not an abort (exit 1, not 134).
+2. `campaign accept journal-host-guards durability --confirm F1=261117-042733-4089ce`.
 
 ## Blocked on
 
 Nothing. CI (`check ci`) runs once the lead pushes the branch; I don't push.
 
 ## Evidence
+
+Fix round 1, journal:cc95ba6 (queued):
+
+| Job | What |
+|---|---|
+| 261117-042733-4089ce | suite, A1 A2 (incl. host `sealer_close`, `sealer_close_crash`) |
+| 261117-042749-c43f37 | TSan `turn_seal|journal_driver|journal_host` |
+| 261117-042807-0ddf36 | fails without: keep-waiters, host `sealer_close` (F1 probe as test) |
+| 261117-042815-331f75 | fails without: keep-waiters, host `sealer_close_crash` (close with a sealed open record in flight) |
+| 261117-042823-cca3f2 | fails without: reuse-sequence, host `sealer_close` (a late wait for 2 acked by the reopen) |
+| 261117-042830-3f7a05 | fails without: close-behind, shared-store sweep, expected on values (F2) |
+
+The review probe 261117-031714-5039e8 is not rerun as is: its reopen stages the checkpoint at
+`base + 1` = 2, the retired sequence, which `stage()` now refuses by design (it would abort on the
+uncaught throw). host_test `sealer_close` is the probe with the reopen as Journal stages it.
+
+At journal:904037a:
 
 | Criterion | Evidence |
 |---|---|
@@ -75,6 +95,27 @@ Nothing. CI (`check ci`) runs once the lead pushes the branch; I don't push.
   is never released.
 
 ## Rulings I made
+
+- R5 (F1, lead's shape): `TurnDriver::forget` fails every linked `durable()` waiter of the group
+  with a new `group_closed` (runtime_error, carries group and sequence), via the waiter state
+  `closed`; `Host::close_group` reaches it through forget. Waiters at or below the durable
+  sequence are never linked, so every linked one is not durable.
+- R6 (the incarnation question): the waiter's identity needs the incarnation only because a
+  writer can take the open record's sequence before a close and link after it, or after the
+  reopen (writer threads hop to the loop). Instead of an incarnation argument on `durable()`
+  (a contract change consensus's `watch` would have to follow), forget retires the sequences an
+  earlier incarnation could hand out: durable + 1 (the open record) and every linked waiter's,
+  kept per group in `retired_` for the driver's life. `durable()` at or below `retired(group)`
+  fails with group_closed (await_ready), `stage()` refuses a record there, `last_staged` (so
+  `seal()`) continues after it, and `Journal::recover_shared` reopens at `max(base, retired) + 1`.
+  Sequences then never repeat within a driver, so (group, sequence) stays a unique identity. A
+  late wait for an already durable sequence is refused too: safe, merely unacknowledged.
+  Cost: one map entry per group ever closed on the driver; a reopen skips one sequence.
+- R7 (F2): the shared-store sweep's refused close now uses a reopened group's real record
+  (sequence and manifest) once batches are acknowledged after it and no publication followed, after
+  every round; a close taken there (the mutant) reopens the group from that record and the sweep
+  fails "a reopened group has every acknowledged batch" on values.
+- F3, F4 (non-blocking) unchanged.
 
 - R1: A1's "last acknowledged record" is the larger of the log's durable sequence and the table's
   earlier `base` (a reopened group whose reopen checkpoint is not yet durable has only the table's).
