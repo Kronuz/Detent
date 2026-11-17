@@ -7656,7 +7656,8 @@
         "src/detent_delivery/namespace_session.cc",
         "include/detent_delivery/namespace_session.hh",
         "tests/detent_delivery/test_namespace_session.cc",
-        "docs/status/namespace-s6-cutover.md"
+        "docs/status/namespace-s6-cutover.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -7667,7 +7668,7 @@
       "risk": "normal",
       "status": "active",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-16T21:23:59",
+      "updated": "2026-11-16T21:41:07",
       "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
