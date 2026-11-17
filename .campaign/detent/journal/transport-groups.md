@@ -142,7 +142,8 @@ connection, links) and 41a9fa (reader gap 103 ms, upload 237 ms) passed with no 
 
 ## Evidence
 
-Head consensus `81339c2`. Suite 261117-050041-9d19b2. Cases (Release): `threads`
+The table cites the jobs at consensus `e4e394b` ("Fix round 2 jobs"). The values below
+are the first round's, at `81339c2`. Head consensus `81339c2`. Suite 261117-050041-9d19b2. Cases (Release): `threads`
 261117-050055-032a41, `credit` 261117-050100-6bc00a, `reader` 261117-050103-ed123d (A1),
 `upload` 261117-050107-41c3d7 (A2), `driver` 261117-050110-b75526 (A3). TSan (`groups_threads`,
 `groups_credit`, `groups_driver`, `connection`, `links`) 261117-050114-a4b2ed (A1). Mutants
