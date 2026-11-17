@@ -4787,7 +4787,46 @@
       "worktree": "../journal-wt/detent/journal-driver"
     },
     "journal-host-guards": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-17T04:59:08",
+          "base": "555b69fa425621682c42bd8a52d3353a25300222",
+          "blobs": {
+            "CHANGELOG.md": "100644:456e763ee11b30557db874ec8f24e2e0846bbd6f",
+            "CMakeLists.txt": "100644:d963faffd8133eea52ed97676e4d42af0470b5f6",
+            "docs/design/host-layout.md": "100644:837554b68facaada0af179c8daa7f8ed9616fa21",
+            "docs/mechanisms/turn-seal.md": "100644:62694cc0d5c71639997844da5a8bd65b7f4ca2f1",
+            "include/journal/host.h": "100644:5e59f0519d2773df7d258798f9ec0d318bab02de",
+            "include/journal/journal.h": "100644:3ae33df2785bbdb9e1505c74b98dc3cac6699551",
+            "include/journal/turn_driver.h": "100644:7f983ad38ff6301a84832ca122c9da184a26fc34",
+            "test/host_test.cc": "100644:b87bb0368aec79498b6e1c49fe567bb8fe1dc412",
+            "test/shared_store_test.cc": "100644:6207be19b210370b1d014c02eacd04434c41df0d",
+            "test/turn_seal_mutants.sh": "100644:c8aea4be1229552c8ff92dbe3664880994cac7ed",
+            "test/turn_seal_test.cc": "100644:ed3203864371730a6a4d8f48d320f0afb8de987b"
+          },
+          "by": "review",
+          "commit": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "criteria": "e001961e3170d1ac",
+          "diffs": {
+            "CHANGELOG.md": "159068005739ca28",
+            "CMakeLists.txt": "5bc970df8ee50050",
+            "docs/design/host-layout.md": "9ffc5c788d8a4b55",
+            "docs/mechanisms/turn-seal.md": "d2ce7707c92d51d8",
+            "include/journal/host.h": "e20eee480f8de6ad",
+            "include/journal/journal.h": "0af1d510fabd0882",
+            "include/journal/turn_driver.h": "c30a2c05b5640bc5",
+            "test/host_test.cc": "cf279097778e691b",
+            "test/shared_store_test.cc": "edc681e34d26ee74",
+            "test/turn_seal_mutants.sh": "9f545891d4291db4",
+            "test/turn_seal_test.cc": "bba5afe13467bae5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "80648400c15495a35bdb2ae4404ead28629eaea2",
+          "reviewed": "cc95ba636dee73b494daef7bbd8d341505aea9a1",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "555b69fa425621682c42bd8a52d3353a25300222",
       "branch": "quest/detent/journal-host-guards",
@@ -4827,7 +4866,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
-      "updated": "2026-11-17T04:50:11",
+      "updated": "2026-11-17T04:59:08",
       "worktree": "../journal-wt/detent/journal-host-guards"
     },
     "legacy-h": {
