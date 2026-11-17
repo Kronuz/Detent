@@ -106,7 +106,7 @@ strata: successor of Xapiand, not of a library). No decision other than D70-D73 
   crc32c, enum-reflection, uinteger_t, base-x, cuuid, md5, sha256, random, bloom-filter,
   fusefilter, lru-cache, generation-cache (wholesale invalidation, not a duplicate of lru-cache),
   btree, flat-map, persistent-map.
-- Concurrency, time, OS: task, threadpool, queue, atomic-shared-ptr, allocators, nanosleep, epoch,
+- Concurrency, time, OS: task, workpool, queue, atomic-shared-ptr, allocators, nanosleep, epoch,
   time-point, times, datetime, residency, io, fs, completion, system, wheel (work in progress; its
   first release lands with wheel-lib).
 - Networking, serialization, storage: reactor, http, http-parser, http-log, radix-router,

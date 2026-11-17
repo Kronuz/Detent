@@ -77,6 +77,5 @@ The [initial run](../benchmarks/logging-cost-comparison-20261020.json) and [firs
 4. Offer an explicit single-line service format with severity names and escaping for control characters. The current human format uses severity glyphs. Detent avoids logging publish contents, but paths and exception strings can still contain line breaks. A service sink should preserve one event per line.
 5. Define a configuration lifecycle. Global configuration and handler registration are mutable; Detent sets them once before producers start. A freeze operation or synchronized immutable configuration would make future runtime reloads safe by construction.
 6. Offer bounded delivery policies for warnings and errors as well as routine messages. The current queue limit exempts them, so repeated publisher rejections can accumulate behind a stalled sink. Let services choose bounded drop summaries or a finite blocking timeout.
-7. Pin dependency revisions for reproducible releases. Detent pins the logger revision, but the library's scheduler, term-color, and codec declarations follow branch tips, as do several pre-existing Detent dependencies. Publish a tested revision set rather than assuming unrelated branch updates remain compatible.
 
 These are source-review proposals. No changes were made to the upstream library repositories, and no footprint savings are claimed for them.

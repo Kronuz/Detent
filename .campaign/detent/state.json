@@ -670,6 +670,8 @@
     "ci-test-flakes": {
       "accepted": {},
       "after": [],
+      "base": "8470d9b32ef2af410fc2a853db59afbbddf7eba6",
+      "branch": "quest/detent/ci-test-flakes",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -681,7 +683,12 @@
       "consumes": [],
       "files": [
         "tests/detent_system/**",
-        "tests/detent_authority/**"
+        "tests/detent_authority/test_dns_voters.py",
+        "tests/detent_authority/test_multivoter.py",
+        "tests/detent_authority/test_service.cc",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        ".github/workflows/**"
       ],
       "landed": [],
       "lenses": [],
@@ -690,9 +697,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Three CI test flakes: managed relay, writer failover, authority admission",
-      "updated": "2026-11-12T19:37:21"
+      "updated": "2026-11-16T21:23:44",
+      "worktree": "../Detent-wt/detent/ci-test-flakes"
     },
     "client-local-source": {
       "accepted": {},
@@ -979,7 +987,62 @@
       "worktree": ""
     },
     "consensus-driver": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T00:22:53",
+          "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:f00bf1bbc82f21ba64ccb7f186aa8641f8793fb7",
+            "CHANGELOG.md": "100644:ad2a9bb2337b5f288a3b8d663991c19569ba7c5c",
+            "CMakeLists.txt": "100644:fdc32d4afa51820dde996b4f8a5562fb522412c4",
+            "bench/driver_idle.cc": "100644:2fce1c26e4719df4080d6fdfb9df417795c0f460",
+            "docs/DRIVER.md": "100644:84f7538910eda84ab9b1213a77eb2a255a8d3b18",
+            "include/consensus/core.h": "100644:09e36ed0c2e72b2a4d34ef156fb55bc8f2cf151b",
+            "include/consensus/driver.h": "100644:1dd370ee6b3ac7df916e100cbdd31089d8177f4a",
+            "include/consensus/snapshot_channel.h": "100644:a13f56d23b86905ed80dee29537bed1a8350a3d5",
+            "include/consensus/worker.h": "100644:03be79bb33c5882aa86f824ee96df09c3ba1aeb3",
+            "test/blocking_entry_test.cc": "100644:e9689a985519c9125a81149cf993fd7aa080a7a4",
+            "test/driver_checks.sh": "100755:2161f378863373a869de7b80db9ac5929041de7d",
+            "test/driver_mutants.py": "100644:9ed2d16c0ed5ed0727f2878ebf247a930377d9aa",
+            "test/driver_simulation.cc": "100644:35d1bdd39f8d647498a9bc4d8ecaf96e7f321794",
+            "test/driver_test.cc": "100644:87687d9cd12d06799e19bf7505354d45c8a5e90a",
+            "test/membership_test.cc": "100644:4ea1d90612cf095ac6d81df22e31fd4d2ecb868a",
+            "test/shared_cluster_test.cc": "100644:537d42e42cfb14daf388354bba2a15a9d3e01551",
+            "test/shared_worker_test.cc": "100644:fb0ea22e289326b727059c9dcf6c5026d3eb8bc0",
+            "test/simulation_test.cc": "100644:0e5ca81b06f8159ec19fe3f6319995a675a404f8",
+            "test/waiter_test.cc": "100644:e69c13cb1cd5378715d84df3dfb5c69a04e5fa1b"
+          },
+          "by": "review",
+          "commit": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "criteria": "820f374de32b948a",
+          "diffs": {
+            "ARCHITECTURE.md": "71e74d7c13cd5ee9",
+            "CHANGELOG.md": "f3e1c0e45d8815a0",
+            "CMakeLists.txt": "07bf98300fa4b6d1",
+            "bench/driver_idle.cc": "8bd388f363b5fa17",
+            "docs/DRIVER.md": "fe1e7fad1bb5fa10",
+            "include/consensus/core.h": "57ffe2284107805d",
+            "include/consensus/driver.h": "2962205af176c433",
+            "include/consensus/snapshot_channel.h": "ae1d1bbe55214675",
+            "include/consensus/worker.h": "f2b364d2425b0a91",
+            "test/blocking_entry_test.cc": "a1e6acc6d78af006",
+            "test/driver_checks.sh": "f5ce51e7bc529c43",
+            "test/driver_mutants.py": "f35c2452e5226ed9",
+            "test/driver_simulation.cc": "172225a7a64344b5",
+            "test/driver_test.cc": "0e94418b80f58b6b",
+            "test/membership_test.cc": "f580d47186def214",
+            "test/shared_cluster_test.cc": "77ca9666ce73b742",
+            "test/shared_worker_test.cc": "b49aa60198359e10",
+            "test/simulation_test.cc": "8339749d4fb44d9f",
+            "test/waiter_test.cc": "f21af9c3a8f8ea40"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9400ca8062ada6743aec680a38cc01d328155950",
+          "reviewed": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d1065e03df0f91a9161f6b2322246f5906c406c0",
       "branch": "quest/detent/consensus-driver",
@@ -1029,7 +1092,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-16T15:43:51",
+      "updated": "2026-11-17T00:22:53",
       "worktree": "../consensus-wt/detent/consensus-driver"
     },
     "consensus-dual-stack": {
@@ -1260,7 +1323,7 @@
         "CMakeLists.txt",
         ".github/workflows/ci.yml"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-macos",
+      "journal": "",
       "landed": [],
       "lenses": [],
       "milestone": "N1",
@@ -1271,8 +1334,8 @@
       "risk": "normal",
       "status": "dropped",
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
-      "updated": "2026-11-16T10:26:15",
-      "worktree": "../consensus-wt/detent/consensus-fetch-macos"
+      "updated": "2026-11-16T21:41:06",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {
@@ -1735,6 +1798,8 @@
     "delta-plan-fixed-cost": {
       "accepted": {},
       "after": [],
+      "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
+      "branch": "quest/detent/delta-plan-fixed-cost",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -1792,9 +1857,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-12T18:58:45"
+      "updated": "2026-11-16T21:23:54",
+      "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
       "accepted": {
@@ -2530,17 +2596,58 @@
         "README.md",
         "benchmarks/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-16T21:21:40",
+          "ci_skipped": "owner approved: linux-tsan fails only test_local_paged_publication_artifacts, a test race already failing main's TSan 5 of 73 runs on the old pins (Detent:39b5314a, ea3d591e, 06fa2a03, c02504e9, ce7faa41), and managed_all-down 1 of 200; the same pins passed TSan at 881b188f; every other CI job is green; the test fix lands on main separately",
+          "commit": "3875d8d919ec640a8534b710bf2c7fa645687e08",
+          "criteria": {
+            "A1": "261116-185753-a4efde (passed at 2f63137d0e0c; only merges from main since)",
+            "A2": "261116-205244-f287f7, 261116-205244-7197cb",
+            "A3": "261116-094719-348619 (passed at 881b188f13c4; only merges from main since)",
+            "A4": "261116-190351-c80854, 261116-190352-43252c"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "d9594559cfa86c81237c04cf2463219b9a9d3557",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-205244-f287f7",
+              "level": "light",
+              "seconds": 1014.6,
+              "state": "done",
+              "what": "deps-workpool-repin check native at d9594559cfa8"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "d9594559cfa86c81237c04cf2463219b9a9d3557",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-205244-7197cb",
+              "level": "none",
+              "seconds": 5.7,
+              "state": "done",
+              "what": "deps-workpool-repin check pins at d9594559cfa8"
+            }
+          ],
+          "final": true,
+          "from": "c91f1260dbc746c35c76fe260eab8b828eb56209",
+          "reason": "",
+          "tested": "d9594559cfa86c81237c04cf2463219b9a9d3557"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Repin logger on workpool, drop scheduler, rename threadpool to workpool",
-      "updated": "2026-11-16T00:04:51",
-      "worktree": "../Detent-wt/detent/deps-workpool-repin"
+      "updated": "2026-11-16T21:38:24",
+      "worktree": ""
     },
     "detent-brand": {
       "accepted": {},
@@ -3331,7 +3438,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "async-drivers 2: completion seam (SyncData, completion_ref, Inline/HeldCompletion)",
-      "updated": "2026-11-16T12:12:34",
+      "updated": "2026-11-16T21:38:17",
       "worktree": ""
     },
     "drivers-task-wheel": {
@@ -3488,7 +3595,7 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 1: task deadlines and asio timers on Kronuz/wheel, blocking_scheduler",
-      "updated": "2026-11-16T02:24:44",
+      "updated": "2026-11-16T21:41:11",
       "worktree": ""
     },
     "drop-justknobs": {
@@ -4163,7 +4270,7 @@
       "risk": "high",
       "status": "landed",
       "title": "HTTP idle cost: cheaper idle connections, TLS first",
-      "updated": "2026-11-16T11:21:13",
+      "updated": "2026-11-16T21:38:20",
       "worktree": ""
     },
     "http-task-h1": {
@@ -4935,7 +5042,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Logger: producer burst cost back to the f61d8df level on workpool and wheel",
-      "updated": "2026-11-16T06:36:57",
+      "updated": "2026-11-16T21:41:09",
       "worktree": ""
     },
     "logger-exit-crash": {
@@ -5476,6 +5583,8 @@
       "after": [
         "namespace-s6-cutover"
       ],
+      "base": "e7c3b4d082ebdd6643cfc346e4209befb698ffdb",
+      "branch": "quest/detent/namespace-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5505,9 +5614,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-13T08:18:30"
+      "updated": "2026-11-16T21:23:49",
+      "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
       "accepted": {},
@@ -7572,6 +7682,8 @@
       "after": [
         "namespace-s8-wiring"
       ],
+      "base": "58804a6e1e1028e14dd775a67e462be5c9be8d52",
+      "branch": "quest/detent/namespace-s6-hardening",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7599,7 +7711,8 @@
         "src/detent_delivery/namespace_session.cc",
         "include/detent_delivery/namespace_session.hh",
         "tests/detent_delivery/test_namespace_session.cc",
-        "docs/status/namespace-s6-cutover.md"
+        "docs/status/namespace-s6-cutover.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -7608,9 +7721,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-15T21:12:51"
+      "updated": "2026-11-16T21:41:07",
+      "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
