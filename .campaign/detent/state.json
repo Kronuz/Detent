@@ -12759,10 +12759,45 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/transport-connection",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T04:26:29",
+          "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+          "criteria": {
+            "A1": "261117-032550-6206a7, 261117-032548-ab81be; fails without: 261117-012000-205e0e, 261117-012004-35b740, 261117-012009-0d6a0f, 261117-012013-dbd982, 261117-012021-795811, 261117-012118-209628, 261117-021037-4df123, 261117-021041-dbab12, 261117-021046-535d94, 261117-021051-2d4cc4, 261117-021055-8114e8, 261117-021221-3c6fba, 261117-032608-c60abe",
+            "A2": "261117-032553-0e82fd, 261117-032548-ab81be; fails without: 261117-012027-32b241, 261117-012033-e1cceb, 261117-012039-9c2239, 261117-021101-69bcf2, 261117-021120-6cfd3d, 261117-021125-b0806f",
+            "A3": "261117-032548-ab81be",
+            "A4": "261117-032553-0e82fd, 261117-032556-fc0b12, 261117-032548-ab81be, 261117-032611-97f801, 261117-032620-2cee82; fails without: 261117-012045-b8df9d, 261117-012052-5bfa60, 261117-012059-910de1, 261117-012105-586789, 261117-012109-4f9a7a, 261117-012114-7d6e0c, 261117-021130-36cdcc, 261117-021136-2134e3, 261117-021141-a71c31, 261117-021146-625f2d, 261117-021151-7f0a64, 261117-021157-d2b65d, 261117-021205-c58e50, 261117-021211-381e3c, 261117-021216-ebf15b, 261117-021226-2e4b1a, 261117-021232-a56084, 261117-021238-0c6d91, 261117-021243-1aac9a, 261117-032600-4ce9d8, 261117-032604-d35a2f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-032548-ab81be",
+              "level": "light",
+              "seconds": 121.9,
+              "state": "done",
+              "what": "transport-connection check suite at 677c8645623b"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "677c8645623b8fdc856416f4a9914557926b061a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+          "reason": "",
+          "tested": "677c8645623b8fdc856416f4a9914557926b061a"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "consensus-driver"
@@ -12772,9 +12807,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T04:18:31",
+      "updated": "2026-11-17T04:26:38",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
     "transport-groups": {
