@@ -1,6 +1,6 @@
 # transport-groups: journal
 
-State: fix round 2 at consensus `e4e394b`; waiting on jobs 261117-073408-7f66d4 .. -073512-e52928
+State: fix round 2 done at consensus `e4e394b` (not pushed); every job passed; CI is the lead's push
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -12,8 +12,8 @@ margin against macOS's background-QoS socket throttling.
 
 ## Next
 
-1. Read the jobs under "Fix round 2 jobs"; then the lead pushes for CI (macos-x86_64
-   `coarse_writer`, every platform's `nonreader`).
+1. The lead pushes `quest/detent/transport-groups` for CI: macos-x86_64 `coarse_writer` (F4)
+   and `nonreader` on Linux and FreeBSD (`SIOCOUTQ`, `FIONWRITE`) are the proof this host lacks.
 
 ## Blocked on
 
@@ -66,7 +66,16 @@ processes under `taskpolicy -b`, strict) 073418-e06e0e. Mutants (`--fails-withou
 `no-credit-on-refuse` 073450-fffdc8, `no-reset-on-end` 073455-428006; `bulk-ahead-of-control`
 073459-b53bec on `upload`; `no-credit` 073503-d1eae9 on `credit`; `reader-loop-delivers`
 073508-10b088 and `no-hand-off` 073512-e52928 on `threads`.
-Results: pending.
+Results: suite, `connection` (16 cases) and TSan (7 tests, no report) passed; every mutant
+failed its case (exit 8). Background QoS e06e0e, beside 26 light holds: 20 of 20
+`coarse_writer` runs passed first time (14.1-16.0 s, 2 drained expiries each, the queue held
+278-696 ms at most against 2 s), 20 of 20 `nonreader` ended `failed` in 406-547 ms.
+`connection` 513aec: `coarse_writer` 48 of 48 in 6,421 ms, 1 drained expiry, held 265 ms;
+`nonreader` failed at 409 ms. Mutants: `stuck-never-fails` 360ef2 and `stuck-equal-drains`
+26d576 leave the `nonreader` writer open at 10 s; `stuck-samples-before-flush` 413a4a
+(16 of 48, 2,150 ms) and `stuck-ignores-drain` adb7b0 (17 of 48) end `coarse_writer` at its
+first expiry; `stuck-spans-flush` 916a42 ends `slow_reader` (12 of 64, 387 ms);
+`no-close-notify` 25fcd7 fails `keepalive`'s close; the groups mutants fail as at `c050123`.
 
 Superseded, at `ff0d58b`: suite 071128-07f342 passed, `connection` 071327-13783b passed, TSan
 071331-293bdd passed, every mutant failed its case (071200-899f1b .. 071249-042e02), bg QoS
@@ -154,9 +163,9 @@ the leader (node 1) restarts, both commit again on all three (b75526). TSan pass
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-050041-9d19b2, 261117-050055-032a41, 261117-050100-6bc00a, 261117-050103-ed123d, 261117-050114-a4b2ed; fails without: 261117-050133-bf0e3f, 261117-050139-527d2f, 261117-050145-d84fdc |
-| A2 | 261117-050041-9d19b2, 261117-050107-41c3d7; fails without: 261117-050128-1bc50d |
-| A3 | 261117-050041-9d19b2, 261117-050110-b75526 |
+| A1 | 261117-073408-7f66d4, 261117-073411-513aec, 261117-073414-ce6391, 261117-073418-e06e0e; fails without: 261117-073422-360ef2, 261117-073427-26d576, 261117-073431-413a4a, 261117-073436-adb7b0, 261117-073441-916a42, 261117-073445-25fcd7, 261117-073450-fffdc8, 261117-073455-428006, 261117-073503-d1eae9, 261117-073508-10b088, 261117-073512-e52928 |
+| A2 | 261117-073408-7f66d4; fails without: 261117-073459-b53bec |
+| A3 | 261117-073408-7f66d4 |
 
 ## Result
 
