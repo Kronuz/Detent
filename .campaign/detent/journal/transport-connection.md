@@ -1,6 +1,6 @@
 # transport-connection: journal
 
-State: waiting on jobs 261117-020930-674e37 261117-020940-345e4b 261117-020944-e6a5b4 261117-020950-becb2a 261117-020957-62fbbb 261117-021002-3a215c 261117-021006-6e7652 261117-021249-cfd240 and the 22 mutants below
+State: ready for review (security fix round 1 at consensus 2f6f210; every job below passed)
 Quest: .campaign/detent/quests/transport-connection.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -45,8 +45,7 @@ Fix head: consensus `2f6f210` (`f0a50db` connection, `48ba519` links, `2f6f210` 
 
 ## Next
 
-1. Read the jobs at `2f6f210`; each mutant must exit nonzero (fails-without passes).
-2. Push for CI (the lead's; Linux was red at `35ebaba`, see above), then `campaign accept
+1. Push for CI (the lead's; Linux was red at `35ebaba`, see above), then `campaign accept
    transport-connection security --confirm S1=<suite> S2=<suite> ...`.
 
 ## For the lead (review notes not fixed here)
@@ -77,10 +76,16 @@ no-close-notify 261117-021136-2134e3, no-keepalive 261117-021141-a71c31, refuse-
 261117-021232-a56084, no-source-cap (N1) 261117-021238-0c6d91, dial-one-expression (gcc, g++-16)
 261117-021243-1aac9a.
 
-The reviewer's probe rerun at `2f6f210`: 261117-021249-cfd240. Expected: `abandoned_dial` passes;
-the two fd cases still print "0 unread" by the probe's construction: its stranger is dup2'd onto a
+All passed: suite, four tests, TSan (connection 4.3 s, links 3.1 s), g++-16, and every mutant
+exit 8 at its targeted assertion (spot-checked: fail-closes-fd at the fd-still-ours check,
+ssl-after-end "20 unread, 24 written", stuck-spans-flush "14 of 64 frames in 426 ms",
+abandon-keeps-dial "still held", refuse-newest and no-source-cap at the flood's eviction count,
+dial-one-expression at the dial assertion under g++-16).
+
+The reviewer's probe rerun at `2f6f210`: 261117-021249-cfd240 (exit 1, as expected: `abandoned_dial` passes;
+`abandoned_dial` passed; the two fd cases print "0 unread, 0 written" by the probe's construction: its stranger is dup2'd onto a
 number the connection still owns, which `run()` then closes, and the probe keeps no second fd to
-count what is left. "0 written" is the part that holds. `connection_test`'s cases keep that fd.
+count what is left). "0 written" is the part that holds; `connection_test`'s cases keep that fd.
 Probes of the working tree (never evidence): 261117-015858-c9ed5e, 261117-020156-7424e1,
 261117-020305-7edbae, 261117-020718-199e81; 261117-015213-31e196 reproduced the gcc `dial`
 failure at `35ebaba`.
