@@ -90,3 +90,54 @@ By reading, against the four questions:
   count-driven. The service also answers 503 at once instead of waiting out the next's `wait` for
   the seal, as it already does when history is not ready.
 - The full native suite again at this commit.
+
+## Round 2
+
+Commit: Detent:94d7cc09b5029c73e0c31eaf329a7ee49f6d15c6
+Verdict: APPROVE
+Date: 2026-11-17
+
+### F1 is fixed
+
+`plan_frames` sends Dropped only when the store is not a same-cluster store above the drop's
+position (frames_export.cc:43-44, Detent:892e121b). That is the Ahead rule, matching
+`select_answer`.
+
+`test_authority_namespace_history` now lags voter 2 across the re-creation and checks two stores.
+The store at the new incarnation gets no request; the store of the dropped incarnation is still
+told. This is my probe's scenario, now in the suite.
+
+The mutants kill the fix and its neighbours (each exit 8):
+
+- 261117-122502-2e928a: the guard reverted to `if (store)`.
+- 261117-122454-36ba59: no Dropped request.
+- 261117-122509-9c0de7: an unfreezable namespace omitted.
+- 261117-122514-0cd4cd: FramesBehind mapped to distribution_unavailable.
+
+The tests pass:
+
+- 261117-122519-346027 and 261117-144103-d40cc6, the A1-A4 tests (the second with the relay).
+- Native 261117-122525-281a5f, 275 tests, green this time.
+- Pins 261117-122525-4f8dea.
+
+### Why jobs at older commits count for this head
+
+The jobs ran at Detent:a045c1e8 and Detent:cb469446. Outside `.campaign`, those commits have the
+same code as the fix commit Detent:705de218 (an empty `git diff`).
+
+The head's only code change after them is merge Detent:88c5d57a. It brings in nine files from
+delta-plan-fixed-cost, all under `src/detent_local`, `tests/detent_local` and `docs/perf`. None of
+them is in this quest's file set, and this quest's files are unchanged from Detent:a045c1e8 to the
+head. CI on the pushed head covers the merged tree; at review time it had not run.
+
+### The other round-1 findings
+
+F2 to F5 were non-blocking and are unchanged. The journal records the lead's ruling on F2: it was
+dropped, leaving the Dropped path untested through the HTTP service. F3 (published memory leaves
+the ledger) and F4 (`publish()` is not atomic) carry to P4's agent preparer. F5 is a nit.
+
+### Not run
+
+- My probe at this head: the suite test above reproduces it, and mutant 2e928a proves that test
+  fails without the fix.
+- CI at Detent:94d7cc09.
