@@ -1537,6 +1537,8 @@
       "after": [
         "consensus-fetch-macos"
       ],
+      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "branch": "quest/detent/consensus-transport",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -1560,6 +1562,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
         "security",
@@ -1574,9 +1577,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-15T23:08:03"
+      "updated": "2026-11-17T00:39:15",
+      "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "container-selection": {
       "accepted": {},
