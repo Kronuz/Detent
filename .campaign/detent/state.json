@@ -13126,6 +13126,8 @@
       "after": [
         "transport-identity"
       ],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/transport-idle-cost",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -13147,6 +13149,7 @@
         "CMakeLists.txt",
         "docs/**"
       ],
+      "journal": "../Detent-wt/detent/transport-idle-cost",
       "landed": [],
       "lenses": [
         "correctness"
@@ -13156,11 +13159,13 @@
         "transport-groups"
       ],
       "provides": [],
+      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T00:46:53"
+      "updated": "2026-11-17T07:56:22",
+      "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {
       "accepted": {},
