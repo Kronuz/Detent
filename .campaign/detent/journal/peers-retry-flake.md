@@ -1,9 +1,11 @@
 # peers-retry-flake: journal
 
-State: ready for review
+State: waiting on jobs 261117-134718-1c12ce 261117-134723-98cca7 (close-step fix at consensus:5e0ab05)
 Quest: .campaign/detent/quests/peers-retry-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Linux CI at 291dae2 failed deterministically at peers_test.cc:1220: the Close step fetched the F3 table, now 2 MiB, which a fast host finishes before cluster.stop(1) lands, so no connection_aborted. consensus:5e0ab05: the close step fetches its own 8 MiB "history/large" (the table stays 2 MiB for the frozen fetch, retry and reopen); the abort expectation is unchanged. Done at bac4f81 and passing: A1 pair (122236 and 122241 exit 134 as mutants, 122246 and 122252 pass), A2 fetch-failures x200 (122257), suite (122228). Queued at 5e0ab05: A2 full peers test x60 4-way (261117-134718-1c12ce) and the suite (261117-134723-98cca7). Not forced on macOS: the failure needs a host that drains 2 MiB before the stop lands (Linux CI); the lead's CI run is its evidence.
 
 Fix committed in consensus quest/detent/peers-retry-flake: a9283e458132 (knobs) and bac4f8162c4a (fix). Jobs queued with --for; waiting.
 
@@ -20,7 +22,7 @@ Nothing. No Peers defect: both modes are the test's deadline too small for its r
 | Criterion | Evidence |
 |---|---|
 | A1 | 261117-122246-95e8bd (passed at bac4f8162c4a; only merges from main since), 261117-122252-5e4bf2 (passed at bac4f8162c4a; only merges from main since); fails without: 261117-122236-68fffc, 261117-122241-9dae77 |
-| A2 | 261117-122257-901974 (passed at bac4f8162c4a; only merges from main since) |
+| A2 | 261117-134718-1c12ce (full peers test x60 4-way at 5e0ab05); 261117-122257-901974 (passed at bac4f8162c4a; only merges from main since) |
 | A3 | 261117-122228-c010f0 (passed at bac4f8162c4a; only merges from main since) |
 
 ## Result
