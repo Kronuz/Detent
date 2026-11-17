@@ -1,6 +1,6 @@
 # transport-connection: journal
 
-State: waiting on jobs 261117-012645-510cf4 261117-012648-223239 261117-012653-af6f61 261117-012657-190319 261117-012701-805798 261117-012705-7fdd18 261117-012148-792d04
+State: waiting on jobs 261117-020930-674e37 261117-020940-345e4b 261117-020944-e6a5b4 261117-020950-becb2a 261117-020957-62fbbb 261117-021002-3a215c 261117-021006-6e7652 261117-021249-cfd240 and the 22 mutants below
 Quest: .campaign/detent/quests/transport-connection.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,16 +15,77 @@ CHANGELOG. At `c1270f0`: suite and the four test jobs passed, all 15 mutants kil
 TSan failed on a test bug (the lookup case's abandoned resolver thread wrote a counter on a
 dead stack; fixed at `35ebaba`). `575671e` makes `~Links` abandon a refreshing lookup.
 
+## Fix round 1 (security review CHANGES)
+
+- S1: `fail()` ends once: `shutdown(SHUT_RDWR)` and `cancel()`, no close; the fd closes when
+  `run()` returns. `open_or_throw` before every SSL call in `fill`/`flush`/handshake and after
+  every wait; `deliver` hands no frame after the end. Cases `fd_reuse_reader`, `fd_reuse_writer`
+  (the reviewer's probes, the stranger dup2'd onto the old number, a second fd kept to read it).
+- S2: `offer()`'s give-up aborts and forgets the connection. Case `abandoned_dial` (weak_ptr).
+- N2: the writer's stuck deadline restarts at every write that made progress (`flush(.., true)`
+  returns early). Case `slow_reader`: two loops, 64 x 512 KiB at 20 ms per frame, dead_after 300 ms.
+- Found by `slow_reader` (gcc build: dialer `dead`, 60 of 64 frames, 4.2 s, probe
+  261117-020305-7edbae): the reader never suspended while data kept arriving, so its own writer's
+  keepalives starved and the peer declared it dead; it now yields one loop turn per read. And
+  `flush` erased each partial write from the front of the queue (O(n^2) memmove on a 32 MiB
+  queue); it now advances an offset and releases the buffer when done.
+- `fail()` touches the socket only on the first end: a second `fail()` (the reader's catch)
+  shut down whatever held the number by then (probe 261117-020156-7424e1).
+- N1: `Links::admit`: pool of 4, at most 2 per source address, a newcomer replaces the source's
+  oldest, else the pool's oldest; a handshake leaves the pool once authenticated. Case `flood`.
+- CI at `35ebaba` was red on Linux: `connection` died of SIGPIPE (N4: OpenSSL `write()`), and
+  `links` `dial` failed on gcc only (13.3 on CI; reproduced with g++-16 here, probe
+  261117-015213-31e196). Fixes: `SO_NOSIGPIPE` where it exists, the tests ignore SIGPIPE, the
+  header says the host must; `dial()` no longer puts `co_await offer(.., std::move(connection))`
+  in the right operand of `&&`; mutant `dial-one-expression` built with g++-16 shows it.
+- Mutants added: fail-closes-fd, ssl-after-end, stuck-spans-flush, abandon-keeps-dial,
+  refuse-newest, no-source-cap.
+
+Fix head: consensus `2f6f210` (`f0a50db` connection, `48ba519` links, `2f6f210` doc and mutants).
+
 ## Next
 
-1. Read the jobs at `35ebaba` (suite, four tests, TSan) and the fuzz job; fix what fails.
-2. Push for CI (the lead's), then "ready for review" (security lens).
+1. Read the jobs at `2f6f210`; each mutant must exit nonzero (fails-without passes).
+2. Push for CI (the lead's; Linux was red at `35ebaba`, see above), then `campaign accept
+   transport-connection security --confirm S1=<suite> S2=<suite> ...`.
+
+## For the lead (review notes not fixed here)
+
+- N5: the resolver's lifetime is now documented on `LinkOptions::resolver`; the deterministic
+  `~Links`-with-live-resolver test (latch, ASan) is not written.
+- N6: `Connection` does not assert the context's verify mode and `SSL_OP_NO_RENEGOTIATION`.
+- N7: two pin matchers (`NodePins::authenticate`, `authenticated_voter`) until `Peers` goes (D106).
 
 ## Blocked on
 
 Nothing.
 
 ## Evidence
+
+At `2f6f210` (fix round 1): suite 261117-020930-674e37; `deadline` 261117-020940-345e4b,
+`connection` 261117-020944-e6a5b4, `node_hello` 261117-020950-becb2a, `links` 261117-020957-62fbbb;
+TSan 261117-021002-3a215c; g++-16 `connection` and `links` 261117-021006-6e7652. Mutants at
+`2f6f210`, each `--fails-without`: no-extension 261117-021037-4df123, uncapped
+261117-021041-dbab12, twice 261117-021046-535d94, wake-ignores-extension 261117-021051-2d4cc4,
+entry-left-armed 261117-021055-8114e8, pin-any-node 261117-021101-69bcf2, pin-self
+261117-021120-6cfd3d, pin-unpinned 261117-021125-b0806f, close-drops-queue 261117-021130-36cdcc,
+no-close-notify 261117-021136-2134e3, no-keepalive 261117-021141-a71c31, refuse-when-offered
+261117-021205-c58e50, accept-when-offered 261117-021211-381e3c, draining-counts
+261117-021216-ebf15b, lookup-no-wake 261117-021221-3c6fba; new: fail-closes-fd (S1)
+261117-021146-625f2d, ssl-after-end (S1) 261117-021151-7f0a64, stuck-spans-flush (N2)
+261117-021157-d2b65d, abandon-keeps-dial (S2) 261117-021226-2e4b1a, refuse-newest (N1)
+261117-021232-a56084, no-source-cap (N1) 261117-021238-0c6d91, dial-one-expression (gcc, g++-16)
+261117-021243-1aac9a.
+
+The reviewer's probe rerun at `2f6f210`: 261117-021249-cfd240. Expected: `abandoned_dial` passes;
+the two fd cases still print "0 unread" by the probe's construction: its stranger is dup2'd onto a
+number the connection still owns, which `run()` then closes, and the probe keeps no second fd to
+count what is left. "0 written" is the part that holds. `connection_test`'s cases keep that fd.
+Probes of the working tree (never evidence): 261117-015858-c9ed5e, 261117-020156-7424e1,
+261117-020305-7edbae, 261117-020718-199e81; 261117-015213-31e196 reproduced the gcc `dial`
+failure at `35ebaba`.
+
+At `35ebaba` (before the review):
 
 At `35ebaba`: suite 261117-012645-510cf4; TSan 261117-012705-7fdd18. At `c1270f0`: suite
 261117-011918-3232f8 passed. Mutants are commits on no branch from
@@ -51,7 +112,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   cluster, connection id, rpc_min, rpc_max (1..9,999, the lane magic's four digits). Group,
   epoch and profile leave the hello for the group-open exchange (transport-identity).
 - Late means more than one wheel tick (1 ms) past the deadline: the wheel's own granularity is
-  not a stop, so on-time fires never re-arm.
+  not a stop. An on-time fire can still measure a little over a tick on `asio_scheduler` (a tick
+  plus the loop's wake latency) and extend by that small lateness: never early, once, capped (N3).
 - The keepalive is a zero-length frame; the dead-peer deadline (`dead_after`, 5 s) restarts on
   every read wait, and a write stuck for `dead_after` fails the connection.
 - Tie-break: a dial counts once its hello is sent; the lower node's dial wins. A dial that
@@ -61,6 +123,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   under keepalives) and print the timings, so no new entry needs the `timing` label (D100).
   `deadline_test` injects stops on `inline_scheduler`'s manual clock, with no wall clock.
 - `consensus_transport` links `task::asio` when the target exists (the connection awaits Asio).
+- N1's per-source cap is 2, not the ruling's 1: a node dials Control and Bulk at once from one
+  address, and with 1 each lane's accept evicts the other's (`links_test` `threads` dials both
+  lanes both ways at once). 2 still leaves a one-address flooder 2 of 4 slots and no lock-out.
+  The lead may set `handshakes_per_source = 1` (one line) if lane dials are to be serialized.
+- `LinkStats::evicted` counts pre-authentication handshakes replaced; `rejected` now counts only
+  connections refused on arrival (stopping, or no peer address).
+- N8 is a doc line in host-connection.md (the peer refuses a retiring end's redial until it reads
+  the close_notify).
 - `~Links` abandons in-flight lookups (`575671e`): a cached name's refresh runs with no task, so
   the drained assertion alone does not stop its thread posting later. No test: it needs an
   io_context destroyed under a live resolver thread, which is not deterministic.
