@@ -59,8 +59,7 @@ template <class Result, class Function> Result on_worker(asio::thread_pool &work
 template <class Records>
 std::shared_ptr<const d::OwnedBuffer>
 health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedger &root,
-				const Records &records, ServiceStatus service, t::CompletionSchedulerStatus scheduling,
-				kronuz::journal::CompletionStats disk, const MirrorService *mirror, bool ready) {
+				const Records &records, ServiceStatus service, const MirrorService *mirror, bool ready) {
 	auto output = d::make_owned_buffer(std::move(account), 256 * 1024);
 	auto number = [&](std::uint64_t value) {
 		std::array<char, 32> bytes;
@@ -82,13 +81,6 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 	field(",\"bootstrap\":", service.bootstrap);
 	field(",\"catchup\":", service.catchup);
 	field(",\"peak_transfers\":", service.peak_transfers);
-	field(",\"disk_queued\":", scheduling.queued);
-	field(",\"disk_peak_queued\":", scheduling.peak_queued);
-	field(",\"disk_grants\":", scheduling.grants);
-	field(",\"disk_maximum_wait_ns\":", scheduling.maximum_wait_nanoseconds);
-	field(",\"disk_native_submitted\":", disk.native_submitted);
-	field(",\"disk_fallback_submitted\":", disk.fallback_submitted);
-	field(",\"disk_maximum_outstanding\":", disk.maximum_outstanding);
 	if (mirror) {
 		const auto state = mirror->status();
 		field(",\"mirror\":{\"ready\":", state.ready);
@@ -193,9 +185,6 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(baseline)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(baseline),
 														owner.scheduler(), queue, true);
-	auto scheduler = std::allocate_shared<t::CompletionScheduler>(d::StorageAllocator<t::CompletionScheduler>(baseline),
-																  owner.scheduler(), driver, baseline,
-																  std::max<std::size_t>(1, records.size()));
 	// W8: the namespace mirror, a reader of the authority or an upstream relay, never a member.
 	std::shared_ptr<MirrorService> mirror;
 	if (options.mirror) {
@@ -244,7 +233,6 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		registry_bindings.push_back({bundle_options.configured, principal, names.back()});
 		session_bindings.push_back({record.bundle, principal, bundle_options.configured});
 		configured.source.coordinator.source.scheduler = &owner.scheduler();
-		configured.source.coordinator.completion_port = scheduler->port(index);
 		configured.source.coordinator.publication_sink = record.bundle;
 		configured.source.coordinator.view_limits.retirement_domain = &record.publication_domain;
 		configured.source.coordinator.view_limits.mapping_account = record.mapping;
@@ -379,8 +367,8 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 			if (!announced && !stop_requested && (!mirror || mirror->status().ready) &&
 				std::all_of(records.begin(), records.end(),
 							[](const auto &record) { return record->bundle->status().ready; })) {
-				runtime->health(health_snapshot(accounts.metadata, *root, records, runtime->status(),
-												scheduler->status(), queue->stats(), mirror.get(), true));
+				runtime->health(
+					health_snapshot(accounts.metadata, *root, records, runtime->status(), mirror.get(), true));
 				health_due = now + std::chrono::milliseconds(100);
 				ready();
 				announced = true;
@@ -391,8 +379,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 			if (now >= health_due) {
 				try {
 					runtime->health(health_snapshot(accounts.metadata, *root, records, runtime->status(),
-													scheduler->status(), queue->stats(), mirror.get(),
-													announced && !stop_requested));
+													mirror.get(), announced && !stop_requested));
 				} catch (const d::StoragePressure &) {
 				}
 				health_due = now + std::chrono::milliseconds(100);
@@ -464,9 +451,6 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		record->bundle.reset();
 		record->store.reset();
 	}
-	if (!scheduler->idle())
-		throw std::logic_error("relay completion scheduler did not drain");
-	scheduler.reset();
 	driver.reset();
 	queue.reset();
 	for (auto &record : records) {

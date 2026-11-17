@@ -128,6 +128,8 @@ struct FileBounds {
 	std::uint64_t base = 0, block = 0, seal = 0, table = 0;
 };
 FileBounds file_bounds(const Limits &limits, const LayoutPolicy &policy);
+// The bounds of files written under `policy`, also right after a change from `previous`.
+FileBounds file_bounds(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous);
 // The largest file history writes under `policy`, also right after a change from `previous`.
 std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy);
 std::uint64_t file_bytes(const Limits &limits, const LayoutPolicy &policy, const LayoutPolicy &previous);
