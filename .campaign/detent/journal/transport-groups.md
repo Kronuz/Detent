@@ -1,18 +1,19 @@
 # transport-groups: journal
 
-State: fix round 2 at consensus `ff0d58b`; waiting on jobs (ids under "Fix round 2 jobs")
+State: fix round 2 at consensus `e4e394b`; waiting on jobs 261117-073408-7f66d4 .. -073512-e52928
 Quest: .campaign/detent/quests/transport-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 2 at consensus `ff0d58b` (on `c050123`): `3ba44aa` gives each write wait its own
-stuck deadline, sampled after its writes (F4, N7, N8, N9), widens `coarse_writer`'s margins and
-adds `nonreader` (F5); `ff0d58b` points three stale mutants at the current code.
+Fix round 2 at consensus `e4e394b` (on `c050123`): `3ba44aa` gives each write wait its own
+stuck deadline, sampled after its writes (F4, N7, N8, N9), and adds `nonreader` (F5);
+`ff0d58b` points three stale mutants at the current code; `e4e394b` gives `coarse_writer`
+margin against macOS's background-QoS socket throttling.
 
 ## Next
 
-1. Read the round 2 jobs; the lead pushes for CI (macos-x86_64 `coarse_writer`, every
-   platform's `nonreader`).
+1. Read the jobs under "Fix round 2 jobs"; then the lead pushes for CI (macos-x86_64
+   `coarse_writer`, every platform's `nonreader`).
 
 ## Blocked on
 
@@ -20,46 +21,57 @@ Nothing.
 
 ## Fix round 2 (review round 2, same file)
 
-- F4 (`3ba44aa`). Product: the window sampled `unacknowledged()` before flush's writes, so a
+- F4 product (`3ba44aa`). The window sampled `unacknowledged()` before flush's writes, so a
   record written in the window (OpenSSL writes a pending record, then returns WANT_WRITE on the
   next) counted against the drain. Now every writer wait (`want_written`) has its own
   `dead_after`, the queue sampled right before it, after this end's writes; at expiry a drained
-  queue returns to the caller, which retries its write. `flush` lost its `progress` early
-  return (a wait is the window now). Test: the reviewer's failing window drained 0 bytes in
-  300 ms, which no sampling point saves, so the margin is what fixes that run:
-  `coarse_writer` is 40 x 64 KiB at 125 ms per frame against a 1 s `dead_after`; the 1 MiB
-  queue empties (the low-water mark's wake) in ~2 s, the reader drains ~8 frames per window
-  (>= 4 with 100 ms timer coalescing); where the low-water mark takes (macOS, FreeBSD) it must
-  see a drained expiry (`Connection::drained_expiries()`), so it cannot pass without reaching
-  the rule; the run wait is 60 s and the `connection` ctest timeout 120 s. Local: 40 of 40 in
-  5,331 ms, 3 drained expiries. Mutant `stuck-samples-before-flush` samples when the flush
-  begins (the old point, before its writes).
+  queue returns to the caller, which retries its write. `flush` lost its `progress` early return.
+- F4 test (`3ba44aa`, `e4e394b`). The reviewer's failing window drained 0 bytes in 300 ms, which
+  no sampling point saves: the margin fixes that run. Cause found here: under `taskpolicy -b`
+  macOS throttles the background sockets (`net.inet.tcp.rledbat: 1`), so with a 64 KiB reader
+  buffer the queue went 1.0-1.3 s without draining (my first try, 1 s `dead_after`, failed 2 of
+  14 runs under bg QoS in strict job 071309-6d3791; traced locally: drains of 64 and 4,160 bytes
+  in 1 s windows). Measured holds (new `drain_watch`, 2 ms sampling): 64 KiB buffer 430 ms
+  normal, 1.0-1.3 s bg; 256 KiB 233 / 350-650 ms; 512 KiB 133 / 300-643 ms; 16 KiB frames at
+  30 ms were worse (bg 0.6-1.1 s, 30 s runs). Final `coarse_writer`: 48 x 64 KiB at 125 ms,
+  reader buffer 512 KiB, send buffer and low-water mark 1.5 MiB (empties in >= 3 s), `dead_after`
+  2 s: 7-15x the normal hold, 3x the worst bg hold. Where the low-water mark takes it must see a
+  drained expiry (`Connection::drained_expiries()`). A coarse run that ends stuck after a hold of
+  half `dead_after` is the host's and runs again (at most twice), as a process stall already
+  did. Local: 48 of 48 in 6.4 s, 1 drained expiry, held 133 ms; bg 14.2-14.9 s, 2 expiries,
+  held 302-592 ms (6 of 6). Mutant `stuck-samples-before-flush` samples when the flush begins
+  (the old point, before its writes).
 - F5 (`3ba44aa`). `nonreader` from the reviewer's probe: a relay stops forwarding to the peer
   after the hellos; the peer keeps sending keepalives (`dead_after` 60 s); the writer
   (`dead_after` 300 ms, 32 MiB queued) must end `failed` within 5 s (wait 10 s). Local: failed at
-  409 ms. Mutants `stuck-never-fails` and `stuck-equal-drains` are the reviewer's, ported to the
-  new code (`|| !drained(before))` -> `|| false)`; `*now < *before` -> `<=`).
+  408 ms; bg QoS 453-699 ms. Mutants `stuck-never-fails`, `stuck-equal-drains` are the
+  reviewer's, ported (`|| !drained(before))` -> `|| false)`; `*now < *before` -> `<=`); at
+  `ff0d58b` both left the writer open at 10 s with 32 drained expiries (899f1b, 847ba9).
 - N7 (`3ba44aa`): close_notify's waits go through `want_written`, one rule for both. No case
-  forces close_notify behind a full buffer (it needs the frames to fill the buffer exactly), so
-  that path is covered by sharing the code, not by a test of its own.
+  forces close_notify behind a full buffer (the frames would have to fill it exactly), so that
+  path is covered by sharing the code, not by a test of its own.
 - N8, N9 (`3ba44aa`): the syscall runs only before a wait and at its expiry; a failed reading
-  is `nullopt` and never a drain.
+  is `nullopt`, never a drain.
 - `stuck-spans-flush` follows the new code: one deadline for all of a flush's waits.
 
 ## Fix round 2 jobs
 
-At consensus `ff0d58b`, all ids 261117-: suite (`campaign verify`) 071128-07f342; `connection`
-071327-13783b; TSan (threads, credit, driver, refill, connection, links) 071331-293bdd;
-background QoS (`coarse_writer` then `nonreader`, 10 times in each of two processes under
-`taskpolicy -b`, strict) 071309-6d3791. Mutants (`--fails-without`): on `connection`
-`stuck-never-fails` 071200-899f1b, `stuck-equal-drains` 071204-847ba9,
-`stuck-samples-before-flush` 071208-83ccf6, `stuck-ignores-drain` 071212-a2710f,
-`stuck-spans-flush` 071217-ff4aa1, `no-close-notify` 071221-7964d2; `no-credit-on-refuse`
-071226-56996e and `no-reset-on-end` 071231-42c1a9 on `refill`; `bulk-ahead-of-control`
-071236-d8d3bd on `upload`; `no-credit` 071240-908cac on `credit`; `reader-loop-delivers`
-071245-458051 and `no-hand-off` 071249-042e02 on `threads`. Void: 071137-07234a and
-071140-3aeac0 (my quoting ran them at the home checkout's commit, not consensus).
+Final, at consensus `e4e394b`, all ids 261117-: suite (`campaign verify`) 073408-7f66d4;
+`connection` 073411-513aec; TSan (threads, credit, driver, refill, connection, links)
+073414-ce6391; background QoS (`coarse_writer` then `nonreader`, 10 times in each of two
+processes under `taskpolicy -b`, strict) 073418-e06e0e. Mutants (`--fails-without`): on
+`connection` `stuck-never-fails` 073422-360ef2, `stuck-equal-drains` 073427-26d576,
+`stuck-samples-before-flush` 073431-413a4a, `stuck-ignores-drain` 073436-adb7b0,
+`stuck-spans-flush` 073441-916a42, `no-close-notify` 073445-25fcd7; on `refill`
+`no-credit-on-refuse` 073450-fffdc8, `no-reset-on-end` 073455-428006; `bulk-ahead-of-control`
+073459-b53bec on `upload`; `no-credit` 073503-d1eae9 on `credit`; `reader-loop-delivers`
+073508-10b088 and `no-hand-off` 073512-e52928 on `threads`.
 Results: pending.
+
+Superseded, at `ff0d58b`: suite 071128-07f342 passed, `connection` 071327-13783b passed, TSan
+071331-293bdd passed, every mutant failed its case (071200-899f1b .. 071249-042e02), bg QoS
+071309-6d3791 failed (above). Void: 071137-07234a, 071140-3aeac0 (my quoting ran them at the
+home checkout's commit).
 
 ## Fix round 1 (review .campaign/detent/reviews/transport-groups-correctness.md)
 
