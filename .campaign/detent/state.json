@@ -4789,6 +4789,8 @@
     "journal-host-guards": {
       "accepted": {},
       "after": [],
+      "base": "555b69fa425621682c42bd8a52d3353a25300222",
+      "branch": "quest/detent/journal-host-guards",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4813,6 +4815,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-host-guards",
       "landed": [],
       "lenses": [
         "durability"
@@ -4822,9 +4825,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
-      "updated": "2026-11-17T02:53:32"
+      "updated": "2026-11-17T02:53:36",
+      "worktree": "../journal-wt/detent/journal-host-guards"
     },
     "legacy-h": {
       "accepted": {},
