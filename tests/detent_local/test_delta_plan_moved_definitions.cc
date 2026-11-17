@@ -5,6 +5,7 @@
 #include "detent_local/paged_definition.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_large_fixture.hh"
+#include "paged_limits.hh"
 #include "paged_overlay_assembler.hh"
 #include "paged_warm_validator.hh"
 #include <algorithm>
@@ -29,6 +30,27 @@ std::vector<x::SegmentInput> inputs(const x::PagedImage &image) {
 	});
 	return segments;
 }
+// Format-wide bounds, so the probe builds stores past the default 500K-record limits.
+l::ViewLimits view_limits() {
+	auto limits = l::ViewLimits::prepared();
+	limits.mapping_account = std::make_shared<d::StorageLedger>(64ull << 30);
+	return limits;
+}
+const p::Limits paged_limits = x::paged_limits(l::ViewLimits::prepared());
+d::ValidatedSnapshot decode_wide(std::string_view bytes) {
+	d::Limits limits;
+	limits.bytes = 4ull << 30;
+	limits.string_bytes = 2ull << 30;
+	limits.records = 8'000'000;
+	limits.storage_bytes = 12ull << 30;
+	d::SnapshotDecoder decoder(cursor(), {"app"}, limits);
+	auto input = std::span(bytes.data(), bytes.size());
+	while (!input.empty()) {
+		d::WorkBudget budget{1 << 20, 1 << 12};
+		decoder.feed(input, budget);
+	}
+	return decoder.finish();
+}
 // A store of `count` definitions and the delta that gives every `stride`-th one a new default.
 struct Delta {
 	std::filesystem::path directory;
@@ -40,12 +62,12 @@ struct Delta {
 	Delta(unsigned count, unsigned stride) {
 		directory = std::filesystem::current_path() / ".scratch" /
 					("moved-definitions-" + std::to_string(::getpid()) + "-" + std::to_string(count));
-		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(many(count)));
+		auto source = std::make_shared<const d::ValidatedSnapshot>(decode_wide(many(count)));
 		account = source->storage_account();
 		l::GenerationId generation{}, next{};
 		generation.fill('g');
 		next.fill('n');
-		x::PagedSnapshotBuilder original(source, generation);
+		x::PagedSnapshotBuilder original(source, generation, paged_limits);
 		while (!original.done()) {
 			l::ValidationBudget work;
 			original.step(work);
@@ -54,7 +76,8 @@ struct Delta {
 		const auto segments = inputs(*image);
 		std::vector<x::SegmentReachability> live;
 		{
-			x::GraphValidator graph(account, image, segments, image->root(), {}, x::paged_format_semantics);
+			x::GraphValidator graph(account, image, segments, image->root(), paged_limits,
+									x::paged_format_semantics);
 			while (!graph.done()) {
 				l::ValidationBudget work;
 				graph.step(work);
@@ -63,8 +86,8 @@ struct Delta {
 				live.push_back(graph.segment_reachability(i));
 		}
 		install(directory, *image);
-		base.emplace(l::recover_generation(directory));
-		x::TrieOverlay overlay(account, image, segments, image->root());
+		base.emplace(l::recover_generation(directory, view_limits()));
+		x::TrieOverlay overlay(account, image, segments, image->root(), paged_limits);
 		for (unsigned i = 0; i < count; i += stride) {
 			char name[16];
 			std::snprintf(name, sizeof name, "app:k%06u", i);
@@ -86,7 +109,8 @@ struct Delta {
 		overlay.seal();
 		auto target = cursor();
 		target.revision = 43;
-		x::OverlayAssembler assembler(account, overlay, segments, live, image->root(), next, target);
+		x::OverlayAssembler assembler(account, overlay, segments, live, image->root(), next, target,
+									 paged_limits);
 		while (!assembler.done()) {
 			l::ValidationBudget work;
 			assembler.step(work);
@@ -115,7 +139,7 @@ struct Leaves {
 };
 // Validates `root` over the base with `added` as the new segments; throws on a rejected graph.
 Leaves validate(const Delta &delta, std::span<const x::SegmentInput> added, p::Root root) {
-	x::WarmGraphValidator warm(delta.account, *delta.base, delta.result, added, root, {}, x::paged_format_semantics,
+	x::WarmGraphValidator warm(delta.account, *delta.base, delta.result, added, root, paged_limits, x::paged_format_semantics,
 							   true);
 	for (unsigned turn = 0; !warm.done(); ++turn) {
 		check(turn < 100000000);
