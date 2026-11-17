@@ -8261,7 +8261,52 @@
       "worktree": ""
     },
     "namespace-s6-hardening": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T15:23:05",
+          "base": "72bb83b6660fd3b49d22451f76e20925cef28598",
+          "blobs": {
+            "docs/status/namespace-s6-cutover.md": "100644:b2f4ddce45975d3d1507c7d907cb2b95faa98a99",
+            "include/detent_delivery/namespace_session.hh": "100644:c6ef20593fc2df7e1ad9eada5864737031b59dd9",
+            "include/detent_distribution/history.hh": "100644:5c6627f1a8cb273d0d70db3b6587a19b0bd297d8",
+            "include/detent_distribution/session_frames.hh": "100644:c15b530dfcb4a1a460ca5f5e74e5d1b34be0a581",
+            "include/detent_distribution/storage.hh": "100644:ecf6cf5e5578282dc47201c77fd76cc49902d260",
+            "src/detent_authority/frames_export.cc": "100644:ce7a426e48e14e6fb722713c888afcc1075feb7d",
+            "src/detent_authority/frames_export.hh": "100644:47a07786503ef5a8feb2ffd1eb092f64263aab93",
+            "src/detent_authority/service.cc": "100644:8ba043f86fe8f998771f5e25eeddc037ba22e3a4",
+            "src/detent_delivery/namespace_session.cc": "100644:fed5c6cab6477457b23f01c3a364c696572aa95b",
+            "src/detent_distribution/session_frames.cc": "100644:f3d130d136b724467c7470aa97531b81fb23c25b",
+            "tests/detent_authority/test_namespace_history.cc": "100644:66b32cce2d223feb02906dd5b55a499ea0547097",
+            "tests/detent_delivery/test_namespace_session.cc": "100644:a36c62fd085ebc39be86f8fd60e87e6186398f0d",
+            "tests/detent_distribution/test_session_frames.cc": "100644:ab33cae73130ed8dd5e49519b5aeea2f62eb38bb",
+            "tests/detent_distribution/test_storage.cc": "100644:9fdd1fffe0858f66ee86a59eea505e4ad103eace"
+          },
+          "by": "review",
+          "commit": "56d618a457e727ef03f7d1bdd110ae328c0e3430",
+          "criteria": "26b93e95a1bac9ed",
+          "diffs": {
+            "docs/status/namespace-s6-cutover.md": "3aa1dd3a75c1e9e1",
+            "include/detent_delivery/namespace_session.hh": "6d0f3701f32d4c5b",
+            "include/detent_distribution/history.hh": "39a90cf68c0da3a0",
+            "include/detent_distribution/session_frames.hh": "be1fe5b950d4f009",
+            "include/detent_distribution/storage.hh": "24a6a65dc6fff86f",
+            "src/detent_authority/frames_export.cc": "de2bf8112341cd43",
+            "src/detent_authority/frames_export.hh": "593fae3533a1e9bc",
+            "src/detent_authority/service.cc": "754f02d565568b16",
+            "src/detent_delivery/namespace_session.cc": "0287d63a6a2dddb2",
+            "src/detent_distribution/session_frames.cc": "21e6bdcd7b2dc863",
+            "tests/detent_authority/test_namespace_history.cc": "d25974fc69653c33",
+            "tests/detent_delivery/test_namespace_session.cc": "d1229708b88739a3",
+            "tests/detent_distribution/test_session_frames.cc": "9a4b6d1ecc6ab214",
+            "tests/detent_distribution/test_storage.cc": "96e0f5dde15fa3fd"
+          },
+          "findings": {},
+          "note": "",
+          "review": "1d1e469a557104d37e267103a4fe4b5fa9f6690b",
+          "reviewed": "94d7cc09b5029c73e0c31eaf329a7ee49f6d15c6",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s8-wiring"
       ],
@@ -8298,7 +8343,9 @@
         "src/detent_authority/service.cc"
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "N1",
       "needs": [],
       "provides": [],
@@ -8306,7 +8353,7 @@
       "risk": "normal",
       "status": "review",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-17T08:04:57",
+      "updated": "2026-11-17T15:23:05",
       "worktree": "../Detent-wt/detent/namespace-s6-hardening"
     },
     "namespace-s6-v1-removal": {
