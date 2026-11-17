@@ -5667,9 +5667,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Namespace review follow-ups: write-side bounds, dead relay disk fields, relay staging errors",
-      "updated": "2026-11-16T21:23:49",
+      "updated": "2026-11-17T01:20:42",
       "worktree": "../Detent-wt/detent/namespace-followups"
     },
     "namespace-local-cursor": {
