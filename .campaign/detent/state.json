@@ -11729,9 +11729,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T05:06:09",
+      "updated": "2026-11-17T05:06:12",
       "worktree": "../consensus-wt/detent/rpc-lane-codec"
     },
     "s3b-followups": {
