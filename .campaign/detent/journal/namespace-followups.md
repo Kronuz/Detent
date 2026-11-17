@@ -16,6 +16,8 @@ Round 1 (head 9cdbff4c): suite 261116-213212-4cf92a, A3 261116-213225-1c4d20 and
 
 ## Next
 
+0. Lead (msg): test_authority_snapshot_catchup is a known flake that ci-test-flakes fixes on its branch (Detent:55b6474a: a transport timeout retries with the same sequence). Debug it only if my head fails it and main passes it more than once.
+
 1. Read the jobs; if snapshot_catchup fails at my head and passes at main, the bound check stalls history in that run: debug (journal `history failed` log, bounds vs the test's policy) and fix. If it also fails at main, report it as pre-existing.
 2. Fill Evidence from `campaign brief`; set ready for review.
 
