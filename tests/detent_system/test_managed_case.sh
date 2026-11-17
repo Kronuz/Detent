@@ -25,4 +25,5 @@ case "$mode" in
   trust) script=run_trust_negatives.py; set -- --agents "$agent" --certificates "$build/tests/detent_authority/tls-fixture" --output "$output" ;;
   *) exit 2 ;;
 esac
-exec "$python" "$repository/tests/detent_system/$script" "$@"
+"$python" "$repository/tests/detent_system/$script" "$@"
+rm -rf "$output" # a failed run keeps its directory, which CI uploads

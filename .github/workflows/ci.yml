@@ -26,6 +26,7 @@ jobs:
       tsan: true
       tsan_timeout_minutes: 120
       # Retained fixture directories of a failed run, uploaded by the shared workflow; generation and pack data stay out.
+      # A system test keeps its .scratch/stage6 run only when it fails: events.jsonl holds every member's output.
       failure_artifacts: |
         build/tests/**/.scratch/**/*.log
         build/tests/**/.scratch/**/*.json
@@ -33,6 +34,9 @@ jobs:
         !build/tests/**/.scratch/**/authority-data/**
         !build/tests/**/.scratch/**/relay-generations/**
         !build/tests/**/.scratch/**/*generation*/**
+        .scratch/stage6/*/*.jsonl
+        .scratch/stage6/*/*.json
+        .scratch/stage6/*/*/*.json
   # Benchmarks default to ON but the matrix above turns them off; this job builds them (no run).
   benchmarks:
     name: linux-benchmarks
