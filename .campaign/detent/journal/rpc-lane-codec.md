@@ -1,6 +1,6 @@
 # rpc-lane-codec: journal
 
-State: waiting on jobs 261117-050434-95ef3e 261117-050435-5170c5 261117-050439-c01d2b 261117-050443-3fb2a3 261117-050447-ac8101 261117-050452-8737e6 261117-050457-ef5f13 261117-050501-e5a32f 261117-050506-7d6860 261117-050511-765547 261117-050516-fffbe9 261117-050521-7a5f49 261117-050526-8966c1
+State: waiting on jobs 261117-075708-1cb2b3 261117-050435-5170c5 261117-050439-c01d2b 261117-050443-3fb2a3 261117-050447-ac8101 261117-050452-8737e6 261117-050457-ef5f13 261117-050501-e5a32f 261117-050506-7d6860 261117-050511-765547 261117-050516-fffbe9 261117-050521-7a5f49 261117-050526-8966c1
 Quest: .campaign/detent/quests/rpc-lane-codec.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,7 +29,7 @@ hold it, it splits cleanly at the codec (`encode`/`decode`/`violation`, decoder 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | queued at 8db3ce3: rpc test + replay 261117-050435-5170c5; ASan+UBSan 261117-050443-3fb2a3; fuzz 20 min 261117-050447-ac8101; suite 261117-050434-95ef3e |
+| A1 | queued at 8db3ce3: rpc test + replay 261117-050435-5170c5; ASan+UBSan 261117-050443-3fb2a3; fuzz 20 min 261117-050447-ac8101; suite 261117-075708-1cb2b3 |
 | A2 | queued: 261117-050435-5170c5, TSan 261117-050439-c01d2b, ASan 261117-050443-3fb2a3 |
 | A3 | queued: 261117-050435-5170c5, TSan 261117-050439-c01d2b (cases pools-threads, pipes) |
 | A4 | queued, --fails-without at mutants of 8db3ce3 (test/transport/rpc_mutants.py): forget-is-violation 261117-050452-8737e6, grant-without-reserve 261117-050457-ef5f13, no-release-on-close 261117-050501-e5a32f, no-regrant 261117-050506-7d6860, grant-on-receive 261117-050511-765547, split-release 261117-050516-fffbe9, drain-ignored 261117-050521-7a5f49, id-at-call 261117-050526-8966c1 |
