@@ -4496,20 +4496,55 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/http-tls-small-reply-cost",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T08:33:55",
+          "commit": "2671470a488e6fe45148146e98cf3b264308ac82",
+          "criteria": {
+            "A1": "261116-200646-529fc3 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A2": "261116-200643-d30410 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7",
+            "A3": "261116-200648-8f78b8 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl)",
+            "A4": "261116-200651-b6727f (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl), 261116-200653-56d463 (passed at 0eb4c52f0751; ignores docs-only CHANGELOG.md, docs/perf/idle.md, docs/perf/idle/small-reply/count.jsonl, docs/perf/idle/small-reply/load.jsonl); fails without: 261116-200704-3f19a7"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "0eb4c52f0751f6331ccb07ad889bfe7e0b160d2e",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/idle.md",
+                "docs/perf/idle/small-reply/count.jsonl",
+                "docs/perf/idle/small-reply/load.jsonl"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261116-200651-b6727f",
+              "level": "light",
+              "seconds": 110.1,
+              "state": "done",
+              "what": "http-tls-small-reply-cost check suite at 0eb4c52f0751"
+            }
+          ],
+          "final": true,
+          "from": "2d53cef78de262df1417f25560c72e53034dd001",
+          "reason": "",
+          "tested": "2671470a488e6fe45148146e98cf3b264308ac82"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Attribute and cut TLS small-reply CPU at one connection and the close path",
-      "updated": "2026-11-17T08:24:01",
-      "worktree": "../http-wt/detent/http-tls-small-reply-cost"
+      "updated": "2026-11-17T08:34:07",
+      "worktree": ""
     },
     "ipv6": {
       "accepted": {},
@@ -13142,6 +13177,47 @@
       "updated": "2026-11-17T04:26:38",
       "worktree": "../consensus-wt/detent/transport-connection"
     },
+    "transport-feed-scan": {
+      "accepted": {},
+      "after": [
+        "transport-identity",
+        "transport-groups-ci"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "test/transport/groups_test.cc",
+        "bench/transport_idle.cc",
+        "docs/mechanisms/host-transport.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "HostTransport feed without a per-frame scan of every group",
+      "updated": "2026-11-17T09:42:45"
+    },
     "transport-groups": {
       "accepted": {
         "correctness": {
@@ -13266,6 +13342,8 @@
     "transport-groups-ci": {
       "accepted": {},
       "after": [],
+      "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
+      "branch": "quest/detent/transport-groups-ci",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -13323,6 +13401,7 @@
           "weakened": []
         }
       ],
+      "journal": "../Detent-wt/detent/transport-groups-ci",
       "landed": [],
       "lenses": [
         "correctness"
@@ -13330,11 +13409,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: main is red: this fix lands first; transport-identity merges main after (told), and its edits to host_transport.h and groups_test.cc are additive",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T08:28:53"
+      "updated": "2026-11-17T08:29:01",
+      "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
       "accepted": {},
