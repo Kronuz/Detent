@@ -1,6 +1,6 @@
 # consensus-driver: journal
 
-State: waiting on jobs 261116-183506-b70d93 261116-183508-5b3d98 261116-183511-7e7c3d 261116-183514-e5671d 261116-183517-ba5db0 261116-183520-e949c4 261116-183524-cafa97 261116-183527-9bf51b 261116-183530-fa0ab5 261116-183534-65a204 261116-183537-4a957b
+State: waiting on jobs 261116-190312-344e41 261116-190312-87fdc0 261116-190312-6f3223 261116-190313-30053b 261116-190313-51503a 261116-190313-c3161a 261116-190314-982145 261116-190314-f367e1 261116-190314-15400c 261116-190314-421b11 261116-190315-47fde6 (at consensus:ff0cdbc)
 Quest: .campaign/detent/quests/consensus-driver.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-driver (branch quest/detent/consensus-driver)
 
@@ -34,6 +34,39 @@ carries `Send`); `propose` takes the command and the Driver assigns request ids;
 
 ## Doing
 
+CI run 44004262278 at consensus:2aa7551 failed two ways; both fixed at consensus:ff0cdbc.
+
+1. Y9 on Linux (gcc x86-64, clang x86-64, gcc arm64): 7,077 B group + 1,744 B channel = 8,821 B.
+   Nothing grew since d03b8b6: its 8,082 (7,186 + 896) under-counted the channel, measured as one
+   mallinfo2 delta, where glibc's tcache (counted in use while free) served the 800-byte object.
+   snapshot_channel.h is unchanged since; 1,744 is its real cost. Fixed by holding rarely used
+   state behind pointers, and the bench now averages the channel over 1,000 instances.
+2. FreeBSD: driver_idle aborted with filesystem_error: threads() iterated /proc/self/task, absent
+   on FreeBSD (it aborted at d03b8b6 too). Now sysctl kern.proc.pid ki_numthreads.
+
+Byte breakdown, three-voter member (macOS probe .scratch/probe/probe.cc, requested bytes of the
+live blocks per group; heap columns are driver_idle 100):
+
+| Part | Before (2aa7551) | After (ff0cdbc) |
+|---|---|---|
+| Worker object | 1,816 | 1,816 |
+| Core object + its two owner blocks | 1,672 + 128 | 1,672 + 128 |
+| Driver group entry (timer_entry base, waiter list heads, empty inbox/limits: no capacity) | 712 | 344 (founding 136 and activating 256 now pointers) |
+| Driver group map node + open's small blocks | 96 + 24 | 96 + 24 |
+| Worker create blocks + initialization record | 64 + 96 | 64 + 96 |
+| journal Store, Journal, Host group, turn log | ~2,112 | ~2,112 |
+| Requested per group | 6,792 | 6,424 |
+| Heap per group (macOS zone) | 7,374 | 6,835 |
+| SnapshotChannel object | 800 (data_ 64, sending_ ~336, receiving_ ~328) | 88 |
+| Per-peer Channel x 2 | 848 (424 each: control 64, completed 272) | 208 (104 each) |
+| Member's consensus state, macOS | 9,022 | 7,139 |
+| Member's consensus state, Linux | 8,821 (CI) | ~7,000 expected; CI is the gate |
+
+No waiter or frame per idle group (0 in flight); one wheel entry per member is the Group's own
+timer_entry base. Job 261116-190315-47fde6 records the exclusive macOS numbers; Linux CI prints
+sizeof(Worker), sizeof(Core), sizeof(SnapshotChannel) beside the bytes.
+
+Earlier:
 Job 261116-164245-3db927 (at consensus:0e8134a) failed far wider than its tail showed: driver_test
 rows/checkpoints/close, blocking lone_voter/stalled/needs_peer/staged/ownership, waiter rows/close/
 close-read, driver_idle (script cd). Causes fixed at consensus:8c32f07:
@@ -101,6 +134,12 @@ Jobs at consensus:2aa7551 (final; all criteria):
   close-frees-with-waiters 261116-183534-65a204
 - 261116-183537-4a957b driver_idle 1000, exclusive (A5)
 
+Jobs at consensus:ff0cdbc (final; reruns of the 2aa7551 set): suite 261116-190312-344e41 (A1),
+checks 261116-190312-87fdc0 (A1), A2 261116-190312-6f3223, ASan+UBSan 261116-190313-30053b,
+ASan close cases 261116-190313-51503a, TSan 261116-190313-c3161a, mutants 261116-190314-982145,
+261116-190314-f367e1, 261116-190314-15400c, 261116-190314-421b11, idle exclusive
+261116-190315-47fde6.
+
 ## Next
 
 1. Green driver_test, waiter_test, blocking_entry_test, simulation, driver_idle.
@@ -157,3 +196,10 @@ Nothing.
   sanitized CI fits its 600 s; the full exploration is driver_checks.sh with WAITER_LIMIT.
 - R6 A group with inputs or calls the Worker refuses for now and nothing in flight to free them
   re-arms its wheel entry 1 ms out (a bounded retry, not a spin).
+- R14 Y9: state an idle group rarely uses lives behind a pointer, allocated while in use: the
+  channel's send, receive, data and control frames and a peer's last result; the Driver group's
+  founding roles and announced install. One extra allocation per transfer frame, beside its
+  frame string (a 64 KiB chunk); no contract change.
+- R15 driver_idle averages the channel over 1,000 instances (a single delta hid it in tcache);
+  heap bytes are measured on macOS and glibc only, so FreeBSD prints them as unchecked (the Y9
+  check is Linux's).
