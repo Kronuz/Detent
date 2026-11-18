@@ -791,6 +791,45 @@
       "title": "The client library, per the JustKnobs spec milestones 1-9",
       "updated": "2026-11-08T15:38:10"
     },
+    "completion-faultfs": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [
+        "faultlab:faultfs"
+      ],
+      "files": [
+        "test/sync_seam_test.cc",
+        "test/seam_support.h",
+        "test/sync_*_test.cc",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/completion",
+      "risk": "normal",
+      "status": "planned",
+      "title": "completion: the sync-seam crash model runs on faultlab's faultfs",
+      "updated": "2026-11-18T01:52:26"
+    },
     "completion-sync-data": {
       "accepted": {
         "correctness": {
