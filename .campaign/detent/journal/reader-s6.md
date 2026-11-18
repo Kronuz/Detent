@@ -59,7 +59,14 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Blocked on
 
-Nothing (A16 ruled by the lead: gate script and `first_read_phases.cc` granted, small in-job corpus).
+- Evidence head (lead's call). Every job is queued at `Detent:bd6581b`. Its only differences from
+  head `Detent:482a2a4` are `first-read-gate.md` and the deleted `first_read_gate.py`, but
+  `campaign brief` counts nothing at the new head. Filling Results with the A16 numbers moves the
+  head once more. Options:
+  1. Accept the bd6581b jobs for this docs-only delta.
+  2. Rerun every job once, at the head after the Results commit.
+  Recommendation: 1, because no target builds the changed files. Otherwise 2, and I start it right
+  after the Results commit.
 
 ## Evidence
 
