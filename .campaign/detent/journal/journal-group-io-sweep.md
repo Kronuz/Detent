@@ -1,6 +1,6 @@
 # journal-group-io-sweep: journal
 
-State: waiting on jobs 261118-123519-0b53cd 261118-123533-1944ae 261118-123541-c1f81b 261118-123558-25b19c
+State: waiting on jobs 261118-145236-96e656 261118-145245-315199 261118-145253-7b2d4c 261118-145256-9a888f 261118-145301-7efc6f 261118-145320-05f3b3 (fix round 1: F1 F2 F5)
 Quest: .campaign/detent/quests/journal-group-io-sweep.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-journal:965cd55 has the fix and test; journal:dbbbf1a the bench's run sizing (bench only, include/
-as at ea397ab). Jobs queued: suite 261118-123519-0b53cd (A1); mutants 261118-123533-1944ae (never
-sweeps, refs/mutants/journal-group-io-sweep/never = journal:5522996) and 261118-123541-c1f81b (sweeps
-a live range, refs/mutants/journal-group-io-sweep/live = journal:6be5c51), both after the suite
-(A2); exclusive bench A/B 261118-123558-25b19c, before built from ea397ab's include/ via --ref base,
-after from the head, same bench source (A3).
+Fix round 1 at journal:4d38a56 (code and test journal:4d2eef6, doc journal:4d38a56). F1: docs/perf/group-io.md
+rewritten present tense with the before/after table of 261118-123558-25b19c and F4's bound. F2:
+group_io gives a view of a closed (non-resident) group its own Range, as base did; the table is a
+multimap again, publish reaches every live range of the group, group_io prunes the group's own dead
+entries; host_test closed_view checks 2/2/0/2,2/4,4 artifacts. F5: A2 mutants rebuilt at the fix and
+tagged --for A2. F3 is journal-host-ranges-race's.
 
 ## Next
 
-1. When 261118-123558-25b19c ends: after table (median and calls/run, before beside after) into
-   docs/perf/group-io.md, with the 1M/1K ratio (A4); check the suite, mutants and CI run
-   44392889900; push; Evidence table from `campaign brief`; State "ready for review".
+1. When the jobs end: suite 261118-145236-96e656 (A1), mutants never 261118-145253-7b2d4c, live
+   261118-145256-9a888f (view_sweep), shared 261118-145301-7efc6f (closed_view) all must fail-pass
+   (A2), TSan host_test + race probe 261118-145245-315199 (no new race shape: base 2, head 20/21
+   reports at ranges_ publish vs group_io, per F3), exclusive A/B rerun 261118-145320-05f3b3 at the fix
+   (hot path changed: equal_range instead of operator[]); if its after numbers differ from the doc's,
+   update the doc table to it; CI at journal:4d38a56; State "ready for review".
 
 ## Blocked on
 
@@ -28,17 +31,13 @@ Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-123519-0b53cd (suite at journal:965cd55, includes host_test view_sweep): running |
-| A2 | 261118-123533-1944ae (never sweeps, journal:5522996), 261118-123541-c1f81b (sweeps a live range, journal:6be5c51), --fails-without, after the suite: queued |
-| A3 | 261118-123558-25b19c (exclusive, before = ea397ab include/, after = journal:965cd55): queued |
-| A4 | [artifact] docs/perf/group-io.md after table: pending A3's numbers |
-| CI | GitHub run 44392889900 on quest/detent/journal-group-io-sweep at journal:965cd55: queued |
+| A1 | 261118-145236-96e656 (suite at journal:4d2eef6, includes host_test view_sweep and closed_view): queued |
+| A2 | --fails-without at the fix, each one line: never sweeps 261118-145253-7b2d4c (refs/mutants/journal-group-io-sweep/never2, view_sweep), sweeps a live range 261118-145256-9a888f (live2, view_sweep), shares the closed range 261118-145301-7efc6f (shared, closed_view): queued. Superseded: 261118-123533-1944ae, 261118-123541-c1f81b at journal:965cd55 |
+| A3 | 261118-123558-25b19c (exclusive, before = ea397ab include/, after = journal:965cd55); rerun at the fix 261118-145320-05f3b3: queued |
+| A4 | [artifact] docs/perf/group-io.md at journal:4d38a56: present-tense mechanism, bound, before/after table at 1K/10K/100K/1M (random, ascending, resident), 1M/1K = 1.85 |
+| CI | GitHub run on quest/detent/journal-group-io-sweep at journal:4d38a56: pending push |
 
 ## Result
 
@@ -58,11 +57,16 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    O(log ids) map lookup. A Range unregistering itself would need the Host alive and a lock
    around `ranges_` from whatever thread drops the last view (views outlive Stores and their
    scans run off the loop): more state for no asymptotic gain.
-2. One range per group (`std::map`, was `std::multimap`). With batched sweeps a multimap keeps
-   every dead view of a group until the next sweep, and `publish` walks them all: a group opened
-   N times between sweeps would cost O(N) per commit and per group_io (the bench's "resident"
-   case). Sharing one Range among a group's live views is behavior-identical (publish writes the
-   same values to each) and keeps `publish` at one O(log ids) find.
+2. Views of a resident group share one Range; the table stays a multimap. A new view of a resident
+   group reuses a live Range (publish writes the same values to each); a view of a closed or unborn
+   group shares only an unpublished Range (incarnation 0) and otherwise gets its own, so it never
+   lists a closed incarnation's artifacts (base behavior, review F2, lead's ruling), while a view held
+   across the close keeps its Range and publish still reaches both on reopen. group_io erases the
+   group's own dead entries as it walks them, so a group's entries stay at its live ranges plus the
+   ones a commit has not yet seen die; with sharing, a group opened N times between sweeps costs one
+   Range, not N. Residual difference, unchanged from journal:965cd55: between a resident group's
+   update and its commit, a new view reuses the older view's committed values where base published
+   the in-memory entry to the new Range; no in-tree reader scans in that window.
 3. The bench sizes each run to at least 2N calls when they fit in 10 s, so the amortized sweep
    (one per N calls in the bench's steady state) falls inside every timed run; before, a 0.3 s run
    at 1M ids (about 250K calls) could miss it and report a median that hides the sweep. The before
