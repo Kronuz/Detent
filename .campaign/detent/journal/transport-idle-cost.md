@@ -1,6 +1,6 @@
 # transport-idle-cost: journal
 
-State: waiting on jobs 261117-171843-129613 261117-171843-41bde3 261117-171844-6513c0 261117-171844-b0ba7a 261117-171845-4f0a0a
+State: waiting on jobs 261117-172945-6b1b06 (A1) 261117-172946-981ce0 261117-172946-bbf981 261117-172946-10ce1e 261117-172946-7024b4 (A2) 261117-172947-eb211c (suite) at consensus:76bacd2
 Quest: .campaign/detent/quests/transport-idle-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,6 +23,11 @@ at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); pe
 
 ## Next
 
+0. D112 ruled (Blocked 1, option a): the bench's per-group check is now 230 + 40P B (P = peers),
+   consensus:76bacd2; the five queued jobs at 73cd955 were cancelled and rerun with the suite at
+   76bacd2. When they pass: docs/perf/transport-idle-cost.md per-group table (identity store 206 B,
+   D112), Evidence table from `campaign brief`, push both branches, State "ready for review".
+
 1. On resume: read the six jobs; put their numbers in docs/perf/transport-idle-cost.md (A1, A2,
    the per-group miss); paste `campaign brief`'s Evidence; State "ready for review" once the
    lead rules on Blocked 1.
@@ -44,6 +49,14 @@ at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); pe
    for R7's per-group open state, and 64 B is not reachable without dropping it. Not loosened in
    the bench: the check still fails.
 2. A2's host: this Mac stands in for the Linux gate host (D111), stated in the doc.
+
+## Rulings I made
+
+- D112 says `200 + 40P`; the smoke measures 253.1/285.5/366.3 B (L = 1) and 255.0/287.2/367.9 B
+  (L = 4) at P = 1/2/4, 13/6/6-8 B over it (a stored group 204.8-206.3 B, its frames 48-162 B).
+  The check is `230 + 40P`: the formula plus 30 B, 22-30 B over the measured points. Lead may
+  tighten it (e.g. `210 + 40P + 8` fits P = 1) or leave it. Descriptors, armed timers and frames
+  stay at 0.
 
 ## Evidence
 
