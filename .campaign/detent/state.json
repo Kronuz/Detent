@@ -6215,6 +6215,8 @@
       "after": [
         "journal-faultfs"
       ],
+      "base": "ea397ab052bc54d320633e3f02f824fb5dd49e49",
+      "branch": "quest/detent/journal-group-io-sweep",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -6237,6 +6239,7 @@
         "docs/perf/group-io.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/journal-group-io-sweep",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6246,9 +6249,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "journal: group_io costs O(1) amortized, not O(live ids)",
-      "updated": "2026-11-18T11:17:05"
+      "updated": "2026-11-18T12:23:31",
+      "worktree": "../journal-wt/detent/journal-group-io-sweep"
     },
     "journal-host-guards": {
       "accepted": {
