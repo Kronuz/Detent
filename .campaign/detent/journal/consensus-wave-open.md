@@ -1,6 +1,6 @@
 # consensus-wave-open: journal
 
-State: waiting on jobs 261118-002642-efda7e 261118-002706-6c6519 (queued) and CI run 44266992531
+State: waiting on jobs 261118-002642-efda7e 261118-034225-e2c134 (queued) and CI run 44266992531
 Quest: .campaign/detent/quests/consensus-wave-open.md (the lead's; never edit it)
 
 ## Doing
@@ -40,9 +40,9 @@ Nothing yet.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-002646-cafc64 (x20 x4), 261118-002652-7a5cb2 (old pin fails); suite efda7e pending |
-| A2 | 261118-034226-973795 (suite at 91564ba); 261118-002658-ddd230 (mutant fails) |
-| A3 | 261118-002706-6c6519 pending |
+| A1 | 261118-034224-183afe (x20 x4), 261118-002652-7a5cb2 (old pin fails); suite efda7e pending |
+| A2 | 261118-044944-ec59e7 (suite at 91564ba); 261118-002658-ddd230 (mutant fails) |
+| A3 | 261118-034225-e2c134 pending |
 | A4 | [manual] the Xapiand lead ran its reproducer, xapiand job ...003837-3e3d58 (strata:88d72629, consensus:c20f3fd, journal:4272229): `GROUP_FOOTPRINT_NOSYNC=1 GROUP_FOOTPRINT_WAVE=64 group_footprint_test 64 0` opened 64 at once, all committed their first write, 0 fenced on open, exit 0; all 64 fenced before the fix |
 
 ## Result
