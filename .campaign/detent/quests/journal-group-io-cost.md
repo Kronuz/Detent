@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Xapiand's goal5-audit O4: the Host's `group_io` sweeps every range on each call. Measure its cost per call at 1,000, 10,000, 100,000 and 1,000,000 ids at journal main (4d364f1), and say whether it grows linearly. A linear result becomes a fix quest before Xapiand's cluster-gate.
 
 ## Acceptance criteria
 
@@ -14,18 +14,17 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 ns per `group_io` call at 1K, 10K, 100K and 1M ids, median of 5 runs each, at journal:4d364f1, with the fitted growth (slope per id): an `exclusive` job.
+- A2 [artifact] `docs/perf/group-io.md` records the numbers, the command and the commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 at the Xapiand lead's request (O4).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+All of it.
