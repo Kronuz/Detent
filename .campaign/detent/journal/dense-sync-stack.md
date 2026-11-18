@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-064312-81a63c 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064421-90a1aa 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da 261118-064436-028406 261118-064438-51839b 261118-064115-2e8717 (plus the 100K and gate jobs below)
+State: waiting on probe jobs 261118-064904-6c2712 (stacked) 261118-064907-e7158a (53abd637 parent) 261118-064909-dd5db9 (53abd637) 261118-064842-39af41 (711a114e) 261118-064844-08680a (fresh main fixture), then the seed 261118-064312-81a63c, the ten 5M arms (main's two, 028406 and 51839b, held until the probes read), the 100K arms and the gates
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -41,6 +41,8 @@ Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat
 2. Arms, `--after` the seed job, exclusive, `--minutes 28 --long` (the campaign caps exclusive at 10 min; a 5M arm is 8-18 min plus a 10K smoke; `--long` defers them): `docs/measurements/dense-sync-stack-20261118/submit-5m.sh ARM ROUND`. Ids, round 1 / round 2: dense (9852a3c) 1e5071 / da3323; s2 (35296ba) eebae8 / b03bdd; stacked (d04794d) b6ee71 / 54b693; A/A (stacked tree again, own slot, stage aa) 90a1aa / 8657da; main (ea1fddc) 028406 / 51839b. Round 1 then round 2, interleaved.
 3. Risk: main may not read an Oct-era fixture. A1 job b5ef57 at main failed "authority did not elect an available leader" on the 10K Oct-23 fixture. Diagnostic 261118-064115-2e8717 (10K smoke at main, logs kept) says why. If main cannot read old state, cancel the two main arms (028406, 51839b) and the three 100K main arms (71faa7, 8e49b7, 59781b): they fail after a 15 min leader wait each. Same check for stacked (d04794d) at 100K round 1 (15108e).
 4. The 100K arms stay as the previous contributor queued them.
+
+3a. Main diagnosis (msg from lead): job 2e8717's authority logs say `detentd: authority recovery application fenced` on all three voters (service.cc:1983, replay of the committed journal at start), so detentd starts and fences while replaying the Oct-23 journal; it is not a harness or argument mismatch (the harness is the tree's own). The Oct-23 state-N holds journal-0000000000000001, manifest, owner.lock; main also creates empty `state-N.history` beside it (src/detent_authority/history.cc, 65c7ac81, 2026-11-12). Hypothesis: a journal or command format change between Detent:d04794d and main (candidates 53abd637 per-namespace positions and incarnations, 711a114e one-knob-type int64, 65c7ac81 history). Probes (light, 10K, exit code is the bootstrap's): old fixture at d04794d 6c2712, at 53abd637's parent e7158a, at 53abd637 dd5db9, at 711a114e 39af41; fresh 10K seeded at main then bootstrapped at main 08680a (must pass or main really fails to elect). Script docs/measurements/dense-sync-stack-20261118/probe-fixture.sh. If fresh main passes: a fixture format change, greenfield no-compat, so main needs a main-seeded fixture (91 min more at 5M) or the main arm is dropped; name the first bad commit from the probes. If fresh main fails: main regression, bisect between Detent:327ca58 and main.
 
 ## Blocked on
 
