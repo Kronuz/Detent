@@ -854,11 +854,46 @@
         "CHANGELOG.md",
         "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/completion-sync-data",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T20:05:45",
+          "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "criteria": {
+            "A1": "261117-194634-51b4f9",
+            "A2": "261117-194634-51b4f9; fails without: 261117-190045-644dbb, 261117-194643-ade55a",
+            "A3": "261117-194637-12c92c",
+            "A4": "261117-194634-51b4f9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-194634-51b4f9",
+              "level": "light",
+              "seconds": 179.8,
+              "state": "done",
+              "what": "completion-sync-data check suite at f4c19b1cf8c2"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "7731315d0660a953f7b3bf956df3127d5a525a03",
+          "reason": "",
+          "tested": "f4c19b1cf8c28973a5c0f5147134fd955546f210"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -866,10 +901,10 @@
       ],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T20:05:25",
-      "worktree": "../completion-wt/detent/completion-sync-data"
+      "updated": "2026-11-17T20:06:21",
+      "worktree": ""
     },
     "completion-sync-files": {
       "accepted": {},
