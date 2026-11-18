@@ -1,6 +1,6 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261117-193124-55466b 261117-193135-876ce5 261117-193147-f52a2f 261117-193157-0c344d 261117-193207-1d47a2 261117-193218-d85e3b 261117-193228-0a9502
+State: waiting on jobs 261117-201826-b83a81
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -40,22 +40,30 @@ no edit to groups_test.cc, cause 4 left to the follow-up. Carrying on with cause
 
 ## Next
 
-1. Read the round-2 jobs; if a main job passes (fails to fail), the forcing does not reproduce that cause: rework it.
-2. Read CI at 72bd52f (macos-x86_64, linux-tsan); confirm causes 2 and 3 or revise.
-3. Paste `campaign brief`'s Evidence table; State ready for review.
+1. Read suite b83a81 (a fresh checkout). If it passes, State ready for review.
+2. The lead rules on cause 3 (Blocked on).
 
 ## Blocked on
 
-Nothing.
+Lead: A1 for cause 3. Job 876ce5 (COARSE_WRITER_SHRINK at main) did not reproduce: 0 of 3 failed.
+The kernel clamps the low-water mark to the buffer at every set (BSD sosetopt), so a mark above the
+buffer cannot exist here (readback after the shrink: sndbuf 1061580, lowat 1048576). The cause-3
+hypothesis was wrong; the 72bd52f mark (SO_SNDBUF - 16 KiB after connect) is harmless but proves
+nothing. The CI signature (13 of 48, dialer failed, acceptor dead, queue empty for 2 s, 0 expiries,
+44224758109) is unexplained and has no forcing; it failed once in CI, never on this Intel Mac
+(24 of 24 passed), and CI is green at 72bd52f (one sample). Options: (a) accept A1 for causes 1-2 and
+record cause 3 as unreproduced (recommended: no code path in the product or the test explains it);
+(b) add a post-failure diagnostic dump (queue, SO_ERROR, poll() events of the dialer's fd) and wait
+for it to recur in CI.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
+| A1 | Cause 1: 4c4173 (3 of 3 fail at main with READ_SLOWLY_BUILD_MS=400), f52a2f (0 of 3 at the fix). Cause 2: 55466b (3 of 3 fail at main with COARSE_WRITER_SNDBUF=512 KiB), 0c344d (0 of 3 at the fix). Cause 3: 876ce5 did NOT fail at main (0 of 3); 1d47a2 passes at the fix, trivially. See Blocked on. |
+| A2 | 261117-193218-d85e3b (connection x200 at 4-way; lead: six shards passed) |
+| A3 | [manual] every cause is in connection_test.cc's sizing, none in the product (connection.h unchanged). |
+| A4 | CI green on every platform at 72bd52f (lead); suite 0a9502 failed consensus_mutants only: tools/mutants.sh mutates core.h and builds the simulation tests, it never touches connection_test.cc; all its builds failed together in a build dir my targeted jobs had configured Release with CONSENSUS_TRANSPORT=ON. Rerun in a fresh checkout: b83a81. |
 
 ## Result
 
