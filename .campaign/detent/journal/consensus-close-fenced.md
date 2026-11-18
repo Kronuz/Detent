@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-054326-3bec50 261118-054327-2a5c32 261118-054328-5e174f 261118-054328-b1c614 261118-054329-dfa037 261118-054330-ad2586 261118-054331-529838 261118-054332-ffe478 261118-054333-0cc7e6 261118-054334-479f45
+State: waiting on jobs 261118-063956-fff668 261118-063958-96c6ec 261118-064000-5e01ed 261118-064002-13f33c 261118-064120-75b4b1 261118-064122-6a437c 261118-064124-3e5bb0 261118-064126-e68ae2 261118-064218-d255a1 261118-064220-b8cb43 261118-063950-78323a
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,29 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:178150a (pushed). At 0b48da4 shutdown_idles failed everywhere ("the loop waits for the
-barrier") because my Loop stopped the turn driver and the Driver with one token, so the turn driver
-ended its waits and nothing was left to watch: the test's expectation was wrong, not the fix (the
-fix's repro, Xapiand's seed 2, passed in cc8bb4, which ran one seed: SIM_DRIVER_SEEDS is the seed
-count and the third argument the first seed). The A6 mutant had failed on that wrong check, so it
-proved nothing. TSan and the suite timed out because created_bytes (20,000 proposals) ran in the
-default all-cases run: now opt-in by name. Fix: Loop has a separate driver_stop; shutdown_idles stops
-only the Driver (the turn driver keeps committing, as in Xapiand's simulation) and exits with a
-failure at once if the loop does not idle within 20,000 turns. Jobs at 178150a: plain A1-A3+A6 3bec50,
-created_bytes report 2a5c32, ASan 5e174f, TSan b1c614, A6 mutant dfa037 (must fail on "the loop idles
-after shutdown", not on a build or another check: read its log), N3 mutant ad2586 (reached + nonzero),
-settle mutant 529838, erase mutant ffe478, Xapiand repro 0cc7e6 (SIM_DRIVER_SEEDS=24 0 1000 1, their
-driver_simulation.cc via --ref SIM=ecb2a37; seeds 1-24 must pass; it printed no "reached the test"
-because it is not a mutant job), suite 479f45.
-If a job fails, read its log; then fill the Evidence table from `campaign brief` and set "ready for
-review".
+Code at consensus:50b91ae (pushed): 9118cfa fixes shutdown_idles, then main merged (CMakeLists
+conflict: kept main's mutants TIMEOUT line). The ten jobs at 178150a never ran (exit 127: the
+submit put `--quest ...` inside the command).
+
+Why shutdown_idles failed at 0b48da4 and 178150a (reproduced locally, not read): the Driver's only
+in-flight frame was the barrier watch. Shutdown cancels it inline, in_flight drops to 0, run()
+returns with the turn still held: no spin with or without the fix, so the case proved nothing
+(DBG: in_flight 1 before stop, 0 and driver_done after). Xapiand's spin needs IO shutdown cannot
+cancel (an issued primitive completes first) keeping the loop alive while the cancelled watch
+re-arms. The case now holds a second group's checkpoint artifact IO beside the staged record, and
+stops the turn driver and the Driver with one token, as Xapiand does. Local: fixed passes (in_flight
+2 after stop, loop idle); unfixed watch fails "the loop idles after shutdown" within 20,000 turns.
+
+Xapiand repro, local, per seed (SIM_DRIVER_SEEDS=1, first seed s, 1000 steps; their
+driver_simulation.cc from ecb2a37 on this branch): fixed, 0 of 24 seeds spin; unfixed watch, seed 2
+spins (others running). Seeds 1, 3, 7, 8, 13, 18-21, 23 fail "did not apply a new entry on every
+data voter after healing" with the fix; seeds 1 and 3 fail that way without it too, so it is their
+WIP simulation's, not a spin: reported to the lead, not fixed here. The suite case runs 5 s.
+
+Jobs at 50b91ae: plain A1-A3+A6 fff668, created_bytes report 96c6ec, ASan 5e01ed, TSan 13f33c,
+mutants (setup failures exit 0, so only the test can fail them; read "reached the test"): A6 watch
+75b4b1, N3 unqueued 6a437c, settle 3e5bb0, erase e68ae2; Xapiand repro fixed d255a1 (0 spins over
+1-24) and unfixed b8cb43 (fails-without); suite 78323a; CI running.
 
 F2 numbers (plain job 261118-021905-0952ab, 2,000 created rows, process heap net of the simulated disk):
 | rows | records/row | open | closed | after the log forgets them |
@@ -40,14 +47,10 @@ journal-reopen-closed A4b (Host release), not changed here.
 
 ## Next
 
-1. When the jobs finish: read plain 0952ab's output (created_bytes prints process heap per row open,
-   closed and after the log forgets it, net of the simulated disk, for 0 and 10 proposals per row).
-   Put the figures in the Result split Driver part / journal part; mark the journal part owned by
-   journal-reopen-closed A4b.
-2. Confirm: mutant jobs 3d767d-dc9230-f17875 and 37b257 ran the test (log shows "reached the test")
-   and exited nonzero; TSan 3d767d is the A4 TSan job (ids: plain 0952ab, tsan 3d767d, settle mutant
-   dc9230, erase mutant f17875, ASan fd5aa8, unqueued mutant 37b257, suite 0604b4).
-3. Fill the Evidence table from `campaign brief`; set "ready for review".
+1. When the jobs finish: read each log (mutants: "reached the test" then the failing check; repro:
+   the per-seed lines), and the created_bytes report's figures into Result (Driver part / journal
+   part, journal part owned by journal-reopen-closed A4b).
+2. Fill the Evidence table from `campaign brief`; set "ready for review".
 
 ## Blocked on
 
