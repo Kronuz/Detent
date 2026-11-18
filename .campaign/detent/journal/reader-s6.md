@@ -1,9 +1,11 @@
 # reader-s6: journal
 
-State: waiting on jobs 261118-141802-9047e4 (probe), 261118-141819-b2db08 261118-141820-c7d06e (HDR mutants), 261118-141838-455fee (msg-1 bench), A16 df6488 8d3cc9, A12 soak a3df39..2db949 (`.scratch/reader-s6-moved.txt`). Checks need `tests/detent_local/test_foreign_generation.cc` (Next 1).
+State: waiting on jobs at `Detent:612f2d0`: probe 261118-142745-939dfd; HDR mutants deb701 5bb292; msg-1 bench 72613b; checks 252568 68e974 b8379f d4ed7f 04748e; A7 52d704, A10 06ed13, A11 c99642, A12/A13 792e00, A14 b90b9a, A16 797791 537ae0, A12 soak 70f314..f9925e (chained), 21 regenerated mutants (all in `.scratch/reader-s6-moved.txt`).
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- `Detent:612f2d0` (lead granted the file): `test_foreign_generation.cc` constructs
+  `LazyPageAccess` without the factory; this broke every check build at `Detent:32e65d8`.
 - msg-1 fix, `Detent:73c0b6c` (lead granted the four codec files): `decode_node` and
   `decode_external` take the nodes end of a header the caller decoded (`paged::nodes_end(h)`);
   the `Limits` overloads stay as wrappers for the walkers outside the file set. `lookup` decodes
@@ -11,7 +13,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
   they hold. Guard test: `test_lazy_page_bitmap touched` damages a first-touched page through
   the file, checks the mapping shows it, and requires the next `definition()` to be refused, at
   the logical digest (hit compare) and at the magic (lookup's header decode). Mutants HDR-1 (hit
-  compare gone) b2db08 and HDR-2 (lookup takes the externals raw, no header decode) c7d06e,
+  compare gone) deb701 and HDR-2 (lookup takes the externals raw, no header decode) 5bb292,
   `.scratch/mutants-hdr.json`.
 - A14 failure (0206b9 at `Detent:bd6581b`): the cause is the test, not the reader. `capacity`
   grows `change` to 1 GiB, then publishes 40 revisions with the same `GenerationWriter`. The
@@ -67,15 +69,11 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Needs the lead: every check (native, asan, tsan, t3-asan, t3-tsan at `Detent:32e65d8`) fails
-   to compile `tests/detent_local/test_foreign_generation.cc:183`, which passes
-   `runtime.domain.factory()` to `LazyPageAccess`; the S6 constructor no longer takes a factory.
-   The fix drops that argument (one line) but the file is outside the file set. Checks not moved
-   until it is granted.
-2. A16: put dab009's and f1bca2's cell lines in `first-read-gate.md` Results and Evidence. Read the smoke a01c45 first; if it fails, fix `first_read_phases.cc` or the gate script (head
-   moves: rerun gates). When dab009 and f1bca2 pass, put the per-cell numbers in Evidence.
-3. Fill Evidence as the other jobs pass; msg-1 from 0f6566 and f07232.
-4. Before landing, regenerate every mutant at the final head (`mutant.py` now chains same-path edits).
+1. Read the probe, HDR mutants and bench; put the bench table in Result and close msg-1.
+2. A16: when 797791 and 537ae0 report, put their cell lines in `first-read-gate.md` Results and
+   Evidence; if they still fail (branch runs at 198-199 of 200), profile the branch's open phase.
+3. Mark Evidence as the jobs pass. Mutants are regenerated at `Detent:612f2d0`; a code move needs
+   them again.
 
 ## Blocked on
 
@@ -83,23 +81,25 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Evidence
 
+All at `Detent:612f2d0`, queued (ids in `.scratch/reader-s6-moved.txt`); older passes no longer count.
+
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 1790af (queued, `Detent:bd6581b`) |
-| A4 | t3-asan 1c93af, t3-tsan 300581 (queued); asan 04640c, tsan 631262 |
-| A7 | 1bf0d7 (queued) |
-| A8 | HDR-1 b2db08, HDR-2 c7d06e queued (`touched`, `Detent:73c0b6c`); mutants killed: D5-1 9b4bb9, D5-2 4e137b, D5-3 f5658e, D10-1 855a2e, D10-2 347eee, D10-3 4baa90, D2-1 34bd94, D4-1 363cb7, FIX-1 7ae4a1, FIX-2 d7fb02 (at `Detent:4fafed3`); Q6-1 90e1ea queued |
+| A1-A3, A5, A6, A15 | native 252568 |
+| A4 | asan 68e974, tsan b8379f, t3-asan d4ed7f, t3-tsan 04748e |
+| A7 | 52d704 |
+| A8 | mutants D5-1 264301, D5-2 22a81f, D5-3 0c2e3a, D10-1 a76a5d, D10-2 787471, D10-3 e2272f, D2-1 2adbcd, D4-1 0caea3, FIX-1 e6a44f, FIX-2 cb3e03, Q6-1 b69cf8, HDR-1 deb701, HDR-2 5bb292 |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)" and "Fork and cold preparation" |
-| A10 | mutants killed 862642 cc96ed 9d6c47 ea240d 4d9871; plain c435d5 queued (76dd6c passed at `Detent:8ccef6c`) |
-| A11 | mutant killed ef5614; plain d779ed queued (62b83d passed at `Detent:8ccef6c`) |
-| A12 | F1 c09e87 killed; F2-F4 fc5e6e 2934a2 ba2018, cold cases 701d0a; soak at `Detent:73c0b6c` chained (D120): a3df39 44fa87 9b8d08 cf36ec f3f038 21eebf 635d94 2db949 queued (the unchained rounds at `Detent:32e65d8` timed out) |
-| A13 | 701d0a queued (`test_reader_switch cold`, child ledger check) |
-| A14 | 0206b9 failed (writer disk limit, test fix in this commit); rerun pending |
-| A16 | at `Detent:73c0b6c`: df6488 (stopped), 8d3cc9 (running) queued; at `Detent:32e65d8` 0d023e and 1fc66f failed (198-200 of 200 per run, branch medians 30-60 us above main) |
+| A10 | plain 06ed13; mutants SR1 selected 19bf5e, image 08faa7, change c6c94a, record 1d45fb, pack 58f4c4 |
+| A11 | plain c99642; mutant SR2 0a1b3c |
+| A12 | cold 792e00; mutants F1 e1c60d, F2 17f725, F3 4aff91, F4 228e36; soak chained (D120) 70f314 4861e1 5e665c 525f02 47a69a 342113 5f8235 f9925e |
+| A13 | 792e00 |
+| A14 | b90b9a |
+| A16 | 797791 (stopped), 537ae0 (running); at `Detent:32e65d8` 0d023e and 1fc66f failed (198-200 of 200 per run, branch medians 30-60 us above main) |
 
 ## Messages
 
-- msg-1: attribution in Result; fix at `Detent:73c0b6c`, after-bench 455fee queued; closes with its table.
+- msg-1: attribution in Result; fix at `Detent:73c0b6c`, after-bench 72613b queued at `Detent:612f2d0`; closes with its table.
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -139,7 +139,7 @@ Attribution (msg-1 regression):
 - msg-1 fix shape: the nodes end, not the header, is what `decode_node`/`decode_external` take;
   `decode_external` derives the external count from it and requires an exact fit, so a wrong end
   cannot reach outside the page. The `Limits` overloads stay (seven walkers outside the file set
-  call them).
+  call them). Removing them is the lead's next quest, paged-decode-one-shape.
 - HDR-1 and HDR-2 count toward A8 (a dying mutant per claim): the claim is that a page damaged
   after first touch is still refused.
 
