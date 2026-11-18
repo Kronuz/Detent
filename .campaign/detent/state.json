@@ -13194,6 +13194,8 @@
       "after": [
         "dense-pages"
       ],
+      "base": "f4f52631628003a10fd2967d7e2b09201d1aaee4",
+      "branch": "quest/detent/reader-s6",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -13263,9 +13265,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-08T21:26:34"
+      "updated": "2026-11-18T09:15:02",
+      "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
       "accepted": {},
