@@ -1,6 +1,6 @@
 # transport-idle-cost: journal
 
-State: ready for review
+State: waiting on jobs 261117-171843-129613 261117-171843-41bde3 261117-171844-6513c0 261117-171844-b0ba7a 261117-171845-4f0a0a 261117-171845-d67111
 Quest: .campaign/detent/quests/transport-idle-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: every row has evidence at consensus:0d92ef5; the doc is consensus:e0ae1b9 (review fixes).
+transport-identity (consensus:361d5d2) and main are merged (consensus:005508c, the lead's). Every
+job at 937441b aborted: `member_of is required`. consensus:73cd955: the bench names incarnation k
+on node k, stores every group (its own open) on every host inside the per-group window, and sets
+wheels apart by requested size and address (F3). Reran the six at 73cd955: A1 129613; A2 rows
+41bde3 (control), 6513c0 (data), b0ba7a (wake), 4f0a0a (full hop); suite d67111.
+
+Local smoke at 73cd955 (light hold, not evidence): A1's per idle group now 253-368 B, over 64 B
+at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); per end 44,667 B
+(L = 1), 48,792 B (L = 4) <= 49,152; per host 99-100% (L = 1), 107-108% (L = 4) of D108, within
+10%. So A1 129613 and the suite (ctest `consensus_transport_idle`) are expected to fail on the
+64 B per group. Blocked on 1.
 
 ## Next
 
-1. Review; the lead merges main (peers-retry-flake) and lands.
+1. On resume: read the six jobs; put their numbers in docs/perf/transport-idle-cost.md (A1, A2,
+   the per-group miss); paste `campaign brief`'s Evidence; State "ready for review" once the
+   lead rules on Blocked 1.
 
 ## Blocked on
 
-Nothing. A2's host: this Mac stands in for the Linux gate host (D111), stated in the doc.
+1. Lead: A1's "per idle group at most 64 bytes" fails after transport-identity. A stored group
+   holds, per host (local, 1,000 groups, C++ block sizes): its `Stored` node 80 B, its
+   `Opening` (make_shared, GroupOpen 80 B + serial) 112 B, `Stored::opened` (24 B per peer
+   connection that opened it, capacity-rounded: 32/48/96 B at P = 1/2/4), plus 16 B per sending
+   connection in `Lane::opened` and map buckets: 253 B (P = 1), 286 B (P = 2), 366 B (P = 4).
+   The traffic itself leaves nothing (0.2 B before identity). Fix is in host_transport.h,
+   outside my file set. Options: (a) amend A1 to count a stored group's identity state, about
+   200 B + 40P B per group (D-row; what identity's design pays); (b) shrink it in a transport
+   quest: GroupOpen inline in `Stored` instead of a shared `Opening` (-~32 B), `Stored::opened`
+   as an inline bitmask of (peer, lane) slots instead of a heap vector (-24..96 B), which might
+   reach ~100-130 B, still over 64; (c) keep 64 B for what traffic leaves and budget the store
+   apart. Recommend (a) now, with (b) as a follow-up quest: no reading of D10's 64 B made room
+   for R7's per-group open state, and 64 B is not reachable without dropping it. Not loosened in
+   the bench: the check still fails.
+2. A2's host: this Mac stands in for the Linux gate host (D111), stated in the doc.
 
 ## Evidence
 
@@ -50,13 +76,11 @@ Review CHANGES (Detent:5b7ee8b1, correctness, at consensus:cbcd563); statements 
 - F5, F6, F7 (nits, doc wording): the group check is an average and frames are checked by
   delivery; the L = 4 attribution is marked inferred; counts are exact on this Mac only (glibc's
   aligned_alloc path unverified, probe 4b45cc). consensus:e0ae1b9.
-- F3 follow-up: the wheel cut is by usable size; a transport block >= 40,640 B would vanish.
-  transport-identity's per-connection `opened` vector crosses it near 2,540 groups per connection.
-  Fix when it matters: set apart by requested size in [sizeof(timer_wheel), +1 KiB), or assert
-  large blocks == loops with a wheel.
-- F4 follow-up: A1/A2 are at consensus:0d92ef5, before transport-identity (in review, not landed
-  at this writing). Once it lands: merge main, rerun 45a7bf and the three hop rows at the merged
-  head, update the doc or record the miss.
+- F3: fixed at consensus:73cd955: a wheel is a block requested in [sizeof(timer_wheel),
+  + sizeof(steady_timer) + 72) and remembered by address; any other large block counts. Locally
+  `Lane::opened` (16,384 B at 1,000 groups) and map buckets now show in the per-group blocks.
+- F4: identity landed; the six jobs rerun at consensus:73cd955 (ids in State). A1's per-group
+  64 B is missed (Blocked on 1).
 
 ## Rulings I made
 
