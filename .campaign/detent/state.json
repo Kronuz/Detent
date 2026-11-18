@@ -5847,7 +5847,7 @@
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
-          "at": "2026-11-18T07:21:06",
+          "at": "2026-11-18T07:21:59",
           "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
           "blobs": {
             "docs/mechanisms/group-lifetime.md": "100644:a6d0b0ca393df37d3c6e05421e0898a7e2761e3e",
@@ -5860,7 +5860,7 @@
           },
           "by": "review",
           "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
-          "criteria": "c451cdca3e13d629",
+          "criteria": "69dbc2bd40c24dc0",
           "diffs": {
             "docs/mechanisms/group-lifetime.md": "2dc5de00d6284ff0",
             "include/journal/host.h": "05e1a65e7a7a2942",
@@ -5985,7 +5985,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T07:21:06",
+      "updated": "2026-11-18T07:21:59",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
