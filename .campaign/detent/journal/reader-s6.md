@@ -1,9 +1,18 @@
 # reader-s6: journal
 
-State: blocked on the msg-1 regression fix, which lives in main's dense-page code outside the file set (see Blocked on). Jobs at `Detent:32e65d8` code run on; ids in `campaign status reader-s6`.
+State: waiting on jobs 261118-141802-9047e4 (probe), 261118-141819-b2db08 261118-141820-c7d06e (HDR mutants), 261118-141838-455fee (msg-1 bench), A16 df6488 8d3cc9, A12 soak a3df39..2db949 (`.scratch/reader-s6-moved.txt`). Checks need `tests/detent_local/test_foreign_generation.cc` (Next 1).
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- msg-1 fix, `Detent:73c0b6c` (lead granted the four codec files): `decode_node` and
+  `decode_external` take the nodes end of a header the caller decoded (`paged::nodes_end(h)`);
+  the `Limits` overloads stay as wrappers for the walkers outside the file set. `lookup` decodes
+  each reached page's header once; `verify_page_structure` and the first-touch walk pass the end
+  they hold. Guard test: `test_lazy_page_bitmap touched` damages a first-touched page through
+  the file, checks the mapping shows it, and requires the next `definition()` to be refused, at
+  the logical digest (hit compare) and at the magic (lookup's header decode). Mutants HDR-1 (hit
+  compare gone) b2db08 and HDR-2 (lookup takes the externals raw, no header decode) c7d06e,
+  `.scratch/mutants-hdr.json`.
 - A14 failure (0206b9 at `Detent:bd6581b`): the cause is the test, not the reader. `capacity`
   grows `change` to 1 GiB, then publishes 40 revisions with the same `GenerationWriter`. The
   agent's census counts `change` at its logical size (`agent_store.cc` `resize_change`), and the
@@ -58,27 +67,19 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. A16: put dab009's and f1bca2's cell lines in `first-read-gate.md` Results and Evidence. Read the smoke a01c45 first; if it fails, fix `first_read_phases.cc` or the gate script (head
+1. Needs the lead: every check (native, asan, tsan, t3-asan, t3-tsan at `Detent:32e65d8`) fails
+   to compile `tests/detent_local/test_foreign_generation.cc:183`, which passes
+   `runtime.domain.factory()` to `LazyPageAccess`; the S6 constructor no longer takes a factory.
+   The fix drops that argument (one line) but the file is outside the file set. Checks not moved
+   until it is granted.
+2. A16: put dab009's and f1bca2's cell lines in `first-read-gate.md` Results and Evidence. Read the smoke a01c45 first; if it fails, fix `first_read_phases.cc` or the gate script (head
    moves: rerun gates). When dab009 and f1bca2 pass, put the per-cell numbers in Evidence.
-2. Fill Evidence as the other jobs pass; msg-1 from 0f6566 and f07232.
-3. Before landing, regenerate every mutant at the final head (`mutant.py` now chains same-path edits).
+3. Fill Evidence as the other jobs pass; msg-1 from 0f6566 and f07232.
+4. Before landing, regenerate every mutant at the final head (`mutant.py` now chains same-path edits).
 
 ## Blocked on
 
-- msg-1 regression (1 thread: +46% hot, +31-49% scattered per lookup): the cause is main's dense-page codec
-  (`Detent:8b041fab`, `NodeAt` walks `Detent:2a971e29`), not reader-s6. `paged::decode_node` and
-  `decode_external` (`src/detent_local/paged_layout.cc`) run the whole `decode_page_header`
-  (magic, zero bytes, `validate(h, limits)`, length) on every node visit and every external, on
-  pages first touch already verified and the hit path already compared. The fix touches
-  `paged_layout.{cc,hh}`, `paged_node_step.hh` and `paged_read_state.cc`, none of which is in my file
-  set. Options:
-  1. Grant those four files to reader-s6. I decode the header once per page in `lookup` and pass
-     the node end to `NodeAt::decode`/`decode_external`; `verify_page_structure` and the first-touch
-     walk already decode it once, so they pass theirs. Test: a page whose header is corrupted after
-     first touch is still refused by the hit compare (existing), and the codec tests stay green.
-  2. A main quest for the codec, landing before reader-s6; msg-1 notes the inherited cost.
-  Recommendation: 1. The pinned arm (main's `ReadView` path) pays the same, so main's own Client
-  regresses too, and the change is about 30 lines. Every job moves once more after it.
+(none)
 
 ## Evidence
 
@@ -87,18 +88,18 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 | A1-A3, A5, A6, A15 | native 1790af (queued, `Detent:bd6581b`) |
 | A4 | t3-asan 1c93af, t3-tsan 300581 (queued); asan 04640c, tsan 631262 |
 | A7 | 1bf0d7 (queued) |
-| A8 | mutants killed: D5-1 9b4bb9, D5-2 4e137b, D5-3 f5658e, D10-1 855a2e, D10-2 347eee, D10-3 4baa90, D2-1 34bd94, D4-1 363cb7, FIX-1 7ae4a1, FIX-2 d7fb02 (at `Detent:4fafed3`); Q6-1 90e1ea queued |
+| A8 | HDR-1 b2db08, HDR-2 c7d06e queued (`touched`, `Detent:73c0b6c`); mutants killed: D5-1 9b4bb9, D5-2 4e137b, D5-3 f5658e, D10-1 855a2e, D10-2 347eee, D10-3 4baa90, D2-1 34bd94, D4-1 363cb7, FIX-1 7ae4a1, FIX-2 d7fb02 (at `Detent:4fafed3`); Q6-1 90e1ea queued |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)" and "Fork and cold preparation" |
 | A10 | mutants killed 862642 cc96ed 9d6c47 ea240d 4d9871; plain c435d5 queued (76dd6c passed at `Detent:8ccef6c`) |
 | A11 | mutant killed ef5614; plain d779ed queued (62b83d passed at `Detent:8ccef6c`) |
-| A12 | F1 c09e87 killed; F2-F4 fc5e6e 2934a2 ba2018, cold cases 701d0a, soak cc66a6 4e9d80 2fcb28 ec46f4 ca8025 b84d11 e3734b f6d5ec queued |
+| A12 | F1 c09e87 killed; F2-F4 fc5e6e 2934a2 ba2018, cold cases 701d0a; soak at `Detent:73c0b6c` chained (D120): a3df39 44fa87 9b8d08 cf36ec f3f038 21eebf 635d94 2db949 queued (the unchained rounds at `Detent:32e65d8` timed out) |
 | A13 | 701d0a queued (`test_reader_switch cold`, child ledger check) |
 | A14 | 0206b9 failed (writer disk limit, test fix in this commit); rerun pending |
-| A16 | dab009 (stopped), f1bca2 (running), exclusive after smoke a01c45; numbers pending |
+| A16 | at `Detent:73c0b6c`: df6488 (stopped), 8d3cc9 (running) queued; at `Detent:32e65d8` 0d023e and 1fc66f failed (198-200 of 200 per run, branch medians 30-60 us above main) |
 
 ## Messages
 
-- msg-1: answered in Result; the regression is main's codec, fix blocked on files (Blocked on).
+- msg-1: attribution in Result; fix at `Detent:73c0b6c`, after-bench 455fee queued; closes with its table.
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -134,6 +135,13 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- msg-1 fix shape: the nodes end, not the header, is what `decode_node`/`decode_external` take;
+  `decode_external` derives the external count from it and requires an exact fit, so a wrong end
+  cannot reach outside the page. The `Limits` overloads stay (seven walkers outside the file set
+  call them).
+- HDR-1 and HDR-2 count toward A8 (a dying mutant per claim): the claim is that a page damaged
+  after first touch is still refused.
 
 - msg-1: f07232 aborted because `--generate 100000` writes 200K knobs and `parse_defaults` caps a
   defaults file at `kDefaultMaxKnobs` = 100,000. That holds at both `Detent:b1d281c` and the head,
