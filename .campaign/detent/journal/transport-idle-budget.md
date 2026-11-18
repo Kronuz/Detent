@@ -1,6 +1,6 @@
 # transport-idle-budget: journal
 
-State: waiting on jobs 261118-075718-7593b8 261118-080908-e60cb9 (and CI run 44343810415)
+State: waiting on jobs 261118-091335-f80be0 261118-091337-344b1b (A1 reruns at 42019eb; lead waives review: test-only diff)
 Quest: .campaign/detent/quests/transport-idle-budget.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Head consensus:42019eb (pushed). Waiting on the A2 mutant rerun 261118-075718-7593b8, the suite
-261118-080908-e60cb9 (A3), and CI run 44343810415 (44341580130 at 33f8540 was cancelled by the
-push).
+Head consensus:42019eb, pushed. Suite e60cb9 passes 65/65 and CI run 44343810415 is green. The lead
+reran the A1 probes at the head (f80be0 replaces da90ae, 344b1b replaces acdca6); they are running.
 
 ## Next
 
-1. When 7593b8, e60cb9 and CI 44343810415 are green: paste `campaign brief`'s table, set State
-   "ready for review" (correctness lens; the diff is bench and docs only, so the lead may waive).
+1. Lead: once f80be0 and 344b1b finish, A1's generated row reads green. A2's job 7593b8 is not
+   counted by `campaign brief` (see Evidence); the bench is identical at 33f8540 and 42019eb.
 
 ## Blocked on
 
@@ -30,9 +29,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 [manual] | Cause: the loops=4 slope sits at the 48 KB cap (49,152 B): 49,107-49,109 B in Release, 49,154-49,159 B with no build type, so the build type tips it. Job 261118-073615-da90ae at main consensus:5923b6c: Release passes 3/3 (the f0eff6 suite built Release), no build type fails 3/3 with slope 49,154 B (1fb596 and e7e9cf built without one). Both link OpenSSL 4.1.0. The slope carries each loop's OpenSSL thread-local DRBGs: connections sit on loop_of_node(peer), so at L=4 the loops running TLS grow with P. Job 261118-074432-acdca6 at consensus:d2eeb0d (DRBGs drawn per loop first): passes 3/3 in both builds, L=4 slope 46,735 B. |
-| A2 | 261118-075718-7593b8 (--fails-without, rerun at 42019eb): +4,096 B member in `Connection`; "reached the test" in both builds; L=4 slope 50,829 B (Release) and 50,874 B (no build type), both FAIL 48 KB; L=1 also fails with no build type (49,271 B) but reads 49,121 B in Release, 31 B under. |
-| A3 | Suite 261118-080908-e60cb9 at 42019eb (queued); CI run 44343810415 (in progress). |
+| A1 [manual] | 261118-091335-f80be0 and 261118-091337-344b1b at 42019eb (lead's reruns, running). Cause, from the same probes at main consensus:5923b6c (261118-073615-da90ae, 3 runs per build): the loops=4 slope sits at the 48 KB cap (49,152 B), reading 49,107-49,109 B in Release and 49,154-49,159 B with no build type. Release passes and no build type fails, which is the f0eff6 (Release) vs 1fb596/e7e9cf (no build type) difference. Both link OpenSSL 4.1.0. The slope carried each loop's OpenSSL thread-local DRBGs: connections sit on loop_of_node(peer), so at L=4 the number of loops running TLS grows with P. 261118-074432-acdca6 at d2eeb0d (DRBGs drawn per loop) passes 3/3 in both builds. |
+| A2 | 261118-075718-7593b8 (--for A2 --fails-without), the +4,096 B `Connection` mutant. It ran at 33f8540, whose bench and code are identical to 42019eb (the diff is docs/perf only); a resubmit at 42019eb was "reused" as this job, and `campaign brief` still lists A2 without evidence. Both builds reached the test. L=4 slopes are 50,829 B (Release) and 50,874 B (no build type), both FAIL 48 KB; with no build type L=1 also fails (49,271 B). |
+| A3 | 261118-080908-e60cb9 at 42019eb: suite 65/65. CI run 44343810415 at 42019eb: success. |
 | msg (lead, docs scope) | Docs written only to docs/perf/transport-idle-cost.md. |
 | msg (lead, finish) | A2, A3 and write-up done as above; fits at head in 261118-075717-797949. |
 
