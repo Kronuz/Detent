@@ -5569,9 +5569,7 @@
     },
     "journal-reopen-closed": {
       "accepted": {},
-      "after": [
-        "journal-faultfs"
-      ],
+      "after": [],
       "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
       "branch": "quest/detent/journal-reopen-closed",
       "checks": [
@@ -5595,7 +5593,8 @@
         "test/journal_test.cc",
         "docs/mechanisms/**",
         "include/journal/turn_log.h",
-        "include/journal/turn_driver.h"
+        "include/journal/turn_driver.h",
+        "test/host_test.cc"
       ],
       "journal": "../Detent-wt/detent/journal-reopen-closed",
       "landed": [],
@@ -5609,7 +5608,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T02:21:08",
+      "updated": "2026-11-18T04:02:21",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
