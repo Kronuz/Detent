@@ -106,3 +106,43 @@ the round-1 evidence and probes still apply to the code.
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
 | F8 | no | nit | The doc and D111 call the one-time cost "about 281 KB more per host, once" and attribute it to "a host's TLS context". Later hosts in the same process also build their own contexts and certificate stores without paying it, so most of it is process-wide OpenSSL state. The probe split 562 KB over the warm-up's 2 hosts, so a one-host process may pay up to about 562 KB. | probe 261117-133940-27f2ae; doc "How it is counted" | Say "about 562 KB per process, once (281 KB per host of the warm-up's two)", or split it with a one-host warm-up. |
+
+## Round 3
+
+Commit: consensus:edbb162eabbe5ad1ee9b4a6353204aee1ee65018
+Verdict: APPROVE
+Date: 2026-11-17
+
+Round 2's acceptance is void. transport-identity is merged in, the bench stores its groups through
+`member_of` (consensus:73cd955), and D112 sets A1's per-group bound at `230 + 40P` B (76bacd2).
+consensus:edbb162 changes only the doc against 76bacd2. I relied on the reruns at 76bacd2:
+6b1b06, 981ce0, bbf981, 10ce1e, 7024b4 (exclusive) and suite eb211c (57 of 57).
+
+1. Per-group attribution: right in total, with the parts slightly mislabelled (N1). From 6b1b06's
+   C++ block counts per 100 groups:
+   - "Stored", 204.8 B at L = 1, is exactly 80 B `Stored` + 112 B `Opening` + 12.8 B. The 12.8 B is
+     one 12,800 B `unordered_map` bucket array per 1,000 groups. At L = 4 the same part is
+     206.3 B: four 3,584 B bucket arrays, 14.3 B per group.
+   - "Its frames", 48.3/80.7/161.5 B at P = 1/2/4, is `Stored::opened` (one 32/48/96 B block)
+     plus each lane's sorted `opened` vector (one 16,384 B block per connection, 16.4 B per group
+     per peer): 32 + 16.4, 48 + 32.8, 96 + 65.5.
+   All of it is identity state, and every point sits 15-25 B under `230 + 40P`.
+2. F3, resolved; the new wheel match misfiles nothing. A block is set apart only if it was
+   requested in [sizeof(timer_wheel), +sizeof(steady_timer)+72) and its address was recorded
+   (bench/transport_idle.cc:95-119). Timer wheels per host are unchanged from round 1 (65,536,
+   98,304, 152,917, 235,930), and the per-end 64 KiB counts still equal them. The identity
+   vectors grow by powers of two (16,384, then 65,536), which never fall in that window.
+3. A2: the numbers clear as the doc states. Control is 153 > 62, data 222 > 66, and the idle wake
+   12,458 > 10,058. I recomputed 10ce1e's band: round 8's same arm went 44,036 against 54,095.
+   The wake's smallest round, 10,307, clears that band by only 249 ns, so the margin is thin, but
+   the rule is the median. The doc says plainly that 7024b4's 14.4 us sits within its 15.7 us
+   band and that the 8,000-frame row is the one that counts. That run length was fixed in round
+   1, before this data. Cross-checked: per end 48,792 ≤ 49,152 B, per host at worst 8.1% over,
+   idle CPU 289-981 us/s, 1.5-2.2% of a core.
+4. F4, resolved: every row was rerun at the merged head.
+5. Overstatement: none that changes a verdict. Nits:
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| N1 | no | nit | The doc mislabels parts of the per-group bytes. It says Stored's rest is "in 16 B and 32 B blocks"; it is the per-loop `unordered_map` bucket arrays (12.8 or 14.3 B per group), and the 32 B block is `Stored::opened` under "its frames". "The lanes' maps" are the lanes' sorted `opened` vectors. D112 also puts the "per-connection opened vectors" inside the 206 B, but they are in the 40P part. | job 261117-172945-6b1b06, C++ blocks per 100 groups | Fix the doc's two phrases and D112's parenthesis. |
+| N2 | no | nit | The doc calls the bound "D112's `200 + 40P` plus 30 B", but D112 states only `230 + 40P`. | doc A1; PLAN.md D112 | Say "`230 + 40P` (D112): 30 B over the fit `200 + 40P`". |

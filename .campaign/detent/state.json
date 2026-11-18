@@ -13923,27 +13923,27 @@
     "transport-idle-cost": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-17T13:47:01",
-          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "at": "2026-11-17T18:41:26",
+          "base": "aa7fa351239719a365e211bace4fed5f8ec823f3",
           "blobs": {
-            "CMakeLists.txt": "100644:4b7ab75bd96d453a4dd7bd4bb77b0f972ff665fd",
-            "bench/transport_idle.cc": "100644:2d8adad5cb5dd657bc9c6769b4fb8ff4283c7b12",
-            "docs/perf/transport-idle-cost.md": "100644:1f6997da984c7bbd75bd13582c44e3567e031e5c",
+            "CMakeLists.txt": "100644:cf575b0182d671d18a42cb29e956017cd945157f",
+            "bench/transport_idle.cc": "100644:f43eb0837290ed96402454bb5dea94749b03fd36",
+            "docs/perf/transport-idle-cost.md": "100644:94f2000bb2426f9471a0d7cf71a1fcd62fca6eec",
             "test/transport/tls_certificates.cmake": "100644:515b7d481411c44006b94b77d1dc89172370b427"
           },
           "by": "review",
-          "commit": "e0ae1b92abc364f03a3cc4771b7b1009022096fa",
-          "criteria": "3c146627a0de67ef",
+          "commit": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+          "criteria": "dc92f9266c416f59",
           "diffs": {
             "CMakeLists.txt": "67bcf097014c7016",
-            "bench/transport_idle.cc": "fd4b9f496ab543ae",
-            "docs/perf/transport-idle-cost.md": "6aba2c3082074d4c",
-            "test/transport/tls_certificates.cmake": "86bb4b5c3d801776"
+            "bench/transport_idle.cc": "8fdcb551ca80b72b",
+            "docs/perf/transport-idle-cost.md": "5c1c08f25cc00e6e",
+            "test/transport/tls_certificates.cmake": "e5fa42eda41f22e4"
           },
           "findings": {},
           "note": "",
-          "review": "ea036b51495f2b810a886ca31434005249bfefc7",
-          "reviewed": "e0ae1b92abc364f03a3cc4771b7b1009022096fa",
+          "review": "219226bda2ce8652d9ac13a6e5c4c14e8362e78d",
+          "reviewed": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
           "verdict": "APPROVE"
         }
       },
@@ -13987,7 +13987,7 @@
       "risk": "normal",
       "status": "review",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T13:47:01",
+      "updated": "2026-11-17T18:41:26",
       "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {
