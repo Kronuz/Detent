@@ -1,37 +1,40 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs 261118-031529-cb59bd 261118-031533-72cca5 261118-031535-47145a 261118-031537-366ec4 261118-031540-2fae9f 261118-031542-ff0b3c 261118-031545-7889bb 261118-031547-66d2d5 261118-031549-f7e40e 261118-031551-83ea4c
+State: waiting on jobs 261118-031529-cb59bd 261118-031533-72cca5 261118-031535-47145a 261118-031537-366ec4 261118-031540-2fae9f 261118-031542-ff0b3c 261118-031545-7889bb 261118-031547-66d2d5 261118-031549-f7e40e 261118-031551-83ea4c 261118-040530-6f6b66. Context past the lead's threshold: handing off (A9 to a fresh contributor, per the lead).
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
 
-journal:a92dde9 (pushed) adds A8 on top of journal:38de42f: closed table entries paged out of memory, retired floors from the table. Jobs at a92dde9 queued; nothing has compiled yet (the 38de42f jobs were superseded unrun).
+journal:cd6d017 (pushed) rewrites host_test second_recovery() to the one-holder rule (busy while the first Store lives, then the live host recovers the latest state; reopened host agrees). On top of journal:a92dde9 (A8) and journal:38de42f (hold/park/live).
+
+Known red: suite job 261118-023322-636173 at journal:38de42f failed: journal_journal "FAIL: storage permit unavailable" (an uncaught std::logic_error from StoragePermit::mark_started, admission.h:96, permit tainted) and host_test's three old-rule second_recovery checks (now rewritten). Suspect: reopen_released(true) in journal_test.cc (~line 1917): `a->fence_storage(); staged.reset();` leaves a started-or-staged StoreAppend whose permit is tainted, and TurnDriver::start() calls item.operation->submitted() at turn_driver.h:481 outside any try, so the throw escapes the loop's pump. Unverified; 261118-031529-cb59bd (reopen cases at a92dde9) and 261118-040530-6f6b66 (default runs at cd6d017) will show which case. If confirmed, decide: (a) start() settles an item whose submitted() throws (fail that op only, as settle() at turn_driver.h:646 does) so one tainted Store cannot stop a loop, with a fails-without test; or (b) the test was wrong to fence that way. (a) looks right: a fenced Store must not break its neighbors.
 
 ## Next
 
-1. Read the jobs; fix compile or test failures.
-2. When journal-faultfs lands and host_test.cc is mine (lead, after msg-70): merge main, rewrite host_test second_recovery() to the new rule (it asserts the old Corruption guard; expected red in the suite until then).
-3. When CMakeLists.txt joins the set (with host_test.cc, after journal-faultfs lands): add ctest entries for reopen_crash, reopen_churn, reopen_heap; until then they run by name as direct-build jobs.
+1. Read the jobs above; fix the permit failure (see Doing) and any compile or test failure; rerun the A1-A8 jobs and the suite at the fixed head.
+2. A9 (new, from the lead; recommended for a fresh contributor): TurnLog::reclaim (turn_log.h ~369-384) removes or recycles several segments then calls one sync_directory; a power cut can keep a later removal and drop an earlier one, so recovery sees a gap in segment numbers and sets damaged (turn_log.h ~560). No record is lost, but it reports damage. Reproducer: journal-faultfs job 261118-040056-965498's command at journal:c606068, `journal_turn_log_power_test 8`, seeds 5/116, 5/161, 7/219. Fix by ordering the removals (order_files_and_directory, oldest first) or by recovery telling a reclaimed gap (below the oldest live segment's first record / covered by retention) from a lost live segment, whichever is correct with fewer syncs. Report syncs per reclaimed segment before and after. Fails-without at those seeds; a 200-seed sweep. turn_log_power_test.cc is journal-faultfs's file: ask the lead before editing it; test from journal_test.cc or a job running faultfs's binary at a merged head.
+3. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct; until then they run by name as direct-build jobs.
 4. Durability review.
 
 ## Blocked on
 
-Nothing for code. host_test.cc second_recovery() waits on journal-faultfs landing (lead ruling on msg-70).
+Nothing. host_test.cc is in the set and the quest no longer waits on journal-faultfs (lead, latest message).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-031529-cb59bd (reopen cases); 261118-031545-7889bb (fails-without: the old guard restored) |
+| A1 | 261118-031529-cb59bd (reopen cases); 261118-040530-6f6b66 (host second_recovery, journal default run at cd6d017); 261118-031545-7889bb (fails-without: the old guard restored) |
 | A2 | 261118-031529-cb59bd; 261118-031542-ff0b3c (TSan); 261118-031547-66d2d5 (fails-without: no hold) |
 | A3 | 261118-031533-72cca5 (reopen_crash: 16 seeds, every power cut) |
 | A4 | 261118-031535-47145a (reopen_churn: heap after first and last pass) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-031551-83ea4c (suite; host_test second_recovery expected red, see Blocked on) |
+| A6 | 261118-031551-83ea4c (suite at a92dde9; host second_recovery rewritten after it, at cd6d017); 261118-023322-636173 failed at 38de42f (see Doing) |
+| A9 | none yet (see Next 2) |
 | A7 | 261118-031537-366ec4 (reopen_heap: bytes per released group before and after settle) |
 | A8 | 261118-031540-2fae9f (reopen_distinct: heap after 1,000 and 100,000 closes); 261118-031549-f7e40e (fails at main: main's include/ with this test) |
 
-Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead ruled, lands after journal-faultfs).
+Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead first ruled it lands after journal-faultfs; latest message gives me host_test.cc and drops the wait, done at cd6d017).
 
 ## Result
 
