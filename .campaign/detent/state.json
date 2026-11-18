@@ -5261,6 +5261,55 @@
       "updated": "2026-11-16T15:41:59",
       "worktree": "../journal-wt/detent/journal-driver"
     },
+    "journal-faultfs": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [
+        "faultlab:faultfs"
+      ],
+      "files": [
+        "test/driver_test.cc",
+        "test/framing_test.cc",
+        "test/host_test.cc",
+        "test/placement_test.cc",
+        "test/shared_store_test.cc",
+        "test/sync_seam_test.cc",
+        "test/turn_bound_test.cc",
+        "test/turn_log_power_test.cc",
+        "test/turn_seal_test.cc",
+        "test/fixtures/**",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
+      "updated": "2026-11-18T01:58:33"
+    },
     "journal-host-guards": {
       "accepted": {
         "durability": {
