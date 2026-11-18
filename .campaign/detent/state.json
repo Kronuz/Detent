@@ -6809,7 +6809,11 @@
         "tests/detent_authority/test_namespace_history.cc",
         "src/detent_authority/history.cc",
         "**/CMakeLists.txt",
-        "docs/**"
+        "docs/DEPENDENCY_UPGRADES.md",
+        "docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md",
+        "docs/design/http-coroutines.md",
+        "docs/status/**",
+        "docs/mechanisms/**"
       ],
       "history": [
         {
@@ -6854,7 +6858,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-17T08:15:48"
+      "updated": "2026-11-18T05:32:45"
     },
     "namespace-design": {
       "accepted": {},
