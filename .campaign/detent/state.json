@@ -5264,7 +5264,8 @@
     "journal-sync-seam": {
       "accepted": {},
       "after": [
-        "completion-sync-data"
+        "completion-sync-data",
+        "journal-turn-bound"
       ],
       "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
       "branch": "quest/detent/journal-sync-seam",
@@ -5305,7 +5306,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-17T19:52:37",
+      "updated": "2026-11-17T20:10:20",
       "worktree": "../journal-wt/detent/journal-sync-seam"
     },
     "journal-turn-bound": {
