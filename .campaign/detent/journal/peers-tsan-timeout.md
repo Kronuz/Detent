@@ -31,7 +31,14 @@ ran past ~21.7 s.
 
 ## Blocked on
 
-Nothing.
+msg (lead, Linux probe): the probe needs `.github/workflows/ci.yml`, outside my file set
+(test/transport/peers_test.cc, peers.h, src/transport/peers.cc). groups-upload-stall's probe
+(consensus:0156b46 on origin/probe/groups-upload-stall) replaces that file on its probe branch with
+a workflow_dispatch-only job; there is no separate probe-*.yml. Asking the lead to grant
+.github/workflows/ci.yml for the probe branch quest/detent/peers-tsan-timeout-probe only (never
+lands). Plan once granted: ubuntu-24.04 clang TSan build of consensus_transport_peers_test, the
+binary run 20 times under `stdbuf -oL` with per-case times, `timeout -s QUIT 120` per run plus
+gdb `thread apply all bt` on a run that overstays.
 
 ## Evidence
 
