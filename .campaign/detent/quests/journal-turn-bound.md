@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`TurnDriver::start()` packs every pending record into one turn with no segment bound. When 64 groups open at once, their create records overflow a 16 KiB segment, `TurnLog::encode` throws "turn exceeds a segment", the driver fails every staged operation, and each consensus store reads as fenced (consensus-wave-open's probes 261117-191119-28bc6a and -191129-a23d83: 64 at once fails 64 of 64 at journal 7c08540 and cc95ba6; waves of 8, 16 and 32 pass). After this quest a turn takes only the records that fit a segment and the rest go in the next turn, so any wave commits; a single record larger than a segment fails only its own operation.
 
 ## Acceptance criteria
 
@@ -14,18 +14,20 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 A wave of pending records larger than one segment commits across several turns, every record durable and in order: a test, failing at main with "turn exceeds a segment" (`--fails-without`).
+- A2 A single record larger than a segment fails only its own operation; the driver stays healthy and later records commit: a test.
+- A3 The crash-point suites keep their outcomes, including a crash between two turns of one wave: the suite and a crash-model case.
+- A4 consensus-wave-open's 64-at-once probe passes against this branch: a job pinning this commit.
+- A5 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+No format change: turns keep their bytes; only how many records one turn takes changes.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D114 (lead). The cause was found by consensus-wave-open; its journal has the analysis.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.

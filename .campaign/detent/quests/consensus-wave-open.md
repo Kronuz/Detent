@@ -14,7 +14,7 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 The cause is named and shown: a consensus test that opens 64 groups in one wave fails without the fix and passes with it, x20 under 4-way load: jobs, with the without-fix run failing on the fence message.
+- A1 The cause is named and shown (D114: journal's unbounded turn): consensus's wave test opens 64 groups in one wave and fails at the old journal pin, then passes with consensus repinned to journal-turn-bound's landing, x20 under 4-way load: jobs.
 - A2 The fence check still catches a store really fenced outside its worker: an existing or new test passes, and a mutant that removes the check fails it.
 - A3 TSan over the wave test and the worker suites: a job.
 - A4 [manual] The Xapiand reproducer passes against this branch: the Xapiand lead or the lead runs it and records the run.
@@ -25,7 +25,7 @@ None changed: the worker's public API and the fence semantics stay; only the ope
 
 ## Decisions
 
-Filed by the lead from the Xapiand lead's group-core footprint findings, 2026-11-17.
+D114: the fix is journal's (quest journal-turn-bound); this quest keeps the consensus wave test and the repin, and lands after it. Filed by the lead from the Xapiand lead's group-core footprint findings, 2026-11-17.
 
 ## May land early
 
