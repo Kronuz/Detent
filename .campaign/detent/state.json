@@ -13999,7 +13999,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/transport-connection",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T04:26:29",
@@ -14050,8 +14050,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T04:26:38",
-      "worktree": "../consensus-wt/detent/transport-connection"
+      "updated": "2026-11-18T02:08:27",
+      "worktree": ""
     },
     "transport-feed-scan": {
       "accepted": {},
