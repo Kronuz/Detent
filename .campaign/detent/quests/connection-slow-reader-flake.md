@@ -14,7 +14,7 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 Each failure's cause is named with a forcing that reproduces it on demand, failing 3 of 3 at main and passing at the fix: jobs.
+- A1 The slow_reader failure (lines 614/693) and coarse_writer's line 688 each have a named cause and a forcing that fails 3 of 3 at main and passes at the fix: jobs. coarse_writer's line-693 signature did not reproduce (macOS clamps the low-water mark to the buffer): no speculative fix for it; the test dumps the queue, SO_ERROR and poll events when it fails, so its next CI occurrence names the cause.
 - A2 `consensus_transport_connection` x200 at 4-way load passes with 0 failures: jobs.
 - A3 If a cause is in product code, not the test, stop and report it to the lead before fixing: [manual] the journal says which it was.
 - A4 The suite passes, plus CI green on every platform at the head.
