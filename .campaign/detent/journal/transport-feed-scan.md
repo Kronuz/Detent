@@ -1,7 +1,8 @@
 # transport-feed-scan: journal
 
-State: session 3. A1, A2, A3 (order, TSan, 10 of 11 mutants), A4 suite, A5 passed at 01e2c06. Open:
-store-keeps-opens survived (261117-205706-359ac3); A6 (upload on macos-x86_64) investigating.
+State: waiting on jobs 261117-233251-a73ce6 261117-233257-f99fdf 261117-233302-80ef1e 261117-233307-49251f
+261117-233313-240b25 261117-233330-eb4940 261117-233339-7f5dbb 261117-233356-4b73fc 261117-224140-de7732, all at
+consensus:13b32d3 (main merged) but the last (mutant). A6 blocked: cause not named (see Session 3).
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
@@ -48,6 +49,20 @@ Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded 
 - b686ce2 adds links, host 1 sent/dropped to the samples (pushed). Probe branch
   probe/transport-feed-scan-upload (78dc721 = b686ce2 + 6 more `upload` ctest entries beside
   connection_test; never lands; .scratch/probe/probe_commit.py): run 44257918794.
+- Paired probes, 7 uploads each on macos-x86_64 beside connection_test: with the sampler
+  (44259140498) 7 of 7, without it (probe/transport-feed-scan-upload-nodiag at 39eeb37, 44258707594)
+  7 of 7. Since ed8f840: 24 of 24 macos-x86_64 uploads passed (1 push, 2 dispatches, 3 probes). The
+  failures cluster in time (2026-11-17 16:49Z to 11-18 05:41Z); the sampler does not change it (its
+  syscalls are read-only: XNU tcp_usrreq.c TCP_CONNECTION_INFO, sys_socket.c FIONREAD).
+- What the failing logs do show: the shared connection carries nearly nothing for 3-4 s from early
+  in the run while host 2's loops stay responsive (they drain in 6-81 ms at stop), and once host 1's
+  writer waited out dead_after (5.8 s drain). So either host 2's reader sat parked with bytes in its
+  socket (a lost read wakeup: product, connection.h) or loopback TCP stopped delivering (the runner's
+  kernel). The samples tell these apart (unread vs sndq, rxbytes, rexmit); no failure since to read.
+- CI at b686ce2 (44257887335): linux-tsan connection_test read_slowly line 693
+  (connection-slow-reader-flake's) and linux-x86_64-clang consensus_transport_peers
+  (peers-retry-flake's); neither in this file set. macos-x86_64 green.
+- Merged main (b7f48b2, tools/mutants.sh) at 13b32d3; pushed. All evidence resubmitted at 13b32d3.
 
 ## Next
 
@@ -143,6 +158,15 @@ the host already holds it; the record becomes 24 B) or a digest open frame (a wi
 both change a contract, so they are the lead's (see Blocked on).
 
 ## Blocked on
+
+- (lead) A6: the cause is not named. Not reproducible here (Intel Mac, macOS 15.8.1: 32 of 32 at
+  4-way, 20 of 20 beside connection_test, background QoS only degrades) and CI stopped failing
+  (24 of 24 since ed8f840, 7 of 7 without the diag). Options: 1. land with the failure samples in
+  place (ed8f840, b686ce2) and file a follow-up that reads the next failure (recommended: the
+  samples split reader-parked from TCP-stalled in one line); 2. keep dispatching probe runs until
+  one fails (each 7 uploads, ~15 min, failures cluster in time); 3. a speculative test change
+  (e.g. rerun on a wire stall), which I have not made: it would guess. The x100 job
+  261117-233356-4b73fc shows the case at head under 4-way load here, not a fix.
 
 - (lead) CI: push consensus:quest/detent/transport-feed-scan (01e2c06 or later).
 
