@@ -828,9 +828,9 @@
       ],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T18:56:23",
+      "updated": "2026-11-17T19:57:45",
       "worktree": "../completion-wt/detent/completion-sync-data"
     },
     "completion-sync-files": {
