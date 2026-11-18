@@ -839,6 +839,39 @@
       "title": "completion Asio driver on task::task",
       "updated": "2026-11-08T15:38:36"
     },
+    "connection-slow-reader-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/connection_test.cc",
+        "test/transport/groups_upload*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
+      "updated": "2026-11-17T18:52:51"
+    },
     "consensus-dns-peers": {
       "accepted": {
         "correctness": {
