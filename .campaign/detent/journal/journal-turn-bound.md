@@ -1,6 +1,6 @@
 # journal-turn-bound: journal
 
-State: waiting on jobs 261117-200353-a0a7d2 261117-200406-4608c2 261117-200837-89c90c
+State: waiting on jobs 261117-202107-6d9f84 261117-202123-e77d9b
 Quest: .campaign/detent/quests/journal-turn-bound.md (the lead's; never edit it)
 
 ## Doing
@@ -12,6 +12,14 @@ turn exceeds a segment: seed 1" with main's turn_driver.h; A4 4608c2
 via FETCHCONTENT_SOURCE_DIR_JOURNAL, as probe a23d83 did).
 
 ## Next
+
+0. crc_fixture timeouts (a0a7d2, 89c90c; also journal-sync-seam's ac87f4 without this change):
+   load against a ~20 s test with a 30 s cap. test/crc_fixture_test.cc builds no TurnDriver, Host
+   or Store (only TurnLog, non-shared Journal, PosixIO), so its turns are the same by
+   construction. Strict jobs measure time and sync counts (DYLD interposer
+   ~/.scratch/journal-turn-bound/count_sync.c): head 9270185 6d9f84, main 13592a1 e77d9b (the
+   main one is unattached to the quest: a second --quest job superseded 0b92e4). Same counts and
+   similar times clear it; the cap is a follow-up, not this quest.
 
 1. Read the three jobs and GitHub CI for 87ea77e; fix any compile or test failure (the code was
    never built locally: machine work goes through jobs only).
@@ -28,8 +36,8 @@ Nothing.
 | A1 | 8a9d1f fails-without (exit 1, "turn exceeds a segment"); suite pending a0a7d2/89c90c |
 | A2 | <pending: a0a7d2> |
 | A3 | <pending: a0a7d2> |
-| A4 | <pending: 4608c2> |
-| A5 | <pending: a0a7d2, CI> |
+| A4 | 4608c2 exit 0: consensus wave-open 64 at once, all committed, none fenced, journal 87ea77e |
+| A5 | CI green at 9270185; local suite 52/53, journal_crc_fixture timeout (load, see Next 0) |
 
 msg-67 (mine to the lead): granted; CMakeLists.txt replaces test/CMakeLists.txt in the file set.
 The registration is one block after the turn_seal foreach.
