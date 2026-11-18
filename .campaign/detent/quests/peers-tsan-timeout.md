@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`consensus_transport_peers` timed out at 30 s under linux-tsan in CI run 44379638851 (consensus:f3af7f1, Xapiand's consensus-c3-rows, which touches only Core repair tests): the cases through `several-addresses` printed ok in about 8.5 s total, then nothing until the timeout, so `refused-first` (or the case after it) hung or ran over 21 s under TSan. After this quest the cause is named: a hang in the peer mesh (a defect), or a case whose TSan time exceeds the test's 30 s (then the cases' budget is set from measured TSan times). The test passes under TSan repeatedly.
 
 ## Acceptance criteria
 
@@ -14,18 +14,18 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 [manual] The cause is named from a TSan reproduction (a job that shows the hang or the per-case times) in the journal.
+- A2 If a defect: a test that fails without the fix; if a time budget: per-case TSan times recorded and the timeout set with 2x headroom: jobs.
+- A3 `consensus_transport_peers` passes 20 of 20 under a TSan build, plus the suite and CI: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 from Xapiand's c3-rows CI; third consensus TSan transport flake beside connection-slow-reader-flake and groups-upload-stall.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
