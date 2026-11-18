@@ -1,10 +1,19 @@
+// DTPAGE03 publication artifacts, and their publication through DiskStore: the grouped sync order
+// (D11), sync counters that match completion's sync seam, and T7's power cuts over Dense generations.
 #include "applied_delta_fixture.hh"
+#include "live_record.hh"
+#include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_publication_artifacts.hh"
 #include "reader_metadata.hh"
-#include "live_record.hh"
+#include "store_core.hh"
 #include <chrono>
+#include <completion/posix.h>
+#include <fcntl.h>
+#include <iterator>
+#include <map>
+#include <set>
 #include <thread>
 template <class Error, class Call> void rejects(Call call) {
 	try {
@@ -21,6 +30,499 @@ template <class Test> void eventually(Test test) {
 		std::this_thread::yield();
 	}
 }
+
+// T7 over DTPAGE03 (namespace-delivery D8, D11): the disk is modelled from completion's sync seam as in
+// tests/detent_agent/test_agent_store_crash.cc. A power cut or a kill after every primitive of a store's
+// startup, a Dense publication and its collection must leave a store that opens Ready, selects the base or
+// the published generation (the published one once served), reads its exact state, and publishes again;
+// each restart's publication over a cut's leftovers is itself cut at every step.
+namespace power_cut {
+namespace c = kronuz::io::completion;
+namespace x = l::detail;
+using Key = std::pair<dev_t, ino_t>;
+struct Inode {
+	std::string staged, durable; // bytes an fsync staged, and bytes a device flush made durable
+};
+struct Disk {
+	std::map<std::string, std::pair<int, std::string>> live; // name -> (inode, bytes)
+	std::map<std::string, int> staged, durable;              // directory entries
+	bool directory_staged = false;
+	std::vector<Inode> inodes;
+	bool served = false; // the publication settled: its generation must survive
+};
+struct Seam {
+	std::uint64_t files = 0, directories = 0, flushes = 0;
+};
+enum class Entries { Durable, All };
+enum class Data { Truncate, Zeros };
+struct Recorder {
+	std::filesystem::path root;
+	Key directory{};
+	std::map<Key, int> ids;
+	Disk disk;
+	std::vector<Disk> events;
+	std::vector<std::string> labels, trace; // trace: labels, and each fsynced file's name
+	Seam seam;
+} *g = nullptr;
+
+Key key(const struct stat &status) { return {status.st_dev, status.st_ino}; }
+std::string slurp(const std::filesystem::path &path) {
+	std::ifstream in(path, std::ios::binary);
+	return {std::istreambuf_iterator<char>(in), {}};
+}
+void scan() {
+	std::map<std::string, std::pair<int, std::string>> live;
+	for (const auto &entry : std::filesystem::directory_iterator(g->root)) {
+		const auto name = entry.path().filename().string();
+		if (name == "owner.lock")
+			continue;
+		struct stat status{};
+		require(::lstat(entry.path().c_str(), &status) == 0);
+		auto found = g->ids.find(key(status));
+		// Every file the store creates starts as a new `.tmp-` name: a fresh inode.
+		if (found == g->ids.end() || (name.starts_with(".tmp-") && !g->disk.live.contains(name))) {
+			g->disk.inodes.emplace_back();
+			found = g->ids.insert_or_assign(key(status), int(g->disk.inodes.size()) - 1).first;
+		}
+		// `change` words never decide a recovery; the model keeps its length alone.
+		live[name] = {found->second,
+					  name == "change" ? std::string(std::size_t(status.st_size), '\0') : slurp(entry.path())};
+	}
+	g->disk.live = std::move(live);
+}
+void note(std::string label) {
+	scan();
+	g->events.push_back(g->disk);
+	g->trace.push_back(label);
+	g->labels.push_back(std::move(label));
+}
+void primitive(void *, const char *label) noexcept {
+	if (g)
+		note(label);
+}
+int record_fsync(int fd) {
+	if (!g)
+		return 0;
+	struct stat status{};
+	require(::fstat(fd, &status) == 0);
+	scan();
+	if (key(status) == g->directory) {
+		g->disk.staged.clear();
+		for (const auto &[name, entry] : g->disk.live)
+			g->disk.staged[name] = entry.first;
+		g->disk.directory_staged = true;
+#ifndef __APPLE__
+		g->disk.durable = g->disk.staged;
+#endif
+		++g->seam.directories;
+		note("fsync directory");
+		return 0;
+	}
+	const auto found = g->ids.find(key(status));
+	require(found != g->ids.end());
+	std::string bytes(std::size_t(status.st_size), '\0');
+	require(::pread(fd, bytes.data(), bytes.size(), 0) == ssize_t(bytes.size()));
+	auto &inode = g->disk.inodes[found->second];
+	inode.staged = bytes;
+#ifndef __APPLE__
+	inode.durable = bytes;
+#endif
+	++g->seam.files;
+	for (const auto &[name, entry] : g->disk.live)
+		if (entry.first == found->second)
+			g->trace.push_back("file " + name);
+	note("fsync file");
+	return 0;
+}
+int skip_fsync(int) { return 0; }
+#ifdef __APPLE__
+int record_fcntl(int, int command) {
+	if (!g)
+		return 0;
+	require(command == F_FULLFSYNC || command == F_BARRIERFSYNC);
+	for (auto &inode : g->disk.inodes)
+		inode.durable = inode.staged;
+	if (g->disk.directory_staged)
+		g->disk.durable = g->disk.staged;
+	++g->seam.flushes;
+	note("device flush");
+	return 0;
+}
+int skip_fcntl(int, int) { return 0; }
+void attach(c::PosixIO &io) noexcept {
+	if (g)
+		io.replace_sync_calls(&record_fsync, &record_fcntl);
+	else
+		io.replace_sync_calls(&skip_fsync, &skip_fcntl);
+}
+#elif defined(__linux__)
+int skip_writeback(int) { return 0; }
+void attach(c::PosixIO &io) noexcept { io.replace_sync_calls(g ? &record_fsync : &skip_fsync, &skip_writeback); }
+#else
+void attach(c::PosixIO &io) noexcept { io.replace_sync_calls(g ? &record_fsync : &skip_fsync); }
+#endif
+// The counters the seam implies: on macOS a device flush is its own call, elsewhere every fsync flushes.
+void matches(const l::SyncCounters &counters, const Seam &seam, std::uint64_t groups) {
+#ifdef __APPLE__
+	const auto flushes = seam.flushes;
+#else
+	const auto flushes = seam.files + seam.directories;
+#endif
+	require(counters.files == seam.files && counters.directory_syncs == seam.directories &&
+			counters.device_flushes == flushes && counters.groups == groups);
+}
+Seam operator-(const Seam &a, const Seam &b) {
+	return {a.files - b.files, a.directories - b.directories, a.flushes - b.flushes};
+}
+
+void put(const std::filesystem::path &path, std::string_view bytes) {
+	write(path, std::span<const char>(bytes.data(), bytes.size()));
+}
+// What a power cut leaves: durable names (or every name, when metadata reached the disk first) holding
+// only durable bytes (cut short, or zero-filled to their size).
+std::map<std::string, std::string> after_power_cut(const Disk &disk, Entries entries, Data data) {
+	std::map<std::string, int> names = disk.durable;
+	if (entries == Entries::All)
+		for (const auto &[name, entry] : disk.live)
+			names[name] = entry.first;
+	std::map<int, std::size_t> sizes;
+	for (const auto &[name, entry] : disk.live)
+		sizes[entry.first] = entry.second.size();
+	std::map<std::string, std::string> files;
+	for (const auto &[name, id] : names) {
+		auto bytes = disk.inodes[id].durable;
+		if (data == Data::Zeros && sizes.contains(id) && sizes[id] > bytes.size())
+			bytes.resize(sizes[id], '\0');
+		files[name] = std::move(bytes);
+	}
+	return files;
+}
+// A process kill: every name and byte stays.
+std::map<std::string, std::string> after_kill(const Disk &disk) {
+	std::map<std::string, std::string> files;
+	for (const auto &[name, entry] : disk.live)
+		files[name] = entry.second;
+	return files;
+}
+void materialize(const std::filesystem::path &root, const std::map<std::string, std::string> &files) {
+	std::filesystem::remove_all(root);
+	std::filesystem::create_directories(root);
+	require(::chmod(root.c_str(), 0700) == 0);
+	put(root / "owner.lock", {});
+	for (const auto &[name, bytes] : files)
+		put(root / name, bytes);
+}
+std::string fingerprint(const std::map<std::string, std::string> &files) {
+	std::string out;
+	for (const auto &[name, bytes] : files) {
+		if (name.starts_with(".tmp-"))
+			continue;
+		const auto sum = trusted_records::sha(bytes);
+		out.append(name).push_back('\0');
+		out.append(sum.data(), sum.size());
+	}
+	return out;
+}
+
+// One store's world: its account, retirement runtime and options; settled empty when it ends.
+struct World {
+	std::shared_ptr<d::StorageLedger> account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
+	std::shared_ptr<d::StorageLedger> baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
+	d::RetirementRuntime runtime{baseline, 1};
+	d::RetirementDomain domain = runtime.domain(account, 64);
+	std::uint64_t initial = account->used();
+	l::DiskStoreOptions options;
+	World() {
+		options.limits = {64 * l::paged::segment_bytes, 100, 10};
+		options.recovery_limits.retirement_domain = &domain;
+		options.recovery_limits.mapping_account = std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
+	}
+	void settle() {
+		domain.close().wait();
+		require(account->used() == initial);
+	}
+};
+void drive(const std::shared_ptr<l::DiskStore> &store) {
+	for (unsigned turns = 0;; ++turns) {
+		require(turns < 100000);
+		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
+	}
+}
+std::shared_ptr<l::DiskStore> open(World &world, const std::filesystem::path &root) {
+	auto store = l::make_disk_store(world.domain, root, std::make_shared<int>(1), world.options);
+	drive(store);
+	return store;
+}
+void close(std::shared_ptr<l::DiskStore> &store) {
+	store->close();
+	drive(store);
+	require(store->drained());
+	store.reset();
+}
+// The next generation over what the open store selects, planned on its own recovery as the agent plans:
+// a delta, or a progress plan reusing a base segment.
+struct Planned {
+	std::optional<l::RecoveredGeneration> base;
+	std::optional<x::PagedPlan> plan;
+};
+void plan(Planned &out, World &world, const std::filesystem::path &root, const l::DiskStore &store, bool progress) {
+	out.base.emplace(x::ManagedRecovery::recover(root, x::ManagedRecovery::capture(store)));
+	if (progress) {
+		auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", world.account));
+		x::PagedPlanBuilder builder(*out.base, delta, world.domain);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		out.plan.emplace(builder.take());
+	} else {
+		x::PagedDeltaPlanBuilder builder(*out.base, parse_delta(false, 2, "app", world.account), world.domain);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		out.plan.emplace(builder.take());
+	}
+}
+// The two generations a cut may leave selected, and the state each must read.
+struct Lineage {
+	l::Descriptor base, wanted;
+	l::paged::Digest base_state, wanted_state;
+	bool progress = false;
+};
+// D11's order from "begin" to "published": the owner records and the lease, one group; the payloads,
+// one group; the table, synced alone; its rename; the directory; `change`. On macOS each sync is one
+// device flush.
+void grouped(const std::vector<std::string> &trace, const std::set<std::string> &owners,
+			 const std::set<std::string> &payloads) {
+	static constexpr std::string_view ends[] = {"sync owner records", "sync payloads", "sync table",
+												"rename table",       "sync directory", "change"};
+	std::vector<std::set<std::string>> files(6);
+	std::vector<unsigned> directories(6), flushes(6);
+	auto at = std::find(trace.begin(), trace.end(), "begin");
+	require(at != trace.end());
+	std::size_t stage = 0;
+	for (++at; at != trace.end() && *at != "published"; ++at) {
+		if (stage < 6 && *at == ends[stage]) {
+			++stage;
+			continue;
+		}
+		require(stage < 6);
+		if (at->starts_with("file "))
+			require(files[stage].insert(at->substr(5)).second);
+		directories[stage] += *at == "fsync directory";
+		flushes[stage] += *at == "device flush";
+	}
+	require(stage == 6);
+	require(files[0] == owners && files[1] == payloads && files[2].size() == 1 &&
+			files[2].begin()->starts_with(".tmp-") && files[3].empty() && files[4].empty() && files[5].empty());
+	require(directories == std::vector<unsigned>{1, 1, 0, 0, 1, 0});
+#ifdef __APPLE__
+	require(flushes == std::vector<unsigned>{1, 1, 1, 0, 1, 0});
+#endif
+}
+
+struct Run {
+	std::vector<Disk> events;
+	std::vector<std::string> labels;
+	Lineage lineage;
+};
+// Records a store opening `root` (whose files `start` models), publishing the next generation and
+// collecting its base; checks the order and the counters against the seam.
+Run record(const std::filesystem::path &root, Disk start, bool progress) {
+	Recorder recorder;
+	recorder.root = root;
+	struct stat status{};
+	require(::stat(root.c_str(), &status) == 0);
+	recorder.directory = key(status);
+	recorder.disk = std::move(start);
+	for (const auto &entry : std::filesystem::directory_iterator(root)) {
+		if (entry.path().filename() == "owner.lock")
+			continue;
+		require(::lstat(entry.path().c_str(), &status) == 0);
+		recorder.ids[key(status)] = recorder.disk.live.at(entry.path().filename().string()).first;
+	}
+	g = &recorder;
+	l::AgentStoreTesting::install(&primitive, nullptr);
+	struct Uninstall {
+		~Uninstall() {
+			l::AgentStoreTesting::install(nullptr, nullptr);
+			g = nullptr;
+		}
+	} uninstall;
+	note("start");
+	Run run;
+	World world;
+	{
+		auto before = recorder.seam;
+		auto store = open(world, root);
+		require(store->status() == l::StoreStatus::Ready);
+		matches(store->sync_stats().startup, recorder.seam - before, 0);
+		Planned planned;
+		plan(planned, world, root, *store, progress);
+		run.lineage = {planned.base->descriptor(), planned.plan->descriptor(), {}, {}, progress};
+		run.lineage.base_state = x::PreparedReader::open(root, ::getuid(), world.options.recovery_limits).state_commitment;
+		run.lineage.wanted_state = l::paged::state_commitment(planned.plan->root());
+		require(store->selection().descriptor == run.lineage.base);
+		const auto id = run.lineage.wanted.generation;
+		auto name = [&](x::GenerationFile kind) { return std::string(x::GenerationName(id, kind).view()); };
+		std::set<std::string> owners{name(x::GenerationFile::Lease)},
+			payloads{name(x::GenerationFile::Image), name(x::GenerationFile::ReaderMetadata),
+					 name(x::GenerationFile::Live)};
+		for (const auto &segment : planned.plan->segments()) {
+			const x::SegmentNames names(segment.ownership.segment);
+			owners.emplace(names.owner_name());
+			payloads.emplace(names.payload_name());
+		}
+		before = recorder.seam;
+		recorder.trace.emplace_back("begin");
+		store->begin(std::move(*planned.plan));
+		drive(store);
+		require(store->publication_status() == l::DiskPublicationStatus::Published &&
+				store->selection().descriptor == run.lineage.wanted);
+		matches(store->sync_stats().publication, recorder.seam - before, 2);
+		recorder.disk.served = true;
+		note("published");
+		grouped(recorder.trace, owners, payloads);
+		// Confirmed, the store collects what the new table no longer reaches.
+		auto recovered = x::ManagedRecovery::recover(root, x::ManagedRecovery::capture(*store));
+		store->confirm_recovered(recovered);
+		drive(store);
+		require(store->status() == l::StoreStatus::Ready);
+		const auto total = store->sync_stats().total;
+		close(store);
+		note("closed");
+		require(total.files == recorder.seam.files && total.directory_syncs == recorder.seam.directories);
+	}
+	world.settle();
+	run.events = std::move(recorder.events);
+	run.labels = std::move(recorder.labels);
+	return run;
+}
+
+struct Counts {
+	std::size_t cases = 0, distinct = 0, republished = 0, nested = 0;
+} counts;
+std::set<std::string> seen;
+// A cut left `files`: the store opens Ready on the base or the published generation (the published one
+// once `served`) and reads its state; on the base, it publishes the next generation again. Returns
+// whether the cut was new and selected the base.
+bool recovered(const std::filesystem::path &root, const std::map<std::string, std::string> &files, bool served,
+			   const Lineage &lineage, bool republish, const std::string &where) {
+	++counts.cases;
+	if (!seen.insert(fingerprint(files) + (lineage.progress ? "|p" : "|d") + (republish ? "|r" : "")).second)
+		return false;
+	++counts.distinct;
+	try {
+		materialize(root, files);
+		bool base = false;
+		{
+			World world;
+			auto store = open(world, root);
+			require(store->status() == l::StoreStatus::Ready);
+			const auto selected = store->selection().descriptor;
+			require(selected == lineage.wanted || (!served && selected == lineage.base));
+			base = selected == lineage.base;
+			{
+				const auto prepared = x::PreparedReader::open(root, ::getuid(), world.options.recovery_limits);
+				require(prepared.descriptor == *selected &&
+						prepared.state_commitment == (base ? lineage.base_state : lineage.wanted_state));
+			}
+			close(store);
+			world.settle();
+		}
+		if (republish && base) {
+			World world;
+			{
+				auto store = open(world, root);
+				Planned planned;
+				plan(planned, world, root, *store, lineage.progress);
+				require(planned.plan->descriptor() == lineage.wanted);
+				store->begin(std::move(*planned.plan));
+				drive(store);
+				require(store->publication_status() == l::DiskPublicationStatus::Published &&
+						store->selection().descriptor == lineage.wanted);
+				const auto prepared = x::PreparedReader::open(root, ::getuid(), world.options.recovery_limits);
+				require(prepared.state_commitment == lineage.wanted_state);
+				close(store);
+			}
+			world.settle();
+			++counts.republished;
+		}
+		return base;
+	} catch (const std::exception &error) {
+		throw std::runtime_error(where + ": " + error.what());
+	}
+}
+// A store whose files are all durable, as a restart finds them.
+Disk durable(const std::filesystem::path &root) {
+	Disk disk;
+	for (const auto &entry : std::filesystem::directory_iterator(root)) {
+		const auto name = entry.path().filename().string();
+		if (name == "owner.lock")
+			continue;
+		const auto bytes = slurp(entry.path());
+		disk.inodes.push_back({bytes, bytes});
+		disk.live[name] = {int(disk.inodes.size()) - 1, bytes};
+		disk.durable[name] = disk.staged[name] = int(disk.inodes.size()) - 1;
+	}
+	disk.directory_staged = true;
+	return disk;
+}
+// Cuts after every event of `run`; a new cut on the base restarts, republishes, and that run is cut too.
+void matrix(const std::filesystem::path &scratch, const Run &run, const std::string &name) {
+	for (std::size_t i = 0; i < run.events.size(); ++i) {
+		const auto where = name + " after event " + std::to_string(i) + " (" + run.labels[i] + ")";
+		const auto &event = run.events[i];
+		recovered(scratch / "cut", after_kill(event), event.served, run.lineage, true, where + ", kill");
+		for (auto entries : {Entries::Durable, Entries::All})
+			for (auto data : {Data::Truncate, Data::Zeros}) {
+				const auto files = after_power_cut(event, entries, data);
+				if (!recovered(scratch / "cut", files, event.served, run.lineage, true, where + ", power cut"))
+					continue;
+				// Restart then republish over the cut's leftovers, cut at every step.
+				++counts.nested;
+				materialize(scratch / "restart", files);
+				Run inner;
+				try {
+					inner = record(scratch / "restart", durable(scratch / "restart"), run.lineage.progress);
+				} catch (const std::exception &error) {
+					throw std::runtime_error(where + ", power cut, restart: " + error.what());
+				}
+				require(inner.lineage.base == run.lineage.base && inner.lineage.wanted == run.lineage.wanted);
+				for (std::size_t j = 0; j < inner.events.size(); ++j)
+					for (auto inner_entries : {Entries::Durable, Entries::All})
+						recovered(scratch / "cut", after_power_cut(inner.events[j], inner_entries, Data::Zeros),
+								  inner.events[j].served, inner.lineage, false,
+								  where + ", power cut, restart, power cut after event " + std::to_string(j) + " (" +
+									  inner.labels[j] + ")");
+			}
+	}
+}
+void run(const std::filesystem::path &scratch, const x::PagedImage &image) {
+	x::DiskStoreTesting::install(&attach);
+	struct Uninstall {
+		~Uninstall() { x::DiskStoreTesting::install(nullptr); }
+	} uninstall;
+	const auto started = std::chrono::steady_clock::now();
+	for (bool progress : {false, true}) {
+		const auto root = scratch / "run";
+		std::filesystem::remove_all(root);
+		install(root, image);
+		const auto recorded = record(root, durable(root), progress);
+		matrix(scratch, recorded, progress ? "progress" : "delta");
+	}
+	std::fprintf(stderr, "T7 over DTPAGE03: %zu cases, %zu distinct, %zu republished, %zu nested runs, %.1f s\n",
+				 counts.cases, counts.distinct, counts.republished, counts.nested,
+				 std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
+	require(counts.republished > 0 && counts.nested > 0);
+}
+} // namespace power_cut
+
 int main() {
 	const auto directory =
 		std::filesystem::current_path() / ".scratch" / ("paged-artifacts-" + std::to_string(::getpid()));
@@ -114,4 +616,5 @@ int main() {
 			require(account->used() == initial);
 		}
 	}
+	power_cut::run(directory / "power-cut", image);
 }
