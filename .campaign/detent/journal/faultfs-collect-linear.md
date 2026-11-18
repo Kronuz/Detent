@@ -1,6 +1,6 @@
 # faultfs-collect-linear: journal
 
-State: fixing F1-F3 (review round 1 at faultlab:a3b71d1); waiting on jobs listed under Evidence
+State: waiting on jobs 261118-100249-d31056 261118-100250-ab97bb 261118-100252-f99fe2 261118-100253-64a86e 261118-100254-d58e49 261118-100256-afaa01 261118-100257-47f46c 261118-100259-7ca44a 261118-100306-83c3ca
 Quest: .campaign/detent/quests/faultfs-collect-linear.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -76,8 +76,8 @@ Round 1 jobs. Run at fcbe2a9 unless noted; a3b71d1 changes only docs.
 
 | Job | What |
 |---|---|
-| 261118-100354-0b4a4b | suite at a3b71d1 (campaign verify) |
-| 261118-100312-e036a3 | suite rerun at fcbe2a9 |
+| 261118-100354-0b4a4b | suite at a3b71d1 (campaign verify): 17 of 17 |
+| 261118-100312-e036a3 | suite rerun at fcbe2a9: 17 of 17 |
 | 261118-100249-d31056 | F1 case passes |
 | 261118-100250-ab97bb | F1 case fails without the fix (mutant selfreplace) |
 | 261118-100252-f99fe2 | random-ops case fails without F1's fix |
@@ -87,11 +87,12 @@ Round 1 jobs. Run at fcbe2a9 unless noted; a3b71d1 changes only docs.
 | 261118-100257-47f46c | trace diff, 600 seeds x 250 |
 | 261118-100259-7ca44a | reviewer's reentrant probe at the fix |
 | 261118-100306-83c3ca | reviewer's reentrant probe at main adc4fc2 |
-| 261118-100313-d0a14e | A2 by-value case |
-| 261118-100315-5c543c, 261118-100316-19d609 | A2 mutants (durable, log) |
-| 261118-100319-9bf4ae | A3 publish cost |
-| 261118-100320-f185fe, 261118-100321-77c241 | A3 mutants (recount, old scans) |
-| 261118-100322-ca61d8, 261118-100323-9b1fea, 261118-100324-bf771a | A4 distinct, heap, churn |
+| 261118-100313-d0a14e | A2 by-value case: ok |
+| 261118-100315-5c543c, 261118-100316-19d609 | A2 mutants (durable, log): the by-value case fails in both |
+| 261118-100319-9bf4ae | A3 publish cost: 2.35 / 3.61 / 6.47 us at 1K / 10K / 100K |
+| 261118-100320-f185fe | A3 mutant (recount): 387.55 -> 6492.35 us, the gate fails |
+| 261118-100321-77c241 | rerun of f98716 (ce3b6b6's `cubic` mutant): exit 126, the mutant no longer exists in collect_mutant.sh; superseded by f185fe, drop it from A3 |
+| 261118-100322-ca61d8, 261118-100323-9b1fea, 261118-100324-bf771a | A4 at fcbe2a9 (`faultlab built:` checked): distinct slope 0 B/group, heap 248.469 -> 248.452 B/group, churn 0 failures |
 
 F1=<pending: 261118-100249-d31056 + 261118-100250-ab97bb + 261118-100257-47f46c>
 
