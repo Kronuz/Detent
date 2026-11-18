@@ -361,6 +361,10 @@ int main(int argc, char **argv) {
 		narrow.request_bytes = 1;
 		narrow.mutations = 1;
 		refused_seal(Growth(1), narrow, "history file seal ");
+		// Only the table's bound is tight here: the table lists the log's four namespaces, the bound one.
+		Limits single;
+		single.namespaces = 1;
+		refused_seal(log, single, "history file layout ");
 	}
 
 	// A count-cut seal: a restart, and a cut at every primitive, recover the same bytes (F9).
