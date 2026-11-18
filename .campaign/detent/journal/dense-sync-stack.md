@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-055412-608f32 261118-055412-a8791e 261118-055412-1bba5b 261118-054101-b5ef57 261118-055013-136e37 261118-055014-19aed1 261118-055016-95665a 261118-054306-b5fe77 261118-054307-5a3cb1 261118-054308-15108e 261118-054309-71faa7 261118-054310-9848a1 261118-054311-2e72e9 261118-054312-c42fcf 261118-054313-8e49b7 261118-054314-792ca7 261118-054315-78f04e 261118-054316-9f93de 261118-054317-59781b
+State: waiting on jobs 261118-064312-81a63c 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064421-90a1aa 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da 261118-064436-028406 261118-064438-51839b 261118-064115-2e8717 (plus the 100K and gate jobs below)
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -33,9 +33,18 @@ step; then checks the grouped order.
    each, interleaved). Write docs/perf/dense-sync-stack.md (A6).
 4. Gates queued: native 608f32, asan a8791e, tsan 1bba5b; branch pushed (CI on quest/detent/dense-sync-stack).
 
+## 5M (D119)
+
+Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat-r1` (home .scratch, outside any job checkout; kept, never rebuilt: the seed job exits at once if `seeded.json` is there). Seeded as run_fleet.py did on 2026-10-24 (scenario `.scratch/capacity-trials/5000000.json`, preset capacity-5000000.json, flat writers, seed 17): `docs/measurements/dense-sync-stack-20261118/seed.py` stops after prepare+verify. Arms only `cp -cR` its state-0..2 (coldboot.py), never write it. A failed seed renames it to `.partial`.
+
+1. Seed job 261118-064312-81a63c: light, 135 min (`--long`, deferred: 2026-10-24 seed took 5,484 s), at Detent:9852a3c (oldest arm tree, so the most trees can read it; the harness API of Authority and Writers is the same on all four), `--env FIXTURE=5000000-flat-r1`. On success fill path, size (`fixture-size` in the job out), seed commit and job id into docs/measurements/dense-sync-stack-20261118/README.md and Result below.
+2. Arms, `--after` the seed job, exclusive, `--minutes 28 --long` (the campaign caps exclusive at 10 min; a 5M arm is 8-18 min plus a 10K smoke; `--long` defers them): `docs/measurements/dense-sync-stack-20261118/submit-5m.sh ARM ROUND`. Ids, round 1 / round 2: dense (9852a3c) 1e5071 / da3323; s2 (35296ba) eebae8 / b03bdd; stacked (d04794d) b6ee71 / 54b693; A/A (stacked tree again, own slot, stage aa) 90a1aa / 8657da; main (ea1fddc) 028406 / 51839b. Round 1 then round 2, interleaved.
+3. Risk: main may not read an Oct-era fixture. A1 job b5ef57 at main failed "authority did not elect an available leader" on the 10K Oct-23 fixture. Diagnostic 261118-064115-2e8717 (10K smoke at main, logs kept) says why. If main cannot read old state, cancel the two main arms (028406, 51839b) and the three 100K main arms (71faa7, 8e49b7, 59781b): they fail after a 15 min leader wait each. Same check for stacked (d04794d) at 100K round 1 (15108e).
+4. The 100K arms stay as the previous contributor queued them.
+
 ## Blocked on
 
-Lead: A4 at 5M. `.scratch/capacity-trials/5000000-flat-r1` (the 5M fixture of 11-07 and A9) is
+Resolved by D119 (see 5M above). Was: A4 at 5M. `.scratch/capacity-trials/5000000-flat-r1` (the 5M fixture of 11-07 and A9) is
 gone; only 10000-r3, 100000-r3 and 130000-r3 remain. And a 5M arm (about 8-10 min boot plus
 restarts) exceeds the 10-minute exclusive cap, so it needs `--long` (deferred, proves nothing
 before landing). Options: (a) regenerate the 5M fixture with run_fleet (5000000.json) at a tree all
