@@ -1,6 +1,6 @@
 # transport-idle-budget: journal
 
-State: waiting on jobs 261118-073615-da90ae
+State: waiting on jobs 261118-073615-da90ae 261118-074432-acdca6
 Quest: .campaign/detent/quests/transport-idle-budget.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,12 +15,19 @@ bytes over, so anything that moves per-end bytes by >0.01% flips it. Spec diff f
 build type (Ninja, fresh `build-idle`). Both compiled against /usr/local/include/openssl (4.1).
 Connections live on loop_of_node(peer), so at L=4 the loops touched grow with P (1, 2, up to 4):
 per-thread state (OpenSSL thread-locals, Asio's per-thread recycler) lands in the slope.
-Probe 261118-073615-da90ae: Release vs no build type, Ninja, fresh, x3 each.
+Probe 261118-073615-da90ae (at main 5923b6c): Release vs no build type, Ninja, fresh, x3 each.
+Candidate fix consensus:d2eeb0d (bench only): draw RAND_bytes/RAND_priv_bytes on every loop after
+open, before s1, so each loop's thread-local DRBGs count in the host intercept. Probe
+261118-074432-acdca6: same A/B at d2eeb0d, printing per-end OpenSSL/C++ at L=1 vs L=4.
 
 ## Next
 
-1. Read 261118-073615-da90ae; if build type flips it, A1 is named. Then fix the fit: warm every
-   loop's per-thread state before `s1`, so it counts in the intercept, not per connection end.
+1. Read 261118-073615-da90ae (does build type flip it?) and 261118-074432-acdca6 (does the
+   DRBG warm-up bring L=4 per-end OpenSSL back to L=1's, ~45.1 KB?). If C++ per end still sits
+   ~500 B higher at L=4, that is Asio's per-thread recycler; decide whether to warm it too.
+2. A2 mutant: perl-insert `[[maybe_unused]] char mutant_pad_[4096] = {};` after `class Connection {`
+   in include/consensus/transport/connection.h, run transport_idle, `--fails-without --for A2`.
+3. A3: `campaign verify transport-idle-budget --for A3`, push, CI.
 
 ## Blocked on
 
@@ -44,4 +51,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Docs go under docs/perf/transport-idle* only (lead, mid-task).
+- Per-thread OpenSSL state is a per-loop host cost, counted like the timer wheels already are:
+  in the host, not per connection end.
