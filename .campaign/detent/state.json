@@ -6294,9 +6294,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "journal: group_io costs O(1) amortized, not O(live ids)",
-      "updated": "2026-11-18T12:23:31",
+      "updated": "2026-11-18T14:02:25",
       "worktree": "../journal-wt/detent/journal-group-io-sweep"
     },
     "journal-host-guards": {
