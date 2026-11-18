@@ -564,6 +564,37 @@
         ]
       },
       "text": "set journal-group-io-cost: unlocks frees bench/group_io_bench.cc, docs/perf/group-io.md for journal-group-io-cost; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
+    },
+    {
+      "at": "2026-11-18T09:14:25",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-77",
+      "items": {
+        "detent-refuse-old-format": "detent-refuse-old-format",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "reader-s6": "frees benchmarks/CMakeLists.txt, docs/mechanisms/reader-core.md, docs/status/reader-s5-s6.md, src/CMakeLists.txt, src/detent_local/change_file.*, src/detent_local/lazy_page_access.*, src/detent_local/prepared_reader.*, src/detent_reader/**, tests/CMakeLists.txt, tests/detent_reader/** for reader-s6",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "detent-refuse-old-format",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "reader-s6",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "namespace-cleanup landed: unlocks detent-refuse-old-format; frees benchmarks/CMakeLists.txt, docs/mechanisms/reader-core.md, docs/status/reader-s5-s6.md, src/CMakeLists.txt, src/detent_local/change_file.*, src/detent_local/lazy_page_access.*, src/detent_local/prepared_reader.*, src/detent_reader/**, tests/CMakeLists.txt, tests/detent_reader/** for reader-s6; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3641,7 +3672,7 @@
         "src/detent_authority/service.cc",
         "src/detent_authority/history.cc",
         "tests/detent_authority/test_format_refusal.cc",
-        "docs/mechanisms/**"
+        "docs/mechanisms/format-refusal.md"
       ],
       "landed": [],
       "lenses": [],
@@ -3654,7 +3685,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T09:14:40",
+      "updated": "2026-11-18T09:14:56",
       "worktree": "../Detent-wt/detent/detent-refuse-old-format"
     },
     "dns-voters": {
