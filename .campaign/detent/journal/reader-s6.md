@@ -86,7 +86,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Messages
 
-- msg-1: open; T1 numbers are the lead's to measure on the merged head (exclusive `reader_bench`).
+- msg-1: open until before 318fd2 and after 63e21d finish; then the answer is ns per lookup, before and
+  after, at 1 and 8 threads, for hot and scattered keys (100K knobs is fine for msg-1, per the lead).
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
