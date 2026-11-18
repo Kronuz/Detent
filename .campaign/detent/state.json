@@ -4299,6 +4299,47 @@
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
       "updated": "2026-11-10T11:59:38"
     },
+    "driver-apply-gap": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "docs/DRIVER.md",
+        "test/driver_simulation.cc",
+        "test/driver_test.cc",
+        "test/driver_apply_test.cc",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "consensus-close-fenced"
+      ],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "consensus: a Driver voter's apply index passes entries its application never received",
+      "updated": "2026-11-18T12:58:19"
+    },
     "driver-pipeline": {
       "accepted": {},
       "after": [
