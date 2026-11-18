@@ -5346,9 +5346,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T20:05:31",
+      "updated": "2026-11-17T20:46:07",
       "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
