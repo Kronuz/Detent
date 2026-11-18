@@ -5264,6 +5264,8 @@
     "journal-faultfs": {
       "accepted": {},
       "after": [],
+      "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+      "branch": "quest/detent/journal-faultfs",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
@@ -5299,6 +5301,7 @@
         "ARCHITECTURE.md",
         "docs/**"
       ],
+      "journal": "../Detent-wt/detent/journal-faultfs",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5306,9 +5309,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
-      "updated": "2026-11-18T01:58:33"
+      "updated": "2026-11-18T01:58:37",
+      "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-host-guards": {
       "accepted": {
