@@ -1,12 +1,29 @@
 # transport-feed-scan: journal
 
-State: waiting on jobs 261117-233251-a73ce6 (A1 scan) 261117-233257-f99fdf (A3 order) 261117-233302-80ef1e
-(A3 TSan) 261117-233313-240b25 (A5) 261117-233330-eb4940 (A3 identity) 261117-233339-7f5dbb (A4 suite)
-261117-233356-4b73fc (A6 x100 4-way) at consensus:13b32d3, and 261117-224140-de7732 (store-keeps-opens mutant).
-A2 passed at 13b32d3; CI 44259723702 green on every platform at 13b32d3. A6 blocked: cause not named.
+State: fix round 1 (review CHANGES at 5eacc91) at consensus:48d04eb, pushed; waiting on jobs (see Fix round 1).
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
-## Doing
+## Fix round 1 (session 4)
+
+Review .campaign/detent/reviews/transport-feed-scan-correctness.md. Lead msg: every job at 13b32d3
+passed (TSan 80ef1e, A2 49251f, A5 240b25, A3 eb4940, suite 7f5dbb, A6 x100 4b73fc).
+- F1: consensus:48d04eb. A batch's credit is a vector (a run of one group coalesced), not a
+  GroupTable per batch; the connection loop owes it in `Lane::owed` (24 B `Owed`, own FIFO
+  `owing`), so no `Active` is built for receiving. Strict A/B rerun of 0701eb: 261117-235520-8aad49.
+- F2: killed at 13b32d3: 261117-224140-de7732 aborts on identity's new step assertion
+  (groups_test.cc:1234, `closed_again && !received(ok, "epoch3")`: "refused NO, delivered 20 of
+  20"). At 48d04eb: 261117-235623-f9fa6f.
+- F3: new case `reconnect` (RawPeer, shared with `leftover`): open on connection 1, end it, frame
+  on connection 2 without the open must be `unopened` and closed back. Mutants added:
+  no-generation-clear 261117-235604-889a1c, no-current 261117-235613-498ed0. Plain:
+  reconnect 261117-235543-7b173e, leftover 261117-235554-891b65.
+- F5: `opening` returns before the erase when `!current` (48d04eb).
+- F4: perf doc A1 rewritten from the A5 job at head (pending 261117-235521-9c2259).
+- Reruns at 48d04eb: A1 scan -384fb5, main-feed -235757-353ffb; A2 -9b423b; A3 order -f1332a,
+  identity -6e0053, TSan -fe8742, mutants -a4c728 -fa1840 -c5f364 -ba7ee1 -6bde5e -5cf7c7 -eb0aef;
+  A5 -9c2259; suite 261117-235803-43b723.
+
+## Doing (sessions 1-3)
 
 Code at consensus:01e2c06 (main merged at d722e7b; credit wait, `uncredited`, bound `164 + 52P`).
 Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded by these, submitted by
@@ -197,6 +214,13 @@ open the host already has: an idle group's record goes from 104 B to 24 B, which
 under D108's 64 B. It changes the `store` contract and Detent's call sites. The lead deferred it.
 
 ## Rulings I made
+
+- R7 (F3) no-current is an equivalent mutant today: every connection of a (node, lane) lives on
+  one loop, whose batches post in order, and a host's connection drains only at the peer's
+  `close_notify`, after which it reads nothing (HostTransport never calls `Links::retire`). So no
+  older-generation batch reaches a group loop after a newer one; `current` stays as the guard.
+  F9's "a draining older connection can still read" does not hold for this transport; the
+  mechanism doc says why.
 
 - R1 Within-contract A5: the field-by-field route the quest allows; the open stays in the transport.
 - R2 Round robin in first-ready order (FIFO rings) instead of group-id order.
