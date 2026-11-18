@@ -1,6 +1,6 @@
 # faultfs-collect-linear: journal
 
-State: ready for review (A4's faultlab-quest jobs 261118-093254-b211a1, 261118-093255-5aec56, 261118-093256-dcbd77 still queued)
+State: fixing F1-F3 (review round 1 at faultlab:a3b71d1); waiting on jobs listed under Evidence
 Quest: .campaign/detent/quests/faultfs-collect-linear.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,9 +25,33 @@ and collect at the top. So faultlab:28c0396 counts references:
 
 Docs: docs/mechanisms/crash-model.md (faultlab:5f4d104).
 
+## Review round 1 (reviews/faultfs-collect-linear-correctness.md, CHANGES)
+
+- F1 fixed at faultlab:fcbe2a9: apply()'s replace is a no-op when source equals destination, in
+  settling and in crash replay. Case "a self-replace stays durable across an ordering point and its
+  directory's sync". The reviewer's trace diff (my copy: faultlab worktree
+  `.scratch/trace-oracle/trace_diff.sh`) now compares against the old faultfs.h patched with the
+  same one-line fix, which must agree byte for byte on all 600 seeds. It also compares against the
+  unpatched old header: each seed that differs must show a self-replace before its first
+  difference, because the fix changes the old crash path's replay too (ruling R6).
+- F2 introduced by this change, not pre-existing: 261118-094623-6dee9e at 5f4d104 shows the old
+  faultfs.h "NEW" and the new one "old". Baseline job 261118-100306-83c3ca runs the same probe at
+  main adc4fc2. Fixed at fcbe2a9: stage() lists an inode staged after its point settled in
+  `strays_`, the next settle_directory settles them in O(strays), and a crash or a settled point
+  clears them. The copy and the move carry them. Case "an ordering point settled before its file
+  stages: the next sync_directory settles the file".
+- F3: added the property half to faultfs_test: 200 seeds x 250 random ops with the counts checks on
+  (case "random operations keep every count and each synced directory's names"). It fails without
+  F1's fix (job f99fe2). Turning FAULTLAB_CHECK_COUNTS on for the other FAULTLAB_TESTS targets needs
+  CMakeLists.txt, outside this file set: one `target_compile_definitions(... FAULTLAB_CHECK_COUNTS=1)`
+  per test target. Left for the lead.
+- F4: R5 corrected below.
+- F5 (nit, optional): not taken.
+
 ## Next
 
-1. Review. When the A4 jobs finish, check each log's `faultlab built:` commit is 5f4d104.
+1. When the jobs finish, fill the Evidence table. Check the A4 logs' `faultlab built:` commit
+   (fcbe2a9; a3b71d1 changes only docs).
 
 ## Blocked on
 
@@ -47,6 +71,31 @@ Earlier design (faultlab:ce3b6b6, one gather per call), superseded:
 - The old cubic collect failed the 2x gate at 9429 / 177601 ns (f98716).
 - reopen_heap finished in 51.90 s with 248.469 B per group before settle and 248.452 B after (66f9b2).
 - reopen_distinct and reopen_churn were cancelled for this redesign.
+
+Round 1 jobs. Run at fcbe2a9 unless noted; a3b71d1 changes only docs.
+
+| Job | What |
+|---|---|
+| 261118-100354-0b4a4b | suite at a3b71d1 (campaign verify) |
+| 261118-100312-e036a3 | suite rerun at fcbe2a9 |
+| 261118-100249-d31056 | F1 case passes |
+| 261118-100250-ab97bb | F1 case fails without the fix (mutant selfreplace) |
+| 261118-100252-f99fe2 | random-ops case fails without F1's fix |
+| 261118-100253-64a86e | F2 case passes |
+| 261118-100254-d58e49 | F2 case fails without the strays settle (mutant strays) |
+| 261118-100256-afaa01 | random-ops property case passes |
+| 261118-100257-47f46c | trace diff, 600 seeds x 250 |
+| 261118-100259-7ca44a | reviewer's reentrant probe at the fix |
+| 261118-100306-83c3ca | reviewer's reentrant probe at main adc4fc2 |
+| 261118-100313-d0a14e | A2 by-value case |
+| 261118-100315-5c543c, 261118-100316-19d609 | A2 mutants (durable, log) |
+| 261118-100319-9bf4ae | A3 publish cost |
+| 261118-100320-f185fe, 261118-100321-77c241 | A3 mutants (recount, old scans) |
+| 261118-100322-ca61d8, 261118-100323-9b1fea, 261118-100324-bf771a | A4 distinct, heap, churn |
+
+F1=<pending: 261118-100249-d31056 + 261118-100250-ab97bb + 261118-100257-47f46c>
+
+Before round 1 (at 5f4d104):
 
 | Criterion | Evidence |
 |---|---|
@@ -75,4 +124,12 @@ Pending.
   while an ordering point exists, and settle_staged() settles all of them and clears the points.
   check_counts asserts that no inode is staged when there are no ordering points.
 - R5 settle_staged (ordering points) and crash recount everything. Both already walk every inode,
-  and journal does not use ordering points.
+  as the old settle did, so the order of cost is unchanged. journal does take ordering points
+  (turn_log.h:439, `order_files_and_directory({})`; review F4), so each of its points makes the
+  next sync recount; A4's runs measure that cost and do not depend on journal avoiding points.
+- R6 The trace-diff gate compares against the old faultfs.h plus the same self-replace fix. The
+  old apply() bug also dropped a self-replaced name in crash replay, so exact agreement with the
+  unpatched header would require keeping the bug. Against the unpatched header the job requires that
+  every differing seed show a self-replace before its first difference.
+- R7 F2 fix: a set of stray inode ids (`strays_`), not an inode walk, so settle_directory stays
+  O(touched + strays). A stray keeps its epoch number, as in the old model.
