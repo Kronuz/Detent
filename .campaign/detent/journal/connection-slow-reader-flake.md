@@ -1,6 +1,6 @@
 # connection-slow-reader-flake: journal
 
-State: investigating cause 2's recurrence (34479e: 4 of 60 at line 740) and the mutants build failure; probes 261117-205747-39c311 (write-burst trace x60) and 261117-205630-775f61 (first mutant's build.log)
+State: waiting on jobs 261117-205747-39c311 261117-205630-775f61 (probes, queued: machine full of light holds)
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -14,6 +14,14 @@ Round 3 (session 2), at 8e3b053 (origin/main merged) and 3d2685e (trace):
 - Trace 3d2685e: every run prints the write bursts (gaps are the writer's waits) and the reader's
   SO_RCVBUF at accept and end; hypothesis under test: the reader's buffer grows past 512 KiB, so
   the writer never waits dead_after.
+- Mutants: eb211c (transport-idle-cost, "passed") configured without `-G Ninja`: 57 tests, and
+  CMakeLists registers consensus_mutants only under Ninja. It never ran mutants, so it is no
+  baseline. Probe 775f61 (fresh checkout at 8e3b053) runs the first mutant's compile as
+  tools/mutants.sh does and prints its build.log; if it fails there, it is main's (this branch
+  touches only connection_test.cc), and a job at origin/main shows it.
+
+Next on resume: read 39c311's bursts for passing vs failing runs; read 775f61's build.log; then
+fix cause 2 (with a forcing at 17e1a34), job at origin/main for mutants, suite, x200, CI.
 
 Round 1 (consensus 51601dd, forcing knobs): 4c4173 forced cause 1, 3 of 3 failed at line 724
 (0 of 64, dialer 2, acceptor 3, 449-459 ms, stalled 3-4 ms, held 0-2 ms: the CI signature).
