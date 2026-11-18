@@ -1,6 +1,6 @@
 # transport-idle-budget: journal
 
-State: waiting on jobs 261118-073615-da90ae 261118-074432-acdca6
+State: waiting on jobs 261118-075717-797949 261118-075718-7593b8 261118-075719-d29c58
 Quest: .campaign/detent/quests/transport-idle-budget.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,25 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 diagnosis. The fit's loops=4 slope is 49156-49160 B against a 49152 B (48 KB) cap: a few
-bytes over, so anything that moves per-end bytes by >0.01% flips it. Spec diff f0eff6 (pass) vs
-1fb596 (fail): pass built `-DCMAKE_BUILD_TYPE=Release` (Makefiles, slot build); fail built with no
-build type (Ninja, fresh `build-idle`). Both compiled against /usr/local/include/openssl (4.1).
-Connections live on loop_of_node(peer), so at L=4 the loops touched grow with P (1, 2, up to 4):
-per-thread state (OpenSSL thread-locals, Asio's per-thread recycler) lands in the slope.
-Probe 261118-073615-da90ae (at main 5923b6c): Release vs no build type, Ninja, fresh, x3 each.
-Candidate fix consensus:d2eeb0d (bench only): draw RAND_bytes/RAND_priv_bytes on every loop after
-open, before s1, so each loop's thread-local DRBGs count in the host intercept. Probe
-261118-074432-acdca6: same A/B at d2eeb0d, printing per-end OpenSSL/C++ at L=1 vs L=4.
+Head consensus:33f8540 (pushed; CI run 44341580130). Jobs: 797949 (fits at head, Release vs
+none, x3), 7593b8 (A2 mutant, both builds, --fails-without), d29c58 (A3 suite).
 
 ## Next
 
-1. Read 261118-073615-da90ae (does build type flip it?) and 261118-074432-acdca6 (does the
-   DRBG warm-up bring L=4 per-end OpenSSL back to L=1's, ~45.1 KB?). If C++ per end still sits
-   ~500 B higher at L=4, that is Asio's per-thread recycler; decide whether to warm it too.
-2. A2 mutant: perl-insert `[[maybe_unused]] char mutant_pad_[4096] = {};` after `class Connection {`
-   in include/consensus/transport/connection.h, run transport_idle, `--fails-without --for A2`.
-3. A3: `campaign verify transport-idle-budget --for A3`, push, CI.
+1. Read the three jobs; write the slopes before/after in docs/perf/transport-idle-cost.md; fill
+   Evidence; check CI 44341580130; push; State "ready for review".
 
 ## Blocked on
 
@@ -41,7 +29,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 [manual] | Cause: the loops=4 slope sits 2-8 B over the 48 KB cap (49,152 B), and the build type tips it. Job 261118-073615-da90ae at main consensus:5923b6c: Release passes 3/3 (the f0eff6 suite built Release), no build type fails 3/3 with slope 49,154 B (1fb596 and e7e9cf built without one). Both link OpenSSL 4.1.0. The slope carries each loop's OpenSSL thread-local DRBGs: connections sit on loop_of_node(peer), so at L=4 the loops running TLS grow with P. Job 261118-074432-acdca6 at consensus:d2eeb0d (DRBGs drawn per loop first): passes 3/3 in both builds, L=4 slope 46,735 B. |
 
 ## Result
 
@@ -52,5 +40,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 - Docs go under docs/perf/transport-idle* only (lead, mid-task).
-- Per-thread OpenSSL state is a per-loop host cost, counted like the timer wheels already are:
-  in the host, not per connection end.
+- Per-thread OpenSSL state is a per-loop cost, set apart and printed per loop like the timer
+  wheels (consensus:33f8540), not counted per host: counting it per host (d2eeb0d) charges all 4
+  loops' DRBGs, about 30 KB, and puts L=4 hosts 11-26% over 52 KB + 2P x 44 KB, failing the full
+  (non --quick) mode's 10% check that passed at 108-109% on main.
