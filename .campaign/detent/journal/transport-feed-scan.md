@@ -1,9 +1,8 @@
 # transport-feed-scan: journal
 
-State: waiting on jobs 261117-205619-b7decf 261117-205624-60f65d
-261117-205629-2d0bb7 261117-205635-ba674d 261117-205640-4bcb97 261117-205644-19bf1a 261117-205650-ca8493
+State: waiting on jobs 261117-205640-4bcb97 261117-205644-19bf1a 261117-205650-ca8493
 261117-205655-0e4768 261117-205701-055b4c 261117-205706-359ac3 261117-205712-090779 261117-205717-1de5e8
-261117-205722-8d9231 261117-205726-286944 261117-205742-5a313f 261117-205819-0701eb; CI needs a push of
+261117-205722-8d9231 261117-205726-286944 261117-205742-5a313f; CI needs a push of
 consensus:quest/detent/transport-feed-scan at 4c7666a (contributors do not push). Done: A1 scan,
 A3 order, A2 (3 of 3). After A5's job: the perf doc's per-group table, then `campaign verify` at the
 final head (the queued suite 261117-205742-5a313f is at 01e2c06; docs commits since).
@@ -130,9 +129,9 @@ both change a contract, so they are the lead's (see Blocked on).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-205609-750069: `scan` 0.750 groups visited per frame at 100, 1,000 and 10,000 groups; fails-without at main-feed 261117-205619-b7decf pending |
+| A1 | 261117-205609-750069: `scan` 0.750 groups visited per frame at 100, 1,000 and 10,000 groups; fails-without at main-feed 261117-205619-b7decf: 28.5, 255.2, 2,529.1 visited per frame (asserts) |
 | A2 | 261117-205722-8d9231 (strict, 01e2c06): 3 of 3, 0 connections ended, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 363-438 ms after |
-| A3 | 261117-205614-ddf195: `order` passes; mutants and TSan 261117-205717-1de5e8 pending |
+| A3 | 261117-205614-ddf195: `order` passes; ring-at-front -205624-60f65d, bulk-ahead-of-control -205629-2d0bb7, no-credit -205635-ba674d fail `order` on its asserts; other mutants and TSan 261117-205717-1de5e8 pending. Hop smoke A/B -205819-0701eb passed |
 | A4 | <no evidence yet> |
 | A5 | <no evidence yet> |
 
