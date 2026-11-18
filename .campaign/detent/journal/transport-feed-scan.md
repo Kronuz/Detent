@@ -58,7 +58,7 @@ Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded 
   in the run while host 2's loops stay responsive (they drain in 6-81 ms at stop), and once host 1's
   writer waited out dead_after (5.8 s drain). So either host 2's reader sat parked with bytes in its
   socket (a lost read wakeup: product, connection.h) or loopback TCP stopped delivering (the runner's
-  kernel). The samples tell these apart (unread vs sndq, rxbytes, rexmit); no failure since to read.
+  kernel). The samples tell these apart (receiver unread vs sender sndq, windows, RTO, rexmit); no failure since to read.
 - CI at b686ce2 (44257887335): linux-tsan connection_test read_slowly line 693
   (connection-slow-reader-flake's) and linux-x86_64-clang consensus_transport_peers
   (peers-retry-flake's); neither in this file set. macos-x86_64 green.
@@ -168,11 +168,9 @@ both change a contract, so they are the lead's (see Blocked on).
   (e.g. rerun on a wire stall), which I have not made: it would guess. The x100 job
   261117-233356-4b73fc shows the case at head under 4-way load here, not a fix.
 
-- (lead) CI: push consensus:quest/detent/transport-feed-scan (01e2c06 or later).
-
 - msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
   (only that line changed) and the mutants are in mutant_commit.py.
-- Nothing. A5 takes the field-by-field route (lead: 104 B + 24 B per peer meets it).
+- A5 takes the field-by-field route (lead: 104 B + 24 B per peer meets it).
 
 ## Evidence
 
