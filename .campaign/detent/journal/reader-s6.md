@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs: every job in the home `.scratch/reader-s6-moved.txt` not kept, plus plain c435d5 d779ed 701d0a and A7 5046f5, cancelled and rerun at the commit that records this State (A14 fix); probe of `test_reader_switch capacity` there; msg-1 0f6566 f07232 stay at their commits. Ids: `campaign status reader-s6`.
+State: waiting on jobs: every job in the home `.scratch/reader-s6-moved.txt` not kept, plus plain c435d5 d779ed 701d0a and A7 5046f5, cancelled and rerun at the commit that records this State (A14 fix); probe of `test_reader_switch capacity` there; msg-1 before 318fd2 (`Detent:b1d281c`) and after 63e21d (head). Ids: `campaign status reader-s6`.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -97,6 +97,12 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 Pending.
 
 ## Rulings I made
+
+- msg-1: f07232 aborted because `--generate 100000` writes 200K knobs and `parse_defaults` caps a
+  defaults file at `kDefaultMaxKnobs` = 100,000. That holds at both `Detent:b1d281c` and the head,
+  so the before arm (0f6566) would fail too, and a bench fix at the head can't reach it. Both arms
+  now run `--generate 50000` (100K knobs, the cap): before 318fd2, after 63e21d, exclusive, 10 min.
+  The head is unchanged.
 
 - A14: the ledger stress publishes into a fresh store instead of raising the writer's disk limit
   (`src/detent_testing`, outside the file set). Running soak rounds at `Detent:64d8e34` were
