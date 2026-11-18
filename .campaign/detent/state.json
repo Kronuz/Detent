@@ -1855,7 +1855,8 @@
         "consensus-close-fenced",
         "consensus-dns-threads",
         "consensus-worker-release",
-        "peers-tsan-timeout"
+        "peers-tsan-timeout",
+        "driver-apply-gap"
       ],
       "checks": [
         {
@@ -1892,7 +1893,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-18T12:52:52"
+      "updated": "2026-11-18T12:58:30"
     },
     "consensus-fetch-lane": {
       "accepted": {
