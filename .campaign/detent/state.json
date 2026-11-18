@@ -3859,6 +3859,52 @@
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
       "updated": "2026-11-10T11:59:38"
     },
+    "driver-pipeline": {
+      "accepted": {},
+      "after": [
+        "consensus-worker-release",
+        "consensus-close-fenced"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/driver.h",
+        "include/consensus/core.h",
+        "include/consensus/options.h",
+        "test/driver_pipeline_test.cc",
+        "test/driver_simulation.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "docs/DRIVER.md",
+        "docs/perf/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: driver groups pipeline proposals",
+      "updated": "2026-11-18T04:03:10"
+    },
     "drivers-completion-seam": {
       "accepted": {
         "correctness": {
