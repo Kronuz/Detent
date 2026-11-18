@@ -435,6 +435,13 @@
       "closed": "granted turn_log.h and turn_driver.h",
       "id": "msg-69",
       "text": "journal-reopen-closed re A4b: release needs include/journal/turn_log.h and include/journal/turn_driver.h in my file set (neither is journal-faultfs's). Plan: (1) TurnLog::park(group) replaces the group's index_ map (map node + ~80 B per live record) and sequences_ node with one compact entry in a flat sorted vector: {group, last sequence, packed (segment,offset) per live record, epoch kept per segment}; live_counts_ unchanged so retention keeps every durable record, and forward_slice forwards parked records too (updating the packed position). (2) TurnLog::live(group) reads a parked group's records back by position (framing::read_record, as forward_slice does), O(live records), no scan; recover_shared rebuilds index_/sequences_ from it exactly. (3) TurnDriver::release/park wraps it and drops retired_/refused_ leftovers. (4) Host::release(group) runs when the id's hold ends with nothing staged: erases opened_ (status reads the log's parked set instead). Shard nodes: dropping a GroupEntry needs the table paged from disk (commit() rewrites a shard from memory, so a dropped node would be erased on disk): that is a table redesign; I propose keeping the entry (~100-150 B for an open entry, manifest empty) and reporting it in the heap number, unless you want the paged table in this quest. Hold rule (A2) is done in host.h/journal.h this turn."
+    },
+    {
+      "at": "2026-11-18T02:20:42",
+      "by": "journal-reopen-closed",
+      "closed": "ruled: after journal-faultfs lands, host_test.cc joins journal-reopen-closed's set for second_recovery()",
+      "id": "msg-70",
+      "text": "journal-reopen-closed: thanks for msg-69. One more conflict: test/host_test.cc second_recovery() asserts the old guard (a second recovery of a released id throws Corruption). With release+rebuild it succeeds instead, so that case must change to assert the new rule (recover rebuilds the latest state in the live Host; a recover while the first Store is live is busy). host_test.cc is journal-faultfs's. Options: (a) give me host_test.cc for that one function; (b) journal-faultfs rewrites it; (c) I leave it and the suite is red until one of us does. Recommend (a), a ~15-line edit confined to second_recovery()."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
