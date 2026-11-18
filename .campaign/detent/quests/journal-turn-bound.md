@@ -17,7 +17,7 @@ job can show it.
 - A1 A wave of pending records larger than one segment commits across several turns, every record durable and in order: a test, failing at main with "turn exceeds a segment" (`--fails-without`).
 - A2 A single record larger than a segment fails only its own operation; the driver stays healthy and later records commit: a test.
 - A3 The crash-point suites keep their outcomes, including a crash between two turns of one wave: the suite and a crash-model case.
-- A4 consensus-wave-open's 64-at-once probe passes against this branch: a job pinning this commit.
+- A4 [manual] consensus-wave-open's 64-at-once probe passes against this branch: the lead reads the consensus job pinning this commit (it runs in consensus, so it cannot be a journal job).
 - A5 The suite passes, plus CI.
 
 ## Contracts
