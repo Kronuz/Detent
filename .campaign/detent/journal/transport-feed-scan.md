@@ -1,8 +1,9 @@
 # transport-feed-scan: journal
 
-State: waiting on jobs 261117-233251-a73ce6 261117-233257-f99fdf 261117-233302-80ef1e 261117-233307-49251f
-261117-233313-240b25 261117-233330-eb4940 261117-233339-7f5dbb 261117-233356-4b73fc 261117-224140-de7732, all at
-consensus:13b32d3 (main merged) but the last (mutant). A6 blocked: cause not named (see Session 3).
+State: waiting on jobs 261117-233251-a73ce6 (A1 scan) 261117-233257-f99fdf (A3 order) 261117-233302-80ef1e
+(A3 TSan) 261117-233313-240b25 (A5) 261117-233330-eb4940 (A3 identity) 261117-233339-7f5dbb (A4 suite)
+261117-233356-4b73fc (A6 x100 4-way) at consensus:13b32d3, and 261117-224140-de7732 (store-keeps-opens mutant).
+A2 passed at 13b32d3; CI 44259723702 green on every platform at 13b32d3. A6 blocked: cause not named.
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
@@ -177,7 +178,7 @@ both change a contract, so they are the lead's (see Blocked on).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261117-205609-750069: `scan` 0.750 groups visited per frame at 100, 1,000 and 10,000 groups; fails-without at main-feed 261117-205619-b7decf: 28.5, 255.2, 2,529.1 visited per frame (asserts) |
-| A2 | 261117-205722-8d9231 (strict, 01e2c06): 3 of 3, 0 connections ended, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 363-438 ms after |
+| A2 | 261117-233307-49251f (strict, 13b32d3): 3 of 3, 400,040 of 400,040 frames, 0 dropped, 298.2 B a group (stored 127.8, frames 170.5), credit back 290-371 ms after |
 | A3 | 261117-205614-ddf195: `order` passes; ring-at-front -205624-60f65d, bulk-ahead-of-control -205629-2d0bb7, no-credit -205635-ba674d fail `order` on its asserts; other mutants and TSan 261117-205717-1de5e8 pending. Hop smoke A/B -205819-0701eb passed |
 | A4 | <no evidence yet> |
 | A5 | <no evidence yet> |
