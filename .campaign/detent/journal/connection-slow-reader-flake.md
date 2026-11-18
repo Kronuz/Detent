@@ -1,38 +1,36 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261117-191526-4c4173 261117-191531-207149 261117-191542-f6a66f 261117-191548-149085
+State: waiting on jobs 261117-193124-55466b 261117-193135-876ce5 261117-193147-f52a2f 261117-193157-0c344d 261117-193207-1d47a2 261117-193218-d85e3b 261117-193228-0a9502
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
 
-Round 1 at consensus-wt `51601dd` (forcing knobs in test/transport/connection_test.cc, pushed to
-origin quest/detent/connection-slow-reader-flake for CI). Jobs:
-- 4c4173 A1 forcing of cause 1 (READ_SLOWLY_BUILD_MS=400, expect 3 of 3 failures at this commit).
-- 207149 coarse_writer x24 at 4-way, now printing sndbuf, lowat and queue left.
-- 084643 groups_upload x16: cancelled, out of scope (lead's message below).
-- f6a66f coarse_writer COARSE_WRITER_SNDBUF=512 KiB x3 (forces cause 2 if it is a short drain).
-- 149085 coarse_writer COARSE_WRITER_SHRINK=1 MiB x3 (forces cause 3 if it is a mark above the buffer).
+Round 1 (consensus 51601dd, forcing knobs): 4c4173 forced cause 1, 3 of 3 failed at line 724
+(0 of 64, dialer 2, acceptor 3, 449-459 ms, stalled 3-4 ms, held 0-2 ms: the CI signature).
+207149 coarse_writer x24 at 4-way on this Intel Mac passed 24 of 24: sndbuf 1584204, lowat 1572864,
+1 expiry each, 6.3 s. So this Mac does not show causes 2 and 3; the CI runner's kernel differs.
+f6a66f and 149085 never ran their cases (xargs -I limit); resubmitted below.
 
-## Causes, from the CI logs (runs 44166915224, 44184143126, 44192856154, 44216299768, 44224758109)
+## Causes (all test-side; no product cause, A3)
 
-1. slow_reader "0 of 64 frames, dialer 2 (failed), acceptor 3 (dead), stalled 1-60 ms, held 0-20 ms",
-   at 316-485 ms, line 693 (linux-tsan, macos-x86_64; 614 is the same assert before the held rule).
-   Hypothesis H1: `l1.call` builds 64 x 512 KiB strings and appends 32 MiB to out_ on the dialer's own
-   loop; slow under TSan and on a loaded Mac, it holds that loop past dead_after, so the dialer sends
-   neither data nor keepalives and the acceptor, whose dead timer runs from its run(), ends dead. The
-   host did not stall (stall_watch and drain_watch see nothing); the test starved its own writer.
-   Test, not product. Fix: queue the frames before either run() starts.
-2. coarse_writer 688 (44216299768, macos-x86_64): 48 of 48 frames, closed, but 0 write waits expired
-   with the queue drained although the mark took. Hypothesis: the effective drain time is under
-   dead_after on that host (a smaller effective buffer), so no wait reaches dead_after. Unconfirmed.
-3. coarse_writer 693 (44224758109, macos-x86_64): 13 of 48, dialer 2, acceptor 3, queue held 2 ms,
-   5057 ms, 0 expiries: the writer waited dead_after with an empty queue and was never woken, so the
-   stuck rule ended it. Hypothesis: the mark above the buffer (never writable). Unconfirmed; if the
-   wake is lost with a coarse mark that the product never sets, that is still the test's fixture.
-4. OUT OF SCOPE (lead): groups_upload fails on macos-x86_64 in 44130104547, 44214025598 and 44216299768 (not in
-   44224758109, which failed in connection): nothing or little delivered for 3-4 s on the shared
-   connection ("0.0 MiB, longest gap 4044 ms"), then stop() takes 2-6 s. The test is
-   test/transport/groups_test.cc `upload`, outside this quest's file set (`groups_upload*`).
+1. slow_reader 0 of 64 (693/614): the test built the 32 MiB backlog on the dialer's loop after both
+   run() had started; slow under TSan and on a loaded Mac, it held that loop, so the dialer sent no data
+   or keepalive for dead_after and the reader's dead timer ended dead. Forced: READ_SLOWLY_BUILD_MS=400.
+   Fix: queue the backlog and close() before either end runs (72bd52f).
+2. coarse_writer 688 (macos-x86_64): 48 of 48 but 0 expiries. The case assumed a 1.5 MiB buffer; a
+   smaller one drains in under dead_after, so no wait expires. Forced: COARSE_WRITER_SNDBUF=524288.
+   Fix: size pace (max(125 ms, 1.5 dead_after / mark bytes)) and frame count from the connected
+   socket's SO_SNDBUF and mark. Inferred from the CI line, not seen on this Mac.
+3. coarse_writer 693 (macos-x86_64): 13 of 48, dialer failed, acceptor dead, queue 2 ms: the mark
+   (set before connect) above the buffer the kernel gave, so the socket is never writable and the stuck
+   rule ends a writer waiting on an empty queue. Forced: COARSE_WRITER_SHRINK=1048576. Fix: set the
+   mark to SO_SNDBUF - 16 KiB after connect. Inferred; the 13 frames fit a ~0.9 MiB first burst.
+
+Round 2 at 72bd52f (fix) and 51601dd (main): 55466b, 876ce5 (A1 at main: 512 KiB and shrink, 3 of 3
+fail expected), f52a2f, 0c344d, 1d47a2 (A1 at fix: slow_reader, 512 KiB, shrink: 0 of 3 fail),
+d85e3b (A2: connection x200 at 4-way), 0a9502 (suite at head).
+CI: pushed 72bd52f to origin quest/detent/connection-slow-reader-flake; macos-x86_64 is where 2 and 3
+confirm.
 
 ## Lead's message (no id listed): groups_upload is out of the quest
 
@@ -42,10 +40,9 @@ no edit to groups_test.cc, cause 4 left to the follow-up. Carrying on with cause
 
 ## Next
 
-1. Read the five jobs; confirm or drop each hypothesis; commit the fix for cause 1 and run it as a
-   job with the same forcing (expect pass), plus `--fails-without` where useful.
-2. Decide causes 2 and 3 from the printed sndbuf/lowat numbers and CI's macos-x86_64.
-3. Cause 4: none (out of scope).
+1. Read the round-2 jobs; if a main job passes (fails to fail), the forcing does not reproduce that cause: rework it.
+2. Read CI at 72bd52f (macos-x86_64, linux-tsan); confirm causes 2 and 3 or revise.
+3. Paste `campaign brief`'s Evidence table; State ready for review.
 
 ## Blocked on
 
