@@ -4894,7 +4894,8 @@
       ],
       "consumes": [],
       "files": [
-        "test/transport/groups_test.cc"
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/host-transport.md"
       ],
       "journal": "../Detent-wt/detent/groups-upload-stall",
       "landed": [],
@@ -4906,7 +4907,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
-      "updated": "2026-11-18T05:57:26",
+      "updated": "2026-11-18T11:52:39",
       "worktree": "../consensus-wt/detent/groups-upload-stall"
     },
     "hash-once": {
