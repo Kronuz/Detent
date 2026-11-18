@@ -154,8 +154,8 @@ Nothing.
 4. test_dns_voters names its scratch directory by pid, as test_multivoter does.
 5. One retry for a lost reply, `test_multivoter.settled()`, serves both multivoter and dns voters.
 6. A6 is fixed in the measurement, not the trigger: the probe refutes the trigger hypothesis.
-8. Causes 9 and 10 are fixed in the tests: neither is the product breaking a promise (pid
-   reuse of a crashed run's directory; Raft drops an unreplicated write of a deposed leader).
 7. Forcings and their runners live in tests/detent_system/forcing, the only directory in this quest's
    file set; the repository's convention for patches is tests/<area>/mutants/, which would need a
    wider set. The lead may move them.
+8. Causes 9 and 10 are fixed in the tests: neither is the product breaking a promise (pid
+   reuse of a crashed run's directory; Raft drops an unreplicated write of a deposed leader).
