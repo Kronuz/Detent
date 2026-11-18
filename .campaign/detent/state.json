@@ -2014,7 +2014,9 @@
         "test/driver_close_test.cc",
         "CMakeLists.txt",
         "CHANGELOG.md",
-        "docs/DRIVER.md"
+        "docs/DRIVER.md",
+        "include/consensus/driver.h",
+        "include/consensus/options.h"
       ],
       "landed": [],
       "lenses": [
@@ -2031,7 +2033,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-18T02:19:12"
+      "updated": "2026-11-18T04:35:53"
     },
     "container-selection": {
       "accepted": {},
