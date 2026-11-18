@@ -92,3 +92,13 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 - Forcing knobs are environment variables read by the test (`READ_SLOWLY_BUILD_MS`,
   `COARSE_WRITER_SNDBUF`, `COARSE_WRITER_SHRINK`); default off.
+
+## Lead's message (reader-yield-stall), answered
+
+Lead: cause 2 may be reader-yield-stall (reader parked 0.4-1.2 s at connection.h's yield, diag
+6f15b3). Check against 39c311; if it matches, cause 2 is that quest's, no test fix.
+Before the trace: it doesn't fit yet. A stalled reader drains slower, so write waits get longer
+and expiries more likely, but 34479e's failures had 0 expiries. Its held was 231-234 ms at most
+without draining, so the reader never stalled 0.4 s. The reader is on l2 and the writer's
+deadline on l1, so a reader stall can't trigger the writer's late extension either. 39c311
+decides it; A2 soak and the dump are kept.
