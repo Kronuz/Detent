@@ -5845,7 +5845,107 @@
       "worktree": ""
     },
     "journal-reopen-closed": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-18T07:21:06",
+          "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+          "blobs": {
+            "docs/mechanisms/group-lifetime.md": "100644:a6d0b0ca393df37d3c6e05421e0898a7e2761e3e",
+            "include/journal/host.h": "100644:841c4ead129a863ae55c0873693fc6f2827bad23",
+            "include/journal/journal.h": "100644:d3de4be90688b6ebab07ad4945e2c4c2d982b355",
+            "include/journal/turn_driver.h": "100644:48ecd3b4a8975ebe72c4d712d15e8a1e4d75922e",
+            "include/journal/turn_log.h": "100644:3f5212562301c3a623a512f58fe32c96b002ca32",
+            "test/host_test.cc": "100644:7c78ff64ea0b2cd7c4c60193b73eef2f71ad8c5e",
+            "test/journal_test.cc": "100644:8a7d1f07ab9ebb99fba2810f16966a84d749e23d"
+          },
+          "by": "review",
+          "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+          "criteria": "c451cdca3e13d629",
+          "diffs": {
+            "docs/mechanisms/group-lifetime.md": "2dc5de00d6284ff0",
+            "include/journal/host.h": "05e1a65e7a7a2942",
+            "include/journal/journal.h": "624b3b1b8730ce26",
+            "include/journal/turn_driver.h": "0647325d8541936c",
+            "include/journal/turn_log.h": "679465e2a9cb811b",
+            "test/host_test.cc": "d37ffa867e36a33d",
+            "test/journal_test.cc": "e89f19f5096c8195"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/journal-wt/detent/journal-reopen-closed/.scratch/jobs/tree.sh f1 -- journal_host_test failed_reopen",
+                  "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-064517-9372f4",
+                  "level": "light",
+                  "seconds": 63.4,
+                  "state": "done",
+                  "what": "F1: failed_reopen keeps the closed group"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/journal-wt/detent/journal-reopen-closed/.scratch/jobs/tree.sh f2tsan --flags -fsanitize=thread -- journal_journal_test reopen_distinct",
+                  "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-064531-67fae6",
+                  "level": "light",
+                  "seconds": 110.3,
+                  "state": "done",
+                  "what": "F2: journal_test under TSan builds without operator new; heap checks say skipped"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F3": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/journal-wt/detent/journal-reopen-closed/.scratch/jobs/tree.sh f3tsan --flags -fsanitize=thread -- journal_host_test loop_slots",
+                  "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-064522-d966b2",
+                  "level": "light",
+                  "seconds": 44.7,
+                  "state": "done",
+                  "what": "F3: loop_slots under TSan, no race"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F4": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/journal-wt/detent/journal-reopen-closed/.scratch/jobs/tree.sh f4 -- journal_journal_test reopen_refused",
+                  "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-064526-c0d03d",
+                  "level": "light",
+                  "seconds": 77.7,
+                  "state": "done",
+                  "what": "F4: reopen_refused appends after the refused Store"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "0580f5697b11a9417c7664d74e8e837d7e3f020c",
+          "reviewed": "d23c57bcf298779b932fadfc968efe4f47398a3f",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
       "branch": "quest/detent/journal-reopen-closed",
@@ -5885,7 +5985,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T06:22:10",
+      "updated": "2026-11-18T07:21:06",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
