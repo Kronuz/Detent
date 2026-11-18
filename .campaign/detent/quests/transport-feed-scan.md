@@ -13,6 +13,7 @@ host stores. At 10,000 idle groups a host stays responsive: no connection ends a
 - A3 Ordering and fairness hold: control before bulk, per-group credit, and round robin across ready groups, each tested with values, and TSan passes the groups tests: jobs
 - A4 The suite passes, plus CI
 - A5 An idle group costs at most 64 B in the host transport again (D112; 253-368 B after transport-identity), or the journal shows, field by field, identity's minimum per group and the idle bench meets it: idle-cost jobs at 1,000 groups.
+- A6 [artifact] groups_upload's failure prints socket samples when it fails (no fix without a cause; follow-up groups-upload-stall reads the next failure): `test/transport/groups_test.cc`
 
 ## Notes
 

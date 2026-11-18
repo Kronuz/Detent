@@ -407,6 +407,41 @@
       "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
       "id": "msg-65",
       "text": "xapiand:group-core started and builds against contract consensus:driver, which your transport-connection is changing"
+    },
+    {
+      "at": "2026-11-17T19:15:12",
+      "by": "transport-feed-scan",
+      "closed": "files added: CMakeLists.txt and test/transport/mutant_commit.py",
+      "id": "msg-66",
+      "text": "transport-feed-scan needs two files added to its file set: CMakeLists.txt (register new groups_test cases 'scan' and 'order' in the foreach at line 189) and test/transport/mutant_commit.py (the rewrite of feed/next/open_first removes the strings that mutants bulk-ahead-of-control, no-credit, no-reset-on-end, closed-ignored and open-once search for; they need new mutation points, and A1/A3's new mutants belong there). Until then I write mutant commits from a scratch copy of the script and run the new cases by name in jobs."
+    },
+    {
+      "at": "2026-11-17T19:56:55",
+      "by": "journal-turn-bound",
+      "closed": "CMakeLists.txt added; shared with journal-sync-seam, keep the edit to the test registration lines",
+      "id": "msg-67",
+      "text": "journal-turn-bound: test/CMakeLists.txt does not exist in journal; tests register in the root CMakeLists.txt (journal-sync-seam's file set). Registering test/turn_bound_test.cc needs a 4-line block there (add_executable/target_link_libraries/add_test/TIMEOUT), kept on its own lines after the turn_seal foreach so it does not touch the foreach line sync-seam may edit. Recommend: add CMakeLists.txt to journal-turn-bound's files. Until then I commit the block separately so it can be dropped."
+    },
+    {
+      "at": "2026-11-18T02:17:58",
+      "by": "journal-reopen-closed",
+      "closed": "ruled: option b; journal-reopen-closed A4b adds Host release for fenced and uncheckpointed Stores",
+      "id": "msg-68",
+      "text": "journal-reopen-closed (re msg from lead on close_group): confirmed, close_group already releases the id: Store::close -> Journal::close -> Host::close_group -> TurnDriver::forget clears the log's sequence, so holds() is false and recover reopens from the table in the live Host (shared_store_test cycle() does exactly this; I'm adding an explicit journal_test case). The guard bites only for ids never closed into the table: consensus's Driver (drops the Store) and every fenced Store (Store::close refuses a fenced Store; a fenced session has no checkpoint covering its batches, so close_group cannot take it without dropping durable batches). Fixing that needs one read: a released group's live records back from the turn log (TurnLog::index_ already holds each live record's segment/offset; forward_slice reads them the same way). REQUEST: add include/journal/turn_log.h to my file set for a TurnLog::live(group) reader (O(live records), no scan). Without it the only option is rescanning the loop's whole log per recover (TurnLog::read), which is wrong for Xapiand's churn. Meanwhile I'm doing the hold (the group view's owner lock = the id's hold, released when the old session fully ends, EWOULDBLOCK while held or while its records are staged) in host.h/journal.h, plus the close_group tests."
+    },
+    {
+      "at": "2026-11-18T02:19:49",
+      "by": "journal-reopen-closed",
+      "closed": "granted turn_log.h and turn_driver.h",
+      "id": "msg-69",
+      "text": "journal-reopen-closed re A4b: release needs include/journal/turn_log.h and include/journal/turn_driver.h in my file set (neither is journal-faultfs's). Plan: (1) TurnLog::park(group) replaces the group's index_ map (map node + ~80 B per live record) and sequences_ node with one compact entry in a flat sorted vector: {group, last sequence, packed (segment,offset) per live record, epoch kept per segment}; live_counts_ unchanged so retention keeps every durable record, and forward_slice forwards parked records too (updating the packed position). (2) TurnLog::live(group) reads a parked group's records back by position (framing::read_record, as forward_slice does), O(live records), no scan; recover_shared rebuilds index_/sequences_ from it exactly. (3) TurnDriver::release/park wraps it and drops retired_/refused_ leftovers. (4) Host::release(group) runs when the id's hold ends with nothing staged: erases opened_ (status reads the log's parked set instead). Shard nodes: dropping a GroupEntry needs the table paged from disk (commit() rewrites a shard from memory, so a dropped node would be erased on disk): that is a table redesign; I propose keeping the entry (~100-150 B for an open entry, manifest empty) and reporting it in the heap number, unless you want the paged table in this quest. Hold rule (A2) is done in host.h/journal.h this turn."
+    },
+    {
+      "at": "2026-11-18T02:20:42",
+      "by": "journal-reopen-closed",
+      "closed": "ruled: after journal-faultfs lands, host_test.cc joins journal-reopen-closed's set for second_recovery()",
+      "id": "msg-70",
+      "text": "journal-reopen-closed: thanks for msg-69. One more conflict: test/host_test.cc second_recovery() asserts the old guard (a second recovery of a released id throws Corruption). With release+rebuild it succeeds instead, so that case must change to assert the new rule (recover rebuilds the latest state in the live Host; a recover while the first Store is live is busy). host_test.cc is journal-faultfs's. Options: (a) give me host_test.cc for that one function; (b) journal-faultfs rewrites it; (c) I leave it and the suite is red until one of us does. Recommend (a), a ~15-line edit confined to second_recovery()."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -777,8 +812,87 @@
       "title": "The client library, per the JustKnobs spec milestones 1-9",
       "updated": "2026-11-08T15:38:10"
     },
-    "completion-sync-data": {
+    "completion-faultfs": {
       "accepted": {},
+      "after": [],
+      "base": "d8b538c6778f0a1b969e42c8428995d1d29d4731",
+      "branch": "quest/detent/completion-faultfs",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [
+        "faultlab:faultfs"
+      ],
+      "files": [
+        "test/sync_seam_test.cc",
+        "test/seam_support.h",
+        "test/sync_*_test.cc",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "journal": "",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "premise wrong: completion has no crash model (D95's wording was loose; Xapiand lead). faultlab's migration order (cpp-libraries docs/design/faultlab.md) starts Detent's part at journal's MemoryIO tests (step 5); journal-faultfs replaces this",
+      "repo": "/Users/kronuz/code/Kronuz/completion",
+      "risk": "normal",
+      "status": "dropped",
+      "title": "completion: the sync-seam crash model runs on faultlab's faultfs",
+      "updated": "2026-11-18T01:58:31",
+      "worktree": ""
+    },
+    "completion-sync-data": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T20:04:56",
+          "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:39a4da2c88911011b15ed22197131d46c240d89f",
+            "CHANGELOG.md": "100644:e3375c75c045bbad9c05ef125abf04637a3550b6",
+            "CMakeLists.txt": "100644:acef2512905bf93b096c88199004a7fe99e631dc",
+            "docs/mechanisms/completion-seam.md": "100644:09573f618053ccce2cbf247952bf7bae75e99b05",
+            "include/completion/io.h": "100644:21cb7b077696ae3a17608c8d12688b2c436b904c",
+            "include/completion/operation.h": "100644:cb18ed56beba10d354fc16d6086e60ebd18588f3",
+            "test/check_seam.py": "100644:44f86c5dbb53266d045c526471010a956c2e5d14",
+            "test/executor_direct_mutant.sh": "100755:c7cfc6b552ccd9dede8987498d09a3e1a5a05bd1",
+            "test/sync_seam_test.cc": "100644:2b2a0285541935ef41de8609f42191b272ab936d"
+          },
+          "by": "review",
+          "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "criteria": "7907e61b84141775",
+          "diffs": {
+            "ARCHITECTURE.md": "209563ac2b85d12d",
+            "CHANGELOG.md": "32c4ff94b2c04e49",
+            "CMakeLists.txt": "2947bdc090b53e73",
+            "docs/mechanisms/completion-seam.md": "f7e3af6c4b9320cb",
+            "include/completion/io.h": "e91fe4ee992ce551",
+            "include/completion/operation.h": "e1d861d4d36a2873",
+            "test/check_seam.py": "fef1a2dde4e9c292",
+            "test/executor_direct_mutant.sh": "6097b468b9b80e1c",
+            "test/sync_seam_test.cc": "96c76791f60d2df5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "a101fa022c6ef598c4bf82f1641f76f4c91734ab",
+          "reviewed": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
       "branch": "quest/detent/completion-sync-data",
@@ -802,11 +916,49 @@
         "test/**",
         "docs/**",
         "CMakeLists.txt",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/completion-sync-data",
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T20:05:45",
+          "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "criteria": {
+            "A1": "261117-194634-51b4f9",
+            "A2": "261117-194634-51b4f9; fails without: 261117-190045-644dbb, 261117-194643-ade55a",
+            "A3": "261117-194637-12c92c",
+            "A4": "261117-194634-51b4f9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-194634-51b4f9",
+              "level": "light",
+              "seconds": 179.8,
+              "state": "done",
+              "what": "completion-sync-data check suite at f4c19b1cf8c2"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "7731315d0660a953f7b3bf956df3127d5a525a03",
+          "reason": "",
+          "tested": "f4c19b1cf8c28973a5c0f5147134fd955546f210"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -814,10 +966,10 @@
       ],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T18:56:23",
-      "worktree": "../completion-wt/detent/completion-sync-data"
+      "updated": "2026-11-17T20:06:21",
+      "worktree": ""
     },
     "completion-sync-files": {
       "accepted": {},
@@ -917,6 +1069,45 @@
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
       "updated": "2026-11-17T19:03:54",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
+    },
+    "consensus-close-fenced": {
+      "accepted": {},
+      "after": [],
+      "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+      "branch": "quest/detent/consensus-close-fenced",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "test/driver_close_test.cc",
+        "CMakeLists.txt",
+        "docs/DRIVER.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-close-fenced",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
+      "updated": "2026-11-18T02:11:57",
+      "worktree": "../consensus-wt/detent/consensus-close-fenced"
     },
     "consensus-dns-peers": {
       "accepted": {
@@ -1080,6 +1271,49 @@
       "updated": "2026-11-11T09:22:24",
       "worktree": ""
     },
+    "consensus-dns-threads": {
+      "accepted": {},
+      "after": [
+        "consensus-close-fenced"
+      ],
+      "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+      "branch": "quest/detent/consensus-dns-threads",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/resolve.h",
+        "test/transport/resolve_test.cc",
+        "docs/mechanisms/peer-dns.md",
+        "test/transport/dns_mutants.sh"
+      ],
+      "journal": "../Detent-wt/detent/consensus-dns-threads",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "active",
+      "title": "Consensus: DNS lookups run on bounded, owned threads",
+      "updated": "2026-11-18T03:33:00",
+      "worktree": "../consensus-wt/detent/consensus-dns-threads"
+    },
     "consensus-driver": {
       "accepted": {
         "correctness": {
@@ -1170,7 +1404,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-driver",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T00:38:20",
@@ -1230,8 +1464,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-17T00:38:49",
-      "worktree": "../consensus-wt/detent/consensus-driver"
+      "updated": "2026-11-18T02:06:23",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
@@ -1659,7 +1893,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-transport",
+      "journal": "",
       "landed": [],
       "lenses": [
         "security",
@@ -1678,12 +1912,39 @@
       "risk": "high",
       "status": "dropped",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-17T19:03:01",
-      "worktree": "../consensus-wt/detent/consensus-transport"
+      "updated": "2026-11-18T02:06:40",
+      "worktree": ""
     },
     "consensus-wave-open": {
-      "accepted": {},
-      "after": [],
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T02:01:18",
+          "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+          "blobs": {
+            "CHANGELOG.md": "100644:5fd531597ec4ba939af414765b35ed0de0c0d151",
+            "CMakeLists.txt": "100644:4d6d72453a2f2bb1c39e4524e1a490a3eb69948e",
+            "test/wave_open_test.cc": "100644:be5ebaedb974766b26be9a920374329e6f528252"
+          },
+          "by": "review",
+          "commit": "58bf9cca7be986431bdfca486818f030abfd901f",
+          "criteria": "d0ec9118ab92b5c0",
+          "diffs": {
+            "CHANGELOG.md": "e4716eead23b13aa",
+            "CMakeLists.txt": "fc602d7a8cf8222b",
+            "test/wave_open_test.cc": "2bc51057fae7c648"
+          },
+          "findings": {},
+          "note": "",
+          "review": "10d89b42b254a1c94d6fd249784f72da06531c35",
+          "reviewed": "c20f3fd8cbd0b05d022acc253daabd2e2ca86967",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "journal-turn-bound"
+      ],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/consensus-wave-open",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -1707,6 +1968,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-wave-open",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1716,9 +1978,53 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-17T15:04:04"
+      "updated": "2026-11-18T02:01:18",
+      "worktree": "../consensus-wt/detent/consensus-wave-open"
+    },
+    "consensus-worker-release": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/store*.h",
+        "test/driver_close_test.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "docs/DRIVER.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [
+        "journal-reopen-closed",
+        "consensus-close-fenced",
+        "consensus-wave-open"
+      ],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: a closed row releases its journal group",
+      "updated": "2026-11-18T02:19:12"
     },
     "container-selection": {
       "accepted": {},
@@ -1779,6 +2085,9 @@
       "risk": "normal",
       "status": "blocked",
       "title": "Name the sender of the coordinator fixture's stray bytes",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-12T19:35:01"
     },
     "coordinator-idle-flake": {
@@ -2116,8 +2425,8 @@
       "risk": "normal",
       "status": "landed",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T13:58:16",
-      "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
+      "updated": "2026-11-18T02:09:22",
+      "worktree": ""
     },
     "delta-plan-scaling": {
       "accepted": {
@@ -2678,10 +2987,9 @@
         "namespace-s1-s2"
       ],
       "provides": [],
-      "reason": "Parked 2026-11-08 mid-merge as wip/dense-s2-parked (f7bf999, conflict markers kept); needs dense-pages and namespace-s1-s2 landed; the lead may fold it into dense-pages",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Grouped syncs for Dense pages publication",
       "updated": "2026-11-08T12:45:00"
     },
@@ -4018,6 +4326,40 @@
       "title": "Stage 6 component 1: bounded runner and native fleet tooling",
       "updated": "2026-11-08T15:38:24"
     },
+    "groups-upload-stall": {
+      "accepted": {},
+      "after": [
+        "transport-feed-scan"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
+      "updated": "2026-11-17T23:45:36"
+    },
     "hash-once": {
       "accepted": {},
       "after": [],
@@ -4164,6 +4506,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-2: shared HTTP clients and common TLS",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:06"
     },
     "http-coroutines": {
@@ -4996,7 +5341,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-driver",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-16T15:41:43",
@@ -5049,8 +5394,62 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
-      "updated": "2026-11-16T15:41:59",
-      "worktree": "../journal-wt/detent/journal-driver"
+      "updated": "2026-11-18T02:09:16",
+      "worktree": ""
+    },
+    "journal-faultfs": {
+      "accepted": {},
+      "after": [],
+      "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+      "branch": "quest/detent/journal-faultfs",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [
+        "faultlab:faultfs"
+      ],
+      "files": [
+        "test/driver_test.cc",
+        "test/framing_test.cc",
+        "test/host_test.cc",
+        "test/placement_test.cc",
+        "test/shared_store_test.cc",
+        "test/sync_seam_test.cc",
+        "test/turn_bound_test.cc",
+        "test/turn_log_power_test.cc",
+        "test/turn_seal_test.cc",
+        "test/fixtures/**",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "docs/MEASUREMENTS.md",
+        "docs/design/**"
+      ],
+      "journal": "../Detent-wt/detent/journal-faultfs",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "normal",
+      "status": "active",
+      "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
+      "updated": "2026-11-18T02:12:34",
+      "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-host-guards": {
       "accepted": {
@@ -5168,10 +5567,56 @@
       "updated": "2026-11-17T05:07:28",
       "worktree": ""
     },
+    "journal-reopen-closed": {
+      "accepted": {},
+      "after": [
+        "journal-faultfs"
+      ],
+      "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+      "branch": "quest/detent/journal-reopen-closed",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "test/journal_test.cc",
+        "docs/mechanisms/**",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h"
+      ],
+      "journal": "../Detent-wt/detent/journal-reopen-closed",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "active",
+      "title": "journal: a closed id recovers in the live Host",
+      "updated": "2026-11-18T02:21:08",
+      "worktree": "../journal-wt/detent/journal-reopen-closed"
+    },
     "journal-sync-seam": {
       "accepted": {},
       "after": [
-        "completion-sync-data"
+        "completion-sync-data",
+        "journal-turn-bound"
       ],
       "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
       "branch": "quest/detent/journal-sync-seam",
@@ -5191,26 +5636,191 @@
       ],
       "consumes": [],
       "files": [
-        "include/journal/**",
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "include/journal/primitives.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "include/journal/io*.h",
         "src/**",
-        "test/**",
-        "tests/**",
+        "test/sync_seam_test.cc",
         "docs/**",
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-sync-seam",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T00:52:30",
+          "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+          "criteria": {
+            "A1": "261118-002319-ef7067",
+            "A2": "261118-002316-5ee759; fails without: 261117-185442-6f0142",
+            "A3": "261118-002316-5ee759",
+            "A4": "261118-004757-dc99ce"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-002316-5ee759",
+              "level": "light",
+              "seconds": 245.5,
+              "state": "done",
+              "what": "journal-sync-seam check suite at ce05f0efd411"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+          "reason": "",
+          "tested": "ce05f0efd411108c749a418f4985412f5af3e2ec"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-17T18:56:11",
-      "worktree": "../journal-wt/detent/journal-sync-seam"
+      "updated": "2026-11-18T00:52:38",
+      "worktree": ""
+    },
+    "journal-turn-bound": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-17T23:57:22",
+          "base": "a412175fe437b59463bcaa97ebc75429643bdc65",
+          "blobs": {
+            "CHANGELOG.md": "100644:12de45aab2512a35a2f27c51c4976b38f269befc",
+            "CMakeLists.txt": "100644:6ffc963592eae604901f1d23e435720512f698c2",
+            "docs/mechanisms/turn-seal.md": "100644:7e627bf9fe9ac71da5eb4b685c0a83e7d7a1ae2a",
+            "include/journal/turn_driver.h": "100644:abd05ce582860422e5568e04f27b830cba088bd2",
+            "include/journal/turn_log.h": "100644:937a90fb60cbbaeb3977acc9579cd2d47fab9922",
+            "test/turn_bound_test.cc": "100644:76616a86d2fffce95c75964bb6f13566ea49b2b4"
+          },
+          "by": "review",
+          "commit": "3d203d7573edba068ee71ed5749d19147660aaed",
+          "criteria": "dcbc4928be21f57d",
+          "diffs": {
+            "CHANGELOG.md": "cac850d0eb494132",
+            "CMakeLists.txt": "c9fed7888187de51",
+            "docs/mechanisms/turn-seal.md": "da833f34f94333a5",
+            "include/journal/turn_driver.h": "5b3795c06d95def3",
+            "include/journal/turn_log.h": "cf50ea8cb4b54f67",
+            "test/turn_bound_test.cc": "0582dc22caad4460"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e385f1082fabef9d8167e926f18c95facae23fc3",
+          "reviewed": "c379267bdb5ec06d3418fbba7cc75f8fda04f7cf",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
+      "branch": "quest/detent/journal-turn-bound",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_driver.h",
+        "include/journal/turn_log.h",
+        "test/turn_bound_test.cc",
+        "CMakeLists.txt",
+        "docs/mechanisms/turn-seal.md",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-17T20:46:27",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "the dominant risk is durability (turn splitting, crash between turns); one reviewer by that lens replaces the default correctness lens",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T00:19:48",
+          "commit": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+          "criteria": {
+            "A1": "261117-224244-e38ae9; fails without: 261117-200402-8a9d1f, 261117-224244-a97f37",
+            "A2": "261117-224244-e38ae9; fails without: 261117-210245-7c1b35, 261117-210250-0a2126, 261117-224244-a97f37, 261117-224245-70d0b4, 261117-224245-24e131",
+            "A3": "261117-224244-e38ae9",
+            "A4": "4608c2 exit 0, consensus:d668ae2 wave-open 64, 64/8, 32 against journal 87ea77e: all committed, none fenced (brief: ran in consensus, not the quest's repository)",
+            "A5": "261117-224244-e38ae9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "c379267bdb5ec06d3418fbba7cc75f8fda04f7cf",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-224244-e38ae9",
+              "level": "light",
+              "seconds": 111.5,
+              "state": "done",
+              "what": "journal-turn-bound check suite at c379267bdb5e"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a412175fe437b59463bcaa97ebc75429643bdc65",
+          "reason": "",
+          "tested": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc"
+        }
+      ],
+      "lenses": [
+        "durability"
+      ],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "landed",
+      "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
+      "updated": "2026-11-18T02:09:19",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {},
@@ -5290,10 +5900,9 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "Parked 2026-11-05; needs reader-s6 landed, then merges main and proves the .ccache and macos-15 bindings CI fixes (handoff step 2)",
       "repo": ".",
       "risk": "critical",
-      "status": "blocked",
+      "status": "planned",
       "title": "Legacy H: the Client goes, bindings on the reader core",
       "updated": "2026-11-08T15:38:08"
     },
@@ -6040,6 +6649,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:06"
     },
     "namespace-cleanup": {
@@ -10373,8 +10985,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-16T10:24:13",
-      "worktree": "../Detent-wt/detent/namespace-s8-wiring"
+      "updated": "2026-11-18T02:11:55",
+      "worktree": ""
     },
     "namespace-s9-s10": {
       "accepted": {},
@@ -11347,6 +11959,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-4: the authority's ordered map from persistent-map",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T12:45:08"
     },
     "pin-wave": {
@@ -11668,18 +12283,47 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/reactor-on-wheel",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T02:55:56",
+          "commit": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+          "criteria": {
+            "A1": "261117-083939-245653, 261117-083948-d8d15e",
+            "A2": "261117-121331-5118b5",
+            "A3": "ARCHITECTURE.md, section \"Timers: one wheel, one Asio timer per loop\" (reactor:99aff1b)",
+            "A4": "manual: lead grep 2026-11-17 over Kronuz default branches: no code user (Xapiand:f5e267411 moved manager.cc; cluster archived); in-repo `git grep PeriodicTimer` at reactor:bf874dc names only CHANGELOG.md (reactor:0d3bc71 removed it, its tests and docs)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-083939-245653",
+              "level": "light",
+              "seconds": 28.9,
+              "state": "done",
+              "what": "reactor-on-wheel check suite at bf874dcfb5e6"
+            }
+          ],
+          "final": true,
+          "from": "411f1f56559a26e7ca385d76d5b3d86f098e3b1e",
+          "reason": "",
+          "tested": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Reactor loop timers on the wheel",
-      "updated": "2026-11-12T11:38:04",
-      "worktree": "../reactor-wt/detent/reactor-on-wheel"
+      "updated": "2026-11-18T02:55:57",
+      "worktree": ""
     },
     "reactor-task-sessions": {
       "accepted": {},
@@ -11930,15 +12574,16 @@
         "correctness"
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
-      "needs": [],
+      "needs": [
+        "dense-pages"
+      ],
       "provides": [
         "detent-c-abi",
         "libdetent-reader"
       ],
-      "reason": "Parked 2026-11-05 by the Dense-only scope (D1, superseded by D4); fork fix passed 32/32 on 2026-11-07; resumes when the lead starts it; its files overlap active dense-pages",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Reader S6: the lock-free reader core",
       "updated": "2026-11-08T21:26:34"
     },
@@ -11962,6 +12607,48 @@
       "status": "planned",
       "title": "Reader S7-S9: `detent get` on the core, Python and Rust over the C ABI",
       "updated": "2026-11-08T15:38:09"
+    },
+    "reader-yield-stall": {
+      "accepted": {},
+      "after": [],
+      "base": "9f86ec32fcd631c96389c967e7853134e7a94c6a",
+      "branch": "quest/detent/reader-yield-stall",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/connection.h",
+        "test/transport/yield_stall_test.cc",
+        "docs/mechanisms/host-connection.md",
+        "CMakeLists.txt"
+      ],
+      "journal": "",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "no stall: trace 261117-212453-69d3b7 (12 runs, 10,000 groups) puts the longest yield at 26.6 ms wall, 12.7 ms CPU, one pass of the io_context FIFO behind 3 readers; none past 50 ms. feed-scan's 'where 5' readers were mid-drain. A latency-pinning test would be a new flake source, so none is added",
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "dropped",
+      "title": "Consensus transport: a reader's yield resumes promptly under load",
+      "updated": "2026-11-17T21:37:30",
+      "worktree": ""
     },
     "recovery-delivery": {
       "accepted": {},
@@ -12147,6 +12834,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-1: one resource-accounting implementation in allocators",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:07"
     },
     "retained-state": {
@@ -13340,7 +14030,7 @@
         "README.md",
         "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/task-wheel",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-12T09:23:37",
@@ -13384,13 +14074,13 @@
       "risk": "high",
       "status": "landed",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-12T09:23:43",
-      "worktree": "../task-wt/detent/task-wheel"
+      "updated": "2026-11-18T02:12:32",
+      "worktree": ""
     },
     "transport-admission": {
       "accepted": {},
       "after": [
-        "transport-identity"
+        "xapiand:consensus-hello-limits"
       ],
       "checks": [
         {
@@ -13423,7 +14113,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Pre-authentication admission favors configured peers; transport-connection's notes",
-      "updated": "2026-11-17T02:26:03"
+      "updated": "2026-11-18T02:57:33"
     },
     "transport-connection": {
       "accepted": {
@@ -13506,7 +14196,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/transport-connection",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T04:26:29",
@@ -13557,8 +14247,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 5a: the task connection, one late-deadline rule, node pin, hello DTHL0002, dial tie-break, keepalive",
-      "updated": "2026-11-17T04:26:38",
-      "worktree": "../consensus-wt/detent/transport-connection"
+      "updated": "2026-11-18T02:08:27",
+      "worktree": ""
     },
     "transport-feed-scan": {
       "accepted": {},
@@ -13588,7 +14278,10 @@
         "test/transport/groups_test.cc",
         "bench/transport_idle.cc",
         "docs/mechanisms/host-transport.md",
-        "CHANGELOG.md"
+        "docs/perf/transport-idle-cost.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt",
+        "test/transport/mutant_commit.py"
       ],
       "journal": "../Detent-wt/detent/transport-feed-scan",
       "landed": [],
@@ -13602,7 +14295,7 @@
       "risk": "high",
       "status": "active",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-17T19:04:03",
+      "updated": "2026-11-17T19:29:45",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
@@ -13847,7 +14540,7 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/transport-groups-ci",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T12:12:42",
@@ -13889,8 +14582,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T12:12:46",
-      "worktree": "../consensus-wt/detent/transport-groups-ci"
+      "updated": "2026-11-18T02:08:57",
+      "worktree": ""
     },
     "transport-identity": {
       "accepted": {
@@ -13958,7 +14651,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/transport-identity",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T13:50:52",
@@ -14007,8 +14700,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T13:51:01",
-      "worktree": "../consensus-wt/detent/transport-identity"
+      "updated": "2026-11-18T02:09:12",
+      "worktree": ""
     },
     "transport-idle-cost": {
       "accepted": {
