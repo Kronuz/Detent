@@ -29,4 +29,4 @@ Filed by the lead 2026-11-17 from transport-feed-scan A6: no fix without a named
 
 ## May land early
 
-None.
+A4's test-only fix to `backlog` (and its host-transport.md row), once A4's jobs and CI pass at its commit: consensus main's CI is red on it and Xapiand's branches wait.
