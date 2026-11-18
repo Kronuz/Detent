@@ -821,7 +821,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/completion-faultfs",
+      "journal": "",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -832,8 +832,8 @@
       "risk": "normal",
       "status": "dropped",
       "title": "completion: the sync-seam crash model runs on faultlab's faultfs",
-      "updated": "2026-11-18T01:57:52",
-      "worktree": "../completion-wt/detent/completion-faultfs"
+      "updated": "2026-11-18T01:58:31",
+      "worktree": ""
     },
     "completion-sync-data": {
       "accepted": {
