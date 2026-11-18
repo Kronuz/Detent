@@ -21,6 +21,8 @@ struct Stats {
 	std::uint64_t live_views = 0, publishes = 0, refused = 0, attached = 0, generations = 0;
 	std::uint64_t current = 0;
 	std::uint64_t pins[4] = {}; // each ring slot's pin count
+	std::uint64_t heap_bytes = 0, mapped_bytes = 0; // the handle's ledgers, charged now
+	std::uint64_t change_bytes = 0;                 // the installed view's `change` mapping
 };
 Stats stats(detent_reader *) noexcept;
 // What the calling thread's last failed refresh raised.

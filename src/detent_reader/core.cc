@@ -718,6 +718,11 @@ Stats stats(detent_reader *handle) noexcept {
 	static_assert(std::size(Stats{}.pins) == ring_size);
 	for (std::size_t k = 0; k != ring_size; ++k)
 		stats.pins[k] = handle->ring[k].sum();
+	stats.heap_bytes = handle->heap->used();
+	stats.mapped_bytes = handle->mappings->used();
+	const auto *view = handle->ring[handle->current.load(relaxed) % ring_size].view.load(relaxed);
+	if (view && view->change)
+		stats.change_bytes = (view->change->mapping.slots() + 1) * 8;
 	return stats;
 }
 } // namespace detent::reader::testing

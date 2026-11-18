@@ -585,6 +585,14 @@ void cold_forks(const std::filesystem::path &root) {
 		if (child == 0) {
 			::alarm(5);
 			CHECK(get(first.handle) == 1 && get(second.handle) == 1);
+			{
+				// Accounting: each inherited handle charges what a fresh one charges for the same read.
+				Opened fresh(store);
+				CHECK(get(fresh.handle) == 1);
+				const auto expected = t::stats(fresh.handle).mapped_bytes;
+				CHECK(expected > 0 && t::stats(first.handle).mapped_bytes == expected &&
+				      t::stats(second.handle).mapped_bytes == expected);
+			}
 			// A transient increment copied after the drain must not pin the child's next fork.
 			const auto grandchild = ::fork();
 			CHECK(grandchild >= 0);
@@ -624,6 +632,49 @@ void cold_forks(const std::filesystem::path &root) {
 		std::cout << "cold fork mode " << int(mode) << ": parent/child values, nested fork and cleanup pass\n";
 	}
 }
+// Security review pending 3: `change` size and the handle ledgers under stress. Nothing caps them
+// (Q5, reader S7, is the owner's); the stress checks they stay bounded by what the store holds.
+void capacity(const std::filesystem::path &root) {
+	const auto store = root / "capacity";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	const auto change = store / "change";
+	const auto baseline = mappings(store), fds = descriptors();
+	// The agent only extends `change`; a large one maps whole, lazily, and answers in bounded time.
+	for (const std::uint64_t bytes : {std::uint64_t(1) << 20, std::uint64_t(64) << 20, std::uint64_t(1) << 30}) {
+		CHECK(::truncate(change.c_str(), off_t(bytes)) == 0);
+		const auto start = std::chrono::steady_clock::now();
+		{
+			Opened r(store);
+			CHECK(get(r.handle) == 1);
+			const auto took = std::chrono::steady_clock::now() - start;
+			const auto stats = t::stats(r.handle);
+			std::cout << "change " << bytes << " bytes: mapped " << stats.change_bytes << ", open and first read "
+			          << std::chrono::duration_cast<std::chrono::microseconds>(took).count() << " us\n";
+			CHECK(stats.change_bytes == bytes && took < 2s);
+		}
+		CHECK(mappings(store) == baseline && descriptors() == fds);
+	}
+	// The ledgers follow the live views, not the publishes: equal after 10 and after 40.
+	Opened r(store);
+	std::uint64_t heap = 0, mapped = 0;
+	for (std::int64_t rev = 2; rev <= 41; ++rev) {
+		CHECK(writer.publish_json(knobs(rev)) == std::uint64_t(rev));
+		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
+		CHECK(detent_refresh(r.handle) == DETENT_OK); // frees the unpinned older views
+		const auto stats = t::stats(r.handle);
+		CHECK(stats.live_views <= 4 && stats.generations == 1);
+		if (rev == 11) {
+			heap = stats.heap_bytes;
+			mapped = stats.mapped_bytes;
+		}
+		if (rev == 41) {
+			std::cout << "ledgers after 10 publishes: heap " << heap << ", mapped " << mapped
+			          << "; after 40: heap " << stats.heap_bytes << ", mapped " << stats.mapped_bytes << "\n";
+			CHECK(stats.heap_bytes == heap && stats.mapped_bytes == mapped && mapped > 0);
+		}
+	}
+}
 } // namespace
 int main(int argc, char **argv) {
 	const auto root = std::filesystem::current_path() / ".scratch" / ("reader-switch-" + std::to_string(::getpid()));
@@ -644,6 +695,8 @@ int main(int argc, char **argv) {
 		forks(root);
 	if (only.empty() || only == "cold")
 		cold_forks(root);
+	if (only.empty() || only == "capacity")
+		capacity(root);
 	std::cout << "ok\n";
 	return 0;
 }
