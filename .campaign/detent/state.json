@@ -4611,6 +4611,40 @@
       "updated": "2026-11-11T12:04:09",
       "worktree": ""
     },
+    "faultfs-collect-linear": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/faultlab/faultfs.h",
+        "test/faultfs_test.cc",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/faultlab",
+      "risk": "normal",
+      "status": "planned",
+      "title": "faultlab: faultfs collect() linear in inodes",
+      "updated": "2026-11-18T08:59:19"
+    },
     "fixture-500k": {
       "accepted": {},
       "after": [],
