@@ -1,6 +1,6 @@
 # completion-sync-data: journal
 
-State: waiting on jobs 261117-190018-f87b60 (suite, A1/A2/A4), 261117-190026-a88cd3 (A3), 261117-190045-644dbb (A2 fails-without), CI on the pushed branch
+State: waiting on jobs 261117-194634-51b4f9 (suite A1/A2/A4), 261117-194637-12c92c (A3), 261117-194643-ade55a (A2 fails-without; log must show a 'failed:' check line, not an abort), CI at completion:f4c19b1
 Quest: .campaign/detent/quests/completion-sync-data.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Implemented at completion:d5c6fd4 (pushed): io.h sync_data_files, operation.h executor via seam, test/sync_seam_test.cc, check_seam.py grep, docs/CHANGELOG. Jobs queued.
+Implemented at completion:d5c6fd4, state-dir fix completion:f4c19b1 (earlier jobs crashed on create_directory) (pushed): io.h sync_data_files, operation.h executor via seam, test/sync_seam_test.cc, check_seam.py grep, docs/CHANGELOG. Jobs queued.
 
 ## Next
 
