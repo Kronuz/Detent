@@ -3526,13 +3526,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "namespace-cleanup"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T07:06:06"
+      "updated": "2026-11-18T07:06:18"
     },
     "dns-voters": {
       "accepted": {},
