@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on in-window probes (the lead dispatches at 17:30Z, 21:00Z, 02:00Z)
+State: waiting on jobs 261118-114601-fb62e4 261118-114620-92a85d 261118-114638-5f511f 261118-114657-b8013d 261118-114717-b036ee, CI 44383954493
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,43 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Getting a macos-x86_64 `upload` failure with socket samples (they exist from consensus:5923b6c).
+A4 (consensus:cad35e4): `backlog` holds host 2's sends with a Gate; its jobs and CI are queued.
+A1-A2: getting a macos-x86_64 `upload` failure with socket samples.
 
 ## Next
 
-1. The lead resumes me with an in-window failing run's id: read its samples, name the cause (A1).
+1. Read A4's jobs and CI 44383954493; fill A4's evidence row.
+2. The lead resumes me with an in-window failing run's id: read its samples, name the cause (A1).
    Or with three green in-window runs: set `upload`'s bound from the clean samples and name the
    runner window as the cause (A2's runner branch). Dispatch nothing myself.
 
 ## Blocked on
 
-Nothing.
+Nothing. For the lead: docs/mechanisms/host-transport.md:205 (outside my file set) still says
+`backlog` "reads slowly"; it should read "through a gate that holds host 2's sends until all
+18,000 frames arrived".
 
 ## Notes
 
+- A4, the race (consensus main 42019eb, gcc run 44357306609): `feed` repays owed records only
+  when the connection's queue is empty, and puts one 4 MiB bulk frame per feed, so host 2's queue
+  holds at most one bulk frame. Node 1 "read slowly" (150 ms after each bulk frame) but read each
+  frame at full speed in between, into kernel buffers that hold about a frame (Linux tcp_wmem and
+  tcp_rmem maxima 4 and 6 MiB): host 2's queue emptied between frames, each drain's feed repaid
+  every owed record (up to 64 KiB, about 3,855 records), and owed never reached 4,096 at an
+  `owe`. 18,000 records, 18,000 credit frames. Reading 2 of 6 frames in that run means the
+  reads, not the merge, set the outcome.
+- A4, the fix (consensus:cad35e4, test only): `Gate`, a TCP relay on its own threads between node
+  1 and host 2, passes node 1's bytes and, while held, reads nothing of host 2's (its upstream
+  socket asks a 64 KiB receive buffer). Held before the bulk: host 2's queue empties at most once
+  after its first bulk frame is put (two frames, 8 MiB, outsize host 2's send buffer plus 64 KiB),
+  so at most one feed repays early (at most 3,855 records) and the other 14,000+ are owed with the
+  queue full: `owe` merges at 4,096 and 8,192 records, duplicates certain past 6,000. The case
+  waits for host 2's first bulk put (`stats.sent`), then sends the 18,000 data frames; opens the
+  gate once all are delivered. Asserts node 1 read no bulk frame before (the gate held). Both ends'
+  dead_after is 60 s, since a held gate silences host 2. RawPeer's `slow` mode is gone (backlog
+  was its only user). Mutants: coalesce-drops-credit fc2c3dc (mutant_commit.py), no-merge 41e8fd1
+  (owe returns before merging; made with git plumbing, on no branch).
 - No macos-x86_64 `upload` failure carries samples yet: every run at or after the sampler passed
   `upload`. Failures without samples (CI logs in .scratch/ci/ of the code worktree): main
   44130104547 (0.0 MiB, 3 beats, gap 4044 ms), 44214025598 (6.0 MiB, gap 3748), 44216299768
@@ -62,11 +85,16 @@ Nothing.
 | A1 | <no evidence yet> |
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
+| A4 | <pending: x50 261118-114601-fb62e4; fails-without coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f; TSan 261118-114657-b8013d; suite 261118-114717-b036ee; CI 44383954493> |
 
 ## Result
 
 <pending>
 
 ## Rulings I made
+
+- A4: a gate (relay) in the test rather than a product hook: the file set is the test, and holding
+  host 2's bytes unread is what "host 2 cannot send" means. The merge claim stays in `backlog`,
+  now deterministic, rather than moving to a new case.
 
 - Probe shape: one dispatch = 3 runner jobs x 24 uploads, so "about 6 runs" is two dispatches.
