@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: ready for review
+State: waiting on jobs 261118-080701-7a71bf 261118-080707-3e11d5 261118-080708-925f6c 261118-080709-0b29b6 261118-080710-cfcb5b 261118-080711-db1d26 261118-080713-3b7683 261118-080714-ff3bc1 261118-080715-aa0fea 261118-080716-6d7d6c 261118-080717-990ff9 261118-080719-369ac2 261118-080724-8ec065
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,41 +9,27 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:50b91ae (pushed): 9118cfa fixes shutdown_idles, then main merged (CMakeLists
-conflict: kept main's mutants TIMEOUT line). The ten jobs at 178150a never ran (exit 127: the
-submit put `--quest ...` inside the command).
+Review fix round 2 (last), at consensus:901d9ce (pushed), from the correctness review at 50b91ae:
+1. F1 (blocking, shutdown hangs): the watch takes `shutdown_.token()` again, and step starts no
+   watch once `stopping_` (driver.h step, watch). Shutdown cancels the watch, its callback wakes
+   the group once, and the step does not re-watch: no spin, and run() does not wait for a barrier
+   no turn driver writes. New case `shutdown_ends` (the review probe's `hang`): a higher-term
+   VoteRequest stages a record after the turn driver returned while h's checkpoint IO is held;
+   run() ends once that IO lands, the record stays `TurnDriver::staged`. DRIVER.md "Shutdown
+   order" says run() does not wait for a turn barrier after stop.
+2. N1: shutdown_idles checks the record staged before shutdown is durable (sequence advances,
+   not staged) and that the proposal and checkpoint complete with task::cancelled.
+3. N4: fenced_in_flight expects `fenced` only.
+Local (ASan Debug): all 76 checks pass; shutdown_ends at 50b91ae's driver.h fails "the Driver's
+run ends once the IO lands: in_flight 1"; the guard removed fails shutdown_idles "the loop idles
+after shutdown with the barrier pending" (the spin).
 
-Why shutdown_idles failed at 0b48da4 and 178150a (reproduced locally, not read): the Driver's only
-in-flight frame was the barrier watch. Shutdown cancels it inline, in_flight drops to 0, run()
-returns with the turn still held: no spin with or without the fix, so the case proved nothing
-(DBG: in_flight 1 before stop, 0 and driver_done after). Xapiand's spin needs IO shutdown cannot
-cancel (an issued primitive completes first) keeping the loop alive while the cancelled watch
-re-arms. The case now holds a second group's checkpoint artifact IO beside the staged record, and
-stops the turn driver and the Driver with one token, as Xapiand does. Local: fixed passes (in_flight
-2 after stop, loop idle); unfixed watch fails "the loop idles after shutdown" within 20,000 turns.
-
-Xapiand repro, local, per seed (SIM_DRIVER_SEEDS=1, first seed s, 1000 steps; their
-driver_simulation.cc from ecb2a37 on this branch): fixed, 0 of 24 seeds spin; unfixed watch, seed 2
-spins, and so do 4, 6, 8-10, 14-16, 18-24, the quest's list exactly. Seeds 1, 3, 7, 8, 13, 18-21, 23 fail "did not apply a new entry on every
-data voter after healing" with the fix; seeds 1, 3, 7 and 13 fail that way without it too (the rest spin first), so it is their
-WIP simulation's, not a spin: reported to the lead, not fixed here. The suite case runs 5 s.
-
-Jobs at 50b91ae: plain A1-A3+A6 fff668 (passed, 62 checks), created_bytes report 96c6ec, ASan 5e01ed, TSan 13f33c,
-mutants (setup failures exit 0, so only the test can fail them; read "reached the test"): A6 watch
-75b4b1 (done: reached the test, "the loop idles after shutdown" FAIL, exit 1), N3 unqueued 6a437c, settle 3e5bb0, erase e68ae2; Xapiand repro fixed d255a1 (0 spins over
-1-24) and unfixed b8cb43 (fails-without); suite 78323a; CI running.
-
-F2 numbers (plain job 261118-021905-0952ab, 2,000 created rows, process heap net of the simulated disk):
-| rows | records/row | open | closed | after the log forgets them |
-|---|---|---|---|---|
-| 0 proposals | 5.0 | 6,569 | 681 | 207 |
-| 10 proposals | 25.0 | 9,006 | 2,158 | 235 |
-Driver part after close: 0 (its rows are erased, groups()==0; opened-only rows 3,658 open, 10 B left
-after the Host's purge). Journal part: closed minus forgotten is the TurnLog's per-record index
-(index_[group], one map node per live record): 474 B at 5 records, 1,923 B at 25, about 72 B a record
-plus about 115 B fixed; the 207-235 B left after forget is the Host table (shards_ and opened_ nodes)
-plus sequences_: fixed per id. The reviewer's 2,398 B included the simulated disk. Owned by
-journal-reopen-closed A4b (Host release), not changed here.
+Jobs at 901d9ce: plain 7a71bf, ASan 3e11d5, TSan 925f6c, created_bytes db 0b29b6; mutants
+(fails-without, read "reached the test"): A6 guard removed cfcb5b, F1 = 50b91ae's driver.h on
+shutdown_ends db1d26, N3 3b7683, settle ff3bc1, erase aa0fea; Xapiand repro fixed 6d7d6c (also
+runs SIM_DRIVER_SEEDS=24 from seed 1 once) and guard removed 990ff9; review probe 369ac2 (expects
+`hang: RESULT driver_done=1`); suite 8ec065 (consensus_transport_idle still fails until
+transport-idle-budget lands: ignore only that).
 
 ## Lead's report at 50b91ae
 
@@ -59,10 +45,9 @@ at head e7e9cf. Result: both fail 3 of 3 with the same bytes (loops=4: 154,504 /
 
 ## Next
 
-1. When the jobs finish: read each log (mutants: "reached the test" then the failing check; repro:
-   the per-seed lines), and the created_bytes report's figures into Result (Driver part / journal
-   part, journal part owned by journal-reopen-closed A4b).
-2. Fill the Evidence table from `campaign brief`; set "ready for review".
+1. Read each job's log (mutants: "reached the test" then the failing check; F1 db1d26 must fail
+   shutdown_ends; repro: per-seed lines and the 24-seed line; probe: RESULT line; suite: only
+   consensus_transport_idle may fail). Fill Evidence from `campaign brief`; set "ready for review".
 
 ## Blocked on
 
@@ -86,6 +71,8 @@ checked what), and answer each message by its id (msg-N).
 | A6 | 261118-063956-fff668, 261118-064000-5e01ed, 261118-064002-13f33c, 261118-064218-d255a1 (Xapiand repro, 0 of 24 seeds spin); fails without: 261118-064120-75b4b1 (shutdown_idles), 261118-064220-b8cb43 (repro spins) |
 
 Messages: msg-71 is A6, done above.
+
+Review at 50b91ae: F1 fixed at 901d9ce, F1=261118-080711-db1d26 (shutdown_ends at 50b91ae's driver.h); N1, N4 fixed in the test; N2 (`~Driver` with work in flight) and N3 (quest text) not changed: N3 is the lead's; N2 is non-blocking and F1's fix ends run() in that state.
 
 ## Result
 
@@ -121,3 +108,6 @@ Xapiand's simulation fails its post-healing check on seeds 1, 3, 7, 8, 13, 18-21
    leader grants pre-votes", was running); no hang evidence, it builds each fault three ways under
    -j4 load. Its mutants edit core.h only. I set its ctest TIMEOUT to 1800 (CMakeLists, in my file set).
    If the suite still times out at 1800 it is a hang: read its log.
+7. F1: the reviewer's option (a), which the lead assigned. One guard (no watch once stopping) and a
+   cancellable token; the cancelled watch's callback still marks the group ready, so its step
+   sees a barrier that landed (the blocking entry's rearm path) and the A6 mutant is that guard.
