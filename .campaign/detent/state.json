@@ -1975,20 +1975,55 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-wave-open",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T05:09:47",
+          "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+          "criteria": {
+            "A1": "261118-044944-ec59e7, 261118-034224-183afe; fails without: 261118-002652-7a5cb2",
+            "A2": "261118-044944-ec59e7; fails without: 261118-002658-ddd230",
+            "A3": "261118-034225-e2c134",
+            "A4": "[manual] the Xapiand lead ran its reproducer, xapiand job ...003837-3e3d58 (strata:88d72629, consensus:c20f3fd, journal:4272229): `GROUP_FOOTPRINT_NOSYNC=1 GROUP_FOOTPRINT_WAVE=64 group_footprint_test 64 0` opened 64 at once, all committed their first write, 0 fenced on open, exit 0; all 64 fenced before the fix"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-044944-ec59e7",
+              "level": "light",
+              "seconds": 653.8,
+              "state": "done",
+              "what": "consensus-wave-open check suite at 91564ba86d25"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8876195e782558e38c5ec30183453837cb31bdfe",
+          "reason": "",
+          "tested": "91564ba86d25396c4c7768667cd365a01cefa27a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-18T03:42:45",
-      "worktree": "../consensus-wt/detent/consensus-wave-open"
+      "updated": "2026-11-18T05:09:49",
+      "worktree": ""
     },
     "consensus-worker-release": {
       "accepted": {},
