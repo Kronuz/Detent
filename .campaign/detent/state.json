@@ -15283,6 +15283,8 @@
     "transport-idle-budget": {
       "accepted": {},
       "after": [],
+      "base": "5923b6c7c7bfe02842036fa12273163956e78db5",
+      "branch": "quest/detent/transport-idle-budget",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
@@ -15302,6 +15304,7 @@
         "bench/transport_idle.cc",
         "docs/perf/**"
       ],
+      "journal": "../Detent-wt/detent/transport-idle-budget",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -15309,9 +15312,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: consensus_transport_idle fails its budget at 4 loops",
-      "updated": "2026-11-18T07:34:36"
+      "updated": "2026-11-18T07:34:43",
+      "worktree": "../consensus-wt/detent/transport-idle-budget"
     },
     "transport-idle-cost": {
       "accepted": {
