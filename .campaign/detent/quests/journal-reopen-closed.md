@@ -18,6 +18,7 @@ job can show it.
 - A2 Two live Stores never hold one id: recover or create of an id whose Store is still open is refused, including while that Store's close is in flight (a close racing a recover): tests, TSan.
 - A3 A crash at any point of a close-then-recover cycle recovers a state the old rule allowed (no record lost that was durable, none resurrected that was dropped): a seeded crash sweep job.
 - A4 Churn: 10,000 close/recover cycles of 1,000 ids in one Host hold the Host's memory flat (bytes before and after reported): a job.
+- A4b A Store that can't close into the table (fenced, or batches not covered by a checkpoint) can release its id: the Host drops that id's in-memory state (turn-log sequence, index entries, shard and opened nodes) while retention keeps every durable record, and recover in the live Host rebuilds it exactly: tests, plus heap per released id reported at 10,000 ids (the lead's target: the 2,398 B consensus-close-fenced measured goes to near zero).
 - A5 The mechanism doc states the id lifetime rule: `docs/mechanisms/...`.
 - A6 The suite passes, plus CI.
 
