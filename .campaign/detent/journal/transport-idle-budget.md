@@ -1,6 +1,6 @@
 # transport-idle-budget: journal
 
-State: working
+State: waiting on jobs 261118-073615-da90ae
 Quest: .campaign/detent/quests/transport-idle-budget.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1 diagnosis. The fit's loops=4 slope is 49156-49160 B against a 49152 B (48 KB) cap: a few
+bytes over, so anything that moves per-end bytes by >0.01% flips it. Spec diff f0eff6 (pass) vs
+1fb596 (fail): pass built `-DCMAKE_BUILD_TYPE=Release` (Makefiles, slot build); fail built with no
+build type (Ninja, fresh `build-idle`). Both compiled against /usr/local/include/openssl (4.1).
+Connections live on loop_of_node(peer), so at L=4 the loops touched grow with P (1, 2, up to 4):
+per-thread state (OpenSSL thread-locals, Asio's per-thread recycler) lands in the slope.
+Probe 261118-073615-da90ae: Release vs no build type, Ninja, fresh, x3 each.
 
 ## Next
 
-1. <step>
+1. Read 261118-073615-da90ae; if build type flips it, A1 is named. Then fix the fit: warm every
+   loop's per-thread state before `s1`, so it counts in the intercept, not per connection end.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
