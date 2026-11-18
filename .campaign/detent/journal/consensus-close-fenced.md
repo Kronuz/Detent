@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261117-223709-25c2a0 261117-223712-5a12b1 261117-223717-5549cc 261117-224058-305d59 261117-224124-3ca3bb 261117-224128-ea8ae6
+State: waiting on jobs 261117-224628-54ea6f 261117-224633-e4c88c 261117-224638-f7ecbd 261117-224642-346496 261117-224646-fc0854 261117-224650-1be635
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:9b218a0 (branch pushed): driver.h erases a closed group in pump() after its
-step (ready list unlinked if still queued), open() loses the closed-row path, settle() returns
-after fail_all closes the group (it read the freed Worker), `groups()` counts rows. Tests in
-test/driver_close_test.cc. The first three jobs (at 9b218a0) build the test by hand; the suite job 261117-224058-305d59 runs it through ctest at c06510a. Fails-without jobs (ASan): 261117-224124-3ca3bb drops settle()'s return, fenced_row must fail; 261117-224128-ea8ae6 drops pump()'s erase, bytes must fail.
+Code at consensus:c34fd80 (pushed). The first test commit did not compile (start() lacked a task<T>
+overload), so the jobs at 9b218a0/c06510a are void, including fails-without 261117-224124-3ca3bb
+(it passed on a compile error). Resubmitted at c34fd80: plain A1-A3 54ea6f, ASan A4 e4c88c, TSan
+A4 f7ecbd, suite A5 1be635, fails-without under ASan: settle() return 346496 (fenced_row must
+fail), pump() erase fc0854 (bytes must fail). Check the mutant logs show a runtime failure, not
+"BUILD FAILED".
 
 ## Next
 
