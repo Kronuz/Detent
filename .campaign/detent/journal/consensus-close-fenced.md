@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-063958-96c6ec 261118-064000-5e01ed 261118-064002-13f33c 261118-064122-6a437c 261118-064124-3e5bb0 261118-064126-e68ae2 261118-064218-d255a1 261118-064220-b8cb43 261118-063950-78323a
+State: waiting on jobs 261118-072932-e7e9cf 261118-072938-1fb596
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -44,6 +44,16 @@ after the Host's purge). Journal part: closed minus forgotten is the TurnLog's p
 plus about 115 B fixed; the 207-235 B left after forget is the Host table (shards_ and opened_ nodes)
 plus sequences_: fixed per id. The reviewer's 2,398 B included the simulated disk. Owned by
 journal-reopen-closed A4b (Host release), not changed here.
+
+## Lead's report at 50b91ae
+
+Passed: plain, ASan, TSan, three mutants (reached the test, exit 134), A6 mutant 75b4b1, repro
+d255a1 (0 spins) and b8cb43 (spins without the fix). CI green but freebsd (pkg fetch; lead reran).
+Suite 78323a fails consensus_transport_idle (per host 0.2% over 52 KB + 2P x 44 KB at loops=4).
+Attribution: the branch differs from main 5923b6c only in driver.h, DRIVER.md, driver_close_test.cc
+and its CMake registration; no transport source or bench includes driver.h (only bench/driver_idle.cc),
+so consensus_transport_idle builds from identical sources. Jobs: transport_idle x3 at main 1fb596,
+at head e7e9cf. (Lead named main "4ef...": origin/main is 5923b6c, no 4ef commit exists.)
 
 ## Next
 
