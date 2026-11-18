@@ -18,6 +18,9 @@ class NodeAt {
 	NodeView decode(std::span<const char> page, Limits limits) const {
 		return decode_node(page, offset_, limits);
 	}
+	NodeView decode(std::span<const char> page, std::size_t nodes_end, Limits limits) const {
+		return decode_node(page, offset_, nodes_end, limits);
+	}
 	bool operator==(const NodeAt &) const = default;
 
   private:

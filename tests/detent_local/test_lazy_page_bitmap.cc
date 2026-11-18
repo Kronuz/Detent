@@ -338,6 +338,31 @@ void neighbour_corruption() {
 	check(cases == pages.size() * 4);
 	std::printf("neighbour corruption: %u cases refused\n", cases);
 }
+// A page damaged after first touch is refused by the next lookup: at its logical digest by the hit
+// compare, at its magic by the lookup's header decode. The mapping must show the damage.
+void touched_corruption() {
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
+	const auto target = fixture->definitions[1];
+	const auto &name = fixture->definition_names[1];
+	for (const std::size_t at : {std::size_t(40), std::size_t(0)}) {
+		Harness harness(fixture);
+		const auto state = harness.state();
+		check(state.definition("b", name).has_value());
+		const auto mapped = harness.access->resolve(target);
+		const auto before = mapped[at];
+		flip(*fixture, target, at);
+		check(mapped[at] == char(before ^ 1));
+		bool caught = false;
+		try {
+			state.definition("b", name);
+		} catch (const x::ReadSourceFailure &) {
+			caught = true;
+		}
+		flip(*fixture, target, at);
+		check(caught);
+	}
+	std::puts("touched corruption: digest and magic refused after first touch");
+}
 // A forged physical digest on a never-verified page is refused and fails the generation.
 void forged_unverified() {
 	auto fixture = std::make_shared<Fixture>(3, 128, true);
@@ -364,7 +389,7 @@ void cap_miss() {
 } // namespace
 
 int main(int argc, char **argv) {
-	// An argument runs one case: stress, publish, mark, raced, corrupt, cap, neighbour or forged.
+	// An argument runs one case: stress, publish, mark, raced, corrupt, cap, neighbour, forged or touched.
 	const std::string_view only = argc > 1 ? argv[1] : "";
 	auto run = [&](std::string_view name, auto body) {
 		if (only.empty() || only == name)
@@ -381,5 +406,6 @@ int main(int argc, char **argv) {
 	run("cap", cap_miss);
 	run("neighbour", neighbour_corruption);
 	run("forged", forged_unverified);
+	run("touched", touched_corruption);
 	std::puts("lazy page bitmap: ok");
 }

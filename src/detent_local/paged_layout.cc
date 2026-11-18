@@ -196,10 +196,14 @@ std::array<char, placement_bytes> encode_placement(const Reference &r) {
 	return bytes;
 }
 Reference decode_external(std::span<const char> bytes, std::uint16_t index, Limits limits) {
-	const auto h = decode_page_header(bytes, limits);
-	require(index < h.externals);
-	const auto content = bytes.size() - child_bytes * h.externals + content_bytes * index;
-	const auto placement = bytes.size() - placement_bytes * h.externals + placement_bytes * index;
+	return decode_external(bytes, index, nodes_end(decode_page_header(bytes, limits)));
+}
+Reference decode_external(std::span<const char> bytes, std::uint16_t index, std::size_t end) {
+	require(end <= bytes.size() && (bytes.size() - end) % child_bytes == 0);
+	const auto externals = (bytes.size() - end) / child_bytes;
+	require(index < externals);
+	const auto content = end + content_bytes * index;
+	const auto placement = end + content_bytes * externals + placement_bytes * index;
 	const auto r = decode_child(bytes.subspan(content, content_bytes),
 								bytes.subspan(placement, placement_bytes));
 	require(r != Reference{});
@@ -237,9 +241,10 @@ std::uint16_t NodeView::slot(std::size_t index) const {
 	return read_integer(slots, 2 * index, 2);
 }
 NodeView decode_node(std::span<const char> bytes, std::size_t offset, Limits limits) {
-	const auto h = decode_page_header(bytes, limits);
-	const auto end = bytes.size() - child_bytes * h.externals;
-	require(offset >= page_header_bytes && offset <= end && end - offset >= 3);
+	return decode_node(bytes, offset, nodes_end(decode_page_header(bytes, limits)), limits);
+}
+NodeView decode_node(std::span<const char> bytes, std::size_t offset, std::size_t end, Limits limits) {
+	require(end <= bytes.size() && offset >= page_header_bytes && offset <= end && end - offset >= 3);
 	const auto kind = static_cast<PageKind>(bytes[offset]);
 	const auto prefix = static_cast<unsigned char>(bytes[offset + 1]);
 	require(prefix <= 202 && prefix <= limits.prefix_bytes);
@@ -272,6 +277,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 	validate(reference);
 	require(reference != Reference{});
 	const auto h = decode_page_header(bytes, limits);
+	const auto end = nodes_end(h);
 	require(h.length == reference.length && h.keys == reference.keys &&
 			h.height == reference.height && h.digest == reference.digest);
 	struct Frame {
@@ -286,7 +292,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 	bool visit = true;
 	for (;;) {
 		if (visit) {
-			const auto node = position.decode(bytes, limits);
+			const auto node = position.decode(bytes, end, limits);
 			require(++nodes <= h.nodes && key_depth <= 202 &&
 					node.prefix.size() <= 202 - key_depth);
 			position = NodeAt::after(node);
@@ -308,7 +314,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 			const auto slot = frame.node.slot(frame.child++);
 			if (slot & 0x8000) {
 				require((slot & 0x7fff) == external && external < h.externals);
-				const auto r = decode_external(bytes, external++, limits);
+				const auto r = decode_external(bytes, external++, end);
 				require(r.keys <= h.keys - keys && r.height < 255);
 				keys += r.keys;
 				height = std::max(height, unsigned(r.height) + 1);
@@ -322,7 +328,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 		if (!visit)
 			break;
 	}
-	require(position.offset() == bytes.size() - child_bytes * h.externals && nodes == h.nodes &&
+	require(position.offset() == end && nodes == h.nodes &&
 			external == h.externals && keys == h.keys && height == h.height);
 }
 void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {

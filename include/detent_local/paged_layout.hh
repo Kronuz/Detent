@@ -45,6 +45,10 @@ struct PageHeader {
 	std::uint8_t height = 1;
 	Digest digest{};
 };
+// Where a decoded page's nodes end and its external entries begin.
+constexpr std::size_t nodes_end(const PageHeader &h) noexcept {
+	return h.length - child_bytes * h.externals;
+}
 struct Root {
 	distribution::Cursor cursor;
 	distribution::Profile profile;
@@ -106,6 +110,8 @@ Digest metadata_commitment(std::span<const char>);
 std::array<char, content_bytes> encode_content(const Reference &);
 std::array<char, placement_bytes> encode_placement(const Reference &);
 Reference decode_external(std::span<const char>, std::uint16_t index, Limits);
+// As above, given nodes_end of the header already decoded from these bytes.
+Reference decode_external(std::span<const char>, std::uint16_t index, std::size_t nodes_end);
 std::array<char, page_header_bytes> encode_page_header(const PageHeader &, Limits);
 PageHeader decode_page_header(std::span<const char>, Limits);
 std::array<char, root_bytes> encode_root(const Root &, Limits);
@@ -119,6 +125,8 @@ struct NodeView {
 };
 // Bounds each visited node against the current header and table boundaries.
 NodeView decode_node(std::span<const char>, std::size_t offset, Limits);
+// As above, given nodes_end of the header already decoded from these bytes.
+NodeView decode_node(std::span<const char>, std::size_t offset, std::size_t nodes_end, Limits);
 // Verifies digest, reference summaries and exact preorder structure without
 // allocation.
 void verify_page_structure(std::span<const char>, const Reference &, Limits);

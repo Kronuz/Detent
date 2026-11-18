@@ -43,7 +43,7 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 	try {
 		auto reference = root.tree;
 		std::span<const char> bytes;
-		std::size_t cursor = 0;
+		std::size_t cursor = 0, nodes_end = 0;
 		paged::NodeAt at;
 		bool resolve = true;
 		for (std::size_t visits = 0; visits <= key.size(); ++visits) {
@@ -58,10 +58,12 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 						throw ReadSourceFailure("local page names a missing segment");
 					bytes = checked_page_bytes(segments[found], reference);
 				}
+				// The one full header decode per page; its nodes end bounds every node and external.
+				nodes_end = paged::nodes_end(paged::decode_page_header(bytes, paged_format_limits()));
 				resolve = false;
 				at = {};
 			}
-			const auto node = at.decode(bytes, paged_format_limits());
+			const auto node = at.decode(bytes, nodes_end, paged_format_limits());
 			if (node.kind != paged::PageKind::Branch) {
 				std::array<char, 202> actual{};
 				if (cursor > actual.size() || node.prefix.size() > actual.size() - cursor)
@@ -97,7 +99,7 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 				return {};
 			const auto slot = node.slot(low);
 			if (slot & 0x8000) {
-				reference = paged::decode_external(bytes, slot & 0x7fff, paged_format_limits());
+				reference = paged::decode_external(bytes, slot & 0x7fff, nodes_end);
 				resolve = true;
 			} else
 				at = paged::NodeAt::child(node, slot);

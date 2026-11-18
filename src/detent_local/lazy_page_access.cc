@@ -230,9 +230,9 @@ struct PageTable::State {
 			    mapped.bytes, &mapped.verified, reference, bounds,
 			    [&](std::span<const char> page, const p::PageHeader &header) {
 				    DETENT_COUNT(pages_verified, 1);
-				    const auto nodes_end = page.size() - p::child_bytes * header.externals;
+				    const auto nodes_end = p::nodes_end(header);
 				    for (p::NodeAt at; at.offset() < nodes_end;) {
-					    const auto node = at.decode(page, bounds);
+					    const auto node = at.decode(page, nodes_end, bounds);
 					    if (node.kind == p::PageKind::Definition)
 						    p::validate_definition(node.body, root.cursor.revision, limits.overrides);
 					    else if (node.kind == p::PageKind::Namespace &&
