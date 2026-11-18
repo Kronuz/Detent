@@ -18,6 +18,7 @@ job can show it.
 - A2 Heap per created row returns to its pre-open value after close at 10,000 rows (journal and Driver both): a job.
 - A3 A crash during close never loses a committed record and never resurrects a dropped one: a seeded sweep job.
 - A5 A checkpoint whose peak (bundle bound plus application cap) exceeds the reservation pool fails loudly with a named error at open or configure, never an admit that waits forever (Xapiand's consensus-sim-loops: `reserve_checkpoint`'s "no" means both not-now and never; seed 3 with a 256 KiB pool blocked every later proposal in the group silently). A test with a pool smaller than one checkpoint's peak gets the error; one at exactly the peak admits: jobs, the first failing without the fix.
+- A6 consensus repins journal to its main (at least 4d364f1, journal-reopen-closed) and builds against it: consensus:5923b6c fails on journal 4d364f1 at `sync_data_files` (Xapiand's Track C C2), so the repin carries that API change; the suite at the new pin is the evidence.
 - A4 The suite passes with TSan, plus CI.
 
 ## Contracts
