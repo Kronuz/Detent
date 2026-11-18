@@ -13,7 +13,7 @@ Fix committed (journal:47c98b6) and pushed: forget_threads runs >=400 turns, the
 
 ## Next
 
-1. When jobs finish: A1 loop x200 (398c2a), mutant fails-without (860226), suite (9147b4); then CI; then ready for review.
+1. When jobs finish: A1 loop x200 (398c2a), mutant (ce3f9e: must build, exit nonzero and print 'group 2 keeps sealing'; passes iff killed, no --fails-without), suite (9147b4); then CI; then ready for review.
 
 ## Blocked on
 
