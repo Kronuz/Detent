@@ -14084,11 +14084,42 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/transport-idle-cost",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T19:00:48",
+          "ci_skipped": "owner-approved 2026-11-17: only macos-x86_64 fails, in connection_test read_slowly, which fails on consensus main at 0ed76ef, 84814a9, 361d5d2 and aa7fa35; consensus_transport_idle passes there; fix is quest connection-slow-reader-flake",
+          "commit": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+          "criteria": {
+            "A1": "261117-172945-6b1b06 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172947-eb211c (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md)",
+            "A2": "261117-172946-7024b4 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-981ce0 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-bbf981 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-10ce1e (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "76bacd23065c3e078c953fbbc2807ce3765ace18",
+              "docs": [
+                "docs/perf/transport-idle-cost.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-172947-eb211c",
+              "level": "light",
+              "seconds": 296.1,
+              "state": "done",
+              "what": "transport-idle-cost check suite at 76bacd23065c"
+            }
+          ],
+          "final": true,
+          "from": "aa7fa351239719a365e211bace4fed5f8ec823f3",
+          "reason": "",
+          "tested": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-groups"
@@ -14096,10 +14127,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T19:00:25",
-      "worktree": "../consensus-wt/detent/transport-idle-cost"
+      "updated": "2026-11-17T19:01:10",
+      "worktree": ""
     },
     "voter-read-freshness": {
       "accepted": {},
