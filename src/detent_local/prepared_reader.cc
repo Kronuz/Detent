@@ -14,8 +14,6 @@
 namespace detent::local::detail {
 namespace d = distribution;
 namespace {
-thread_local void (*record_hook)(std::string_view, void *) = nullptr;
-thread_local void *record_context = nullptr;
 struct PreparedFiles final : d::RetirementNode {
 	RecoveryFile directory{-1}, lease{-1};
 };
@@ -30,28 +28,11 @@ int open_record(int directory, std::string_view name) {
 	std::copy(name.begin(), name.end(), terminated.begin());
 	return ::openat(directory, terminated.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 }
-// A file a publish or collection unlinked after it was opened: a race to retry, not a bad store.
-bool unlinked(int fd) {
-	struct stat info{};
-	return fd >= 0 && ::fstat(fd, &info) == 0 && info.st_nlink == 0;
-}
-// check_generation_file, except that a file unlinked under it reports false to retry.
-bool checked_or_unlinked(int fd, uid_t owner, std::uint64_t length) {
-	try {
-		check_generation_file(fd, owner, length);
-		return true;
-	} catch (const std::runtime_error &) {
-		if (unlinked(fd))
-			return false;
-		throw;
-	}
-}
 template <std::size_t N> std::array<char, N> record(int directory, std::string_view name, uid_t owner) {
 	// A collection may unlink a record after its open: the read opens it again.
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
 		RecoveryFile file(open_record(directory, name));
-		if (record_hook)
-			record_hook(name, record_context);
+		record_opened(name);
 		if (file.fd < 0 && errno == ENOENT && name.ends_with(".read"))
 			throw GenerationUnavailable("publisher has not prepared a selected generation");
 		if (!checked_or_unlinked(file.fd, owner, N))
@@ -74,10 +55,6 @@ paged::Digest checksum(std::span<const char> bytes) {
 	return result;
 }
 } // namespace
-void PreparedReaderTesting::install(void (*hook)(std::string_view, void *), void *context) noexcept {
-	record_hook = hook;
-	record_context = context;
-}
 GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher) {
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};

@@ -52,7 +52,7 @@ int main() {
 	const auto root = fs::current_path() / ".scratch" / ("reader-files-" + std::to_string(::getpid()));
 	fs::create_directories(root);
 	unsigned failures = 0;
-	for (const auto kind : {"change", "selected", ".lease", ".pack"}) {
+	for (const auto kind : {"change", "selected", ".image", ".lease", ".pack"}) {
 		for (const auto shape : {"regular", "fifo", "directory", "symlink", "hardlink", "mode", "short"}) {
 			const auto store = root / (std::string(kind) + "-" + shape);
 			{

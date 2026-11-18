@@ -11,22 +11,45 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <sys/stat.h>
 #include <vector>
 
 namespace detent::local::detail {
+// Qualification hook after a record's open and before its checks, on the installing thread.
+struct RecordTesting {
+	static void install(void (*)(std::string_view name, void *), void *) noexcept;
+};
+void record_opened(std::string_view name) noexcept;
+// Why a record descriptor fails the owner, link, mode and extent checks, or null; fills `info`.
+inline const char *generation_file_refusal(int fd, struct stat &info, uid_t owner, std::uint64_t length) {
+	return fd < 0 || ::fstat(fd, &info) != 0 ? "unreadable"
+	       : !S_ISREG(info.st_mode)           ? "not a regular file"
+	       : info.st_uid != owner             ? "owner"
+	       : info.st_nlink != 1               ? "link count"
+	       : (info.st_mode & 0022)            ? "group or other write"
+	       : info.st_size < 0 || std::uint64_t(info.st_size) != length ? "size"
+	                                                                    : nullptr;
+}
+[[noreturn]] inline void refuse_generation_file(const char *refused, const struct stat &info) {
+	throw std::runtime_error(std::string("invalid local generation descriptor: ") + refused + " (links " +
+	                         std::to_string(info.st_nlink) + ", size " + std::to_string(info.st_size) + ")");
+}
 inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
 	struct stat info{};
-	const char *refused = fd < 0 || ::fstat(fd, &info) != 0 ? "unreadable"
-	                      : !S_ISREG(info.st_mode)           ? "not a regular file"
-	                      : info.st_uid != owner             ? "owner"
-	                      : info.st_nlink != 1               ? "link count"
-	                      : (info.st_mode & 0022)            ? "group or other write"
-	                      : info.st_size < 0 || std::uint64_t(info.st_size) != length ? "size"
-	                                                                                   : nullptr;
+	if (const auto refused = generation_file_refusal(fd, info, owner, length))
+		refuse_generation_file(refused, info);
+}
+// check_generation_file, except that a regular file renamed over or collected since its open
+// (no links left) reports false, so the caller opens the name again.
+inline bool checked_or_unlinked(int fd, uid_t owner, std::uint64_t length) {
+	struct stat info{};
+	const auto refused = generation_file_refusal(fd, info, owner, length);
+	if (refused && fd >= 0 && S_ISREG(info.st_mode) && info.st_nlink == 0)
+		return false;
 	if (refused)
-		throw std::runtime_error(std::string("invalid local generation descriptor: ") + refused + " (links " +
-		                         std::to_string(info.st_nlink) + ", size " + std::to_string(info.st_size) + ")");
+		refuse_generation_file(refused, info);
+	return true;
 }
 inline void read_generation_record(int fd, std::span<char> bytes) {
 	DETENT_COUNT(table_bytes, bytes.size());

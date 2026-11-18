@@ -4,6 +4,7 @@
 #include "generation_file_access.hh"
 #include "paged_limits.hh"
 #include "generation_mapping.hh"
+#include "paged_navigation.hh"
 #include "paged_node_step.hh"
 #include "segment_names.hh"
 #include "verified_pages.hh"
@@ -224,39 +225,24 @@ struct PageTable::State {
 			throw ReadSourceFailure("local generation failed verification");
 		try {
 			const auto &mapped = segment(reference.segment);
-			const auto extent = mapped.bytes;
-			if (reference.offset % 8 || reference.length < p::minimum_page_bytes || reference.length > p::page_bytes || reference.offset > extent.size() ||
-			    reference.length > extent.size() - reference.offset)
-				throw ReadSourceFailure("local page exceeds its segment");
-			const auto bytes = extent.subspan(reference.offset, reference.length);
-			if (mapped.verified.test(reference.offset)) {
-				// A verified page's header is checked: the reference need only match its fields.
-				if (read_integer(bytes, 8, 4) != reference.length || read_integer(bytes, 16, 8) != reference.keys ||
-				    static_cast<unsigned char>(bytes[24]) != reference.height ||
-				    std::memcmp(bytes.data() + 32, reference.digest.data(), reference.digest.size()))
-					throw ReadSourceFailure("local page reference differs from reached header");
-				return bytes;
-			}
 			const auto bounds = paged_limits(limits, p::root_bytes);
-			const auto header = p::decode_page_header(bytes, bounds);
-			if (header.length != reference.length || header.keys != reference.keys ||
-				header.height != reference.height || header.digest != reference.digest)
-				throw ReadSourceFailure("local page reference differs from reached header");
-			p::verify_page(bytes, reference, bounds);
-			DETENT_COUNT(pages_verified, 1);
-			const auto nodes_end = bytes.size() - p::child_bytes * header.externals;
-			for (p::NodeAt at; at.offset() < nodes_end;) {
-				const auto node = at.decode(bytes, bounds);
-				if (node.kind == p::PageKind::Definition)
-					p::validate_definition(node.body, root.cursor.revision, limits.overrides);
-				else if (node.kind == p::PageKind::Namespace &&
-						 read_integer(node.body, 0, 8) > root.cursor.revision)
-					throw ReadSourceFailure("local namespace exceeds selected revision");
-				at = p::NodeAt::after(node);
-			}
-			verifications.fetch_add(1, std::memory_order_relaxed);
-			window(LazyPageWindow::Mark);
-			mapped.verified.set(reference.offset);
+			const auto bytes = verified_page_bytes(
+			    mapped.bytes, &mapped.verified, reference, bounds,
+			    [&](std::span<const char> page, const p::PageHeader &header) {
+				    DETENT_COUNT(pages_verified, 1);
+				    const auto nodes_end = page.size() - p::child_bytes * header.externals;
+				    for (p::NodeAt at; at.offset() < nodes_end;) {
+					    const auto node = at.decode(page, bounds);
+					    if (node.kind == p::PageKind::Definition)
+						    p::validate_definition(node.body, root.cursor.revision, limits.overrides);
+					    else if (node.kind == p::PageKind::Namespace &&
+					             read_integer(node.body, 0, 8) > root.cursor.revision)
+						    throw ReadSourceFailure("local namespace exceeds selected revision");
+					    at = p::NodeAt::after(node);
+				    }
+				    verifications.fetch_add(1, std::memory_order_relaxed);
+				    window(LazyPageWindow::Mark);
+			    });
 			return bytes;
 		} catch (const d::StoragePressure &) {
 			throw ReadSourceFailure("local reader admission exhausted");

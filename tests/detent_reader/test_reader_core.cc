@@ -1,6 +1,7 @@
 // The reader core's C ABI and C++ header (reader.md D1, D2, D4, D7; docs/mechanisms/reader-core.md).
 #include "detent/reader.hh"
 #include "detent_testing/generation_writer.hh"
+#include "generation_file_access.hh"
 #include "prepared_reader.hh"
 #include "testing.hh"
 #include <climits>
@@ -56,15 +57,15 @@ void replaced_selected(const std::filesystem::path &root) {
 	const auto store = root / "replaced-selected";
 	detent::testing::GenerationWriter writer(store);
 	CHECK(writer.publish_json(knobs(1)) == 1);
-	x::PreparedReaderTesting::install([](std::string_view name, void *context) {
+	x::RecordTesting::install([](std::string_view name, void *context) {
 		if (name != "selected")
 			return;
-		x::PreparedReaderTesting::install(nullptr, nullptr);
+		x::RecordTesting::install(nullptr, nullptr);
 		auto &writer = *static_cast<detent::testing::GenerationWriter *>(context);
 		CHECK(writer.publish_json(knobs(2)) == 2);
 	}, &writer);
 	struct Reset {
-		~Reset() { x::PreparedReaderTesting::install(nullptr, nullptr); }
+		~Reset() { x::RecordTesting::install(nullptr, nullptr); }
 	} reset;
 	Opened r(store);
 	CHECK(r.status == DETENT_OK);
