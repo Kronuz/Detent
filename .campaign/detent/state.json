@@ -5514,7 +5514,9 @@
     },
     "journal-reopen-closed": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "journal-faultfs"
+      ],
       "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
       "branch": "quest/detent/journal-reopen-closed",
       "checks": [
@@ -5552,7 +5554,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T02:20:02",
+      "updated": "2026-11-18T02:21:08",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
