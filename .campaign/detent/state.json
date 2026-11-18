@@ -4708,9 +4708,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/faultlab",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "faultlab: faultfs collect() linear in inodes",
-      "updated": "2026-11-18T08:59:26",
+      "updated": "2026-11-18T09:33:33",
       "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
     "fixture-500k": {
