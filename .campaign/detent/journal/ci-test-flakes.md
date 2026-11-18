@@ -1,7 +1,9 @@
 # ci-test-flakes: journal
 
-State: waiting on jobs 261117-234942-985c20 -234948-483694 -234955-a588f5 -235001-67ee1b (new A1
-pairs) and probes -235008-5cd352 -235015-1d92d0 (catchup phase times); full rerun after the probe
+State: waiting on jobs 261117-234948-483694 -234955-a588f5 -235001-67ee1b (A1 lostwrite mutant,
+service-stale pair) and probes -235008-5cd352 -235015-1d92d0; forced/lostwrite 234942-985c20 passed 3/3.
+Full `campaign job rerun` held until the probe: a catch-up timeout fix that edits test_multivoter
+would invalidate the whole set again.
 Quest: .campaign/detent/quests/ci-test-flakes.md (the lead's; never edit it)
 
 ## Doing
@@ -100,6 +102,10 @@ merged in c6718bce, fixes it); poll_publisher 0 of 40 at main 20d577 and head 17
 
 ## Next
 
+0. Read probes 5cd352 (x12 at 4-way) and 1d92d0 (x3 alone): which phase grows under load toward the
+   180 s TIMEOUT. Fix it in the test at its cause if the test spends it (no wider timeout), else rescope
+   to the lead with the numbers. Then `campaign job rerun` the whole set at the new head, with
+   lostwrite and service-stale pairs added to A1.
 1. Read the jobs below; every forced passes and every mutant fails; soaks 0 failures.
 2. Attribute the suite's two failures from the attribution jobs; if pre-existing, report to the lead
    (outside the file set) and rule A3 on the suite's other tests.
