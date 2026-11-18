@@ -1,6 +1,6 @@
 # transport-idle-cost: journal
 
-State: waiting on jobs 261117-172945-6b1b06 (A1) 261117-172946-981ce0 261117-172946-bbf981 261117-172946-10ce1e 261117-172946-7024b4 (A2) 261117-172947-eb211c (suite) at consensus:76bacd2
+State: ready for review
 Quest: .campaign/detent/quests/transport-idle-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,46 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-transport-identity (consensus:361d5d2) and main are merged (consensus:005508c, the lead's). Every
-job at 937441b aborted: `member_of is required`. consensus:73cd955: the bench names incarnation k
-on node k, stores every group (its own open) on every host inside the per-group window, and sets
-wheels apart by requested size and address (F3). Reran the six at 73cd955: A1 129613; A2 rows
-41bde3 (control), 6513c0 (data), b0ba7a (wake), 4f0a0a (full hop); suite d67111.
-
-Local smoke at 73cd955 (light hold, not evidence): A1's per idle group now 253-368 B, over 64 B
-at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); per end 44,667 B
-(L = 1), 48,792 B (L = 4) <= 49,152; per host 99-100% (L = 1), 107-108% (L = 4) of D108, within
-10%. Suite d67111 failed only on ctest `consensus_transport_idle` (57 tests, 1 failed), as expected; A1 129613 is expected to fail on the
-64 B per group. Blocked on 1.
+D112 ruled and amended to `230 + 40P` (Detent:a7a2d5c0). All six jobs passed at consensus:76bacd2;
+docs/perf/transport-idle-cost.md has the new numbers (consensus:edbb162, docs only).
 
 ## Next
 
-0. D112 ruled (Blocked 1, option a): the bench's per-group check is now 230 + 40P B (P = peers),
-   consensus:76bacd2; the five queued jobs at 73cd955 were cancelled and rerun with the suite at
-   76bacd2. When they pass: docs/perf/transport-idle-cost.md per-group table (identity store 206 B,
-   D112), Evidence table from `campaign brief`, push both branches, State "ready for review".
-
-1. On resume: read the six jobs; put their numbers in docs/perf/transport-idle-cost.md (A1, A2,
-   the per-group miss); paste `campaign brief`'s Evidence; State "ready for review" once the
-   lead rules on Blocked 1.
+1. Review. CI at 76bacd2: macos-x86_64 failed `consensus_transport_groups_upload` (worst stall
+   111 ms) and `consensus_transport_connection` (aborted), neither in this quest's files;
+   `consensus_transport_idle` passed there (run 44216299768).
 
 ## Blocked on
 
-1. Lead: A1's "per idle group at most 64 bytes" fails after transport-identity. A stored group
-   holds, per host (local, 1,000 groups, C++ block sizes): its `Stored` node 80 B, its
-   `Opening` (make_shared, GroupOpen 80 B + serial) 112 B, `Stored::opened` (24 B per peer
-   connection that opened it, capacity-rounded: 32/48/96 B at P = 1/2/4), plus 16 B per sending
-   connection in `Lane::opened` and map buckets: 253 B (P = 1), 286 B (P = 2), 366 B (P = 4).
-   The traffic itself leaves nothing (0.2 B before identity). Fix is in host_transport.h,
-   outside my file set. Options: (a) amend A1 to count a stored group's identity state, about
-   200 B + 40P B per group (D-row; what identity's design pays); (b) shrink it in a transport
-   quest: GroupOpen inline in `Stored` instead of a shared `Opening` (-~32 B), `Stored::opened`
-   as an inline bitmask of (peer, lane) slots instead of a heap vector (-24..96 B), which might
-   reach ~100-130 B, still over 64; (c) keep 64 B for what traffic leaves and budget the store
-   apart. Recommend (a) now, with (b) as a follow-up quest: no reading of D10's 64 B made room
-   for R7's per-group open state, and 64 B is not reachable without dropping it. Not loosened in
-   the bench: the check still fails.
-2. A2's host: this Mac stands in for the Linux gate host (D111), stated in the doc.
+None. (1, A1's per-group bound: ruled D112, amended to `230 + 40P`. 2, A2's host: this Mac stands
+in for the Linux gate host (D111), stated in the doc.)
 
 ## Rulings I made
 
@@ -62,8 +35,8 @@ at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); pe
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-122812-45a7bf (passed at 0d92ef5c447a; ignores docs-only docs/perf/transport-idle-cost.md), 261117-122904-8a23d2 (passed at 0d92ef5c447a; ignores docs-only docs/perf/transport-idle-cost.md) |
-| A2 | 261117-122822-488d1f (passed at 0d92ef5c447a; ignores docs-only docs/perf/transport-idle-cost.md), 261117-122836-fb319f (passed at 0d92ef5c447a; ignores docs-only docs/perf/transport-idle-cost.md), 261117-122848-92c892 (passed at 0d92ef5c447a; ignores docs-only docs/perf/transport-idle-cost.md); results doc docs/perf/transport-idle-cost.md (consensus:cbcd563) |
+| A1 | 261117-172945-6b1b06 (cost, exclusive), 261117-172947-eb211c (suite), at 76bacd23065c |
+| A2 | 261117-172946-981ce0 (control), 261117-172946-bbf981 (data), 261117-172946-10ce1e (idle wake), 261117-172946-7024b4 (full hop), at 76bacd23065c; results doc docs/perf/transport-idle-cost.md (consensus:edbb162) |
 
 CI run 44169921897 (consensus:4c80573): `consensus_transport_idle` passes on every platform,
 macos-x86_64 included (the wheel cut); the run's one failure is `consensus_transport_peers` on
@@ -73,10 +46,12 @@ macos-x86_64, the known retry flake (peers-retry-flake).
 
 bench/transport_idle.cc counts the host transport's idle bytes exactly and times the hop;
 docs/perf/transport-idle-cost.md has the results (this Mac, OpenSSL 4.1.0, exclusive jobs).
-- A1 (45a7bf): idle group <= 0.2 B, 0 fds/timers; idle end 44,454 B (L = 1) / 48,394 B (L = 4)
-  <= 48 KB; per host 1.4-1.5% under `52 KB + 2P x 44 KB` at L = 1, 5.8-6.9% over at L = 4.
-- A2: hop adds 131 ns/frame control (band 77), 216 ns data (band 70), 15.3 us per idle wake
-  [12.9, 20.8] (band 8.7); all clear their bands.
+- A1 (6b1b06, at 76bacd2): idle group 253-368 B (206 B identity store + ~40 B per peer + 8), 0
+  fds/timers, <= `230 + 40P` (D112); idle end 44,666 B (L = 1) / 48,792 B (L = 4) <= 48 KB; per
+  host 0.5-0.7% under `52 KB + 2P x 44 KB` at L = 1, 6.8-8.1% over at L = 4 (within 10%).
+- A2 (981ce0, bbf981, 10ce1e): hop adds 153 ns/frame control (band 62), 222 ns data (band 66),
+  12.5 us per idle wake [10.3, 16.2] (band 10.1); all clear their bands. The 7-round full-hop job
+  7024b4 puts the wake at 14.4 us, within its 15.7 us band (2,000 frames per run), as before.
 Leaves open: `feed` scanning every group (transport-feed-scan, D109).
 
 ## Review fixes
