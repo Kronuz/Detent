@@ -5357,7 +5357,17 @@
       ],
       "consumes": [],
       "files": [
-        "include/journal/turn_driver.h"
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "include/journal/primitives.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "include/journal/io*.h",
+        "src/**",
+        "test/sync_seam_test.cc",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/journal-sync-seam",
       "landed": [],
@@ -5369,7 +5379,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-18T00:21:14",
+      "updated": "2026-11-18T00:23:49",
       "worktree": "../journal-wt/detent/journal-sync-seam"
     },
     "journal-turn-bound": {
