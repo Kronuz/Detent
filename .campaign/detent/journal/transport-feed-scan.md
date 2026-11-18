@@ -1,6 +1,6 @@
 # transport-feed-scan: journal
 
-State: fix round 1 at consensus:590308d (code 303cad1); waiting on jobs 261118-003330-778798 (F1 exclusive), 261118-003134-30731c, -bead1c, 261118-003238-06723a.
+State: fix round 1 done at consensus:596a065 (code 303cad1), pushed; waiting on job 261118-003330-778798 (F1 exclusive A/B, queued for the machine) and CI at 596a065.
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Fix round 1 (session 4)
@@ -201,28 +201,35 @@ both change a contract, so they are the lead's (see Blocked on).
 
 ## Blocked on
 
-- (lead) A6: the cause is not named. Not reproducible here (Intel Mac, macOS 15.8.1: 32 of 32 at
-  4-way, 20 of 20 beside connection_test, background QoS only degrades) and CI stopped failing
-  (24 of 24 since ed8f840, 7 of 7 without the diag). Options: 1. land with the failure samples in
-  place (ed8f840, b686ce2) and file a follow-up that reads the next failure (recommended: the
-  samples split reader-parked from TCP-stalled in one line); 2. keep dispatching probe runs until
-  one fails (each 7 uploads, ~15 min, failures cluster in time); 3. a speculative test change
-  (e.g. rerun on a wire stall), which I have not made: it would guess. The x100 job
-  261117-233356-4b73fc shows the case at head under 4-way load here, not a fix.
+- Nothing. A6 was rescoped by the lead to the failure samples (an [artifact]); the cause goes
+  to quest groups-upload-stall.
+- (lead, FYI) F1's control stream stays 20-30% over main (strict 757230: main 513/331 ns, branch 605/429):
+  two GroupTable lookups per frame on the group loop vs main's one map find. Not in F1's ask
+  (data per frame); options: accept and record, or a follow-up that folds the opened check into
+  `Stored` (costs idle bytes) or speeds the lookups. Recommend accept.
 
-- msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
-  (only that line changed) and the mutants are in mutant_commit.py.
-- A5 takes the field-by-field route (lead: 104 B + 24 B per peer meets it).
+## Findings (review fix round 1)
+
+- F1 = 261118-002026-757230 (strict A/B at 303cad1: data at or under main at each position);
+  deciding exclusive 261118-003330-778798 pending. Suite 261118-003238-06723a.
+- F2 = 261118-003144-3730d0 (store-keeps-opens killed by identity at 303cad1; also
+  261117-224140-de7732 at 13b32d3, aborting on line 1234's epoch3 assertion).
+- F3 = 261118-003140-29e975 (no-generation-clear killed by `reconnect` at 303cad1; plain
+  261118-003134-129143). no-current survives (261117-235613-498ed0): equivalent today (R7).
+- F4 = consensus:590308d, docs only, rows from 261118-003133-eee91a.
+- F5 (non-blocking) fixed in 48d04eb; no test can fail without it for the same reason as
+  no-current (R7).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261117-205609-750069: `scan` 0.750 groups visited per frame at 100, 1,000 and 10,000 groups; fails-without at main-feed 261117-205619-b7decf: 28.5, 255.2, 2,529.1 visited per frame (asserts) |
-| A2 | 261117-233307-49251f (strict, 13b32d3): 3 of 3, 400,040 of 400,040 frames, 0 dropped, 298.2 B a group (stored 127.8, frames 170.5), credit back 290-371 ms after |
-| A3 | 261117-205614-ddf195: `order` passes; ring-at-front -205624-60f65d, bulk-ahead-of-control -205629-2d0bb7, no-credit -205635-ba674d fail `order` on its asserts; other mutants and TSan 261117-205717-1de5e8 pending. Hop smoke A/B -205819-0701eb passed |
-| A4 | <no evidence yet> |
-| A5 | <no evidence yet> |
+| A1 | 261118-003134-bead1c (303cad1): `scan` 0.750 visited per frame at 100, 1,000 and 10,000 groups; fails-without main-feed 261118-003230-dd075a: 28.5, 255.2, 2,529.1 (asserts); uncredited-kept 261118-003225-fc8c65 |
+| A2 | 261118-003133-4c4eb0 (strict, 303cad1): 3 of 3, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 561-683 ms after |
+| A3 | order 261118-003134-30731c, identity -003133-c1416a, reconnect -003134-129143, leftover -003134-38a9fa, TSan -003133-b42164 (all 303cad1); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
+| A4 | suite 261118-003238-06723a (303cad1); CI at 596a065 running |
+| A5 | 261118-003133-eee91a (303cad1): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
+| A6 | [artifact] test/transport/groups_test.cc: `upload` prints socket queues and TCP state per host when it fails (consensus:ed8f840, b686ce2); groups-upload-stall reads the next failure |
 
 ## Result
 
