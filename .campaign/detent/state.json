@@ -1316,9 +1316,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T03:33:00",
+      "updated": "2026-11-18T05:20:12",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
