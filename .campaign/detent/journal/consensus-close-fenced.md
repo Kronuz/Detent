@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-021458-8f5b01 261118-021757-fd5aa8 261118-021759-37b257 261118-021800-0604b4
+State: waiting on jobs 261118-021905-0952ab 261118-021907-3d767d 261118-021909-dc9230 261118-021911-f17875 261118-021757-fd5aa8 261118-021759-37b257 261118-021800-0604b4
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,25 +24,20 @@ Not done: N3 (a test erasing a still-queued group).
 
 ## Next
 
-1. Read the four jobs; fix what fails.
-2. Read the two fails-without jobs.
-3. Fill the Evidence table; ready for review.
+1. When the jobs finish: read plain 0952ab's output (created_bytes prints process heap per row open,
+   closed and after the log forgets it, net of the simulated disk, for 0 and 10 proposals per row).
+   Put the figures in the Result split Driver part / journal part; mark the journal part owned by
+   journal-reopen-closed A4b.
+2. Confirm: mutant jobs 3d767d-dc9230-f17875 and 37b257 ran the test (log shows "reached the test")
+   and exited nonzero; TSan 3d767d is the A4 TSan job (ids: plain 0952ab, tsan 3d767d, settle mutant
+   dc9230, erase mutant f17875, ASan fd5aa8, unqueued mutant 37b257, suite 0604b4).
+3. Fill the Evidence table from `campaign brief`; set "ready for review".
 
 ## Blocked on
 
-Lead: who closes the journal group when a Driver row closes (F2). Owner: the Worker (worker.h:1139
-`kronuz::journal::Store store_`); `Worker::close()` (worker.h:179) only sets `closing_`, and nothing
-calls `Store::close()` (store.h:389) -> `Journal::close()` (journal.h:355) -> `Host::close_group` ->
-`TurnDriver::forget`. That call cannot simply be added in driver.h or worker.h: Journal::close
-requires a healthy store (a fenced row throws), no pending replacement, the last record durable, and
-a checkpoint covering every batch (`frontier_.sequence == base_sequence`). A lone row with batches
-past its last checkpoint, or any fenced row, fails it, and `TurnLog::forget` on such a group would
-let retention reclaim live uncheckpointed records (data loss). TurnLog `index_` is the retention's
-live-record index, correct while the records are live. Options: (a) Worker::close writes a covering
-checkpoint, then store_.close() (healthy rows only; needs the application's capture, so not automatic);
-(b) a Host-side release that drops the in-memory per-group state (shards_/opened_/sequences_/index_
-and the recover guard) while the records stay durable and recoverable (the journal-reopen-closed
-quest). Recommendation: (b). worker.h is needed only for (a); I do not change it.
+Nothing. Lead ruled option (b): journal-reopen-closed A4b adds a Host release for fenced or
+uncheckpointed Stores that keeps records durable; a follow-up quest has Worker::close call it.
+worker.h untouched. A3 is rescoped to the Driver's rows.
 
 ## Evidence
 
