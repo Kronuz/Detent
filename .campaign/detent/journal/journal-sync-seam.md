@@ -1,6 +1,6 @@
 # journal-sync-seam: journal
 
-State: waiting on jobs 261117-200917-ac87f4 (suite) 261117-200923-d18138 (A4 before) 261117-200935-1fd941 (A4 after); A1 waits on turn_driver.h:276
+State: waiting on jobs 261117-200917-ac87f4 (suite) 261117-200923-d18138 (A4 before) 261117-200935-1fd941 (A4 after); then on journal-turn-bound landing
 Quest: .campaign/detent/quests/journal-sync-seam.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-sync-seam (branch quest/detent/journal-sync-seam)
 
@@ -15,7 +15,7 @@ Repinned completion to f4c19b1 (journal:54d2972, pushed). Turn log barriers go t
 
 ## Blocked on
 
-turn_driver.h:276, one line, journal-turn-bound's file: `write.file->sync_data()` must become `log_.flush(write)` for A1's grep to pass. Who edits it: journal-turn-bound or me with the lead's word. Note for completion: `PosixIO` does not override `sync_data_files` (the default calls `PosixFile::sync_data`), so Xapiand's `sync_calls_` skip hook does not cover data syncs; a PosixIO override routing them through `sync_calls_` would.
+Ordering, ruled by the lead: journal-turn-bound lands first, then turn_driver.h joins my file set. Then: merge main, change turn_driver.h:276 to `log_.flush(write)`, run A1's grep. PosixIO keeps the default `sync_data_files`; a host IO overrides it (Xapiand's).
 
 ## Evidence
 
