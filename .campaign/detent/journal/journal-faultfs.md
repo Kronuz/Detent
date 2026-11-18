@@ -1,19 +1,23 @@
 # journal-faultfs: journal
 
-State: working
+State: waiting on jobs 261118-021353-62f2a6 (suite) 261118-021429-6ea95f (A1) 261118-021438-24c9d7 (A3 mutant) 261118-021430-5b9917 261118-021432-aeda2f (A5 fuzz)
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
 ## Doing
 
-journal:37c2769 moves every test and fuzzer off memory_io.h onto faultfs (faultlab:a452a8c,
-test-only FetchContent after completion). Build job 261118-020820-c60ee1 running.
+journal:37c2769 (pushed) moves every test and fuzzer off memory_io.h onto faultfs
+(faultlab:a452a8c, test-only FetchContent after completion). Every target builds: job
+261118-020820-c60ee1. Jobs queued at journal:37c2769: suite 261118-021353-62f2a6 (A2, A6), A1 grep
+261118-021429-6ea95f, A3 mutant 261118-021438-24c9d7 (`TurnLog::flush` emptied, fresh checkout,
+turn_log_power 2 seeds must print "FAIL: every acknowledged record survives"), A5 fuzz
+261118-021430-5b9917 (journal_fuzz) and 261118-021432-aeda2f (journal_fuzz_framing), 600 s each.
 
 ## Next
 
-1. Build green, then the suite (`campaign verify --for A2,A6`), the A1 grep, the A3 mutant, the
-   two 10-minute fuzz runs (A5).
-2. Push the branch for CI.
+1. Read the jobs. A suite failure that faultfs exposes (namespace subset, unsynced truncate, torn
+   sector) goes to the lead with a reproducer (A4), no product fix here.
+2. CI on the pushed branch; fill Evidence; ready for review.
 
 ## Blocked on
 
