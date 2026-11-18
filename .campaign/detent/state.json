@@ -5331,6 +5331,7 @@
       "consumes": [],
       "files": [
         "include/journal/turn_driver.h",
+        "include/journal/turn_log.h",
         "test/turn_bound_test.cc",
         "CMakeLists.txt",
         "docs/mechanisms/turn-seal.md",
@@ -5366,7 +5367,7 @@
       "risk": "high",
       "status": "review",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T20:46:27",
+      "updated": "2026-11-17T21:04:47",
       "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
