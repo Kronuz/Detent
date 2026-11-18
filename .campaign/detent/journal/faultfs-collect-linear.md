@@ -1,6 +1,6 @@
 # faultfs-collect-linear: journal
 
-State: waiting on jobs 261118-091517-054e8f 261118-091518-7ecf95 261118-091520-fd4c94 261118-091523-021b88 261118-091525-a25512 261118-091528-999d92 261118-091530-5ff857 261118-091533-93f1f4
+State: ready for review (A4's faultlab-quest jobs 261118-093254-b211a1, 261118-093255-5aec56, 261118-093256-dcbd77 still queued)
 Quest: .campaign/detent/quests/faultfs-collect-linear.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -27,7 +27,7 @@ Docs: docs/mechanisms/crash-model.md (faultlab:5f4d104).
 
 ## Next
 
-1. Read the jobs above; fill the Evidence table; State "ready for review".
+1. Review. When the A4 jobs finish, check each log's `faultlab built:` commit is 5f4d104.
 
 ## Blocked on
 
@@ -50,10 +50,10 @@ Earlier design (faultlab:ce3b6b6, one gather per call), superseded:
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: suite 261118-091517-054e8f at 5f4d104 |
-| A2 | pending: --fails-without 261118-091518-7ecf95 (durable names uncounted), 261118-091520-fd4c94 (logged ops uncounted); built with FAULTLAB_CHECK_COUNTS=0, so the by-value case alone must catch them |
-| A3 | pending: 261118-091525-a25512 (publish cost at 1K/10K/100K live files, Release, checks off); --fails-without 261118-091523-021b88 (collect() recounts everything) |
-| A4 | pending: 261118-091528-999d92 distinct, 261118-091530-5ff857 heap, 261118-091533-93f1f4 churn (timeout 1440 s) |
+| A1 | 261118-091517-054e8f (suite, 17 of 17, at 5f4d104) |
+| A2 | passes at 5f4d104: 261118-093241-d3f204 (by-value case alone); fails without: 261118-091518-7ecf95 (durable names uncounted), 261118-091520-fd4c94 (logged ops uncounted), built with FAULTLAB_CHECK_COUNTS=0 so the by-value case alone catches them |
+| A3 | 261118-091525-a25512 (5.29 / 6.64 / 9.66 us per publish at 1K / 10K / 100K live files, Release, checks off); fails without 261118-091523-021b88 (collect() recounts everything) |
+| A4 | faultlab-quest jobs at 5f4d104, journal pinned at 36912d7 via --ref and built against the job's faultlab checkout: 261118-093254-b211a1 distinct, 261118-093255-5aec56 heap, 261118-093256-dcbd77 churn (queued; timeout 1440 s). Earlier journal-repo runs at faultlab:28c0396 (not counted): 999d92 slope 0 B/group, 5ff857 248.45 B/group, 93f1f4 churn 824 B |
 
 ## Result
 
