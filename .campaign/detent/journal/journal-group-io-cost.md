@@ -1,6 +1,6 @@
 # journal-group-io-cost: journal
 
-State: waiting on jobs 261118-072910-b78abc (light dry run), 261118-072911-17102d (exclusive, A1)
+State: ready for review
 Quest: .campaign/detent/quests/journal-group-io-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,9 +24,7 @@ thread; ranges_ is the loop's, unlocked).
 
 ## Next
 
-1. Resume when the jobs finish: `campaign job show` the exclusive job, copy its table into
-   docs/perf/group-io.md (numbers, fit, command, commit journal:dcbd791, one-line verdict), commit, push.
-2. Fill the Evidence table, set State ready for review.
+1. Lead: review and land journal:878c43d (docs/perf/group-io.md); fix quest is journal-group-io-sweep.
 
 ## Blocked on
 
@@ -40,12 +38,15 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | exclusive job 261118-072911-17102d (dry run light 261118-072910-b78abc) |
-| A2 [artifact] | docs/perf/group-io.md (pending the A1 numbers) |
+| A1 | 261118-072911-17102d (exclusive; light dry run 261118-072910-b78abc) |
+| A2 [artifact] | `docs/perf/group-io.md` at journal:878c43d (table, command, commit, fit): "The slope is 138.6 ns per id, dominated by the 1M point." |
 
 ## Result
 
-Pending the exclusive job.
+group_io is linear in live ids and convex per id. Median ns/call, random ids: 1K 4,763; 10K 147,173;
+100K 4,871,407; 1M 135,846,060 (ascending: 4,215; 67,680; 1,133,686; 23,822,221). Fit 138.6 ns per id,
+r^2 0.9965. Per-id cost 4.8 -> 135.8 ns (random) because the multimap outgrows cache (about 176 B per id,
+16 MiB L3); inferred from sizes, no miss counters. Doc: docs/perf/group-io.md. Fix: journal-group-io-sweep.
 
 ## Rulings I made
 
