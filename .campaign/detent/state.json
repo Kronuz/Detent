@@ -5455,6 +5455,43 @@
       "updated": "2026-11-17T05:07:28",
       "worktree": ""
     },
+    "journal-reopen-closed": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "test/journal_test.cc",
+        "docs/mechanisms/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal: a closed id recovers in the live Host",
+      "updated": "2026-11-18T02:12:40"
+    },
     "journal-sync-seam": {
       "accepted": {},
       "after": [
