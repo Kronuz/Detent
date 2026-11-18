@@ -26,8 +26,8 @@ Jobs (none run locally; every build is in a job):
 1. On results: fix compile or test failures; record numbers.
 2. A5: from 261117-192631-c1640a set the bench's per-group bound to the measured field-by-field figure; rerun cost `--for A5`.
 3. A4: `campaign verify transport-feed-scan` at the final commit; CI green.
-4. docs/perf/transport-idle-cost.md says 10,000 groups end connections and gives the old per-group
-   numbers; it is outside the file set: ask the lead to add it once A2/A5 numbers exist.
+4. docs/perf/transport-idle-cost.md (now in the file set): replace "at 10,000 groups connections
+   end" with A2's job, and the per-group table and `230 + 40P` bound with A5's numbers.
 
 ## Design
 
@@ -97,7 +97,7 @@ both change a contract, so they are the lead's (see Blocked on).
 
 - msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
   (only that line changed) and the mutants are in mutant_commit.py.
-- Not blocking: A5's 64 B needs a contract change, options above (recommend `open_of`).
+- Nothing. A5 takes the field-by-field route (lead: 104 B + 24 B per peer meets it).
 
 ## Evidence
 
@@ -112,6 +112,12 @@ both change a contract, so they are the lead's (see Blocked on).
 ## Result
 
 <pending>
+
+## Recommendation (follow-up, not this quest)
+
+An `open_of(group)` callback, as `member_of` is, so the transport stops holding a copy of the
+open the host already has: an idle group's record goes from 104 B to 24 B, which brings it
+under D108's 64 B. It changes the `store` contract and Detent's call sites. The lead deferred it.
 
 ## Rulings I made
 
