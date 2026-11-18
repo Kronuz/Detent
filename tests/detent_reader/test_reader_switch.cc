@@ -655,11 +655,15 @@ void capacity(const std::filesystem::path &root) {
 		}
 		CHECK(mappings(store) == baseline && descriptors() == fds);
 	}
-	// The ledgers follow the live views, not the publishes: equal after 10 and after 40.
-	Opened r(store);
+	// The ledgers follow the live views, not the publishes: equal after 10 and after 40. A fresh store,
+	// since the writer's census counts `change`, now at its 1 GiB disk limit, and refuses to publish.
+	const auto ledgers = root / "capacity-ledgers";
+	detent::testing::GenerationWriter ledger_writer(ledgers);
+	CHECK(ledger_writer.publish_json(knobs(1)) == 1);
+	Opened r(ledgers);
 	std::uint64_t heap = 0, mapped = 0;
 	for (std::int64_t rev = 2; rev <= 41; ++rev) {
-		CHECK(writer.publish_json(knobs(rev)) == std::uint64_t(rev));
+		CHECK(ledger_writer.publish_json(knobs(rev)) == std::uint64_t(rev));
 		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
 		CHECK(detent_refresh(r.handle) == DETENT_OK); // frees the unpinned older views
 		const auto stats = t::stats(r.handle);

@@ -1,9 +1,15 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:bd6581b` (ids `261118-10xxxx-<suffix>`): gates 1790af 04640c 631262 1c93af 300581; plain c435d5 d779ed 701d0a 0206b9; soak cc66a6 4e9d80 2fcb28 ec46f4 ca8025 b84d11 e3734b f6d5ec; Q6-1 mutant 90e1ea; A7 1bf0d7; A16 smoke a01c45, then exclusive dab009 (stopped) and f1bca2 (running); F2-F4 fc5e6e 2934a2 ba2018; msg-1 0f6566 f07232.
+State: waiting on jobs: every job in the home `.scratch/reader-s6-moved.txt` not kept, plus plain c435d5 d779ed 701d0a and A7 5046f5, cancelled and rerun at the commit that records this State (A14 fix); probe of `test_reader_switch capacity` there; msg-1 0f6566 f07232 stay at their commits. Ids: `campaign status reader-s6`.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- A14 failure (0206b9 at `Detent:bd6581b`): the cause is the test, not the reader. `capacity`
+  grows `change` to 1 GiB, then publishes 40 revisions with the same `GenerationWriter`. The
+  agent's census counts `change` at its logical size (`agent_store.cc` `resize_change`), and the
+  writer's `DiskLimits.bytes` is 1024 segments = 1 GiB, so the next publication's
+  `DiskLedger::reserve` throws `DiskPressure`. The reader reserves nothing in that ledger; the
+  three sizes passed. Fix: the ledger stress runs on its own store (`capacity-ledgers`).
 - `Detent:bd6581b` ports the first-read gate (lead ruling on A16): `first_read_core --core` times a
   fresh process's `detent_open` and first `detent_get`; main's arm is `first_read_phases --client`
   (runtime, `PreparedReader::open`, refresh thread, first `try_get`), built from main's tree.
@@ -59,14 +65,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Blocked on
 
-- Evidence head (lead's call). Every job is queued at `Detent:bd6581b`. Its only differences from
-  head `Detent:482a2a4` are `first-read-gate.md` and the deleted `first_read_gate.py`, but
-  `campaign brief` counts nothing at the new head. Filling Results with the A16 numbers moves the
-  head once more. Options:
-  1. Accept the bd6581b jobs for this docs-only delta.
-  2. Rerun every job once, at the head after the Results commit.
-  Recommendation: 1, because no target builds the changed files. Otherwise 2, and I start it right
-  after the Results commit.
+- Nothing. Evidence head: the lead moved every job to `Detent:64d8e34`; the A14 fix moves it
+  once more, and every job is rerun at this commit.
 
 ## Evidence
 
@@ -81,7 +81,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 | A11 | mutant killed ef5614; plain d779ed queued (62b83d passed at `Detent:8ccef6c`) |
 | A12 | F1 c09e87 killed; F2-F4 fc5e6e 2934a2 ba2018, cold cases 701d0a, soak cc66a6 4e9d80 2fcb28 ec46f4 ca8025 b84d11 e3734b f6d5ec queued |
 | A13 | 701d0a queued (`test_reader_switch cold`, child ledger check) |
-| A14 | 0206b9 queued (`test_reader_switch capacity`) |
+| A14 | 0206b9 failed (writer disk limit, test fix in this commit); rerun pending |
 | A16 | dab009 (stopped), f1bca2 (running), exclusive after smoke a01c45; numbers pending |
 
 ## Messages
@@ -97,6 +97,10 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 Pending.
 
 ## Rulings I made
+
+- A14: the ledger stress publishes into a fresh store instead of raising the writer's disk limit
+  (`src/detent_testing`, outside the file set). Running soak rounds at `Detent:64d8e34` were
+  cancelled too: each runs the full `test_reader_switch`, `capacity` included, so each would fail.
 
 - Main removed `StorageIdentity` and `storage.meta`; the core's "store identity change" refusal goes
   with them. A swapped store still fails the A4 regression check within an incarnation and the
