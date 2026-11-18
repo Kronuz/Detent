@@ -1,6 +1,6 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs 261118-043307-6c91a2 043309-eb6e13 043314-4c29f5 043318-473163 043334-531661 043341-b92534 043343-e3fdca 043356-9c13d7 043358-09b70e 043411-fd6782 (all at journal:c92eb27). Passed: 043305 (reopen cases), 043312 (reopen_heap 248.5 B/id before settle, 248.5 after), 043316 (1.0 barriers/segment), 043320 (host+journal), 043332 (power 8: 0 failures); fails-without held: 043337 (FAIL at 5/116, 5/161, 7/219), 043339 (0.939).
+State: waiting on jobs 261118-055432-ee8f37 (TSan rerun), 055432-fca65e (A9 200-seed rerun), 055434-04dc20 (permit mutant with the 'reached the test' marker), all at journal:c92eb27; A8 blocked (see Blocked on).
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
@@ -19,7 +19,9 @@ Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c
 
 ## Blocked on
 
-Nothing. host_test.cc is in the set and the quest no longer waits on journal-faultfs (lead, latest message).
+A8's 100,000-close run cannot finish: 4c29f5 and 9c13d7 (main's headers too) hit the 30-minute cap after linking. Cause, measured locally at c92eb27 with an ids knob (patch parked in my worktree's .scratch/distinct-knob.patch, uncommitted): 1,000 ids 4.8 s, 2,000 17.1 s, 4,000 50.0 s, quadratic; `sample` puts the time in jt::MemoryIO::sync_directory (memory_io.h:163-167), which rebuilds the whole durable namespace map per sync, O(files on the disk). Host heap stays flat in every run (0-16 B over 900-3,600 closes). 100,000 ids would take hours on this harness, at main as well. Options:
+1. Recommended: add include/journal/memory_io.h to my set; sync_directory then updates only the names changed since the last sync, so the run goes linear and A8 keeps its wording (100,000 ids, one job, with --long if it still passes 30 minutes).
+2. Reword A8 to 10,000 closes, with the heap shown flat by slope (bytes at 1,000, 5,000 and 10,000), plus the knob committed; about 5 minutes at most on today's harness.
 
 ## Evidence
 
@@ -27,15 +29,15 @@ All at journal:c92eb27. Jobs at a92dde9/cd6d017 are void (no build). Mutant and 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-043305-84c658 (reopen cases, done); 043320-b3f159 (host and journal default runs); 043341-b92534 (fails-without: start() submits outside a try); 043343-e3fdca (fails-without: the old guard) |
-| A2 | 261118-043305-84c658; 043318-473163 (TSan); 043411-fd6782 (fails-without: no hold) |
-| A3 | 261118-043307-6c91a2 (reopen_crash) |
-| A4 | 261118-043309-eb6e13 (reopen_churn) |
+| A1 | 261118-043305-84c658 (reopen cases); 043320-b3f159 (host and journal default runs); 043341-b92534 and 055434-04dc20 (fails-without: start() submits outside a try, FAIL: storage permit unavailable); 043343-e3fdca (fails-without: the old guard, FAIL: old guard) |
+| A2 | 261118-043305-84c658; 055432-ee8f37 (TSan; 043318 void, DNS); 043411-fd6782 (fails-without: no hold, FAIL: a recover of a group a live Store holds is busy) |
+| A3 | 261118-043307-6c91a2 (reopen_crash, passed) |
+| A4 | 261118-043309-eb6e13 (reopen_churn, passed) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-043358-09b70e (suite); CI |
+| A6 | 261118-043358-09b70e (suite, passed); CI |
 | A7 | 261118-043312-9d76bf (reopen_heap) |
-| A8 | 261118-043314-4c29f5 (reopen_distinct); 043356-9c13d7 (fails at main's headers) |
-| A9 | 261118-043332-1ce564 (turn_log_power 8 at head, faultfs overlay --ref c606068); 043334-531661 (200 seeds); 043337-6f4c2f (fails-without: unordered reclaim, FAIL at seed 5 cut 116); 043316-161c74 (barriers per segment after: 1.0); 043339-8b3682 (before: 0.939) |
+| A8 | blocked: 043314-4c29f5 and 043356-9c13d7 hit the 30-minute cap (see Blocked on) |
+| A9 | 261118-043332-1ce564 (turn_log_power 8 at head, faultfs overlay --ref c606068); 055432-fca65e (200 seeds; 043334 void, DNS; 8 seeds took 4 s locally, so 200 fit one job: the binary only takes a seed count, not a range); 043337-6f4c2f (fails-without: unordered reclaim, FAIL at seed 5 cut 116); 043316-161c74 (barriers per segment after: 1.0); 043339-8b3682 (before: 0.939) |
 
 Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead first ruled it lands after journal-faultfs; latest message gives me host_test.cc and drops the wait, done at cd6d017). Lead's note (void a92dde9 jobs, `parked` shadowing): already fixed at journal:4885819; everything resubmitted at journal:c92eb27.
 
