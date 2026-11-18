@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-055335-e81e18 261118-055337-063276 261118-055338-321238 261118-055339-c5f7dd 261118-055341-67d3bb 261118-055342-38236d 261118-055343-f6ac66 261118-055345-061f08 261118-055346-a9ddbb 261118-055347-b43a1c 261118-055349-9f9883 261118-055353-301520
+State: waiting on jobs 261118-063756-2fdd9f
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,8 +12,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 Review fix round 1 (correctness review: CHANGES, F1 and F2) at consensus:abc01bb (on
 consensus:9fc2405, origin/main merged as the brief asked). Pushed.
 
-F1=261118-055339-c5f7dd (mutant destroyed-at-exit under ASan, --fails-without; at head,
-asan 261118-055338-321238 must be clean). F2=261118-055341-67d3bb (mutant
+F1=261118-063756-2fdd9f (mutant destroyed-at-exit under ASan+UBSan, --fails-without; at
+head, asan 261118-055338-321238 is clean). It replaces c5f7dd, whose mutant did abort (UBSan
+"invalid vptr" in shared_ptr.h:475, exit 134) but whose runner only counted ASan reports as
+caught; rt.sh now also counts "runtime error:". Lead: every other round-1 job came out right
+(F2 67d3bb, mutants 38236d f6ac66 061f08, plain, TSan, ASan, probes, suite 301520). F2=261118-055341-67d3bb (mutant
 delivery-outside-lock, --fails-without, case abandon_waits).
 
 Jobs at abc01bb, scripts in consensus-wt/.scratch/dns-fix/rt.sh: e81e18 plain (A1,A3);
