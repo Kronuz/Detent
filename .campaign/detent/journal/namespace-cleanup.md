@@ -25,10 +25,10 @@ Nothing. (A1's test lives in tests/detent_authority/test_history_power_cut.cc, b
 
 | Criterion | Evidence |
 |---|---|
-| A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-063637-4b25ea (`history_mutant.sh table-unbounded`, --fails-without; 4d282a is void, see Doing); plain run d5b163; suite 261118-063647-b2bc43 |
-| A2 | `git grep` job 261118-054245-ae0ed2 (src include tests: no match); suite 261118-063647-b2bc43 |
-| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 262af3, bindings e74f8d (killed); hash 063640-a80eea, repair 063642-b28568, one_knob 063645-ed68b7, history 063637-4b25ea (pending); service/mirror/test_history runners already used the convention. 6db3c4, 14f77b, dbe2be and 37fe45 are void |
-| A4 | native 261118-063647-b2bc43, pins 261118-063648-6e156f |
+| A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-075319-490873 (`history_mutant.sh table-unbounded`, --fails-without); plain run 261118-075318-1a4c6f; suite 261118-075318-5020fb |
+| A2 | `git grep` job 261118-075317-0b2741 (src include tests: no match); suite 261118-075318-5020fb |
+| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 261118-054257-262af3, bindings 261118-054258-e74f8d, hash 261118-075319-ba8233, repair 261118-075320-b501c0, one_knob 261118-075320-93fabc, history 261118-075319-490873; survivor exits 0: 261118-084943-54e21f. service/mirror/test_history runners already used the convention |
+| A4 | native 261118-075318-5020fb, pins 261118-075318-64bc71 |
 
 ## Result
 
