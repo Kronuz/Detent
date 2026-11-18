@@ -1,6 +1,6 @@
 # journal-sync-seam: journal
 
-State: blocked on lead: the turn flush and async primitives need a seam decision (below); A2 host table, segment and torn-tail syncs are done, suite queued
+State: waiting on jobs 261117-185442-6f0142 261117-185506-392924; then on completion-sync-data (D113)
 Quest: .campaign/detent/quests/journal-sync-seam.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-sync-seam (branch quest/detent/journal-sync-seam)
 
@@ -12,23 +12,12 @@ Test: test/sync_seam_test.cc (journal:15f4f0a, test only; journal:14515ab, with 
 
 ## Next
 
-1. When jobs finish: read the suite (A2, A3) and the fails-without job; fix a compile or test error if any.
-2. After the lead rules on the fork below: turn flush, async primitives, A1 grep, A4.
+1. Read the fails-without job 261117-185442-6f0142's log: it must fail on the test's own checks, not on a build error; fix a compile error if any. Read the suite 261117-185506-392924.
+2. After completion-sync-data lands: repin completion, route `sync_data` sites (turn_log.h, turn_driver.h) through `io.sync_data_files`, add the turn flush case to sync_seam_test, A1 grep job, A4 at the strict level (never exclusive), perf line in docs/.
 
 ## Blocked on
 
-The seam has no data-only sync, and the async primitives bypass it. What I found (all `completion` at the pinned 7731315, outside this quest's file set):
-
-1. Turn flush: `File::sync_data()` in `TurnLog::append`/`write` (turn_log.h), `TurnDriver::commit` and `TurnBarrier` (`PrimitiveKind::SyncData`, turn_driver.h). `IO::sync_files` is whole-file: PosixIO fsyncs it, so routing the flush through it turns Linux fdatasync into fsync on every turn (mtime commit); macOS is the same call either way (F_FULLFSYNC).
-2. Async/driver primitives: `PrimitiveKind::Sync` (artifact.h, mutation.h: artifact builds, manifest publication) and `SyncData` run `request.file->sync()`/`sync_data()` in completion's executor (operation.h:155-160), natively through io_uring on Linux. They never reach `IO::sync_files`, so no journal-side call can route them; `SyncFiles` goes through `sync_files_and_directory` (adds a directory sync, off the native ring).
-3. Xapiand's skip hook is `PosixIO::sync_calls_`, reached only from the IO methods; `PosixFile::sync` ignores it.
-
-Options:
-- A (recommended, one mechanism): completion changes, journal changes nothing more. Add `IO::sync_data_files(span<File* const>)` (default: `sync_data` each; PosixIO routes through `sync_calls_`, fdatasync on Linux). The blocking executor's `Sync`/`SyncData` call `io.sync_files`/`io.sync_data_files` on the one file. The native ring keeps its ops, with PosixIO's hook honored where it submits them. Then journal's `sync_data` sites become `io_.sync_data_files(...)` and its async primitives stay as they are. The method it adds: `sync_data_files`; Xapiand consumes it.
-- B (journal only, no new method): route the turn flush through `sync_files` now. Cost: Linux fsync for fdatasync per turn, unmeasured; the async `TurnBarrier` stays on `SyncData` (still bypassing), so the footprint's 15% stays unless it moves to `SyncFiles` (adds a directory sync, leaves the native ring).
-- C: make `PosixFile::sync`/`sync_data` honor the owning PosixIO's `sync_calls_` (completion only). Fewest edits; a File-level seam hook rather than an IO-level one.
-
-Recommend A: the executor change covers every async sync (A1 holds by construction), the data-only semantic stays. Name the completion quest and I continue A1/A4 on its pin.
+Nothing for the lead. D113 (option A) ruled: completion-sync-data adds `IO::sync_data_files` and routes the executor's Sync and SyncData through the seam; this quest lands after it. Steps 2 above wait for it.
 
 ## Evidence
 
