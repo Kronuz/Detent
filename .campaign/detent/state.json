@@ -1271,6 +1271,41 @@
       "updated": "2026-11-11T09:22:24",
       "worktree": ""
     },
+    "consensus-dns-threads": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/resolve.h",
+        "test/transport/resolve_test.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: DNS lookups run on bounded, owned threads",
+      "updated": "2026-11-18T03:07:48"
+    },
     "consensus-driver": {
       "accepted": {
         "correctness": {
