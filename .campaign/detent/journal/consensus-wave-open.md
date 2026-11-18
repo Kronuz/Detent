@@ -9,7 +9,8 @@ Reproducing on consensus with `test/wave_open_test.cc` (consensus:d668ae2): 64 l
 opened, created, proposed and applied in one wave on one Host loop, turn log 16 KiB segments
 of 1 KiB blocks (the fixtures' and strata's footprint test's `turn_options`). The test prints
 the turn driver's failure. Probes: 28bc6a (consensus's journal pin 7c08540; waves 64, 8, 64/8,
-32, 16) and a23d83 (strata's journal pin cc95ba6).
+32, 16) and a23d83 (strata's journal pin cc95ba6). Branch pushed; GitHub CI run 44229213026
+also runs `consensus_wave_open 64` on every platform.
 
 Hypothesis (one): `TurnDriver::start()` (journal, include/journal/turn_driver.h) puts every
 pending record in one turn with no segment bound; 64 groups' create records (checkpoint record
