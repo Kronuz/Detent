@@ -6864,7 +6864,8 @@
         "docs/design/http-coroutines.md",
         "docs/status/**",
         "docs/mechanisms/**",
-        "tests/detent_authority/test_history_power_cut.cc"
+        "tests/detent_authority/test_history_power_cut.cc",
+        "tests/detent_delivery/mutants/**"
       ],
       "history": [
         {
@@ -6909,7 +6910,7 @@
       "risk": "low",
       "status": "active",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-18T06:32:28",
+      "updated": "2026-11-18T06:35:50",
       "worktree": "../Detent-wt/detent/namespace-cleanup"
     },
     "namespace-design": {
