@@ -5457,18 +5457,54 @@
         }
       ],
       "journal": "../Detent-wt/detent/journal-turn-bound",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T00:19:48",
+          "commit": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+          "criteria": {
+            "A1": "261117-224244-e38ae9; fails without: 261117-200402-8a9d1f, 261117-224244-a97f37",
+            "A2": "261117-224244-e38ae9; fails without: 261117-210245-7c1b35, 261117-210250-0a2126, 261117-224244-a97f37, 261117-224245-70d0b4, 261117-224245-24e131",
+            "A3": "261117-224244-e38ae9",
+            "A4": "4608c2 exit 0, consensus:d668ae2 wave-open 64, 64/8, 32 against journal 87ea77e: all committed, none fenced (brief: ran in consensus, not the quest's repository)",
+            "A5": "261117-224244-e38ae9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "c379267bdb5ec06d3418fbba7cc75f8fda04f7cf",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-224244-e38ae9",
+              "level": "light",
+              "seconds": 111.5,
+              "state": "done",
+              "what": "journal-turn-bound check suite at c379267bdb5e"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a412175fe437b59463bcaa97ebc75429643bdc65",
+          "reason": "",
+          "tested": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T23:57:22",
+      "updated": "2026-11-18T00:19:54",
       "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
