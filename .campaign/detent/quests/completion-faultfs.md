@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-D104's first move. completion's sync-seam tests (test/sync_seam_test.cc over test/seam_support.h) carry their own in-process crash model. After this quest they run on faultlab's faultfs (Kronuz/faultlab at faultlab:5ec8a9e, API fixed, over completion:d8b538c): one crash and media model, its recorder and event log, and completion's own model is deleted, with no shim. faultlab is a test-only dependency, pinned by commit.
+D104's first move. completion's sync-seam tests (test/sync_seam_test.cc over test/seam_support.h) carry their own in-process crash model. After this quest they run on faultlab's faultfs (Kronuz/faultlab at faultlab:a452a8c, API fixed, over completion:d8b538c): one crash and media model, its recorder and event log, and completion's own model is deleted, with no shim. faultlab is a test-only dependency, pinned by commit.
 
 ## Acceptance criteria
 
@@ -22,7 +22,7 @@ job can show it.
 
 ## Contracts
 
-Consumes faultlab:faultfs at faultlab:5ec8a9e. No completion API change.
+Consumes faultlab:faultfs at faultlab:a452a8c. No completion API change.
 
 ## Decisions
 
