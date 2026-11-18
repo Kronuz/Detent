@@ -5091,6 +5091,8 @@
     "journal-sync-seam": {
       "accepted": {},
       "after": [],
+      "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
+      "branch": "quest/detent/journal-sync-seam",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -5115,6 +5117,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-sync-seam",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5122,9 +5125,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-17T15:04:05"
+      "updated": "2026-11-17T18:48:29",
+      "worktree": "../journal-wt/detent/journal-sync-seam"
     },
     "legacy-h": {
       "accepted": {},
