@@ -4759,18 +4759,53 @@
         "docs/**"
       ],
       "journal": "../Detent-wt/detent/faultfs-collect-linear",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T10:19:20",
+          "commit": "a3b71d1b9bdcfa3664dbce8725f14c07bb14845f",
+          "criteria": {
+            "A1": "261118-100354-0b4a4b, 261118-100249-d31056 (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md), 261118-100253-64a86e (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md), 261118-100256-afaa01 (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md), 261118-100257-47f46c (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md); fails without: 261118-100250-ab97bb, 261118-100252-f99fe2, 261118-100254-d58e49",
+            "A2": "261118-100313-d0a14e (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md); fails without: 261118-090519-ded7b6, 261118-090521-a500b6, 261118-091518-7ecf95, 261118-091520-fd4c94, 261118-100315-5c543c, 261118-100316-19d609",
+            "A3": "261118-100319-9bf4ae (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md); fails without: 261118-090524-f98716, 261118-091523-021b88, 261118-100320-f185fe",
+            "A4": "261118-100322-ca61d8 (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md), 261118-100323-9b1fea (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md), 261118-100324-bf771a (passed at fcbe2a96ce5f; ignores docs-only docs/mechanisms/crash-model.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+              "commit": "a3b71d1b9bdcfa3664dbce8725f14c07bb14845f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-100354-0b4a4b",
+              "level": "light",
+              "seconds": 11.4,
+              "state": "done",
+              "what": "faultfs-collect-linear check suite at a3b71d1b9bdc"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "a3b71d1b9bdcfa3664dbce8725f14c07bb14845f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "adc4fc291632919446c651d348530a4e430071e3",
+          "reason": "",
+          "tested": "a3b71d1b9bdcfa3664dbce8725f14c07bb14845f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/faultlab",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "faultlab: faultfs collect() linear in inodes",
-      "updated": "2026-11-18T10:19:16",
+      "updated": "2026-11-18T10:19:21",
       "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
     "fixture-500k": {
