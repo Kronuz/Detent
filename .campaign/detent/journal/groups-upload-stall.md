@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on CI runs 44319694813 (probe), 44318999208 (main at 5923b6c)
+State: waiting on CI run 44324074784 (probe 2)
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,8 @@ Getting a macos-x86_64 `upload` failure with socket samples (they exist from con
 
 ## Next
 
-1. Read probe run 44319694813 and main run 44318999208 (5923b6c) for an `upload` failure.
+1. Read probe 2 (44324074784) for an `upload` failure with samples. If it passes 72 of 72 too, report
+   to the lead: the probe budget is spent and the stall has not recurred since 08:09Z.
 
 ## Blocked on
 
@@ -30,7 +31,19 @@ Nothing.
 - Probe: branch probe/groups-upload-stall (consensus:0156b46 = 5923b6c with ci.yml replaced; never
   lands; dispatch only). Three macos-15-intel shards, each 24 `upload` runs beside a looping
   connection_test, printing `netstat -s -p tcp` deltas and load around each failure. Script
-  .scratch/probe/ci.yml in the code worktree. Dispatch 1: 44319694813 (3 runner jobs of ~6 allowed).
+  .scratch/probe/ci.yml in the code worktree. Dispatch 1: 44319694813, 72 of 72 passed (14:02-14:12Z).
+  Main at 5923b6c (44318999208) passed too. Dispatch 2: 44324074784 (14:25Z).
+- msg (lead, after dispatch 1): could transport-feed-scan itself have removed the stall? No:
+  1. Credit already went first before it: 3ba44aa's feed() sends `lane.grants` before control and
+     data, as 5923b6c's repay() does; both wait only for the connection's queue to empty.
+  2. Control frames stalled with the bulk (3-5 beats in 4 s), and control needs no credit: the whole
+     connection stopped, which no credit or scan order explains. Six groups make the scan cost moot.
+  3. The tabulation (every macos-x86_64 job since 11-17, logs in .scratch/ci/all/, table.txt):
+     ring-feed code failed too, 4c7666a (05:13Z, run 44242758901) and 5eacc91 (05:41Z,
+     44245984014), both after 02800e5 and 01e2c06. Pre-feed-scan code passed 12 runs after its last
+     failure (c5d15d9, 08:09Z): c20f3fd through abc01bb, 08:26-13:53Z. The 7 failures fall in
+     16:49Z-08:09Z by time, not by code version.
+  So no probe at 13b32d3 or 303cad1 would fail on the feed: dispatched probe 2 instead.
 
 ## Evidence
 
