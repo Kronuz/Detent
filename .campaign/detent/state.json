@@ -5228,7 +5228,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-driver",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-16T15:41:43",
@@ -5281,8 +5281,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 3: journal TurnDriver and Store on task, one directory per host (D97 Q3)",
-      "updated": "2026-11-16T15:41:59",
-      "worktree": "../journal-wt/detent/journal-driver"
+      "updated": "2026-11-18T02:09:16",
+      "worktree": ""
     },
     "journal-faultfs": {
       "accepted": {},
