@@ -5203,10 +5203,13 @@
       ],
       "consumes": [],
       "files": [
-        "include/journal/**",
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "include/journal/primitives.h",
+        "include/journal/turn_log.h",
+        "include/journal/io*.h",
         "src/**",
-        "test/**",
-        "tests/**",
+        "test/sync_seam_test.cc",
         "docs/**",
         "CMakeLists.txt",
         "CHANGELOG.md"
@@ -5221,7 +5224,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-17T18:56:11",
+      "updated": "2026-11-17T19:52:37",
       "worktree": "../journal-wt/detent/journal-sync-seam"
     },
     "legacy-h": {
