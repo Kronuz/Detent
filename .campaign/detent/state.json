@@ -1684,6 +1684,8 @@
     "consensus-wave-open": {
       "accepted": {},
       "after": [],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/consensus-wave-open",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -1707,6 +1709,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-wave-open",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1714,11 +1717,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: shares only CHANGELOG.md with transport-feed-scan; a CHANGELOG conflict is a trivial merge",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-17T15:04:04"
+      "updated": "2026-11-17T19:04:36",
+      "worktree": "../consensus-wt/detent/consensus-wave-open"
     },
     "container-selection": {
       "accepted": {},
