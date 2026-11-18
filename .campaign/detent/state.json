@@ -14023,7 +14023,7 @@
     "transport-admission": {
       "accepted": {},
       "after": [
-        "transport-identity"
+        "xapiand:consensus-hello-limits"
       ],
       "checks": [
         {
@@ -14056,7 +14056,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Pre-authentication admission favors configured peers; transport-connection's notes",
-      "updated": "2026-11-17T02:26:03"
+      "updated": "2026-11-18T02:57:33"
     },
     "transport-connection": {
       "accepted": {
