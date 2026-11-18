@@ -1,6 +1,6 @@
 # turn-seal-forget-flake: journal
 
-State: waiting on jobs 261118-140358-398c2a 261118-140359-860226 261118-140359-9147b4
+State: waiting on jobs 261118-140358-398c2a 261118-140437-ce3f9e 261118-140359-9147b4
 Quest: .campaign/detent/quests/turn-seal-forget-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
