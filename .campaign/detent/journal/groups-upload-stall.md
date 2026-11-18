@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on CI run 44324074784 (probe 2)
+State: waiting on in-window probes (the lead dispatches at 17:30Z, 21:00Z, 02:00Z)
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,8 +13,9 @@ Getting a macos-x86_64 `upload` failure with socket samples (they exist from con
 
 ## Next
 
-1. Read probe 2 (44324074784) for an `upload` failure with samples. If it passes 72 of 72 too, report
-   to the lead: the probe budget is spent and the stall has not recurred since 08:09Z.
+1. The lead resumes me with an in-window failing run's id: read its samples, name the cause (A1).
+   Or with three green in-window runs: set `upload`'s bound from the clean samples and name the
+   runner window as the cause (A2's runner branch). Dispatch nothing myself.
 
 ## Blocked on
 
@@ -44,6 +45,15 @@ Nothing.
      failure (c5d15d9, 08:09Z): c20f3fd through abc01bb, 08:26-13:53Z. The 7 failures fall in
      16:49Z-08:09Z by time, not by code version.
   So no probe at 13b32d3 or 303cad1 would fail on the feed: dispatched probe 2 instead.
+- Probe 2 (44324074784): 72 of 72 passed. Since 08:09Z: 144 of 144 probe uploads, plus every CI run.
+- Time clustering (toward A2's runner branch), macos-x86_64 `upload` per CI job since 11-17
+  (.scratch/ci/all/table.txt in the code worktree; feed = whether the commit has 02800e5):
+
+  | Window (UTC) | Failed | Passed | Feed of the failures |
+  |---|---|---|---|
+  | 11-17 00:45-16:48 | 0 | every run | scan |
+  | 11-17 16:49 - 11-18 08:09 | 7 (44130104547, 44214025598, 44216299768, 44242758901, 44245984014, 44261476872, 44264616865) | 16 | 5 scan, 2 rings |
+  | 11-18 08:10-14:25 | 0 | 17 CI jobs + 144 probe uploads | (12 scan, 5 rings passed) |
 
 ## Evidence
 
