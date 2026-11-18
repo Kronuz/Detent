@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on jobs 261118-114601-fb62e4 261118-114620-92a85d 261118-114638-5f511f 261118-114657-b8013d 261118-114717-b036ee, CI 44383954493
+State: waiting on jobs 261118-115335-bbf421 261118-115336-3f84ef 261118-115337-bb3077 261118-114620-92a85d 261118-114638-5f511f, CI 44385126899
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A4 (consensus:cad35e4): `backlog` holds host 2's sends with a Gate; its jobs and CI are queued.
+A4 (consensus:cad35e4, doc row consensus:95bca86): `backlog` holds host 2's sends with a Gate; its jobs and CI are queued.
 A1-A2: getting a macos-x86_64 `upload` failure with socket samples.
 
 ## Next
 
-1. Read A4's jobs and CI 44383954493; fill A4's evidence row.
+1. Read A4's jobs and CI 44385126899; fill A4's evidence row.
 2. The lead resumes me with an in-window failing run's id: read its samples, name the cause (A1).
    Or with three green in-window runs: set `upload`'s bound from the clean samples and name the
    runner window as the cause (A2's runner branch). Dispatch nothing myself.
 
 ## Blocked on
 
-Nothing. For the lead: docs/mechanisms/host-transport.md:205 (outside my file set) still says
-`backlog` "reads slowly"; it should read "through a gate that holds host 2's sends until all
-18,000 frames arrived".
+Nothing.
 
 ## Notes
 
@@ -85,7 +83,7 @@ Nothing. For the lead: docs/mechanisms/host-transport.md:205 (outside my file se
 | A1 | <no evidence yet> |
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
-| A4 | <pending: x50 261118-114601-fb62e4; fails-without coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f; TSan 261118-114657-b8013d; suite 261118-114717-b036ee; CI 44383954493> |
+| A4 | <pending at 95bca86: x50 261118-115335-bbf421; TSan 261118-115336-3f84ef; suite 261118-115337-bb3077; CI 44385126899; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f> |
 
 ## Result
 
