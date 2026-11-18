@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Today an id handed to a Store by `recover_shared` (or created) can't be recovered or created again in the same live Host until the Host reopens (found by consensus-close-fenced's review). Xapiand evicts idle indexes and reopens them in the same process, up to millions of indexes per host, so this blocks its core workload. After this quest, closing a Store releases its id: a cleanly closed id recovers in the live Host, and a fenced one recovers once its Store has closed. Two live Stores never hold one id at once.
 
 ## Acceptance criteria
 
@@ -14,18 +14,21 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 Close then recover the same id in one live Host recovers exactly the committed records (clean close and fenced close, each with records staged but unsynced at close): a test that fails at main.
+- A2 Two live Stores never hold one id: recover or create of an id whose Store is still open is refused, including while that Store's close is in flight (a close racing a recover): tests, TSan.
+- A3 A crash at any point of a close-then-recover cycle recovers a state the old rule allowed (no record lost that was durable, none resurrected that was dropped): a seeded crash sweep job.
+- A4 Churn: 10,000 close/recover cycles of 1,000 ids in one Host hold the Host's memory flat (bytes before and after reported): a job.
+- A5 The mechanism doc states the id lifetime rule: `docs/mechanisms/...`.
+- A6 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+journal Host: an id is held from recover_shared or create until its Store closes; consensus's Driver and Xapiand's pool rely on it.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed by the lead 2026-11-18 at the Xapiand lead's request (cheap-reopen, pool). Reopen cases go in test/journal_test.cc because journal-faultfs holds CMakeLists and the host tests.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
