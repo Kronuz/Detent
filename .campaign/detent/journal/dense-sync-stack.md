@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-054101-b5ef57 261118-055013-136e37 261118-055014-19aed1 261118-055016-95665a 261118-054306-b5fe77 261118-054307-5a3cb1 261118-054308-15108e 261118-054309-71faa7 261118-054310-9848a1 261118-054311-2e72e9 261118-054312-c42fcf 261118-054313-8e49b7 261118-054314-792ca7 261118-054315-78f04e 261118-054316-9f93de 261118-054317-59781b
+State: waiting on jobs 261118-055412-608f32 261118-055412-a8791e 261118-055412-1bba5b 261118-054101-b5ef57 261118-055013-136e37 261118-055014-19aed1 261118-055016-95665a 261118-054306-b5fe77 261118-054307-5a3cb1 261118-054308-15108e 261118-054309-71faa7 261118-054310-9848a1 261118-054311-2e72e9 261118-054312-c42fcf 261118-054313-8e49b7 261118-054314-792ca7 261118-054315-78f04e 261118-054316-9f93de 261118-054317-59781b
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -31,7 +31,7 @@ step; then checks the grouped order.
 3. Read the 12 A4 arms (100K, exclusive, one arm-run per job; arms dense=Detent:9852a3c,
    s2=Detent:35296ba, stacked=Detent:d04794d (first tree with both), main=Detent:ea1fddc; 3 rounds
    each, interleaved). Write docs/perf/dense-sync-stack.md (A6).
-4. Push the branch for CI (A5: ASan/UBSan, TSan per D54).
+4. Gates queued: native 608f32, asan a8791e, tsan 1bba5b; branch pushed (CI on quest/detent/dense-sync-stack).
 
 ## Blocked on
 
