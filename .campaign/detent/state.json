@@ -12903,6 +12903,40 @@
       "updated": "2026-11-17T14:43:31",
       "worktree": ""
     },
+    "peers-tsan-timeout": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc",
+        "include/consensus/transport/peers.h",
+        "src/transport/peers.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus: transport_peers hangs after several-addresses under TSan",
+      "updated": "2026-11-18T12:52:44"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
