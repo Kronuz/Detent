@@ -1,6 +1,6 @@
 # transport-feed-scan: journal
 
-State: fix round 1 (review CHANGES at 5eacc91) at consensus:48d04eb, pushed; waiting on jobs (see Fix round 1).
+State: fix round 1 at consensus:590308d (code 303cad1); waiting on jobs 261118-003330-778798 (F1 exclusive), 261118-003134-30731c, -bead1c, 261118-003238-06723a.
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Fix round 1 (session 4)
@@ -24,6 +24,20 @@ passed (TSan 80ef1e, A2 49251f, A5 240b25, A3 eb4940, suite 7f5dbb, A6 x100 4b73
   the connection cannot send. No per-group table on receive. A/B 261118-002026-757230.
   Diag profile (host 2's threads' self samples, .scratch/prof/ in the code worktree) at
   48d04eb: 261118-001853-9bb0ba (never evidence).
+- F1 at 303cad1, strict A/B 261118-002026-757230 (beside 26 light holds), base/branch/branch/base:
+  data same 1041 / 758 / 531 / 747 ns, hop 1186 / 936 / 660 / 866: branch at or under main.
+  Control same 513 / 605 / 429 / 331: still about 20-30% over main. Diag 9bb0ba (at 48d04eb)
+  put the owed table's erase/operator[]/owe at 704 samples (gone at 303cad1) and deliver's
+  own lines 743/751 (`stored.find`, `groups.contains`) at 376 vs main's whole deliver 120: the
+  two GroupTable lookups per frame are the control-path cost. Deciding exclusive A/B:
+  261118-003330-778798.
+- Reruns at 303cad1: A2 4c4eb0 (298.2 B, 3 of 3; credit back 561-683 ms, was 290-438),
+  A5 eee91a, TSan b42164, identity c1416a, reconnect 129143, leftover 38a9fa all pass; order
+  30731c, scan bead1c, suite 06723a pending. Mutants all killed (exit 134): no-generation-clear
+  29e975, store-keeps-opens 3730d0, ring-at-front 33d638, bulk-ahead-of-control 39e24f,
+  no-credit 140f13, no-reset-on-end 86e82e, no-credit-on-refuse 002b2b, closed-ignored 0923b5,
+  open-once 7f79c8, uncredited-kept fc8c65, main-feed dd075a.
+- F4 at consensus:590308d (docs only): one bound, 164 + 52P, derived and beside the measured rows.
 - F3 result at 48d04eb: reconnect 7b173e passes (1 unopened, 1 closed back); no-generation-clear
   889a1c killed (reconnect line 1504: delivered 2 of 2, 0 unopened); no-current 498ed0
   survives, as R7 predicts (equivalent).
