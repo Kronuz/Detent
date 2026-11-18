@@ -3505,6 +3505,35 @@
       "title": "async-drivers 6: Detent's authority on the drivers and host transport",
       "updated": "2026-11-15T23:08:11"
     },
+    "detent-refuse-old-format": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/service.cc",
+        "src/detent_authority/history.cc",
+        "tests/detent_authority/test_format_refusal.cc",
+        "docs/mechanisms/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Detent: refuse an old journal format at startup with a named error",
+      "updated": "2026-11-18T07:06:06"
+    },
     "dns-voters": {
       "accepted": {},
       "after": [
