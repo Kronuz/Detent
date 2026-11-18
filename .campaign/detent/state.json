@@ -6415,6 +6415,50 @@
       "updated": "2026-11-17T05:07:28",
       "worktree": ""
     },
+    "journal-host-ranges-race": {
+      "accepted": {},
+      "after": [
+        "journal-group-io-sweep"
+      ],
+      "checks": [
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fsanitize=thread >/dev/null && cmake --build .scratch/tsan -j4 && ctest --test-dir .scratch/tsan --output-on-failure -j2 --stop-on-failure",
+          "level": "light",
+          "minutes": 40,
+          "name": "tsan"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/host_test.cc",
+        "docs/mechanisms/*"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal: group_io and another loop's publish race on Host::ranges_",
+      "updated": "2026-11-18T14:50:20"
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
