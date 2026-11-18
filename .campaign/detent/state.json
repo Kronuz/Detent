@@ -14343,7 +14343,7 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/transport-groups-ci",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T12:12:42",
@@ -14385,8 +14385,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Main is red after transport-groups: OpenSSL data race across loops, groups_threads posts assertion",
-      "updated": "2026-11-17T12:12:46",
-      "worktree": "../consensus-wt/detent/transport-groups-ci"
+      "updated": "2026-11-18T02:08:57",
+      "worktree": ""
     },
     "transport-identity": {
       "accepted": {
