@@ -1,9 +1,19 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261117-202016-4103a5 261117-202032-34479e 261117-202041-19718e (then ready for review)
+State: investigating cause 2's recurrence (34479e: 4 of 60 at line 740) and the mutants build failure; probes 261117-205747-39c311 (write-burst trace x60) and 261117-205630-775f61 (first mutant's build.log)
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 3 (session 2), at 8e3b053 (origin/main merged) and 3d2685e (trace):
+- 34479e and 19718e ran 9f8aa7b, a commit later reset off the branch (17e1a34 is its parent);
+  the sizing is the same. 34479e: 4 of 60 coarse_writer 48 of 48 in 6453-6456 ms, 0 drained
+  expiries, held 231-234 ms, sndbuf 1584204, lowat 1572864, poll events 0x10 at the last sample.
+- 0x10 is POLLHUP: the last sample is after the writer's SHUT_WR, so it says nothing about a wait.
+  The wedge stat now counts POLLHUP as not wedged (3d2685e).
+- Trace 3d2685e: every run prints the write bursts (gaps are the writer's waits) and the reader's
+  SO_RCVBUF at accept and end; hypothesis under test: the reader's buffer grows past 512 KiB, so
+  the writer never waits dead_after.
 
 Round 1 (consensus 51601dd, forcing knobs): 4c4173 forced cause 1, 3 of 3 failed at line 724
 (0 of 64, dialer 2, acceptor 3, 449-459 ms, stalled 3-4 ms, held 0-2 ms: the CI signature).
