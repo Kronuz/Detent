@@ -1,10 +1,14 @@
 # journal-faultfs: journal
 
-State: blocked on the lead (faultlab's collect(), see Blocked on); waiting on prototype job 261118-084810-2701ea
+State: ready for review once the jobs at journal:d90797c pass; waiting on jobs 261118-102018-d5ffa8 102019-20438b 102020-1b65f6 102021-8afec5 102022-b1dd60 102023-34b4b7 102028-2589c8 102034-6081ab 102035-129e98 102037-7d70a8 102038-3e3b72
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
 ## Doing
+
+journal:d90797c (pushed): faultlab pinned at a3b71d1 (faultlab main, faultfs-collect-linear: references
+counted incrementally). Origin main had not moved, so no merge. Every evidence job reran at it; the
+heap cases must hold reopen_churn 824 B, reopen_heap 248.5 B per group, reopen_distinct slope 0.
 
 journal:36912d7 (pushed): journal_test.cc moves to faultfs (lead: A1 stays as written; the file
 joined this quest's set). `git grep memory_io.h -- test fuzz` is empty locally. Shared's host is
@@ -24,10 +28,13 @@ reopen_distinct (A8) 109976 / 110024 / 109976 B at 1,000 / 5,000 / 10,000, slope
 
 ## Next
 
-1. Read the jobs (State); compare the heap numbers above; fill Evidence.
-2. CI at 36912d7; then ready for review.
+1. Read the jobs; confirm the heap numbers; replace the Evidence ids with the passing ones.
+2. CI at d90797c; then review.
 
 ## Blocked on
+
+Nothing. Resolved by faultlab:a3b71d1 (faultfs-collect-linear) and the repin at journal:d90797c. The
+earlier diagnosis follows.
 
 **The heap cases time out on faultfs because faultlab's `filesystem::collect()` is O(inodes x
 (names + durable names + log)) and runs on every remove, replace and sync_directory; it is cubic
@@ -98,12 +105,12 @@ translation error.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-073226-104826 at 36912d7 |
-| A2 | 261118-073224-fadbd6 (suite, fresh); 261118-073243-fca863 (reopen_crash, reclaim_syncs); 261118-073232-e39840 (reopen cases) |
-| A3 | fails without: 261118-073226-62d124; plain: 261118-073227-f02d36 |
-| A4 | reported (Resolved section); reproducer 261118-040056-965498 at c606068; fixed by reopen-closed A9: 261118-073227-f02d36 (200 seeds) |
-| A5 | 261118-073227-cf592c, 261118-073227-d4cc9f |
-| A6 | 261118-073224-fadbd6; CI at 36912d7; heap holds: 261118-073233-28994b, 261118-073233-3e7cc4, 261118-073233-6ed20f |
+| A1 | 261118-102019-20438b at d90797c |
+| A2 | 261118-102018-d5ffa8 (suite, fresh); 261118-102023-34b4b7 (reopen_crash, reclaim_syncs); 261118-102038-3e3b72 (reopen cases) |
+| A3 | fails without: 261118-102028-2589c8; plain: 261118-102022-b1dd60 |
+| A4 | reported (Resolved section); reproducer 261118-040056-965498 at c606068; fixed by reopen-closed A9: 261118-102022-b1dd60 (200 seeds) |
+| A5 | 261118-102020-1b65f6, 261118-102021-8afec5 |
+| A6 | 261118-102018-d5ffa8; CI at d90797c; heap holds: reopen_churn 261118-102034-6081ab, reopen_heap (A7) 261118-102035-129e98, reopen_distinct (A8) 261118-102037-7d70a8 |
 
 ### Old MemoryIO case to faultfs case (A2)
 
