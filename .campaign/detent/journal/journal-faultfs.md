@@ -1,38 +1,67 @@
 # journal-faultfs: journal
 
-State: waiting on jobs 261118-021353-62f2a6 (suite) 261118-021429-6ea95f (A1) 261118-021438-24c9d7 (A3 mutant) 261118-021430-5b9917 261118-021432-aeda2f (A5 fuzz)
+State: blocked on the lead (A4 finding, verdict (b)); waiting on jobs 261118-040049-318877 (suite, fresh checkout) 261118-040050-7b72ed (A1) 261118-040056-965498 (A4 reproducer)
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
 ## Doing
 
-journal:37c2769 (pushed) moves every test and fuzzer off memory_io.h onto faultfs
-(faultlab:a452a8c, test-only FetchContent after completion). Every target builds: job
-261118-020820-c60ee1. Jobs queued at journal:37c2769: suite 261118-021353-62f2a6 (A2, A6), A1 grep
-261118-021429-6ea95f, A3 mutant 261118-021438-24c9d7 (`TurnLog::flush` emptied, fresh checkout,
-turn_log_power 2 seeds must print "FAIL: every acknowledged record survives"), A5 fuzz
-261118-021430-5b9917 (journal_fuzz) and 261118-021432-aeda2f (journal_fuzz_framing), 600 s each.
+journal:c606068 (pushed): turn_log_power's "damages nothing" failure now prints the namespace
+before and after each crash. Everything else is journal:37c2769's faultfs move.
 
 ## Next
 
-1. Read the jobs. A suite failure that faultfs exposes (namespace subset, unsynced truncate, torn
-   sector) goes to the lead with a reproducer (A4), no product fix here.
-2. CI on the pushed branch; fill Evidence; ready for review.
+1. The lead rules on the A4 finding below (a product fix is its own quest). Until it lands,
+   turn_log_power fails at seeds 5 and 7, so A3's plain run, A6 and CI stay red.
+2. After the fix: rerun A1, A5 fuzzers (`campaign job rerun`), the suite, A3's plain test; CI.
 
 ## Blocked on
 
-Nothing.
+**A4: reclaim's segment releases are not ordered; a power cut at their directory sync leaves a
+gap that recovery reports as damage.** Verdict (b), a journal behavior MemoryIO hid, not a test
+translation error.
+
+- Reproducer: `journal_turn_log_power_test 8` at journal:c606068 (job 261118-040056-965498).
+  Seed 5 cut 116: before the crash `turns-0b..0f`, after it `turns-08, 0b..0f`. Seed 5 cut 161:
+  `11..17` then `0f, 11..16`. Seed 7 cut 219 (second 3): `18..20` then `16, 18..1f`, kept
+  through the recovery's own cut. Each time the cut is the `sync_directory` ending one
+  `TurnLog::reclaim()` (turn_log.h:369-384) that released two or more oldest segments: faultfs
+  kept a later removal and dropped the earlier one (seed 5 cut 116: 08 stays, 09 and 0a go).
+  Recovery reads the missing middle number as damage (turn_log.h:560): `damaged = true`,
+  `lost` empty, every acknowledged record present (`matches` true in all three).
+- Attribution (local probe, `.scratch/probe.cc`, not evidence): the same cuts with
+  `names = durable`, `all` or `additions` recover clean; `sectors = old/fresh`, `epochs = all`
+  still fail. Only the namespace coin matters.
+- Why MemoryIO could not produce it: its `power_loss()` restores `durable_names` whole
+  (memory_io.h, `names = durable_names`); a directory's changes since its last sync survive
+  all or none, never a subset.
+- faultlab rule: F7 "Namespace durability" (faultfs.h:13-15): each create, link, rename and
+  unlink since the directory's last sync survives per its own coin, replayed in order; F5 calls
+  this legal under the IO contract and unreachable on ext4, xfs and APFS, which commit
+  directory operations in order. completion io.h:284-296 promises order among namespace changes
+  only through `order_files_and_directory`, which reclaim does not call. So the test's claim is
+  right to cover it; changing the test's names pick would drop every partial-namespace state.
+- Consequence beyond the flag (read, not run): when damaged, a host's open group with nothing in
+  the log is declared lost (turn_log.h:623, `TurnLogGroups::open`), so on a reordering
+  filesystem one power cut could cost such a group. This test passes no `known`, so it does not
+  exercise that.
+- Options: (1) order each release: `io_.order_files_and_directory({})` between successive
+  replace/remove calls in `reclaim()`, so any surviving subset is a prefix (one ordering barrier
+  per extra segment in a batch; faultfs honors it). (2) One release per `sync_directory`: the
+  same guarantee, a full directory sync per segment. (3) Accept it as unreachable on journaled
+  filesystems and have the test pick `names = additions`: loses coverage of dropped creates.
+  Recommendation: (1), as its own quest; this quest's test needs no change once it lands.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
-| A2 | pending |
-| A3 | pending |
-| A4 | pending |
-| A5 | pending |
-| A6 | pending |
+| A1 | 261118-040050-7b72ed (journal:c606068); 261118-021429-6ea95f passed at 37c2769 |
+| A2 | 261118-040049-318877 (suite, fresh checkout); red on turn_log_power until the A4 fix |
+| A3 | fails without: 261118-021438-24c9d7 (mutant reached "FAIL: every acknowledged record survives"); plain run waits on the A4 fix |
+| A4 | reported above; reproducer job 261118-040056-965498 |
+| A5 | 261118-021430-5b9917, 261118-021432-aeda2f passed at 37c2769 (fuzz code unchanged since) |
+| A6 | 261118-040049-318877; CI at c606068 red on turn_log_power until the A4 fix |
 
 ### Old MemoryIO case to faultfs case (A2)
 
@@ -66,6 +95,10 @@ power on fails the case by name (was: an uncaught exception).
 Not final.
 
 ## Rulings I made
+
+- The suite check reran with `--fresh`: job 261118-021353-62f2a6 never ran because the slot's
+  `build` held a Unix Makefiles cache from the build job and the check configures Ninja there.
+  My own jobs use their own build directories (`build-a4`, `build-mutant`).
 
 - completion moves from f4c19b1 to d8b538c (completion main): faultfs overrides the seam members
   (`preallocate`, `map_shared`, `link`) that d8b538c adds; f4c19b1 is its ancestor, no journal
