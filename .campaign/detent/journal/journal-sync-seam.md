@@ -25,7 +25,7 @@ Jobs prove criteria by their tags (`--for A1`).
 | A1 | grep job 261118-002319-ef7067 at journal:ce05f0e: `! grep -rnE '(->|\.)sync(_data)?\(\)|fsync|fdatasync|F_FULLFSYNC' include --exclude=memory_io.h` (found only turn_driver.h before) |
 | A2 | suite 261118-002316-5ee759 at journal:ce05f0e (earlier: 261117-200917-ac87f4 at journal:54d2972 ; cases host_table, turn_segments, turn_flush, journal_tail); fails-without at journal:15f4f0a 261117-185442-6f0142 failed 9 of 13 checks on main's code |
 | A3 | suite 261118-002316-5ee759 (the 261117-200917-ac87f4 failure was crc_fixture's timeout, fixed on main) |
-| A4 | strict jobs: before 261117-200923-d18138 (main's library, journal:3282210), after 261117-200935-1fd941; open with seam syncs skipped 52.9 -> 6.4 ms per group (200 groups); line in docs/MEASUREMENTS.md |
+| A4 | strict jobs: before 261117-200923-d18138 (main's library, journal:3282210), after 261118-004757-dc99ce; open with seam syncs skipped 52.9 -> 6.4 ms per group (200 groups); line in docs/MEASUREMENTS.md |
 
 ## Result
 
