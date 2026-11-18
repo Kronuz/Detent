@@ -1273,7 +1273,9 @@
     },
     "consensus-dns-threads": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-close-fenced"
+      ],
       "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
       "branch": "quest/detent/consensus-dns-threads",
       "checks": [
@@ -1293,7 +1295,9 @@
       "consumes": [],
       "files": [
         "include/consensus/transport/resolve.h",
-        "test/transport/resolve_test.cc"
+        "test/transport/resolve_test.cc",
+        "docs/mechanisms/peer-dns.md",
+        "test/transport/dns_mutants.sh"
       ],
       "journal": "../Detent-wt/detent/consensus-dns-threads",
       "landed": [],
@@ -1307,7 +1311,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T03:08:03",
+      "updated": "2026-11-18T03:33:00",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
