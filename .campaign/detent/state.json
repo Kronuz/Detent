@@ -1196,7 +1196,9 @@
     },
     "consensus-close-fenced": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "transport-idle-budget"
+      ],
       "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
       "branch": "quest/detent/consensus-close-fenced",
       "checks": [
@@ -1230,7 +1232,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
-      "updated": "2026-11-18T07:35:06",
+      "updated": "2026-11-18T07:35:07",
       "worktree": "../consensus-wt/detent/consensus-close-fenced"
     },
     "consensus-dns-peers": {
