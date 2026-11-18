@@ -10,6 +10,7 @@ struct CoordinatorAccess {
 		std::shared_future<void> resume;
 	};
 	static void pause_next_prepared_probe(Coordinator &, std::shared_ptr<PreparedProbePause>);
+	static void pause_next_scrub(Coordinator &, std::shared_ptr<PreparedProbePause>);
 	struct ReconnectObservation {
 		std::uint64_t count = 0;
 		std::chrono::milliseconds delay{0};
@@ -18,6 +19,7 @@ struct CoordinatorAccess {
 	static bool retains_paged_candidate(const Coordinator &);
 	static bool cancelled_construction_settled(const Coordinator &);
 	static void request_compaction(Coordinator &);
+	static void request_repair(Coordinator &);
 	static void fail_next_compaction_admission(Coordinator &);
 	static void fail_next_maintenance_recovery(Coordinator &, std::exception_ptr);
 	static std::uint64_t completed_compactions(const Coordinator &);

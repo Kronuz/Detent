@@ -55,19 +55,21 @@ std::shared_ptr<const d::ValidatedSnapshot> small(unsigned count) {
 			text(keys[i]);
 			n(ns + 1);
 			if (i != 1) {
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(wire, -1);
+				wire.push_back('\xc0');
+				wire.push_back('\xc0');
+				a(0);
 			} else {
 				a(4);
 				n(0);
-				wire.push_back('\xc3');
 				n(25);
+				n(1);
 				a(2);
 				a(3);
 				text("beta");
 				n(0);
-				wire.push_back('\xc2');
+				n(0);
 				a(3);
 				text("tést");
 				n(1);
@@ -99,16 +101,15 @@ int main() {
 		auto output = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 		const auto expected = encode(d::make_snapshot_source(source, output), count < 100);
 		require(output->used() == 0);
-		l::StorageIdentity storage{}, generation{};
-		storage.fill('s');
+		l::GenerationId generation{};
 		generation.fill('g');
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		l::detail::PagedSnapshotBuilder builder(source, generation);
 		while (!builder.done()) {
 			l::ValidationBudget b;
 			builder.step(b);
 		}
 		auto image = builder.take();
-		install(directory, image, storage);
+		install(directory, image);
 		auto projection = l::detail::make_snapshot_source(l::recover_generation(directory), output);
 		std::filesystem::remove_all(directory);
 		require(encode(projection, count == 2) == expected);

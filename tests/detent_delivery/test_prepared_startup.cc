@@ -42,9 +42,12 @@ task::task<void> await_prepared(task::asio_scheduler &scheduler, std::shared_ptr
 	const bool scrubbed = state.scrub.passes >= 2 && state.scrub.bytes_hashed > 0 &&
 		(damaged ? state.scrub.source_failure && state.scrub.damaged_packs == 1
 		         : !state.scrub.source_failure && state.scrub.damaged_packs == 0);
+	// A damaged pack asks for a repair once, however many passes report it; a clean store asks for none.
+	const bool repair = damaged ? state.repair.pending && state.repair.requested == 1 && !state.repair.completed
+	                            : !state.repair.pending && !state.repair.requested;
 	coordinator->close();
 	check(!coordinator->status().prepared_ready);
-	check(ready && scrubbed);
+	check(ready && scrubbed && repair);
 }
 task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator, bool damaged) {
 	co_await task::when_all(coordinator->run(), await_prepared(scheduler, coordinator, damaged));

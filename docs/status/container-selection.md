@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Container selection and extraction
 
 **Updated:** 2026-10-25. EX-0 qualification passes and is landed on main at `4f1a086`.

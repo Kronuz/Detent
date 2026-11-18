@@ -6,6 +6,8 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <span>
 #include <stdexcept>
 
 namespace detent::local {
@@ -25,9 +27,9 @@ class DiskPressure final : public std::length_error {
 	explicit DiskPressure(const char *message) : std::length_error(message) {}
 };
 
-// Single-executor logical named-space accounting, independent of heap and
-// physical blocks. The session owns this fixed registry through every original.
-// Permits never refund on destruction: only explicit, proved settlement does.
+// Single-executor logical named-space accounting, independent of heap and physical blocks. `used` is
+// the agent store's census of its names; a reservation covers one publication's peak until it settles
+// against the census that publication left.
 class DiskLedger {
   public:
 	struct Permit {
@@ -44,20 +46,18 @@ class DiskLedger {
 		stats_.used = stats_.peak = complete_census; // Retain complete over-quota debt.
 		stats_.initialized = true;
 	}
-	static DiskUsage generation_peak(std::uint64_t image_length) {
-		constexpr auto overhead = generation_ownership_bytes + descriptor_bytes;
-		if (image_length < header_bytes ||
-			image_length > std::numeric_limits<std::uint64_t>::max() - overhead)
+	// A generation's files beside its image: an empty `.lease`, `.read` and `.live` (`live_bytes`), and the
+	// replacement table, staged under a `.tmp-` name before it is renamed over `selected`.
+	static DiskUsage generation_peak(std::uint64_t image_length, std::uint64_t read_bytes, std::uint64_t live_bytes) {
+		constexpr std::uint64_t table = 64 + 137 + 255 + 32;
+		if (image_length < header_bytes || read_bytes > (1u << 16) || live_bytes > (std::uint64_t(1) << 40) ||
+			image_length > std::numeric_limits<std::uint64_t>::max() - table - read_bytes - live_bytes)
 			throw std::length_error("invalid managed generation extent");
-		return {image_length + overhead, 3, 1};
+		return {image_length + read_bytes + live_bytes + table, 5, 1};
 	}
 	// `live_bytes` is the size of the generation's live record, which covers every segment it reaches.
 	static DiskUsage paged_peak(std::span<const std::uint64_t> pack_lengths, std::uint64_t live_bytes) {
-		if (live_bytes > std::numeric_limits<std::uint64_t>::max() / 2)
-			throw std::length_error("invalid managed live record extent");
-		DiskUsage peak{paged::root_bytes + generation_ownership_bytes + descriptor_bytes +
-		                   prepared_metadata_bytes + live_bytes,
-		               5, 1};
+		auto peak = generation_peak(paged::root_bytes, prepared_metadata_bytes, live_bytes);
 		for (const auto length : pack_lengths) {
 			if (!length || length > paged::segment_bytes ||
 				length > std::numeric_limits<std::uint64_t>::max() - segment_ownership_bytes - peak.bytes ||
@@ -87,67 +87,39 @@ class DiskLedger {
 			throw std::overflow_error("disk reservation identity exhausted");
 		auto reserved = add(stats_.reserved, peak);
 		auto total = add(stats_.used, reserved);
-		slots_[slot] = {++serial_, peak, 0, false};
+		slots_[slot] = {++serial_, peak};
 		stats_.reserved = reserved;
 		stats_.peak.bytes = std::max(stats_.peak.bytes, total.bytes);
 		stats_.peak.entries = std::max(stats_.peak.entries, total.entries);
 		stats_.peak.generations = std::max(stats_.peak.generations, total.generations);
 		return {serial_, slot};
 	}
-	// Call only after a driver accepts the original; rejection changes nothing.
-	void accepted(Permit permit) {
+	// Ends a reservation: its work wrote nothing (`census` empty) or left the store at `census`.
+	void settle(Permit permit, std::optional<DiskUsage> census = {}) {
 		auto &slot = checked(permit);
-		if (slot.originals == std::numeric_limits<std::uint64_t>::max())
-			throw std::overflow_error("disk original count exhausted");
-		++slot.originals;
-		slot.started = true;
+		stats_.reserved = subtract(stats_.reserved, slot.reserved);
+		slot = {};
+		if (census)
+			observe(*census);
 	}
-	// Call exactly once for an authentic, token-matched original completion.
-	void completed(Permit permit) {
-		auto &slot = checked(permit);
-		if (!slot.originals)
-			throw std::logic_error("disk completion without an original");
-		--slot.originals;
-	}
-	void cancel_unstarted(Permit permit) {
-		auto &slot = checked(permit);
-		if (slot.started || slot.originals)
-			throw std::logic_error("started disk reservation requires proved settlement");
-		release(slot);
-	}
-	// The caller proves named observations and required barriers, including any
-	// previous selected descriptor credit. No exception or EEXIST is absence.
-	void settle(Permit permit, DiskUsage observed, DiskUsage durable_credit = {}) {
-		auto &slot = checked(permit);
-		if (stats_.fenced || !slot.started || slot.originals)
-			throw std::logic_error("disk settlement requires healthy completed originals");
-		if (!within(observed, slot.reserved)) {
-			stats_.fenced = true;
-			throw std::logic_error("disk effects exceed their reservation");
-		}
-		// Credit existing named debt only, never an invented future observation.
-		auto used = add(subtract(stats_.used, durable_credit), observed);
-		stats_.used = used;
-		release(slot);
-	}
-	// GC calls this only after both namespace barriers and held-file closure.
-	// An over-quota store may reclaim; uncertain/fenced stores must recover.
-	void reclaimed(DiskUsage actual_deleted) {
+	// The store's census after work that only removes names (a collection), or after a settlement.
+	void observe(DiskUsage census) {
 		if (!stats_.initialized || stats_.fenced)
-			throw std::logic_error("disk reclamation requires a healthy census");
-		stats_.used = subtract(stats_.used, actual_deleted);
+			throw std::logic_error("disk accounting requires a healthy census");
+		stats_.used = census;
+		const auto total = add(stats_.used, stats_.reserved);
+		stats_.peak.bytes = std::max(stats_.peak.bytes, total.bytes);
+		stats_.peak.entries = std::max(stats_.peak.entries, total.entries);
+		stats_.peak.generations = std::max(stats_.peak.generations, total.generations);
 	}
 	void fence() noexcept { stats_.fenced = true; }
 	DiskStats stats() const noexcept { return stats_; }
 	DiskLimits limits() const noexcept { return limits_; }
-	std::uint64_t originals(Permit permit) const { return checked(permit).originals; }
 
   private:
 	struct Slot {
 		std::uint64_t serial = 0;
 		DiskUsage reserved;
-		std::uint64_t originals = 0;
-		bool started = false;
 	};
 	static bool fits(std::uint64_t used, std::uint64_t reserved, std::uint64_t extra, std::uint64_t limit) {
 		return used <= limit && reserved <= limit - used && extra <= limit - used - reserved;
@@ -173,11 +145,6 @@ class DiskLedger {
 		if (!permit.serial || permit.slot >= slots_.size() || slots_[permit.slot].serial != permit.serial)
 			throw std::logic_error("stale disk reservation");
 		return slots_[permit.slot];
-	}
-	const Slot &checked(Permit permit) const { return const_cast<DiskLedger *>(this)->checked(permit); }
-	void release(Slot &slot) {
-		stats_.reserved = subtract(stats_.reserved, slot.reserved);
-		slot = {};
 	}
 	DiskLimits limits_;
 	DiskStats stats_;

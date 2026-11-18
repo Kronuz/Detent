@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 8a8d1ecc..863b43c4 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -284,7 +284,7 @@ AdoptStats MirrorStore::adopt(std::uint64_t seal, std::span<const NamespaceLayou
+ 		// which startup removes.
+ 		for (const auto &[name, file] : before)
+ 			if (!s.reached.contains(name)) {
+-				s.io->remove(name); // a file missing since startup is no error
++				(void)name;
+ 				s.missing.erase(name);
+ 				s.verified.erase(name);
+ 				++stats.collected_files;

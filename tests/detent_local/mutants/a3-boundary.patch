@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_packer.cc b/src/detent_local/paged_packer.cc
+index 57f7ef1..6e37131 100644
+--- a/src/detent_local/paged_packer.cc
++++ b/src/detent_local/paged_packer.cc
+@@ -414,7 +414,7 @@ void PagedPacker::step(ValidationBudget &budget) {
+ 				if (!s.grant(s.event.children.size() * sizeof(Cluster), budget))
+ 					return;
+ 				Cluster *best = nullptr;
+-				if (s.total > p::page_capacity - p::page_header_bytes) {
++				if (s.total >= p::page_capacity - p::page_header_bytes) {
+ 					const auto first = s.frontier.size() - s.event.children.size();
+ 					for (std::size_t i = first; i < s.frontier.size(); ++i) {
+ 						auto &candidate = *s.frontier[i];

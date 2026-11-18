@@ -8,7 +8,8 @@
 #include <vector>
 
 namespace detent::distribution {
-enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3 };
+// Frames: a W6 session-frames body (session_frames.hh).
+enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3, Frames = 4 };
 struct Limits {
 	std::uint64_t bytes = 256ull * 1024 * 1024, string_bytes = 128ull * 1024 * 1024;
 	std::uint32_t records = 500000, namespaces = 4096, overrides_per_definition = 256;
@@ -84,7 +85,7 @@ class ValidatedSnapshot {
 	}
 	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->arena.used() : 0; }
 	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
-	OverrideRange overrides(const WireBoolDef &definition) const {
+	OverrideRange overrides(const WireDefinition &definition) const {
 		if (!storage_ || definition.overrides.start > storage_->overrides.size() ||
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
 			throw std::out_of_range("distribution override range");
@@ -177,7 +178,7 @@ class ValidatedDelta {
 	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
 	const Mutation &mutation(std::uint64_t ordinal) const;
 	const NamespaceRevision &touched(std::uint64_t ordinal) const;
-	OverrideRange overrides(const WireBoolDef &definition) const {
+	OverrideRange overrides(const WireDefinition &definition) const {
 		if (!storage_ || definition.overrides.start > storage_->overrides.size() ||
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
 			throw std::out_of_range("distribution override range");

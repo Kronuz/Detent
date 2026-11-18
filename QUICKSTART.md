@@ -65,16 +65,12 @@ api() {
     -H "Authorization: Bearer $WRITER_TOKEN" -H 'Content-Type: application/json' \
     --data "{$IDENTITY,$2}" "https://localhost:8317/v2/$1"
 }
-until api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'; do sleep 1; done
+api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'
 ```
 
-`--daemonize` returns once the authority listens, and the single voter elects itself leader shortly after. Until then the open returns `outcome_unknown`, and the loop retries the same request; the nonce marks each retry as the same open. A start looks like this, with the identity elided:
+`--daemonize` returns once the authority has a leader, so the open succeeds on its first attempt. The reply looks like this, with the identity elided:
 
 ```text
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
 {"authority":{...},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0}
 ```
 
@@ -111,7 +107,7 @@ The agent connects to `localhost:8317` over TLS, checks the certificate against 
 ## 1. Change a numeric setting
 
 ```sh
-publish search:max_results '{"type":"int","default":25}'
+publish search:max_results '{"default":25}'
 sleep 1
 detent get search:max_results
 # 25
@@ -126,7 +122,7 @@ Each transaction replies with its outcome and the authority's new revision:
 Change the limit without restarting anything:
 
 ```sh
-publish search:max_results '{"type":"int","default":100}'
+publish search:max_results '{"default":100}'
 sleep 1
 detent get search:max_results
 # 100
@@ -136,43 +132,58 @@ A transaction replaces the whole definition of each key it names and leaves ever
 
 ## 2. Toggle a feature
 
-```sh
-publish checkout:new_path '{"type":"bool","default":true}'
-sleep 1
-detent get checkout:new_path
-# true
+Every knob holds a 64-bit integer. A feature flag is a knob whose values are 0 and 1:
 
-publish checkout:new_path '{"type":"bool","default":false}'
+```sh
+publish checkout:new_path '{"default":1}'
 sleep 1
 detent get checkout:new_path
-# false
+# 1
+
+publish checkout:new_path '{"default":0}'
+sleep 1
+detent get checkout:new_path
+# 0
 ```
+
+In C++, `get_as<bool>` reads such a knob as a `bool` and reports any value other than 0 or 1 as a conversion error.
 
 ## 3. Ramp a rollout
 
-Start with 10% of users:
+Start with 10% of users. Callers inside the percentage get `rollout_value`; everyone else gets the default:
 
 ```sh
-publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":10}'
+publish payments:new_processor '{"default":0,"rollout_pct":10,"rollout_value":1}'
 sleep 1
 detent get payments:new_processor --hash user-1
-# false
+# 0
 detent get payments:new_processor --hash user-42
-# true
+# 1
 ```
 
 Use a stable user or account ID as `--hash`. The same ID keeps its assignment across reads and restarts. Raising the percentage keeps included users enabled; small populations need not split exactly 10/90.
 
 ```sh
-publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":100}'
+publish payments:new_processor '{"default":0,"rollout_pct":100,"rollout_value":1}'
 sleep 1
 detent get payments:new_processor --hash user-1
-# true
+# 1
 detent get payments:new_processor
-# false
+# 0
 ```
 
-At 100%, every read with `--hash` returns `true`. A read without a hash skips the rollout and returns the knob's default, `false` here.
+At 100%, every read with `--hash` returns 1. A read without a hash skips the rollout and returns the knob's default, 0 here.
+
+The same shape ramps any integer. Here 10% of users get a batch size of 50 instead of 25:
+
+```sh
+publish search:batch_size '{"default":25,"rollout_pct":10,"rollout_value":50}'
+sleep 1
+detent get search:batch_size --hash user-2
+# 50
+detent get search:batch_size --hash user-1
+# 25
+```
 
 ## 4. Use different rollout percentages for different groups
 
@@ -180,32 +191,33 @@ Force employees on, exclude a group, and ramp beta users separately from product
 
 ```sh
 publish payments:new_processor '{
-  "type": "bool", "default": false, "rollout_pct": 10,
+  "default": 0,
   "overrides": {
-    "employees": true, "excluded": false,
+    "employees": 1, "excluded": 0,
     "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}
-  }
+  },
+  "rollout_pct": 10, "rollout_value": 1
 }'
 sleep 1
 detent get payments:new_processor --hash user-1 --switch beta
-# true
+# 1
 detent get payments:new_processor --hash user-1 --switch production
-# false
+# 0
 detent get payments:new_processor --hash user-1 --switch employees
-# true
+# 1
 detent get payments:new_processor --hash user-1 --switch excluded
-# false
+# 0
 detent get payments:new_processor --hash user-1 --switch unknown
-# false
+# 0
 ```
 
-Your application supplies the group with `--switch`. A matching boolean forces its value; a matching rollout compares the same user bucket against that group's percentage. An unknown group uses the knob-wide rollout. When changing one group's percentage, publish the complete definition so the other groups stay.
+Your application supplies the group with `--switch`. A matching integer forces its value; a matching rollout compares the same user bucket against that group's percentage. An unknown group uses the knob-wide rollout. When changing one group's percentage, publish the complete definition so the other groups stay.
 
 ## 5. Supply a fallback for a missing knob
 
 ```sh
-detent get checkout:unpublished_feature --default false
-# false
+detent get checkout:unpublished_feature --default 0
+# 0
 ```
 
 The fallback applies only to this read; it publishes nothing.
@@ -226,7 +238,7 @@ detent get search:max_results
 ```sh
 detent-agent --status --generation-dir agent-state --runtime-dir run
 # running (pid 97274)
-# durable revision=8 knob_count=2
+# durable revision=9 knob_count=3
 kill "$(cat run/agent.pid)" "$(cat run/detentd-8317.pid)"
 cd ../.. && rm -rf build/quickstart
 ```

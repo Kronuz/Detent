@@ -59,14 +59,15 @@ std::string group(unsigned g) {
 	return name;
 }
 
-BoolDef bool_def(unsigned i) {
-	BoolDef def;
+KnobDef targeted_def(unsigned i) {
+	KnobDef def;
 	def.default_value = i & 1;
+	def.rollout_value = 1;
 	for (unsigned g = 0; g < 3; ++g) {
 		if (g == 1)
 			def.overrides.try_emplace(group(g), GroupRollout{static_cast<std::uint8_t>(i % 100)});
 		else
-			def.overrides.try_emplace(group(g), bool((i + g) & 1));
+			def.overrides.try_emplace(group(g), std::int64_t((i + g) & 1));
 	}
 	return def;
 }
@@ -75,7 +76,11 @@ template <class V>
 V make(unsigned i);
 template <>
 KnobDef make<KnobDef>(unsigned i) {
-	return (i % 4 == 3) ? KnobDef(IntDef{std::int64_t(i)}) : KnobDef(bool_def(i));
+	if (i % 4 != 3)
+		return targeted_def(i);
+	KnobDef def;
+	def.default_value = std::int64_t(i);
+	return def;
 }
 template <>
 std::optional<KnobDef> make<std::optional<KnobDef>>(unsigned i) {
@@ -83,11 +88,11 @@ std::optional<KnobDef> make<std::optional<KnobDef>>(unsigned i) {
 }
 template <>
 GroupOverride make<GroupOverride>(unsigned i) {
-	return (i & 1) ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(i % 100)}) : GroupOverride(bool(i & 2));
+	return (i & 1) ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(i % 100)}) : GroupOverride(std::int64_t(i & 2));
 }
 template <>
 OverrideValue make<OverrideValue>(unsigned i) {
-	return (i & 1) ? OverrideValue(std::int64_t(i)) : OverrideValue(bool(i & 2));
+	return OverrideValue(std::int64_t(i));
 }
 
 [[noreturn]] void fail(const char* what, const char* op, unsigned n, long b) {
@@ -208,11 +213,11 @@ std::string snapshot_json(unsigned version, unsigned count, unsigned salt) {
 		name.replace(0, 4, "app:");
 		json += '"' + name + R"(":)";
 		if (i % 4 == 3) {
-			json += R"({"type":"int","default":)" + std::to_string(i + salt) + "}";
+			json += R"({"default":)" + std::to_string(i + salt) + "}";
 			continue;
 		}
-		json += R"({"type":"bool","default":true,"overrides":{")" + group(0) + R"(":true,")" + group(1) +
-				R"(":{"rollout_pct":)" + std::to_string(i % 100) + R"(},")" + group(2) + R"(":false}})";
+		json += R"({"default":1,"overrides":{")" + group(0) + R"(":1,")" + group(1) +
+				R"(":{"rollout_pct":)" + std::to_string(i % 100) + R"(},")" + group(2) + R"(":0},"rollout_value":1})";
 	}
 	return json + "}}";
 }
@@ -271,7 +276,7 @@ int main() {
 		long_names = lng;
 		sweep_all<decltype(Snapshot::knobs)>(24);
 		sweep_all<decltype(SnapshotPatch::knobs)>(24);
-		sweep_all<decltype(BoolDef::overrides)>(24);
+		sweep_all<decltype(KnobDef::overrides)>(24);
 		sweep_all<decltype(OverrideTable::values)>(24);
 		sweep_lifecycle();
 	}

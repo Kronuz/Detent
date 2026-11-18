@@ -4,7 +4,7 @@ title: "detent-agent"
 
 ```text
 detent-agent --managed PRIVATE_CONFIG [--daemonize] [--generation-dir PATH]
-             [--initialize-managed | --upgrade-managed]
+             [--initialize-managed]
 detent-agent --status
 detent-agent --help | -h
 ```
@@ -23,7 +23,6 @@ authority (or a relay) and publishes immutable generations on disk. Without
 | `--managed PRIVATE_CONFIG` | The private credential file, `managed.json` |
 | `--generation-dir PATH` | Durable generation directory |
 | `--initialize-managed` | Provision an empty generation directory (first start only) |
-| `--upgrade-managed` | Adopt a compatible older generation directory |
 | `--generation-cluster HEX32`, `--generation-group HEX32`, `--generation-epoch HEX32`, `--generation-scope HEX64` | Expected public identity; all four or none |
 
 See [Managed Delivery](/Detent/guides/managed-delivery/) for `managed.json`.

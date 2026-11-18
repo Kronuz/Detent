@@ -42,12 +42,13 @@ static std::string group(unsigned g) {
 	s.back() = char('0' + g);
 	return s;
 }
-static BoolDef bool_def(unsigned i) {
-	BoolDef d;
+static KnobDef targeted_def(unsigned i) {
+	KnobDef d;
 	d.default_value = i & 1;
+	d.rollout_value = 1;
 	for (unsigned g = 0; g < 3; ++g) {
 		if (g == 1) d.overrides.try_emplace(group(g), GroupRollout{std::uint8_t(i % 100)});
-		else d.overrides.try_emplace(group(g), bool((i + g) & 1));
+		else d.overrides.try_emplace(group(g), std::int64_t((i + g) & 1));
 	}
 	return d;
 }
@@ -55,7 +56,7 @@ static BoolDef bool_def(unsigned i) {
 template <class V> struct Traits;
 template <> struct Traits<KnobDef> {
 	using Map = MAPT<KnobName, KnobDef, std::less<>>;
-	static KnobDef make(unsigned i) { return (i % 4 == 3) ? KnobDef(IntDef{std::int64_t(i)}) : KnobDef(bool_def(i)); }
+	static KnobDef make(unsigned i) { return (i % 4 == 3) ? KnobDef{std::int64_t(i)} : targeted_def(i); }
 };
 template <> struct Traits<std::optional<KnobDef>> {
 	using Map = MAPT<KnobName, std::optional<KnobDef>, std::less<>>;

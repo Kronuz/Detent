@@ -6,16 +6,17 @@ struct SourceNamespace {
 	std::string_view name;
 	std::uint64_t revision = 0;
 };
-struct SourceBoolean {
-	bool default_value = false;
+struct SourceDefinition {
+	std::int64_t default_value = 0;
 	std::optional<std::uint8_t> rollout_pct;
+	std::optional<std::int64_t> rollout_value;
 	std::uint64_t override_start = 0, override_count = 0;
 };
 struct SourceRecord {
 	std::uint32_t namespace_index = 0;
 	std::string_view key;
 	std::uint64_t revision = 0;
-	std::variant<SourceBoolean, IntDef> definition;
+	SourceDefinition definition;
 };
 struct SourceOverride {
 	std::string_view name;

@@ -21,6 +21,8 @@ class PublicationSink {
 									 const local::detail::StateEquivalenceProof &) {
 		selected(generation);
 	}
+	// A repair at the head's own cursor replaced the selected generation with an equal one.
+	virtual void selected_repaired(const local::RecoveredGeneration &generation) { selected(generation); }
 	virtual void fence() noexcept = 0;
 };
 } // namespace detent::delivery

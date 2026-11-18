@@ -1,5 +1,6 @@
 #include "pinned_source.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include "snapshot_source.hh"
 #include <fcntl.h>
 #include <filesystem>
@@ -52,17 +53,12 @@ int main() {
 					progress.string_bytes == 24 && progress.wire_bytes == encoded.size());
 		}
 		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
-		l::GenerationId generation;
-		generation.fill('p');
-		l::ImageBuilder builder(snapshot, generation);
+		l::ImageBuilder builder(snapshot);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		const auto name = l::generation_name(generation);
-		write(directory / (name + ".image"), {builder.bytes()->data(), builder.bytes()->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+		trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 		auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto heap = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto mappings = std::make_shared<d::StorageLedger>(1024 * 1024);
@@ -102,12 +98,12 @@ int main() {
 			require(source->name_space(0).name == "app" && source->name_space(0).revision == 42);
 			const auto integer = source->record(0);
 			require(integer.key == "app:count" && integer.namespace_index == 0 && integer.revision == 41);
-			require(std::get<detent::IntDef>(integer.definition).default_value ==
-					std::numeric_limits<std::int64_t>::min());
+			require(integer.definition.default_value == std::numeric_limits<std::int64_t>::min() &&
+					!integer.definition.rollout_value && !integer.definition.override_count);
 			const auto boolean = source->record(1);
-			const auto definition = std::get<l::detail::SourceBoolean>(boolean.definition);
-			require(boolean.key == "app:flag" && boolean.revision == 42 && definition.default_value &&
-					definition.rollout_pct == 25);
+			const auto definition = boolean.definition;
+			require(boolean.key == "app:flag" && boolean.revision == 42 && definition.default_value == 0 &&
+					definition.rollout_pct == 25 && definition.rollout_value == 1);
 			require(definition.override_start == 0 && definition.override_count == 1);
 			const auto group = source->override_value(0);
 			require(group.name == "beta" && std::get<detent::GroupRollout>(group.value).rollout_pct == 17);
@@ -117,7 +113,7 @@ int main() {
 			rejects([&] { source->override_value(std::numeric_limits<std::uint64_t>::max()); });
 			require(heap->used() == heap->limit() && mappings->used() == mapped);
 		}
-		const auto lease = ::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC);
+		const auto lease = ::open((directory / (l::generation_name(builder.descriptor().generation) + ".lease")).c_str(), O_RDONLY | O_CLOEXEC);
 		require(lease >= 0 && ::flock(lease, LOCK_EX | LOCK_NB) < 0 &&
 				(errno == EWOULDBLOCK || errno == EAGAIN));
 		{

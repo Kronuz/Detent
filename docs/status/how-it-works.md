@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-04) Ledger for the end-to-end guide. Workstream: how-it-works (tech writer).
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Ledger for the end-to-end guide. Workstream: how-it-works (tech writer).
 
 # how-it-works
 

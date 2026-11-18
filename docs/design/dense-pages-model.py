@@ -16,8 +16,8 @@ Modes:
                             compress each with zstd 1 and 3; OUT keeps the segment files.
   delta CORPUS [SIZE...]    Bytes written and hashed per delta of 1, 100 and 10,000 changed keys,
                             today against dense, and the share of the generation reused.
-  churn CORPUS SIZE [U I D] U updates, I inserts, D deletes: both full builds diffed by page
-                            digest, each written page classed as on a changed path or not;
+  churn CORPUS SIZE [U I D] U updates, I inserts, D deletes: both full builds diffed by path and
+                            content, each projected write classed as on a changed path or not;
                             --out=PATH writes the changed corpus.
   verify CORPUS SIZE [N]    Encode in memory and look N keys up through the encoded bytes with
                             first-touch digests and hit compares, as a reader would.
@@ -25,6 +25,7 @@ Modes:
                             and one whose 200 leaves share a branch, a page above 4 KiB.
   check DIR                 The model's self-check on the synthetic corpus, writing two corpora
                             in DIR: every mode runs, keys round-trip, builds are identical.
+  contracts DIR             Tiny empty/repeated-content occurrence checks (DIR is unused).
 
 Options after the mode's arguments: --rule=largest,density,height (sealing rules, D5);
 --namespace=NAME (that namespace alone); --shape=hex (local names replaced by hashed hex).
@@ -396,6 +397,8 @@ def build_trie(
     label order. Returns the root's summary."""
     frames: list[tuple[int, list[tuple[int, object]]]] = []
     root: object = None
+    if not count:
+        return None
     previous = key_at(0)
     for i in range(count):
         following = key_at(i + 1) if i + 1 < count else b""
@@ -434,6 +437,7 @@ class TodayTrie:
     parent: array[int] = field(default_factory=lambda: array("I"))
     leaf_node: array[int] = field(default_factory=lambda: array("I"))
     logical: list[bytes] = field(default_factory=list)
+    paths: list[bytes] = field(default_factory=list)
     prefix_bytes: int = 0
     child_count: int = 0
     branches: int = 0
@@ -452,6 +456,7 @@ def build_today(corpus: Corpus, digests: bool = False) -> TodayTrie:
 
     def on_leaf(i: int, key: bytes, start: int) -> int:
         node = len(size)
+        trie.paths.append(key[:start])
         suffix, body = len(key) - start, corpus.body_length(i)
         size.append(HEADER_V2 + suffix + body)
         verify.append(HEADER_V2 + suffix + body + LOGICAL_FIXED + suffix + body)
@@ -467,6 +472,7 @@ def build_today(corpus: Corpus, digests: bool = False) -> TodayTrie:
         key: bytes, start: int, depth: int, children: list[tuple[int, object]]
     ) -> int:
         node = len(size)
+        trie.paths.append(key[:start])
         prefix, count = depth - start, len(children)
         size.append(HEADER_V2 + prefix + CHILD_V2 * count)
         verify.append(
@@ -505,6 +511,8 @@ def today_paths(
     when every page on both walks is cold, and the bytes the first touch of the definition's own
     page hashes. K and W differ at byte 0, so both walks share exactly the root."""
     n = len(trie.size)
+    if not corpus.count:
+        return {}, {}, [], []
     assert trie.root_labels == b"KW", trie.root_labels
     depth = array("H", bytes(2 * n))
     path = array("Q", bytes(8 * n))
@@ -541,7 +549,7 @@ def today_main(corpus: Corpus) -> None:
         f"today: {pages:,} pages ({trie.branches:,} branches), {trie.child_count:,} child references,"
     )
     print(
-        f"  prefixes {trie.prefix_bytes:,} B, page bytes {total:,} ({total / corpus.count:.1f} B per record)"
+        f"  prefixes {trie.prefix_bytes:,} B, page bytes {total:,} ({total / max(1, corpus.count):.1f} B per record)"
     )
     print(f"  segments in postorder: {segments:,}, {segment_bytes:,} B")
     hashed = total + logical + segment_bytes
@@ -557,9 +565,11 @@ def today_main(corpus: Corpus) -> None:
     b50, b99 = histogram_quantile(both, 0.5), histogram_quantile(both, 0.99)
     t50, t99 = quantile(touch, 0.5), quantile(touch, 0.99)
     f50, f99 = quantile(bottom, 0.5), quantile(bottom, 0.99)
-    print(f"  pages per definition walk: median {w50}, p99 {w99}, max {max(walk)}")
     print(
-        f"  pages per lookup (definition and watermark walks): median {b50}, p99 {b99}, max {max(both)}"
+        f"  pages per definition walk: median {w50}, p99 {w99}, max {max(walk, default=0)}"
+    )
+    print(
+        f"  pages per lookup (definition and watermark walks): median {b50}, p99 {b99}, max {max(both, default=0)}"
     )
     print(
         f"  cold lookup hashes: median {t50:,} B, p99 {t99:,} B (estimate {sha_us(t50, 2 * b50):.0f} us"
@@ -578,7 +588,7 @@ def today_main(corpus: Corpus) -> None:
 # preorder. A slot holds an in-page offset or an index into the page's external table. A cluster
 # is the open part of a subtree not yet sealed into a page: a node plus the clusters of the
 # children it keeps. Sealing runs bottom-up and reads only sizes, keys and heights below the node,
-# so the page holding a node is a function of the node's subtree: canonical, free of history.
+# so each open cluster is subtree-local; its final page membership also depends on ancestors.
 
 
 @dataclass(slots=True)
@@ -589,6 +599,7 @@ class Page:
     externals: int
     parent: int = -1
     digest: bytes = b""
+    path: bytes = b""  # trie path before the top node prefix
 
 
 @dataclass(slots=True)
@@ -599,6 +610,7 @@ class Cluster:
     ranges: list[list[int]]  # leaf ordinals it holds, as [lo, hi) runs
     externals: list[int]  # pages it references, in preorder
     node: object = None  # node record, kept only when encoding
+    path: bytes = b""
 
 
 @dataclass(slots=True)
@@ -664,6 +676,7 @@ def pack_dense(
                 cluster.keys,
                 cluster.height + 1,
                 len(cluster.externals),
+                path=cluster.path,
             )
         )
         for lo, hi in cluster.ranges:
@@ -684,7 +697,7 @@ def pack_dense(
                 TAG_DEFINITION if corpus.kinds[i] == KIND_DEFINITION else TAG_NAMESPACE
             )
             node = (tag, key[start:], corpus.body(i))
-        cluster = Cluster(size, 1, 0, [[i, i + 1]], [], node)
+        cluster = Cluster(size, 1, 0, [[i, i + 1]], [], node, key[:start])
         return Sealed(seal(cluster)) if size > budget else cluster
 
     def on_branch(
@@ -738,12 +751,16 @@ def pack_dense(
             if keep
             else None
         )
-        cluster = Cluster(total, keys, height, ranges, externals, node)
+        cluster = Cluster(total, keys, height, ranges, externals, node, key[:start])
         # Still over budget with every child worth sealing sealed: the node is a page of its own,
         # above the capacity and below 64 KiB (at most 256 children of at most 68 bytes each).
         return Sealed(seal(cluster)) if total > budget else cluster
 
     root = build_trie(corpus.count, corpus.key, on_leaf, on_branch)
+    if root is None:
+        if encoder is not None:
+            encoder.finish()
+        return packing
     if isinstance(root, Sealed):
         packing.root = root.page
     else:
@@ -777,9 +794,7 @@ class Encoder:
         self.segment = bytearray()
         self.ordinal = 0
         self.raw = self.zstd1 = self.zstd3 = self.segments = self.hashed = 0
-        self.digests: dict[
-            bytes, int
-        ] = {}  # digest -> page length, for diffs between builds
+        self.digests: set[bytes] = set()  # content novelty only, never write accounting
         self.placed: dict[int, tuple[int, int]] = {}  # page -> segment ordinal, offset
 
     def emit(self, packing: DensePacking, page_id: int, cluster: Cluster) -> None:
@@ -847,7 +862,7 @@ class Encoder:
         digest = h.digest()
         body[32:64] = digest
         page.digest = digest
-        self.digests[digest] = page.length
+        self.digests.add(digest)
         for index, child in enumerate(externals):
             at = covered + PLACEMENT * index
             ordinal, offset = self.placed[child]
@@ -900,10 +915,21 @@ class PageReader:
         self.verified: set[tuple[bytes, int]] = set()
         self.first_touches = self.hits = self.hashed = 0
 
-    def page(self, segment: bytes, offset: int, length: int, digest: bytes) -> bytes:
+    def page(
+        self,
+        segment: bytes,
+        offset: int,
+        length: int,
+        digest: bytes,
+        keys: int,
+        height: int,
+    ) -> bytes:
         page = self.segments[segment][offset : offset + length]
         assert (
             len(page) == length and page[:8] == b"DTPAGE03" and be(page, 8, 4) == length
+        )
+        assert keys == be(page, 16, 8) and 1 <= height <= 255 and height == page[24], (
+            "reference summary mismatch"
         )
         if (segment, offset) in self.verified:
             self.hits += 1
@@ -920,11 +946,11 @@ class PageReader:
         return page
 
     def lookup(
-        self, root: tuple[bytes, int, int, bytes], key: bytes
+        self, root: tuple[bytes, int, int, bytes, int, int], key: bytes
     ) -> tuple[bytes | None, set[tuple[bytes, int]]]:
         """The body stored under key, or None; and the pages the walk touched."""
-        segment, offset, length, digest = root
-        page = self.page(segment, offset, length, digest)
+        segment, offset, length, digest, keys, height = root
+        page = self.page(segment, offset, length, digest, keys, height)
         touched = {(segment, offset)}
         at, cursor = HEADER, 0
         while True:
@@ -961,7 +987,12 @@ class PageReader:
                 be(page, placement + 16, 4),
             )
             page = self.page(
-                segment, offset, be(page, content + 40, 4), page[content : content + 32]
+                segment,
+                offset,
+                be(page, content + 40, 4),
+                page[content : content + 32],
+                be(page, content + 32, 8),
+                page[content + 44],
             )
             touched.add((segment, offset))
             at = HEADER
@@ -974,9 +1005,20 @@ def verify_main(corpus: Corpus, capacity: int, rule: str, sample: int) -> None:
     encoder = Encoder(memory=True, compress=False)
     packing = pack_dense(corpus, capacity, rule, encoder)
     assert encoder.memory is not None
+    if packing.root < 0:
+        assert not packing.pages and not encoder.memory
+        print(f"verify: empty; commitment {state_commitment(packing).hex()}")
+        return
     root = packing.pages[packing.root]
     ordinal, offset = encoder.placed[packing.root]
-    reference = (segment_id(ordinal), offset, root.length, root.digest)
+    reference = (
+        segment_id(ordinal),
+        offset,
+        root.length,
+        root.digest,
+        root.keys,
+        root.height,
+    )
     reader = PageReader(encoder.memory, packing.slot_width())
     depth = array("H", bytes(2 * len(packing.pages)))
     for p in range(len(packing.pages) - 1, -1, -1):
@@ -1094,7 +1136,7 @@ def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
             lengths = sorted(p.length for p in pages)
             digests = len(pages) + segments
             print(
-                f"C {capacity:,} {rule}: {len(pages):,} pages, {total:,} B ({total / corpus.count:.1f} B per record)"
+                f"C {capacity:,} {rule}: {len(pages):,} pages, {total:,} B ({total / max(1, corpus.count):.1f} B per record)"
             )
             print(
                 f"  nodes {packing.nodes:,} ({packing.node_bytes:,} B), headers {HEADER * len(pages):,} B,"
@@ -1103,7 +1145,7 @@ def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
                 f"  externals {externals:,} ({EXTERNAL * externals:,} B); page length median {quantile(lengths, 0.5):,},"
             )
             print(
-                f"  p10 {quantile(lengths, 0.1):,}, mean {total / len(pages):,.0f}; over capacity {len(over):,}"
+                f"  p10 {quantile(lengths, 0.1):,}, mean {total / max(1, len(pages)):,.0f}; over capacity {len(over):,}"
             )
             print(
                 f"  segments {segments:,} ({segment_bytes:,} B); SHA-256 at build {page_hashed:,} + {segment_bytes:,}"
@@ -1112,10 +1154,10 @@ def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
                 f"  = {built:,} B in {digests:,} digests (estimate {sha_us(built, digests) / 1e6:.2f} s)"
             )
             print(
-                f"  pages per definition walk: median {w50}, p99 {w99}, max {max(paths.walk)};"
+                f"  pages per definition walk: median {w50}, p99 {w99}, max {max(paths.walk, default=0)};"
             )
             print(
-                f"  with the watermark walk: median {b50}, p99 {b99}, max {max(paths.both)}"
+                f"  with the watermark walk: median {b50}, p99 {b99}, max {max(paths.both, default=0)}"
             )
             print(
                 f"  cold lookup hashes: median {t50:,} B, p99 {t99:,} B (estimate {sha_us(t50, b50):.0f} us"
@@ -1127,7 +1169,9 @@ def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
             print(
                 f"  p99 {f99:,} B (estimate {sha_us(f50):.1f} us and {sha_us(f99):.1f} us); height"
             )
-            print(f"  {pages[packing.root].height}; {time.monotonic() - started:.0f} s")
+            print(
+                f"  {pages[packing.root].height if packing.root >= 0 else 0}; {time.monotonic() - started:.0f} s"
+            )
             sys.stdout.flush()
 
 
@@ -1142,15 +1186,15 @@ def bytes_main(corpus: Corpus, capacity: int, rule: str, keep: Path | None) -> N
     print(
         f"C {capacity:,} {rule}: {len(packing.pages):,} pages, {total:,} page bytes, {encoder.segments:,} segments,"
     )
-    print(f"  {raw:,} segment bytes ({raw / corpus.count:.1f} B per record)")
+    print(f"  {raw:,} segment bytes ({raw / max(1, corpus.count):.1f} B per record)")
     print(
-        f"  zstd-1 {encoder.zstd1:,} B ({100 * encoder.zstd1 / raw:.1f}%), zstd-3 {encoder.zstd3:,} B"
+        f"  zstd-1 {encoder.zstd1:,} B ({100 * encoder.zstd1 / max(1, raw):.1f}%), zstd-3 {encoder.zstd3:,} B"
     )
     print(
-        f"  ({100 * encoder.zstd3 / raw:.1f}%); page digests over {encoder.hashed:,} B"
+        f"  ({100 * encoder.zstd3 / max(1, raw):.1f}%); page digests over {encoder.hashed:,} B"
     )
     print(
-        f"  root digest {packing.pages[packing.root].digest.hex()}; {time.monotonic() - started:.0f} s"
+        f"  root digest {state_commitment(packing).hex()}; {time.monotonic() - started:.0f} s"
     )
 
 
@@ -1177,6 +1221,9 @@ def delta_main(corpus: Corpus, capacities: list[int], rule: str) -> None:
     today = build_today(corpus)
     today_total = sum(today.size)
     definitions = [i for i in range(corpus.count) if corpus.kinds[i] == KIND_DEFINITION]
+    if not definitions:
+        print("delta: no definitions; no sampled changes")
+        return
     print(
         f"today: {today_total:,} page bytes; built in {time.monotonic() - started:.0f} s",
         flush=True,
@@ -1311,17 +1358,21 @@ def churn_main(
         build_today(corpus, digests=True),
         build_today(after, digests=True),
     )
-    old_nodes = set(old_today.logical)
+    old_nodes = dict(zip(old_today.paths, old_today.logical, strict=True))
     fresh = [
-        n for n in range(len(new_today.size)) if new_today.logical[n] not in old_nodes
+        n
+        for n, path in enumerate(new_today.paths)
+        if old_nodes.get(path) != new_today.logical[n]
     ]
     today_bytes = sum(new_today.size[n] for n in fresh)
     old = Encoder()
-    pack_dense(corpus, capacity, rule, old)
+    base = pack_dense(corpus, capacity, rule, old)
     new = Encoder()
     packing = pack_dense(after, capacity, rule, new)
     pages = packing.pages
-    fresh_pages = {p for p in range(len(pages)) if pages[p].digest not in old.digests}
+    difference = occurrence_diff(base, packing)
+    fresh_pages = difference.written
+    digest_novel = {p for p in range(len(pages)) if pages[p].digest not in old.digests}
     page_of = packing.page_of_leaves(after.count)
     on_path: set[int] = set()
     for i in range(after.count):
@@ -1336,13 +1387,16 @@ def churn_main(
     assert all(pages[p].parent in on_path for p in off_path)
     total = sum(p.length for p in pages)
     dense_bytes = sum(pages[p].length for p in fresh_pages)
-    freed = sum(n for d, n in old.digests.items() if d not in new.digests)
+    freed = sum(base.pages[p].length for p in difference.unreachable)
     print(
         f"churn at C {capacity:,} ({rule}): {updates:,} updates, {inserts:,} inserts, {deletes:,} deletes"
     )
     print(f"  today writes {len(fresh):,} pages, {today_bytes:,} B")
     print(
-        f"  dense writes {len(fresh_pages):,} pages, {dense_bytes:,} B of {total:,} ({100 * dense_bytes / total:.3f}%);"
+        f"  dense projected occurrence writes {len(fresh_pages):,} pages, {dense_bytes:,} B of {total:,} ({100 * dense_bytes / max(1, total):.3f}%);"
+    )
+    print(
+        f"  digest-set novel {len(digest_novel):,} pages; reused occurrences {len(difference.reused):,}"
     )
     print(
         f"  {len(fresh_pages & on_path):,} on a changed path, {len(off_path):,} off it"
@@ -1352,6 +1406,164 @@ def churn_main(
     )
     print(
         f"  them {len(on_path - fresh_pages):,}; old pages left unreachable {freed:,} B; {time.monotonic() - started:.0f} s"
+    )
+
+
+@dataclass(slots=True)
+class OccurrenceDiff:
+    written: set[int]
+    reused: dict[int, int]  # target page -> uniquely owned base extent ordinal
+    unreachable: set[int]
+
+
+def occurrence_diff(base: DensePacking, target: DensePacking) -> OccurrenceDiff:
+    """Corresponding-path reuse oracle over two full builds, not an incremental allocator."""
+    by_path = {p.path: i for i, p in enumerate(base.pages)}
+    assert len(by_path) == len(base.pages), "each top-node path occurs once"
+    assert len({p.path for p in target.pages}) == len(target.pages)
+    reused: dict[int, int] = {}
+    written: set[int] = set()
+    for i, page in enumerate(target.pages):
+        old = by_path.get(page.path)
+        if old is not None:
+            previous = base.pages[old]
+            assert page.digest and previous.digest, "encode before comparing"
+            if (page.digest, page.length, page.keys, page.height) == (
+                previous.digest,
+                previous.length,
+                previous.keys,
+                previous.height,
+            ):
+                reused[i] = old
+                continue
+        written.add(i)
+    assert len(set(reused.values())) == len(reused), "no shared physical extents"
+    return OccurrenceDiff(
+        written, reused, set(range(len(base.pages))) - set(reused.values())
+    )
+
+
+EMPTY_COMMITMENT = hashlib.sha256(b"detent.local.empty.v3").digest()
+
+
+def state_commitment(packing: DensePacking) -> bytes:
+    return EMPTY_COMMITMENT if packing.root < 0 else packing.pages[packing.root].digest
+
+
+def contract_checks() -> None:
+    """Tiny empty and repeated-content oracles, with no dependency on the large corpus."""
+
+    def build(records: list[tuple[bytes, int, bytes]]) -> DensePacking:
+        writer = CorpusWriter()
+        for record in sorted(records):
+            writer.add(*record)
+        return pack_dense(writer.corpus(), 4096, "height", Encoder(compress=False))
+
+    empty = build([])
+    assert empty.root == -1 and not empty.pages
+    assert state_commitment(empty) == EMPTY_COMMITMENT
+    large = bytes(4100)
+    records = [
+        (b"Kns\0x\0", KIND_DEFINITION, large),
+        (b"Kns\0y\0", KIND_DEFINITION, large),
+        (b"Wns\0", KIND_NAMESPACE, bytes(8)),
+    ]
+    repeated = build(records)
+    counts = [p.digest for p in repeated.pages]
+    assert len(set(counts)) < len(counts), "equal pages have separate occurrences"
+    same = occurrence_diff(repeated, build(records))
+    assert not same.written and len(same.reused) == len(repeated.pages)
+    assert len(set(same.reused.values())) == len(repeated.pages)
+    encoded = Encoder(memory=True, compress=False)
+    writer = CorpusWriter()
+    for record in sorted(records):
+        writer.add(*record)
+    framed = pack_dense(writer.corpus(), 4096, "height", encoded)
+    assert encoded.memory is not None
+    page = framed.pages[framed.root]
+    ordinal, offset = encoded.placed[framed.root]
+    reader = PageReader(encoded.memory, 2)
+    for warm in (False, True):
+        if warm:
+            reader.page(
+                segment_id(ordinal),
+                offset,
+                page.length,
+                page.digest,
+                page.keys,
+                page.height,
+            )
+        for keys, height in (
+            (page.keys + 1, page.height),
+            (page.keys, 0),
+            (page.keys, page.height + 1),
+            (page.keys, 256),
+        ):
+            try:
+                reader.page(
+                    segment_id(ordinal), offset, page.length, page.digest, keys, height
+                )
+            except AssertionError as error:
+                assert str(error) == "reference summary mismatch"
+            else:
+                raise AssertionError("false summary accepted")
+    # Growing z seals y's clean cluster beside the equal, already retained x page.
+    small = bytes(1800)
+    before = [
+        (b"Kns\0x0\0", KIND_DEFINITION, small),
+        (b"Kns\0x1\0", KIND_DEFINITION, small),
+        (b"Kns\0y0\0", KIND_DEFINITION, small),
+        (b"Kns\0y1\0", KIND_DEFINITION, small),
+        (b"Kns\0z\0", KIND_DEFINITION, bytes(100)),
+        (b"Wns\0", KIND_NAMESPACE, bytes(8)),
+    ]
+    prior = build(before)
+    after = [
+        (key, kind, bytes(500) if key == b"Kns\0z\0" else body)
+        for key, kind, body in before
+    ]
+    result = build(after)
+    boundary = occurrence_diff(prior, result)
+    old_digests = {page.digest for page in prior.pages}
+    equal_writes = [
+        i for i in boundary.written if result.pages[i].digest in old_digests
+    ]
+    assert equal_writes, (
+        "newly sealed clean occurrence writes despite digest membership"
+    )
+    assert any(
+        result.pages[i].digest == prior.pages[j].digest
+        for i in equal_writes
+        for j in boundary.reused.values()
+    )
+    print(
+        f"boundary: {len(boundary.written)} projected writes, {len(equal_writes)} equal-content writes"
+    )
+    # A direct ownership fixture also rejects sharing one retained physical extent.
+    retained = repeated.pages[0]
+    base = DensePacking(4096, "height", [retained])
+    clone = Page(
+        retained.length,
+        retained.keys,
+        retained.height,
+        retained.externals,
+        digest=retained.digest,
+        path=b"new-path",
+    )
+    target = DensePacking(4096, "height", [retained, clone])
+    diff = occurrence_diff(base, target)
+    assert diff.reused == {0: 0} and diff.written == {1}
+    assert clone.digest in {p.digest for p in base.pages}
+    single = build([(b"Wns\0", KIND_NAMESPACE, bytes(8))])
+    assert occurrence_diff(empty, single).written == {0}
+    assert occurrence_diff(single, empty).unreachable == {0}
+    assert state_commitment(build([])) == state_commitment(empty)
+    assert state_commitment(single) != state_commitment(empty)
+    empty_writer = CorpusWriter()
+    assert not build_today(empty_writer.corpus()).size
+    verify_main(empty_writer.corpus(), 4096, "height", 0)
+    print(
+        f"contracts: ok; repeated occurrences {len(counts)}, distinct digests {len(set(counts))}"
     )
 
 
@@ -1389,6 +1601,7 @@ def check_main(directory: Path) -> None:
     """Runs every mode on the synthetic corpus and checks the packings, the encoded round trip,
     identical builds, a delta's changed corpus and the corpus file format."""
     directory.mkdir(parents=True, exist_ok=True)
+    contract_checks()
     writer = synthetic_corpus()
     corpus = writer.corpus()
     print(f"synthetic corpus: {corpus.count:,} records")
@@ -1445,6 +1658,9 @@ def main(argv: list[str]) -> None:
     if len(argv) < 3:
         raise SystemExit(__doc__)
     mode = argv[1]
+    if mode == "contracts":
+        contract_checks()
+        return
     if mode == "extract":
         extract_main(Path(argv[2]), Path(argv[3]))
         return

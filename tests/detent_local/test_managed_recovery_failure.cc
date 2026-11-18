@@ -7,6 +7,7 @@
 #include <completion/native_completion.h>
 #include <future>
 #include <source_location>
+#include <set>
 #include <thread>
 namespace c = kronuz::io::completion;
 void check(bool value, const std::source_location location = std::source_location::current()) {
@@ -42,15 +43,14 @@ class CleanupPause {
 	~CleanupPause() { resume(); }
 };
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
 		check(turns < 100000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(
-				kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
 template <class F> void wait_for(F predicate) {
@@ -60,26 +60,29 @@ template <class F> void wait_for(F predicate) {
 		std::this_thread::yield();
 	}
 }
-void run(std::uint64_t available, bool close_during_worker) {
+// Fails the managed recovery of a published delta under heap pressure (`available` bytes left), or, with
+// `grown_pack`, at the delta pack's mapping after the admission handed its reservation over: the pack is grown
+// after publication, so its file no longer matches its owner record.
+void run(std::uint64_t available, bool close_during_worker, bool grown_pack = false) {
 	const auto directory = std::filesystem::current_path() / ".scratch" /
 						   ("managed-recovery-failure-" + std::to_string(::getpid()) + "-" +
-							std::to_string(available) + "-" + std::to_string(close_during_worker));
+							std::to_string(available) + "-" + std::to_string(close_during_worker) + "-" +
+							std::to_string(grown_pack));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{directory};
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	write(directory / "owner.lock", {});
 	auto heap = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
@@ -97,11 +100,19 @@ void run(std::uint64_t available, bool close_during_worker) {
 		drive(store);
 		// Keep planner refunds pending until the recovery pressure check settles.
 		CleanupPause cleanup_pause(domain);
-		l::detail::PagedDeltaPlanBuilder builder(base, one_key_delta(heap), next, domain);
+		l::detail::PagedDeltaPlanBuilder builder(base, one_key_delta(heap), domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
+		const auto packs = [&] {
+			std::set<std::filesystem::path> found;
+			for (const auto &entry : std::filesystem::directory_iterator(directory))
+				if (entry.path().extension() == ".pack")
+					found.insert(entry.path());
+			return found;
+		};
+		const auto base_packs = packs();
 		std::optional<l::detail::PagedPlan> plan(builder.take());
 		const auto wanted = plan->descriptor();
 		store->begin(std::move(*plan));
@@ -112,6 +123,16 @@ void run(std::uint64_t available, bool close_during_worker) {
 			l::detail::ManagedRecovery::capture(*store));
 		auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 		context->paged.metrics = metrics;
+		std::filesystem::path grown;
+		std::uintmax_t grown_size = 0;
+		if (grown_pack) {
+			for (const auto &pack : packs())
+				if (!base_packs.contains(pack))
+					grown = pack;
+			check(!grown.empty());
+			grown_size = std::filesystem::file_size(grown);
+			std::filesystem::resize_file(grown, grown_size + 8);
+		}
 		const auto initial_heap = heap->used();
 		auto pressure = heap->admit(heap->limit() - initial_heap - available);
 		const auto pressured_heap = heap->used();
@@ -139,7 +160,7 @@ void run(std::uint64_t available, bool close_during_worker) {
 		worker.join();
 		if (!original || context->paged.admission->failure() != original ||
 			metrics->root_mapping_installs != 1 ||
-			metrics->segment_mapping_installs != (available ? 1 : 0)) {
+			metrics->segment_mapping_installs != 0) {
 			std::cerr << "recovery pressure: available=" << available
 					  << " close=" << close_during_worker << " heap=" << heap->used()
 					  << " initial=" << initial_heap << " pressured=" << pressured_heap
@@ -150,7 +171,16 @@ void run(std::uint64_t available, bool close_during_worker) {
 		}
 		check(original && context->paged.admission->failure() == original);
 		check(metrics->root_mapping_installs == 1);
-		check(metrics->segment_mapping_installs == (available ? 1 : 0));
+		// Heap pressure fails the trusted open at `.live`'s admission; a grown pack fails its mapping's file
+		// check after take_segment. Either way no pack mapping is installed.
+		check(metrics->segment_mapping_installs == 0);
+		if (grown_pack) {
+			try {
+				std::rethrow_exception(original);
+			} catch (const std::invalid_argument &error) {
+				check(std::string_view(error.what()) == "invalid immutable segment file");
+			}
+		}
 		try {
 			l::detail::ManagedRecovery::recover(directory / "missing", *context);
 			throw std::runtime_error("consumed failed recovery was replayed");
@@ -186,6 +216,8 @@ void run(std::uint64_t available, bool close_during_worker) {
 		context.reset();
 		store.reset();
 		wait_for([&] { return mappings->used() == baseline; });
+		if (grown_pack)
+			std::filesystem::resize_file(grown, grown_size);
 		auto restarted = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 		drive(restarted);
 		check(restarted->status() == l::StoreStatus::Ready &&
@@ -205,6 +237,8 @@ void run(std::uint64_t available, bool close_during_worker) {
 }
 int main() {
 	run(0, false);
-	run(80 * 1024, false);
-	run(80 * 1024, true);
+	run(1024, false);
+	run(1024, true);
+	run(1024 * 1024, false, true);
+	run(1024 * 1024, true, true);
 }

@@ -1,0 +1,14 @@
+diff --git a/src/detent_local/paged_layout.cc b/src/detent_local/paged_layout.cc
+index 02685d9..aab224e 100644
+--- a/src/detent_local/paged_layout.cc
++++ b/src/detent_local/paged_layout.cc
+@@ -139,7 +139,8 @@ Digest page_commitment(std::span<const char> bytes, Limits limits) {
+ 	count_hash(HashKind::Page, 1, end - 32);
+ 	DETENT_COUNT(bytes_hashed, end - 32);
+ 	SHA256 hash;
+-	hash.add(bytes.data(), 32);
++	hash.add(bytes.data(), 24);
++	hash.add(bytes.data() + 25, 7);
+ 	hash.add(bytes.data() + 64, end - 64);
+ 	return finish(hash);
+ }

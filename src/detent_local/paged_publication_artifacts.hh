@@ -6,7 +6,7 @@ namespace detent::local::detail {
 struct PublicationArtifact {
 	std::array<char, 64> name{};
 	std::size_t name_size = 0, record_size = 0;
-	std::array<char, descriptor_bytes> record{};
+	std::array<char, segment_ownership_bytes> record{};
 	std::shared_ptr<const distribution::OwnedBuffer> payload;
 	DiskUsage prefix;
 	std::string_view filename() const noexcept { return {name.data(), name_size}; }
@@ -22,6 +22,8 @@ struct ReusedDependency {
 class PagedPublicationArtifacts final : public distribution::RetirementNode {
   public:
 	explicit PagedPublicationArtifacts(std::shared_ptr<distribution::StorageLedger>);
+	// The generation's files for the agent store: each new segment's `.owner` and `.pack`, then `.image`,
+	// `.live` and `.read`.
 	void populate(const PagedPlan &);
 	void attach(PagedPlan &&);
 	void attach_recovery(distribution::RetirementHandle<MappedRecoveryAdmission>);
@@ -31,7 +33,6 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	const PagedPlan &plan() const;
 	DiskUsage usage() const;
 	std::uint64_t target_physical_bytes() const;
-	DiskUsage prefix_usage(std::size_t) const;
 
   protected:
 	bool retire_step() noexcept override;
@@ -47,7 +48,6 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	Descriptor descriptor_;
 	std::optional<Descriptor> base_descriptor_;
 	DirectoryIdentity directory_;
-	StorageIdentity storage_;
 	bool populated_ = false, failed_ = false;
 	void append(std::string_view, std::span<const char>, std::shared_ptr<const distribution::OwnedBuffer>,
 				bool generation = false);

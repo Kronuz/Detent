@@ -161,6 +161,7 @@ int run(const std::vector<std::string>& input_args) {
 			const auto authority_network_timeout = authority_options.timeout;
 			const auto authority_bind = authority_options.publisher_bind.to_string();
 			const char* authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
+			const bool lone_quorum = !authority_options.peers || authority_options.peers->addresses.empty();
 			const bool publisher_https = authority_options.publisher_tls.has_value();
 			http::HttpAsioService::ConnectionFactory connection;
 			if (publisher_https) {
@@ -188,11 +189,23 @@ int run(const std::vector<std::string>& input_args) {
 			bind.address = authority_bind;
 			service.set_bind_options(bind);
 			service.start(port);
-			ready();
 			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
 				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
+			// A node that alone is a quorum (no other voter) waits for its own leader; with other voters
+			// it returns at once, and /v1/health reports ready only when a leader is known. A stop or a
+			// runtime failure ends the wait without ready, and the parent receives the cause.
+			std::string startup_failure;
+			while (lone_quorum && !authority.has_leader() && !g_stop.load()) {
+				if (auto reason = authority.failure()) {
+					startup_failure = "authority stopped before a leader was elected: " + *reason;
+					break;
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds{5});
+			}
+			if (startup_failure.empty() && detach && g_stop.load()) startup_failure = "stopped before startup completed";
+			if (startup_failure.empty()) ready();
 
-			while (!g_stop.load()) {
+			while (startup_failure.empty() && !g_stop.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{200});
 			}
 
@@ -207,6 +220,7 @@ int run(const std::vector<std::string>& input_args) {
 			authority.owner().close();
 			service.destroy_roots();
 			authority.owner().destroy_roots();
+			if (!startup_failure.empty()) throw std::runtime_error(startup_failure);
 			return 0;
 		} catch (const std::exception& e) {
 			L_ERR("detentd: {}", e.what());

@@ -77,7 +77,8 @@ FetchContent_MakeAvailable(
   sha256
   atomic_shared_ptr
   random_lib
-  compressors)
+  compressors
+  varint)
 
 ########################################################################
 # detent core library

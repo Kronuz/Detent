@@ -15,7 +15,7 @@ direction: right
 source: "Source\n(file or function)"
 updater: "Background updater\n(validate, version-gate,\nmerge over defaults)"
 snapshot: "Current snapshot\n(atomic pointer)" {shape: cylinder}
-readers: "Your threads\n(eval / get)"
+readers: "Your threads\n(get)"
 source -> updater: "candidate"
 updater -> snapshot: "one atomic swap"
 readers -> snapshot: "one atomic load"
@@ -41,7 +41,7 @@ replaces:
 
 ```cpp
 detent::InitOptions opts;
-opts.defaults_path = "just_knobs.json";
+opts.defaults_path = "defaults.json";
 opts.source_path = "/var/lib/myapp/live_knobs.json";
 opts.poll_interval = std::chrono::milliseconds{200};
 detent::Client client(std::move(opts));
@@ -56,7 +56,7 @@ plus a `version`:
   "schema_version": 1,
   "version": 7,
   "knobs": {
-    "search:max_results": { "type": "int", "default": 50 }
+    "search:max_results": { "default": 50 }
   }
 }
 ```

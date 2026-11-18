@@ -28,6 +28,6 @@ class LeafBody {
 	std::uint32_t index_ = 0;
 	std::string_view previous_;
 	Phase phase_ = Phase::Count;
-	bool namespace_ = false, failed_ = false, discarding_ = false;
+	bool namespace_ = false, failed_ = false, discarding_ = false, ramped_ = false;
 };
 } // namespace detent::local::detail

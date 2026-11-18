@@ -5,7 +5,7 @@
 #include <string_view>
 
 namespace detent::local {
-inline constexpr std::uint64_t header_bytes = 192, namespace_bytes = 24, record_bytes = 48,
+inline constexpr std::uint64_t header_bytes = 192, namespace_bytes = 24, record_bytes = 56,
 							   override_bytes = 24;
 struct Layout {
 	std::uint32_t namespaces = 0, records = 0;

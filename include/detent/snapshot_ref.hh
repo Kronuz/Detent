@@ -1,6 +1,6 @@
 #pragma once
 
-// Section 3: the RCU-style snapshot holder. atomic_shared_ptr<T> retires to
+// The RCU-style snapshot holder. atomic_shared_ptr<T> retires to
 // std::atomic<std::shared_ptr<T>> once libc++ implements P0718; until then it
 // is a thin wrapper over the pre-C++20 atomic shared_ptr free functions, with
 // the exact same member API either way (see atomic-shared-ptr's own header

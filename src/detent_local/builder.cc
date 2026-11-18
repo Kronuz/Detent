@@ -1,3 +1,4 @@
+#include "detent_local/derived_ids.hh"
 #include "detent_local/builder.hh"
 #include "applied_source.hh"
 #include <algorithm>
@@ -48,27 +49,19 @@ struct ImageBuilder::Impl {
 		if (applied)
 			return applied->record(ordinal);
 		const auto &r = source->records()[ordinal];
-		detail::SourceRecord result{r.namespace_index, r.key, r.revision, IntDef{}};
-		if (auto b = std::get_if<distribution::WireBoolDef>(&r.definition))
-			result.definition = detail::SourceBoolean{b->default_value, b->rollout_pct, b->overrides.start,
-													  b->overrides.count};
-		else
-			result.definition = std::get<IntDef>(r.definition);
-		return result;
+		const auto &d = r.definition;
+		return {r.namespace_index, r.key, r.revision,
+				{d.default_value, d.rollout_pct, d.rollout_value, d.overrides.start, d.overrides.count}};
 	}
-	std::optional<detail::SourceBoolean> boolean() const {
+	std::optional<detail::SourceDefinition> definition() const {
 		if (record >= record_count())
 			return {};
-		auto r = source_record(record);
-		if (auto b = std::get_if<detail::SourceBoolean>(&r.definition))
-			return *b;
-		return {};
+		return source_record(record).definition;
 	}
 	detail::SourceOverride source_override(std::uint64_t ordinal) const {
 		if (applied)
 			return applied->override_value(record, ordinal);
-		const auto &b = std::get<distribution::WireBoolDef>(source->records()[record].definition);
-		const auto &r = source->overrides(b)[ordinal];
+		const auto &r = source->overrides(source->records()[record].definition)[ordinal];
 		return {r.first, r.second};
 	}
 	void count_strings(std::size_t n) {
@@ -82,7 +75,7 @@ struct ImageBuilder::Impl {
 		}
 		if (record < record_count()) {
 			const auto &r = source_record(record);
-			auto b = boolean();
+			auto b = definition();
 			if (!grouping) {
 				count_strings(r.key.size());
 				if (b) {
@@ -122,7 +115,7 @@ struct ImageBuilder::Impl {
 		if (ns < namespace_count())
 			return namespace_bytes + name_space(ns).name.size();
 		if (record < record_count()) {
-			auto b = boolean();
+			auto b = definition();
 			if (grouping && b && group < b->override_count)
 				return override_bytes + source_override(group).name.size();
 			return record_bytes + source_record(record).key.size();
@@ -139,17 +132,17 @@ struct ImageBuilder::Impl {
 			return;
 		}
 		if (record < record_count()) {
-			auto b = boolean();
+			auto b = definition();
 			if (grouping && b) {
 				if (group < b->override_count) {
 					auto r = l.override_offset + override_cursor++ * override_bytes;
 					const auto [name, value] = source_override(group);
 					text(r, name);
-					if (auto forced = std::get_if<bool>(&value))
-						number(r + 13, *forced, 1);
+					if (auto forced = std::get_if<std::int64_t>(&value))
+						number(r + 16, std::bit_cast<std::uint64_t>(*forced), 8);
 					else {
 						number(r + 12, 1, 1);
-						number(r + 13, std::get<GroupRollout>(value).rollout_pct, 1);
+						number(r + 16, std::get<GroupRollout>(value).rollout_pct, 8);
 					}
 					++group;
 				}
@@ -165,53 +158,48 @@ struct ImageBuilder::Impl {
 			number(r + 12, value.namespace_index, 4);
 			number(r + 16, value.revision, 8);
 			number(r + 32, override_cursor, 8);
-			if (b) {
-				number(r + 24, b->default_value, 8);
-				number(r + 40, b->override_count, 4);
-				number(r + 45, b->rollout_pct.has_value(), 1);
-				number(r + 46, b->rollout_pct.value_or(0), 1);
-				if (b->override_count) {
-					group = 0;
-					grouping = true;
-				} else
-					++record;
-			} else {
-				number(r + 24, std::bit_cast<std::uint64_t>(std::get<IntDef>(value.definition).default_value),
-					   8);
-				number(r + 44, 1, 1);
+			const auto &d = value.definition;
+			number(r + 24, std::bit_cast<std::uint64_t>(d.default_value), 8);
+			number(r + 40, d.override_count, 4);
+			number(r + 44, (d.rollout_pct ? 1 : 0) | (d.rollout_value ? 2 : 0), 1);
+			number(r + 45, d.rollout_pct.value_or(0), 1);
+			if (d.rollout_value)
+				number(r + 48, std::bit_cast<std::uint64_t>(*d.rollout_value), 8);
+			if (d.override_count) {
+				group = 0;
+				grouping = true;
+			} else
 				++record;
-			}
 			return;
 		}
 		require(string_cursor == l.strings && override_cursor == l.overrides);
 		phase = 3;
 	}
 };
-ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source,
-						   GenerationId generation, ViewLimits limits)
+ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source, ViewLimits limits)
 	: impl_([&] {
 		  require(static_cast<bool>(source));
 		  return distribution::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free);
 	  }()) {
 	require(source && source->namespaces().size() <= limits.namespaces &&
-			source->records().size() <= limits.records && generation != GenerationId{});
+			source->records().size() <= limits.records);
 	impl_->account = source->storage_account();
+	// A flat publication is always forward of the selected head, so its ordinal is 0 (D8.2).
+	impl_->generation = next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
 	impl_->source = std::move(source);
-	impl_->generation = generation;
 	impl_->limits = limits;
 }
 ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedDelta> source,
-						   RecoveredGeneration base, GenerationId generation, ViewLimits limits)
+						   RecoveredGeneration base, ViewLimits limits)
 	: impl_([&] {
 		  require(static_cast<bool>(source));
 		  return distribution::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free);
 	  }()) {
-	require(generation != GenerationId{});
 	impl_->account = source->storage_account();
+	impl_->generation = next_generation(base.descriptor(), source->target(), source->profile(), false).id;
 	impl_->applied_target = source->target();
 	impl_->applied_profile = source->profile();
 	impl_->applied.emplace(std::move(base), std::move(source), limits);
-	impl_->generation = generation;
 	impl_->limits = limits;
 }
 ImageBuilder::~ImageBuilder() = default;

@@ -14,19 +14,15 @@ void check(bool value, std::source_location where = std::source_location::curren
 		throw std::runtime_error("paged root reclaim invariant at line " + std::to_string(where.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	unsigned turns = 0;
-	while (store->operation() || store->needs_work()) {
-		auto job = store->operation();
-		if (!job) {
-			store->advance();
-			continue;
-		}
-		check(++turns < 100000);
-		job->submitted();
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
-	store->advance();
 }
 void unpinned(const std::filesystem::path &path) {
 	const int fd = ::open(path.c_str(), O_RDWR | O_CLOEXEC);
@@ -61,18 +57,17 @@ int main() {
 		}
 	} cleanup{root};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{}, last{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{}, last{};
 	generation.fill('g');
 	next.fill('n');
 	last.fill('p');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget budget;
 		snapshot.step(budget);
 	}
 	auto image = snapshot.take();
-	install(root, image, storage);
+	install(root, image);
 	write(root / "owner.lock", {});
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
@@ -88,7 +83,7 @@ int main() {
 	drive(store);
 	auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
 	{
-		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), next, domain);
+		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -98,9 +93,10 @@ int main() {
 	}
 	auto pinned = std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
 	store->confirm_recovered(*pinned);
+	next = pinned->descriptor().generation;
 	base.reset();
 	{
-		l::detail::PagedPlanBuilder builder(*pinned, progress(pinned->descriptor().cursor, account), last,
+		l::detail::PagedPlanBuilder builder(*pinned, progress(pinned->descriptor().cursor, account),
 											domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
@@ -112,6 +108,7 @@ int main() {
 	{
 		auto current = l::recover_generation(root, options.recovery_limits, {}, &*pinned);
 		store->confirm_recovered(current);
+		last = current.descriptor().generation;
 	}
 	unpinned(root / (l::generation_name(generation) + ".lease"));
 	store->request_collection();
@@ -152,7 +149,7 @@ int main() {
 		l::GenerationId legacy;
 		legacy.fill('v');
 		{
-			l::ImageBuilder builder(snapshot, legacy, options.recovery_limits);
+			l::ImageBuilder builder(snapshot, options.recovery_limits);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);

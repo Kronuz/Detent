@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
 				check(open.status == 200);
 				check(call("/v2/transactions",
 						   "\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-						   "\"ns:a\",\"value\":{\"type\":\"int\",\"default\":7}}]")
+						   "\"ns:a\",\"value\":{\"default\":7}}]")
 						  .status == 200);
 			} else {
 				// Storage recovery precedes election. Wait for a quorum boundary
@@ -199,11 +199,12 @@ int main(int argc, char **argv) {
 			}
 			auto response = request(endpoint, cert, "/v2/distribution",
 									"{" + common + base(0) + "\"coding\":\"raw\"}", token);
-			decoded(response, run ? d::UpdateKind::Snapshot : d::UpdateKind::Delta, false);
+			// The ring is refilled by replay, so a restart loses no cursor (D6).
+			decoded(response, d::UpdateKind::Delta, false);
 			if (!run) {
 				check(call("/v2/transactions",
 						   "\"generation\":1,\"sequence\":2,\"namespace\":\"secret\",\"operations\":[{"
-						   "\"key\":\"secret:a\",\"value\":{\"type\":\"int\",\"default\":99}}]")
+						   "\"key\":\"secret:a\",\"value\":{\"default\":99}}]")
 						  .status == 200);
 				response = request(endpoint, cert, "/v2/distribution",
 								   "{" + common + base(1) + "\"coding\":\"raw\"}", token);

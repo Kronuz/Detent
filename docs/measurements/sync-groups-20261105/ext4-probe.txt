@@ -1,0 +1,20 @@
+6.8.0-147-generic
+ext4   rw,relatime,discard,errors=remount-ro,commit=30
+== 128 files of 1024 KB, 9 rounds
+128 files of 1024 KB in /home/strata/s2probe/data, 9 rounds
+variant                               median ms     min ms     max ms
+sync and directory flush per file         371.0      360.3      463.9
+one full sync each (File::sync)           370.9      361.0      462.5
+batched (IO::sync_files)                   88.6       67.3      176.7
+concurrent fsync threads                   91.3       83.4      130.4
+fdatasync each (fsync on macOS)           366.5      359.3      398.8
+one syncfs                                 67.6       55.5       85.6
+== 1445 files of 1024 KB, 3 rounds
+1445 files of 1024 KB in /home/strata/s2probe/data, 3 rounds
+variant                               median ms     min ms     max ms
+sync and directory flush per file        3911.5     3907.7     4689.7
+one full sync each (File::sync)          3888.4     3855.0     4058.8
+batched (IO::sync_files)                  778.5      670.0      789.0
+concurrent fsync threads                  886.5      862.1      978.2
+fdatasync each (fsync on macOS)          3943.3     3833.5     4018.7
+one syncfs                                557.5      520.3      559.2

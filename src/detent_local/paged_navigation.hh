@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 namespace detent::local::detail {
-inline std::size_t find_segment(std::span<const SegmentInput> segments, const StorageIdentity &id) {
+inline std::size_t find_segment(std::span<const SegmentInput> segments, const SegmentId &id) {
 	auto found =
 		std::lower_bound(segments.begin(), segments.end(), id, [](const auto &input, const auto &key) {
 			return std::memcmp(input.ownership.segment.data(), key.data(), key.size()) < 0;
@@ -19,13 +19,25 @@ inline std::size_t find_segment(std::span<const SegmentInput> segments, const St
 }
 inline std::span<const char> checked_page_bytes(const SegmentInput &segment,
 												const paged::Reference &reference) {
-	paged::encode_reference(reference);
+	paged::validate(reference);
 	if (segment.ownership.segment != reference.segment || reference.offset > segment.bytes.size() ||
 		reference.length > segment.bytes.size() - reference.offset)
 		throw std::invalid_argument("invalid paged segment reference");
 	const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
+	if (segment.pages && bytes.size() >= paged::page_header_bytes && segment.pages->test(reference.offset)) {
+		// A verified page's header is checked: the reference need only match its fields.
+		if (read_integer(bytes, 8, 4) != reference.length || read_integer(bytes, 16, 8) != reference.keys ||
+			static_cast<unsigned char>(bytes[24]) != reference.height ||
+			std::memcmp(bytes.data() + 32, reference.digest.data(), reference.digest.size()))
+			throw ReadSourceFailure("local page reference differs from reached header");
+		return bytes;
+	}
+	const auto header = paged::decode_page_header(bytes, paged_format_limits());
+	if (header.length != reference.length || header.keys != reference.keys ||
+		header.height != reference.height || header.digest != reference.digest)
+		throw ReadSourceFailure("local page reference differs from reached header");
 	if (segment.pages && !segment.pages->test(reference.offset)) {
-		// First touch: the page's digests against its parent's reference, once per mapping.
+		// First touch compares the page commitment once per exact mapping start.
 		try {
 			paged::verify_page(bytes, reference, paged_format_limits());
 		} catch (const std::exception &) {

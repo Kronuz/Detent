@@ -17,9 +17,9 @@ Snapshot make_base() {
 		"schema_version": 1,
 		"version": 1,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": false},
-			"search:max_results": {"type": "int", "default": 25},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10}
+			"checkout:killswitch_new_path": {"default": 0},
+			"search:max_results": {"default": 25},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1}
 		}
 	})",
 	                                     "test");
@@ -32,9 +32,9 @@ void test_parse_patch_upsert_and_delete() {
 		"schema_version": 1,
 		"version": 2,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": true},
+			"checkout:killswitch_new_path": {"default": 1},
 			"search:max_results": null,
-			"checkout:brand_new_flag": {"type": "bool", "default": false}
+			"checkout:brand_new_flag": {"default": 0}
 		}
 	})",
 	                                   "test");
@@ -63,7 +63,7 @@ void test_parse_patch_rejects_malformed() {
 	// An invalid knob definition anywhere in the patch rejects the whole
 	// patch, not just that one entry.
 	auto bad_def = parse_snapshot_patch(
-		R"({"schema_version":1,"version":2,"knobs":{"a:b":{"type":"bool"}}})", "test");
+		R"({"schema_version":1,"version":2,"knobs":{"a:b":{}}})", "test");
 	assert(!bad_def.has_value()); // missing required 'default'
 }
 
@@ -73,7 +73,7 @@ void test_apply_patch_upsert_delete_untouched() {
 		"schema_version": 1,
 		"version": 2,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": true},
+			"checkout:killswitch_new_path": {"default": 1},
 			"search:max_results": null
 		}
 	})",
@@ -85,17 +85,17 @@ void test_apply_patch_upsert_delete_untouched() {
 	auto& out = applied.value();
 	assert(out.version == 2);
 	assert(out.knobs.size() == 2); // killswitch (changed) + payments (untouched); max_results deleted
-	assert(std::get<BoolDef>(out.knobs.at("checkout:killswitch_new_path")).default_value == true);
+	assert(out.knobs.at("checkout:killswitch_new_path").default_value == 1);
 	assert(out.knobs.find("search:max_results") == out.knobs.end());
 	// Untouched knob survives unchanged.
-	assert(std::get<BoolDef>(out.knobs.at("payments:new_processor")).rollout_pct == 10);
+	assert(out.knobs.at("payments:new_processor").rollout_pct == 10);
 }
 
 void test_apply_patch_rejects_oversize_result() {
 	auto base = make_base(); // 3 knobs
 	SnapshotPatch patch;
 	patch.version = 2;
-	patch.knobs["brand:new"] = BoolDef{};
+	patch.knobs["brand:new"] = KnobDef{};
 	auto applied = apply_patch(base, patch, /*max_knobs=*/3); // would grow to 4
 	assert(!applied.has_value());
 }
@@ -106,9 +106,9 @@ void test_diff_snapshots_round_trip() {
 		"schema_version": 1,
 		"version": 2,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": true},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10},
-			"checkout:brand_new_flag": {"type": "int", "default": 7}
+			"checkout:killswitch_new_path": {"default": 1},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1},
+			"checkout:brand_new_flag": {"default": 7}
 		}
 	})",
 	                                             "test");
@@ -117,7 +117,7 @@ void test_diff_snapshots_round_trip() {
 
 	auto diff = diff_snapshots(base, updated);
 	// killswitch changed, brand_new_flag added, max_results removed,
-	// payments unchanged (identical BoolDef) -- so exactly 3 entries, not 4.
+	// payments unchanged (identical definition) -- so exactly 3 entries, not 4.
 	assert(diff.knobs.size() == 3);
 	assert(diff.knobs.find("payments:new_processor") == diff.knobs.end());
 	assert(diff.knobs.at("search:max_results") == std::nullopt);
@@ -150,9 +150,9 @@ void test_compose_patches_matches_direct_diff() {
 		"schema_version": 1,
 		"version": 2,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": false},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10},
-			"checkout:brand_new_flag": {"type": "int", "default": 7}
+			"checkout:killswitch_new_path": {"default": 0},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1},
+			"checkout:brand_new_flag": {"default": 7}
 		}
 	})",
 	                                          "test");
@@ -162,10 +162,10 @@ void test_compose_patches_matches_direct_diff() {
 		"schema_version": 1,
 		"version": 3,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": true},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10},
-			"checkout:brand_new_flag": {"type": "int", "default": 7},
-			"another:knob": {"type": "bool", "default": true}
+			"checkout:killswitch_new_path": {"default": 1},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1},
+			"checkout:brand_new_flag": {"default": 7},
+			"another:knob": {"default": 1}
 		}
 	})",
 	                                          "test");
@@ -198,14 +198,14 @@ void test_compose_patches_matches_direct_diff() {
 // composed patch is not byte-minimal for it -- see compose_patches's
 // comment. This is the documented tradeoff, not a bug.
 void test_compose_patches_reconstructs_target_even_with_a_reverted_knob() {
-	auto v1 = make_base(); // checkout:killswitch_new_path starts false
+	auto v1 = make_base(); // checkout:killswitch_new_path starts at 0
 	auto v2_result = parse_source_snapshot(R"({
 		"schema_version": 1,
 		"version": 2,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": true},
-			"search:max_results": {"type": "int", "default": 25},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10}
+			"checkout:killswitch_new_path": {"default": 1},
+			"search:max_results": {"default": 25},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1}
 		}
 	})",
 	                                          "test");
@@ -214,9 +214,9 @@ void test_compose_patches_reconstructs_target_even_with_a_reverted_knob() {
 		"schema_version": 1,
 		"version": 3,
 		"knobs": {
-			"checkout:killswitch_new_path": {"type": "bool", "default": false},
-			"search:max_results": {"type": "int", "default": 25},
-			"payments:new_processor": {"type": "bool", "default": false, "rollout_pct": 10}
+			"checkout:killswitch_new_path": {"default": 0},
+			"search:max_results": {"default": 25},
+			"payments:new_processor": {"default": 0, "rollout_pct": 10, "rollout_value": 1}
 		}
 	})",
 	                                          "test");

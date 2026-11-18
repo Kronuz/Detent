@@ -48,9 +48,11 @@ std::string oracle(d::Cursor base, d::Cursor target, bool progress = false) {
 		m::string(out, "ns:a");
 		m::unsigned_integer(out, revision == 1 ? 0 : 1);
 		if (revision == 1) {
-			m::array(out, 2);
-			m::unsigned_integer(out, 1);
+			m::array(out, 4);
 			m::signed_integer(out, 7);
+			out.push_back('\xc0');
+			out.push_back('\xc0');
+			m::array(out, 0);
 		} else
 			out.push_back('\xc0');
 	}
@@ -97,7 +99,7 @@ int main() {
 			command.sequence = revision;
 			command.name_space = revision == 2 ? "secret" : "ns";
 			command.mutations = {{revision == 2 ? "secret:x" : "ns:a",
-								  revision == 3 ? std::optional<detent::KnobDef>{} : detent::IntDef{7},
+								  revision == 3 ? std::optional<detent::KnobDef>{} : detent::KnobDef{7},
 								  {},
 								  {}}};
 			history->begin_batch(context, revision + 1, state.revision());
@@ -153,7 +155,7 @@ int main() {
 				write.name_space = "ns";
 				for (unsigned revision = 1; revision <= 3; ++revision) {
 					write.sequence = revision;
-					write.mutations = {{"ns:a", detent::IntDef{value + revision}, {}, {}}};
+					write.mutations = {{"ns:a", detent::KnobDef{value + revision}, {}, {}}};
 					replacement->begin_batch(context, revision + 1, branch.revision());
 					check(branch.apply(revision + 1, write).status == a::Status::Applied);
 					auto draft = replacement->capture(branch, write, changed);
@@ -245,12 +247,13 @@ int main() {
 		}
 		check(refused);
 		// More than one output chunk, including nested rollout overrides.
-		detent::BoolDef flag;
-		flag.default_value = true;
+		detent::KnobDef flag;
+		flag.default_value = 1;
 		flag.rollout_pct = 35;
+		flag.rollout_value = 1;
 		for (unsigned i = 0; i < 128; ++i)
 			flag.overrides.emplace("group" + std::to_string(1000 + i),
-								   i % 2 ? detent::GroupOverride{false}
+								   i % 2 ? detent::GroupOverride{std::int64_t{0}}
 										 : detent::GroupOverride{detent::GroupRollout{50}});
 		for (unsigned revision = 4; revision <= 67; ++revision) {
 			flag.default_value = revision % 2;
@@ -286,8 +289,8 @@ int main() {
 			auto delta = decoder.finish();
 			check(delta.target() == to && delta.transactions().size() == 64);
 			const auto &mutation = delta.mutation(delta.transactions().back().mutations.start);
-			const auto &definition = std::get<d::WireBoolDef>(*mutation.value);
-			check(definition.default_value && definition.rollout_pct == 35 &&
+			const auto &definition = *mutation.value;
+			check(definition.default_value == 1 && definition.rollout_pct == 35 && definition.rollout_value == 1 &&
 				  definition.overrides.count == 128);
 		}
 		{

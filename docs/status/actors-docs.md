@@ -1,6 +1,6 @@
 # Actors documentation
 
-> Status: DRAFT (2026-11-03) Branch `docs/actors`; explains Detent's actors in the README, `docs/ACTORS.md` and the website.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-03) Branch `docs/actors`; explains Detent's actors in the README, `docs/ACTORS.md` and the website.
 
 **Done criteria:** the README carries a short "How Detent fits together" section with one diagram; `docs/ACTORS.md` states what, how, when and where for every actor; the website overview draws the relay and has a relay architecture page; the site builds; every fact is checked against the code.
 

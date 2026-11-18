@@ -1,0 +1,8 @@
+b8ef4f734e1c41e5e4add1da89963aef9a0d3757
+src/detent_local/disk_store.cc
+
+Auto-merging src/detent_local/disk_store.cc
+CONFLICT (content): Merge conflict in src/detent_local/disk_store.cc
+Auto-merging src/detent_local/paged_publication_artifacts.cc
+Auto-merging tests/detent_local/CMakeLists.txt
+Auto-merging tests/detent_local/test_paged_publication_artifacts.cc

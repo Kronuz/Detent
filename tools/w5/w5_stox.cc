@@ -1,4 +1,4 @@
-// strict-stox through the old and the new pins. Detent parses `--just-knob name=value` integers with
+// strict-stox through the old and the new pins. Detent parses `--knob name=value` integers with
 // strict_stoll (detent/overrides.cc); this feeds the library and that parser the same corpus: short and long
 // integers, decimals, exponents, subnormals, inputs of 63, 64 and more bytes, leading zeros, and garbage.
 #include "common.hh"

@@ -123,6 +123,28 @@ template <class Key, class Value, class Compare = std::less<>> class PersistentM
 		}
 		return balance(next->key, next->value, p->left, remove(p->right, next->key));
 	}
+	// Joins trees whose keys are below and above `k`, descending the taller spine.
+	Ptr join(const Ptr &l, const Key &k, const Value &v, const Ptr &r) {
+		if (h(l) > h(r) + 1)
+			return balance(l->key, l->value, l->left, join(l->right, k, v, r));
+		if (h(r) > h(l) + 1)
+			return balance(r->key, r->value, join(l, k, v, r->left), r->right);
+		return make(k, v, l, r);
+	}
+	template <class K> Ptr below(const Ptr &p, const K &k) {
+		if (!p)
+			return {};
+		if (Compare{}(p->key, k))
+			return join(p->left, p->key, p->value, below(p->right, k));
+		return below(p->left, k);
+	}
+	template <class K> Ptr from(const Ptr &p, const K &k) {
+		if (!p)
+			return {};
+		if (Compare{}(p->key, k))
+			return from(p->right, k);
+		return join(from(p->left, k), p->key, p->value, p->right);
+	}
 	template <class F> static void visit(const Ptr &p, F &f) {
 		if (!p) {
 			return;
@@ -207,6 +229,24 @@ template <class Key, class Value, class Compare = std::less<>> class PersistentM
 	PersistentMap erase(const Key &k) const {
 		PersistentMap result = *this;
 		result.root_ = result.remove(root_, k);
+		return result;
+	}
+	// Removes every key in [lower, upper) in O(log N) new nodes; the removed
+	// nodes retire through collect() once no other root shares them.
+	template <class K> PersistentMap erase_range(const K &lower, const K &upper) const {
+		PersistentMap result = *this;
+		auto left = result.below(root_, lower);
+		auto right = result.from(root_, upper);
+		if (!left || !right) {
+			result.root_ = left ? left : right;
+			return result;
+		}
+		auto first = right.get();
+		while (first->left)
+			first = first->left.get();
+		auto key = first->key;
+		auto value = first->value;
+		result.root_ = result.join(left, key, value, result.remove(right, key));
 		return result;
 	}
 	template <class F> void for_each(F &&f) const { visit(root_, f); }

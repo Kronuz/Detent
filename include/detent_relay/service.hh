@@ -1,4 +1,5 @@
 #pragma once
+#include "mirror_service.hh"
 #include "registry.hh"
 #include "service_limits.hh"
 #include <http_handler.h>
@@ -16,8 +17,10 @@ struct ServiceStatus {
 };
 class ServiceRuntime {
   public:
+	// `mirror`, when set, answers W5 sessions (version 2) and the history routes a downstream relay
+	// reads; version 1 stays with the bundles.
 	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::span<const SessionBinding>,
-				   ServiceLimits = {});
+				   ServiceLimits = {}, std::shared_ptr<MirrorService> mirror = {});
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;

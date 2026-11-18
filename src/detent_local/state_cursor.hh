@@ -7,7 +7,7 @@ namespace detent::local::detail {
 struct StateRecord {
 	std::string_view name_space, key;
 	std::uint64_t revision = 0;
-	std::variant<SourceBoolean, IntDef> definition;
+	SourceDefinition definition;
 };
 // Borrowed rows remain valid until the next advance of the same stream.
 class StateCursor {
@@ -28,8 +28,8 @@ class StateCursor {
 	SourceOverride override_value() const;
 	void reset();
 	const Descriptor &descriptor() const noexcept { return descriptor_; }
-	static std::optional<paged::Digest> logical_commitment(const RecoveredGeneration &);
-	std::optional<paged::Digest> logical_commitment() const;
+	static std::optional<paged::Digest> state_commitment(const RecoveredGeneration &);
+	std::optional<paged::Digest> state_commitment() const;
 	std::optional<DirectoryIdentity> directory_identity() const;
 
   private:

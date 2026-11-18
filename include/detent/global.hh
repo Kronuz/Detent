@@ -1,7 +1,7 @@
 #pragma once
 
-// Section 5 "Global vs injected access": the package exposes global
-// functions for source (pyjk-style) compatibility, but all logic lives on
+// Global vs injected access: the package exposes global
+// functions for convenience, but all logic lives on
 // Client. Only this adapter owns process-level initialization; application
 // code that can inject a Client (or a narrower Knobs interface) SHOULD do so
 // instead of depending on this namespace.
@@ -19,22 +19,30 @@ void init(InitOptions options);
 // Primarily for test teardown; production processes normally never call it.
 void shutdown();
 
-[[nodiscard]] Result<bool, KnobError> eval(
-	std::string_view name,
-	std::optional<std::string_view> hash_val = std::nullopt,
-	std::optional<std::string_view> switch_val = std::nullopt);
+namespace detail {
+// The test override when one is installed, else the process client, else nullptr.
+[[nodiscard]] Client* active_client() noexcept;
+} // namespace detail
 
 [[nodiscard]] Result<std::int64_t, KnobError> get(
 	std::string_view name,
-	std::optional<std::string_view> switch_val = std::nullopt);
-
-[[nodiscard]] bool eval_or_panic(
-	std::string_view name,
 	std::optional<std::string_view> hash_val = std::nullopt,
 	std::optional<std::string_view> switch_val = std::nullopt);
 
+template <typename T>
+[[nodiscard]] Result<T, KnobError> get_as(
+	std::string_view name,
+	std::optional<std::string_view> hash_val = std::nullopt,
+	std::optional<std::string_view> switch_val = std::nullopt) {
+	auto* client = detail::active_client();
+	if (client == nullptr)
+		return KnobError{ErrorCategory::Uninitialized, std::string(name), "detent::global::init() not called"};
+	return client->get_as<T>(name, hash_val, switch_val);
+}
+
 [[nodiscard]] std::int64_t get_or_panic(
 	std::string_view name,
+	std::optional<std::string_view> hash_val = std::nullopt,
 	std::optional<std::string_view> switch_val = std::nullopt);
 
 [[nodiscard]] HealthSnapshot health();

@@ -16,7 +16,7 @@ struct RecoveryContext {
 	distribution::RetirementHandle<MappedRecoveryAdmission> admission;
 	ValidationBudget budget;
 	std::optional<GenerationSelection> selection;
-	std::optional<unsigned> layout_version;
+	std::optional<bool> paged; // the routed format: a paged root, or a flat image
 	std::shared_ptr<RecoveryMetrics> metrics;
 	// The agent's cold start: trust the generation's live record, and refuse a generation without one.
 	bool trusted_start = false;

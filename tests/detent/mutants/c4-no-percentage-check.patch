@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_leaf_body.cc b/src/detent_local/paged_leaf_body.cc
+index 7b35c140..a04a203b 100644
+--- a/src/detent_local/paged_leaf_body.cc
++++ b/src/detent_local/paged_leaf_body.cc
+@@ -94,8 +94,6 @@ void LeafBody::step(ValidationBudget &budget) {
+ 				}
+ 				if (offset_ != size_)
+ 					throw std::logic_error("paged leaf body length changed");
+-				if (!namespace_ && ramped_ != definition_.rollout_value.has_value())
+-					throw std::invalid_argument("paged leaf body percentage and rollout value disagree");
+ 				output_->seal();
+ 				phase_ = Phase::Done;
+ 				break;

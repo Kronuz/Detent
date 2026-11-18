@@ -42,13 +42,14 @@ int main(int argc, char **argv) {
 		for (std::size_t i = 0; i < count; ++i) {
 			auto ns = i % namespaces.size();
 			auto key = "namespace" + std::to_string(ns) + ":service/feature_" + std::to_string(i);
-			KnobDef value = IntDef{static_cast<std::int64_t>(i)};
+			KnobDef value;
+			value.default_value = static_cast<std::int64_t>(i);
 			if (!(i % 2)) {
-				BoolDef flag;
-				flag.rollout_pct = 25;
+				value.default_value = 0;
+				value.rollout_pct = 25;
+				value.rollout_value = 1;
 				for (std::size_t j = 0; j < overrides; ++j)
-					flag.overrides["group" + std::to_string(j)] = GroupRollout{5};
-				value = std::move(flag);
+					value.overrides["group" + std::to_string(j)] = GroupRollout{5};
 			}
 			baseline.knobs.emplace(key, value);
 			namespaces[ns].push_back({std::move(key), std::move(value), {}, {}});
@@ -89,14 +90,14 @@ int main(int argc, char **argv) {
 		namespaces.clear();
 		namespaces.shrink_to_fit();
 		command.name_space = "namespace0";
-		command.mutations = {{"namespace0:service/feature_0", IntDef{-1}, {}, {}}};
+		command.mutations = {{"namespace0:service/feature_0", KnobDef{-1}, {}, {}}};
 		std::vector<double> old_times, new_times;
 		auto allocations = state.allocations();
 		cpu = std::clock();
 		for (int i = 0; i < 21; ++i) {
 			SnapshotPatch patch;
 			patch.version = 2;
-			patch.knobs[command.mutations[0].key] = IntDef{-1 - i};
+			patch.knobs[command.mutations[0].key] = KnobDef{-1 - i};
 			start = Clock::now();
 			auto result = apply_patch(baseline, patch, count);
 			if (!result)
@@ -106,7 +107,7 @@ int main(int argc, char **argv) {
 		auto old_cpu_ms = 1000.0 * (std::clock() - cpu) / CLOCKS_PER_SEC;
 		cpu = std::clock();
 		for (int i = 0; i < 1000; ++i) {
-			command.mutations[0].value = IntDef{-1 - i};
+			command.mutations[0].value = KnobDef{-1 - i};
 			++command.sequence;
 			start = Clock::now();
 			auto result = state.apply(++index, command);

@@ -51,7 +51,7 @@ Command transaction(std::uint64_t sequence, int value) {
 	c.generation = 1;
 	c.sequence = sequence;
 	c.name_space = "ns";
-	c.mutations.push_back({"ns:key", detent::IntDef{value}, {}, {}});
+	c.mutations.push_back({"ns:key", detent::KnobDef{value}, {}, {}});
 	return c;
 }
 std::vector<Completion> pump(Node &node, unsigned limit = 200) {
@@ -336,9 +336,9 @@ void terminal_state_retirement(const std::filesystem::path &path) {
 	auto command = transaction(1, 42);
 	command.mutations.clear();
 	for (unsigned key = 0; key < 128; ++key) {
-		detent::BoolDef value{false, {}};
+		detent::KnobDef value;
 		for (unsigned group = 0; group < 31; ++group)
-			value.overrides.emplace("group" + std::to_string(group), true);
+			value.overrides.emplace("group" + std::to_string(group), std::int64_t{1});
 		command.mutations.push_back({"ns:k" + std::to_string(key), std::move(value), {}, {}});
 	}
 	submit(node, 2, command);
@@ -532,7 +532,7 @@ int main(int argc, char **argv) {
 		node.start();
 		pump(node);
 		assert(node.state().revision() == revision + 1 && node.worker().base_index() == checkpoint_index);
-		assert(std::get<detent::IntDef>(*node.state().find("ns:key")->value).default_value == 20);
+		assert((*node.state().find("ns:key")->value).default_value == 20);
 		submit(node, 4, transaction(1, 10));
 		auto retried = pump(node);
 		assert(retried.size() == 1 && retried[0].results[0].revision == revision &&
@@ -555,7 +555,7 @@ int main(int argc, char **argv) {
 		submit(node, 1, open());
 		pump(node);
 		auto command = transaction(1, 1);
-		command.mutations.push_back({"ns:second", detent::IntDef{2}, {}, {}});
+		command.mutations.push_back({"ns:second", detent::KnobDef{2}, {}, {}});
 		submit(node, 2, command);
 		auto result = pump(node);
 		assert(result.size() == 1 && result[0].results[0].status == Status::Applied &&

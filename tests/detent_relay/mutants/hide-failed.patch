@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 222dc996..1a8de51c 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -277,7 +277,7 @@ MirrorTable NamespaceRelay::layouts(std::span<const std::string> names) {
+ 	const auto &table = impl_->store.table();
+ 	MirrorTable out{0, table.seal, {}};
+ 	for (const auto &name : names)
+-		if (const auto *layout = table.find(name))
++		if (const auto *layout = table.find(name); layout && impl_->serves(*layout))
+ 			out.entries.push_back(*layout);
+ 	return out;
+ }

@@ -13,7 +13,7 @@ template: splash
 <div class="kz-features">
 	<div class="kz-feature">
 		<h2>🎛️ Simple</h2>
-		<p>Two knob types, <em>bool</em> and <em>int</em>, named <code>namespace:knob</code>. Publish <em>JSON</em> with <code>curl</code>, read with one call.</p>
+		<p>One knob type, a 64-bit <em>integer</em>, named <code>namespace:knob</code>. Publish <em>JSON</em> with <code>curl</code>, read with one call.</p>
 		<a href="/Detent/quickstart/">Quick-start →</a>
 	</div>
 	<div class="kz-feature">
@@ -38,10 +38,10 @@ template: splash
 
 ```sh title="Quick-start Instructions"
 # In the Quick-start shell, with both daemons running:
-publish checkout:new_path '{"type":"bool","default":true}'
-sleep 1; detent get checkout:new_path  # => true
-publish checkout:new_path '{"type":"bool","default":false}'
-sleep 1; detent get checkout:new_path  # => false
+publish checkout:new_path '{"default":1}'
+sleep 1; detent get checkout:new_path  # => 1
+publish checkout:new_path '{"default":0}'
+sleep 1; detent get checkout:new_path  # => 0
 ```
 
 </div>

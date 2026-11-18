@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/borrowed_definition.cc b/src/detent_local/borrowed_definition.cc
+index 20288532..0b3c1bd7 100644
+--- a/src/detent_local/borrowed_definition.cc
++++ b/src/detent_local/borrowed_definition.cc
+@@ -27,7 +27,7 @@ std::optional<std::uint8_t> BorrowedDefinition::rollout() const {
+ std::int64_t BorrowedDefinition::rollout_value() const {
+ 	if (!flat_layout)
+ 		return paged_header.rollout_value.value_or(paged_header.default_value);
+-	return std::bit_cast<std::int64_t>(read_integer(record, (read_integer(record, 44, 1) & 2) ? 48 : 24, 8));
++	return std::bit_cast<std::int64_t>(read_integer(record, 24, 8));
+ }
+ std::string_view BorrowedDefinition::qualified_key() const {
+ 	if (!flat_layout)

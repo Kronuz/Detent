@@ -82,10 +82,9 @@ template <class Storage> bool retire(Storage &storage, WorkBudget &budget) {
 struct DefinitionDecoder {
 	enum class Phase {
 		DefinitionTuple,
-		DefinitionTag,
-		Integer,
-		Boolean,
+		Default,
 		Rollout,
+		RolloutValue,
 		Overrides,
 		OverrideTuple,
 		Switch,
@@ -97,12 +96,13 @@ struct DefinitionDecoder {
 	std::uint64_t &seen_overrides;
 	std::uint64_t &declared_strings;
 	std::uint64_t &seen_strings;
-	WireBoolDef boolean;
+	WireDefinition definition;
 	PagedStorage &arena;
 	StableRows<OverrideRow> &overrides;
+	bool percentage = false;
 	std::uint64_t override_begin = 0;
 	std::string_view switch_key;
-	std::uint64_t remaining_overrides = 0, definition_arity = 0, override_tag = 0, definition_bytes = 0;
+	std::uint64_t remaining_overrides = 0, override_tag = 0, definition_bytes = 0;
 	Phase phase = Phase::DefinitionTuple;
 	std::optional<WireDefinition> value;
 	std::string_view text(m::WireToken &token) {
@@ -112,31 +112,21 @@ struct DefinitionDecoder {
 		seen_strings += token.bytes.size();
 		return store_text(arena, token.bytes).value;
 	}
-	void finish(WireDefinition definition) { value = std::move(definition); }
+	void finish() {
+		require(percentage == definition.rollout_value.has_value(), "rollout value requires a percentage");
+		value = std::move(definition);
+	}
 	void consume(m::WireToken token) {
 		require(!value, "definition already decoded");
 		switch (phase) {
 		case Phase::DefinitionTuple:
-			require(token.kind == m::Kind::Array && (token.number == 2 || token.number == 4),
-					"invalid definition tuple");
-			definition_arity = token.number;
-			phase = Phase::DefinitionTag;
+			array(token, 4);
+			phase = Phase::Default;
 			break;
-		case Phase::DefinitionTag: {
-			auto tag = number(token);
-			require((tag == 1 && definition_arity == 2) || (tag == 0 && definition_arity == 4),
-					"invalid definition tag/arity");
-			phase = tag ? Phase::Integer : Phase::Boolean;
-			break;
-		}
-		case Phase::Integer:
-			require(limits.definition_bytes >= 9, "integer definition byte limit exceeded");
-			finish(IntDef{token.signed_value()});
-			break;
-		case Phase::Boolean:
-			require(token.kind == m::Kind::Boolean, "boolean default required");
-			boolean = {};
-			boolean.default_value = token.number;
+		case Phase::Default:
+			definition = {};
+			percentage = false;
+			definition.default_value = token.signed_value();
 			override_begin = overrides.size();
 			phase = Phase::Rollout;
 			break;
@@ -144,10 +134,14 @@ struct DefinitionDecoder {
 			if (token.kind != m::Kind::Nil) {
 				auto pct = number(token);
 				require(pct <= 100, "rollout percentage out of range");
-				boolean.rollout_pct = static_cast<std::uint8_t>(pct);
+				definition.rollout_pct = static_cast<std::uint8_t>(pct);
+				percentage = true;
 			}
-			definition_bytes = boolean.rollout_pct ? 19 : 11;
-			require(definition_bytes <= limits.definition_bytes, "boolean definition byte limit exceeded");
+			phase = Phase::RolloutValue;
+			break;
+		case Phase::RolloutValue:
+			if (token.kind != m::Kind::Nil)
+				definition.rollout_value = token.signed_value();
 			phase = Phase::Overrides;
 			break;
 		case Phase::Overrides:
@@ -155,10 +149,13 @@ struct DefinitionDecoder {
 						token.number <= declared_overrides - seen_overrides,
 					"definition override count invalid");
 			remaining_overrides = token.number;
+			definition_bytes = definition_header_charge(definition.rollout_pct.has_value(),
+														definition.rollout_value.has_value(), remaining_overrides);
+			require(definition_bytes <= limits.definition_bytes, "definition byte limit exceeded");
 			if (remaining_overrides)
 				phase = Phase::OverrideTuple;
 			else
-				finish(std::move(boolean));
+				finish();
 			break;
 		case Phase::OverrideTuple:
 			array(token, 3);
@@ -167,7 +164,7 @@ struct DefinitionDecoder {
 		case Phase::Switch:
 			switch_key = text(token);
 			require(is_valid_group_key(switch_key) && valid_utf8(switch_key, false) &&
-						(!boolean.overrides.count || overrides.back().first < switch_key),
+						(!definition.overrides.count || overrides.back().first < switch_key),
 					"invalid or unordered override switch");
 			phase = Phase::OverrideTag;
 			break;
@@ -177,22 +174,22 @@ struct DefinitionDecoder {
 			phase = Phase::OverrideValue;
 			break;
 		case Phase::OverrideValue:
-			definition_bytes += 8 + switch_key.size() + 1 + (override_tag ? 8 : 1);
+			definition_bytes += override_charge(switch_key.size(), !override_tag);
 			require(definition_bytes <= limits.definition_bytes, "override definition byte limit exceeded");
 			if (!override_tag) {
-				require(token.kind == m::Kind::Boolean, "forced override boolean required");
-				overrides.push_back({switch_key, bool(token.number)});
+				overrides.push_back({switch_key, token.signed_value()});
 			} else {
 				auto pct = number(token);
 				require(pct <= 100, "override rollout out of range");
 				overrides.push_back({switch_key, GroupRollout{static_cast<std::uint8_t>(pct)}});
+				percentage = true;
 			}
-			boolean.overrides = RowRange{override_begin, overrides.size() - override_begin};
+			definition.overrides = RowRange{override_begin, overrides.size() - override_begin};
 			++seen_overrides;
 			if (--remaining_overrides)
 				phase = Phase::OverrideTuple;
 			else
-				finish(std::move(boolean));
+				finish();
 			break;
 		}
 	}

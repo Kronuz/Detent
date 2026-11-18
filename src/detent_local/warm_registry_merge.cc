@@ -17,7 +17,7 @@ WarmRegistryMerge::WarmRegistryMerge(std::shared_ptr<distribution::StorageLedger
 	if (admitted && (!admitted->uses_account(account) || admitted->physical_bytes()))
 		throw std::invalid_argument("invalid staged warm registry");
 	target_ = admitted ? std::move(admitted)
-					   : factory.make<SegmentRegistry>(account, base->storage_identity(), limits);
+					   : factory.make<SegmentRegistry>(account, limits);
 }
 void WarmRegistryMerge::step(ValidationBudget &budget) {
 	if (failed_ || !target_)

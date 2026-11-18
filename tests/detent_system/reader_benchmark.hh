@@ -94,9 +94,9 @@ class ReaderBenchmark {
 				const auto result = reader.get(query.key);
 				correct = result && result.value() == query.value;
 			} else {
-				const auto result = kind == 1 ? reader.eval(query.key)
-					: reader.eval(query.key, std::string_view("cohort-A"));
-				correct = result && result.value() == (kind == 1 ? bool(query.value) : query.rollout);
+				const auto result = kind == 1 ? reader.get(query.key)
+					: reader.get(query.key, std::string_view("cohort-A"));
+				correct = result && result.value() == (kind == 1 ? query.value : std::int64_t(query.rollout));
 			}
 			if (!correct)
 				throw std::runtime_error("reader benchmark result mismatch: " + query.key);

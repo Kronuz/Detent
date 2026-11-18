@@ -5,7 +5,7 @@ namespace detent::local::detail {
 class OwnedSegmentInputs {
   public:
 	OwnedSegmentInputs(distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>,
-					   StorageIdentity storage, std::size_t segments, std::uint64_t bytes);
+					   std::size_t segments, std::uint64_t bytes);
 	~OwnedSegmentInputs();
 	OwnedSegmentInputs(OwnedSegmentInputs &&) noexcept;
 	OwnedSegmentInputs(const OwnedSegmentInputs &) = delete;
@@ -15,7 +15,7 @@ class OwnedSegmentInputs {
 	void freeze();
 	std::span<const SegmentInput> inputs() const;
 	std::shared_ptr<const void> owner() const;
-	static std::optional<SegmentInput> lookup(const void *, const StorageIdentity &);
+	static std::optional<SegmentInput> lookup(const void *, const SegmentId &);
 
   private:
 	struct State;

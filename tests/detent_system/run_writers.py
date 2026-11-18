@@ -155,6 +155,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 actors,
                 scenario.producers,
                 http_workers=http_workers,
+                address=arguments.address,
             )
             await authority.start()
             writers = Writers(
@@ -280,6 +281,9 @@ def main() -> None:
     parser.add_argument("--build", type=Path, default=Path("build"))
     parser.add_argument("--certificates", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--address", default="127.0.0.1", help="IP literal every process binds and dials"
+    )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--http-workers", type=int)
     parser.add_argument("--offer-rate", type=float)

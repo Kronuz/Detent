@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-03) Ledger of workstream W2 HTTP coroutines (PLAN.md M1).
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-03) Ledger of workstream W2 HTTP coroutines (PLAN.md M1).
 
 # http-coroutines
 

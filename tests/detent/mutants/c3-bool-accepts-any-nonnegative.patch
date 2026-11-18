@@ -1,0 +1,15 @@
+diff --git a/include/detent/read_view.hh b/include/detent/read_view.hh
+index 6061e4e8..4d0c9082 100644
+--- a/include/detent/read_view.hh
++++ b/include/detent/read_view.hh
+@@ -16,8 +16,8 @@ namespace detail {
+ // takes what std::in_range<T> admits.
+ template <class T> std::optional<T> convert(std::int64_t value) noexcept {
+ 	if constexpr (std::is_same_v<T, bool>) {
+-		if (value == 0 || value == 1)
+-			return value == 1;
++		if (value >= 0)
++			return value != 0;
+ 		return std::nullopt;
+ 	} else {
+ 		if (!std::in_range<T>(value))

@@ -22,7 +22,7 @@ class GenerationReader {
 	ViewLimits limits_;
 	std::optional<distribution::Cursor> identity_;
 	std::optional<std::uint32_t> prepared_publisher_;
-	std::optional<std::array<char, 32>> logical_;
+	std::optional<std::array<char, 32>> state_commitment_;
 	std::mutex refresh_mutex_;
 	mutable std::mutex installed_mutex_;
 	ReadView installed_;

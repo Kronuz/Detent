@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/agent_store.cc b/src/detent_local/agent_store.cc
+index f9929fea..074c839f 100644
+--- a/src/detent_local/agent_store.cc
++++ b/src/detent_local/agent_store.cc
+@@ -435,7 +435,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
+ 					throw std::system_error(errno, std::generic_category(), "agent store link");
+ 				if (s.reached.contains(file.name)) {
+ 					const auto existing = s.slurp(file.name, file.bytes.size());
+-					if (!existing || digest(*existing) != file.sum)
++					if (!existing)
+ 						throw ReachedNameMismatch(file.name, file.space);
+ 					file.reused = true;
+ 					primitive("verify reused name");

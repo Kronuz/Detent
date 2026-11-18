@@ -36,11 +36,11 @@ using namespace std::chrono_literals;
 namespace {
 
 constexpr const char* kV1 =
-	R"({"schema_version":1,"version":1,"knobs":{"t:a":{"type":"int","default":1}}})";
-constexpr const char* kV2FromV1 = R"({"schema_version":1,"version":2,"knobs":{"t:b":{"type":"int","default":2}}})";
-constexpr const char* kV3FromV1 = R"({"schema_version":1,"version":3,"knobs":{"t:c":{"type":"int","default":3}}})";
+	R"({"schema_version":1,"version":1,"knobs":{"t:a":{"default":1}}})";
+constexpr const char* kV2FromV1 = R"({"schema_version":1,"version":2,"knobs":{"t:b":{"default":2}}})";
+constexpr const char* kV3FromV1 = R"({"schema_version":1,"version":3,"knobs":{"t:c":{"default":3}}})";
 constexpr const char* kV3FromV2 =
-	R"({"schema_version":1,"version":3,"knobs":{"t:b":null,"t:c":{"type":"int","default":3}}})";
+	R"({"schema_version":1,"version":3,"knobs":{"t:b":null,"t:c":{"default":3}}})";
 
 // Returns true when allocation `position` of the v2 publication was refused.
 bool run(long position) {

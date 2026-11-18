@@ -7,8 +7,7 @@ namespace detent::local::detail {
 class PagedMaintenanceBuilder {
   public:
 	PagedMaintenanceBuilder(RecoveredGeneration, distribution::RetirementFactory,
-							std::shared_ptr<distribution::StorageLedger>, StorageIdentity, GenerationId,
-							ViewLimits);
+							std::shared_ptr<distribution::StorageLedger>, ViewLimits);
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	PagedPlan take();
@@ -18,7 +17,6 @@ class PagedMaintenanceBuilder {
 	RecoveredGeneration base_;
 	distribution::RetirementFactory factory_;
 	std::shared_ptr<distribution::StorageLedger> heap_;
-	StorageIdentity storage_;
 	ViewLimits limits_;
 	std::optional<PagedSnapshotBuilder> encoder_;
 	std::optional<CandidatePagedValidator> validator_;

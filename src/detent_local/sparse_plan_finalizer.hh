@@ -29,7 +29,7 @@ class SparsePlanFinalizer {
 	std::vector<SegmentInput, distribution::StorageAllocator<SegmentInput>> added;
 	paged::Limits limits;
 	std::uint64_t maximum_output_bytes, output_bytes = 0;
-	std::optional<paged::Digest> expected_logical;
+	std::optional<paged::Digest> expected_commitment;
 	std::size_t position = 0, charge = 0, sort_cursor = 0, retire_capacity_index = 0;
 	Phase phase = Phase::Reachability;
 	SegmentInput sort_value{};

@@ -16,7 +16,7 @@ detent::HealthSnapshot h = client.health();
 ```json
 { "initialized": true, "source_connected": true,
   "accepted_version": 42, "staleness_seconds": 1.8,
-  "bool_knobs": 812, "int_knobs": 64, "cli_overrides": 1 }
+  "knobs": 876, "cli_overrides": 1 }
 ```
 
 `staleness_seconds` is the monotonic time since the last successful update, or
@@ -31,7 +31,6 @@ distribution outage shows up here long before anyone notices a stale flag.
 | --- | --- |
 | `reads_ok` | Successful reads |
 | `reads_missing` | `MissingKnob` reads |
-| `reads_wrong_type` | `WrongType` reads |
 | `reads_conversion_failed` | `get_as` conversion failures |
 | `snapshot_swaps` | Accepted updates published |
 | `refresh_failures` | Failed source polls or rejected updates |
@@ -55,9 +54,10 @@ identifiers never leak into monitoring.
 :::hint[Metrics exporter]{.unimplemented}
 Detent keeps these counters but doesn't export them. There's no Prometheus or
 OpenMetrics endpoint on the daemons, and no exporter for application clients;
-the specification's `jk_*`-style metric names, such as
-`jk_snapshot_staleness_seconds`, are a natural mapping for one. For now, read
-`health()` and `metrics()` and publish them through your own metrics library.
+the `Metrics` counters (`reads_ok`, `reads_missing`, `snapshot_swaps`,
+`refresh_failures` and the rest) and `staleness_seconds` map directly onto
+counters and gauges. For now, read `health()` and `metrics()` and publish them
+through your own metrics library.
 :::
 
 ---

@@ -16,9 +16,10 @@ struct TrieCursor::Impl {
 	struct Frame {
 		int depth;
 		std::uint64_t keys = 0;
-		std::vector<p::Child, distribution::StorageAllocator<p::Child>> children;
+		std::vector<std::uint8_t, distribution::StorageAllocator<std::uint8_t>> children;
 		Frame(int value, std::shared_ptr<distribution::StorageLedger> account)
-			: depth(value), children(distribution::StorageAllocator<p::Child>(std::move(account))) {
+			: depth(value),
+			  children(distribution::StorageAllocator<std::uint8_t>(std::move(account))) {
 			children.reserve(256);
 		}
 	};
@@ -31,13 +32,12 @@ struct TrieCursor::Impl {
 	std::array<char, 202> previous{}, next{};
 	std::size_t previous_size = 0, next_size = 0, charge = 0;
 	int common = -1;
-	p::Reference root;
 	Phase phase = Phase::Initial;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> owner,
 		 TrieKeyReader callback, std::uint64_t keys, p::Limits limits, TrieSourceReady ready)
-		: account(std::move(ledger)), source(std::move(owner)), reader(callback), prepare(ready), count(keys),
-		  frames(distribution::StorageAllocator<Frame>(account)) {
+		: account(std::move(ledger)), source(std::move(owner)), reader(callback), prepare(ready),
+		  count(keys), frames(distribution::StorageAllocator<Frame>(account)) {
 		require(source && reader && count <= std::uint64_t(limits.records) + limits.namespaces);
 		frames.reserve(std::min<std::uint64_t>(202, count ? count - 1 : 0));
 	}
@@ -65,21 +65,22 @@ struct TrieCursor::Impl {
 		require(depth > top() && depth < 202 && frames.size() < frames.capacity());
 		frames.emplace_back(depth, account);
 	}
-	void append(const p::Reference &reference, std::uint64_t keys) {
+	void append(std::uint64_t keys) {
 		auto &frame = frames.back();
 		const auto label = static_cast<unsigned char>(previous[frame.depth]);
 		require(frame.children.size() < 256 &&
-				(frame.children.empty() || frame.children.back().label < label));
-		frame.children.push_back({label, reference});
+				(frame.children.empty() || frame.children.back() < label));
+		frame.children.push_back(label);
 		require(keys <= count - frame.keys);
 		frame.keys += keys;
 	}
 };
 TrieCursor::TrieCursor(std::shared_ptr<distribution::StorageLedger> account,
-					   std::shared_ptr<const void> source, TrieKeyReader reader, std::uint64_t count,
-					   p::Limits limits, TrieSourceReady ready)
+					   std::shared_ptr<const void> source, TrieKeyReader reader,
+					   std::uint64_t count, p::Limits limits, TrieSourceReady ready)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account,
-												   std::move(source), reader, count, limits, ready)) {}
+												   std::move(source), reader, count, limits,
+												   ready)) {}
 TrieCursor::~TrieCursor() = default;
 TrieCursor::TrieCursor(TrieCursor &&) noexcept = default;
 void TrieCursor::step(ValidationBudget &budget) {
@@ -105,7 +106,8 @@ void TrieCursor::step(ValidationBudget &budget) {
 				if (state.ordinal + 1 == state.count) {
 					state.common = -1;
 				} else {
-					if (state.prepare && !state.prepare(state.source.get(), state.ordinal + 1, budget))
+					if (state.prepare &&
+						!state.prepare(state.source.get(), state.ordinal + 1, budget))
 						return;
 					if (!state.admit(4 * state.next.size(), budget))
 						return;
@@ -170,15 +172,13 @@ TrieEvent TrieCursor::event() const {
 			key.substr(parent + 1, frame.depth - parent - 1),
 			frame.children};
 }
-bool TrieCursor::commit(const p::Reference &reference, ValidationBudget &budget) {
+bool TrieCursor::commit(ValidationBudget &budget) {
 	if (!ready())
 		throw std::logic_error("canonical trie commit unavailable");
 	auto &state = *impl_;
 	try {
-		if (!state.admit(p::child_bytes, budget))
+		if (!state.admit(1, budget))
 			return false;
-		require(std::any_of(reference.logical.begin(), reference.logical.end(),
-							[](char value) { return value != 0; }));
 		const auto keys = state.phase == Impl::Phase::Branch ? state.frames.back().keys : 1;
 		if (state.phase == Impl::Phase::Branch) {
 			require(state.frames.back().children.size() >= 2);
@@ -188,10 +188,9 @@ bool TrieCursor::commit(const p::Reference &reference, ValidationBudget &budget)
 		}
 		if (state.frames.empty()) {
 			require(keys == state.count);
-			state.root = reference;
 			state.phase = Impl::Phase::Done;
 		} else {
-			state.append(reference, keys);
+			state.append(keys);
 			state.phase = Impl::Phase::Close;
 		}
 		return true;
@@ -202,11 +201,6 @@ bool TrieCursor::commit(const p::Reference &reference, ValidationBudget &budget)
 }
 bool TrieCursor::done() const noexcept {
 	return impl_ && !impl_->failed && !impl_->discarding && impl_->phase == Impl::Phase::Done;
-}
-p::Reference TrieCursor::root() const {
-	if (!done())
-		throw std::logic_error("canonical trie incomplete");
-	return impl_->root;
 }
 bool TrieCursor::discard(ValidationBudget &budget) {
 	if (!impl_)

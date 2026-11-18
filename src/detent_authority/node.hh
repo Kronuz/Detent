@@ -1,7 +1,9 @@
 #pragma once
+#include "history.hh"
 #include "state.hh"
 #include <consensus/snapshot_channel.h>
 #include <consensus/worker.h>
+#include <deque>
 #include <map>
 #include <metrics.hh>
 #include <sha256.h>
@@ -47,6 +49,11 @@ class Node {
 	bool drained() const noexcept;
 	kronuz::consensus::SubmitResult propose(std::uint64_t request, const std::vector<Command> &commands);
 	kronuz::consensus::SubmitResult propose_prepared(std::uint64_t request, PreparedProposal &proposal);
+	// Proposes one administrative entry: the enabling entry, a namespace drop or a
+	// layout policy. The enabling entry proposes the configured policy; both policies
+	// take their log thresholds from this node's consensus limits.
+	kronuz::consensus::SubmitResult propose_administrative(std::uint64_t request,
+														   const AdministrativeCommand &command);
 	kronuz::consensus::SubmitResult read(std::uint64_t request);
 	void forget(std::uint64_t request);
 	void service(kronuz::consensus::Tick tick);
@@ -54,7 +61,21 @@ class Node {
 	std::vector<Completion> take_completions();
 	kronuz::consensus::Actions take_network_actions();
 	void attach_change_recorder(std::shared_ptr<AppliedChangeRecorder> recorder);
+	// Keeps history (D6) in its own directory, before create() or recover(); `fetch`
+	// reads a history file from a peer for repair and install.
+	void attach_history(std::shared_ptr<kronuz::journal::IO> io, history::Fetch fetch = {});
+	const history::History *history() const noexcept { return history_ ? &*history_ : nullptr; }
+	// History's files as answers read them: queued writes first, then the directory.
+	history::Files *history_files() noexcept { return history_ ? &*history_ : nullptr; }
+	// History's next write, for the host to drive like the worker's storage jobs; service()
+	// settles it. Apply waits while history_backlog writes are queued.
+	std::shared_ptr<kronuz::journal::IOOperation> take_history_operation();
+	static constexpr std::size_t history_backlog = 4;
 	const State &state() const noexcept { return state_; }
+	// The state at the latest seal: where seal files are cut.
+	const std::optional<State> &sealed() const noexcept { return sealed_; }
+	// The state at the newest seal whose history is durable: where checkpoints are taken.
+	const std::optional<State> &durable_seal() const noexcept { return durable_seal_; }
 	kronuz::consensus::Worker &worker() noexcept { return worker_; }
 	kronuz::consensus::SnapshotChannel &channel() noexcept { return channel_; }
 	bool checkpoint();
@@ -84,6 +105,7 @@ class Node {
 		std::optional<BatchDecoder> decoder;
 		std::optional<BatchApplication> candidate;
 		std::optional<CommandDecoder> command;
+		std::optional<AdministrativeApplication> administrative;
 		SHA256 hash;
 		std::size_t hashed = 0;
 		std::optional<Digest> identity;
@@ -106,7 +128,14 @@ class Node {
 	std::shared_ptr<kronuz::journal::IO> io_;
 	NodeOptions options_;
 	State state_;
+	std::optional<State> sealed_, durable_seal_;
+	std::deque<State> unsynced_; // Seals whose history writes are queued, oldest first.
+	std::optional<history::History> history_;
+	std::optional<kronuz::consensus::SnapshotId> installing_; // An activation waiting on history.
+	bool recovering_ = false;
 	std::shared_ptr<AppliedChangeRecorder> recorder_;
+	std::uint64_t covered_ = UINT64_MAX;
+	void cover() noexcept;
 	kronuz::consensus::Worker worker_;
 	kronuz::consensus::SnapshotChannel channel_;
 	std::map<std::uint64_t, Pending> pending_;
@@ -125,5 +154,9 @@ class Node {
 	void drain();
 	void advance_application(CommandWorkBudget &budget);
 	void discard_candidate();
+	void restored_history();
+	void settle_history();
+	void abandon_install() noexcept;
+	const State *checkpoint_source() const noexcept;
 };
 } // namespace detent::authority

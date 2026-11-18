@@ -103,7 +103,7 @@ struct Generation {
 	Generation(x::AttachedGeneration generation, int directory, uid_t publisher,
 	           const std::shared_ptr<d::StorageLedger> &heap, const std::shared_ptr<d::StorageLedger> &mappings)
 	    : attached(std::move(generation)),
-	      pages(directory, publisher, attached.storage, attached.root, attached.limits, heap, mappings),
+	      pages(directory, publisher, attached.root, attached.limits, heap, mappings),
 	      state{attached.root, {}, std::shared_ptr<const x::PagedPageAccess>(std::shared_ptr<void>(), &pages)} {}
 };
 // One mapping of `change`, a member of every view built over it (reader.md D4 rule 4).
@@ -151,7 +151,6 @@ struct detent_reader {
 	uid_t publisher = 0;
 	int directory = -1; // the trusted store directory, opened once
 	std::shared_ptr<d::StorageLedger> heap, mappings;
-	std::optional<l::StorageIdentity> storage;
 	std::array<Slot, ring_size> ring;
 	alignas(64) std::atomic<std::uint64_t> current{0};
 	alignas(64) std::atomic<bool> refreshing{false};
@@ -430,8 +429,6 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 					if (previous.same_identity(cursor) && cursor.revision < previous.revision)
 						throw Failure{DETENT_SOURCE_FAILURE};
 				}
-				if (handle.storage && *handle.storage != attached.storage)
-					throw Failure{DETENT_SOURCE_FAILURE}; // a store identity change
 				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.heap,
 				                       handle.mappings);
 				generation = fresh;
@@ -477,8 +474,6 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		handle.generations.fetch_add(1, std::memory_order_relaxed);
 		handle.attached.fetch_add(1, std::memory_order_relaxed);
 		DETENT_COUNT(namespaces_attached, 1);
-		if (!handle.storage)
-			handle.storage = fresh->attached.storage;
 	}
 	next.view.store(built, std::memory_order_release);
 	handle.current.store(s + 1, std::memory_order_seq_cst);
@@ -579,7 +574,6 @@ const char *detent_status_name(detent_status status) {
 	switch (status) {
 	case DETENT_OK: return "ok";
 	case DETENT_MISSING: return "missing";
-	case DETENT_WRONG_TYPE: return "wrong_type";
 	case DETENT_INVALID_NAME: return "invalid_name";
 	case DETENT_NOT_OPENED: return "not_opened";
 	case DETENT_SOURCE_FAILURE: return "source_failure";
@@ -646,8 +640,8 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 	return DETENT_OK;
 }
 
-detent_status detent_eval(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
-                          bool fallback, bool *out) {
+detent_status detent_get(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
+                         int64_t fallback, int64_t *out) {
 	if (!handle || !out)
 		return fail(DETENT_INVALID_ARGUMENT, out, fallback);
 	std::string_view ns, key;
@@ -656,14 +650,12 @@ detent_status detent_eval(detent_reader *handle, detent_str name, detent_str has
 	if (!opened(*handle, ns))
 		return fail(DETENT_NOT_OPENED, out, fallback);
 	const auto h = optional_of(hash), sw = optional_of(switch_value);
-	bool value = fallback;
+	int64_t value = fallback;
 	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
 		try {
 			const auto definition = generation.state.definition(ns, key);
 			if (!definition)
 				return DETENT_MISSING;
-			if (!definition->boolean())
-				return DETENT_WRONG_TYPE;
 			value = l::evaluate(*definition, ns, key, h, sw);
 			return DETENT_OK;
 		} catch (...) {
@@ -671,62 +663,6 @@ detent_status detent_eval(detent_reader *handle, detent_str name, detent_str has
 		}
 	});
 	*out = status == DETENT_OK ? value : fallback;
-	return status;
-}
-
-detent_status detent_get(detent_reader *handle, detent_str name, int64_t fallback, int64_t *out) {
-	if (!handle || !out)
-		return fail(DETENT_INVALID_ARGUMENT, out, fallback);
-	std::string_view ns, key;
-	if (!split(name, ns, key))
-		return fail(DETENT_INVALID_NAME, out, fallback);
-	if (!opened(*handle, ns))
-		return fail(DETENT_NOT_OPENED, out, fallback);
-	int64_t value = fallback;
-	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		try {
-			const auto definition = generation.state.definition(ns, key);
-			if (!definition)
-				return DETENT_MISSING;
-			if (definition->boolean())
-				return DETENT_WRONG_TYPE;
-			value = definition->default_int();
-			return DETENT_OK;
-		} catch (...) {
-			return classify(std::current_exception());
-		}
-	});
-	*out = status == DETENT_OK ? value : fallback;
-	return status;
-}
-
-detent_status detent_read(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
-                          detent_value *out) {
-	const detent_value none{};
-	if (!handle || !out)
-		return fail(DETENT_INVALID_ARGUMENT, out, none);
-	std::string_view ns, key;
-	if (!split(name, ns, key))
-		return fail(DETENT_INVALID_NAME, out, none);
-	if (!opened(*handle, ns))
-		return fail(DETENT_NOT_OPENED, out, none);
-	const auto h = optional_of(hash), sw = optional_of(switch_value);
-	detent_value value = none;
-	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		try {
-			const auto definition = generation.state.definition(ns, key);
-			if (!definition)
-				return DETENT_MISSING;
-			if (definition->boolean())
-				value = {DETENT_KIND_BOOL, l::evaluate(*definition, ns, key, h, sw), 0};
-			else
-				value = {DETENT_KIND_INT, false, definition->default_int()};
-			return DETENT_OK;
-		} catch (...) {
-			return classify(std::current_exception());
-		}
-	});
-	*out = status == DETENT_OK ? value : none;
 	return status;
 }
 

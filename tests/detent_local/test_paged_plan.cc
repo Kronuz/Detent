@@ -25,17 +25,16 @@ int main() {
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	auto account = source->storage_account();
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget b;
 		snapshot.step(b);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto recovered = std::optional<l::RecoveredGeneration>(l::recover_generation(directory));
 	const auto base = recovered->descriptor();
 	const auto identity = recovered->directory_identity();
@@ -45,14 +44,12 @@ int main() {
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 4);
 		{
-			rejects<std::invalid_argument>(
-				[&] { l::detail::PagedPlanBuilder invalid(*recovered, delta, generation, domain); });
 			auto stale_cursor = base.cursor;
 			--stale_cursor.revision;
 			auto stale = progress(stale_cursor, account);
 			rejects<std::invalid_argument>(
-				[&] { l::detail::PagedPlanBuilder invalid(*recovered, stale, next, domain); });
-			l::detail::PagedPlanBuilder cancelled(*recovered, delta, next, domain);
+				[&] { l::detail::PagedPlanBuilder invalid(*recovered, stale, domain); });
+			l::detail::PagedPlanBuilder cancelled(*recovered, delta, domain);
 			l::ValidationBudget partial{7, 1};
 			cancelled.step(partial);
 			l::ValidationBudget no_work{0, 0};
@@ -62,7 +59,7 @@ int main() {
 			rejects<std::logic_error>([&] { cancelled.step(disposal); });
 		}
 		{
-			l::detail::PagedPlanBuilder builder(*recovered, delta, next, domain);
+			l::detail::PagedPlanBuilder builder(*recovered, delta, domain);
 			rejects<std::logic_error>([&] { builder.take(); });
 			l::ValidationBudget zero{0, 0};
 			builder.step(zero);
@@ -76,14 +73,14 @@ int main() {
 			require(turns == 640);
 			auto plan = builder.take();
 			rejects<std::logic_error>([&] { builder.take(); });
-			require(plan.base_descriptor() == base && plan.directory_identity() == identity &&
-					plan.storage_identity() == storage);
-			require(plan.root().tree == image.root().tree && plan.root().logical == image.root().logical);
-			require(plan.root().cursor == delta->target() && plan.descriptor().generation == next);
+			require(plan.base_descriptor() == base && plan.directory_identity() == identity);
+			require(plan.root().tree == image.root().tree);
+			require(plan.root().cursor == delta->target() &&
+					plan.descriptor().generation == l::next_generation(base, delta->target(), delta->profile(), false).id);
 			require(plan.descriptor().checksum ==
-					p::physical_commitment({plan.bytes()->data(), plan.bytes()->size()}));
+					p::metadata_commitment({plan.bytes()->data(), plan.bytes()->size()}));
 			require(plan.registry()->validated_root().cursor == base.cursor);
-			require(plan.counts().ints == 1 && plan.counts().bools == 1);
+			require(plan.counts().records == 2);
 			auto moved = std::move(plan);
 			rejects<std::logic_error>([&] { plan.root(); });
 			const int lease =

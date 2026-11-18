@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 		auto view = client.read_view();
 		const auto cursor = view.cursor();
 		if (!cursor || !cursor->same_identity(identity) || cursor->revision < minimum_revision ||
-			source->status().int_knobs != records || source->status().bool_knobs)
+			source->status().knobs != records)
 			throw std::runtime_error("local oracle generation has not converged");
 		for (std::uint64_t ordinal = 0; ordinal != records; ++ordinal) {
 			const auto key = "load" + std::to_string(ordinal % producers) + ":key" + std::to_string(ordinal);

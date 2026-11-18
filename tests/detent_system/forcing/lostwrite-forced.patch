@@ -1,0 +1,28 @@
+diff --git a/tests/detent_authority/test_multivoter.py b/tests/detent_authority/test_multivoter.py
+index d81d4d5c..1d95e6e4 100644
+--- a/tests/detent_authority/test_multivoter.py
++++ b/tests/detent_authority/test_multivoter.py
+@@ -7,10 +7,12 @@ import http.client
+ import json
+ import os
+ import shutil
++import signal
+ import socket
+ import ssl
+ import subprocess
+ import sys
++import threading
+ import time
+ from collections.abc import Callable
+ from pathlib import Path
+@@ -295,6 +297,10 @@ def main() -> None:
+         lost = http.client.HTTPSConnection(
+             "localhost", ports[index + 3], timeout=2, context=context
+         )
++        # forced window: the leader stalls 4 s, past an election, before it reads the write
++        lost.connect()
++        os.kill(children[index].pid, signal.SIGSTOP)
++        threading.Timer(4, os.kill, (children[index].pid, signal.SIGCONT)).start()
+         try:
+             lost.request(
+                 "POST",

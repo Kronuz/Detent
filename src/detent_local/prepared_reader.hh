@@ -7,13 +7,12 @@ struct PreparedGeneration {
 	ReadView view;
 	Descriptor descriptor;
 	DirectoryIdentity directory_identity;
-	paged::Digest logical;
+	paged::Digest state_commitment;
 };
 // One selected generation's checked records, with its lease descriptor holding a shared flock.
 struct AttachedGeneration {
 	int lease = -1;
 	Descriptor descriptor;
-	StorageIdentity storage{};
 	paged::Root root;
 	ReaderMetadata metadata;
 	ViewLimits limits; // narrowed to the generation's own counts

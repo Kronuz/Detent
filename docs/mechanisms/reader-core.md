@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Branch `reader/s6`; reader design D1, D2, D4, D5, D7 (C++), D10 (`docs/design/reader.md`, step S6). Workstream ledger: `docs/status/reader-s5-s6.md`.
+> Status: CURRENT (2026-11-18) Reader design D1, D2, D4, D5, D7 (C++), D10 (`docs/design/reader.md`, step S6).
 
 # Reader core
 
@@ -26,18 +26,18 @@ detent_reader (handle)
 
 1. Validate `ns:key` (split at the first colon, each part 1-198 name characters, 200 together) and the handle's namespace list (`DETENT_NOT_OPENED`). No handle state is touched for a refused name.
 2. Pin (D5): load `current` (acquire), add 1 to this lookup's stripe of slot `current % 4` (seq_cst), reload `current` (seq_cst); a different value undoes the increment and retries. The stripe is a hash of a stack address (`>> 12`, multiplicative hash, 64 stripes), computed once per lookup.
-3. Find the entry. Load its sequence (acquire) through the view's slot pointer. Equal to the entry's `seen`: walk the generation, evaluate (`detent::local::evaluate`), unpin. That is the warm path: two read-modify-writes on the stripe's line, two loads of `current`, one load of the sequence, the trie walk, and no clock, lock, allocation or syscall.
+3. Find the entry. Load its sequence (acquire) through the view's slot pointer. Equal to the entry's `seen`: walk the generation, evaluate (`detent::local::evaluate`), unpin. That is the warm path: two read-modify-writes on the stripe's line, two loads of `current`, one load of the sequence, the trie walk, and no clock, lock, allocation or syscall. Each page on the walk is a slot load and a bitmap test; a verified page is answered after comparing the reference's length, keys, height and digest with its header's raw fields, as `checked_page_bytes` does, and a first touch decodes the header, compares it, verifies the page and its nodes, then sets the bit.
 4. A moved sequence: unless a failure is remembered at this store word or the refusal backoff is running, try `refreshing` (compare-and-swap). The winner unpins, refreshes, and retries on the new view. Everyone else answers from the installed view without waiting.
 5. No entry (first lookup in the namespace): an unchanged store word with no table answers `DETENT_UNAVAILABLE`. Otherwise the lookup takes `refreshing` and attaches; a loser waits on `refreshing` (C++20 atomic wait) and retries, so no lookup answers a real knob with its default because it lost the race (D2).
 
-Lookups write the caller's fallback for every status but `DETENT_OK`; `detent_read` has no fallback and writes a zeroed `detent_value`.
+`detent_get` is the one lookup: every knob holds one `int64` and takes the hash and switch alike (one-knob-type); a flag is fallback 0 or 1. It writes the caller's fallback for every status but `DETENT_OK`. The C++ `Reader::get_as<T>` returns the default when the value is outside `T` (for `bool`, other than 0 or 1).
 
 ## A refresh (only the holder of `refreshing`)
 
 1. **Next slot first.** If slot `(current + 1) % 4` holds a view whose counters do not sum to zero (seq_cst loads), the publish is refused before anything is built: `refused` counts it and a backoff starts (1 ms doubling to 200 ms, reset by a successful publish). Otherwise the old view there is freed.
 2. **Store.** With no `change` mapped yet (Q6), the open is retried at most once per 200 ms: directory trust (`open_publisher_directory`) the first time, then `change`. `detent_refresh` also re-stats `change` and remaps a replaced file (Limit 2).
 3. **Load before read (D4 rule 1).** Load the store word and the entry's sequence, then read `selected`. A slot past the mapping is remapped here.
-4. **Build.** Keep the installed entry when the table's generation id is unchanged; otherwise attach (A4: a regression within one incarnation and a storage identity change are refused). Attach reads `selected` again and takes the generation's lease; a record whose file a publish unlinked between the open and the check (`selected` replaced by rename) is opened again, up to three times, then reported unavailable. Nothing new: no publish.
+4. **Build.** Keep the installed entry when the table's generation id is unchanged; otherwise attach (A4: a regression within one incarnation is refused). Attach reads `selected` again through `detail::read_selected` (the store table; a table naming an image already gone is read again, up to three times) and takes the generation's lease; a record whose file a collection unlinked between the open and the check is opened again, up to three times, then reported unavailable. Nothing new: no publish.
 5. **Publish.** Count the new view's members, store the view in the next slot (release), store `current + 1` (seq_cst), then free every other slot whose counters sum to zero.
 
 A failure frees what it built, keeps the installed view and remembers the status at the store word the attempt read; lookups answer from the installed view (or return that status for an unattached namespace) until the store word moves or `detent_refresh` runs. A publish that lands during the attempt has already moved the word, so the lookup retries at once.
@@ -64,7 +64,7 @@ Prepare acquires every handle's `refreshing` flag before freezing the page table
 4. Every reachable table is frozen after all handle refresh flags are acquired, so generation replacement and destruction cannot race the table traversal. Shared generations appearing in several views may be frozen and thawed repeatedly.
 5. Parent and child both reopen cold admission. Parent lookups retain their pins and active counts; child starts with neither. Each process frees its own candidate ownership and all published mappings on close.
 
-The scratch probe `.scratch/fork-publication-probe.cc` parks one handle at `LazyPageWindow::Publish` with a second live handle. Before the barrier, both child reads succeed but closing both handles leaves four file mappings against a three-mapping writer baseline; the matched completed-publication control returns to three. This proves an unpublished child mapping is orphaned. It does not attribute the earlier fork-reply timeout.
+Without the freeze, a fork while one handle is parked at `LazyPageWindow::Publish` beside a second live handle leaves the child an orphaned candidate mapping: both child reads succeed, but closing both handles leaves one mapping above the baseline. `test_reader_switch`'s cold-preparation cases (admitted miss in flight, miss starting across freezing, late count after the drain) require the child's mappings and descriptors back at baseline.
 
 ## Status mapping
 

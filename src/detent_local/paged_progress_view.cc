@@ -16,7 +16,7 @@ ReadView PagedProgressView::take(distribution::RetirementFactory factory,
 	using Owner = distribution::RetirementHandle<LeasedPagedRoot>;
 	auto owner =
 		std::allocate_shared<Owner>(distribution::StorageAllocator<Owner>(account), std::move(capability));
-	return ReadView(factory.make<ReadView::Root>(owner, PagedReadState{root, inputs}, counts.bools,
-												 counts.ints, counts.overrides, counts.strings));
+	return ReadView(factory.make<ReadView::Root>(owner, PagedReadState{root, inputs}, counts.overrides,
+												 counts.strings));
 }
 } // namespace detent::local::detail

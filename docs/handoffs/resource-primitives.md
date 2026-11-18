@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: adopt shared accounting and deferred-retirement primitives
 
 **Priority:** P1 · Rank 4 of 7 · Extraction foundation.

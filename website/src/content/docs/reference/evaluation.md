@@ -7,18 +7,19 @@ Python and Rust bindings, scoped read views, and `detent get`.
 
 ---
 
-## Bool Knobs
+## Reads
 
 ```cpp
-Result<bool, KnobError> eval(name, hash_val = nullopt, switch_val = nullopt);
+Result<std::int64_t, KnobError> get(name, hash_val = nullopt, switch_val = nullopt);
+Result<T, KnobError> get_as<T>(name, hash_val = nullopt, switch_val = nullopt);
 ```
 
-```d2 alt="Bool evaluation precedence: a CLI override wins; otherwise look the knob up, then an exact group match, then the knob-wide rollout if a hash is present, then the default"
+```d2 alt="Evaluation precedence: a CLI override wins; otherwise look the knob up, then an exact group match, then the knob-wide rollout if a hash is present, then the default"
 direction: down
 cli: "CLI override\nfor name?" {shape: diamond}
 lookup: "Knob in snapshot?" {shape: diamond}
 group: "switch_val exactly\nmatches an override?" {shape: diamond}
-grouptype: "Forced bool or\ngroup rollout?" {shape: diamond}
+grouptype: "Forced value or\ngroup rollout?" {shape: diamond}
 rollout: "rollout_pct set and\nhash_val present?" {shape: diamond}
 default: "return default"
 cli -> lookup: no
@@ -28,41 +29,29 @@ lookup -> group: yes
 group -> grouptype: yes
 group -> rollout: no
 grouptype -> "return forced value": forced
-grouptype -> "bucket < group pct\n(default if no hash)": rollout
-rollout -> "bucket < rollout_pct": yes
+grouptype -> "bucket < group pct ?\nrollout_value : default": rollout
+rollout -> "bucket < rollout_pct ?\nrollout_value : default": yes
 rollout -> default: no
 ```
 
 1. **CLI override.** If the process has a CLI override for `name`, return it.
-   An int override read with `eval` is `WrongType`.
-2. **Lookup.** Find `name` in the current snapshot. Absent is `MissingKnob`; an
-   int knob is `WrongType`.
+2. **Lookup.** Find `name` in the current snapshot. Absent is `MissingKnob`.
 3. **Group override.** If `switch_val` is present and exactly matches a key in
    `overrides`:
-   - A forced `true`/`false` returns that value.
-   - A `{"rollout_pct": N}` returns `bucket < N` when `hash_val` is present,
-     and `default` when it isn't.
+   - A forced integer returns that value.
+   - A `{"rollout_pct": N}` returns `rollout_value` when `hash_val` is present
+     and `bucket < N`, and `default` otherwise.
 4. **Knob-wide rollout.** If `rollout_pct` is set and `hash_val` is present,
-   return `bucket < rollout_pct`.
+   return `rollout_value` when `bucket < rollout_pct`, and `default` otherwise.
 5. **Default.** Return `default`.
 
-An unmatched `switch_val` simply falls through to step 4.
+An unmatched `switch_val` simply falls through to step 4. A caller outside a
+percentage, or without a hash, gets `default`: a rollout ramps callers from
+`default` to `rollout_value` and never serves a third value.
 
----
-
-## Int Knobs
-
-```cpp
-Result<std::int64_t, KnobError> get(name, switch_val = nullopt);
-```
-
-1. **CLI override.** If present, return it; a bool override is `WrongType`.
-2. **Lookup.** Absent is `MissingKnob`; a bool knob is `WrongType`.
-3. Return `default`.
-
-`switch_val` is accepted for symmetry with `eval` and ignored. `get_as<T>`
-calls `get`, then converts with a range check: a value that doesn't fit `T` is
-`ConversionFailed`, never truncated or wrapped.
+`get_as<T>` calls `get`, then converts with a range check: a value that doesn't
+fit `T` is `ConversionFailed`, never truncated or wrapped. `get_as<bool>` takes
+0 as `false` and 1 as `true`; any other value is `ConversionFailed`.
 
 ---
 
@@ -82,8 +71,8 @@ bucket = u64 % 100
 3. **Independence.** Including the knob name gives the same entity unrelated
    buckets for different knobs.
 4. **Monotonic ramps.** `bucket < pct` means raising `pct` only adds buckets.
-5. **Boundaries.** `0` enables nobody; `100` enables every caller that supplies
-   a hash value.
+5. **Boundaries.** `0` serves `rollout_value` to nobody; `100` serves it to
+   every caller that supplies a hash value.
 6. **No implicit hash.** Without `hash_val`, the rollout is skipped. An empty
    string is a hash value like any other only if you pass one explicitly.
 
@@ -104,8 +93,8 @@ def bucket(name: str, hash_val: str) -> int:
     digest = hashlib.sha256(name.encode() + b"\0" + hash_val.encode()).digest()
     return int.from_bytes(digest[:8], "big") % 100
 
-bucket("payments:new_processor", "user-1")   # 10: off at 10%, on at 50%
-bucket("payments:new_processor", "user-42")  # 2:  on at 10%
+bucket("payments:new_processor", "user-1")   # 10: outside 10%, inside 50%
+bucket("payments:new_processor", "user-42")  # 2:  inside 10%
 ```
 
 ---

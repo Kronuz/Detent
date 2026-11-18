@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index ba8a1c18..8319d2d2 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -1925,7 +1925,7 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore
+ 						  core.account,
+ 						  core.options.recovery_limits.mapping_account,
+ 						  core.options.recovery_limits,
+-						  snapshot ? decltype(core.verified_paged){} : core.verified_paged,
++						  core.verified_paged,
+ 						  core.pending_paged_recovery
+ 							  ? core.pending_paged_recovery->recovery_admission()
+ 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};

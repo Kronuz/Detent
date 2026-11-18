@@ -63,6 +63,17 @@ if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_sy
         ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_system_managed_relay PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 180)
+    add_test(NAME test_system_managed_relay_ipv6
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_case.sh relay-ipv6
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
+    set_tests_properties(test_system_managed_relay_ipv6 PROPERTIES
+      FIXTURES_REQUIRED authority_tls TIMEOUT 180 SKIP_RETURN_CODE 77)
+    add_test(NAME test_system_dual_stack
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_dual_stack.py
+        $<TARGET_FILE:detentd> $<TARGET_FILE:detent-relay> ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
+    set_tests_properties(test_system_dual_stack PROPERTIES
+      FIXTURES_REQUIRED authority_tls TIMEOUT 120 SKIP_RETURN_CODE 77)
   endif()
 endif()
 

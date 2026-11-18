@@ -73,6 +73,9 @@ int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
 	std::filesystem::create_directories(directory.parent_path());
+	// A crashed earlier run with this pid leaves its state behind; the checks below need none.
+	for (auto suffix : {"", "-read-only", "-admission", ".history", "-read-only.history", "-admission.history"})
+		std::filesystem::remove_all(directory.string() + suffix);
 	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
 		auto invalid = options(directory);
 		invalid.timeout = timeout;
@@ -267,7 +270,7 @@ int main() {
 	std::filesystem::remove_all(directory.string() + "-read-only");
 	const std::string transaction =
 		"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key\",\"value\":{"
-		"\"type\":\"int\",\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
+		"\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
 	{
 		Service service(options(directory));
 		Writer opened;
@@ -403,11 +406,11 @@ int main() {
 			if (!groups.empty()) {
 				groups += ',';
 			}
-			groups += "\"region:group" + std::to_string(index) + "\":true";
+			groups += "\"region:group" + std::to_string(index) + "\":1";
 		}
 		auto wide = call(service, "/v2/transactions",
 						 "\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:"
-						 "wide\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" +
+						 "wide\",\"value\":{\"default\":1,\"overrides\":{" +
 							 groups + "}}}]");
 		assert(wide.code == 200);
 	}
@@ -514,7 +517,7 @@ int main() {
 		for (unsigned attempt = 0; attempt < 100; ++attempt) {
 			committed = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:pressure\",\"value\":{\"type\":\"bool\",\"default\":true}}]");
+							 "\"ns:pressure\",\"value\":{\"default\":1}}]");
 			if (committed.code != 503) {
 				break;
 			}
@@ -543,14 +546,14 @@ int main() {
 		for (unsigned i = 0; i < 31; ++i) {
 			if (!groups.empty())
 				groups += ',';
-			groups += "\"group" + std::to_string(i) + std::string(46, 'k') + "\":true";
+			groups += "\"group" + std::to_string(i) + std::string(31, 'k') + "\":{\"rollout_pct\":50}";
 		}
 		std::string operations;
 		for (unsigned i = 0; i < 128; ++i) {
 			if (!operations.empty())
 				operations += ',';
 			operations += "{\"key\":\"ns:heavy" + std::to_string(i) +
-						  "\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" + groups + "}}}";
+						  "\",\"value\":{\"default\":1,\"rollout_value\":1,\"overrides\":{" + groups + "}}}";
 		}
 		auto large = [&](unsigned sequence) {
 			return "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
@@ -611,7 +614,7 @@ int main() {
 		}
 		auto progress = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
+							 "\"ns:heavy0\",\"value\":{\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
 		unsigned frozen = 0;
 		// Readers are served in the order the owner gives them credit, not the order they were started.
@@ -638,13 +641,26 @@ int main() {
 			assert(body["namespace_revision"].GetUint64() == body["version"].GetUint64());
 			assert(body["key_revisions"]["ns:heavy0"].GetUint64() == body["version"].GetUint64());
 			if (version == 1)
-				assert(body["knobs"]["ns:heavy0"]["default"].GetBool());
+				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 1);
 			else
 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
 			assert(readers[i].writer.release(*reply));
 			wait_released(readers[i].writer);
 		}
 		assert(frozen == 5); // the capture frozen before the progress commit serves the same five readers as before
+		// A settled read's admission stays held until the owner retires its task; the reader's
+		// producer is at its cap of 16, so wait for every admission before admitting 16 more.
+		for (auto idle_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);;) {
+			Writer writer;
+			detent_test::run_handle(service, probe, writer);
+			rapidjson::Document health;
+			health.Parse(writer.body.c_str());
+			assert(!health.HasParseError());
+			if (health["requests"].GetUint64() == 0)
+				break;
+			assert(std::chrono::steady_clock::now() < idle_deadline);
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		}
 		std::vector<Read> terminal_readers(16);
 		for (auto &reader : terminal_readers)
 			start_read(service, reader, "fedcba9876543210fedcba9876543210",

@@ -4,10 +4,10 @@ namespace detent::local::detail {
 // Input and construction scratch retire off the caller after transfer or cancellation.
 class PagedDeltaPlanBuilder {
   public:
-	PagedDeltaPlanBuilder(const RecoveredGeneration &, distribution::ValidatedDelta &&, GenerationId,
+	PagedDeltaPlanBuilder(const RecoveredGeneration &, distribution::ValidatedDelta &&,
 						  distribution::RetirementDomain &, paged::Limits = {});
 	PagedDeltaPlanBuilder(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
-						  GenerationId, distribution::RetirementFactory,
+						  distribution::RetirementFactory,
 						  std::shared_ptr<distribution::StorageLedger>, paged::Limits = {});
 	~PagedDeltaPlanBuilder();
 	PagedDeltaPlanBuilder(PagedDeltaPlanBuilder &&) noexcept;

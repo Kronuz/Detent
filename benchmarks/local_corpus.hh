@@ -62,15 +62,18 @@ inline LocalCorpus local_corpus(std::uint32_t count) {
 		u(0);
 		s(key);
 		u(1);
+		// [default, pct | nil, rollout value | nil, [rows]]: a plain integer, or a flag ramped to
+		// 25% with a 17% beta group.
+		a(4);
 		if (i % 4 == 0) {
-			a(2);
-			u(1);
 			m::signed_integer(wire, -std::int64_t(i));
+			wire.push_back('\xc0');
+			wire.push_back('\xc0');
+			a(0);
 		} else {
-			a(4);
-			u(0);
-			wire.push_back(i % 2 ? '\xc3' : '\xc2');
+			u(i % 2);
 			u(25);
+			u(1);
 			a(1);
 			a(3);
 			s("beta");

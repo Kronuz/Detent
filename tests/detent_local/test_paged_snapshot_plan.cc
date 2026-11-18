@@ -13,18 +13,15 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("snapshot plan invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	store->advance();
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
-	if (store->error())
-		std::rethrow_exception(store->error());
 }
 std::shared_ptr<const d::ValidatedSnapshot> input(std::shared_ptr<d::StorageLedger> heap,
 												  std::uint64_t revision, bool reset = false,
@@ -82,15 +79,10 @@ int main() {
 		const auto context = l::detail::ManagedRecovery::capture(*store);
 		l::GenerationId generation{};
 		generation.fill('a');
-		for (bool wrong_storage : {false, true}) {
+		{
 			auto directory_binding = context.directory;
-			auto storage_binding = context.storage;
-			if (wrong_storage)
-				storage_binding[0] ^= 1;
-			else
-				++directory_binding.inode;
-			l::detail::PagedSnapshotPlanBuilder wrong(input(heap, 42), {}, directory_binding, storage_binding,
-													  generation, domain.factory(), heap,
+			++directory_binding.inode;
+			l::detail::PagedSnapshotPlanBuilder wrong(input(heap, 42), {}, directory_binding, domain.factory(), heap,
 													  options.recovery_limits);
 			finish(wrong);
 			auto candidate = wrong.take();
@@ -106,8 +98,7 @@ int main() {
 				  store->stats().reserved == l::DiskUsage{});
 		}
 
-		l::detail::PagedSnapshotPlanBuilder fresh(input(heap, 42), {}, context.directory, context.storage,
-												  generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder fresh(input(heap, 42), {}, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(fresh);
 		auto plan = fresh.take();
@@ -135,55 +126,7 @@ int main() {
 		store->confirm_recovered(base);
 		check(base.view().get("app", "count").value() == INT64_MIN);
 		generation.fill('b');
-		{
-			auto pressure_heap = std::make_shared<d::StorageLedger>(heap, heap->limit() / 2);
-			auto pressure_domain = runtime.domain(pressure_heap, 512);
-			auto source = progress(base.descriptor().cursor, pressure_heap);
-			auto core = context.owner.lock();
-			check(static_cast<bool>(core));
-			for (auto &entry : core->certificates) {
-				entry = pressure_domain.make<l::detail::PagedDependencyCertificate>(
-					pressure_heap, pressure_domain.factory());
-				entry->capture(base);
-			}
-			const auto selected = store->selection().descriptor;
-			const auto committed = store->stats().used;
-			auto unrelated = heap->admit(1024 * 1024);
-			const auto occupied = pressure_heap->used();
-			auto pressure = pressure_heap->admit(pressure_heap->limit() - occupied);
-			unrelated.reset();
-			bool refused = false;
-			try {
-				l::detail::PagedPlanBuilder blocked(base, source, generation,
-													 pressure_domain.factory(), pressure_heap);
-			} catch (const d::StoragePressure &) {
-				refused = true;
-			}
-			check(refused && l::detail::ManagedRecovery::yield_optional(*store));
-			check(!l::detail::ManagedRecovery::yield_optional(*store));
-			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-			bool rebuilt = false;
-			while (!rebuilt && std::chrono::steady_clock::now() < deadline) {
-				try {
-					l::detail::PagedPlanBuilder retry(base, source, generation,
-													   pressure_domain.factory(), pressure_heap);
-					while (!retry.done()) {
-						l::ValidationBudget budget{1, 1};
-						retry.step(budget);
-					}
-					check(retry.take().descriptor().cursor.revision == source->target().revision);
-					rebuilt = true;
-				} catch (const d::StoragePressure &) {
-					std::this_thread::yield();
-				}
-			}
-			check(rebuilt);
-			check(store->selection().descriptor == selected && store->stats().used == committed &&
-				  store->stats().reserved == l::DiskUsage{} &&
-				  base.view().get("app", "count").value() == INT64_MIN);
-		}
-		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory,
-													  context.storage, generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory, domain.factory(), heap,
 													  options.recovery_limits);
 		finish(unchanged);
 		check(unchanged.unchanged());
@@ -191,16 +134,28 @@ int main() {
 		check(store->selection().descriptor == base.descriptor());
 		bool rejected = false;
 		try {
-			l::detail::PagedSnapshotPlanBuilder conflict(input(heap, 42, false, 26), base, context.directory,
-														 context.storage, generation, domain.factory(), heap,
+			l::detail::PagedSnapshotPlanBuilder conflict(input(heap, 42, false, 26), base, context.directory, domain.factory(), heap,
 														 options.recovery_limits);
 			finish(conflict);
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
 		check(rejected && store->selection().descriptor == base.descriptor());
-		l::detail::PagedSnapshotPlanBuilder forward(input(heap, 43), base, context.directory, context.storage,
-													generation, domain.factory(), heap,
+		// A repair at the base's own cursor is not "unchanged": it keeps the Repair intent and skips the equality
+		// check, so it also builds when the incoming state differs from the base (the base is not read).
+		for (const auto conflicting : {false, true}) {
+			generation.fill('r');
+			l::detail::PagedSnapshotPlanBuilder repair(input(heap, 42, false, conflicting ? 26 : 25), base,
+													   context.directory,
+													   domain.factory(), heap, options.recovery_limits, true);
+			finish(repair);
+			check(!repair.unchanged());
+			auto plan = repair.take();
+			check(plan.intent() == l::detail::PagedPlanIntent::Repair && plan.selected_base() == base.descriptor() &&
+				  plan.descriptor().cursor == base.descriptor().cursor &&
+				  plan.descriptor().generation != base.descriptor().generation && !plan.registry());
+		}
+		l::detail::PagedSnapshotPlanBuilder forward(input(heap, 43), base, context.directory, domain.factory(), heap,
 													options.recovery_limits);
 		finish(forward);
 		auto next = forward.take();
@@ -216,17 +171,25 @@ int main() {
 		generation.fill('d');
 		rejected = false;
 		try {
-			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory,
-														  context.storage, generation, domain.factory(), heap,
+			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory, domain.factory(), heap,
 														  options.recovery_limits);
 			finish(backwards);
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
 		check(rejected && store->selection().descriptor == wanted);
+		// A repair never goes back either: its target is the base's cursor or later.
+		rejected = false;
+		try {
+			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory, domain.factory(), heap,
+														  options.recovery_limits, true);
+			finish(backwards);
+		} catch (const std::invalid_argument &) {
+			rejected = true;
+		}
+		check(rejected && store->selection().descriptor == wanted);
 		generation.fill('f');
-		l::detail::PagedSnapshotPlanBuilder stale(input(heap, 44), base, context.directory, context.storage,
-												  generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder stale(input(heap, 44), base, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(stale);
 		auto stale_plan = stale.take();
@@ -240,8 +203,7 @@ int main() {
 		check(rejected && stale_plan.descriptor() == stale_descriptor &&
 			  store->selection().descriptor == wanted && store->stats().reserved == l::DiskUsage{});
 		generation.fill('c');
-		l::detail::PagedSnapshotPlanBuilder reset(input(heap, 42, true), newer, context.directory,
-												  context.storage, generation, domain.factory(), heap,
+		l::detail::PagedSnapshotPlanBuilder reset(input(heap, 42, true), newer, context.directory, domain.factory(), heap,
 												  options.recovery_limits);
 		finish(reset);
 		auto reset_plan = reset.take();

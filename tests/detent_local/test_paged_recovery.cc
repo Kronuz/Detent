@@ -1,6 +1,7 @@
 #include "detent_local/reader.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_snapshot_builder.hh"
+#include "recovery_context.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
 #include <filesystem>
@@ -28,39 +29,32 @@ int main() {
 		}
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(source, generation);
 	while (!builder.done()) {
 		l::ValidationBudget b;
 		builder.step(b);
 	}
 	auto image = builder.take();
-	install(directory, image, storage);
+	install(directory, image);
 	write(directory / "unrelated.pack", std::string_view("unreachable garbage"));
 	auto view = l::open_generation(directory);
 	require(view.size() == 2 && view.get("app", "count").value() == INT64_MIN);
-	require(view.eval("app", "flag", "host", "beta").value() ==
+	require(view.get("app", "flag", "host", "beta").value() ==
 			(detent::stable_bucket("app:flag", "host") < 17));
 	{
 		auto empty = image.root();
 		empty.bytes = empty.pages = empty.segments = empty.records = empty.namespaces = 0;
 		empty.tree = {};
-		empty.logical = p::empty_commitment();
-		auto bytes = p::encode_root(empty);
+		auto bytes = p::encode_root(empty, p::Limits{});
 		auto descriptor = image.descriptor();
 		descriptor.generation.fill('e');
-		descriptor.checksum = p::physical_commitment(bytes);
-		auto name = l::generation_name(descriptor.generation);
-		write(directory / (name + ".image"), bytes);
-		l::GenerationOwnership ownership{storage, descriptor.generation, descriptor.length,
-										 descriptor.checksum, 2};
-		write(directory / (name + ".lease"), l::encode_generation_ownership(ownership));
-		write(directory / "selected", l::encode_descriptor(descriptor));
+		descriptor.checksum = p::metadata_commitment(bytes);
+		trusted_records::stage(directory, descriptor, bytes);
 		auto empty_view = l::open_generation(directory);
 		require(empty_view.size() == 0 && !empty_view.contains("app", "count"));
-		write(directory / "selected", l::encode_descriptor(image.descriptor()));
+		trusted_records::select(directory, image.descriptor());
 	}
 	l::ViewLimits limits;
 	limits.strings = 23;
@@ -107,19 +101,12 @@ int main() {
 	require(::chmod(path.c_str(), 0620) == 0);
 	rejects<std::invalid_argument>([&] { l::open_generation(directory); });
 	require(::chmod(path.c_str(), 0600) == 0);
-	// Reject an unsupported selected root without replacing the installed view.
+	// A `.lease` that is not empty refuses the generation and keeps the installed view.
 	auto descriptor = image.descriptor();
 	descriptor.generation.fill('h');
-	auto root_name = l::generation_name(descriptor.generation);
-	write(directory / (root_name + ".image"), {image.bytes()->data(), image.bytes()->size()});
-	l::GenerationOwnership bad{storage, descriptor.generation, descriptor.length, descriptor.checksum, 2};
-	auto lease = l::encode_generation_ownership(bad);
-	l::write_integer(lease, 56, 3, 4);
-	auto hash = p::physical_commitment(std::span<const char>(lease).first(96));
-	std::copy(hash.begin(), hash.end(), lease.begin() + 96);
-	write(directory / (root_name + ".lease"), lease);
-	write(directory / "selected", l::encode_descriptor(descriptor));
-	rejects<std::invalid_argument>([&] { reader->refresh(); });
+	trusted_records::stage(directory, descriptor, image.bytes()->view());
+	write(directory / (l::generation_name(descriptor.generation) + ".lease"), std::string_view("x"));
+	rejects<std::runtime_error>([&] { reader->refresh(); });
 	require(reader->read_view().get("app", "count").value() == INT64_MIN);
 	reader.reset();
 	std::filesystem::remove_all(directory);

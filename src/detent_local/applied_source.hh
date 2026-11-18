@@ -75,24 +75,18 @@ class AppliedImageSource {
 		if (!ref.changed)
 			return base_.record(ref.ordinal);
 		const auto &m = delta_->mutation(ref.ordinal);
-		SourceRecord result{m.namespace_index, m.key, ref.revision, IntDef{}};
-		if (const auto *b = std::get_if<distribution::WireBoolDef>(&*m.value))
-			result.definition =
-				SourceBoolean{b->default_value, b->rollout_pct, b->overrides.start, b->overrides.count};
-		else
-			result.definition = std::get<IntDef>(*m.value);
-		return result;
+		const auto &d = *m.value;
+		return {m.namespace_index, m.key, ref.revision,
+				{d.default_value, d.rollout_pct, d.rollout_value, d.overrides.start, d.overrides.count}};
 	}
 	SourceOverride override_value(std::uint64_t ordinal, std::uint64_t relative) const {
 		const auto ref = records_[ordinal];
 		if (!ref.changed) {
-			const auto b = std::get<SourceBoolean>(base_.record(ref.ordinal).definition);
-			if (relative >= b.override_count)
+			if (relative >= base_.record(ref.ordinal).definition.override_count)
 				throw std::out_of_range("source override");
 			return base_.override_value(ref.ordinal, relative);
 		}
-		const auto &b = std::get<distribution::WireBoolDef>(*delta_->mutation(ref.ordinal).value);
-		const auto &r = delta_->overrides(b)[relative];
+		const auto &r = delta_->overrides(*delta_->mutation(ref.ordinal).value)[relative];
 		return {r.first, r.second};
 	}
 	const Descriptor &base_descriptor() const noexcept { return base_.descriptor(); }

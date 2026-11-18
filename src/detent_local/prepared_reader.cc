@@ -47,12 +47,12 @@ bool checked_or_unlinked(int fd, uid_t owner, std::uint64_t length) {
 	}
 }
 template <std::size_t N> std::array<char, N> record(int directory, std::string_view name, uid_t owner) {
-	// A publish replaces `selected` by rename: a read that opened the replaced file opens it again.
+	// A collection may unlink a record after its open: the read opens it again.
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
 		RecoveryFile file(open_record(directory, name));
 		if (record_hook)
 			record_hook(name, record_context);
-		if (file.fd < 0 && errno == ENOENT && (name == "selected" || name.ends_with(".read")))
+		if (file.fd < 0 && errno == ENOENT && name.ends_with(".read"))
 			throw GenerationUnavailable("publisher has not prepared a selected generation");
 		if (!checked_or_unlinked(file.fd, owner, N))
 			continue;
@@ -91,7 +91,7 @@ ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	const auto physical = base.registry()->physical_bytes();
 	if (physical > UINT64_MAX - paged::root_bytes)
 		throw std::overflow_error("prepared generation physical bytes overflow");
-	return {base.storage_identity(), generation.descriptor().generation, generation.descriptor().checksum,
+	return {generation.descriptor().generation, generation.descriptor().checksum,
 	        base.counts(), physical + paged::root_bytes};
 }
 bool PreparedReader::metadata_ready(const std::filesystem::path &path,
@@ -117,19 +117,26 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     return true;
 }
 AttachedGeneration::AttachedGeneration(AttachedGeneration &&other) noexcept
-    : lease(std::exchange(other.lease, -1)), descriptor(other.descriptor), storage(other.storage),
-      root(other.root), metadata(other.metadata), limits(std::move(other.limits)) {}
+    : lease(std::exchange(other.lease, -1)), descriptor(other.descriptor), root(other.root), metadata(other.metadata), limits(std::move(other.limits)) {}
 AttachedGeneration::~AttachedGeneration() {
 	if (lease >= 0)
 		::close(lease);
 }
 Descriptor PreparedReader::selected(int directory, uid_t publisher) {
-	return decode_descriptor(record<descriptor_bytes>(directory, "selected", publisher));
+	for (unsigned attempt = 0; attempt != 3; ++attempt)
+		if (const auto table = read_selected(directory, publisher))
+			return table->descriptor;
+	throw GenerationUnavailable("selected generation changed while reading it");
 }
 AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLimits limits,
                                           std::optional<d::Cursor> expected) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
-		const auto descriptor = selected(directory, publisher);
+		const auto table = read_selected(directory, publisher);
+		if (!table)
+			continue;
+		if (!table->paged)
+			throw GenerationUnavailable("publisher has not prepared a current paged generation");
+		const auto &descriptor = table->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
 			        descriptor.cursor.revision >= expected->revision);
@@ -137,7 +144,7 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		RecoveryFile lease(open_record(directory, lease_name.view()));
 		if (lease.fd < 0 && errno == ENOENT)
 			continue;
-		if (!checked_or_unlinked(lease.fd, publisher, generation_ownership_bytes))
+		if (!checked_or_unlinked(lease.fd, publisher, 0))
 			continue; // collected between the open and the check
 		require(internal::mode_only_acl(lease.fd));
 		int locked;
@@ -160,16 +167,7 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		}
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
-		std::array<char, generation_ownership_bytes> lease_bytes{};
-		read_generation_record(lease.fd, lease_bytes);
-		const auto ownership = decode_generation_ownership(lease_bytes);
-		const auto storage =
-		    decode_storage_identity(record<storage_identity_bytes>(directory, "storage.meta", publisher));
-		require(ownership.storage == storage && ownership.generation == descriptor.generation &&
-		        ownership.image_length == descriptor.length && ownership.image_checksum == descriptor.checksum);
-		if (ownership.layout_version == 1)
-			throw GenerationUnavailable("publisher has not prepared a paged generation");
-		require(ownership.layout_version == 2 && descriptor.length == paged::root_bytes);
+		require(descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
 		const auto image = record<paged::root_bytes>(directory, image_name.view(), publisher);
 		require(checksum(image) == descriptor.checksum);
@@ -178,9 +176,9 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		const GenerationName metadata_name(descriptor.generation, GenerationFile::ReaderMetadata);
 		const auto metadata = decode_reader_metadata(
 		    record<reader_metadata_bytes>(directory, metadata_name.view(), publisher));
-		require(metadata.storage == storage && metadata.generation == descriptor.generation &&
+		require(metadata.generation == descriptor.generation &&
 		        metadata.root_checksum == descriptor.checksum &&
-		        std::uint64_t(metadata.counts.bools) + metadata.counts.ints == root.records &&
+		        metadata.counts.records == root.records &&
 		        metadata.physical_bytes >= paged::root_bytes &&
 		        root.bytes <= metadata.physical_bytes - paged::root_bytes);
 		require(metadata.physical_bytes <= limits.bytes && metadata.counts.strings <= limits.strings &&
@@ -197,7 +195,6 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		AttachedGeneration attached;
 		attached.lease = std::exchange(lease.fd, -1);
 		attached.descriptor = descriptor;
-		attached.storage = storage;
 		attached.root = root;
 		attached.metadata = metadata;
 		attached.limits = std::move(limits);
@@ -220,7 +217,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 	auto mappings = resources::mapping_account(attached.limits);
 	using Files = d::RetirementHandle<PreparedFiles>;
 	auto files_owner = std::allocate_shared<Files>(d::StorageAllocator<Files>(heap), files);
-	auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher, attached.storage,
+	auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher,
 	                                           attached.root, attached.limits, heap, mappings);
 	using Access = d::RetirementHandle<LazyPageAccess>;
 	auto access_owner = std::allocate_shared<Access>(d::StorageAllocator<Access>(heap), std::move(access));
@@ -228,7 +225,8 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 	const auto &counts = attached.metadata.counts;
 	auto view = factory.make<ReadView::Root>(access_owner,
 	                                         PagedReadState{attached.root, {}, std::move(page_access)},
-	                                         counts.bools, counts.ints, counts.overrides, counts.strings);
-	return {ReadView(std::move(view)), attached.descriptor, directory_identity, attached.root.logical};
+	                                         counts.overrides, counts.strings);
+	return {ReadView(std::move(view)), attached.descriptor, directory_identity,
+	        paged::state_commitment(attached.root)};
 }
 } // namespace detent::local::detail

@@ -142,7 +142,7 @@ class Writers:
             operations.append(
                 {
                     "key": f"load{producer}:key{ordinal}",
-                    "value": {"type": "int", "default": 0},
+                    "value": {"default": 0},
                 }
             )
             if len(operations) == 128:
@@ -163,7 +163,7 @@ class Writers:
             [
                 {
                     "key": f"load{producer}:key{ordinal}",
-                    "value": {"type": "int", "default": value},
+                    "value": {"default": value},
                 }
             ],
         )
@@ -193,7 +193,7 @@ class Writers:
                 producer, "/v2/read", {"namespace": f"load{producer}", "keys": keys}
             )
             expected = {
-                key: {"type": "int", "default": self.values[ordinal]}
+                key: {"default": self.values[ordinal]}
                 for key, ordinal in zip(keys, batch, strict=True)
             }
             if reply.get("knobs") != expected:

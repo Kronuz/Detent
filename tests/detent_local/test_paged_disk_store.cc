@@ -5,10 +5,8 @@
 #include "paged_disk_fixture.hh"
 #include "prepared_reader.hh"
 #include <chrono>
-#include <completion/native_completion.h>
 #include <source_location>
 #include <thread>
-namespace c = kronuz::io::completion;
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("paged disk invariant at line " + std::to_string(where.line()));
@@ -31,27 +29,16 @@ l::DiskUsage census(const std::filesystem::path &directory) {
 	}
 	return usage;
 }
-void drive(const std::shared_ptr<l::DiskStore> &store, bool cancel_create = false) {
-	unsigned turns = 0;
-	while (store->operation() || store->needs_work()) {
-		auto job = store->operation();
-		if (!job) {
-			store->advance();
-			continue;
-		}
-		check(++turns < 100000);
-		const auto kind = job->request().kind;
-		job->submitted();
-		if (kind == c::Kind::Replace)
-			check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
-		if (cancel_create && kind == c::Kind::CreateInto) {
-			store->cancel_publication();
-			cancel_create = false;
-		}
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+void drive(const std::shared_ptr<l::DiskStore> &store) {
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
-	store->advance();
 }
 int main() {
 	const auto directory =
@@ -63,12 +50,11 @@ int main() {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder construction(source, storage, generation);
+	l::detail::PagedSnapshotBuilder construction(source, generation);
 	while (!construction.done()) {
 		l::ValidationBudget budget;
 		construction.step(budget);
@@ -79,10 +65,7 @@ int main() {
 			if (scenario == 6 && progress)
 				continue;
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
-			install(root, image, storage);
-			write(root / "owner.lock", {});
-			if (scenario == 5)
-				write(root / (l::generation_name(next) + ".image"), {});
+			install(root, image);
 			auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 			auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 			d::RetirementRuntime runtime(baseline, 1);
@@ -98,16 +81,14 @@ int main() {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
 				auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
-				l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+				l::detail::PagedPlanBuilder builder(*base, delta, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(
-					*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account),
-					next, domain);
+				l::detail::PagedDeltaPlanBuilder builder(*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account), domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
@@ -115,7 +96,7 @@ int main() {
 				plan.emplace(builder.take());
 			}
 			const auto wanted = plan->descriptor();
-			const auto logical = plan->root().logical;
+			const auto logical = l::paged::state_commitment(plan->root());
 			std::vector<std::uint64_t> lengths;
 			for (const auto &segment : plan->segments())
 				lengths.push_back(segment.bytes->size());
@@ -140,6 +121,9 @@ int main() {
 						std::to_string(plan->root().bytes));
 				options.recovery_limits.bytes = physical - 1;
 			}
+			// An orphan under the derived name, as a cut publication leaves it: unlinked and written again.
+			if (scenario == 5)
+				write(root / (l::generation_name(wanted.generation) + ".image"), {});
 			auto store = l::make_disk_store(domain, root, std::make_shared<int>(1), options);
 			drive(store);
 			check(store->status() == l::StoreStatus::Ready);
@@ -178,7 +162,7 @@ int main() {
 						check(plan->descriptor() == wanted && store->publication_ready());
 						check(store->selection().descriptor == image.descriptor());
 						check(store->stats().reserved == l::DiskUsage{});
-						check(!std::filesystem::exists(root / (l::generation_name(next) + ".image")));
+						check(!std::filesystem::exists(root / (l::generation_name(wanted.generation) + ".image")));
 						for (const auto &segment : plan->segments()) {
 							const l::detail::SegmentNames names(segment.ownership.segment);
 							check(!std::filesystem::exists(root / names.payload_name()));
@@ -195,15 +179,26 @@ int main() {
 				rejects<std::logic_error>([&] { plan->root(); });
 				if (scenario == 1)
 					store->cancel_publication();
-				drive(store, scenario == 2);
-				if (scenario == 1 || scenario == 2) {
+				if (scenario == 2) {
+					// A cancellation after the work is taken changes nothing: the cycle runs to its end.
+					auto work = store->work();
+					store->cancel_publication();
+					work->run();
+				}
+				drive(store);
+				if (scenario == 1) {
 					check(store->publication_status() == l::DiskPublicationStatus::Cancelled);
 					check(store->selection().descriptor == image.descriptor());
 				} else if (scenario == 4 && progress) {
-					check(store->publication_status() == l::DiskPublicationStatus::Fenced);
-				} else if (scenario == 5) {
-					check(store->publication_status() == l::DiskPublicationStatus::Rejected);
-					check(store->selection().descriptor == image.descriptor());
+					// The store reuses a reached segment without reading it; recovery refuses its damage.
+					check(store->publication_status() == l::DiskPublicationStatus::Published);
+					bool refused = false;
+					try {
+						l::detail::ManagedRecovery::recover(root, l::detail::ManagedRecovery::capture(*store));
+					} catch (const std::exception &) {
+						refused = true;
+					}
+					check(refused);
 				} else {
 					check(store->publication_status() == l::DiskPublicationStatus::Published);
 					check(store->selection().descriptor == wanted && !store->publication_ready());
@@ -211,7 +206,7 @@ int main() {
 					{
 						const auto prepared =
 						    l::detail::PreparedReader::open(root, ::getuid(), options.recovery_limits);
-						check(prepared.descriptor == wanted && prepared.logical == logical);
+						check(prepared.descriptor == wanted && prepared.state_commitment == logical);
 						check(prepared.view.get("app", "count").value() == (progress ? INT64_MIN : 1));
 					}
 					auto recovered = l::detail::ManagedRecovery::recover(
@@ -223,14 +218,14 @@ int main() {
 					check(store->publication_ready());
 					check(recovered.view().get("app", "count").value() == (progress ? INT64_MIN : 1));
 					if (!progress) {
-						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), storage, next);
+						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), next);
 						while (!oracle.done()) {
 							l::ValidationBudget budget;
 							oracle.step(budget);
 						}
-						check(oracle.take().root().logical == logical);
+						check(l::paged::state_commitment(oracle.take().root()) == logical);
 					} else
-						check(logical == image.root().logical);
+						check(logical == l::paged::state_commitment(image.root()));
 				}
 			}
 			if (store->status() == l::StoreStatus::Ready)

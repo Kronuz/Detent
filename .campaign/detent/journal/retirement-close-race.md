@@ -1,0 +1,48 @@
+# retirement-close-race: journal
+
+State: waiting on jobs 261109-091524-b72f0a 261109-091524-3d7822
+Quest: .campaign/detent/quests/retirement-close-race.md (the lead's; never edit it)
+
+Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
+status` reads State, the first step under Next, and the Evidence table. State is one of: working,
+waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <what>.
+
+## Doing
+
+Waiting on the native and tsan gates (code at Detent:5772d20: seams+test 10b4b13, fix d5d9bc9, driver 5772d20). Every other job has finished with the expected result.
+
+## Next
+
+1. When both gates pass, set State to ready for review. If either fails, check whether it also fails on main.
+
+## Blocked on
+
+Nothing.
+
+## Evidence
+
+All jobs `261109-`; driver `docs/mechanisms/retirement-wakeup.sh`. Not evidence: 091516-8a1684 through 091523-b003a4 exited 127 (my submission passed the flags as one word, so they became the command); resubmitted as the ids below.
+
+| Criterion | Evidence |
+|---|---|
+| A1 | Lead (2026-11-09), by hand: the probe jobs ending 0c7d20 (main's retirement.cc) and d4c641 (base 018202d) both exit 1 with a lost wakeup, so the race reproduces on main |
+| A2 | positive 261109-091903-cdd46b; the revert's proof is three mutants that pass iff killed: reread-admission 261109-091905-c0b74a, swap-rollbacks-admission 261109-091906-df6aa6, drop-closing 261109-091907-3f61f4 (the plain revert, the job ending 2f2be3 at 10b4b13, exits 1 as expected) |
+| A3 | 261109-091909-9f78a1 (probe at head: 300,000 rounds drained at -O0 in 34 s and at -O2 in 27 s) |
+| A4 | tsan gate 261109-091524-3d7822 |
+| A5 | native gate 261109-091524-b72f0a |
+
+Failing by design (reproductions against pre-fix code): 261109-085248-0c7d20, 261109-091902-d4c641 (A1), 261109-091904-2f2be3 (A2 revert), 261109-093510-5e418c (reviewer's stress at 10b4b13).
+
+## Result
+
+`RetirementState::step` loads `rolling_back` and `closing`, then `admission` once, and decides drainage and pending from those values (`src/detent_distribution/retirement.cc`, Detent:d5d9bc9); `run()` no longer rereads. The same change closes the sibling window for a rollback (a failed `make` on a closing domain): `rolling_back` returns to zero after its admission decrement, and main reread it after loading admission. Seam: `detail::RetirementTesting::interleave` with four `RetirementPoint`s (Detent:10b4b13). Test: `drains_across` in `tests/detent_distribution/test_retirement.cc`, four forced interleavings, no sleeps (a 5 s deadline only detects the hang). How it works: `docs/mechanisms/retirement-wakeup.md`.
+
+## Rulings I made
+
+1. Fix on the worker side, not by setting the closed bit before the wake in `close`: once the bit is set an empty domain can drain and the application may destroy the runtime, so `close` must not touch `runtime->wake` after it (the same rule `release` and `undo_resident` follow).
+2. Rollback window fixed in the same change (same file, same mechanism, same strand after close), tested by the rollback cases.
+3. Seam points sit just before and just after the admission load, so any marker load moved after it, or any second admission load, falls inside a parked window. `closing` loaded after `admission` is an equivalent mutant (`closing` only rises, and a consumed wake makes it visible), so it has no test.
+4. The worker parks on the second pass that sees the wake: the first may have begun before consuming it.
+5. Rejected: folding `closing` and the rollback count into the admission word (one load, no ordering rule). It narrows the accepted `owners` range, a user-visible change, for no measured gain.
+6. Probe copied into `docs/mechanisms/retirement-wakeup-probe.cc` (from namespace-s1-s2's `docs/measurements/sync-groups-20261108/retirement_wakeup.cc`) so A1/A3 rerun from this branch; the driver builds with clang++ directly (the native gate covers CMake).
+7. --minutes: driver test/mutant jobs about 30 s locally, bound 5; probe 300k rounds about 30 s per build at main's rate, bound 15 (10 for A1, which stops at the first stall); gates as configured.

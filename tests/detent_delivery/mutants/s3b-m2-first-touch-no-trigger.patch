@@ -1,0 +1,12 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..90cefb98 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -1131,7 +1131,6 @@ task::task<void> Coordinator::Impl::candidate_loop() {
+ 			} catch (const l::detail::ReadSourceFailure &) {
+ 				// A page of the selected generation failed first touch: ask for a Replace to repair it.
+ 				failure = std::current_exception();
+-				request_repair(false);
+ 			} catch (...) {
+ 				failure = std::current_exception();
+ 			}

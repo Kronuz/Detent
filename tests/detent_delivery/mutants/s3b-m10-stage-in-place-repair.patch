@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..9e1dbc03 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -1056,7 +1056,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
+ 				const bool repair_in_place = diagnostic.repair.pending && paged_writer && update->snapshot &&
+ 											 actual.descriptor && update->target == actual.descriptor->cursor;
+ 				if (!cancelled()) {
+-					if (options.publication_sink && !repair_in_place) {
++					if (options.publication_sink) {
+ 						options.publication_sink->begin_stage(*update);
+ 						while (!cancelled()) {
+ 							d::WorkBudget budget;

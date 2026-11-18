@@ -106,8 +106,8 @@ Authorization: Bearer replace-with-a-random-token-at-least-32-characters
   "namespace": "payments",
   "operations": [
     { "key": "payments:new_processor",
-      "value": { "type": "bool", "default": false, "rollout_pct": 10 } },
-    { "key": "payments:max_retries", "value": { "type": "int", "default": 3 } }
+      "value": { "default": 0, "rollout_pct": 10, "rollout_value": 1 } },
+    { "key": "payments:max_retries", "value": { "default": 3 } }
   ]
 }
 ```

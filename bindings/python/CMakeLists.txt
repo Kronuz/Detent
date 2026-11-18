@@ -1,5 +1,4 @@
-# Section 5's "API surface (bindings and injection)" made concrete for
-# Python: a thin pybind11 wrapper around detent::Client, not a
+# The Python binding: a thin pybind11 wrapper around detent::Client, not a
 # reimplementation of any evaluation/parsing logic. Requires Python3
 # development headers (Python.h) -- opt in with -DDETENT_BUILD_PYTHON=ON.
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)

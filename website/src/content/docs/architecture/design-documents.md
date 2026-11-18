@@ -12,7 +12,7 @@ gates, measurements and audit findings in more depth than this site.
 
 | Document | What it covers |
 | --- | --- |
-| [justknobs-implementation-spec.md](https://github.com/Kronuz/Detent/blob/main/justknobs-implementation-spec.md) | The original client specification Detent implements, with sourced facts and filled blanks marked |
+| [knob-model.md](https://github.com/Kronuz/Detent/blob/main/docs/design/knob-model.md) | The knob model: names, groups, overrides, rollout, evaluation and the JSON formats |
 
 ## Architecture Blueprints
 

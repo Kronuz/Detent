@@ -6,7 +6,13 @@
 #include "detent_local/paged_layout.hh"
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
+#include "peer_close.hh"
 #include "task_support.hh"
+#include "trusted_records.hh"
+#include <asio/buffers_iterator.hpp>
+#include <asio/read.hpp>
+#include <asio/read_until.hpp>
+#include <asio/streambuf.hpp>
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -14,6 +20,7 @@
 #include <mutex>
 #include <poll.h>
 #include <source_location>
+#include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
 
@@ -22,6 +29,8 @@ namespace l = detent::local;
 namespace t = detent::delivery;
 namespace m = d::messagepack;
 using namespace std::chrono_literals;
+// Origin of the 500K timeline checkpoints, shared with the observer.
+std::chrono::steady_clock::time_point checkpoint_epoch = std::chrono::steady_clock::now();
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
@@ -144,15 +153,15 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 		u(0);
 		m::string(wire, key);
 		u(1);
+		a(4);
 		if (i % 4 == 0) {
-			a(2);
-			u(1);
 			m::signed_integer(wire, -std::int64_t(i));
+			wire.append("\xc0\xc0", 2);
+			a(0);
 		} else {
-			a(4);
-			u(0);
-			wire.push_back(i % 2 ? '\xc3' : '\xc2');
+			u(i % 2);
 			u(25);
+			u(1);
 			a(1);
 			a(3);
 			m::string(wire, "beta");
@@ -215,9 +224,10 @@ std::string transition_response(bool progress) {
 		u(0);
 		m::string(wire, "app:key000004");
 		u(0);
-		a(2);
-		u(1);
+		a(4);
 		m::signed_integer(wire, -4);
+		wire.append("\xc0\xc0", 2);
+		a(0);
 	}
 	d::Identity identity{};
 	identity.fill(progress ? 'p' : 'd');
@@ -314,6 +324,11 @@ task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	// Close wakes the parked candidate after the source observes durable feedback.
 	timer.expires_after(5ms);
 	co_await detent::transport::await_timer(timer);
+	std::cerr << "coordinator phase=observer-close elapsed_ms="
+			  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+																		  checkpoint_epoch)
+					 .count()
+			  << '\n';
 	coordinator->close();
 	auto final = cursor();
 	final.revision = final_revision;
@@ -525,9 +540,9 @@ int main(int argc, char **argv) {
 			paged && std::string_view(argv[2]).find("compaction-pressure") != std::string_view::npos;
 		const bool worker_cancel =
 			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
-		const bool migration = paged && std::string_view(argv[2]).find("migrate") != std::string_view::npos;
+		const bool from_flat = paged && std::string_view(argv[2]).find("from-flat") != std::string_view::npos;
 		const bool maintenance_failure =
-			migration && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
+			from_flat && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
 		const auto original_maintenance_failure =
 			std::make_exception_ptr(std::runtime_error("original maintenance recovery failure"));
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
@@ -559,6 +574,7 @@ int main(int argc, char **argv) {
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
 		const auto started = std::chrono::steady_clock::now();
+		checkpoint_epoch = started;
 		std::mutex checkpoint_mutex;
 		auto checkpoint = [&](std::string_view phase) {
 			std::lock_guard lock(checkpoint_mutex);
@@ -583,9 +599,11 @@ int main(int argc, char **argv) {
 			disk_options.recovery_limits.mapping_account = mapping;
 			disk_options.recovery_limits.retirement_domain = &domain;
 		}
-		disk_options.limits = {pressure ? 1072ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
+		// Under reader pressure the store holds two flat generations (1376 bytes each with their `.live`)
+		// and a third's reservation (1864) does not fit beside them while a reader pins the first.
+		disk_options.limits = {pressure ? 4096ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
 		std::optional<l::ReadView> pinned_flat;
-		if (migration) {
+		if (from_flat) {
 			const auto reply = response(count);
 			d::Limits input_limits;
 			input_limits.storage_account = account;
@@ -603,31 +621,18 @@ int main(int argc, char **argv) {
 					decoder.step(budget);
 			}
 			auto input = decoder.take();
-			l::GenerationId initial{};
-			initial.fill('i');
-			l::ImageBuilder builder(input.snapshot, initial);
+			l::ImageBuilder builder(input.snapshot);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
-			auto write = [&](const auto &path, std::span<const char> contents) {
-				std::ofstream file(path, std::ios::binary);
-				file.write(contents.data(), contents.size());
-				file.close();
-				check(bool(file));
-				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
-													   std::filesystem::perms::owner_write);
-			};
-			const auto name = l::generation_name(initial);
-			write(directory / (name + ".image"), builder.bytes()->view());
-			write(directory / (name + ".lease"), {});
-			write(directory / "owner.lock", {});
-			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			// A store holding a flat generation, which the paged publications replace.
+			trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 			pinned_flat = l::recover_generation(directory, disk_options.recovery_limits).view();
-			disk_options.mode = l::StoreOpenMode::UpgradeLegacy;
+			disk_options.mode = l::StoreOpenMode::ExistingManaged;
 		}
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
-		checkpoint("legacy-image-ready");
+		checkpoint("flat-image-ready");
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*server_tls,
@@ -725,18 +730,46 @@ int main(int argc, char **argv) {
 			quota_domain.close().wait();
 		}
 		acceptor.non_blocking(true);
+		const unsigned attempts = maintenance_failure ? 0u
+								  : poll_backoff	  ? 5u
+								  : cancel_open		  ? 2u
+								  : reset_retry		  ? 11u
+								  : worker_cancel	  ? 3u
+								  : subscription	  ? (transitions ? 6u : 4u)
+								  : pressure		  ? 3u
+								  : cancel_selected	  ? 2u
+													  : 1u;
+		// The coordinator must close the final session-close connection well inside
+		// release_session's 1,000 ms timeout, or the close timed out unacknowledged.
+		constexpr auto close_acknowledgement = 500ms;
+		std::chrono::steady_clock::time_point close_answered;
+		bool close_acknowledged = false;
+		std::chrono::steady_clock::time_point settled;
 		std::jthread server([&] {
+			// A relay serves a held long poll while it accepts the session close: so does the fixture.
+			std::exception_ptr held_failure;
+			std::jthread held_poll;
+			auto hold = [&](asio::ssl::stream<asio::ip::tcp::socket> held, unsigned short port) {
+				check(!held_poll.joinable());
+				held_poll = std::jthread([&, port, held = std::move(held)]() mutable {
+					try {
+						pollfd descriptor{held.next_layer().native_handle(), POLLIN, 0};
+						const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(options.source.timeout);
+						if (::poll(&descriptor, 1, static_cast<int>(wait.count())) <= 0)
+							throw std::runtime_error("held long poll not released");
+						std::array<char, 1> input;
+						asio::error_code error;
+						held.read_some(asio::buffer(input), error);
+						checkpoint("server-poll-released port=" + std::to_string(port) + " error=" +
+								   error.message());
+						check(bool(error));
+					} catch (...) {
+						held_failure = std::current_exception();
+					}
+				});
+			};
 			try {
-				for (unsigned attempt = 0; attempt != (maintenance_failure ? 0u
-													   : poll_backoff	   ? 5u
-													   : cancel_open	   ? 2u
-													   : reset_retry	   ? 11u
-													   : worker_cancel	   ? 3u
-													   : subscription	   ? (transitions ? 6u : 4u)
-													   : pressure		   ? 3u
-													   : cancel_selected   ? 2u
-																		   : 1u);
-					 ++attempt) {
+				for (unsigned attempt = 0; attempt != attempts; ++attempt) {
 					const auto phase =
 						cancel_open		? std::array<unsigned, 2>{0, 3}[attempt]
 						: worker_cancel ? std::array<unsigned, 3>{0, 1, 3}[attempt]
@@ -757,18 +790,38 @@ int main(int argc, char **argv) {
 								" attempt=" + std::to_string(attempt) + " phase=" + std::to_string(phase));
 						std::this_thread::sleep_for(1ms);
 					}
+					const auto port = accepted.remote_endpoint().port();
+					int pending = 0;
+					::ioctl(accepted.native_handle(), FIONREAD, &pending);
 					asio::ssl::stream<asio::ip::tcp::socket> socket(std::move(accepted), *server_tls);
-					checkpoint("server-accepted");
-					socket.handshake(asio::ssl::stream_base::server);
-					checkpoint("server-handshake");
+					checkpoint("server-accepted port=" + std::to_string(port) + " attempt=" +
+							   std::to_string(attempt) + " pending=" + std::to_string(pending));
+					try {
+						socket.handshake(asio::ssl::stream_base::server);
+					} catch (const std::exception &error) {
+						checkpoint("server-handshake-failed port=" + std::to_string(port) + " error=" + error.what());
+						throw;
+					}
+					checkpoint("server-handshake port=" + std::to_string(port));
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
+					{
+						const std::string head(asio::buffers_begin(request.data()), asio::buffers_end(request.data()));
+						checkpoint("server-request port=" + std::to_string(port) + " line=" +
+								   head.substr(0, head.find("\r\n")));
+					}
+					bool close_request = false;
+					const bool final_close = subscription && attempt + 1 == attempts;
 					if (cancel_selected || pressure || subscription || poll_backoff) {
 						auto text = [&] {
 							return std::string(asio::buffers_begin(request.data()),
 											   asio::buffers_end(request.data()));
 						};
 						auto header = text();
+						close_request = subscription && header.starts_with("POST /v2/distribution/session/close ");
+						if (final_close && !close_request)
+							throw std::runtime_error("coordinator final request is not a session close: " +
+													 header.substr(0, header.find("\r\n")));
 						if (cancel_open)
 							check(header.starts_with(phase == 0 ? "POST /v2/distribution/session/open "
 																: "POST /v2/distribution/session/close "));
@@ -932,8 +985,10 @@ int main(int argc, char **argv) {
 											*coordinator);
 									t::detail::CoordinatorAccess::request_compaction(*coordinator);
 								});
-							else
+							else {
 								feedback_received.store(true);
+								checkpoint("server-feedback");
+							}
 						}
 						if (transitions && (phase == 3 || phase == 4)) {
 							if (body.find("\"after\":" + std::to_string(phase - 1)) == std::string::npos) {
@@ -976,19 +1031,32 @@ int main(int argc, char **argv) {
 							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) !=
 								  std::string::npos);
 					}
-					auto bytes = response(count, pressure ? attempt + 1 : 1);
-					if (subscription) {
-						if (transitions && (phase == 2 || phase == 3)) {
+					// Build the snapshot only for a reply that carries it: at 500K records building it
+					// can outlast release_session's 1,000 ms close timeout.
+					auto snapshot = [&] {
+						const auto building = std::chrono::steady_clock::now();
+						auto reply = response(count, pressure ? attempt + 1 : 1);
+						checkpoint("server-response-built port=" + std::to_string(port) + " build_ms=" +
+								   std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+													  std::chrono::steady_clock::now() - building)
+													  .count()));
+						return reply;
+					};
+					std::string bytes;
+					if (!subscription)
+						bytes = snapshot();
+					else {
+						if (close_request) {
+							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+						} else if (transitions && (phase == 2 || phase == 3)) {
 							bytes = transition_response(phase == 2);
 							bytes.insert(bytes.find("\r\n") + 2,
 										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
 										 "11111111111111111111111111111111\r\nX-Detent-Window: " +
 											 std::to_string(phase) + "\r\n");
-						} else if (transitions && phase == 4) {
-							std::array<char, 1> buffer;
-							asio::error_code error;
-							socket.read_some(asio::buffer(buffer), error);
-							check(bool(error));
+						} else if (transitions ? phase == 4 : phase == 2) {
+							// Hold an original long poll until owner cancellation closes the socket.
+							hold(std::move(socket), port);
 							continue;
 						} else if (phase == 0) {
 							const std::string body =
@@ -997,6 +1065,7 @@ int main(int argc, char **argv) {
 							bytes = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
 									std::to_string(body.size()) + "\r\n\r\n" + body;
 						} else if (phase == 1 || phase == 5) {
+							bytes = snapshot();
 							bytes.insert(bytes.find("\r\n") + 2,
 										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
 										 "11111111111111111111111111111111\r\n"
@@ -1009,33 +1078,44 @@ int main(int argc, char **argv) {
 							bytes = "HTTP/1.1 409 Conflict\r\nContent-Type: "
 									"application/json\r\nContent-Length: " +
 									std::to_string(body.size()) + "\r\n\r\n" + body;
-						} else if (phase == 2) {
-							// Hold an original long poll until owner cancellation closes the socket.
-							std::array<char, 1> input;
-							asio::error_code error;
-							socket.read_some(asio::buffer(input), error);
-							check(bool(error));
-							continue;
 						} else {
 							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 						}
 					}
 					if (!retained_idle)
 						bytes.insert(bytes.find("\r\n") + 2, "Connection: close\r\n");
+					if (final_close) {
+						close_answered = std::chrono::steady_clock::now();
+						checkpoint("server-close-answered");
+					}
 					asio::write(socket, asio::buffer(bytes));
+					if (final_close) {
+						std::size_t stray = 0;
+						std::string seen;
+						if (!peer_closed(socket, close_acknowledgement, stray, &seen))
+							throw std::runtime_error("coordinator did not acknowledge the session close");
+						checkpoint("server-close-acknowledged stray=" + std::to_string(stray));
+						report_stray("server-close-acknowledged", stray, seen);
+						check(!stray);
+						close_acknowledged = true;
+					}
 					if (retained_idle) {
-						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
-						check(::poll(&descriptor, 1, 5000) > 0);
-						std::array<char, 1> byte;
-						asio::error_code error;
-						socket.read_some(asio::buffer(byte), error);
-						check(bool(error));
+						std::size_t stray = 0;
+						std::string seen;
+						const bool closed = peer_closed(socket, 5000ms, stray, &seen);
+						checkpoint("server-idle-closed stray=" + std::to_string(stray));
+						report_stray("server-idle-closed", stray, seen);
+						check(closed && !stray);
 					}
 				}
 			} catch (...) {
 				server_failure = std::current_exception();
 				asio::post(io, [&] { coordinator->close(); });
 			}
+			if (held_poll.joinable())
+				held_poll.join();
+			if (held_failure && !server_failure)
+				server_failure = held_failure;
 		});
 		if (cancel_open)
 			t::detail::CoordinatorAccess::close_after_next_session_open(*coordinator);
@@ -1050,6 +1130,7 @@ int main(int argc, char **argv) {
 										  poll_backoff));
 		checkpoint("coordinator-running");
 		io.run();
+		settled = std::chrono::steady_clock::now();
 		checkpoint("coordinator-settled");
 		std::exception_ptr run_failure;
 		try {
@@ -1076,6 +1157,8 @@ int main(int argc, char **argv) {
 			std::rethrow_exception(server_failure);
 		if (run_failure)
 			std::rethrow_exception(run_failure);
+		if (subscription && attempts)
+			check(close_acknowledged && close_answered < settled);
 		auto final_cursor = cursor();
 		if (pressure || transitions)
 			final_cursor.revision = 3;
@@ -1130,17 +1213,23 @@ int main(int argc, char **argv) {
 		auto failed_directory = directory / "failed-startup";
 		std::filesystem::create_directory(failed_directory);
 		std::filesystem::permissions(failed_directory, std::filesystem::perms::owner_all);
+		{
+			// A table naming a generation the directory lacks: startup recovery fails and fences the store.
+			l::StoreTable table;
+			table.sequence = 1;
+			l::TableEntry entry;
+			entry.name = l::namespace_name(cursor());
+			entry.cursor = l::namespace_cursor(cursor());
+			entry.generation.fill('f');
+			table.entries.push_back(entry);
+			trusted_records::put(failed_directory / "owner.lock", {});
+			trusted_records::put(failed_directory / "selected", l::encode_table(table));
+		}
+		auto failed_disk_options = disk_options;
+		failed_disk_options.mode = l::StoreOpenMode::ExistingManaged;
 		auto failed_store =
-			l::make_disk_store(domain, failed_directory, std::make_shared<int>(1), disk_options);
-		auto failed_original = failed_store->operation();
-		check(static_cast<bool>(failed_original));
-		failed_original->submitted();
-		auto completion =
-			kronuz::journal::detail::execute_primitive(failed_original->io(), failed_original->request());
-		completion.error = std::make_exception_ptr(std::runtime_error("injected startup original failure"));
-		check(failed_original->complete(std::move(completion)));
-		failed_original.reset();
-		check(failed_store->status() == l::StoreStatus::Fenced);
+			l::make_disk_store(domain, failed_directory, std::make_shared<int>(1), failed_disk_options);
+		check(failed_store->status() == l::StoreStatus::Fenced && failed_store->error());
 		auto failed_options = options;
 		failed_options.directory = failed_directory;
 		failed_options.publication_sink.reset();
@@ -1165,15 +1254,6 @@ int main(int argc, char **argv) {
 		std::filesystem::permissions(pressure_directory, std::filesystem::perms::owner_all);
 		auto pressure_store =
 			l::make_disk_store(pressure_domain, pressure_directory, std::make_shared<int>(1), pressure_disk_options);
-		for (unsigned turn = 0; pressure_store->operation() || pressure_store->needs_work(); ++turn) {
-			check(turn < 10000);
-			if (auto operation = pressure_store->operation()) {
-				operation->submitted();
-				check(operation->complete(
-					kronuz::journal::detail::execute_primitive(operation->io(), operation->request())));
-			}
-			pressure_store->advance();
-		}
 		check(pressure_store->status() == l::StoreStatus::Ready);
 		auto pressure_options = options;
 		pressure_options.directory = pressure_directory;
@@ -1226,7 +1306,6 @@ int main(int argc, char **argv) {
 			check(recovered.descriptor().cursor == final_cursor);
 			check(recovered.view().size() == count);
 			const auto view = recovered.view();
-			check(view.int_count() == (count + 3) / 4 && view.bool_count() == count - (count + 3) / 4);
 			for (std::uint32_t i = 0; i != count; ++i) {
 				char digits[7];
 				const auto end = std::to_chars(digits, digits + sizeof(digits), i).ptr;
@@ -1237,13 +1316,13 @@ int main(int argc, char **argv) {
 					auto integer = view.try_get("app", key);
 					check(integer && *integer && integer->value() == -std::int64_t(i));
 				} else {
-					auto boolean = view.try_eval("app", key);
-					check(boolean && *boolean && boolean->value() == bool(i % 2));
-					auto switched = view.try_eval("app", key, {}, "beta");
-					check(switched && *switched && switched->value() == bool(i % 2));
-					auto cohort = view.try_eval("app", key, "scale-host", "beta");
-					check(cohort && *cohort &&
-						  cohort->value() == (detent::stable_bucket("app:" + key, "scale-host") < 17));
+					auto plain = view.try_get("app", key);
+					check(plain && *plain && plain->value() == i % 2);
+					auto switched = view.try_get("app", key, {}, "beta");
+					check(switched && *switched && switched->value() == i % 2);
+					auto cohort = view.try_get("app", key, "scale-host", "beta");
+					const bool bucket = detent::stable_bucket("app:" + key, "scale-host") < 17;
+					check(cohort && *cohort && cohort->value() == (bucket ? 1 : i % 2));
 				}
 			}
 		}

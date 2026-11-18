@@ -1,21 +1,14 @@
-> Status: CURRENT (2026-11-04) Live campaign execution is below; earlier qualification evidence remains in the dated section that follows.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-05) Dense pages is the only active campaign. The owner parks the broader handoff.
 
-# Active campaign
+# Dense pages
 
-The [lead ledger](campaign-lead.md) records evidence and decisions under the [November handoff](../handoffs/detent-codex-2026-11.md). The next landing is reader S6.
+| Piece | Branch | State |
+| --- | --- | --- |
+| Codec, packer and full builds | `phase/dense-pages` | Implementing; codec/packer checkpoint `Detent:8b041fa` |
+| Reads, validation and recovery | `phase/dense-pages-reads` | Implementing in parallel |
+| Deltas and relocation | `phase/dense-pages-deltas` | Implementing in parallel |
 
-| Workstream | Branch | Worktree | Owner | State | Next | Updated |
-| --- | --- | --- | --- | --- | --- | --- |
-| Reader S6 | `reader/s6` | `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Lead; contributor checkpointed | Proof pending | Read queued proof and CI 41974132576; unresolved fork timeout, then audit/security review | 2026-11-04 |
-| Sync groups | `namespace/s1-s2` | `.claude/worktrees/agent-af2c08dd24001ec58` | Sync contributor | Recovery | Power-cut failure, mutants, queued evidence, architect review | 2026-11-04 |
-| Namespace S3b | `namespace/s3b` | `.claude/worktrees/agent-a70bf4a502ea488db` | Repair contributor | Fix round | Collection, bounds, cold recovery, scrub and original review probes | 2026-11-04 |
-| Dense pages design | `phase/dense-pages` | `.claude/worktrees/dense-pages-series` | Designer | Required changes | Correct DP-1 through DP-6; model proof, then S1 | 2026-11-04 |
-
-## Queued
-
-1. Reader proof audit and security review when queued proof and CI establish a reviewable head.
-2. Dense-page S1 implementation after the corrected design settles its foundations.
-3. Legacy H integration after S6 lands, then the remaining handoff follow-ups.
+The [plan](../PLAN.md) defines the owner's streamlined workflow. The [lead ledger](campaign-lead.md) records evidence and parked work. Whole-feature reviews follow implementation; the architect gives the final merge ruling.
 
 ## Earlier qualification evidence (2026-10-29)
 

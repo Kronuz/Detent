@@ -3,6 +3,7 @@
 #include "paged_snapshot_builder.hh"
 #include "pinned_source.hh"
 #include "segment_names.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -32,14 +33,11 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::GenerationId id;
-		id.fill('a');
-		l::ImageBuilder original(source, id);
+		const auto id = l::next_generation(std::nullopt, source->cursor(), source->profile(), true).id;
+		l::ImageBuilder original(source);
 		complete(original);
 		const auto name = l::generation_name(id);
-		write(directory / (name + ".image"), {original.bytes()->data(), original.bytes()->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(original.descriptor()));
+		trusted_records::install(directory, original.descriptor(), original.bytes()->view());
 		for (bool progress : {false, true})
 			for (unsigned tx : {1u, 2u, 17u}) {
 				auto input = delta(progress, tx);
@@ -68,23 +66,22 @@ int main() {
 						require(index[0].revision == 42 + tx && index[1].revision == 42 + tx);
 					}
 				}
-				auto next = id;
-				next.fill('b');
-				l::ImageBuilder builder(input, l::recover_generation(directory), next);
+				l::ImageBuilder builder(input, l::recover_generation(directory));
 				complete(builder);
 				require(builder.base_descriptor() == original.descriptor());
 				require(builder.base_directory_identity() ==
 						l::recover_generation(directory).directory_identity());
 				auto selected = builder.descriptor();
-				l::ImageBuilder oracle(expected(progress, tx), next);
+				l::ImageBuilder oracle(expected(progress, tx));
 				complete(oracle);
-				require(oracle.descriptor() == selected);
+				// A full copy and a delta to one position name different generations of the same state (D8.1).
+				const auto copy = oracle.descriptor();
+				require(copy.generation != selected.generation && copy.length == selected.length &&
+						copy.checksum == selected.checksum && copy.cursor == selected.cursor &&
+						copy.profile == selected.profile);
 				require(std::equal(oracle.bytes()->data(), oracle.bytes()->data() + oracle.bytes()->size(),
 								   builder.bytes()->data()));
-				const auto next_name = l::generation_name(next);
-				write(directory / (next_name + ".image"), {builder.bytes()->data(), builder.bytes()->size()});
-				write(directory / (next_name + ".lease"), {});
-				write(directory / "selected", l::encode_descriptor(selected));
+				trusted_records::install(directory, selected, builder.bytes()->view());
 				{
 					l::detail::PinnedImageSource result(l::recover_generation(directory));
 					require(result.descriptor().cursor == input->target());
@@ -93,72 +90,58 @@ int main() {
 					if (progress) {
 						require(result.record(0).revision == 41 && result.record(1).revision == 42);
 						require(
-							std::get<l::detail::SourceBoolean>(result.record(1).definition).override_count ==
+							result.record(1).definition.override_count ==
 							1);
 					} else {
 						auto flag = result.record(result.record_count() - 1);
 						require(flag.key == "app:flag" && flag.revision == 42 + tx);
-						require(std::get<l::detail::SourceBoolean>(flag.definition).default_value ==
-								bool((tx - 1) % 2));
+						require(flag.definition.default_value == (tx - 1) % 2);
 						if (tx > 1)
-							require(std::get<detent::IntDef>(result.record(0).definition).default_value ==
+							require(result.record(0).definition.default_value ==
 									tx - 1);
 					}
 				}
 				bool rejected = false;
 				try {
-					l::ImageBuilder wrong(input, l::recover_generation(directory), id);
+					l::ImageBuilder wrong(input, l::recover_generation(directory));
 				} catch (const std::invalid_argument &) {
 					rejected = true;
 				}
 				require(rejected);
-				write(directory / "selected", l::encode_descriptor(original.descriptor()));
+				trusted_records::install(directory, original.descriptor(), original.bytes()->view());
 			}
 
 		{
 			const auto paged_directory = directory / "paged";
 			std::filesystem::create_directories(paged_directory);
 			std::filesystem::permissions(paged_directory, std::filesystem::perms::owner_all);
-			l::StorageIdentity storage{};
-			storage.fill('s');
-			l::detail::PagedSnapshotBuilder encoder(source, storage, id);
+			l::detail::PagedSnapshotBuilder encoder(source, id);
 			while (!encoder.done()) {
 				l::ValidationBudget budget{1, 1};
 				encoder.step(budget);
 			}
 			auto image = encoder.take();
-			write(paged_directory / "storage.meta", l::encode_storage_identity(storage));
-			write(paged_directory / (name + ".image"), image.bytes()->view());
-			write(paged_directory / (name + ".lease"),
-				  l::encode_generation_ownership(
-					  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
-			for (const auto &segment : image.segments()) {
-				const l::detail::SegmentNames names(segment.ownership.segment);
-				write(paged_directory / names.payload_name(), segment.bytes->view());
-				write(paged_directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-			}
-			write(paged_directory / "selected", l::encode_descriptor(image.descriptor()));
+			trusted_records::install(paged_directory, image);
 			auto paged_base = l::recover_generation(paged_directory);
 			for (bool progress : {false, true})
 				for (unsigned tx : {1u, 2u, 17u}) {
 					auto input = delta(progress, tx);
-					auto next = id;
-					next.fill('p');
-					l::ImageBuilder applied(input, paged_base, next);
+					l::ImageBuilder applied(input, paged_base);
 					complete(applied);
-					l::ImageBuilder oracle(expected(progress, tx), next);
+					l::ImageBuilder oracle(expected(progress, tx));
 					complete(oracle);
 					require(applied.base_descriptor() == image.descriptor());
-					require(applied.descriptor() == oracle.descriptor());
+					const auto built = applied.descriptor(), copy = oracle.descriptor();
+					require(built.generation != copy.generation && built.length == copy.length &&
+							built.checksum == copy.checksum && built.cursor == copy.cursor &&
+							built.profile == copy.profile);
 					require(applied.bytes()->view().size() == oracle.bytes()->view().size());
 					require(std::equal(applied.bytes()->view().begin(), applied.bytes()->view().end(),
 									   oracle.bytes()->view().begin()));
 				}
 			for (unsigned partial : {0u, 1u, 1000u, 20000u, 1000000u}) {
 				auto changes = delta(false, 17);
-				auto next = id;
-				next.fill('q');
-				l::ImageBuilder cancelled(changes, paged_base, next);
+				l::ImageBuilder cancelled(changes, paged_base);
 				for (unsigned turns = 0; turns < partial && !cancelled.done(); ++turns) {
 					l::ValidationBudget budget{1, 1};
 					cancelled.step(budget);
@@ -180,7 +163,7 @@ int main() {
 			auto account = input->storage_account();
 			const auto before = account->used();
 			{
-				l::ImageBuilder builder(input, l::recover_generation(directory), id);
+				l::ImageBuilder builder(input, l::recover_generation(directory));
 				const auto controls = account->used();
 				auto pressure = account->admit(account->limit() - controls);
 				bool rejected = false;
@@ -205,7 +188,7 @@ int main() {
 			auto input = delta(false);
 			l::ViewLimits limits;
 			limits.records = 0;
-			l::ImageBuilder builder(input, l::recover_generation(directory), id, limits);
+			l::ImageBuilder builder(input, l::recover_generation(directory), limits);
 			bool rejected = false;
 			try {
 				complete(builder);

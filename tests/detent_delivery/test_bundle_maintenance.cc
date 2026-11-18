@@ -25,22 +25,14 @@ int main() {
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mappings;
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::GenerationId flat_id{}, paged_id{};
-		flat_id.fill('f');
+		l::GenerationId paged_id{};
 		paged_id.fill('p');
-		l::StorageIdentity storage{};
-		storage.fill('s');
-		l::ImageBuilder builder(source, flat_id);
+		l::ImageBuilder builder(source);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		std::filesystem::create_directories(directory);
-		check(::chmod(directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(flat_id);
-		write(directory / (name + ".image"), *builder.bytes());
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+		install(directory, builder.descriptor(), builder.bytes()->view());
 		auto flat = l::recover_generation(directory, limits);
 		r::BundleOptions options;
 		options.configured = cursor();
@@ -50,12 +42,12 @@ int main() {
 		bundle.authenticated();
 		bundle.selected(flat);
 		const auto before = bundle.offer(cursor());
-		l::detail::PagedSnapshotBuilder replacement(flat, heap, storage, paged_id);
+		l::detail::PagedSnapshotBuilder replacement(flat, heap, paged_id);
 		while (!replacement.done()) {
 			l::ValidationBudget budget;
 			replacement.step(budget);
 		}
-		install(directory, replacement.take(), storage);
+		install(directory, replacement.take());
 		auto paged = l::recover_generation(directory, limits);
 		{
 			d::WorkBudget budget{97, 1};
@@ -117,7 +109,18 @@ int main() {
 			refused = true;
 		}
 		check(refused);
+		// A repair at the head's own cursor swaps the head and leaves the cache as it was.
+		const auto kept = bundle.offer(cursor()).marker;
+		bundle.selected_repaired(flat);
+		check(bundle.offer(cursor()).marker == kept && bundle.status().gaps == 1 && bundle.status().ready);
 		bundle.fence();
+		refused = false;
+		try {
+			bundle.selected_repaired(paged);
+		} catch (const std::invalid_argument &) {
+			refused = true;
+		}
+		check(refused);
 	}
 	domain.close().wait();
 	check(mappings->used() == 0);

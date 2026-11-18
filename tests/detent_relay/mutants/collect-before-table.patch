@@ -1,0 +1,19 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 60105128..3e8d9354 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -474,6 +474,14 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
+ 			s.io->sync_files_and_directory(group);
+ 			primitive("sync files");
+ 		}
++		for (const auto &[name, file] : s.reached)
++			if (!std::any_of(next.entries.begin(), next.entries.end(), [&](const NamespaceLayout &e) {
++					return std::any_of(e.files.begin(), e.files.end(),
++									   [&](const MirrorFile &f) { return mirror_file_name(f.name) == name; });
++				})) {
++				s.io->remove(name);
++				primitive("collect");
++			}
+ 		s.publish_table(next);
+ 		const auto before = s.reached;
+ 		s.table = std::move(next);

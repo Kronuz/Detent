@@ -1,0 +1,18 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 60105128..ca45f376 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -318,11 +318,11 @@ struct MirrorStore::Impl {
+ 		const auto bytes = encode_mirror_table(next);
+ 		std::string name;
+ 		auto file = stage(name, bytes);
++		io->replace(name, table_name);
++		primitive("rename table");
+ 		c::File *sync[] = {file.get()};
+ 		io->sync_files(sync);
+ 		primitive("sync table");
+-		io->replace(name, table_name);
+-		primitive("rename table");
+ 		io->sync_directory();
+ 		primitive("sync directory");
+ 	}

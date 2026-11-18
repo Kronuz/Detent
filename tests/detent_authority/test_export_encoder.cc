@@ -60,9 +60,9 @@ std::string oracle(const d::Cursor &id) {
 	s("app:flag");
 	n(1);
 	ar(4);
-	n(0);
-	out.push_back('\xc3');
+	n(1);
 	n(25);
+	n(1);
 	ar(2);
 	ar(3);
 	s("beta");
@@ -71,14 +71,16 @@ std::string oracle(const d::Cursor &id) {
 	ar(3);
 	s("z");
 	n(0);
-	out.push_back('\xc2');
+	n(0);
 	ar(4);
 	n(1);
 	s("app2:count");
 	n(2);
-	ar(2);
-	n(1);
+	ar(4);
 	m::signed_integer(out, std::numeric_limits<std::int64_t>::min());
+	out.push_back('\xc0');
+	out.push_back('\xc0');
+	ar(0);
 	return out;
 }
 } // namespace
@@ -105,14 +107,15 @@ int main() {
 			command.mutations = std::move(mutations);
 			check(state.apply(++index, command).status == a::Status::Applied);
 		};
-		detent::BoolDef flag;
-		flag.default_value = true;
+		detent::KnobDef flag;
+		flag.default_value = 1;
 		flag.rollout_pct = 25;
+		flag.rollout_value = 1;
 		flag.overrides.emplace("beta", detent::GroupRollout{17});
-		flag.overrides.emplace("z", false);
+		flag.overrides.emplace("z", std::int64_t{0});
 		put("app", {{"app:flag", flag, {}, {}}});
-		put("app2", {{"app2:count", detent::IntDef{std::numeric_limits<std::int64_t>::min()}, {}, {}}});
-		put("secret", {{"secret:private", detent::IntDef{999}, {}, {}}});
+		put("app2", {{"app2:count", detent::KnobDef{std::numeric_limits<std::int64_t>::min()}, {}, {}}});
+		put("secret", {{"secret:private", detent::KnobDef{999}, {}, {}}});
 		auto account = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 		std::set<std::string> allowed{"app", "app2"};
 		std::vector<std::string> names{"app2", "app"};
@@ -125,7 +128,7 @@ int main() {
 			d::WorkBudget zero{0, 0};
 			encoder.step(zero);
 			check(!encoder.chunk_ready() && account->used() == before);
-			put("app", {{"app:flag", detent::IntDef{100}, {}, {}}});
+			put("app", {{"app:flag", detent::KnobDef{100}, {}, {}}});
 			const auto bytes = encode(encoder);
 			check(bytes == oracle(frozen) && encoder.encoded_length() == bytes.size());
 			d::SnapshotDecoder decoder(frozen, {"app", "app2"});
@@ -136,7 +139,7 @@ int main() {
 			}
 			auto decoded = decoder.finish();
 			check(decoded.records().size() == 2 &&
-				  decoded.overrides(std::get<d::WireBoolDef>(decoded.records()[0].definition)).size() == 2);
+				  decoded.overrides(decoded.records()[0].definition).size() == 2);
 		}
 		capture->retire();
 		while (capture->reclamation_pending()) {
@@ -149,7 +152,7 @@ int main() {
 			std::vector<a::Mutation> mutations;
 			for (unsigned i = 0; i < 128; ++i)
 				mutations.push_back({"app:" + std::string(90, 'x') + std::to_string(batch * 128 + i),
-									 detent::IntDef{i},
+									 detent::KnobDef{i},
 									 {},
 									 {}});
 			put("app", std::move(mutations));

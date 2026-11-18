@@ -4,8 +4,9 @@
   first_read.py prepare --old BUILD --new BUILD --source AGENT_DIR --ca CA.pem --work DIR
   first_read.py measure --old BUILD --new BUILD --work DIR --cases CASES.json --rounds 5
 
-`prepare` clones the saved store once per arm (`cp -cR`), runs that arm's detent-agent against the clone until
-"managed local store ready" (the agent publishes the prepared reader metadata) and stops it. `measure` then
+`prepare` clones the saved agent store once per arm (`cp -cR`), runs that arm's detent-agent
+against the clone until "managed local store ready" (startup checks the table's entry and its
+`.read` and `.live`) and stops it. `measure` then
 reads each case in a fresh process: a warmup process, then the measured one, for the old probe on the old
 store (A), the new probe on the new store (B) and the old probe on the old store again (AA). The three arms
 rotate their order for every case. Each round writes one file per arm, `DIR/series/{a,b,aa}/run-RRR.txt`, of rows
@@ -49,8 +50,8 @@ def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> N
         raise SystemExit(f"{arm} exists; remove it first")
     arm.mkdir(parents=True)
     subprocess.run(["cp", "-cR", str(source / "generations"), str(arm / "generations")], check=True)
-    if any((arm / "generations").glob("*.read")):
-        raise SystemExit("the saved store already holds prepared metadata")
+    if not (arm / "generations" / "selected").is_file():
+        raise SystemExit("the saved directory is not an agent store: it has no table")
     managed = json.loads((source / "managed.json").read_text())
     managed["ca"] = str(ca.absolute())
     managed.pop("image_format", None)

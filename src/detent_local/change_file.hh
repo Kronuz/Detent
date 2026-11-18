@@ -29,7 +29,8 @@ class ChangeWriter {
   public:
 	// Opens `change` in the store directory, creating it with `mode` when absent, and grows it to
 	// hold `slots` sequences. Refuses a file not owned by `owner`, linked twice, group or other
-	// writable, or not a whole number of words.
+	// writable, or not a whole number of words. One shorter than a word was cut short at its creation
+	// and is extended.
 	ChangeWriter(int directory, std::size_t slots, uid_t owner, unsigned mode);
 	~ChangeWriter();
 	ChangeWriter(const ChangeWriter &) = delete;

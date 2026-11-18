@@ -1,8 +1,11 @@
 #pragma once
+#include <atomic>
 #include "../detent_cli/config.hh"
 #include "detent/owner_loop.hh"
+#include "detent_distribution/grants.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
+#include "namespace_sessions.hh"
 #include "node.hh"
 #include "subscription.hh"
 #include "subscription_admission.hh"
@@ -20,12 +23,15 @@
 #include <set>
 
 namespace detent::authority {
+class LayoutExport;
 struct Credential {
 	std::string token, producer;
+	// W13 patterns: exact names, whole-component prefixes `p.*` and `*`.
 	std::set<std::string> namespaces;
 	std::string principal;
 	std::uint64_t policy_epoch = 1;
 	bool publish = true;
+	distribution::NamespaceGrants grants; // The service builds it from `namespaces`.
 };
 struct ServiceOptions {
 	NodeOptions node;
@@ -64,6 +70,11 @@ class Service final : public http::HttpHandler {
 	void drain();
 	// The runtime's loop; its D15 phases belong to the process.
 	[[nodiscard]] detent::OwnerLoop &owner() noexcept { return owner_; }
+	// Whether this node leads or follows a known leader: health reports ready only then, and
+	// /v2/open is accepted once it holds. Set after health is published, so health never lags it.
+	[[nodiscard]] bool has_leader() const noexcept { return leader_known_.load(std::memory_order_acquire); }
+	// Why the runtime stopped after admission (the exception's text), or nothing while it runs.
+	[[nodiscard]] std::optional<std::string> failure() const;
 
   private:
 	struct ReplyAdmission;
@@ -72,13 +83,25 @@ class Service final : public http::HttpHandler {
 		std::string body;
 		bool enveloped = false;
 		std::shared_ptr<ReplyAdmission> reservation;
+		// A binary body (a relay's layouts or history file) is never enveloped.
+		std::string_view content_type = "application/json";
 	};
 	struct Admission;
 	struct Runtime;
 	struct Accounting;
 	struct Delivery;
 	struct Task {
-		enum class Kind { Command, Read, Result, Distribution, SessionOpen, SessionNext, SessionClose } kind;
+		enum class Kind {
+			Command,
+			Read,
+			Result,
+			Distribution,
+			SessionOpen,
+			SessionNext,
+			SessionClose,
+			HistoryLayouts, // W8: a relay reads layouts and files by name, answered from this voter's history
+			HistoryFile
+		} kind;
 		std::shared_ptr<Delivery> delivery;
 		std::shared_ptr<const AuthorizedScope> retiring_scope;
 		std::shared_ptr<Admission> admission;
@@ -104,15 +127,26 @@ class Service final : public http::HttpHandler {
 		std::optional<Reply> outcome;
 		std::chrono::steady_clock::time_point deadline;
 		std::chrono::steady_clock::time_point poll_deadline;
+		// W5 (version 2): the followed namespaces and their stores, `all`'s directory cursor, and
+		// the group revision of the last look for changes.
+		bool frames = false, bound = false, compressed = false;
+		std::vector<std::pair<std::string, std::optional<distribution::NamespaceCursor>>> follows;
+		std::optional<distribution::DirectoryCursor> all;
+		std::uint64_t looked = UINT64_MAX;
+		SessionPrincipal frames_principal;
+		std::optional<Reply> refused;
 	};
 	ServiceOptions options_;
 	std::shared_ptr<Accounting> accounting_;
-	std::mutex mutex_;
+	mutable std::mutex mutex_;
 	std::deque<std::shared_ptr<Task>> queue_;
 	std::deque<std::shared_ptr<Task>> subscription_queue_;
 	std::deque<std::shared_ptr<Task>> subscription_close_queue_;
+	std::deque<std::shared_ptr<Task>> frames_queue_;
 	std::set<std::string> busy_producers_;
 	bool stopping_ = false;
+	std::optional<std::string> failure_;
+	std::atomic<bool> leader_known_{false};
 	std::string health_ = "{}";
 	std::shared_ptr<const reactor::ConnectionAdmission> connections_;
 	std::chrono::steady_clock::time_point health_stamp_{};
@@ -122,6 +156,7 @@ class Service final : public http::HttpHandler {
 	task::task<void> run(std::promise<void> ready);
 	void distribute(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
 	void subscription(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
+	void frames_request(const distribution_http::SessionRequest &, http::ResponseWriter &, std::shared_ptr<Task>);
 	struct Extension;
 	struct Outcome;
 	struct Prepared;
@@ -135,6 +170,7 @@ class Service final : public http::HttpHandler {
 	void enqueue(const std::shared_ptr<Task> &task);
 	Outcome reply_for(Task &task, task::cancel_reason why);
 	Reply enveloped(Reply reply) const;
+	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum);
 	// Answers a submitted request through an owned stream that keeps the connection (D8).
 	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
 					 std::chrono::steady_clock::time_point outcome_deadline);

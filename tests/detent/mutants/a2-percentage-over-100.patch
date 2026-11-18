@@ -1,0 +1,17 @@
+diff --git a/include/detent/model.hh b/include/detent/model.hh
+index 786f5295..b659b6eb 100644
+--- a/include/detent/model.hh
++++ b/include/detent/model.hh
+@@ -37,12 +37,8 @@ struct KnobDef {
+ // without a percentage, or a percentage without a rollout value. Keys are checked by callers.
+ [[nodiscard]] inline const char* definition_error(const KnobDef& definition) noexcept {
+ 	bool ramped = definition.rollout_pct.has_value();
+-	if (ramped && *definition.rollout_pct > 100)
+-		return "rollout_pct out of range";
+ 	for (const auto& [key, value] : definition.overrides)
+ 		if (const auto* rollout = std::get_if<GroupRollout>(&value)) {
+-			if (rollout->rollout_pct > 100)
+-				return "group rollout_pct out of range";
+ 			ramped = true;
+ 		}
+ 	if (ramped != definition.rollout_value.has_value())

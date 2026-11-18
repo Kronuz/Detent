@@ -16,8 +16,8 @@ void operator delete[](void* pointer) noexcept { if (pointer) --live_allocations
 void operator delete(void* pointer, std::size_t) noexcept { if (pointer) --live_allocations; std::free(pointer); }
 void operator delete[](void* pointer, std::size_t) noexcept { if (pointer) --live_allocations; std::free(pointer); }
 __attribute__((noinline)) int exercise() {
-    detent::BoolDef definition;
-    definition.overrides.emplace("canary", true);
+    detent::KnobDef definition;
+    definition.overrides.emplace("canary", std::int64_t{1});
     detent::SnapshotPatch patch;
     patch.knobs.try_emplace("test:one", definition);
     allocation_budget = 1;

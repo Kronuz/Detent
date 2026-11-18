@@ -23,6 +23,12 @@ class GenerationWriter {
 	std::uint64_t publish(const Snapshot &knobs);
 	// Same, from the defaults-file JSON the authority parses ({"schema_version":1,"knobs":{...}}).
 	std::uint64_t publish_json(std::string_view json);
+	// Repairs the head: publishes these knobs again at the head's own revision as a fresh generation that
+	// shares no pack with it and is recovered without reading it. The knobs are the head's content, which the
+	// caller holds; nothing checks that they equal it. Returns the revision, unchanged.
+	std::uint64_t repair_json(std::string_view json);
+	// Runs the collector: removes the generations and packs nothing reaches (no reader holds a lease on them).
+	void collect();
 	// Maintenance publications on the current head, through the agent's own delta and compaction builders.
 	// `publish_delta` applies one transaction to one namespace: each upsert sets an int knob and each name in
 	// `removals` deletes one (all names are "namespace:name"); `scope` is every namespace of the store, sorted.

@@ -1,36 +1,22 @@
+#include "dense_fixture.hh"
 #include "paged_root_prefix.hh"
-#include "paged_snapshot_builder.hh"
-#include "snapshot_fixture.hh"
-namespace l = detent::local;
-namespace p = l::paged;
-template <class Call> void rejects(Call call) {
-	try {
-		call();
-	} catch (const std::invalid_argument &) {
-		return;
-	}
-	throw std::runtime_error("inconsistent root prefix accepted");
-}
+#include <iostream>
+using namespace dense_test;
 int main() {
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
-	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
-	while (!builder.done()) {
-		l::ValidationBudget budget;
-		builder.step(budget);
-	}
-	auto image = builder.take();
-	const auto encoded = p::encode_root(image.root());
+	auto root = empty_root();
+	const auto page = watermark();
+	root.namespaces = root.pages = root.segments = 1;
+	root.bytes = page.size();
+	root.tree = reference(page);
+	const auto encoded = p::encode_root(root, p::Limits{});
 	for (std::size_t n = 0; n <= encoded.size(); ++n) {
 		const auto scope = l::detail::validate_paged_root_prefix(std::span(encoded).first(n));
 		require(bool(scope) == (n >= 160));
 		if (scope)
-			require(scope->first == image.root().cursor && scope->second == image.root().profile);
+			require(scope->first == root.cursor && scope->second == root.profile);
 	}
 	for (const auto offset :
-		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 144u, 147u, 148u, 151u, 152u, 158u, 280u, 319u}) {
+		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 144u, 147u, 148u, 151u, 152u, 158u, 205u, 207u, 228u, 319u}) {
 		auto changed = encoded;
 		changed[offset] ^= 1;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(offset + 1)); });
@@ -40,9 +26,9 @@ int main() {
 		changed[159] = 2;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(160)); });
 	}
-	for (const auto identity : {64u, 80u, 96u, 112u, 160u, 184u, 216u}) {
+	for (const auto identity : {64u, 80u, 96u, 112u, 160u, 208u}) {
 		auto changed = encoded;
-		const auto size = identity == 112 || identity >= 184 ? 32u : 16u;
+		const auto size = identity == 112 || identity == 160 ? 32u : 16u;
 		std::fill_n(changed.begin() + identity, size, 0);
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(identity + size)); });
 	}
@@ -53,33 +39,51 @@ int main() {
 	}
 	{
 		auto changed = encoded;
-		changed[179] |= 1;
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(180)); });
+		changed[227] |= 1;
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(228)); });
 		changed = encoded;
-		l::write_integer(changed, 180, p::page_bytes + 1, 4);
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(184)); });
+		l::write_integer(changed, 224, 0x01000000, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(225)); });
 		changed = encoded;
-		changed[248] ^= 1;
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(249)); });
+		l::write_integer(changed, 200, 0x01000000, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(201)); });
+		changed = encoded;
+		l::write_integer(changed, 200, p::minimum_page_bytes - 1, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(204)); });
+		changed = encoded;
+		l::write_integer(changed, 192, 2, 8);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(200)); });
+		changed = encoded;
+		changed[204] = 0;
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(205)); });
+		changed = encoded;
+		changed[7] = '2';
+		changed[11] = 2;
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(16)); });
 	}
-	p::Root empty;
-	empty.cursor = cursor();
-	empty.logical = p::empty_commitment();
-	const auto blank = p::encode_root(empty);
+	const auto blank = p::encode_root(empty_root(), p::Limits{});
 	for (std::size_t n = 0; n <= blank.size(); ++n)
 		l::detail::validate_paged_root_prefix(std::span(blank).first(n));
-	for (const auto offset : {16u, 24u, 28u, 40u, 160u, 247u, 248u, 279u}) {
+	for (const auto offset : {16u, 24u, 28u, 40u, 160u, 204u, 208u, 227u, 228u, 248u, 319u}) {
 		auto changed = blank;
 		changed[offset] ^= 1;
 		rejects([&] {
 			l::detail::validate_paged_root_prefix(std::span(changed).first(std::max(48u, offset + 1)));
 		});
 	}
-	auto oversized = image.root();
+	{
+		auto dense = root;
+		dense.records = 10;
+		dense.tree.keys = 11;
+		dense.bytes = dense.tree.length = 1024;
+		const auto bytes = p::encode_root(dense, p::Limits{});
+		for (std::size_t n = 0; n <= bytes.size(); ++n)
+			l::detail::validate_paged_root_prefix(std::span(bytes).first(n));
+	}
+	auto oversized = root;
 	oversized.bytes = 512ull * 1024 * 1024;
 	const auto larger = p::encode_root(oversized, l::detail::paged_format_limits());
 	l::detail::validate_paged_root_prefix(larger);
 	require(p::decode_root(larger, l::detail::paged_format_limits()).bytes == oversized.bytes);
-	std::cout
-		<< "all root truncations, visible contradictions, empty roots and quota-independent framing passed\n";
+	std::cout << "dense root prefixes: all truncations, summaries, empty roots, reserved bytes and old-format refusal passed\n";
 }

@@ -35,7 +35,7 @@ Command open() {
 	command.nonce[0] = 'n';
 	return command;
 }
-Command transaction(std::size_t count, const BoolDef &definition) {
+Command transaction(std::size_t count, const KnobDef &definition) {
 	Command command;
 	command.context = context();
 	command.producer = "writer";
@@ -46,7 +46,7 @@ Command transaction(std::size_t count, const BoolDef &definition) {
 	return command;
 }
 Command heavy(std::size_t count) {
-	BoolDef definition;
+	KnobDef definition;
 	std::optional<Command> last;
 	for (std::size_t i = 0; i <= Limits{}.overrides; ++i) {
 		auto command = transaction(count, definition);
@@ -57,6 +57,7 @@ Command heavy(std::size_t count) {
 		}
 		last = std::move(command);
 		definition.overrides["group" + std::to_string(i) + std::string(40, 'x')] = GroupRollout{25};
+		definition.rollout_value = 1;
 	}
 	check(last.has_value(), "heavy command fits");
 	return std::move(*last);
@@ -89,10 +90,10 @@ Sample run(Scenario scenario, const Command &prototype) {
 		expected = Status::Capacity;
 	} else if (scenario == Scenario::ReceiptHeavy) {
 		for (std::uint64_t sequence = 1; sequence <= limits.results; ++sequence) {
-			auto small = transaction(1, BoolDef{});
+			auto small = transaction(1, KnobDef{});
 			small.sequence = sequence;
 			small.mutations.front().key = "ns:receipt_seed";
-			std::get<BoolDef>(*small.mutations.front().value).default_value = sequence & 1;
+			small.mutations.front().value->default_value = sequence & 1;
 			check(source.apply(sequence + 1, small).status == Status::Applied, "receipt seed applied");
 		}
 		command.sequence = limits.results + 1;
@@ -137,7 +138,7 @@ int main() {
 				auto timing = run(static_cast<Scenario>(scenario), command);
 				std::printf("%s,%zu,%zu,%zu,%u,%.6f,%.6f,%.6f,%.6f\n", names[scenario], timing.command_bytes,
 							command.mutations.size(),
-							std::get<BoolDef>(*command.mutations.front().value).overrides.size(), sample,
+							command.mutations.front().value->overrides.size(), sample,
 							timing.decode_ms, timing.digest_ms, timing.apply_ms, timing.cleanup_max_ms);
 			}
 		}

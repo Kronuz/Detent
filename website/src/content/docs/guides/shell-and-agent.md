@@ -38,9 +38,9 @@ agent stopped.
 detent get search:max_results
 # 25
 detent get payments:new_processor --hash user-42
-# true
+# 1
 detent get payments:new_processor --hash user-2 --switch employees
-# true
+# 1
 ```
 
 With `--managed PRIVATE_CONFIG` (or `managed_path` in `agent.json`), the first
@@ -50,14 +50,14 @@ With neither `--managed` nor `--generation-dir` configured, `get` fails with
 
 | Exit status | Meaning |
 | --- | --- |
-| `0` | The value was printed to stdout (`true`, `false` or an integer) |
+| `0` | The value was printed to stdout as a decimal integer |
 | `1` | The knob couldn't be read; the reason is printed, e.g. `ERR MissingKnob: checkout:nope (not present in current snapshot)` |
 
 For scripts that must keep going, `--default` supplies a fallback for that one
 read:
 
 ```sh
-if [ "$(detent get checkout:new_path --default false)" = true ]; then
+if [ "$(detent get checkout:new_path --default 0)" = 1 ]; then
   run_new_path
 fi
 ```
@@ -88,7 +88,7 @@ covers `managed.json`.
 
 ### Local Defaults
 
-An optional `defaults.json` next to `agent.json` gives `detent get` typed
+An optional `defaults.json` next to `agent.json` gives `detent get`
 fallback knobs while no generation has arrived, and for knobs a generation
 doesn't contain:
 

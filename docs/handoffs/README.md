@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Release blocker handoffs
 
 **Date:** 2026-10-23. Detent is in Stage 6, release qualification. Each linked brief is self-contained: it includes priority, repository links, source paths, dependencies and release-unblocking criteria. Share the individual file; this index is optional. Generic library contracts remain independent of application semantics.

@@ -15,9 +15,9 @@ void check(bool value, int line) {
 }
 #define CHECK(value) check(value, __LINE__)
 std::string knobs(std::int64_t rev, bool flag) {
-	return R"({"schema_version":1,"knobs":{"t:rev":{"type":"int","default":)" + std::to_string(rev) +
-	       R"(},"t:flag":{"type":"bool","default":)" + (flag ? "true" : "false") +
-	       R"(,"overrides":{"vip":true}},"u:ramp":{"type":"bool","default":false,"rollout_pct":100}}})";
+	return R"({"schema_version":1,"knobs":{"t:rev":{"default":)" + std::to_string(rev) +
+	       R"(},"t:flag":{"default":)" + (flag ? "1" : "0") +
+	       R"(,"overrides":{"vip":1}},"u:ramp":{"default":0,"rollout_pct":100,"rollout_value":1}}})";
 }
 } // namespace
 int main() {
@@ -34,16 +34,16 @@ int main() {
 		CHECK(writer.publish_json(knobs(1, false)) == 1);
 		auto seen = x::PreparedReader::open(writer.store(), ::getuid(), {});
 		CHECK(seen.view.get("t", "rev").value() == 1);
-		CHECK(seen.view.eval("t", "flag").value() == false);
-		CHECK(seen.view.eval("t", "flag", std::nullopt, std::string_view("vip")).value() == true);
-		CHECK(seen.view.eval("u", "ramp", std::string_view("anyone")).value() == true);
+		CHECK(seen.view.get("t", "flag").value() == 0);
+		CHECK(seen.view.get("t", "flag", std::nullopt, std::string_view("vip")).value() == 1);
+		CHECK(seen.view.get("u", "ramp", std::string_view("anyone")).value() == 1);
 		CHECK(!seen.view.get("t", "absent").has_value());
 		// Each publication is a new real generation; an attached view keeps its own.
 		for (std::int64_t rev = 2; rev != 7; ++rev) {
 			CHECK(writer.publish_json(knobs(rev, rev % 2 == 0)) == std::uint64_t(rev));
 			auto next = x::PreparedReader::open(writer.store(), ::getuid(), {});
 			CHECK(next.view.get("t", "rev").value() == rev);
-			CHECK(next.view.eval("t", "flag").value() == (rev % 2 == 0));
+			CHECK(next.view.get("t", "flag").value() == (rev % 2 == 0 ? 1 : 0));
 			CHECK(next.descriptor.cursor.revision == std::uint64_t(rev));
 			CHECK(seen.view.get("t", "rev").value() == 1);
 		}

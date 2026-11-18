@@ -2,29 +2,29 @@
 title: "Read Path"
 ---
 
-The read path is the code that runs every time your application calls `eval`
-or `get`. Its contract is strict: no network call, file read, mutex, sleep,
+The read path is the code that runs every time your application calls `get`
+or `get_as`. Its contract is strict: no network call, file read, mutex, sleep,
 retry, logging I/O or heap allocation in steady state.
 
 ---
 
 ## Step by Step
 
-```d2 alt="eval and get validate the name, check the CLI override table, load the snapshot pointer atomically, look the knob up in a B-tree, then type-check and evaluate, hashing only when a rollout applies"
+```d2 alt="get and get_as validate the name, check the CLI override table, load the snapshot pointer atomically, look the knob up in a sorted map, then evaluate, hashing only when a rollout applies"
 direction: down
-app: "client.eval() / client.get()"
+app: "client.get() / client.get_as()"
 validate: "validate name\n(character table, no allocation)"
 override: "CLI override lookup\n(one null check when unset)"
 overrides: "OverrideTable\n(immutable after init)" {shape: cylinder}
 load: "SnapshotRef::load()\n(one atomic acquire)"
 snap: "current Snapshot\n(immutable)" {shape: cylinder}
-lookup: "B-tree lookup\n(heterogeneous, string_view key)"
-eval: "type check + precedence\n(group > rollout > default)"
+lookup: "flat_map lookup\n(heterogeneous, string_view key)"
+evaluate: "precedence\n(group > rollout > default)"
 hash: "stable_bucket()\n(SHA-256)"
-app -> validate -> override -> load -> lookup -> eval
+app -> validate -> override -> load -> lookup -> evaluate
 override -> overrides: read
 load -> snap: read
-eval -> hash: "only if a rollout applies\nand hash_val is present"
+evaluate -> hash: "only if a percentage applies\nand hash_val is present"
 ```
 
 1. **Validate the name** against the knob-name character rules with a constant
@@ -39,7 +39,8 @@ eval -> hash: "only if a rollout applies\nand hash_val is present"
    comparison, so the `std::string_view` name is used directly without
    building a `std::string`.
 5. **Evaluate** with the [precedence rules](/Detent/reference/evaluation/).
-   Only a rollout with a hash value pays for SHA-256.
+   Only a percentage with a hash value pays for SHA-256. `get_as<T>` then
+   range-checks the `int64` into `T`.
 6. **Count** the outcome in a relaxed atomic counter and return.
 
 ---

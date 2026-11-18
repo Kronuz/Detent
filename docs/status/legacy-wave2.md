@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) ledger of legacy removal wave 2, steps B to G; H waits on the owner (see Step H).
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) ledger of legacy removal wave 2, steps B to G; H waits on the owner (see Step H).
 
 # legacy-wave2
 

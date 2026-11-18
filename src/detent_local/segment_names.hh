@@ -6,7 +6,7 @@
 namespace detent::local::detail {
 enum class SegmentFile { Owner, Payload };
 struct NamedSegment {
-	StorageIdentity segment;
+	SegmentId segment;
 	SegmentFile kind;
 };
 // Canonical spelling identifies census entries, never ownership or deletion authority.
@@ -43,7 +43,7 @@ inline std::optional<NamedSegment> parse_segment_name(std::string_view name) noe
 struct SegmentNames {
 	std::array<char, 47> ownership{};
 	std::array<char, 46> payload{};
-	explicit SegmentNames(const StorageIdentity &id) {
+	explicit SegmentNames(const SegmentId &id) {
 		constexpr std::string_view prefix = "segment-";
 		constexpr char hex[] = "0123456789abcdef";
 		std::copy(prefix.begin(), prefix.end(), ownership.begin());

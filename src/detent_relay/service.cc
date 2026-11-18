@@ -6,6 +6,7 @@
 #include "detent_distribution_http/session_request.hh"
 #include <mutex>
 #include <openssl/rand.h>
+#include <rapidjson/document.h>
 
 namespace detent::relay {
 namespace d = distribution;
@@ -37,12 +38,44 @@ std::string hex(const d::Identity &identity) {
 [[noreturn]] void reject(int status, const char *body) {
 	throw http::RequestRejected(status, body, http::RejectionContent::Json);
 }
+// W8: what a downstream relay reads, answered from the mirror like the authority's own routes.
+bool history_route(std::string_view path) { return path == "/v2/history/layouts" || path == "/v2/history/file"; }
+void require(bool condition) {
+	if (!condition)
+		throw std::invalid_argument("invalid history request");
+}
+std::string member(const rapidjson::Value &object, const char *name) {
+	require(object.HasMember(name) && object[name].IsString() && object[name].GetStringLength() <= 255);
+	return {object[name].GetString(), object[name].GetStringLength()};
+}
+// `{"namespaces": [...]}` or `{"namespace": ..., "name": ...}`, nothing else.
+void parse_history(std::string_view path, std::string_view body, MirrorJob &job) {
+	rapidjson::Document json;
+	json.Parse<rapidjson::kParseValidateEncodingFlag>(body.data(), body.size());
+	require(!json.HasParseError() && json.IsObject());
+	if (path == "/v2/history/layouts") {
+		require(json.MemberCount() == 1 && json.HasMember("namespaces") && json["namespaces"].IsArray() &&
+				json["namespaces"].Size() && json["namespaces"].Size() <= 4096);
+		job.kind = MirrorJob::Kind::Layouts;
+		for (const auto &name : json["namespaces"].GetArray()) {
+			require(name.IsString() && d::valid_namespace_name({name.GetString(), name.GetStringLength()}));
+			job.positions.push_back({{name.GetString(), name.GetStringLength()}, std::nullopt});
+		}
+		return;
+	}
+	require(json.MemberCount() == 2);
+	job.kind = MirrorJob::Kind::File;
+	job.name_space = member(json, "namespace");
+	job.name = member(json, "name");
+	require(d::valid_namespace_name(job.name_space) && !job.name.empty());
+}
 } // namespace
 struct ServiceRuntime::Impl {
 	struct Admission {
 		SessionAuthorization authorization;
 		h::RequestKind kind;
 		std::shared_ptr<d::SubscriptionRequests::Lease> lease;
+		bool history = false; // a history route, admitted on the opens lane
 	};
 	struct Task : h::OwnedReplyPump {
 		std::shared_ptr<Admission> admission;
@@ -57,6 +90,7 @@ struct ServiceRuntime::Impl {
 		std::optional<d::SubscriptionOfferToken> offer;
 		d::RetirementHandle<d::EncodedUpdate> update;
 		std::shared_ptr<const d::OwnedBuffer> pending;
+		std::shared_ptr<MirrorJob> job; // version 2 and history routes: the mirror answers
 	};
 	struct Lane {
 		d::SubscriptionRequests admission;
@@ -78,6 +112,7 @@ struct ServiceRuntime::Impl {
 	ServiceAccounts accounts;
 	std::shared_ptr<const Registry> registry;
 	ServiceLimits limits;
+	std::shared_ptr<MirrorService> mirror;
 	Sessions sessions;
 	std::vector<SessionBinding, d::StorageAllocator<SessionBinding>> bindings;
 	std::array<d::StorageOwner<Lane>, 3> lanes;
@@ -87,8 +122,8 @@ struct ServiceRuntime::Impl {
 	bool closed_sessions = false;
 	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
 	Impl(ServiceAccounts storage, std::shared_ptr<const Registry> authorization,
-		 std::span<const SessionBinding> configured, ServiceLimits bounds)
-		: accounts(std::move(storage)), registry(std::move(authorization)), limits(bounds),
+		 std::span<const SessionBinding> configured, ServiceLimits bounds, std::shared_ptr<MirrorService> namespaces)
+		: accounts(std::move(storage)), registry(std::move(authorization)), limits(bounds), mirror(std::move(namespaces)),
 		  sessions(accounts.metadata, configured, limits.sessions),
 		  bindings(d::StorageAllocator<SessionBinding>(accounts.metadata)) {
 		if (!registry || !limits.bootstrap_transfers || !limits.catchup_transfers ||
@@ -104,7 +139,8 @@ struct ServiceRuntime::Impl {
 		}
 	}
 	std::shared_ptr<Admission> admit(const http::Request &request) {
-		const auto kind = h::classify_session_route(request.path);
+		const bool history = mirror && history_route(request.path);
+		const auto kind = history ? std::optional(h::RequestKind::Open) : h::classify_session_route(request.path);
 		if (request.method != "POST" || !kind || *kind == h::RequestKind::Distribution)
 			reject(404, "{\"error\":\"not_found\"}");
 		const auto *authorization = registry->authenticate(request.header("Authorization"));
@@ -122,6 +158,7 @@ struct ServiceRuntime::Impl {
 		result->authorization = *authorization;
 		result->kind = *kind;
 		result->lease = std::move(lease);
+		result->history = history;
 		return result;
 	}
 	void control(Task &task, int status, std::string_view body) noexcept {
@@ -162,7 +199,41 @@ struct ServiceRuntime::Impl {
 		}
 		control(task, status, body);
 	}
+	// A mirror's answer: a control reply, or its chunks streamed in order.
+	void stream_job(Task &task) {
+		auto &reply = task.job->reply;
+		if (!task.started) {
+			if (reply.chunks.empty()) {
+				control(task, reply.status, reply.body);
+				return;
+			}
+			http::Response metadata;
+			metadata.status = reply.status;
+			metadata.content_type = reply.content_type;
+			for (const auto &[name, value] : reply.headers)
+				metadata.headers.emplace_back(name, value);
+			if (task.reply->start_chunked(metadata, true) != http::StreamSubmit::Accepted)
+				throw std::runtime_error("relay stream closed");
+			task.started = true;
+		}
+		if (!task.pending && task.frame < reply.chunks.size() && task.writable.load())
+			task.pending = reply.chunks[task.frame];
+		if (task.pending) {
+			const auto result = task.publish(task.pending);
+			if (result == http::StreamSubmit::Accepted)
+				++task.frame;
+			else if (result != http::StreamSubmit::Busy)
+				throw std::runtime_error("relay stream refused frame");
+		}
+		if (task.frame == reply.chunks.size() && !task.pending) {
+			if (task.reply->finish() != http::StreamSubmit::Accepted)
+				throw std::runtime_error("relay stream refused finish");
+			task.completed = true;
+		}
+	}
 	bool advance(Task &task, Clock::time_point now) {
+		if (task.job && task.settled.load())
+			task.job->abandoned.store(true);
 		if (task.settled.load()) {
 			if (task.offer)
 				sessions.settle(*task.offer, task.written.load());
@@ -180,6 +251,11 @@ struct ServiceRuntime::Impl {
 		}
 		if (task.completed) {
 			task.pump_control();
+			return false;
+		}
+		if (task.job) {
+			if (task.job->done.load(std::memory_order_acquire))
+				stream_job(task);
 			return false;
 		}
 		const auto &authorization = task.admission->authorization;
@@ -272,11 +348,12 @@ struct ServiceRuntime::Impl {
 	}
 };
 ServiceRuntime::ServiceRuntime(ServiceAccounts accounts, std::shared_ptr<const Registry> registry,
-							   std::span<const SessionBinding> bindings, ServiceLimits limits) {
+							   std::span<const SessionBinding> bindings, ServiceLimits limits,
+							   std::shared_ptr<MirrorService> mirror) {
 	if (!accounts.metadata)
 		throw std::invalid_argument("relay service metadata account");
 	impl_ = d::make_storage_owner<Impl>(accounts.metadata, std::malloc, std::free, accounts,
-										std::move(registry), bindings, limits);
+										std::move(registry), bindings, limits, std::move(mirror));
 }
 ServiceRuntime::~ServiceRuntime() = default;
 void ServiceRuntime::close() noexcept {
@@ -417,30 +494,55 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	auto admission = request.ext<Extension>().admission;
 	const auto index = ordinal(admission->kind);
 	const auto account = p.accounts.requests[index];
-	auto parsed = h::parse_session_request(
-		account, admission->kind, admission->lease->body().view(),
-		{p.lanes[index]->admission.body_limit(static_cast<d::SubscriptionRequestKind>(index)), 4096, 30000});
-	const auto &command = parsed->request();
 	auto task = std::allocate_shared<ServiceRuntime::Impl::Task>(
 		d::StorageAllocator<ServiceRuntime::Impl::Task>(account));
-	task->admission = std::move(admission);
-	task->session = command.session;
-	task->base = command.base;
-	task->published = command.published;
-	task->after = command.after;
-	task->force_snapshot = command.force_snapshot;
-	task->compression = command.compressed;
-	task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
 	task->deadline = Clock::now() + std::chrono::seconds(60);
-	if (command.kind == h::RequestKind::Open) {
-		const auto binding =
-			p.registry->resolve(task->admission->authorization, command.identity, command.namespaces);
-		if (!binding)
-			reject(403, "{\"error\":\"scope_forbidden\"}");
-		task->binding = *binding;
-		if (RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) != 1)
-			throw std::runtime_error("relay session entropy");
+	if (admission->history) {
+		task->job = std::make_shared<MirrorJob>();
+		parse_history(request.path, admission->lease->body().view(), *task->job);
+	} else {
+		auto parsed = h::parse_session_request(
+			account, admission->kind, admission->lease->body().view(),
+			{p.lanes[index]->admission.body_limit(static_cast<d::SubscriptionRequestKind>(index)), 4096, 30000});
+		const auto &command = parsed->request();
+		if (command.version == 2) {
+			// W5 from the mirror; version 1 stays with the bundles.
+			if (!p.mirror)
+				reject(404, "{\"error\":\"not_found\"}");
+			auto job = std::make_shared<MirrorJob>();
+			job->kind = command.kind == h::RequestKind::Open	? MirrorJob::Kind::Open
+						: command.kind == h::RequestKind::Next ? MirrorJob::Kind::Next
+															   : MirrorJob::Kind::Close;
+			job->session = command.session;
+			for (const auto &position : command.positions)
+				job->positions.push_back({std::string(position.name), position.cursor});
+			job->all = command.all.has_value();
+			job->compressed = command.compressed;
+			job->wait_ms = command.wait_ms;
+			task->job = std::move(job);
+		} else {
+			task->session = command.session;
+			task->base = command.base;
+			task->published = command.published;
+			task->after = command.after;
+			task->force_snapshot = command.force_snapshot;
+			task->compression = command.compressed;
+			task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
+			if (command.kind == h::RequestKind::Open) {
+				const auto binding = p.registry->resolve(admission->authorization, command.identity, command.namespaces);
+				if (!binding)
+					reject(403, "{\"error\":\"scope_forbidden\"}");
+				task->binding = *binding;
+				if (RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) != 1)
+					throw std::runtime_error("relay session entropy");
+			}
+		}
 	}
+	if (task->job) {
+		task->job->principal = admission->authorization.principal;
+		task->job->grants = admission->authorization.namespaces;
+	}
+	task->admission = std::move(admission);
 	http::StreamOptions stream;
 	stream.resource = p.lanes[index]->resource;
 	stream.reply.deadline = task->deadline + std::chrono::seconds(1);
@@ -456,6 +558,8 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	if (!p.closing.load() && !lane.free.empty()) {
 		const auto slot = lane.free.back();
 		lane.free.pop_back();
+		if (auto job = task->job)
+			p.mirror->submit(std::move(job));
 		lane.slots[slot] = std::move(task);
 		co_return;
 	}

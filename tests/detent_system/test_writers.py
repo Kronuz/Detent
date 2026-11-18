@@ -114,7 +114,7 @@ class WriterTests(unittest.IsolatedAsyncioTestCase):
         writers = Writers(authority, 1, 1, 17)
         self.assertTrue(
             await writers.transaction(
-                0, [{"key": "load0:key0", "value": {"type": "int", "default": 7}}]
+                0, [{"key": "load0:key0", "value": {"default": 7}}]
             )
         )
         self.assertEqual(authority.commands[0], authority.commands[1])

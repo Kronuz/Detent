@@ -1,0 +1,5 @@
+# Broken internal links the pages still carry, one per line: PAGE HREF -- reason. check_links.py fails
+# on a broken link not listed here and on a listed link that resolves, so the area quests delete a line
+# when they fix the page.
+/ #_top -- the splash home renders no #_top anchor (website/src/components/PageTitle.astro skips it); the site-wide fix is a one-line span
+/guides/durable-relay managed-delivery.md -- relative .md link; the page needs /Detent/guides/managed-delivery/

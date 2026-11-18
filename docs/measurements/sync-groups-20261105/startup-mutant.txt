@@ -1,0 +1,4 @@
+window 1: 37 publication primitives, 127 events, files 7, groups 7, directory syncs 8, device flushes 8
+window 2: 34 publication primitives, 118 events, files 7, groups 4, directory syncs 5, device flushes 5
+window 128: 32 publication primitives, 112 events, files 7, groups 2, directory syncs 3, device flushes 3
+5493 power-cut and restart cases over 103 publication primitives passed

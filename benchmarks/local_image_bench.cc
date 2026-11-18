@@ -3,6 +3,7 @@
 #include "detent_local/reader.hh"
 #include "local_corpus.hh"
 #include "storage_metrics.hh"
+#include "trusted_records.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -55,9 +56,7 @@ int main(int argc, char **argv) {
 		auto source = std::make_shared<d::ValidatedSnapshot>(decoder.finish());
 		auto charged = charged_storage(*source);
 		auto decoded = Clock::now();
-		l::GenerationId generation;
-		generation.fill('a');
-		l::ImageBuilder builder(source, generation);
+		l::ImageBuilder builder(source);
 		std::uint64_t turns = 0;
 		std::int64_t maximum_turn = 0;
 		while (!builder.done()) {
@@ -104,19 +103,7 @@ int main(int argc, char **argv) {
 							 ("local-image-refresh-" + std::to_string(::getpid()));
 			std::filesystem::create_directories(directory);
 			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-			auto write = [&](const auto &path, std::span<const char> contents) {
-				std::ofstream output(path, std::ios::binary | std::ios::trunc);
-				output.write(contents.data(), contents.size());
-				output.close();
-				if (!output)
-					throw std::runtime_error("benchmark fixture write failed");
-				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
-													   std::filesystem::perms::owner_write);
-			};
-			auto name = l::generation_name(generation);
-			write(directory / (name + ".image"), *bytes);
-			write(directory / (name + ".lease"), {});
-			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			trusted_records::install(directory, builder.descriptor(), {bytes->data(), bytes->size()});
 			{
 				l::GenerationReader reader(directory);
 				if (!reader.refresh())

@@ -12,12 +12,11 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		target_ = plan.descriptor();
 		base_ = plan.selected_base();
 		directory_ = plan.directory_identity();
-		storage_ = plan.storage_identity();
 		expected_counts_ = plan.counts();
 		if (plan.bytes()->account() != heap_)
 			throw std::invalid_argument("mapped admission plan account mismatch");
 		warm_ = prior && prior->descriptor() == base_ &&
-				eligible_warm_recovery(prior, plan.root(), directory_, storage_, heap_, mappings_);
+				eligible_warm_recovery(prior, plan.root(), directory_, heap_, mappings_);
 		std::size_t count = plan.segments().size();
 		if (!warm_)
 			for (std::size_t i = 0; plan.registry() && i < plan.registry()->inputs().size(); ++i)
@@ -47,17 +46,17 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		limits.segments = plan.root().segments;
 		const bool progress = warm_ && reuses_paged_state(prior->root(), plan.root());
 		target_registry_ =
-			progress ? prior->registry() : factory_.make<SegmentRegistry>(heap_, storage_, limits);
+			progress ? prior->registry() : factory_.make<SegmentRegistry>(heap_, limits);
 		if (warm_ && !progress) {
 			limits.segments = plan.segments().size();
-			fresh_registry_ = factory_.make<SegmentRegistry>(heap_, storage_, limits);
+			fresh_registry_ = factory_.make<SegmentRegistry>(heap_, limits);
 			using Registry = d::RetirementHandle<SegmentRegistry>;
 			fresh_hook_ =
 				std::allocate_shared<Registry>(d::StorageAllocator<Registry>(heap_), fresh_registry_);
 		}
 		std::shared_ptr<RecoveryFile> directory(directory_hook_, &directory_control_->file);
 		capability_ = factory_.make<LeasedPagedRoot>(directory, root_hook_, target_registry_, target_,
-													 directory_, storage_, plan.root());
+													 directory_, plan.root());
 		using Capability = d::RetirementHandle<LeasedPagedRoot>;
 		capability_hook_ =
 			std::allocate_shared<Capability>(d::StorageAllocator<Capability>(heap_), capability_);

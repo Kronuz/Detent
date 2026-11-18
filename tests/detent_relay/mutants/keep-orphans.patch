@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 60105128..687ac087 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -350,7 +350,7 @@ struct MirrorStore::Impl {
+ 		rebuild();
+ 		std::vector<std::string> leftovers;
+ 		for (auto cursor = io->scan_directory(); auto name = cursor->next();)
+-			if (*name != table_name && *name != owner_name && !reached.contains(*name))
++			if (name->starts_with(temporary))
+ 				leftovers.push_back(std::move(*name));
+ 		for (const auto &name : leftovers) {
+ 			io->remove(name);

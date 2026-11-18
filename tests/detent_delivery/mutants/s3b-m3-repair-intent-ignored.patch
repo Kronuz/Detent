@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_snapshot_plan.cc b/src/detent_local/paged_snapshot_plan.cc
+index 8cbc74b0..276e66e2 100644
+--- a/src/detent_local/paged_snapshot_plan.cc
++++ b/src/detent_local/paged_snapshot_plan.cc
+@@ -51,7 +51,7 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
+ 				return;
+ 			const auto &target = validator_->image()->image().descriptor();
+ 			const auto intent = !base_										  ? PagedPlanIntent::Fresh
+-								: repair_ && target.cursor.same_identity(base_->descriptor().cursor)
++								: false && target.cursor.same_identity(base_->descriptor().cursor)
+ 									? PagedPlanIntent::Repair
+ 								: target.cursor == base_->descriptor().cursor ? PagedPlanIntent::Maintenance
+ 								: target.cursor.same_identity(base_->descriptor().cursor)

@@ -17,7 +17,7 @@ struct LazyPageTesting {
 // (docs/mechanisms/verified-page-bitmap.md). Plain ownership: destruction unmaps every segment.
 class PageTable final : public PagedPageAccess {
   public:
-	PageTable(int directory_fd, uid_t publisher, StorageIdentity, paged::Root, ViewLimits,
+	PageTable(int directory_fd, uid_t publisher, paged::Root, ViewLimits,
 	          std::shared_ptr<distribution::StorageLedger> heap,
 	          std::shared_ptr<distribution::StorageLedger> mappings);
 	~PageTable();
@@ -42,7 +42,7 @@ class PageTable final : public PagedPageAccess {
 class LazyPageAccess final : public PagedPageAccess, public distribution::RetirementNode {
   public:
 	LazyPageAccess(std::shared_ptr<const void> directory_and_lease, int directory_fd, uid_t publisher,
-	               StorageIdentity, paged::Root, ViewLimits, std::shared_ptr<distribution::StorageLedger> heap,
+	               paged::Root, ViewLimits, std::shared_ptr<distribution::StorageLedger> heap,
 	               std::shared_ptr<distribution::StorageLedger> mappings);
 	~LazyPageAccess();
 	std::span<const char> resolve(const paged::Reference &) const override;

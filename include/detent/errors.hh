@@ -4,12 +4,11 @@
 
 namespace detent {
 
-// Section 5: error model. Every failure the read/update path can produce.
+// Error model. Every failure the read/update path can produce.
 enum class ErrorCategory {
 	Uninitialized,
 	InvalidName,
 	MissingKnob,
-	WrongType,
 	ConversionFailed,
 	SourceFailure,
 };
@@ -22,7 +21,7 @@ struct KnobError {
 	[[nodiscard]] std::string what() const;
 };
 
-// Section 4/7: reasons an update/parse can be rejected. Distinct from
+// Reasons an update/parse can be rejected. Distinct from
 // KnobError, which is a *read*-path failure; this is the *update*-path one.
 enum class UpdateRejectReason {
 	Io,

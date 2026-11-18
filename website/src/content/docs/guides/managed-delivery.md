@@ -69,8 +69,7 @@ Later starts omit `--initialize-managed` and require an existing store:
 detent-agent --managed managed.json --generation-dir ./agent-state
 ```
 
-`--upgrade-managed` explicitly adopts a compatible legacy generation directory.
-Neither mode silently discards unreadable state.
+A start never silently discards unreadable state.
 
 ---
 
@@ -121,7 +120,7 @@ detent::Client client(std::move(options));
 
 auto view = client.read_view();
 auto maximum = view.get("search:max_results");
-auto enabled = view.eval("checkout:new_path", "host-42", "beta");
+auto enabled = view.get_as<bool>("checkout:new_path", "host-42", "beta");
 ```
 
 Refresh work runs on one background thread; acquiring a view and looking up

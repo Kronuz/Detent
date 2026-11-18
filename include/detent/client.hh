@@ -1,8 +1,8 @@
 #pragma once
 
-// Sections 5-9: the instance read/update API. Section 6's read-path pseudocode
-// is followed almost line for line: validate name -> check CLI override ->
-// acquire snapshot -> lookup -> type-check -> evaluate -> count -> return. No
+// The instance read/update API. The read path runs these steps in order:
+// validate name -> check CLI override ->
+// acquire snapshot -> lookup -> evaluate -> count -> return. No
 // lock, allocation, or I/O sits on that path; the only heap traffic is the
 // shared_ptr refcount bump/drop already implied by SnapshotRef::load().
 
@@ -30,13 +30,12 @@
 
 namespace detent {
 
-// Section 12: bounded-cardinality counters/gauges. No knob name, hash_val,
+// Bounded-cardinality counters/gauges. No knob name, hash_val,
 // switch_val, path, client ID, or version ever becomes a label -- these are
 // plain process-wide counters, not a metrics-library integration.
 struct Metrics {
 	std::atomic<std::uint64_t> reads_ok{0};
 	std::atomic<std::uint64_t> reads_missing{0};
-	std::atomic<std::uint64_t> reads_wrong_type{0};
 	std::atomic<std::uint64_t> reads_conversion_failed{0};
 	std::atomic<std::uint64_t> snapshot_swaps{0};
 	std::atomic<std::uint64_t> refresh_failures{0};
@@ -44,15 +43,14 @@ struct Metrics {
 	std::atomic<bool> source_connected{false};
 };
 
-// Section 12: "Health snapshot" diagnostic payload. Never exposes the live
+// Health snapshot diagnostic payload. Never exposes the live
 // map itself -- only copied metadata and counts.
 struct HealthSnapshot {
 	bool initialized = false;
 	bool source_connected = false;
 	std::uint64_t accepted_version = 0;
 	double staleness_seconds = 0.0;
-	std::size_t bool_knobs = 0;
-	std::size_t int_knobs = 0;
+	std::size_t knobs = 0;
 	std::size_t cli_overrides = 0;
 };
 
@@ -78,10 +76,10 @@ struct InitOptions {
 		bool is_patch = false;
 	};
 
-	// A generic pluggable source, the extension seam Section 10 describes for
-	// "any publisher that emits valid snapshots". Mutually exclusive with source_path (Section
-	// 11's "combining X with Y is a startup error", generalized): the client
-	// consumes exactly one KnobSource stream per instance (Section 3).
+	// A generic pluggable source, the extension seam for
+	// "any publisher that emits valid snapshots". Mutually exclusive with source_path
+	// (combining them is a startup error): the client
+	// consumes exactly one KnobSource stream per instance.
 	//
 	// Called repeatedly on the single background updater thread with the
 	// currently accepted version (so a source that can serve a diff-since-
@@ -94,7 +92,7 @@ struct InitOptions {
 	//   - throws                   -> a transport/connection failure; Client
 	//                                 counts it as a refresh failure and
 	//                                 applies full-jitter backoff before the
-	//                                 next call (Section 7's backoff rule)
+	//                                 next call
 	using SourcePoll = std::function<std::optional<SourcePayload>(std::uint64_t after_version)>;
 	std::optional<SourcePoll> source_poll;
 	std::string source_id = "file";
@@ -121,10 +119,10 @@ struct InitOptions {
 class Client {
 public:
 	// Throws std::runtime_error on invalid/missing defaults or CLI overrides
-	// (Section 9: "Fail init(); process integration SHOULD abort startup").
+	// (init fails; process integration should abort startup).
 	explicit Client(InitOptions options);
 
-	// Test-only in-memory construction (Section 5 "Test-only client"): no
+	// Test-only in-memory construction (test-only client): no
 	// file, no CLI overrides, no background updater. Used by
 	// detent::testing::TestKnobs.
 	explicit Client(Snapshot in_memory_snapshot);
@@ -134,47 +132,30 @@ public:
 	Client(const Client&) = delete;
 	Client& operator=(const Client&) = delete;
 
-	// --- Section 6/8: read path -------------------------------------------------
-	[[nodiscard]] Result<bool, KnobError> eval(
+	// --- read path -------------------------------------------------
+	[[nodiscard]] Result<std::int64_t, KnobError> get(
 		std::string_view name,
 		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const;
 
-	[[nodiscard]] Result<std::int64_t, KnobError> get(
-		std::string_view name,
-		std::optional<std::string_view> switch_val = std::nullopt) const;
-
+	// get(), then a checked conversion: a value that does not fit T (for bool, anything but 0
+	// and 1) is ConversionFailed, never truncated.
 	template <typename T>
 	[[nodiscard]] Result<T, KnobError> get_as(
 		std::string_view name,
+		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const {
-		auto r = get(name, switch_val);
+		auto r = get(name, hash_val, switch_val);
 		if (!r) return r.error();
-		auto v = r.value();
-		// std::in_range<T>, not a hand-rolled bounds check narrowed into
-		// int64_t: the previous `v > static_cast<int64_t>(numeric_limits<T>
-		// ::max())` was flatly wrong for any T whose max() doesn't fit in
-		// int64_t (e.g. T=uint64_t: max() cast to int64_t wraps to -1,
-		// rejecting every non-negative value including in-range ones --
-		// confirmed by review: get_as<uint64_t> on value 25 returned
-		// ConversionFailed). std::in_range handles every signed/unsigned
-		// target type correctly without lossy narrowing.
-		if (!std::in_range<T>(v)) {
-			metrics_.reads_conversion_failed.fetch_add(1, std::memory_order_relaxed);
-			return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
-		}
-		return static_cast<T>(v);
+		if (auto value = detail::convert<T>(r.value())) return *value;
+		metrics_.reads_conversion_failed.fetch_add(1, std::memory_order_relaxed);
+		return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
 	}
 
-	// Section 5: "*_or_panic ... crash on any KnobError". No call-site
-	// fallback API exists anywhere in this class.
-	[[nodiscard]] bool eval_or_panic(
-		std::string_view name,
-		std::optional<std::string_view> hash_val = std::nullopt,
-		std::optional<std::string_view> switch_val = std::nullopt) const;
-
+	// Crashes on any KnobError. No call-site fallback API exists anywhere in this class.
 	[[nodiscard]] std::int64_t get_or_panic(
 		std::string_view name,
+		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const;
 
 	// The live snapshot itself, not an evaluated value -- for a consumer
@@ -182,8 +163,8 @@ public:
 	// publisher, seeding its initial publish before any source update has
 	// landed yet, since InitOptions::on_update only fires on subsequent
 	// accepted updates, not for the baked-defaults snapshot set at
-	// construction). Ordinary read-path consumers should use eval()/get(),
-	// not this.
+	// construction). Ordinary read-path consumers should use get(), not
+	// this.
 	[[nodiscard]] std::shared_ptr<const Snapshot> current_snapshot() const {
 		if (read_source_)
 			throw std::logic_error("local source has no eager snapshot; use read_view()");
@@ -205,7 +186,7 @@ private:
 	// client's own last-accepted LIVE (pre-merge-over-defaults) snapshot,
 	// never the source's claimed base -- then re-merges over defaults_ and
 	// publishes, exactly like try_apply_source_bytes's full-replace path.
-	// Returns false (no swap, Section 7's backoff-eligible "not a valid
+	// Returns false (no swap; backoff-eligible, "not a valid
 	// swap") on a stale version or a patch that fails to parse/apply.
 	bool try_apply_source_patch(std::string_view patch_bytes);
 	void sleep_with_stop_check(std::stop_token stop, std::chrono::milliseconds duration);

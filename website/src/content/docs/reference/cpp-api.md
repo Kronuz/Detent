@@ -12,7 +12,7 @@ targets C++20 and lives in the `detent` namespace.
 | CMake target | Header | What it provides |
 | --- | --- | --- |
 | `detent::detent` | `detent/client.hh` | `Client`, `InitOptions`, `HealthSnapshot`, `Metrics` |
-| | `detent/model.hh` | `Snapshot`, `KnobDef`, `BoolDef`, `IntDef`, `GroupRollout`, `SnapshotPatch` |
+| | `detent/model.hh` | `Snapshot`, `KnobDef`, `GroupOverride`, `GroupRollout`, `SnapshotPatch` |
 | | `detent/result.hh` | `Result<T, E>` |
 | | `detent/errors.hh` | `KnobError`, `ErrorCategory`, `UpdateError`, `UpdateRejectReason` |
 | | `detent/read_view.hh` | `ClientReadView`, `ReadSource`, `EvaluationView` |

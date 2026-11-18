@@ -1,0 +1,18 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index a8c7f41e..d65d2717 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -723,8 +726,12 @@ struct Coordinator::Impl {
+ 						scrub_pause.reset();
+ 					if (closing)
+ 						break;
+-					if (store->selection().descriptor != result->root->descriptor())
++					if (store->selection().descriptor != result->root->descriptor()) {
++						std::fprintf(stderr, "N5-OBSOLETE-SKIP %lld\n",
++									 (long long)std::chrono::duration_cast<std::chrono::microseconds>(
++										 std::chrono::steady_clock::now().time_since_epoch()).count());
+ 						continue;
++					}
+ 					auto &scrubber = result->scrub;
+ 					diagnostic.scrub.passes = scrubber.passes();
+ 					diagnostic.scrub.bytes_hashed = scrubber.bytes_hashed();

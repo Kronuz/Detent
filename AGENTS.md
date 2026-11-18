@@ -1,8 +1,8 @@
 # AGENTS.md: working in Detent
 
-## Current lead handoff
+## Current campaign
 
-The campaign's state, landing order and open owner questions are in [docs/handoffs/detent-codex-2026-11.md](docs/handoffs/detent-codex-2026-11.md). Long CPU runs that need no agent go in the shared run queue it describes (`.scratch/overnight/queue/`); [docs/handoffs/run-queue-overseer.md](docs/handoffs/run-queue-overseer.md) is the brief for whoever watches it.
+The plan, quests and their evidence are in `.campaign/detent/`, run by the `campaign` skill: `campaign map` shows the whole campaign, `campaign status` what each quest still needs. Long CPU runs that need no agent are `campaign job submit` jobs. `docs/status/`, `docs/handoffs/` and `docs/PLAN.md` are the earlier skill's records, kept as history for their results and reasoning.
 
 ## Shared library decisions
 

@@ -1,6 +1,7 @@
 #include "detent/hashing.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/view.hh"
+#include "trusted_records.hh"
 #include <algorithm>
 #include <chrono>
 #include <fcntl.h>
@@ -18,7 +19,7 @@ void check(bool value) {
 }
 std::shared_ptr<std::string> image() {
 	l::Header h;
-	h.layout = l::calculate_layout(1, 2, 2, 3 + 8 + 5 + 4 + 9);
+	h.layout = l::calculate_layout(1, 3, 2, 3 + 8 + 5 + 4 + 9 + 9);
 	h.cursor.cluster.fill('c');
 	h.cursor.group.fill('g');
 	h.cursor.restore_epoch.fill('e');
@@ -42,20 +43,28 @@ std::shared_ptr<std::string> image() {
 	name(r, "app:bool");
 	set(r + 16, 8, 8);
 	set(r + 40, 2, 4);
-	set(r + 45, 1, 1);
-	set(r + 46, 50, 1);
+	set(r + 44, 3, 1);
+	set(r + 45, 50, 1);
+	set(r + 48, 1, 8);
 	auto o = h.layout.override_offset;
 	name(o, "force");
-	set(o + 13, 1, 1);
+	set(o + 16, 1, 8);
 	name(o + 24, "ramp");
 	set(o + 24 + 12, 1, 1);
-	set(o + 24 + 13, 100, 1);
-	r += 48;
+	set(o + 24 + 16, 100, 8);
+	r += l::record_bytes;
 	name(r, "app:count");
 	set(r + 16, 9, 8);
 	set(r + 24, std::uint64_t(-17), 8);
 	set(r + 32, 2, 8);
-	set(r + 44, 1, 1);
+	r += l::record_bytes;
+	name(r, "app:ramp7");
+	set(r + 16, 9, 8);
+	set(r + 24, 1, 8);
+	set(r + 32, 2, 8);
+	set(r + 44, 3, 1);
+	set(r + 45, 50, 1);
+	set(r + 48, 7, 8);
 	check(used == h.layout.strings);
 	return bytes;
 }
@@ -121,15 +130,24 @@ int main() {
 		}
 		auto bytes = image();
 		auto view = validate(bytes);
-		check(view.size() == 2 && view.cursor().revision == 9);
+		check(view.size() == 3 && view.cursor().revision == 9);
 		bytes.reset();
 		check(view.get("app", "count").value() == -17);
-		check(!view.eval("app", "bool").value());
-		check(view.eval("app", "bool", {}, "force").value());
-		check(!view.eval("app", "bool", {}, "ramp").value());
-		check(view.eval("app", "bool", "host", "ramp").value());
-		check(view.eval("app", "bool", "host").value() == (detent::stable_bucket("app:bool", "host") < 50));
-		check(view.get("app", "bool").error().category == detent::ErrorCategory::WrongType);
+		check(view.get("app", "bool").value() == 0);
+		check(view.get("app", "bool", {}, "force").value() == 1);
+		check(view.get("app", "bool", {}, "ramp").value() == 0);
+		check(view.get("app", "bool", "host", "ramp").value() == 1);
+		check(view.get("app", "bool", "host").value() == (detent::stable_bucket("app:bool", "host") < 50));
+		// Default 1 with a 50% ramp to 7: no hash serves the default, a hash serves 7 in the bucket and 1 out.
+		check(view.get("app", "ramp7").value() == 1);
+		int in = 0, out = 0;
+		for (int i = 0; i != 64; ++i) {
+			const auto hash = "host" + std::to_string(i);
+			const bool inside = detent::stable_bucket("app:ramp7", hash) < 50;
+			check(view.get("app", "ramp7", hash).value() == (inside ? 7 : 1));
+			(inside ? in : out)++;
+		}
+		check(in && out);
 		check(view.get("other", "count").error().category == detent::ErrorCategory::MissingKnob);
 		check(!l::ReadView{}.get("app", "count"));
 		auto copy = view;
@@ -182,20 +200,8 @@ int main() {
 		unsigned char digest[32];
 		sha.getHash(digest);
 		std::copy_n(reinterpret_cast<char *>(digest), 32, descriptor.checksum.begin());
-		auto raw = l::encode_descriptor(descriptor);
-		check(l::decode_descriptor(raw).cursor == descriptor.cursor);
-		auto name = l::generation_name(descriptor.generation);
-		{
-			std::ofstream file(directory / (name + ".image"), std::ios::binary);
-			file.write(good->data(), good->size());
-		}
-		{
-			std::ofstream file(directory / (name + ".lease"));
-		}
-		{
-			std::ofstream file(directory / "selected", std::ios::binary);
-			file.write(raw.data(), raw.size());
-		}
+		trusted_records::install(directory, descriptor, {good->data(), good->size()});
+		const auto name = l::generation_name(descriptor.generation);
 		for (const auto &entry : std::filesystem::directory_iterator(directory))
 			std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_read |
 														   std::filesystem::perms::owner_write);

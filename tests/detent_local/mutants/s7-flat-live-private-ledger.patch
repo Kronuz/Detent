@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index de9ab13b..68f8acfc 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -364,7 +364,7 @@ void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distributi
+ 	std::copy(descriptor.checksum.begin(), descriptor.checksum.end(), record.root_checksum.begin());
+ 	record.read_digest = sha({});
+ 	// Charged to the store's account, as a paged publication's artifacts are.
+-	auto live = distribution::make_owned_buffer(core.account, detail::live_record_size(0));
++	auto live = distribution::make_owned_buffer(std::make_shared<distribution::StorageLedger>(1u << 20), detail::live_record_size(0));
+ 	live->append(std::string(detail::live_record_size(0), '\0'));
+ 	detail::encode_live_record(record, live->mutable_bytes());
+ 	live->seal();

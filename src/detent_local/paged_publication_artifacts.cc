@@ -13,7 +13,7 @@ PagedPublicationArtifacts::PagedPublicationArtifacts(std::shared_ptr<d::StorageL
 	: artifacts_(Allocator(account)), reused_(d::StorageAllocator<ReusedDependency>(account)) {}
 void PagedPublicationArtifacts::append(std::string_view name, std::span<const char> record,
 									   std::shared_ptr<const d::OwnedBuffer> payload, bool generation) {
-	if (name.size() > PublicationArtifact{}.name.size() || record.size() > descriptor_bytes)
+	if (name.size() > PublicationArtifact{}.name.size() || record.size() > segment_ownership_bytes)
 		throw std::length_error("paged publication artifact exceeds fixed framing");
 	const auto length = payload ? payload->size() : record.size();
 	if (length > UINT64_MAX - usage_.bytes || usage_.entries == UINT64_MAX ||
@@ -56,8 +56,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		for (std::size_t i = 0; i < segments.size(); ++i) {
 			const auto &segment = segments[i];
 			if (!plan.new_reachability(i).pages || segment.bytes->account() != plan.bytes()->account() ||
-				segment.bytes->size() != segment.ownership.length ||
-				segment.ownership.storage != plan.storage_identity())
+				segment.bytes->size() != segment.ownership.length)
 				throw std::invalid_argument("invalid new paged publication dependency");
 			const SegmentNames names(segment.ownership.segment);
 			if (segment.ownership.length > UINT64_MAX - physical_bytes_)
@@ -66,24 +65,21 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			live.rows.push_back({segment.ownership.segment, segment.ownership.length,
 								 segment.ownership.checksum, plan.new_reachability(i)});
 			append(names.owner_name(), encode_segment_ownership(segment.ownership), {});
-			append(names.payload_name(), {}, segment.bytes);
 		}
 		if (reused_.size() + segments.size() != plan.root().segments)
 			throw std::invalid_argument("paged publication dependency count mismatch");
 		const auto descriptor = plan.descriptor();
-		append(GenerationName(descriptor.generation, GenerationFile::Lease).view(),
-			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
-											descriptor.checksum, 2}),
-			   {}, true);
-		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
-		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
+		for (const auto &segment : segments)
+			append(SegmentNames(segment.ownership.segment).payload_name(), {}, segment.bytes);
+		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes(), true);
+		const auto metadata = encode_reader_metadata({descriptor.generation,
 		                                              descriptor.checksum, plan.counts(), physical_bytes_});
 		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
 		metadata_buffer->append({metadata.data(), metadata.size()});
-		// The live record binds to the reader metadata's own digest, so a swapped pair is refused.
+		// The live record binds the reader metadata's digest, so a swapped pair is refused.
 		live.generation = descriptor.generation;
 		live.root_checksum = descriptor.checksum;
-		std::copy(metadata.end() - live_digest_bytes, metadata.end(), live.read_digest.begin());
+		live.read_digest = reader_metadata_digest(metadata);
 		std::copy(plan.override_histogram().begin(), plan.override_histogram().end(), live.histogram.begin());
 		std::sort(live.rows.begin(), live.rows.end(), [](const LiveRow &a, const LiveRow &b) {
 			return std::memcmp(a.segment.data(), b.segment.data(), 16) < 0;
@@ -95,12 +91,9 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		append(GenerationName(descriptor.generation, GenerationFile::Live).view(), {}, std::move(live_buffer));
 		append(GenerationName(descriptor.generation, GenerationFile::ReaderMetadata).view(), {},
 		       std::move(metadata_buffer));
-		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),
-			   encode_descriptor(descriptor), {});
 		descriptor_ = descriptor;
 		base_descriptor_ = plan.selected_base();
 		directory_ = plan.directory_identity();
-		storage_ = plan.storage_identity();
 		populated_ = true;
 	} catch (...) {
 		failed_ = true;
@@ -109,8 +102,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 }
 void PagedPublicationArtifacts::attach(PagedPlan &&plan) {
 	if (!populated_ || plan_ || plan.descriptor() != descriptor_ ||
-		plan.selected_base() != base_descriptor_ || plan.directory_identity() != directory_ ||
-		plan.storage_identity() != storage_)
+		plan.selected_base() != base_descriptor_ || plan.directory_identity() != directory_)
 		throw std::invalid_argument("paged artifact plan binding mismatch");
 	plan_.emplace(std::move(plan));
 }
@@ -136,17 +128,11 @@ std::uint64_t PagedPublicationArtifacts::target_physical_bytes() const {
 	artifacts();
 	return physical_bytes_;
 }
-DiskUsage PagedPublicationArtifacts::prefix_usage(std::size_t count) const {
-	artifacts();
-	if (count > artifacts_.size())
-		throw std::out_of_range("paged artifact prefix exceeded");
-	return count ? artifacts_[count - 1].prefix : DiskUsage{};
-}
 void PagedPublicationArtifacts::attach_recovery(d::RetirementHandle<MappedRecoveryAdmission> admission) {
 	artifacts();
 	if (!admission || recovery_ || plan_)
 		throw std::logic_error("paged recovery admission attachment unavailable");
-	admission->bind(descriptor_, directory_, storage_);
+	admission->bind(descriptor_, directory_);
 	recovery_ = std::move(admission);
 }
 d::RetirementHandle<MappedRecoveryAdmission> PagedPublicationArtifacts::recovery_admission() const {

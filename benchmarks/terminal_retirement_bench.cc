@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 		command.mutations.clear();
 		for (std::size_t i = first; i < std::min(first + 128, std::size_t{500000}); ++i)
 			command.mutations.push_back(
-				{"ns:k" + std::to_string(i), detent::IntDef{static_cast<std::int64_t>(i)}, {}, {}});
+				{"ns:k" + std::to_string(i), detent::KnobDef{static_cast<std::int64_t>(i)}, {}, {}});
 		require(state->apply(++index, command).status == Status::Applied);
 		while (state->reclamation_pending())
 			state->collect(8192);

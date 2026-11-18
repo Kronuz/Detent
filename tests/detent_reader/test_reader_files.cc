@@ -57,7 +57,7 @@ int main() {
 			const auto store = root / (std::string(kind) + "-" + shape);
 			{
 				detent::testing::GenerationWriter writer(store);
-				check(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"type":"int","default":7}}})") == 1);
+				check(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":7}}})") == 1);
 			}
 			reshape(entry(store, kind), shape);
 			const auto child = ::fork();
@@ -70,7 +70,7 @@ int main() {
 				auto status = detent_open(&options, &reader);
 				std::int64_t value = -7;
 				if (status == DETENT_OK)
-					status = detent_get(reader, {"t:rev", 5}, -7, &value);
+					status = detent_get(reader, {"t:rev", 5}, {nullptr, 0}, {nullptr, 0}, -7, &value);
 				const bool positive = std::string_view(shape) == "regular";
 				const bool valid = positive ? status == DETENT_OK && value == 7
 				                            : status == DETENT_SOURCE_FAILURE && value == -7;

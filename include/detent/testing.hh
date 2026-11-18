@@ -1,6 +1,6 @@
 #pragma once
 
-// Section 5 "Test-only client": a thread-local in-memory client for tests,
+// Test-only client: a thread-local in-memory client for tests,
 // so test code never depends on a real defaults file, CLI flags, or a live
 // source. Guard-based nesting prevents cross-test leakage (dropping a
 // TestGuard restores whatever thread-local client, if any, was active
@@ -17,7 +17,7 @@ public:
 	explicit TestKnobs(Snapshot snapshot);
 
 	// Installs this TestKnobs' client as the thread-local override for
-	// detent::global::eval/get on the calling thread. The returned guard
+	// detent::global::get on the calling thread. The returned guard
 	// must outlive any read that should observe it; dropping it restores the
 	// previous thread-local state (nullptr, or an outer TestGuard).
 	[[nodiscard]] TestGuard set_thread_local() &&;

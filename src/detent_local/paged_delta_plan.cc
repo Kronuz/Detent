@@ -72,8 +72,7 @@ struct PagedDeltaPlanBuilder::Work final : d::RetirementNode {
 	}
 };
 PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(const RecoveredGeneration &base, d::ValidatedDelta &&input,
-											 GenerationId generation, d::RetirementDomain &domain,
-											 p::Limits limits) {
+											 d::RetirementDomain &domain, p::Limits limits) {
 	if (!base.paged_ || input.storage_account() != domain.storage_account())
 		throw std::invalid_argument("paged delta plan requires actual base and common admission");
 	using Input = d::detail::RetiredInput<d::ValidatedDelta>;
@@ -81,18 +80,17 @@ PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(const RecoveredGeneration &base, d:
 	using Handle = d::RetirementHandle<Input>;
 	auto pin = std::allocate_shared<Handle>(d::StorageAllocator<Handle>(domain.storage_account()), source);
 	std::shared_ptr<const d::ValidatedDelta> delta(pin, &source->value);
-	plan_ = domain.make<PagedPlanState>(domain.storage_account(), base.paged_, generation, *delta,
-										PagedPlanState::Forward{});
+	plan_ = domain.make<PagedPlanState>(domain.storage_account(), base.paged_, *delta, PagedPlanState::Forward{});
 	work_ = domain.make<Work>(plan_, base, std::move(delta), limits);
 }
 PagedDeltaPlanBuilder::~PagedDeltaPlanBuilder() = default;
 PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(const RecoveredGeneration &base,
 											 std::shared_ptr<const d::ValidatedDelta> source,
-											 GenerationId generation, d::RetirementFactory factory,
-											 std::shared_ptr<d::StorageLedger> heap, p::Limits limits) {
+											 d::RetirementFactory factory, std::shared_ptr<d::StorageLedger> heap,
+											 p::Limits limits) {
 	if (!source || !base.paged_ || source->storage_account() != heap || !factory.uses_account(heap))
 		throw std::invalid_argument("paged delta plan requires exact captured resources");
-	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation, *source, PagedPlanState::Forward{});
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, *source, PagedPlanState::Forward{});
 	work_ = factory.make<Work>(plan_, base, std::move(source), limits);
 }
 PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(PagedDeltaPlanBuilder &&) noexcept = default;

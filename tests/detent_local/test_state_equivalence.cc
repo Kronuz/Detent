@@ -87,28 +87,27 @@ void run(bool nul_key, unsigned namespace_count) {
 				n(i);
 				text(scope[i] + ":count");
 				n(41);
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(wire, INT64_MIN);
+				wire.push_back('\xc0');
+				wire.push_back('\xc0');
+				a(0);
 				a(4);
 				n(i);
 				text(scope[i] + ":flag");
 				n(change == 2 ? 40 : 41);
 				a(4);
-				n(0);
-				wire.push_back('\xc3');
+				n(1);
 				if (change == 3)
 					wire.push_back('\xc0');
 				else
 					n(percentage);
+				n(1);
 				a(1);
 				a(3);
 				text(group);
 				n(change == 4 ? 0 : 1);
-				if (change == 4)
-					wire.push_back('\xc3');
-				else
-					n(17);
+				n(change == 4 ? 1 : 17);
 			}
 			d::Limits decoder_limits;
 			decoder_limits.storage_account = heap;
@@ -121,32 +120,24 @@ void run(bool nul_key, unsigned namespace_count) {
 			return decoder.finish();
 		};
 		auto source = std::make_shared<const d::ValidatedSnapshot>(input(25));
-		l::GenerationId flat_id{}, paged_id{}, changed_id{};
-		flat_id.fill('f');
+		l::GenerationId paged_id{}, changed_id{};
 		paged_id.fill('p');
 		changed_id.fill('x');
-		l::StorageIdentity storage{};
-		storage.fill('s');
-		l::ImageBuilder flat_builder(source, flat_id);
+		l::ImageBuilder flat_builder(source);
 		while (!flat_builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			flat_builder.step(budget);
 		}
 		auto flat_directory = directory / "flat";
-		std::filesystem::create_directories(flat_directory);
-		state_check(::chmod(flat_directory.c_str(), 0700) == 0);
-		const auto name = l::generation_name(flat_id);
-		write(flat_directory / (name + ".image"), *flat_builder.bytes());
-		write(flat_directory / (name + ".lease"), {});
-		write(flat_directory / "selected", l::encode_descriptor(flat_builder.descriptor()));
+		trusted_records::install(flat_directory, flat_builder.descriptor(), flat_builder.bytes()->view());
 		auto flat = l::recover_generation(flat_directory, limits);
-		l::detail::PagedSnapshotBuilder builder(source, storage, paged_id);
+		l::detail::PagedSnapshotBuilder builder(source, paged_id);
 		while (!builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			builder.step(budget);
 		}
 		auto paged_image = builder.take();
-		install(directory / "paged", paged_image, storage);
+		install(directory / "paged", paged_image);
 		auto paged = l::recover_generation(directory / "paged", limits);
 		const auto mapping_baseline = mappings->used();
 		compare(flat, flat, heap, true);
@@ -188,9 +179,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				}
 				state_check(refused && mappings->used() == before);
 			}
-			l::GenerationId candidate_id{};
-			candidate_id.fill('c');
-			std::optional<l::ImageBuilder> staged(std::in_place, source, candidate_id);
+			std::optional<l::ImageBuilder> staged(std::in_place, source);
 			while (!staged->done()) {
 				l::ValidationBudget budget{1, 1};
 				staged->step(budget);
@@ -219,9 +208,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		if (namespace_count) {
 			for (unsigned change = 1; change <= 4; ++change) {
 				auto altered = std::make_shared<const d::ValidatedSnapshot>(input(25, change));
-				l::GenerationId candidate_id{};
-				candidate_id.fill('d' + change);
-				l::ImageBuilder output(altered, candidate_id);
+				l::ImageBuilder output(altered);
 				while (!output.done()) {
 					l::ValidationBudget budget{1, 1};
 					output.step(budget);
@@ -250,7 +237,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		for (const auto *base : {&flat, &paged}) {
 			l::GenerationId replacement{};
 			replacement.fill(base == &flat ? 'm' : 'b');
-			l::detail::PagedSnapshotBuilder borrowed(*base, heap, storage, replacement);
+			l::detail::PagedSnapshotBuilder borrowed(*base, heap, replacement);
 			l::ValidationBudget zero{0, 0};
 			borrowed.step(zero);
 			state_check(!borrowed.done());
@@ -261,16 +248,14 @@ void run(bool nul_key, unsigned namespace_count) {
 				borrowed.step(budget);
 			}
 			auto image = borrowed.take();
-			state_check(image.root().logical == paged_image.root().logical);
+			state_check(l::paged::state_commitment(image.root()) == l::paged::state_commitment(paged_image.root()));
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
-			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
-														 limits);
+			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, limits);
 			while (!validator.done()) {
 				l::ValidationBudget budget{1, 1};
 				validator.step(budget);
 			}
-			state_check(validator.counts().bools == namespace_count &&
-						validator.counts().ints == namespace_count);
+			state_check(validator.counts().records == 2 * namespace_count);
 			auto owner = validator.image();
 			l::detail::StateEquivalence equality(l::detail::StateCursor(*base, heap),
 												 l::detail::StateCursor(validator.take(), heap));
@@ -280,7 +265,7 @@ void run(bool nul_key, unsigned namespace_count) {
 			}
 			state_check(equality.equal());
 			auto evidence = equality.take_proof();
-			install(output, owner->image(), storage);
+			install(output, owner->image());
 			auto recovered = l::recover_generation(output, limits);
 			state_check(evidence.binds(*base, recovered));
 			compare(*base, recovered, heap, true);
@@ -293,22 +278,22 @@ void run(bool nul_key, unsigned namespace_count) {
 		for (unsigned corruption = 0; corruption < (namespace_count ? 2u : 1u); ++corruption) {
 			l::GenerationId bad_id{};
 			bad_id.fill('z');
-			l::detail::PagedSnapshotBuilder builder(flat, heap, storage, bad_id);
+			l::detail::PagedSnapshotBuilder builder(flat, heap, bad_id);
 			while (!builder.done()) {
 				l::ValidationBudget budget{1, 1};
 				builder.step(budget);
 			}
 			auto image = builder.take();
+			// A wrong root checksum, then a broken page: the first page of a pack starts at its offset 0, and its
+			// magic is decoded on every walk (an own build's digests are trusted, so a digest flip is the scrub's).
 			if (!corruption)
 				const_cast<l::Descriptor &>(image.descriptor()).checksum[0] ^= 1;
 			else
-				const_cast<char *>(
-					image.segments()[0].bytes->data())[image.segments()[0].bytes->size() - 1] ^= 1;
+				const_cast<char *>(image.segments()[0].bytes->data())[0] ^= 1;
 			const auto before = mappings->used();
 			bool refused = false;
 			try {
-				l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap,
-															 storage, limits);
+				l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, limits);
 				while (!validator.done()) {
 					l::ValidationBudget budget{1, 1};
 					validator.step(budget);
@@ -323,22 +308,22 @@ void run(bool nul_key, unsigned namespace_count) {
 		}
 
 		auto changed_source = std::make_shared<const d::ValidatedSnapshot>(input(26));
-		l::detail::PagedSnapshotBuilder changed_builder(changed_source, storage, changed_id);
+		l::detail::PagedSnapshotBuilder changed_builder(changed_source, changed_id);
 		while (!changed_builder.done()) {
 			l::ValidationBudget budget{1, 1};
 			changed_builder.step(budget);
 		}
 		auto changed_image = changed_builder.take();
-		install(directory / "changed", changed_image, storage);
+		install(directory / "changed", changed_image);
 		auto changed = l::recover_generation(directory / "changed", limits);
 		compare(flat, changed, heap, namespace_count == 0);
 		compare(paged, changed, heap, namespace_count == 0);
 		l::GenerationReader reader(flat_directory, limits);
 		state_check(reader.refresh());
 		auto pinned = reader.read_view();
-		install(flat_directory, paged_image, storage);
+		install(flat_directory, paged_image);
 		state_check(reader.refresh() && reader.descriptor() == paged.descriptor());
-		install(flat_directory, changed_image, storage);
+		install(flat_directory, changed_image);
 		bool rejected = false;
 		try {
 			reader.refresh();

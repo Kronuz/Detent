@@ -31,11 +31,11 @@ const auto timeout = 3000ms;
 // Sequence 1 creates both keys; later commands update ns:key at revision 1.
 const std::string initial =
 	"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":["
-	"{\"key\":\"ns:key\",\"value\":{\"type\":\"int\",\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0},"
-	"{\"key\":\"ns:key2\",\"value\":{\"type\":\"int\",\"default\":20},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
+	"{\"key\":\"ns:key\",\"value\":{\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0},"
+	"{\"key\":\"ns:key2\",\"value\":{\"default\":20},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
 const std::string update =
 	"\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":["
-	"{\"key\":\"ns:key\",\"value\":{\"type\":\"int\",\"default\":12},\"expected_revision\":1}]";
+	"{\"key\":\"ns:key\",\"value\":{\"default\":12},\"expected_revision\":1}]";
 ServiceOptions options(const std::filesystem::path &directory, std::size_t reply_bytes) {
 	ServiceOptions o;
 	o.directory = directory;

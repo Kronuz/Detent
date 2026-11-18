@@ -50,29 +50,17 @@ constexpr std::size_t calls = 1'000'000;
 #define DETENT_SANITIZED 1
 #endif
 
-// 1M lookups across get, eval with a hash and a switch, and read; returns the sum of the answers.
+// 1M lookups: plain, with a hash and a switch, and a hashed rollout; returns the sum of the answers.
 std::int64_t lookups(detent_reader *h) {
 	std::int64_t total = 0;
 	for (std::size_t i = 0; i != calls; ++i) {
 		std::int64_t value = 0;
-		bool flag = false;
-		detent_value read{};
-		switch (i % 3) {
-		case 0:
-			if (detent_get(h, S("t:rev"), 0, &value) != DETENT_OK)
-				return -1;
-			total += value;
-			break;
-		case 1:
-			if (detent_eval(h, S("t:flag"), S("user"), S("vip"), false, &flag) != DETENT_OK)
-				return -1;
-			total += flag;
-			break;
-		default:
-			if (detent_read(h, S("u:ramp"), S("user"), none, &read) != DETENT_OK)
-				return -1;
-			total += read.boolean;
-		}
+		const auto status = i % 3 == 0   ? detent_get(h, S("t:rev"), none, none, 0, &value)
+		                    : i % 3 == 1 ? detent_get(h, S("t:flag"), S("user"), S("vip"), 0, &value)
+		                                 : detent_get(h, S("u:ramp"), S("user"), none, 0, &value);
+		if (status != DETENT_OK)
+			return -1;
+		total += value;
 	}
 	return total;
 }
@@ -87,9 +75,9 @@ int main() {
 	{
 		// The writer's store threads end before anything is counted.
 		detent::testing::GenerationWriter writer(root);
-		CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"type":"int","default":3},)"
-		                          R"("t:flag":{"type":"bool","default":false,"overrides":{"vip":true}},)"
-		                          R"("u:ramp":{"type":"bool","default":false,"rollout_pct":100}}})") == 1);
+		CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":3},)"
+		                          R"("t:flag":{"default":0,"overrides":{"vip":1}},)"
+		                          R"("u:ramp":{"default":0,"rollout_pct":100,"rollout_value":1}}})") == 1);
 	}
 	const auto path = root.string();
 	detent_open_options options{sizeof options, S(path), nullptr, 0, uint32_t(::getuid())};

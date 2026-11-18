@@ -46,6 +46,63 @@ std::filesystem::path path(const Value &value, const std::filesystem::path &base
 	auto result = std::filesystem::path(text(value));
 	return (result.is_absolute() ? result : base / result).lexically_normal();
 }
+distribution::Identity identity(const Value &value) {
+	const auto hex = text(value, 32);
+	distribution::Identity out{};
+	auto digit = [](char c) {
+		require((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'), "invalid relay identity digit");
+		return c <= '9' ? c - '0' : c - 'a' + 10;
+	};
+	require(hex.size() == 32, "a relay identity is 32 hex digits");
+	for (std::size_t i = 0; i < out.size(); ++i)
+		out[i] = static_cast<char>(digit(hex[2 * i]) << 4 | digit(hex[2 * i + 1]));
+	require(out != distribution::Identity{}, "zero relay identity");
+	return out;
+}
+// The relay as a W8 reader: its mirror directory, the names it mirrors and the upstream it reads
+// (the authority's voters or another relay), with a credential and no consensus.
+ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, const std::string &ca) {
+	fields(object, {"directory", "cluster", "namespaces", "upstreams", "hostname", "ca", "token", "interval_ms",
+					"timeout_ms", "compression", "sessions", "answer_bytes"});
+	ConfiguredMirror result;
+	auto &service = result.service;
+	service.directory = path(field(object, "directory"), base);
+	service.cluster = identity(field(object, "cluster"));
+	const auto &names = field(object, "namespaces");
+	require(names.IsArray() && !names.Empty() && names.Size() <= 4096, "relay mirror namespace count");
+	for (const auto &name : names.GetArray()) {
+		auto value = text(name, 198);
+		require(distribution::valid_namespace_name(value) &&
+					(service.namespaces.empty() || service.namespaces.back() < value),
+				"relay mirror namespaces must be valid names in increasing order");
+		service.namespaces.push_back(std::move(value));
+	}
+	service.interval = std::chrono::milliseconds(number(object, "interval_ms", 250, 1, 60000));
+	service.sessions = number(object, "sessions", service.sessions, 1, 65536);
+	result.answer_bytes = number(object, "answer_bytes", result.answer_bytes, 1024 * 1024, 1ull << 32);
+	auto &upstream = result.upstream;
+	const auto &upstreams = field(object, "upstreams");
+	require(upstreams.IsArray() && !upstreams.Empty() && upstreams.Size() <= 64, "relay mirror upstream count");
+	for (const auto &value : upstreams.GetArray()) {
+		fields(value, {"address", "port"});
+		upstream.endpoints.emplace_back(asio::ip::make_address(text(field(value, "address"), 253)),
+										number(value, "port", 0, 1, 65535));
+	}
+	upstream.hostname = object.HasMember("hostname") ? text(object["hostname"], 253) : "localhost";
+	require(upstream.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay upstream hostname");
+	upstream.token = text(field(object, "token"), 128);
+	require(upstream.token.find_first_of("\r\n") == std::string::npos, "invalid relay upstream token");
+	upstream.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 10000, 1, 600000));
+	if (object.HasMember("compression")) {
+		require(object["compression"].IsBool(), "relay mirror compression is a boolean");
+		upstream.compression = object["compression"].GetBool();
+	}
+	upstream.tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+	reactor::tls::configure(*upstream.tls,
+							{"", "", object.HasMember("ca") ? path(object["ca"], base).string() : ca},
+							reactor::tls::Role::Client);
+	return result;
+}
 } // namespace
 HostOptions load_host_options(const std::filesystem::path &configuration, bool system) {
 	auto bytes = delivery::read_private_configuration(configuration);
@@ -57,7 +114,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 	require(!object.HasParseError(), "invalid relay configuration JSON");
 	fields(object,
 		   {"address", "port", "hostname", "certificate", "private_key", "ca", "bundles", "credentials",
-			"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits"});
+			"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits", "mirror"});
 	HostOptions result;
 	result.connections = number(object, "connections", result.connections, 1, 65536);
 	if (object.HasMember("service_limits")) {
@@ -96,9 +153,18 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 		number(object, "control_bytes", result.control_bytes, 16 * 1024 * 1024, 1ull << 30);
 	result.baseline_bytes = number(object, "baseline_bytes", result.baseline_bytes, 1024 * 1024, 1ull << 30);
 	result.heap_bytes = result.control_bytes + result.baseline_bytes;
-	const auto &bundles = field(object, "bundles");
-	require(bundles.IsArray() && !bundles.Empty() && bundles.Size() <= 256, "relay bundle count");
+	if (object.HasMember("mirror")) {
+		result.mirror = mirror(object["mirror"], base, result.certificate_authority);
+		require(result.mirror->answer_bytes <= maximum_heap_bytes - result.heap_bytes,
+				"relay aggregate heap funding exceeds host limit");
+		result.heap_bytes += result.mirror->answer_bytes;
+	}
+	static const Value no_bundles(rapidjson::kArrayType);
+	const auto &bundles = object.HasMember("bundles") ? object["bundles"] : no_bundles;
+	require(bundles.IsArray() && (!bundles.Empty() || result.mirror) && bundles.Size() <= 256, "relay bundle count");
 	std::set<std::filesystem::path> directories;
+	if (result.mirror)
+		directories.insert(std::filesystem::weakly_canonical(result.mirror->service.directory));
 	for (const auto &value : bundles.GetArray()) {
 		fields(value, {"source", "directory", "mode", "cache_bytes", "retained_edges"});
 		auto directory = path(field(value, "directory"), base);
@@ -140,7 +206,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 			"relay credential count");
 	std::set<std::array<unsigned char, 32>> tokens;
 	for (const auto &value : credentials.GetArray()) {
-		fields(value, {"token", "principal", "policy_epoch", "bundles"});
+		fields(value, {"token", "principal", "policy_epoch", "bundles", "namespaces"});
 		const auto token = text(field(value, "token"), 128);
 		require(token.size() >= 32 && std::all_of(token.begin(), token.end(),
 												  [](unsigned char c) { return c >= 32 && c != 127; }),
@@ -154,8 +220,23 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 		const auto policy = number(value, "policy_epoch", 1, 1, UINT64_MAX);
 		credential.authorization.principal = {distribution::canonical_scope_identity(principal, 1, {}),
 											  policy};
-		const auto &grants = field(value, "bundles");
-		require(grants.IsArray() && !grants.Empty() && grants.Size() <= result.bundles.size(),
+		// W13 patterns for version-2 sessions and the history routes, beside version 1's bundles.
+		if (value.HasMember("namespaces")) {
+			const auto &patterns = value["namespaces"];
+			require(patterns.IsArray() && !patterns.Empty() &&
+						patterns.Size() <= distribution::NamespaceGrants::maximum_patterns,
+					"relay namespace grants");
+			std::vector<std::string> owned;
+			for (const auto &pattern : patterns.GetArray())
+				owned.push_back(text(pattern, 200));
+			const std::vector<std::string_view> views(owned.begin(), owned.end());
+			credential.namespaces = std::make_shared<const distribution::NamespaceGrants>(views);
+			credential.authorization.namespaces = credential.namespaces.get();
+		}
+		static const Value no_grants(rapidjson::kArrayType);
+		const auto &grants = value.HasMember("bundles") ? value["bundles"] : no_grants;
+		require(grants.IsArray() && (!grants.Empty() || credential.namespaces) &&
+					grants.Size() <= result.bundles.size(),
 				"relay bundle grants");
 		for (const auto &grant : grants.GetArray()) {
 			require(grant.IsUint() && grant.GetUint() < result.bundles.size(), "invalid relay bundle grant");

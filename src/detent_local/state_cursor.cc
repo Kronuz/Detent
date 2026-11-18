@@ -98,10 +98,8 @@ bool StateCursor::next_record(ValidationBudget &budget) {
 			return false;
 		const auto name = flat_->name_space(row.namespace_index).name;
 		record_row_ = {name, row.key.substr(name.size() + 1), row.revision, row.definition};
-		if (const auto *flag = std::get_if<SourceBoolean>(&row.definition)) {
-			flat_override_ = flag->override_start;
-			remaining_overrides_ = flag->override_count;
-		}
+		flat_override_ = row.definition.override_start;
+		remaining_overrides_ = row.definition.override_count;
 		++record_ordinal_;
 	} else {
 		if (!records_->ready())
@@ -113,14 +111,13 @@ bool StateCursor::next_record(ValidationBudget &budget) {
 			return false;
 		const auto key = paged::decode_key(leaf.key);
 		const auto definition = paged::decode_definition_header(leaf.body, UINT64_MAX);
-		record_row_ = {key.name_space, key.local_name, definition.revision, IntDef{definition.default_int}};
-		if (definition.boolean) {
-			record_row_.definition =
-				SourceBoolean{definition.default_bool, definition.rollout, 0, definition.overrides};
-			override_bytes_ = leaf.body;
-			override_offset_ = paged::definition_header_bytes;
-			remaining_overrides_ = definition.overrides;
-		}
+		record_row_ = {key.name_space,
+					   key.local_name,
+					   definition.revision,
+					   {definition.default_value, definition.rollout, definition.rollout_value, 0, definition.overrides}};
+		override_bytes_ = leaf.body;
+		override_offset_ = paged::header_size(definition);
+		remaining_overrides_ = definition.overrides;
 	}
 	record_ready_ = true;
 	return true;
@@ -135,8 +132,7 @@ bool StateCursor::next_override(ValidationBudget &budget) {
 		row = flat_->override_value(flat_override_);
 	} else {
 		const auto value = paged::read_override(override_bytes_, next_offset);
-		row = {value.key, value.percentage ? GroupOverride{GroupRollout{value.value}}
-										   : GroupOverride{bool(value.value)}};
+		row = {value.key, value.value};
 	}
 	if (!pay(budget, row.name.size() + 4))
 		return false;
@@ -162,13 +158,13 @@ SourceOverride StateCursor::override_value() const {
 		throw std::logic_error("state override not ready");
 	return override_row_;
 }
-std::optional<paged::Digest> StateCursor::logical_commitment(const RecoveredGeneration &generation) {
-	return generation.paged_ ? std::optional(generation.paged_->root().logical) : std::nullopt;
+std::optional<paged::Digest> StateCursor::state_commitment(const RecoveredGeneration &generation) {
+	return generation.paged_ ? std::optional(paged::state_commitment(generation.paged_->root())) : std::nullopt;
 }
-std::optional<paged::Digest> StateCursor::logical_commitment() const {
+std::optional<paged::Digest> StateCursor::state_commitment() const {
 	if (candidate_root_)
-		return candidate_root_->logical;
-	return generation_ ? logical_commitment(*generation_) : std::nullopt;
+		return paged::state_commitment(*candidate_root_);
+	return generation_ ? state_commitment(*generation_) : std::nullopt;
 }
 void StateCursor::reset() {
 	if (namespaces_) {

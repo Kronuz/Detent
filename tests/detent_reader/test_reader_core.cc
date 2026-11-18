@@ -24,13 +24,14 @@ detent_str S(std::string_view s) { return {s.data(), s.size()}; }
 constexpr detent_str none{nullptr, 0};
 std::string knobs(std::int64_t rev) {
 	return R"({"schema_version":1,"knobs":{)"
-	       R"("t:rev":{"type":"int","default":)" + std::to_string(rev) + R"(},)"
-	       R"("t:min":{"type":"int","default":-9223372036854775808},)"
-	       R"("t:max":{"type":"int","default":9223372036854775807},)"
-	       R"("t:flag":{"type":"bool","default":false,"overrides":{"vip":true,"half":{"rollout_pct":50}}},)"
-	       R"("t:on":{"type":"bool","default":true},)"
-	       R"("u:ramp":{"type":"bool","default":false,"rollout_pct":30},)"
-	       R"("u:all":{"type":"bool","default":false,"rollout_pct":100}}})";
+	       R"("t:rev":{"default":)" + std::to_string(rev) + R"(},)"
+	       R"("t:min":{"default":-9223372036854775808},)"
+	       R"("t:max":{"default":9223372036854775807},)"
+	       R"("t:flag":{"default":0,"overrides":{"vip":1,"half":{"rollout_pct":50}},"rollout_value":1},)"
+	       R"("t:on":{"default":1},)"
+	       R"("t:size":{"default":25,"overrides":{"big":{"rollout_pct":40}},"rollout_pct":10,"rollout_value":50},)"
+	       R"("u:ramp":{"default":0,"rollout_pct":30,"rollout_value":1},)"
+	       R"("u:all":{"default":0,"rollout_pct":100,"rollout_value":1}}})";
 }
 struct Opened {
 	detent_reader *handle = nullptr;
@@ -42,9 +43,10 @@ struct Opened {
 	}
 	~Opened() { detent_close(handle); }
 };
-std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, std::int64_t fallback = -7) {
+std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, std::int64_t fallback = -7,
+                 detent_str hash = none, detent_str switch_value = none) {
 	std::int64_t out = 0;
-	const auto status = detent_get(h, S(name), fallback, &out);
+	const auto status = detent_get(h, S(name), hash, switch_value, fallback, &out);
 	if (status != expect)
 		throw std::runtime_error(std::string(name) + ": status " + detent_status_name(status) + ", expected " +
 		                         detent_status_name(expect));
@@ -119,50 +121,42 @@ void values(const std::filesystem::path &root) {
 	CHECK(get(r.handle, "t:min", DETENT_OK) == INT64_MIN && get(r.handle, "t:max", DETENT_OK) == INT64_MAX);
 	CHECK(get(r.handle, "t:absent", DETENT_MISSING) == -7);
 	CHECK(get(r.handle, "zz:absent", DETENT_MISSING) == -7);
-	CHECK(get(r.handle, "t:flag", DETENT_WRONG_TYPE) == -7);
+	CHECK(get(r.handle, "t:flag", DETENT_OK) == 0);
 	for (const auto bad : {"t", "t:", ":rev", "t:rev:x", "t rev", "t:r*v"})
 		CHECK(get(r.handle, bad, DETENT_INVALID_NAME) == -7);
 	std::int64_t out = 0;
-	CHECK(detent_get(r.handle, none, 5, &out) == DETENT_INVALID_NAME && out == 5);
-	CHECK(detent_get(r.handle, S("t:rev"), 5, nullptr) == DETENT_INVALID_ARGUMENT);
-	CHECK(detent_get(nullptr, S("t:rev"), 5, &out) == DETENT_INVALID_ARGUMENT && out == 5);
-	bool flag = true;
-	CHECK(detent_eval(r.handle, S("t:flag"), none, none, true, &flag) == DETENT_OK && !flag);
-	CHECK(detent_eval(r.handle, S("t:flag"), none, S("vip"), false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("t:on"), none, none, false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("t:rev"), none, none, true, &flag) == DETENT_WRONG_TYPE && flag);
-	CHECK(detent_eval(r.handle, S("t:nope"), none, none, true, &flag) == DETENT_MISSING && flag);
-	CHECK(detent_eval(r.handle, S("u:all"), S("anyone"), none, false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("u:all"), none, none, true, &flag) == DETENT_OK && !flag); // no hash: default
-	detent_value value{};
-	CHECK(detent_read(r.handle, S("t:max"), none, none, &value) == DETENT_OK && value.kind == DETENT_KIND_INT &&
-	      value.integer == INT64_MAX);
-	CHECK(detent_read(r.handle, S("t:flag"), none, S("vip"), &value) == DETENT_OK &&
-	      value.kind == DETENT_KIND_BOOL && value.boolean);
-	CHECK(detent_read(r.handle, S("t:none"), none, none, &value) == DETENT_MISSING && value.kind == 0);
+	CHECK(detent_get(r.handle, none, none, none, 5, &out) == DETENT_INVALID_NAME && out == 5);
+	CHECK(detent_get(r.handle, S("t:rev"), none, none, 5, nullptr) == DETENT_INVALID_ARGUMENT);
+	CHECK(detent_get(nullptr, S("t:rev"), none, none, 5, &out) == DETENT_INVALID_ARGUMENT && out == 5);
+	// One knob type: every knob takes the hash and switch alike (D1 item 3).
+	CHECK(get(r.handle, "t:flag", DETENT_OK, -7, none, S("vip")) == 1);
+	CHECK(get(r.handle, "t:on", DETENT_OK) == 1);
+	CHECK(get(r.handle, "t:rev", DETENT_OK, -7, S("anyone"), S("vip")) == 1); // no override: default
+	CHECK(get(r.handle, "t:nope", DETENT_MISSING, 3) == 3);
+	CHECK(get(r.handle, "u:all", DETENT_OK, -7, S("anyone")) == 1);
+	CHECK(get(r.handle, "u:all", DETENT_OK) == 0); // no hash: default
+	CHECK(get(r.handle, "t:max", DETENT_OK, -7, S("x"), S("y")) == INT64_MAX);
 	std::uint64_t revision = 0;
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 1);
 	CHECK(detent_revision(r.handle, S("t:x"), &revision) == DETENT_INVALID_NAME && revision == 0);
-	// Oracle: every bool across hashes and switches matches the prepared reader's view.
+	// Oracle: every knob across hashes and switches matches the prepared reader's view.
 	auto oracle = x::PreparedReader::open(store, ::getuid(), {});
 	std::size_t compared = 0;
-	for (const auto name : {"t:flag", "t:on", "u:ramp", "u:all"})
+	for (const auto name : {"t:flag", "t:on", "t:size", "t:rev", "u:ramp", "u:all"})
 		for (int h = -1; h != 200; ++h)
-			for (const auto sw : {"", "vip", "half", "other"}) {
+			for (const auto sw : {"", "vip", "half", "big", "other"}) {
 				const std::string hash = "user" + std::to_string(h);
 				const std::string_view qualified(name);
 				const auto colon = qualified.find(':');
 				const auto expected =
-				    oracle.view.eval(qualified.substr(0, colon), qualified.substr(colon + 1),
-				                     h < 0 ? std::nullopt : std::optional<std::string_view>(hash),
-				                     *sw ? std::optional<std::string_view>(sw) : std::nullopt);
-				bool got = !expected.value();
-				CHECK(detent_eval(r.handle, S(name), h < 0 ? none : S(hash), *sw ? S(sw) : none, !got, &got) ==
-				      DETENT_OK);
-				CHECK(got == expected.value());
+				    oracle.view.get(qualified.substr(0, colon), qualified.substr(colon + 1),
+				                    h < 0 ? std::nullopt : std::optional<std::string_view>(hash),
+				                    *sw ? std::optional<std::string_view>(sw) : std::nullopt);
+				CHECK(get(r.handle, name, DETENT_OK, ~expected.value(), h < 0 ? none : S(hash), *sw ? S(sw) : none) ==
+				      expected.value());
 				++compared;
 			}
-	CHECK(compared == 4 * 201 * 4);
+	CHECK(compared == 6 * 201 * 5);
 	// A publish switches the next lookup through the namespace's sequence (D4).
 	CHECK(writer.publish_json(knobs(2)) == 2);
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
@@ -179,7 +173,7 @@ void values(const std::filesystem::path &root) {
 	Opened listed(store, {S("u")});
 	CHECK(listed.status == DETENT_OK);
 	CHECK(get(listed.handle, "t:rev", DETENT_NOT_OPENED) == -7);
-	CHECK(detent_eval(listed.handle, S("u:all"), S("x"), none, false, &flag) == DETENT_OK && flag);
+	CHECK(get(listed.handle, "u:all", DETENT_OK, -7, S("x")) == 1);
 	CHECK(detent_revision(listed.handle, S("t"), &revision) == DETENT_NOT_OPENED);
 	// A failed switch keeps the installed view (D4): hide the new generation's reader metadata.
 	CHECK(writer.publish_json(knobs(4)) == 4);
@@ -241,11 +235,15 @@ void wrapper(const std::filesystem::path &root) {
 	CHECK(writer.publish_json(knobs(5)) == 1);
 	detent::Reader reader(store.string(), ::getuid());
 	CHECK(reader.get("t:rev", 0) == 5 && reader.get("t:absent", 9) == 9 && reader.get("bad", 8) == 8);
-	CHECK(reader.eval("t:flag", true, std::nullopt, "vip") && !reader.eval("t:flag", true));
-	CHECK(reader.eval("t:rev", true) && !reader.eval("t:rev", false));
-	auto found = reader.lookup("t:min");
-	CHECK(found && found.value.kind == DETENT_KIND_INT && found.value.integer == INT64_MIN);
-	CHECK(reader.lookup("t:zz").status == DETENT_MISSING && !reader.lookup("t:zz"));
+	CHECK(reader.get("t:flag", 7, std::nullopt, "vip") == 1 && reader.get("t:flag", 7) == 0);
+	CHECK(reader.get_as<bool>("t:flag", false, std::nullopt, "vip") && !reader.get_as<bool>("t:flag", true));
+	CHECK(reader.get_as<bool>("t:rev", true) && !reader.get_as<bool>("t:rev", false)); // 5 is not a flag
+	CHECK(reader.get_as<std::int8_t>("t:max", 3) == 3 && reader.get_as<std::uint8_t>("t:rev", 0) == 5);
+	CHECK(reader.get_as<std::uint64_t>("t:min", 4) == 4 && reader.get_as<std::int64_t>("t:min", 4) == INT64_MIN);
+	auto found = reader.lookup("t:min", 0);
+	CHECK(found && found.value == INT64_MIN);
+	CHECK(reader.lookup("t:zz", 6).status == DETENT_MISSING && !reader.lookup("t:zz", 6) &&
+	      reader.lookup("t:zz", 6).value == 6);
 	CHECK(reader.revision("t") == 1u && !reader.revision("t:x"));
 	detent::Reader moved(std::move(reader));
 	CHECK(moved.get("t:rev", 0) == 5 && reader.native() == nullptr && reader.get("t:rev", 6) == 6);

@@ -63,12 +63,12 @@ bool GenerationReader::refresh() {
 				return false;
 		}
 		if (prepared && descriptor_ && descriptor_->cursor == next.cursor &&
-		    (!logical_ || *logical_ != prepared->logical || descriptor_->profile != next.profile))
+		    (!state_commitment_ || *state_commitment_ != prepared->state_commitment || descriptor_->profile != next.profile))
 			throw std::invalid_argument("local generation conflicts with the installed cursor");
 		retired = std::move(installed_);
 		installed_ = prepared ? prepared->view : recovered->view();
 		if (prepared)
-			logical_ = prepared->logical;
+			state_commitment_ = prepared->state_commitment;
 		descriptor_ = next;
 		directory_identity_ = directory_identity;
 	}

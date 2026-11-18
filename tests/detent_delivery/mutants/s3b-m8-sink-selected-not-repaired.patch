@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..a5ec71cf 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -523,8 +523,6 @@ struct Coordinator::Impl {
+ 			if (equivalent)
+ 				options.publication_sink->selected_equivalent(*base->generation,
+ 															  *paged_candidate->maintenance);
+-			else if (repaired)
+-				options.publication_sink->selected_repaired(*base->generation);
+ 			else
+ 				options.publication_sink->selected(*base->generation);
+ 		}

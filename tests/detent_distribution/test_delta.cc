@@ -69,15 +69,18 @@ std::string fixture(bool progress = false, std::uint64_t base = 42, std::uint64_
 	n(0);
 	a(4);
 	n(0);
-	out.push_back('\xc2');
 	out.push_back('\xc0');
+	if (group && std::holds_alternative<detent::GroupRollout>(*group))
+		n(1);
+	else
+		out.push_back('\xc0');
 	a(group ? 1 : 0);
 	if (group) {
 		a(3);
 		s("beta");
-		if (const auto *forced = std::get_if<bool>(&*group)) {
+		if (const auto *forced = std::get_if<std::int64_t>(&*group)) {
 			n(0);
-			out.push_back(*forced ? '\xc3' : '\xc2');
+			m::signed_integer(out, *forced);
 		} else {
 			n(1);
 			n(std::get<detent::GroupRollout>(*group).rollout_pct);
@@ -99,7 +102,7 @@ int main() {
 		auto bytes = fixture();
 		for (const auto &[expected, progress_only] :
 			 {std::pair{fixture(), false}, std::pair{fixture(true), true},
-			  std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupOverride(true)), false},
+			  std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupOverride(std::int64_t{1})), false},
 			  std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupRollout{17}), false}}) {
 			auto input = std::make_shared<const d::ValidatedDelta>(decode(expected, progress_only));
 			const auto resident = input->storage_account()->used();
@@ -138,9 +141,8 @@ int main() {
 		require(!delta.mutation(transaction.mutations.start).value &&
 				delta.mutation(transaction.mutations.start).key == "app:count");
 		require(delta.mutation(transaction.mutations.start + 1).value &&
-				!std::get<detent::distribution::WireBoolDef>(
-					 *delta.mutation(transaction.mutations.start + 1).value)
-					 .default_value);
+				delta.mutation(transaction.mutations.start + 1).value->default_value == 0 &&
+				!delta.mutation(transaction.mutations.start + 1).value->rollout_value);
 		auto progress = decode(fixture(true), true);
 		require(progress.kind() == d::UpdateKind::Progress && progress.transactions().empty() &&
 				progress.target().revision == 45);

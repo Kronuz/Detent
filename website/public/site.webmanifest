@@ -1,0 +1,11 @@
+{
+  "name": "Detent",
+  "short_name": "Detent",
+  "start_url": "/Detent/",
+  "scope": "/Detent/",
+  "display": "browser",
+  "icons": [
+    { "src": "/Detent/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/Detent/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
