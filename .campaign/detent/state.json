@@ -2385,7 +2385,9 @@
     },
     "consensus-worker-release": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "driver-apply-gap"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
@@ -2426,7 +2428,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-18T04:35:53"
+      "updated": "2026-11-18T12:58:25"
     },
     "container-selection": {
       "accepted": {},
