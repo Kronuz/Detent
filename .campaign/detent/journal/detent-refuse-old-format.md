@@ -1,6 +1,6 @@
 # detent-refuse-old-format: journal
 
-State: waiting on jobs 261118-091843-ea45c3 261118-092449-5660df 261118-092450-81b2de 261118-092511-a60fd9 261118-092512-7f51be
+State: waiting on jobs 261118-091843-ea45c3 261118-092815-15d102 261118-092816-620656 261118-092817-880e5a 261118-092818-bf9ff0 261118-092819-c7250d
 Quest: .campaign/detent/quests/detent-refuse-old-format.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix at Detent:af9a8479 (test-only commit Detent:3e687591 before it). Jobs queued behind a loaded
-machine: old-fixture build 261118-091843-ea45c3 (53abd637^), test at fix 261118-092449-5660df,
-test at the test-only commit (fails-without) 261118-092450-81b2de, new detentd on the old journal
-261118-092511-a60fd9, suite 261118-092512-7f51be.
+Lead's ruling (msg: unstamped = unknown, decide by content) done at Detent:10ca3544. Jobs, all at
+that head unless noted: old-fixture build at 53abd637^ 261118-091843-ea45c3 (queued behind a
+strict hold since 09:18); test at the fix 261118-092815-15d102; same test at the mutant
+(service.cc reverted, ref refs/mutants/refuse-old-format, Detent:3716cf13) 261118-092816-620656;
+new detentd on the old-built journal 261118-092817-880e5a (after the fixture job); new detentd on
+the current-format unstamped trials 10000-main and 5000000-flat-r1 261118-092818-bf9ff0; suite
+261118-092819-c7250d.
 
 ## Next
 
-1. When the jobs finish: fill the Evidence table from `campaign brief`; if the real-fixture probe or the test fails, fix (service.cc) and rerun.
-2. Check CI on the pushed branch (Docs was running at start); set State to ready for review.
+1. When 261118-091843-ea45c3 finishes, embed its small journal (`.scratch/old-fixture/data`, a few
+   KB) in test_format_refusal.cc as the real format 1 case, unstamped and stamped 1 (the test
+   today crafts the unstamped case with an unreadable manifest, and a stamp of 1).
+2. Fill the Evidence table from `campaign brief`; check CI on the branch; set ready for review.
 
 ## Blocked on
 
-CMake is outside the file set: I added the 4-line registration of test_authority_format_refusal to
-tests/detent_authority/CMakeLists.txt (commit Detent:3e687591) because the test cannot run without
-it. Lead: add that path to the quest's files, or tell me to drop it.
+Nothing.
 
 ## Evidence
 
@@ -48,10 +51,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - Cause (found by reading, not by the 10K fixture, whose first job is still queued): a failure before
   admission is caught by Service::run's inner handler, which never settled `ready`, so the
   constructor (detentd) hangs. The recovery fence is one such failure. Fixed there.
-- 53abd637 is not the only layout change since 2026-10-23 (711a114e's value encoding changed under
+- Superseded by the lead's ruling: no stamp = unknown. An unstamped directory with a journal is
+  replayed: failure before admission = format 1 (refused, naming the failure); success = format 2,
+  stamped before admission. A stamp of 1, 3 or garbage is refused at once.
+- (Superseded, kept for the record) 53abd637 is not the only layout change since 2026-10-23 (711a114e's value encoding changed under
   unchanged magics), so no magic names the old format. Ruling: a storage-format stamp
   (`<dir>.history/format`, `storage_format = 2` in service.cc); an existing journal without one is
   format 1. history.cc is unchanged: its tables are covered by the stamp and a magic check there
   would be a second way to do one thing.
-- Consequence for the lead: every directory written before this lands (dense-sync-stack's 10000-main
-  and 5000000-flat-r1, current format but unstamped) is refused and must be regenerated.
+- history.cc is unchanged: the content check is the replay itself (image magic, entry apply, history
+  restore all run in it), so no second check of old bytes there.
+- CMake registration is in the file set now (lead).
