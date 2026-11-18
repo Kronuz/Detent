@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: working
+State: waiting on jobs 261118-093405-46dfde
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -10,10 +10,14 @@ porting the core to main's shapes: one knob type (D1's single `detent_get` with 
 no `StorageIdentity`/`storage.meta`, the `selected` table read by `detail::read_selected`, zero-byte
 leases, `SegmentId`, `state_commitment`, `minimum_page_bytes`.
 
+Merge committed `Detent:470a127` and pushed (CI runs on push). Probe job 261118-093405-46dfde
+builds the reader targets and runs core, files, syscalls, lazy-page, change-file tests and the
+switch test's parks, forks and cold phases.
+
 ## Next
 
-1. Build the reader targets; run reader tests and lazy-page tests locally (light hold).
-2. Commit the merge; push; dispatch CI.
+1. Read 46dfde; fix compile or test failures.
+2. Read CI at the pushed head.
 3. Once msg-79 is answered: SR1/FIX-2 in `generation.cc` `read_selected` (O_NONBLOCK; nlink 0 → nullopt).
 4. Jobs: native, asan, tsan, t3-asan, t3-tsan; mutants (A8); SR1/SR2 regressions (A10, A11); fork
    freeze cases and soak (A12, A13); A14 stress; A16 first-read gate.
