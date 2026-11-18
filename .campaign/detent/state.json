@@ -12890,6 +12890,49 @@
       "updated": "2026-11-12T03:46:56",
       "worktree": ""
     },
+    "paged-decode-one-shape": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent_local/paged_layout.hh",
+        "src/detent_local/paged_layout.cc",
+        "src/detent_local/paged_*.cc",
+        "src/detent_local/paged_*.hh",
+        "tests/detent_local/*paged*",
+        "tests/detent_local/test_dense_*.cc",
+        "tests/detent_local/test_delta_plan_moved_definitions.cc",
+        "tests/detent_local/test_lazy_page_bitmap.cc",
+        "tests/detent_local/prepared_reader_fixture.hh",
+        "tests/detent_local/mutants/a10-overlay-default-limits.patch"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "reader-s6"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
+      "updated": "2026-11-18T14:27:14"
+    },
     "peers-retry-flake": {
       "accepted": {},
       "after": [],
