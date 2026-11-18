@@ -1,6 +1,6 @@
 # journal-turn-bound: journal
 
-State: waiting on jobs 261117-202107-6d9f84 261117-202123-e77d9b
+State: waiting on jobs 261117-202834-ed7481
 Quest: .campaign/detent/quests/journal-turn-bound.md (the lead's; never edit it)
 
 ## Doing
@@ -13,16 +13,12 @@ via FETCHCONTENT_SOURCE_DIR_JOURNAL, as probe a23d83 did).
 
 ## Next
 
-0. crc_fixture timeouts (a0a7d2, 89c90c; also journal-sync-seam's ac87f4 without this change):
-   load against a ~20 s test with a 30 s cap. test/crc_fixture_test.cc builds no TurnDriver, Host
-   or Store (only TurnLog, non-shared Journal, PosixIO), so its turns are the same by
-   construction. Strict jobs measure time and sync counts (DYLD interposer
-   ~/.scratch/journal-turn-bound/count_sync.c): head 9270185 6d9f84, main 13592a1 e77d9b (the
-   main one is unattached to the quest: a second --quest job superseded 0b92e4). Same counts and
-   similar times clear it; the cap is a follow-up, not this quest.
-
-1. Read the three jobs and GitHub CI for 87ea77e; fix any compile or test failure (the code was
-   never built locally: machine work goes through jobs only).
+0. crc_fixture cleared (lead): 6d9f84 head and e77d9b main make the same syscalls (fsync 68,
+   F_FULLFSYNC 217, pwrite 136; 87/87 checks); 20.7 s vs 12.2 s, one run each under different
+   load. The fixture builds no TurnDriver. Follow-up (not this quest): journal_crc_fixture's 30 s
+   cap is too tight for a ~20 s test under suite load.
+1. Suite rerun ed7481 at 9270185: if green, paste brief's table and set "ready for review"; if
+   only crc_fixture times out again, report it to the lead, who rules.
 2. When green, paste `campaign brief`'s Evidence table and set State to "ready for review".
 
 ## Blocked on
@@ -33,11 +29,11 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 8a9d1f fails-without (exit 1, "turn exceeds a segment"); suite pending a0a7d2/89c90c |
-| A2 | <pending: a0a7d2> |
-| A3 | <pending: a0a7d2> |
-| A4 | 4608c2 exit 0: consensus wave-open 64 at once, all committed, none fenced, journal 87ea77e |
-| A5 | CI green at 9270185; local suite 52/53, journal_crc_fixture timeout (load, see Next 0) |
+| A1 | 8a9d1f fails-without at main's driver ("the wave commits: turn exceeds a segment"); suite ed7481 queued |
+| A2 | suite ed7481 queued (`journal_turn_bound_oversize`; passed in a0a7d2) |
+| A3 | suite ed7481 queued (`journal_turn_bound_crash`, `journal_turn_seal_crash`; passed in a0a7d2) |
+| A4 | 4608c2 exit 0, consensus:d668ae2 wave-open 64, 64/8, 32 against journal 87ea77e: all committed, none fenced (brief: ran in consensus, not the quest's repository) |
+| A5 | CI green at 9270185; suite ed7481 queued |
 
 msg-67 (mine to the lead): granted; CMakeLists.txt replaces test/CMakeLists.txt in the file set.
 The registration is one block after the turn_seal foreach.
