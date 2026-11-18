@@ -1,6 +1,7 @@
 # ci-test-flakes: journal
 
-State: waiting on jobs (at Detent:6a39c344, listed under Jobs)
+State: waiting on jobs 261117-172350-3354ab through 261117-172742-fac058 (Jobs, at Detent:6a39c344) and
+attribution 261117-172940-f9ab01, -173010-dc4a00, -173015-11a288, -173020-20d577, -173024-17f7fe
 Quest: .campaign/detent/quests/ci-test-flakes.md (the lead's; never edit it)
 
 ## Doing
@@ -89,6 +90,9 @@ A2 (4 at once): scrub-worker x48/49/51/52 261117-172447-ec24c1 -172453-f64146 -1
 -172629-83cb02; paged x200 -172636-3cf325; service x200 -172644-ea3ac4.
 A4: paged TSan x100 261117-172650-0ed378. A5: all-down TSan -172655-f3b09e -172701-043ccc -172706-92b832
 -172712-588ac9. A3: pins 261117-172742-fac058, native suite 261117-172717-b4e4d7.
+Done by 17:45: forced scrub, dns-port, paged pass; scrub-worker x48 0 failures. 261117-172918-8e1a6b and
+-172929-2a13e3 failed on a malformed command (no test name), not evidence; -172923-7663a9 and
+-172935-591184 cancelled for the same reason.
 Attribution (problem 2): native suite at main 2504f7d7 261117-172940-f9ab01; x40 at 4-way, main / head:
 transport_peers 261117-173010-dc4a00 / -173015-11a288, poll_publisher -173020-20d577 / -173024-17f7fe.
 
