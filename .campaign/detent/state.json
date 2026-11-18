@@ -4676,7 +4676,65 @@
       "worktree": ""
     },
     "faultfs-collect-linear": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T10:19:16",
+          "base": "adc4fc291632919446c651d348530a4e430071e3",
+          "blobs": {
+            "docs/mechanisms/crash-model.md": "100644:c68eea3582b22ff50752974d23f93cf1083cb3d4",
+            "include/faultlab/faultfs.h": "100644:9e7e291ee34d1efd431b316f8a7ed12b005bed78",
+            "test/faultfs_test.cc": "100644:a858267c3cd9efb73fbb43d06738c55064cb72bf"
+          },
+          "by": "review",
+          "commit": "a3b71d1b9bdcfa3664dbce8725f14c07bb14845f",
+          "criteria": "df7b2cc4e13c6232",
+          "diffs": {
+            "docs/mechanisms/crash-model.md": "ee550a3379ba7d61",
+            "include/faultlab/faultfs.h": "8f72910fb31fa565",
+            "test/faultfs_test.cc": "6a0ac64726520885"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh /Users/kronuz/code/Kronuz/faultlab-wt/detent/faultfs-collect-linear/.scratch/case_pass.sh 'a self-replace stays durable across an ordering point and its directory'\"'\"'s sync'",
+                  "commit": "fcbe2a96ce5fe3d5761772a2b62d29e218d41a28",
+                  "docs": [
+                    "docs/mechanisms/crash-model.md"
+                  ],
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-100249-d31056",
+                  "level": "light",
+                  "seconds": 7.3,
+                  "state": "done",
+                  "what": "F1: self-replace case passes at the fix"
+                },
+                {
+                  "cmd": "sh /Users/kronuz/code/Kronuz/faultlab-wt/detent/faultfs-collect-linear/.scratch/trace-oracle/trace_diff.sh",
+                  "commit": "fcbe2a96ce5fe3d5761772a2b62d29e218d41a28",
+                  "docs": [
+                    "docs/mechanisms/crash-model.md"
+                  ],
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-100257-47f46c",
+                  "level": "light",
+                  "seconds": 26.8,
+                  "state": "done",
+                  "what": "F1: reviewer's differential trace, 600 seeds, vs old faultfs.h with and without the self-replace fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "F2 (introduced) fixed: 64a86e passes, mutant d58e49 fails; reviewer's reentrant probe 7ca44a failed to build, not rerun. F3: property test f99fe2.",
+          "review": "550f5decb88ed33d8bc7c589da1ea5c8577d4a7c",
+          "reviewed": "5f4d1042322f776dff1fbbf2c80ac211058562f7",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "adc4fc291632919446c651d348530a4e430071e3",
       "branch": "quest/detent/faultfs-collect-linear",
@@ -4702,7 +4760,9 @@
       ],
       "journal": "../Detent-wt/detent/faultfs-collect-linear",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -4710,7 +4770,7 @@
       "risk": "normal",
       "status": "review",
       "title": "faultlab: faultfs collect() linear in inodes",
-      "updated": "2026-11-18T09:33:33",
+      "updated": "2026-11-18T10:19:16",
       "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
     "fixture-500k": {
