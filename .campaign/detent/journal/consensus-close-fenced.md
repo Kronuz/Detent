@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261117-224628-54ea6f 261117-224633-e4c88c 261117-224638-f7ecbd 261117-224642-346496 261117-224646-fc0854 261117-224650-1be635
+State: waiting on jobs 261117-234619-fc462b 261117-234633-101e5d 261117-234646-eec4c1 261117-234659-3d1404 261117-234712-39d2ac 261117-234724-efbb56
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,9 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:c34fd80 (pushed). The first test commit did not compile (start() lacked a task<T>
-overload), so the jobs at 9b218a0/c06510a are void, including fails-without 261117-224124-3ca3bb
-(it passed on a compile error). Resubmitted at c34fd80: plain A1-A3 54ea6f, ASan A4 e4c88c, TSan
-A4 f7ecbd, suite A5 1be635, fails-without under ASan: settle() return 346496 (fenced_row must
-fail), pump() erase fc0854 (bytes must fail). Check the mutant logs show a runtime failure, not
-"BUILD FAILED".
+Code at consensus:1c4f173 (pushed). Jobs: plain A1-A3 fc462b, ASan A4 101e5d, TSan A4 eec4c1,
+fails-without ASan settle() 3d1404 and pump() erase 39d2ac (both exited 134 before: runtime
+failures), suite A5 efbb56. Check plain's printed per-row bytes: before the Host's purge vs after.
 
 ## Next
 
@@ -50,3 +47,12 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    own apply marks it ready in the same step); the common close leaves it unqueued.
 3. Dropped the closed-row branches (open's erase, live(), close(), state()): a closed group no
    longer outlives its step, so they were dead. Added `groups()` for A3.
+4. Recover after close (CI: "recovered on this host; reopen the host to recover it again"): a real
+   journal contract (journal.h recover_shared: an id whose records the turn log handed to a Store of
+   this host recovers only after the host reopens), not Driver state; close does not clear it and I
+   did not touch it. The fenced-row test reopens with open, not recover.
+5. Bytes left after 10,000 closes (about 120-180 B a row): Host::group_io keeps an expired weak entry
+   per handed IO in Host::ranges_ until its next group_io call purges them (journal host.h:284), so
+   the retention is the Host's, outside the Driver; Driver rows are erased. The test opens one more
+   row (that purge call) before counting, and prints the figure before and after. Whether the Host
+   should purge eagerly is a journal question for the lead; not changed here.
