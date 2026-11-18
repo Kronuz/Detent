@@ -9,32 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Getting a macos-x86_64 `upload` failure with socket samples (they exist from consensus:5923b6c).
 
 ## Next
 
-1. <step>
+1. Read probe run 44319694813 and main run 44318999208 (5923b6c) for an `upload` failure.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
+
+## Notes
+
+- No macos-x86_64 `upload` failure carries samples yet: every run at or after the sampler passed
+  `upload`. Failures without samples (CI logs in .scratch/ci/ of the code worktree): main
+  44130104547 (0.0 MiB, 3 beats, gap 4044 ms), 44214025598 (6.0 MiB, gap 3748), 44216299768
+  (18.0 MiB, gap 3012); consensus-close-fenced 44261476872 job 134655655042 (07:51Z, gap ~4 s) and
+  44264616865 job 134665992662 (08:16Z, 2.0 MiB, gap 4019 ms, host 1's loops join 1.5 s after
+  draining). Host stalls 83-111 ms, under the 250 ms retry bar.
+- Probe: branch probe/groups-upload-stall (consensus:0156b46 = 5923b6c with ci.yml replaced; never
+  lands; dispatch only). Three macos-15-intel shards, each 24 `upload` runs beside a looping
+  connection_test, printing `netstat -s -p tcp` deltas and load around each failure. Script
+  .scratch/probe/ci.yml in the code worktree. Dispatch 1: 44319694813 (3 runner jobs of ~6 allowed).
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <no evidence yet> |
+| A2 | <no evidence yet> |
+| A3 | <no evidence yet> |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Probe shape: one dispatch = 3 runner jobs x 24 uploads, so "about 6 runs" is two dispatches.
