@@ -5786,7 +5786,7 @@
     "journal-faultfs": {
       "accepted": {},
       "after": [
-        "journal-reopen-closed"
+        "faultfs-collect-linear"
       ],
       "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
       "branch": "quest/detent/journal-faultfs",
@@ -5837,7 +5837,7 @@
       "risk": "normal",
       "status": "active",
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
-      "updated": "2026-11-18T07:26:50",
+      "updated": "2026-11-18T08:59:21",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-group-io-cost": {
