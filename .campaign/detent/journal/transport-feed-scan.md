@@ -251,7 +251,7 @@ both change a contract, so they are the lead's (see Blocked on).
 | A3 | order 261118-045306-b6154a, identity -045305-fb5ea5, reconnect -045306-30cac2, leftover -045306-6e79b8, TSan -045305-8c4955 (all afaa58e); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
 | A4 | suite 261118-045252-a6a671 (afaa58e); CI at afaa58e |
 | A5 | 261118-045305-69c770 (afaa58e): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
-| A6 | [artifact] test/transport/groups_test.cc: `upload` prints socket queues and TCP state per host when it fails (consensus:ed8f840, b686ce2); groups-upload-stall reads the next failure |
+| A6 | `test/transport/groups_test.cc`: "every 250 ms: progress, links, host 1's frames, host 2's reads, the sockets" |
 
 ## Result
 
