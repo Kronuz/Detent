@@ -1,7 +1,24 @@
 # transport-feed-scan: journal
 
-State: fix round 1 done at consensus:596a065 (code 303cad1), pushed; waiting on job 261118-003330-778798 (F1 exclusive A/B, queued for the machine) and CI at 596a065.
+State: fix round 2 (G1) at consensus:4b88ad2, pushed; waiting on jobs 261118-034607-ab6dcf (backlog), 261118-034609-0c0786 (fw coalesce-drops-credit), 261118-034611-6144e1 (fw, review script), 261118-034613-a94a25 (suite), 261118-034613-f15cf5 (A2).
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
+
+## Fix round 2 (session 5): G1
+
+- G1: no case reached `owe`'s merge. Cause: the writer's flush loops without yielding while
+  SSL_write succeeds, so owed records pile up only when the socket is full (the peer not
+  reading). New case `backlog` (consensus:4b88ad2): RawPeer (now sums credit per group, and
+  sleeps 150 ms after each frame over 1 MiB while `slow`) opens 6,000 groups on host 2, reads
+  slowly while host 2 sends it 6 x 4 MiB, and sends 3 data frames per group meanwhile; asserts
+  each group's credit equals its expected bytes, no closed, and credit frames < 18,000 (merged).
+  Local run: 575,980 of 575,980 B, 6,000 of 6,000 groups whole, 9,436 credit frames; node 1 had
+  read 2 of 6 bulk frames when all 18,000 arrived. No product change: the merge is right.
+- Mutant `coalesce-drops-credit` added to mutant_commit.py (91da6ea, on no branch).
+- Jobs at 4b88ad2: plain backlog 261118-034607-ab6dcf; fails-without at 91da6ea
+  261118-034609-0c0786; the reviewer's owe-mutants.sh (copy in the code worktree's
+  .scratch/g1/: `--cases`, stacked `a+b`, exit 1 when killed, 126 on setup failure) with
+  `coalesce-reached coalesce-reached+coalesce-drops-credit` on backlog, fails-without,
+  261118-034611-6144e1; reruns suite 261118-034613-a94a25, A2 261118-034613-f15cf5.
 
 ## Fix round 1 (session 4)
 
@@ -207,6 +224,11 @@ both change a contract, so they are the lead's (see Blocked on).
   two GroupTable lookups per frame on the group loop vs main's one map find. Not in F1's ask
   (data per frame); options: accept and record, or a follow-up that folds the opened check into
   `Stored` (costs idle bytes) or speeds the lookups. Recommend accept.
+
+## Findings (review fix round 2)
+
+- G1 = 261118-034609-0c0786 (coalesce-drops-credit at 91da6ea fails `backlog`; reached and
+  killed by the review script 261118-034611-6144e1); suite 261118-034613-a94a25. Pending.
 
 ## Findings (review fix round 1)
 
