@@ -1339,7 +1339,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-driver",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T00:38:20",
@@ -1399,8 +1399,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 4: consensus Driver on task, Sink output, witness, blocking entry",
-      "updated": "2026-11-17T00:38:49",
-      "worktree": "../consensus-wt/detent/consensus-driver"
+      "updated": "2026-11-18T02:06:23",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
