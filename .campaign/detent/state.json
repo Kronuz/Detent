@@ -16087,6 +16087,8 @@
     "turn-seal-forget-flake": {
       "accepted": {},
       "after": [],
+      "base": "ea397ab052bc54d320633e3f02f824fb5dd49e49",
+      "branch": "quest/detent/turn-seal-forget-flake",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -16105,6 +16107,7 @@
       "files": [
         "test/turn_seal_test.cc"
       ],
+      "journal": "../Detent-wt/detent/turn-seal-forget-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -16112,9 +16115,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "journal: turn_seal forget_threads' 'group 2 keeps sealing' fails on macOS x86_64 CI",
-      "updated": "2026-11-18T14:02:24"
+      "updated": "2026-11-18T14:03:04",
+      "worktree": "../journal-wt/detent/turn-seal-forget-flake"
     },
     "voter-read-freshness": {
       "accepted": {},
