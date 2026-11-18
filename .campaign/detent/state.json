@@ -5974,18 +5974,58 @@
         "test/host_test.cc"
       ],
       "journal": "../Detent-wt/detent/journal-reopen-closed",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T07:22:08",
+          "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+          "criteria": {
+            "A1": "261118-064542-c3da37, 261118-064542-8aa7cc; fails without: 261118-043341-b92534, 261118-043343-e3fdca, 261118-055806-91a898, 261118-055806-c71ad7, 261118-064543-47189d, 261118-064543-8b4151",
+            "A2": "261118-064542-c3da37, 261118-064543-3d0836, 261118-064522-d966b2; fails without: 261118-043411-fd6782, 261118-055806-fd33bc, 261118-064524-caef4a, 261118-064544-c6adb3",
+            "A3": "261118-064544-b64d11, 261118-064517-9372f4; fails without: 261118-064519-8a384a",
+            "A4": "261118-064545-8b40b9, 261118-064545-0fcd78",
+            "A5": "`docs/mechanisms/group-lifetime.md`: \"# A group's lifetime in a live Host\"",
+            "A6": "261118-064542-8aa7cc, 261118-064531-67fae6",
+            "A7": "261118-064545-0fcd78, 261118-064526-c0d03d; fails without: 261118-064529-b4cc89",
+            "A8": "261118-064545-0ad089; fails without: 261118-055745-5573e8, 261118-064546-8208bc",
+            "A9": "261118-064546-bf20ed, 261118-064547-7604e6, 261118-064547-a8c91c; fails without: 261118-043337-6f4c2f, 261118-043339-8b3682, 261118-055805-322172, 261118-055805-6844b0, 261118-064547-389464, 261118-064548-0fc1ad"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+              "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-064548-69f7ab",
+              "level": "light",
+              "seconds": 170.7,
+              "state": "done",
+              "what": "journal-reopen-closed check suite at 4d364f18a949"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+          "reason": "",
+          "tested": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T07:21:59",
+      "updated": "2026-11-18T07:22:40",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
