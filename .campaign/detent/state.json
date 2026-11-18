@@ -1008,6 +1008,8 @@
     "consensus-close-fenced": {
       "accepted": {},
       "after": [],
+      "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+      "branch": "quest/detent/consensus-close-fenced",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -1027,6 +1029,7 @@
         "include/consensus/driver.h",
         "test/driver_close_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-close-fenced",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -1034,9 +1037,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
-      "updated": "2026-11-17T22:03:21"
+      "updated": "2026-11-17T22:33:31",
+      "worktree": "../consensus-wt/detent/consensus-close-fenced"
     },
     "consensus-dns-peers": {
       "accepted": {
