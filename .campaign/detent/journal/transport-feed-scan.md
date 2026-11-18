@@ -17,6 +17,16 @@ passed (TSan 80ef1e, A2 49251f, A5 240b25, A3 eb4940, suite 7f5dbb, A6 x100 4b73
   on connection 2 without the open must be `unopened` and closed back. Mutants added:
   no-generation-clear 261117-235604-889a1c, no-current 261117-235613-498ed0. Plain:
   reconnect 261117-235543-7b173e, leftover 261117-235554-891b65.
+- F1 step 1 at 48d04eb, A/B 261117-235520-8aad49 (strict, beside 15 light holds): data same
+  1515/1660 ns vs main 982/954 (1.6x; was 2.5x), control 622/627 vs 506/524. Not enough.
+  Step 2 consensus:303cad1: owed is a per-lane vector of 24 B records taken whole from the
+  batch, repaid in order, freed when repaid; merged per group when it doubles (>= 4,096) while
+  the connection cannot send. No per-group table on receive. A/B 261118-002026-757230.
+  Diag profile (host 2's threads' self samples, .scratch/prof/ in the code worktree) at
+  48d04eb: 261118-001853-9bb0ba (never evidence).
+- F3 result at 48d04eb: reconnect 7b173e passes (1 unopened, 1 closed back); no-generation-clear
+  889a1c killed (reconnect line 1504: delivered 2 of 2, 0 unopened); no-current 498ed0
+  survives, as R7 predicts (equivalent).
 - F5: `opening` returns before the erase when `!current` (48d04eb).
 - F4: perf doc A1 rewritten from the A5 job at head (pending 261117-235521-9c2259).
 - Reruns at 48d04eb: A1 scan -384fb5, main-feed -235757-353ffb; A2 -9b423b; A3 order -f1332a,
