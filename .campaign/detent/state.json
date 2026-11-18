@@ -14002,32 +14002,7 @@
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
-      "accepted": {
-        "correctness": {
-          "at": "2026-11-17T18:41:26",
-          "base": "aa7fa351239719a365e211bace4fed5f8ec823f3",
-          "blobs": {
-            "CMakeLists.txt": "100644:cf575b0182d671d18a42cb29e956017cd945157f",
-            "bench/transport_idle.cc": "100644:f43eb0837290ed96402454bb5dea94749b03fd36",
-            "docs/perf/transport-idle-cost.md": "100644:94f2000bb2426f9471a0d7cf71a1fcd62fca6eec",
-            "test/transport/tls_certificates.cmake": "100644:515b7d481411c44006b94b77d1dc89172370b427"
-          },
-          "by": "review",
-          "commit": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
-          "criteria": "dc92f9266c416f59",
-          "diffs": {
-            "CMakeLists.txt": "67bcf097014c7016",
-            "bench/transport_idle.cc": "8fdcb551ca80b72b",
-            "docs/perf/transport-idle-cost.md": "5c1c08f25cc00e6e",
-            "test/transport/tls_certificates.cmake": "e5fa42eda41f22e4"
-          },
-          "findings": {},
-          "note": "",
-          "review": "219226bda2ce8652d9ac13a6e5c4c14e8362e78d",
-          "reviewed": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
-          "verdict": "APPROVE"
-        }
-      },
+      "accepted": {},
       "after": [
         "transport-identity"
       ],
@@ -14039,12 +14014,6 @@
           "level": "light",
           "minutes": 30,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -14053,6 +14022,42 @@
         "test/transport/**",
         "CMakeLists.txt",
         "docs/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-17T19:00:16",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "owner-approved 2026-11-17: only macos-x86_64 fails, in connection_test read_slowly, which fails on consensus main at 0ed76ef, 84814a9, 361d5d2 and aa7fa35; consensus_transport_idle passes there; fix is quest connection-slow-reader-flake",
+          "voided": [
+            "correctness"
+          ],
+          "weakened": [
+            "gate check ci removed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/transport-idle-cost",
       "landed": [],
@@ -14068,7 +14073,7 @@
       "risk": "normal",
       "status": "review",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T18:41:26",
+      "updated": "2026-11-17T19:00:16",
       "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {
