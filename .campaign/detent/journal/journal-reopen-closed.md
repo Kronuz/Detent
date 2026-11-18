@@ -11,7 +11,7 @@ First implementation at journal:38de42f, pushed; jobs queued (none run yet, so i
 
 1. Read the jobs; fix compile or test failures.
 2. When journal-faultfs lands and host_test.cc is mine (lead, after msg-70): merge main, rewrite host_test second_recovery() to the new rule (it asserts the old Corruption guard; expected red in the suite until then).
-3. Ask the lead for ctest entries for the long reopen cases (crash, churn, heap) once CMakeLists is free; today they run only by name as jobs (journal_journal has a 30 s timeout).
+3. When CMakeLists.txt joins the set (with host_test.cc, after journal-faultfs lands): add ctest entries for reopen_crash, reopen_churn, reopen_heap; until then they run by name as direct-build jobs.
 4. Durability review.
 
 ## Blocked on
@@ -26,7 +26,7 @@ Nothing for code. host_test.cc second_recovery() waits on journal-faultfs landin
 | A2 | 261118-023256-09c8e0; 261118-023317-9b8ff5 (TSan); 261118-023320-db2f55 (fails-without: no hold) |
 | A3 | 261118-023259-0f02eb (reopen_crash: 16 seeds, every power cut) |
 | A4 | 261118-023301-3faef9 (reopen_churn: heap after first and last pass) |
-| A4b | 261118-023315-c41188 (reopen_heap, tagged A4: the tool does not parse A4b) |
+| A7 | 261118-023315-c41188 (reopen_heap; retagged A7, the lead's renumbering of A4b) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:38de42f) |
 | A6 | 261118-023322-636173 (suite; host_test second_recovery expected red, see Blocked on) |
 
