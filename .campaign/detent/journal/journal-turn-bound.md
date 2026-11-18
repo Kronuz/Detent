@@ -1,12 +1,13 @@
 # journal-turn-bound: journal
 
-State: waiting on jobs 261117-200353-a0a7d2 261117-200402-8a9d1f 261117-200406-4608c2
+State: waiting on jobs 261117-200353-a0a7d2 261117-200406-4608c2 261117-200837-89c90c
 Quest: .campaign/detent/quests/journal-turn-bound.md (the lead's; never edit it)
 
 ## Doing
 
-Code at journal:87ea77e (branch pushed for CI). Jobs: suite a0a7d2 (A1,A2,A3,A5), A1 mutant
-8a9d1f (`turn_bound_test wave` with main's turn_driver.h, `--fails-without`), A4 4608c2
+Code at journal:87ea77e, docs at journal:9270185 (head, pushed for CI). Jobs: suite a0a7d2 at
+87ea77e and 89c90c at 9270185 (A1,A2,A3,A5); A1 mutant 8a9d1f done: exit 1, "the wave commits:
+turn exceeds a segment: seed 1" with main's turn_driver.h; A4 4608c2
 (consensus:d668ae2 `consensus_wave_open_test 64`, `64 8`, `32` with journal pinned to 87ea77e
 via FETCHCONTENT_SOURCE_DIR_JOURNAL, as probe a23d83 did).
 
@@ -24,7 +25,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending: a0a7d2, 8a9d1f> |
+| A1 | 8a9d1f fails-without (exit 1, "turn exceeds a segment"); suite pending a0a7d2/89c90c |
 | A2 | <pending: a0a7d2> |
 | A3 | <pending: a0a7d2> |
 | A4 | <pending: 4608c2> |
@@ -50,8 +51,11 @@ under the room, staged order kept, recovery equal to the model), wave_run (same 
 and 64 durable() waiters), oversize (A2), crash (A3: power cut at every I/O of two waves, 6
 seeds, counts cuts between two turns of one wave).
 
-Not in the file set, left for the lead: docs/mechanisms/turn-seal.md and CHANGELOG.md could note
-the per-turn bound and the refusal.
+Docs (journal:9270185): docs/mechanisms/turn-seal.md section "Staged records: one segment per
+turn" states the bound and the oversize rule, with why the group's later records fail too (dense
+sequences in TurnLog::stage and recover_shared, no renumbering of assigned sequences, the group
+already fenced by its own error path); evidence table for turn_bound_test. CHANGELOG.md: one
+entry under 2026-11-17 Changed.
 
 ## Rulings I made
 
