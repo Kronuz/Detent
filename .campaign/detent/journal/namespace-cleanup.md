@@ -1,6 +1,6 @@
 # namespace-cleanup: journal
 
-State: waiting on jobs 261118-063425-3f932a 261118-063427-d1c59a 261118-063429-e22141 261118-063431-4826a4 261118-063434-d5b163 261118-063436-6945df 261118-063436-d7652a
+State: waiting on jobs 261118-063637-4b25ea 261118-063640-a80eea 261118-063642-b28568 261118-063645-ed68b7 261118-063434-d5b163 261118-063647-b2bc43 261118-063648-6e156f
 Quest: .campaign/detent/quests/namespace-cleanup.md (the lead's; never edit it)
 
 ## Doing
@@ -26,10 +26,10 @@ Nothing. (A1's test lives in tests/detent_authority/test_history_power_cut.cc, b
 
 | Criterion | Evidence |
 |---|---|
-| A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-063425-3f932a (`history_mutant.sh table-unbounded`, --fails-without; 4d282a is void, see Doing); plain run d5b163; suite 261118-063436-6945df |
-| A2 | `git grep` job 261118-054245-ae0ed2 (src include tests: no match); suite 261118-063436-6945df |
-| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 262af3, bindings e74f8d (killed); hash 063427-d1c59a, repair 063429-e22141, one_knob 063431-4826a4, history 063425-3f932a (pending); service/mirror/test_history runners already used the convention. 6db3c4, 14f77b, dbe2be and 37fe45 are void |
-| A4 | native 261118-063436-6945df, pins 261118-063436-d7652a |
+| A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-063637-4b25ea (`history_mutant.sh table-unbounded`, --fails-without; 4d282a is void, see Doing); plain run d5b163; suite 261118-063647-b2bc43 |
+| A2 | `git grep` job 261118-054245-ae0ed2 (src include tests: no match); suite 261118-063647-b2bc43 |
+| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 262af3, bindings e74f8d (killed); hash 063640-a80eea, repair 063642-b28568, one_knob 063645-ed68b7, history 063637-4b25ea (pending); service/mirror/test_history runners already used the convention. 6db3c4, 14f77b, dbe2be and 37fe45 are void |
+| A4 | native 261118-063647-b2bc43, pins 261118-063648-6e156f |
 
 ## Result
 
