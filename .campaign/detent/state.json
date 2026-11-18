@@ -12155,11 +12155,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "no stall: trace 261117-212453-69d3b7 (12 runs, 10,000 groups) puts the longest yield at 26.6 ms wall, 12.7 ms CPU, one pass of the io_context FIFO behind 3 readers; none past 50 ms. feed-scan's 'where 5' readers were mid-drain. A latency-pinning test would be a new flake source, so none is added",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "Consensus transport: a reader's yield resumes promptly under load",
-      "updated": "2026-11-17T21:30:47",
+      "updated": "2026-11-17T21:36:22",
       "worktree": "../consensus-wt/detent/reader-yield-stall"
     },
     "recovery-delivery": {
