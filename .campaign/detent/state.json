@@ -5399,7 +5399,9 @@
     },
     "journal-faultfs": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "journal-reopen-closed"
+      ],
       "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
       "branch": "quest/detent/journal-faultfs",
       "checks": [
@@ -5422,7 +5424,6 @@
       "files": [
         "test/driver_test.cc",
         "test/framing_test.cc",
-        "test/host_test.cc",
         "test/placement_test.cc",
         "test/shared_store_test.cc",
         "test/sync_seam_test.cc",
@@ -5448,7 +5449,7 @@
       "risk": "normal",
       "status": "active",
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
-      "updated": "2026-11-18T02:12:34",
+      "updated": "2026-11-18T04:02:36",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-host-guards": {
