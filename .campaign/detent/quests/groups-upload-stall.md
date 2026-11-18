@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`consensus_transport_groups_upload` fails on macos-x86_64 CI (main runs 44130104547, 44214025598, 44216299768): the connection carries almost nothing for 3-4 s while host 2's loops stay responsive. Failures cluster in time and don't reproduce locally (transport-feed-scan's journal, A6). transport-feed-scan lands socket sampling that prints on failure. This quest reads the next failure's samples, names the cause and fixes it.
 
 ## Acceptance criteria
 
@@ -14,18 +14,18 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 [manual] The cause is named from a CI failure's socket samples (run id quoted in the journal).
+- A2 The fix has a test or probe that fails without it, or the cause is shown to be the runner (then the test's bound is set from the samples): jobs.
+- A3 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed by the lead 2026-11-17 from transport-feed-scan A6: no fix without a named cause.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
