@@ -1,40 +1,48 @@
 # consensus-wave-open: journal
 
-State: working
+State: waiting on jobs 261117-191119-28bc6a 261117-191129-a23d83
 Quest: .campaign/detent/quests/consensus-wave-open.md (the lead's; never edit it)
-
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Reproducing on consensus with `test/wave_open_test.cc` (consensus:d668ae2): 64 lone voters
+opened, created, proposed and applied in one wave on one Host loop, turn log 16 KiB segments
+of 1 KiB blocks (the fixtures' and strata's footprint test's `turn_options`). The test prints
+the turn driver's failure. Probes: 28bc6a (consensus's journal pin 7c08540; waves 64, 8, 64/8,
+32, 16) and a23d83 (strata's journal pin cc95ba6).
+
+Hypothesis (one): `TurnDriver::start()` (journal, include/journal/turn_driver.h) puts every
+pending record in one turn with no segment bound; 64 groups' create records (checkpoint record
++ initial batch, ~65 B framing each plus ~12% block overhead) exceed a 16 KiB segment, so
+`TurnLog::encode` throws "turn exceeds a segment", the driver fails every staged operation, each
+group's Journal sets `owner_->failed`, and the Worker's next `run_one`/`submit` finds the store
+fenced with `failed_` unset: "storage fenced outside worker" (worker.h:467, 671). The check is
+right; it hides the turn's error. If confirmed, the cause is journal's: stop and report.
 
 ## Next
 
-1. <step>
+1. Read the probes; if the turn driver fails with "turn exceeds a segment", report it as
+   journal's (Blocked on) with the fix options.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing yet.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <no evidence yet> |
+| A2 | <no evidence yet> |
+| A3 | <no evidence yet> |
+| A4 | <no evidence yet> |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Not yet.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The wave test uses the Driver on an inline scheduler with InlineCompletion (driver_test's
+  shape), lone voters, and the same `turn_options` as the other tests and strata's footprint
+  test, so it reproduces the Xapiand rows without strata.
