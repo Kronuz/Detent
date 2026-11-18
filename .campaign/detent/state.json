@@ -5231,6 +5231,8 @@
     "journal-turn-bound": {
       "accepted": {},
       "after": [],
+      "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
+      "branch": "quest/detent/journal-turn-bound",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -5251,6 +5253,7 @@
         "test/turn_bound_test.cc",
         "test/CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/journal-turn-bound",
       "landed": [],
       "lenses": [
         "correctness"
@@ -5260,9 +5263,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T19:52:43"
+      "updated": "2026-11-17T19:53:24",
+      "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
       "accepted": {},
