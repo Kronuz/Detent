@@ -13255,7 +13255,7 @@
         "docs/perf/first-read-gate.sh",
         "tests/detent_system/first_read_phases.cc",
         "docs/perf/first-read-gate.md",
-        "docs/perf/first_read_gate.py"
+        "tests/detent_system/first_read_gate.py"
       ],
       "landed": [],
       "lenses": [
@@ -13274,7 +13274,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-18T10:09:52",
+      "updated": "2026-11-18T10:11:25",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
