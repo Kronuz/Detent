@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-032432-839288 261118-032434-fe80ab 261118-032436-185354 261118-032500-0214d2 261118-032501-24b2c1 261118-032504-295c83 261118-032511-714980 261118-032533-1428d3
+State: waiting on jobs 261118-033407-1586b4 261118-033409-40b51d 261118-033413-29a593 261118-033416-7584d2 261118-033419-9c57c8 261118-033422-d8a330 261118-033424-f89dfd 261118-033427-aa0263
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,31 +9,28 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs at consensus:ad10797 (resolve.h + resolve_test.cc). Local run (macOS, -O1): all five
-cases pass; shutdown waited 307 ms for a resolver stuck 300 ms; exit waited 206 ms for a
-200 ms resolver; rebuilds peaked at 16 threads.
+Jobs at consensus:ed241c3 (ad10797 code + ed241c3 peer-dns.md and dns_mutants.sh).
+Local run (macOS, -O1): every case passes; shutdown waited 307 ms for a resolver stuck
+300 ms; exit waited 206 ms for a 200 ms resolver; rebuilds peaked at 16 threads.
 
-Jobs: 839288 plain (A1,A3); fe80ab TSan (A2); 185354 ASan+UBSan (A2); mutants
-0214d2 unbounded (A1), 24b2c1 queued-kept (A3), 295c83 detach-at-destruction (A2),
-all --fails-without; 714980 suite (A4); 1428d3 peers_test hung-resolver with
-process_bound 1 (--fails-without, A4: the bound keeps a hung lookup from queueing others).
-
+Jobs: 1586b4 plain (A1,A3); 40b51d TSan (A2); 29a593 ASan+UBSan (A2); mutants
+7584d2 unbounded (A1), 9c57c8 queued-kept (A3), d8a330 detach-at-destruction (A2), all
+--fails-without; f89dfd dns_mutants.sh shared-thread (process_bound 1) caught by
+peers_test (A4); aa0263 suite (A4). The suite does not run resolve_test until CMakeLists
+registers it (msg: lead ruling 3), so resolve_test evidence is the direct-build jobs only.
+Cancelled as superseded: the ad10797 jobs (839288, fe80ab, 185354, 0214d2, 24b2c1,
+295c83, 714980) and 1428d3 (inline bound-1, replaced by f89dfd).
 ## Next
 
 1. Read the jobs; paste `campaign brief`'s table into Evidence.
-2. Correctness review.
-
+2. Once consensus-close-fenced lands and CMakeLists.txt joins my file set: rebase, add
+   `resolve` to both transport `foreach(t ...)` lists, rerun the suite (then it counts for
+   A1-A3 too).
+3. Correctness review.
 ## Blocked on
 
-The lead, for three files outside my set (work continues by direct build):
-1. CMakeLists.txt (consensus-close-fenced's now): test/transport is not globbed. Register
-   `resolve` in both `foreach(t ...)` lists of transport tests (build + `add_test`, TIMEOUT 30).
-2. docs/mechanisms/peer-dns.md, "The lookup and its thread": still says one detached thread
-   per lookup. Text for it is under Result.
-3. test/transport/dns_mutants.sh `shared-thread`: its anchors (`#include <thread>\n`,
-   `std::thread(std::move(work)).detach();`) no longer exist. Equivalent mutant: replace
-   `static constexpr std::size_t process_bound = 16;` with `= 1;`.
-
+Nothing to decide. Waiting for consensus-close-fenced to land, after which the lead adds
+CMakeLists.txt to my file set to register resolve_test (lead ruling 3).
 ## Evidence
 
 | Criterion | Evidence |
@@ -46,26 +43,17 @@ The lead, for three files outside my set (work continues by direct build):
 ## Result
 
 Pending jobs. consensus:ad10797: `LookupThreads` in include/consensus/transport/resolve.h
-owns lookup threads (bound 16 for the process), `Lookup::start`/`abandon()` unchanged for
+owns the lookup threads (bound 16 for the process); `Lookup::start`/`abandon()` unchanged for
 links.h and peers.h; test/transport/resolve_test.cc (cases delivers, abandoned, shutdown,
-rebuilds, plus an at-exit join check).
-
-Proposed text for docs/mechanisms/peer-dns.md, "The lookup and its thread" (outside my
-file set), replacing its second and third paragraphs:
-
-> `Lookup::start` queues the lookup on the process's `LookupThreads`, which runs at most 16
-> (`process_bound`) at once and starts a thread only when a lookup waits and none is free;
-> a thread returns once the queue is empty. `getaddrinfo` cannot be cancelled, so the
-> lookup does not use asio's `async_resolve`, which runs every lookup of an `io_context` on
-> one thread: a hung lookup holds one of the 16, and only 16 hung at once stall the rest.
-> `stop()` and the destructor call `abandon()`: a queued lookup leaves the queue with its
-> resolver unstarted; a running one's delivery is cleared under the lookup's mutex, and its
-> thread drops the answer when the resolver returns. The process's `LookupThreads` is
-> destroyed at exit: it drops the queue, delivers nothing more, and joins every thread,
-> waiting for each running resolver to return (a stuck `getaddrinfo` delays exit by up to the
-> system resolver's timeout; resolve_test measures 307 ms for a resolver stuck 300 ms).
-
+rebuilds, and an at-exit join check). consensus:ed241c3: docs/mechanisms/peer-dns.md
+describes the bound, abandonment, and the join at exit with its measured wait;
+test/transport/dns_mutants.sh `shared-thread` is now `process_bound = 1`.
 ## Rulings I made
+
+Lead rulings (messages): (a) the per-process owner with bound 16 is accepted, for the reason
+in 1 below; (b) peer-dns.md and dns_mutants.sh joined my file set, done in ed241c3; (c) the
+quest lands after consensus-close-fenced, which hands over CMakeLists.txt; until then the
+suite's result is not evidence for resolve_test.
 
 1. The owner is the process's `LookupThreads` (resolve.h), not each transport instance. A1
    rebuilds the transport 1,000 times over a resolver that never answers: an owner per
