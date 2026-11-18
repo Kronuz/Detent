@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`journal_turn_seal_forget_threads` failed "group 2 keeps sealing" (turn_seal_test.cc:451) on macos-x86_64 in CI run 44392889900 (journal-group-io-sweep, which changes only Host::group_io; the test drives a TurnDriver alone). The check needs the writer thread to have appended to group 2 within 400 turns; on a slow runner it may not. After this quest the cause is named and the test waits on the condition it checks (group 2 sealed at least once) with a bounded deadline instead of a turn count.
 
 ## Acceptance criteria
 
@@ -14,18 +14,17 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 The test passes 200 of 200 under a light job with the host loaded, and a mutant that stops group 2's sealer still fails it: jobs.
+- A2 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 from journal-group-io-sweep's CI.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
