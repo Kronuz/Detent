@@ -6850,7 +6850,8 @@
         "docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md",
         "docs/design/http-coroutines.md",
         "docs/status/**",
-        "docs/mechanisms/**"
+        "docs/mechanisms/**",
+        "tests/detent_authority/test_history_power_cut.cc"
       ],
       "history": [
         {
@@ -6891,12 +6892,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: no tracked file matches both sets; the tool's glob check is conservative on **/CMakeLists.txt and tests/**/*_mutant.sh",
       "repo": ".",
       "risk": "low",
       "status": "active",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-18T05:39:56",
+      "updated": "2026-11-18T06:32:28",
       "worktree": "../Detent-wt/detent/namespace-cleanup"
     },
     "namespace-design": {
