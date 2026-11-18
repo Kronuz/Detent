@@ -1,9 +1,17 @@
 # journal-reopen-closed: journal
 
-State: ready for review at journal:d23c57b; all 17 jobs came out as they should.
+State: review fix round 1 (durability F1-F4) at journal:4d364f1 (pushed); waiting on jobs (listed under Doing).
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
+
+Review fix round 1 (.campaign/detent/reviews/journal-reopen-closed-durability.md, CHANGES), all in journal:4d364f1:
+- F1: Host::update restores any entry on a failed commit, a closed one too (the file may hold it open; memory wins at the next commit), and drops the slot's closed entries from memory after a successful one (close_group's own erase went). Test host_test failed_reopen. Pass 261118-064517-9372f4; fails-without (old rollback) 064519-8a384a; reviewer's probe rerun 064549-cb889d.
+- F2: journal_test replaces operator new only outside TSan (__SANITIZE_THREAD__ / __has_feature(thread_sanitizer)); reopen_churn, reopen_heap and reopen_distinct print "heap check skipped: TSan's runtime defines operator new" and skip only the heap check. Evidence: CI linux-tsan at 4d364f1 (failed to link at d23c57b, run 44319089645); local TSan build 064531-67fae6.
+- F3: stored_ is std::vector<char>. Test host_test loop_slots (two loop threads, slots sharing one 64-slot word, PosixIO under .scratch/). TSan pass 064522-d966b2; fails-without (vector<bool>, TSan) 064524-caef4a; reviewer's probe rerun 064549-618682 (its grep -c exits 1 when it counts 0 races).
+- F4: TurnDriver::park erases the group's refused_ entry. Test journal_test reopen_refused (in the default run). Pass 064526-c0d03d; fails-without (park keeps refused_) 064529-b4cc89.
+- N5 fixed (Cost section states 10,000 ids at 1,000, 5,000 and 10,000). N1-N4 not taken.
+- Every Evidence-table job rerun at 4d364f1 (ids below, under Evidence).
 
 Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c92eb27 (A9). Every job at a92dde9/cd6d017 is void (journal_test.cc:2127 `parked` shadowed parked(): no build); fixed in journal:4885819.
 
