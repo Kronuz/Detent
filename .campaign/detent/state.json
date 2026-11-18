@@ -851,7 +851,8 @@
         "test/**",
         "docs/**",
         "CMakeLists.txt",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/completion-sync-data",
       "landed": [],
@@ -867,7 +868,7 @@
       "risk": "normal",
       "status": "review",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T20:04:56",
+      "updated": "2026-11-17T20:05:25",
       "worktree": "../completion-wt/detent/completion-sync-data"
     },
     "completion-sync-files": {
