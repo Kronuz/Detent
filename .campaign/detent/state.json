@@ -506,6 +506,35 @@
         "quest": "xapiand:faultlab-disklab"
       },
       "text": "xapiand:faultlab-disklab started and changes contract faultlab:faultfs, which your journal-faultfs consumes"
+    },
+    {
+      "at": "2026-11-18T05:57:05",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-73",
+      "items": {
+        "groups-upload-stall": "frees test/transport/groups_test.cc for groups-upload-stall",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees tests/detent_authority/** for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "groups-upload-stall",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "transport-feed-scan landed: unlocks frees test/transport/groups_test.cc for groups-upload-stall; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5743,8 +5772,7 @@
       "consumes": [],
       "files": [
         "bench/group_io_bench.cc",
-        "docs/perf/group-io.md",
-        "CMakeLists.txt"
+        "docs/perf/group-io.md"
       ],
       "landed": [],
       "lenses": [],
@@ -5755,7 +5783,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Journal: measure group_io's per-call cost by id count (goal5 O4)",
-      "updated": "2026-11-18T07:23:50"
+      "updated": "2026-11-18T07:24:00"
     },
     "journal-host-guards": {
       "accepted": {
