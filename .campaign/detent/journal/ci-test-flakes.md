@@ -1,7 +1,7 @@
 # ci-test-flakes: journal
 
-State: waiting on jobs 261117-172350-3354ab through 261117-172742-fac058 (Jobs, at Detent:6a39c344) and
-attribution 261117-172940-f9ab01, -173010-dc4a00, -173015-11a288, -173020-20d577, -173024-17f7fe
+State: waiting on jobs 261117-234942-985c20 -234948-483694 -234955-a588f5 -235001-67ee1b (new A1
+pairs) and probes -235008-5cd352 -235015-1d92d0 (catchup phase times); full rerun after the probe
 Quest: .campaign/detent/quests/ci-test-flakes.md (the lead's; never edit it)
 
 ## Doing
@@ -21,6 +21,28 @@ whole set is resubmitted at Detent:6a39c344. Session 3's set at afef9684 had thr
 3. catchup x52 261117-123158-27e45f hit the 30-minute cap (the x51 job took 27.7 min). Resubmitted as
    five jobs of 38-42 runs (200 in all), about 22 min each.
 Forcings and runners now live in tests/detent_system/forcing (6a39c344), no longer in ~/.scratch.
+
+Session 4, results of the 6a39c344 set (49 jobs): every forced passed, every mutant failed (dns-open
+5c8827 now 3 of 3, scrub 2 of 3, others all). Soaks: scrub 0/200, dns 0/200, relay 0/200, failover 0/200,
+paged 0/200, paged TSan 0/100, all-down TSan 0/200; head native suite b4e4d7 284/284 passed.
+Three failures at the fix, none the fixed flake:
+- service x200 ea3ac4, 1 of 200: `test_service.cc:85 (rejected && !exists(directory))`, not cause 3's
+  admission_full. The pid-named state directory of an aborted run (the slot's 15 mutant runs left
+  `authority-service-<pid>`) met a reused pid. Cause 9; fix 0f19e635 clears the pid's paths first.
+- catchup x40 0d9cee, 1 of 40: line 314 "unconsumed-response transaction did not commit", 13.9 s in;
+  not cause 6 (line 304, socket timeout). The test required the unread write to commit within 5 s; a
+  leader deposed before it replicates drops it. Cause 10; fix 0f19e635: outcome unknown unless the
+  reply says 200, settled by the same-sequence retry that follows.
+- catchup x41 eb7651, 2 of 41: exit 124 at ctest's 180 s TIMEOUT, both after the snapshot phase print
+  (concurrent runs 24 and 26). The test runs 121-154 s in the suite alone, slowest 125-161 s in the
+  other soaks: a budget at 67-89% of its limit, which load crosses. Probes queued for where it goes.
+Catchup at the fix so far: 198 runs, 1 lost-write failure, 2 timeouts.
+Attribution at main 2504f7d7: native suite f9ab01 exit 8, failed test_authority_dns_voters_unresolvable
+and test_authority_snapshot_catchup (line 304: cause 6, the flakes this quest fixes); transport_peers
+dc4a00 6 of 40 failed at line 168, vs 0 of 40 at the head 11a288 (peers-retry-flake, main 4cdc080f,
+merged in c6718bce, fixes it); poll_publisher 0 of 40 at main 20d577 and head 17f7fe (slowest 79 s,
+70 s, against its 90 s TIMEOUT: e38040's timeout was load). Both pre-existing, neither this branch's.
+8e1a6b and 2a13e3 were my malformed commands (no test name), not evidence.
 
 ## Causes
 
@@ -53,6 +75,12 @@ Forcings and runners now live in tests/detent_system/forcing (6a39c344), no long
    count at the status's first change after the selection, which is the count at the rebase (the rebase
    tick's step hashes 0 bytes: credit restarts). Forced: the coordinator keeps the old root for 250,000
    more bytes before rebasing.
+9. service, stale state: an aborted run leaves `.scratch/authority-service-<pid>`; a later run with the
+   same pid fails the invalid-options check (line 85). Fix: clear the pid's paths first. Forced:
+   service-stale-forced.patch creates the directory first.
+10. lost write: the unread /v2/transactions to a leader deposed before replicating never commits;
+   the test needed it within 5 s. Fix: outcome unknown unless the reply is 200; the retry settles it.
+   Forced: lostwrite-forced.patch stalls the leader 4 s (elections 1-2 s) before it reads the write.
 1, 2, A5 all-down: no failure in 200 runs each at session 1's fix; resubmitted at the head.
 
 ## Candidate flakes (not fixed)
@@ -126,6 +154,8 @@ Nothing.
 4. test_dns_voters names its scratch directory by pid, as test_multivoter does.
 5. One retry for a lost reply, `test_multivoter.settled()`, serves both multivoter and dns voters.
 6. A6 is fixed in the measurement, not the trigger: the probe refutes the trigger hypothesis.
+8. Causes 9 and 10 are fixed in the tests: neither is the product breaking a promise (pid
+   reuse of a crashed run's directory; Raft drops an unreplicated write of a deposed leader).
 7. Forcings and their runners live in tests/detent_system/forcing, the only directory in this quest's
    file set; the repository's convention for patches is tests/<area>/mutants/, which would need a
    wider set. The lead may move them.
