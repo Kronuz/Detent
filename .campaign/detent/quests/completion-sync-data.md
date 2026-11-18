@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+completion's `IO` seam carries data-only syncs: `IO::sync_data_files(span<File* const>)`, defaulting to `File::sync_data` on each, beside `sync_files`. The executor's async `PrimitiveKind::Sync` and `SyncData` go through the seam (`sync_files` and `sync_data_files`), not `File::sync` directly, so a test host can count or skip every sync, async included. Requested by journal-sync-seam (D113).
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 `IO::sync_data_files` exists with a default that calls `File::sync_data` on each file (fdatasync on Linux, F_FULLFSYNC-equivalent rules as `sync_data` has today): a test with values.
+- A2 The executor's Sync and SyncData primitives call the seam: a counting IO sees each async sync, a test failing at main.
+- A3 No `File::sync` or `File::sync_data` call outside the seam's default implementations: a grep job.
+- A4 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `completion:io`: `virtual void IO::sync_data_files(std::span<File* const> files)`, same contract as `sync_files` but data-only. Adding a virtual with a default breaks no backend.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D113 (lead): option A of journal-sync-seam's fork.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
