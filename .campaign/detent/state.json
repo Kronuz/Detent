@@ -2314,8 +2314,8 @@
       "risk": "normal",
       "status": "landed",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T13:58:16",
-      "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
+      "updated": "2026-11-18T02:09:22",
+      "worktree": ""
     },
     "delta-plan-scaling": {
       "accepted": {
