@@ -407,6 +407,13 @@
       "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
       "id": "msg-65",
       "text": "xapiand:group-core started and builds against contract consensus:driver, which your transport-connection is changing"
+    },
+    {
+      "at": "2026-11-17T19:15:12",
+      "by": "transport-feed-scan",
+      "closed": "files added: CMakeLists.txt and test/transport/mutant_commit.py",
+      "id": "msg-66",
+      "text": "transport-feed-scan needs two files added to its file set: CMakeLists.txt (register new groups_test cases 'scan' and 'order' in the foreach at line 189) and test/transport/mutant_commit.py (the rewrite of feed/next/open_first removes the strings that mutants bulk-ahead-of-control, no-credit, no-reset-on-end, closed-ignored and open-once search for; they need new mutation points, and A1/A3's new mutants belong there). Until then I write mutant commits from a scratch copy of the script and run the new cases by name in jobs."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
