@@ -827,11 +827,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "premise wrong: completion has no crash model (D95's wording was loose; Xapiand lead). faultlab's migration order (cpp-libraries docs/design/faultlab.md) starts Detent's part at journal's MemoryIO tests (step 5); journal-faultfs replaces this",
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "active",
+      "status": "dropped",
       "title": "completion: the sync-seam crash model runs on faultlab's faultfs",
-      "updated": "2026-11-18T01:53:02",
+      "updated": "2026-11-18T01:57:52",
       "worktree": "../completion-wt/detent/completion-faultfs"
     },
     "completion-sync-data": {
