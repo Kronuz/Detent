@@ -1,18 +1,19 @@
 #!/bin/bash
-# First-read gate (A15, reader.md T2 through the pre-S6 Client); see docs/perf/first-read-gate.md.
-#   first-read-gate.sh prepare OUT   light job at the Dense commit with --ref BASELINE=<main>:
-#       builds both trees with the pinned LLVM 23.1.2, Release, DETENT_READ_COUNTERS=OFF, exports
-#       the 5M corpus as 1- and 1,000-namespace stores with each tree's own builder and prepares them.
-#   first-read-gate.sh measure PREPARED OUT [stopped|running]   exclusive job (each publisher state's
-#       24 runs fit one 30-minute hold): tests/detent_system/first_read_gate.py.
-#   first-read-gate.sh profile PREPARED OUT   exclusive job: the first read split into its steps
-#       (tests/detent_system/first_read_phases.cc), at the job's path and at a 4-component path.
+# First-read gate (reader-s6 A16, reader.md T2 and D49): fresh-process first reads, 200 per run, through
+# the branch's reader core (`detent_open`, then the first `detent_get`) against main's pre-S6 Client
+# (runtime, attach, refresh thread, first lookup), over 1- and 1,000-namespace stores, publisher stopped
+# and running, interleaved. Both arms come from tests/detent_system/first_read_phases.cc.
+#   first-read-gate.sh prepare OUT   light, in the branch checkout with --ref BASELINE=main: builds
+#       both trees (pinned LLVM 23.1.2, Release, DETENT_READ_COUNTERS=OFF) and each tree's own store
+#       of 10,000 int knobs in 1 and in 1,000 namespaces, under OUT (the job's own path depth).
+#   first-read-gate.sh measure OUT [stopped|running]   exclusive: six main/branch pairs per cell;
+#       fails unless every branch run reads 200 of 200 below 1 ms.
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 # CMake detects implicit includes under the SDK LLVM's config file names; any other sysroot leaves
-# zlib's SDK include dir as an -isystem ahead of libc++ (prepare 261109-163514-6fcc50).
+# zlib's SDK include dir as an -isystem ahead of libc++.
 sdk=$(sed -n 's/^-isysroot //p' "$("$llvm/clang++" --version | sed -n 's/^Configuration file: //p')")
-trials=/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-restore-r12
+knobs=10000
 
 # A -D cache entry keeps the type it was given (STRING or UNINITIALIZED), never FILEPATH; the
 # detected version comes from CMake's compiler record.
@@ -26,60 +27,140 @@ check() {
 }
 
 prepare() {
-	local out=$1 dense=$PWD corpus=${DENSE_CORPUS:?DENSE_CORPUS names the 5M corpus}
+	local branch=$PWD out
+	mkdir -p "$1"
+	out=$(cd "$1" && pwd)
 	[ -d "$sdk" ] || { echo "prepare: no SDK from the LLVM config file" >&2; return 1; }
-	mkdir -p "$out"
 	"$llvm/clang++" --version | tee "$out/toolchain.txt"
 	grep -q 'clang version 23.1.2' "$out/toolchain.txt"
-	shasum -a 256 "$corpus" | tee "$out/corpus.sha256"
-	openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=first-read-gate-ca \
-		-keyout "$out/ca.key" -out "$out/ca.pem" 2>/dev/null
-	for code in baseline dense; do
-		local src version
-		if [ "$code" = baseline ]; then src=${JOB_REF_BASELINE:?--ref BASELINE}; version=2; else src=$dense; version=3; fi
+	# The gate's targets join each tree after its top-level CMakeLists.txt, which stays untouched.
+	cat > "$out/targets.cmake" <<EOF
+add_executable(first_read_phases "$branch/tests/detent_system/first_read_phases.cc")
+target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(first_read_phases PRIVATE detent::local_client detent::testing_store)
+if(TARGET detent::reader)
+  add_executable(first_read_core "$branch/tests/detent_system/first_read_phases.cc")
+  target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
+  target_link_libraries(first_read_core PRIVATE detent::reader)
+endif()
+EOF
+	echo "cmake_language(DEFER CALL include \"$out/targets.cmake\")" > "$out/defer.cmake"
+	for code in main branch; do
+		local src build targets=first_read_phases
+		if [ "$code" = main ]; then src=${JOB_REF_BASELINE:?--ref BASELINE=main}; else src=$branch; targets="$targets first_read_core"; fi
+		build=$src/.scratch/first-read-build
+		rm -rf "${out:?}/$code"
 		mkdir -p "$out/$code"
 		git -C "$src" rev-parse HEAD > "$out/$code/commit.txt"
-		cat >> "$src/CMakeLists.txt" <<EOF
-
-add_executable(first_read_export "$dense/tests/detent_system/first_read_export.cc")
-target_include_directories(first_read_export PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local" "\${PROJECT_SOURCE_DIR}/tests/detent_local")
-target_link_libraries(first_read_export PRIVATE detent::local_publication)
-add_executable(first_read_phases "$dense/tests/detent_system/first_read_phases.cc")
-target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(first_read_phases PRIVATE detent::local_client)
-EOF
-		cmake -S "$src" -B "$src/.scratch/gate-build" -DCMAKE_BUILD_TYPE=Release \
+		cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PROJECT_detent_INCLUDE="$out/defer.cmake" \
 			-DCMAKE_CXX_COMPILER="$llvm/clang++" -DCMAKE_C_COMPILER="$llvm/clang" -DCMAKE_OSX_SYSROOT="$sdk" \
 			-DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF \
-			-DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_TESTS=ON \
-			-DDETENT_READ_COUNTERS=OFF
-		check "$src/.scratch/gate-build"
-		cmake --build "$src/.scratch/gate-build" -j4 \
-			--target detent_system_prepared_client_probe detent-agent first_read_export first_read_phases
-		git -C "$src" checkout -- CMakeLists.txt
-		cp "$src/.scratch/gate-build/tests/detent_system/detent_system_prepared_client_probe" "$out/$code/prepared_client_probe"
-		cp "$src/.scratch/gate-build/src/detent-agent" "$out/$code/detent-agent"
-		cp "$src/.scratch/gate-build/first_read_phases" "$out/$code/first_read_phases"
+			-DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DDETENT_READ_COUNTERS=OFF >/dev/null
+		check "$build"
+		# shellcheck disable=SC2086
+		cmake --build "$build" -j4 --target $targets
+		for target in $targets; do cp "$build/$target" "$out/$code/$target"; done
 		for namespaces in 1 1000; do
-			# The exporter also writes the owner lock, `.read` and `.live` the agent's cold start needs.
-			"$src/.scratch/gate-build/first_read_export" "$corpus" "$out/$code/store-${namespaces}ns" "$namespaces" "$version" |
-				tee "$out/$code/export-${namespaces}ns.json"
+			"$out/$code/first_read_phases" --generate "$out/$code/store-${namespaces}ns" "$namespaces" "$knobs" |
+				tee "$out/$code/store-${namespaces}ns.json"
 		done
-		rm -rf "$src/.scratch/gate-build"
 	done
-	file "$out"/*/prepared_client_probe "$out"/*/detent-agent "$out"/*/first_read_phases
+	file "$out"/*/first_read_*
+}
+
+measure() {
+	/usr/local/bin/python3 -I - "$@" <<'PY'
+import json, shutil, statistics, subprocess, sys
+from pathlib import Path
+
+prepared, states = Path(sys.argv[1]).resolve(), sys.argv[2:] or ["stopped", "running"]
+KNOBS, READS, PAIRS, WARMUP = 10000, 200, 6, 5
+KEYS = [(j * 7919) % KNOBS for j in range(40)]
+runs = prepared / "runs"
+
+
+def command(code, store, namespaces, i):
+    ns, key, value = f"n{i % namespaces}", f"k{i}", str(3 * i + 1)
+    if code == "branch":
+        return [prepared / code / "first_read_core", "--core", store, f"{ns}:{key}", value]
+    return [prepared / code / "first_read_phases", "--client", store, ns, key, value]
+
+
+def sample(code, store, namespaces, i):
+    result = subprocess.run(command(code, store, namespaces, i), capture_output=True, text=True, timeout=10)
+    if result.returncode:
+        raise RuntimeError(f"{code} exit {result.returncode}: {result.stderr[-400:]}")
+    return json.loads(result.stdout.strip().splitlines()[-1])
+
+
+def run(code, namespaces, publisher, index):
+    store = runs / f"{code}-{namespaces}ns-{publisher}-{index}"
+    shutil.rmtree(store, ignore_errors=True)
+    subprocess.run(["cp", "-cR", prepared / code / f"store-{namespaces}ns", store], check=True)
+    agent = None
+    try:
+        if publisher == "running":
+            agent = subprocess.Popen([prepared / code / "first_read_phases", "--publish", store, str(namespaces)],
+                                     stdout=subprocess.PIPE, text=True)
+            if agent.stdout.readline().strip() != "publishing":
+                raise RuntimeError(f"{code} publisher did not start")
+        for path in store.rglob("*"):  # resident data
+            if path.is_file():
+                path.read_bytes()
+        for i in KEYS[:WARMUP]:
+            sample(code, store, namespaces, i)
+        samples = [sample(code, store, namespaces, KEYS[r % len(KEYS)]) for r in range(READS)]
+    finally:
+        if agent:
+            agent.kill()
+            agent.wait()
+        shutil.rmtree(store, ignore_errors=True)
+    totals = sorted(s["total_ns"] for s in samples)
+    phases = [k for k in samples[0] if k.endswith("_ns") and k != "total_ns"]
+    return {
+        "code": code, "namespaces": namespaces, "publisher": publisher, "index": index,
+        "components": samples[0]["components"], "below_1ms": sum(t < 1_000_000 for t in totals),
+        "median_ns": int(statistics.median(totals)), "p99_ns": totals[int(len(totals) * 0.99) - 1],
+        "max_ns": totals[-1], "phase_medians_ns": {p: int(statistics.median(s[p] for s in samples)) for p in phases},
+    }
+
+
+def spread(medians):
+    return statistics.median(abs(a - b) for a, b in zip(medians, medians[1:]))
+
+
+runs.mkdir(exist_ok=True)
+cells, ok = [], True
+for publisher in states:
+    for namespaces in (1, 1000):
+        flip = len(cells) % 2  # main first in even cells, branch first in odd ones
+        results = []
+        for pair in range(PAIRS):
+            for code in (("branch", "main") if flip else ("main", "branch")):
+                results.append(run(code, namespaces, publisher, pair))
+                print(json.dumps(results[-1]), flush=True)
+        arm = {code: [r for r in results if r["code"] == code] for code in ("main", "branch")}
+        medians = {code: [r["median_ns"] for r in arm[code]] for code in arm}
+        diffs = [b - m for b, m in zip(medians["branch"], medians["main"])]
+        passed = all(r["below_1ms"] == READS for r in arm["branch"])
+        ok &= passed
+        cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed,
+                "branch_below_1ms": [r["below_1ms"] for r in arm["branch"]],
+                "main_below_1ms": [r["below_1ms"] for r in arm["main"]],
+                "branch_medians_ns": medians["branch"], "main_medians_ns": medians["main"],
+                "branch_p99_ns": [r["p99_ns"] for r in arm["branch"]], "main_p99_ns": [r["p99_ns"] for r in arm["main"]],
+                "paired_diff_median_ns": int(statistics.median(diffs)),
+                "noise_floor_ns": int(max(spread(medians["main"]), spread(medians["branch"])))}
+        cells.append(cell)
+        print("A16 cell " + json.dumps(cell), flush=True)
+shutil.rmtree(runs, ignore_errors=True)
+print(f"A16 {'PASS' if ok else 'FAIL'}: every branch run {READS}/{READS} below 1 ms in {len(cells)} cells")
+sys.exit(0 if ok else 1)
+PY
 }
 
 case ${1:-} in
 prepare) prepare "${2:?OUT}" ;;
-measure)
-	/usr/local/bin/python3 -I tests/detent_system/first_read_gate.py --prepared "${2:?PREPARED}" \
-		--recipe "$trials/expected-values.bin" --managed "$trials/agent-0/managed.json" --output "${3:?OUT}" ${4:+--publisher "$4"}
-	;;
-profile)
-	/usr/local/bin/python3 -I tests/detent_system/first_read_gate.py --prepared "${2:?PREPARED}" \
-		--recipe "$trials/expected-values.bin" --managed "$trials/agent-0/managed.json" --output "${3:?OUT}" \
-		--profile "$HOME/.fr-$$"
-	;;
-*) echo "usage: $0 prepare OUT | measure PREPARED OUT [stopped|running] | profile PREPARED OUT" >&2; exit 2 ;;
+measure) shift; measure "${1:?OUT}" "${@:2}" ;;
+*) echo "usage: $0 prepare OUT | measure OUT [stopped|running]" >&2; exit 2 ;;
 esac
