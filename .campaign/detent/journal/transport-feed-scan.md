@@ -1,17 +1,33 @@
 # transport-feed-scan: journal
 
-State: working
+State: waiting on jobs 261117-192429-7a781f 261117-192455-ecb4f7 261117-192510-9bfb3c 261117-192523-618216 261117-192539-506bbb 261117-192552-0c5efa 261117-192618-59107f 261117-192631-c1640a 261117-192645-af98be 261117-192653-5baec9 261117-192700-302fc0 261117-192707-235bf2 261117-192713-0b1b10 261117-192717-59d12a 261117-192732-5a1a05 261117-192857-815622; CI on consensus:quest/detent/transport-feed-scan
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
 
-Implementing the design below in consensus `include/consensus/transport/host_transport.h`.
+Code at consensus:02800e5 (rings, GroupTable, tests, mutants), docs at the next commit; pushed for CI.
+Jobs (none run locally; every build is in a job):
+- 261117-192429-7a781f A1 `scan` at the branch.
+- 261117-192510-9bfb3c A1 `--fails-without`: `scan` at consensus:50c7826, main's feed (edbb162) with
+  `visited` counted in `next()` and `erase_if`, made by `.scratch/mutants/main_feed.py HEAD edbb162`.
+- 261117-192455-ecb4f7 A3 `order`; A3 fails-without at `order`: ring-at-front 261117-192523-618216,
+  bulk-ahead-of-control 261117-192539-506bbb, no-credit 261117-192552-0c5efa.
+- Moved mutants (new mutation points in mutant_commit.py), `--fails-without`: bulk-ahead-of-control/upload
+  261117-192645-af98be, no-credit/credit 261117-192653-5baec9, no-reset-on-end/refill 261117-192700-302fc0,
+  closed-ignored/identity 261117-192707-235bf2, open-once/identity 261117-192713-0b1b10,
+  store-keeps-opens/identity 261117-192717-59d12a (new; if it survives, a gap to close or drop).
+- 261117-192732-5a1a05 A3 TSan: every groups_test case.
+- 261117-192618-59107f A2 strict: `one 5 1 10000` three times, none printing "again".
+- 261117-192631-c1640a idle cost `--quick` at 1,000 groups: A5's numbers, then tighten the bench bound.
+- 261117-192857-815622 hop smoke A/B against edbb162 (strict).
 
 ## Next
 
-1. Code: `GroupTable`, rings, compact `Stored`, per-connection opened sets.
-2. groups_test cases `scan` (A1 probe) and `order` (A3), run by name in jobs until CMakeLists.txt is in the file set (msg-66 to the lead).
-3. Jobs: suite, A1 probe + `--fails-without` at main's feed with the counter, A3 mutants, TSan groups, A2 `one 5 1 10000`, A5 idle cost at 1,000 groups, hop smoke A/B.
+1. On results: fix compile or test failures; record numbers.
+2. A5: from 261117-192631-c1640a set the bench's per-group bound to the measured field-by-field figure; rerun cost `--for A5`.
+3. A4: `campaign verify transport-feed-scan` at the final commit; CI green.
+4. docs/perf/transport-idle-cost.md says 10,000 groups end connections and gives the old per-group
+   numbers; it is outside the file set: ask the lead to add it once A2/A5 numbers exist.
 
 ## Design
 
@@ -79,8 +95,8 @@ both change a contract, so they are the lead's (see Blocked on).
 
 ## Blocked on
 
-- msg-66 (to the lead): add `CMakeLists.txt` and `test/transport/mutant_commit.py` to the file
-  set. Until then new cases run by name in jobs and mutants come from a scratch script.
+- msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
+  (only that line changed) and the mutants are in mutant_commit.py.
 - Not blocking: A5's 64 B needs a contract change, options above (recommend `open_of`).
 
 ## Evidence
