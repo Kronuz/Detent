@@ -17,14 +17,19 @@ not match it, so the collector and the peer reader never touch it).
 `check_storage_format` runs at startup, before the node opens the journal:
 
 1. A stamp equal to `storage_format` starts normally.
-2. A stamp of another number, or one that does not parse, is refused naming the stamp found.
-3. No stamp and an existing journal (`manifest`) is format 1: every directory written before the
-   stamp existed. It is refused naming format 1.
-4. No stamp and no journal is a new directory and is stamped.
+2. A stamp of another number (format 1, or a newer one), or one that does not parse, is refused
+   naming the stamp found.
+3. No stamp and no journal (`manifest`) is a new directory and is stamped.
+4. No stamp and an existing journal is unknown, and its content decides. The node replays it. If
+   recovery fails before admission (an image of another magic, a committed entry that does not
+   apply and fences, a history that does not restore), the directory is format 1 and is refused
+   naming it and the failure. If recovery succeeds, the directory reads as format 2 and is
+   stamped before admission.
 
 The error reads `authority storage format error: <directory> is in storage format 1 (no format
-stamp), this build expects storage format 2; Detent keeps no compatibility, so start from an empty
-directory`. The service constructor throws it, and `detentd` prints it and exits 1.
+stamp, and it does not read as format 2: <failure>), this build expects storage format 2; Detent
+keeps no compatibility, so start from an empty directory`. The service constructor throws it, and
+`detentd` prints it and exits 1.
 
 ## Startup failures settle the constructor
 
@@ -37,17 +42,18 @@ settled and the same handler fences the service.
 
 | Format | Directories |
 |---|---|
-| 1 | Written before the stamp, among them the journals of 2026-10-23. Refused. |
-| 2 | Written with a stamp. Current. |
+| 1 | Written before `Detent:53abd637` (image magic `DTAIMG01`, no namespace directory), among them the journals of 2026-10-23. Refused. |
+| 2 | Written by this build. Current. |
 
 Bump `storage_format` with any change to a stored or replicated byte layout: a magic, a command,
-image, history or layout field, the encoding of a value. Nothing migrates; a changed layout
-without a bump is not detected, which is how `Detent:53abd637` and `Detent:711a114e` changed the
-layout under unchanged names.
+image, history or layout field, the encoding of a value. Nothing migrates. A change that a replay
+reads without failing is not detected in an unstamped directory, so a bump is what keeps a stamped
+one honest.
 
 ## Tests
 
 `tests/detent_authority/test_format_refusal.cc` (`test_authority_format_refusal`) starts voters on
-a stamped directory, the same directory with its stamp removed (format 1), stamps of format 1, 9
-and garbage, and a corrupt manifest. Each refusal must name both formats (or the unreadable stamp)
-and settle within the test's 20 s watchdog.
+a stamped format 2 directory (opens), the same directory with its stamp removed (opens and is
+stamped), a format 1 journal built by `Detent:53abd637^`, unstamped and stamped 1 (refused naming
+both formats), a stamp of 3 and an unreadable stamp (refused), and a corrupt manifest (the start
+settles with its error). Each start runs under a 20 s watchdog.

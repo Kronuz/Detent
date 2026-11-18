@@ -60,6 +60,10 @@ std::string start(const fs::path &directory) {
 void stamp(const fs::path &history, const std::string &text) {
 	std::ofstream(history / "format", std::ios::binary | std::ios::trunc) << text;
 }
+std::string read(const fs::path &path) {
+	std::ifstream file(path, std::ios::binary);
+	return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
 bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
 } // namespace
 int main() {
@@ -71,35 +75,33 @@ int main() {
 
 	// A new directory is stamped and its journal recovers on restart.
 	require(start(directory).empty(), "a new directory starts");
-	std::string current;
-	{
-		std::ifstream file(history / "format", std::ios::binary);
-		current.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-	}
+	auto current = read(history / "format");
 	require(current == "detent authority storage format 2\n", "a new directory is stamped, got '" + current + "'");
 	require(start(directory).empty(), "a journal of the current format recovers");
 
-	// A journal written before the stamp (format 1) is refused naming both formats.
+	// A journal with no stamp is read by replay: this one reads as format 2 and is stamped.
 	fs::remove(history / "format");
+	require(start(directory).empty(), "an unstamped journal of format 2 opens");
+	require(read(history / "format") == current, "an unstamped journal of format 2 is stamped on open");
+
+	// A journal stamped format 1 is refused naming both formats; it neither fences nor waits.
+	stamp(history, "detent authority storage format 1\n");
 	auto refused = start(directory);
 	require(has(refused, "storage format 1") && has(refused, "storage format 2") && !has(refused, "fenced"),
-			"an unstamped journal is refused naming both formats, got '" + refused + "'");
+			"a journal stamped format 1 is refused naming both formats, got '" + refused + "'");
+	require(read(history / "format") == "detent authority storage format 1\n", "the refusal leaves the stamp");
 
-	// Another stamp, older or newer, or an unreadable one, is refused the same way.
-	stamp(history, "detent authority storage format 1\n");
+	// A newer stamp, or an unreadable one, is refused the same way.
+	stamp(history, "detent authority storage format 3\n");
 	refused = start(directory);
-	require(has(refused, "storage format 1") && has(refused, "storage format 2"),
-			"format 1 is refused naming both, got '" + refused + "'");
-	stamp(history, "detent authority storage format 9\n");
-	refused = start(directory);
-	require(has(refused, "storage format 9") && has(refused, "storage format 2"),
-			"format 9 is refused naming both, got '" + refused + "'");
+	require(has(refused, "storage format 3") && has(refused, "storage format 2"),
+			"format 3 is refused naming both, got '" + refused + "'");
 	stamp(history, "garbage");
 	refused = start(directory);
 	require(has(refused, "unreadable format stamp") && has(refused, "storage format 2"),
 			"an unreadable stamp is refused, got '" + refused + "'");
 
-	// The refusal changed nothing: the stamp restored, the journal recovers.
+	// The refusals changed nothing: the stamp restored, the journal recovers.
 	stamp(history, current);
 	require(start(directory).empty(), "the journal recovers once its stamp is whole");
 
@@ -109,6 +111,13 @@ int main() {
 		manifest << "not a manifest";
 	}
 	require(!start(directory).empty(), "an unreadable manifest refuses the start");
+
+	// Unstamped, a journal that does not read as format 2 is format 1, naming both and the failure.
+	fs::remove(history / "format");
+	refused = start(directory);
+	require(has(refused, "storage format 1") && has(refused, "does not read as format 2") &&
+				has(refused, "storage format 2") && !fs::exists(history / "format"),
+			"an unstamped journal that does not read is refused as format 1, got '" + refused + "'");
 
 	fs::remove_all(directory);
 	fs::remove_all(history);
