@@ -407,6 +407,20 @@
       "closed": "transport quests are additive beside the landed Driver: DRIVER.md at consensus:57745e8 is unchanged by them, and group-core builds on that commit",
       "id": "msg-65",
       "text": "xapiand:group-core started and builds against contract consensus:driver, which your transport-connection is changing"
+    },
+    {
+      "at": "2026-11-17T19:15:12",
+      "by": "transport-feed-scan",
+      "closed": "files added: CMakeLists.txt and test/transport/mutant_commit.py",
+      "id": "msg-66",
+      "text": "transport-feed-scan needs two files added to its file set: CMakeLists.txt (register new groups_test cases 'scan' and 'order' in the foreach at line 189) and test/transport/mutant_commit.py (the rewrite of feed/next/open_first removes the strings that mutants bulk-ahead-of-control, no-credit, no-reset-on-end, closed-ignored and open-once search for; they need new mutation points, and A1/A3's new mutants belong there). Until then I write mutant commits from a scratch copy of the script and run the new cases by name in jobs."
+    },
+    {
+      "at": "2026-11-17T19:56:55",
+      "by": "journal-turn-bound",
+      "closed": "CMakeLists.txt added; shared with journal-sync-seam, keep the edit to the test registration lines",
+      "id": "msg-67",
+      "text": "journal-turn-bound: test/CMakeLists.txt does not exist in journal; tests register in the root CMakeLists.txt (journal-sync-seam's file set). Registering test/turn_bound_test.cc needs a 4-line block there (add_executable/target_link_libraries/add_test/TIMEOUT), kept on its own lines after the turn_seal foreach so it does not touch the foreach line sync-seam may edit. Recommend: add CMakeLists.txt to journal-turn-bound's files. Until then I commit the block separately so it can be dropped."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -778,8 +792,45 @@
       "updated": "2026-11-08T15:38:10"
     },
     "completion-sync-data": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T20:04:56",
+          "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:39a4da2c88911011b15ed22197131d46c240d89f",
+            "CHANGELOG.md": "100644:e3375c75c045bbad9c05ef125abf04637a3550b6",
+            "CMakeLists.txt": "100644:acef2512905bf93b096c88199004a7fe99e631dc",
+            "docs/mechanisms/completion-seam.md": "100644:09573f618053ccce2cbf247952bf7bae75e99b05",
+            "include/completion/io.h": "100644:21cb7b077696ae3a17608c8d12688b2c436b904c",
+            "include/completion/operation.h": "100644:cb18ed56beba10d354fc16d6086e60ebd18588f3",
+            "test/check_seam.py": "100644:44f86c5dbb53266d045c526471010a956c2e5d14",
+            "test/executor_direct_mutant.sh": "100755:c7cfc6b552ccd9dede8987498d09a3e1a5a05bd1",
+            "test/sync_seam_test.cc": "100644:2b2a0285541935ef41de8609f42191b272ab936d"
+          },
+          "by": "review",
+          "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "criteria": "7907e61b84141775",
+          "diffs": {
+            "ARCHITECTURE.md": "209563ac2b85d12d",
+            "CHANGELOG.md": "32c4ff94b2c04e49",
+            "CMakeLists.txt": "2947bdc090b53e73",
+            "docs/mechanisms/completion-seam.md": "f7e3af6c4b9320cb",
+            "include/completion/io.h": "e91fe4ee992ce551",
+            "include/completion/operation.h": "e1d861d4d36a2873",
+            "test/check_seam.py": "fef1a2dde4e9c292",
+            "test/executor_direct_mutant.sh": "6097b468b9b80e1c",
+            "test/sync_seam_test.cc": "96c76791f60d2df5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "a101fa022c6ef598c4bf82f1641f76f4c91734ab",
+          "reviewed": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
+      "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
+      "branch": "quest/detent/completion-sync-data",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -802,8 +853,11 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/completion-sync-data",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -811,9 +865,10 @@
       ],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T18:56:05"
+      "updated": "2026-11-17T20:04:56",
+      "worktree": "../completion-wt/detent/completion-sync-data"
     },
     "completion-sync-files": {
       "accepted": {},
@@ -880,6 +935,8 @@
     "connection-slow-reader-flake": {
       "accepted": {},
       "after": [],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/connection-slow-reader-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -899,6 +956,7 @@
         "test/transport/connection_test.cc",
         "test/transport/groups_upload*"
       ],
+      "journal": "../Detent-wt/detent/connection-slow-reader-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -906,9 +964,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
-      "updated": "2026-11-17T18:52:51"
+      "updated": "2026-11-17T19:03:54",
+      "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
     "consensus-dns-peers": {
       "accepted": {
@@ -1665,16 +1724,21 @@
       "provides": [
         "consensus:transport"
       ],
+      "reason": "no code built; its file set blocked transport-feed-scan, transport-admission, consensus-wave-open and connection-slow-reader-flake. Re-planned as the contributor's proposed split (journal B1-B3) once those land",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-17T00:48:42",
+      "updated": "2026-11-17T19:03:01",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-wave-open": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "journal-turn-bound"
+      ],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/consensus-wave-open",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -1698,6 +1762,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-wave-open",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1707,9 +1772,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-17T15:04:04"
+      "updated": "2026-11-17T19:52:47",
+      "worktree": "../consensus-wt/detent/consensus-wave-open"
     },
     "container-selection": {
       "accepted": {},
@@ -5182,10 +5248,13 @@
       ],
       "consumes": [],
       "files": [
-        "include/journal/**",
+        "include/journal/host.h",
+        "include/journal/journal.h",
+        "include/journal/primitives.h",
+        "include/journal/turn_log.h",
+        "include/journal/io*.h",
         "src/**",
-        "test/**",
-        "tests/**",
+        "test/sync_seam_test.cc",
         "docs/**",
         "CMakeLists.txt",
         "CHANGELOG.md"
@@ -5200,8 +5269,48 @@
       "risk": "normal",
       "status": "active",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-17T18:56:11",
+      "updated": "2026-11-17T19:52:37",
       "worktree": "../journal-wt/detent/journal-sync-seam"
+    },
+    "journal-turn-bound": {
+      "accepted": {},
+      "after": [],
+      "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
+      "branch": "quest/detent/journal-turn-bound",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_driver.h",
+        "test/turn_bound_test.cc",
+        "CMakeLists.txt"
+      ],
+      "journal": "../Detent-wt/detent/journal-turn-bound",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "active",
+      "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
+      "updated": "2026-11-17T19:57:30",
+      "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
       "accepted": {},
@@ -13557,6 +13666,8 @@
         "transport-identity",
         "transport-groups-ci"
       ],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/transport-feed-scan",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -13577,8 +13688,12 @@
         "test/transport/groups_test.cc",
         "bench/transport_idle.cc",
         "docs/mechanisms/host-transport.md",
-        "CHANGELOG.md"
+        "docs/perf/transport-idle-cost.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt",
+        "test/transport/mutant_commit.py"
       ],
+      "journal": "../Detent-wt/detent/transport-feed-scan",
       "landed": [],
       "lenses": [
         "correctness"
@@ -13588,9 +13703,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-17T09:42:45"
+      "updated": "2026-11-17T19:29:45",
+      "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
       "accepted": {
@@ -14000,7 +14116,7 @@
     "transport-idle-cost": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-17T18:41:26",
+          "at": "2026-11-17T19:00:25",
           "base": "aa7fa351239719a365e211bace4fed5f8ec823f3",
           "blobs": {
             "CMakeLists.txt": "100644:cf575b0182d671d18a42cb29e956017cd945157f",
@@ -14035,12 +14151,6 @@
           "level": "light",
           "minutes": 30,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -14050,11 +14160,78 @@
         "CMakeLists.txt",
         "docs/**"
       ],
-      "journal": "../Detent-wt/detent/transport-idle-cost",
-      "landed": [],
+      "history": [
+        {
+          "at": "2026-11-17T19:00:16",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "owner-approved 2026-11-17: only macos-x86_64 fails, in connection_test read_slowly, which fails on consensus main at 0ed76ef, 84814a9, 361d5d2 and aa7fa35; consensus_transport_idle passes there; fix is quest connection-slow-reader-flake",
+          "voided": [
+            "correctness"
+          ],
+          "weakened": [
+            "gate check ci removed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T19:00:48",
+          "ci_skipped": "owner-approved 2026-11-17: only macos-x86_64 fails, in connection_test read_slowly, which fails on consensus main at 0ed76ef, 84814a9, 361d5d2 and aa7fa35; consensus_transport_idle passes there; fix is quest connection-slow-reader-flake",
+          "commit": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+          "criteria": {
+            "A1": "261117-172945-6b1b06 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172947-eb211c (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md)",
+            "A2": "261117-172946-7024b4 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-981ce0 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-bbf981 (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md), 261117-172946-10ce1e (passed at 76bacd23065c; ignores docs-only docs/perf/transport-idle-cost.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "76bacd23065c3e078c953fbbc2807ce3765ace18",
+              "docs": [
+                "docs/perf/transport-idle-cost.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-172947-eb211c",
+              "level": "light",
+              "seconds": 296.1,
+              "state": "done",
+              "what": "transport-idle-cost check suite at 76bacd23065c"
+            }
+          ],
+          "final": true,
+          "from": "aa7fa351239719a365e211bace4fed5f8ec823f3",
+          "reason": "",
+          "tested": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-groups"
@@ -14062,10 +14239,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T18:41:26",
-      "worktree": "../consensus-wt/detent/transport-idle-cost"
+      "updated": "2026-11-17T19:01:10",
+      "worktree": ""
     },
     "voter-read-freshness": {
       "accepted": {},
