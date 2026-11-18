@@ -493,6 +493,19 @@
         "quest": "xapiand:faultlab-netlab"
       },
       "text": "xapiand:faultlab-netlab started and changes contract faultlab:faultfs, which your journal-faultfs consumes"
+    },
+    {
+      "at": "2026-11-18T07:19:33",
+      "by": "campaign xapiand",
+      "closed": "disklab adds faultlab's VM disk tier (F15: dm-log-writes, dm-delay, dm-flakey); journal-faultfs uses only faultfs's in-process file API, which disklab's criteria don't change",
+      "id": "msg-75",
+      "settles": {
+        "ours": [
+          "journal-faultfs"
+        ],
+        "quest": "xapiand:faultlab-disklab"
+      },
+      "text": "xapiand:faultlab-disklab started and changes contract faultlab:faultfs, which your journal-faultfs consumes"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
