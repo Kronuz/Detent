@@ -1,6 +1,6 @@
 # journal-faultfs: journal
 
-State: diagnosing the heap cases' timeouts; waiting on job 261118-083844-874284 (distinct at 100/200/400 on faultfs vs MemoryIO at 4d364f1; samples of heap and churn)
+State: blocked on the lead (faultlab's collect(), see Blocked on); waiting on prototype job 261118-084810-2701ea
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
@@ -24,19 +24,38 @@ reopen_distinct (A8) 109976 / 110024 / 109976 B at 1,000 / 5,000 / 10,000, slope
 
 ## Next
 
-0. Heap cases at 36912d7 all hit their deadlines after building, no output: reopen_churn
-   261118-073233-28994b (30 min), reopen_heap 261118-073233-3e7cc4 (A7, 30 min), reopen_distinct
-   261118-073233-6ed20f (A8, 15 min). Suspect faultfs's per-call linear or quadratic scans
-   (`collect()` is O(inodes x names) on every remove and sync_directory, `entries()`,
-   `settle_directory()`). Diagnosis job 261118-083844-874284; script
-   journal-wt `.scratch/heap_probe.sh`.
-
 1. Read the jobs (State); compare the heap numbers above; fill Evidence.
 2. CI at 36912d7; then ready for review.
 
 ## Blocked on
 
-Nothing.
+**The heap cases time out on faultfs because faultlab's `filesystem::collect()` is O(inodes x
+(names + durable names + log)) and runs on every remove, replace and sync_directory; it is cubic
+over a run.** Not a hang.
+
+- Jobs at 36912d7: reopen_churn 261118-073233-28994b (30 min), reopen_heap (A7)
+  261118-073233-3e7cc4 (30 min), reopen_distinct (A8) 261118-073233-6ed20f (15 min): each killed
+  at its deadline after building.
+- Diagnosis 261118-083844-874284 (`.scratch/heap_probe.sh`, light, not a measurement):
+  reopen_distinct at reduced counts, MemoryIO (4d364f1) against faultfs (36912d7):
+  100 groups 0.60 / 0.84 s, 200 0.26 / 2.69 s, 400 0.78 / 24.51 s. faultfs grows ~9x per
+  doubling (cubic); MemoryIO stays flat. At 10,000 that extrapolates to ~4 days. `sample` 5 s
+  into a running reopen_heap: 1514 of 1522 top-of-stack samples in `collect()`; reopen_churn:
+  3831 of ~3870, the rest `settle_directory` and memcmp.
+- Cause (faultfs.h:477-489 at faultlab:a452a8c): per inode it scans every name, durable name and
+  log entry, without even stopping at a match. 10,000 groups leave tens of thousands of inodes
+  and names, and every release's removes and directory syncs pay that product.
+- faultlab is outside this quest's file set (journal tests only; faultlab pinned at a452a8c per
+  the contract), so the fix is not mine to make.
+- Options: (1) a faultlab quest makes `collect()` linear per call: gather the named ids once
+  (a `std::set`, 4 lines), then one pass over inodes; same behavior. Prototype (copy of a452a8c
+  with only that change, via FETCHCONTENT_SOURCE_DIR_FAULTLAB): job 261118-084810-2701ea runs the
+  three cases at full counts. Then repin journal to that commit here. A per-inode reference count
+  (O(1) per change) is the further step if (1) alone is still slow; `settle_directory` and
+  `entries` stay O(names) per call. (2) Run the heap cases at reduced counts: changes A7/A8 as
+  written and the bound, rejected by the assignment. (3) Keep the heap cases on MemoryIO: breaks
+  A1. Recommendation: (1), as its own faultlab quest; this quest's only change is the pin.
+
 
 ### Resolved: A4 finding (verdict (b)), fixed by journal-reopen-closed A9
 
