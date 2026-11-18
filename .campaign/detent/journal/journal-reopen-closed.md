@@ -1,6 +1,6 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs 261118-043307-6c91a2 043309-eb6e13 043312-9d76bf 043314-4c29f5 043316-161c74 043318-473163 043320-b3f159 043332-1ce564 043334-531661 043337-6f4c2f 043339-8b3682 043341-b92534 043343-e3fdca 043356-9c13d7 043358-09b70e 043411-fd6782 (all at journal:c92eb27).
+State: waiting on jobs 261118-043307-6c91a2 043309-eb6e13 043314-4c29f5 043318-473163 043334-531661 043341-b92534 043343-e3fdca 043356-9c13d7 043358-09b70e 043411-fd6782 (all at journal:c92eb27). Passed: 043305 (reopen cases), 043312 (reopen_heap 248.5 B/id before settle, 248.5 after), 043316 (1.0 barriers/segment), 043320 (host+journal), 043332 (power 8: 0 failures); fails-without held: 043337 (FAIL at 5/116, 5/161, 7/219), 043339 (0.939).
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
