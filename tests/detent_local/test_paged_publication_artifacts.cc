@@ -328,11 +328,14 @@ void grouped(const std::vector<std::string> &trace, const std::set<std::string> 
 
 struct Run {
 	std::vector<Disk> events;
-	std::vector<std::string> labels;
+	std::vector<std::string> labels, trace;
+	std::set<std::string> owners, payloads; // the publication's two groups
 	Lineage lineage;
+	void check_order() const { grouped(trace, owners, payloads); }
 };
 // Records a store opening `root` (whose files `start` models), publishing the next generation and
-// collecting its base; checks the order and the counters against the seam.
+// collecting its base; checks the counters against the seam. The order is checked after the cuts, so a
+// durability defect meets T7 first.
 Run record(const std::filesystem::path &root, Disk start, bool progress) {
 	Recorder recorder;
 	recorder.root = root;
@@ -370,13 +373,13 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 		require(store->selection().descriptor == run.lineage.base);
 		const auto id = run.lineage.wanted.generation;
 		auto name = [&](x::GenerationFile kind) { return std::string(x::GenerationName(id, kind).view()); };
-		std::set<std::string> owners{name(x::GenerationFile::Lease)},
-			payloads{name(x::GenerationFile::Image), name(x::GenerationFile::ReaderMetadata),
-					 name(x::GenerationFile::Live)};
+		run.owners = {name(x::GenerationFile::Lease)};
+		run.payloads = {name(x::GenerationFile::Image), name(x::GenerationFile::ReaderMetadata),
+						name(x::GenerationFile::Live)};
 		for (const auto &segment : planned.plan->segments()) {
 			const x::SegmentNames names(segment.ownership.segment);
-			owners.emplace(names.owner_name());
-			payloads.emplace(names.payload_name());
+			run.owners.emplace(names.owner_name());
+			run.payloads.emplace(names.payload_name());
 		}
 		before = recorder.seam;
 		recorder.trace.emplace_back("begin");
@@ -387,7 +390,6 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 		matches(store->sync_stats().publication, recorder.seam - before, 2);
 		recorder.disk.served = true;
 		note("published");
-		grouped(recorder.trace, owners, payloads);
 		// Confirmed, the store collects what the new table no longer reaches.
 		auto recovered = x::ManagedRecovery::recover(root, x::ManagedRecovery::capture(*store));
 		store->confirm_recovered(recovered);
@@ -401,6 +403,7 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 	world.settle();
 	run.events = std::move(recorder.events);
 	run.labels = std::move(recorder.labels);
+	run.trace = std::move(recorder.trace);
 	return run;
 }
 
@@ -500,6 +503,7 @@ void matrix(const std::filesystem::path &scratch, const Run &run, const std::str
 								  inner.events[j].served, inner.lineage, false,
 								  where + ", power cut, restart, power cut after event " + std::to_string(j) + " (" +
 									  inner.labels[j] + ")");
+				inner.check_order();
 			}
 	}
 }
@@ -515,6 +519,7 @@ void run(const std::filesystem::path &scratch, const x::PagedImage &image) {
 		install(root, image);
 		const auto recorded = record(root, durable(root), progress);
 		matrix(scratch, recorded, progress ? "progress" : "delta");
+		recorded.check_order();
 	}
 	std::fprintf(stderr, "T7 over DTPAGE03: %zu cases, %zu distinct, %zu republished, %zu nested runs, %.1f s\n",
 				 counts.cases, counts.distinct, counts.republished, counts.nested,
