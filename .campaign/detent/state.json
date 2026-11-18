@@ -5336,10 +5336,28 @@
         "docs/mechanisms/turn-seal.md",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-17T20:46:27",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "the dominant risk is durability (turn splitting, crash between turns); one reviewer by that lens replaces the default correctness lens",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/journal-turn-bound",
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -5348,7 +5366,7 @@
       "risk": "high",
       "status": "review",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T20:46:07",
+      "updated": "2026-11-17T20:46:27",
       "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
