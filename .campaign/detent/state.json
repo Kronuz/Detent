@@ -5992,16 +5992,53 @@
         "test/journal_test.cc"
       ],
       "journal": "../Detent-wt/detent/journal-faultfs",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T11:57:36",
+          "commit": "d90797cf765c749a3c18fd1652474d6667824d8e",
+          "criteria": {
+            "A1": "261118-102019-20438b",
+            "A2": "261118-102018-d5ffa8, 261118-102023-34b4b7",
+            "A3": "261118-102022-b1dd60; fails without: 261118-021438-24c9d7, 261118-072547-893f8e, 261118-073226-62d124, 261118-102028-2589c8",
+            "A4": "261118-102022-b1dd60",
+            "A5": "261118-102020-1b65f6, 261118-102021-8afec5",
+            "A6": "261118-102018-d5ffa8, 261118-102034-6081ab, 261118-102035-129e98, 261118-102037-7d70a8, 261118-102038-3e3b72"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
+              "commit": "d90797cf765c749a3c18fd1652474d6667824d8e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-102018-d5ffa8",
+              "level": "light",
+              "seconds": 136.5,
+              "state": "done",
+              "what": "journal-faultfs check suite at d90797cf765c"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "d90797cf765c749a3c18fd1652474d6667824d8e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+          "reason": "",
+          "tested": "d90797cf765c749a3c18fd1652474d6667824d8e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
-      "updated": "2026-11-18T08:59:21",
+      "updated": "2026-11-18T11:57:38",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-group-io-cost": {
