@@ -248,8 +248,8 @@ both change a contract, so they are the lead's (see Blocked on).
 |---|---|
 | A1 | 261118-045306-c3b884 (afaa58e): `scan` 0.750 visited per frame at 100, 1,000 and 10,000 groups; fails-without main-feed 261118-003230-dd075a: 28.5, 255.2, 2,529.1 (asserts); uncredited-kept 261118-003225-fc8c65 |
 | A2 | 261118-045307-857f92 (strict, afaa58e): 3 of 3, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 561-683 ms after |
-| A3 | order 261118-045306-b6154a, identity -003133-c1416a, reconnect -003134-129143, leftover -003134-38a9fa, TSan -003133-b42164 (all 303cad1); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
-| A4 | suite 261118-045252-a6a671 (afaa58e); CI at 596a065 running |
+| A3 | order 261118-045306-b6154a, identity -045305-fb5ea5, reconnect -045306-30cac2, leftover -045306-6e79b8, TSan -045305-8c4955 (all 303cad1); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
+| A4 | suite 261118-045252-a6a671 (afaa58e); CI at afaa58e |
 | A5 | 261118-045305-69c770 (afaa58e): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
 | A6 | [artifact] test/transport/groups_test.cc: `upload` prints socket queues and TCP state per host when it fails (consensus:ed8f840, b686ce2); groups-upload-stall reads the next failure |
 
