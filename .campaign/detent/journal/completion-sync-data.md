@@ -1,6 +1,6 @@
 # completion-sync-data: journal
 
-State: waiting on jobs 261117-194634-51b4f9 (suite A1/A2/A4), 261117-194637-12c92c (A3), 261117-194643-ade55a (A2 fails-without; log must show a 'failed:' check line, not an abort), CI at completion:f4c19b1
+State: ready for review
 Quest: .campaign/detent/quests/completion-sync-data.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Implemented at completion:d5c6fd4, state-dir fix completion:f4c19b1 (earlier jobs crashed on create_directory) (pushed): io.h sync_data_files, operation.h executor via seam, test/sync_seam_test.cc, check_seam.py grep, docs/CHANGELOG. Jobs queued.
+Implemented at completion:d5c6fd4, state-dir fix completion:f4c19b1 (earlier jobs crashed on create_directory) (pushed): io.h sync_data_files, operation.h executor via seam, test/sync_seam_test.cc, check_seam.py grep, docs/CHANGELOG. Done: suite, A3 and CI green at completion:f4c19b1.
 
 ## Next
 
@@ -27,13 +27,14 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1-A4 | pending: jobs above |
+| A1 | 261117-194634-51b4f9 |
+| A2 | 261117-194634-51b4f9; fails without: 261117-194643-ade55a (exit 1 on "failed: each async sync reaches the seam, once, with the file through the inline loop"; 261117-190045-644dbb crashed on the test's own state-dir bug, fixed in completion:f4c19b1, so it is not the kill) |
+| A3 | 261117-194637-12c92c |
+| A4 | 261117-194634-51b4f9; CI green at completion:f4c19b1 |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+`IO::sync_data_files` (default `File::sync_data` per file) and the executor's `Sync`/`SyncData` through `sync_files`/`sync_data_files`: completion:f4c19b1. Docs: docs/mechanisms/completion-seam.md, ARCHITECTURE.md, CHANGELOG.md. Test: test/sync_seam_test.cc; grep: test/check_seam.py. Native PosixFile paths (io_uring, aio_fsync) stay direct.
 
 ## Rulings I made
 
