@@ -6783,6 +6783,8 @@
       "after": [
         "namespace-s6-hardening"
       ],
+      "base": "cd5d64599c22f88608418d3745c638c6fc8494f1",
+      "branch": "quest/detent/namespace-cleanup",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -6854,11 +6856,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: no tracked file matches both sets; the tool's glob check is conservative on **/CMakeLists.txt and tests/**/*_mutant.sh",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-18T05:32:45"
+      "updated": "2026-11-18T05:39:56",
+      "worktree": "../Detent-wt/detent/namespace-cleanup"
     },
     "namespace-design": {
       "accepted": {},
