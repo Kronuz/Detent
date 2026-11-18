@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: blocked on lead: consensus_transport_idle fails on main too (pre-existing; lead files it); everything else green at 50b91ae
+State: ready for review
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -78,13 +78,27 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261118-063956-fff668; fails without: 261118-064124-3e5bb0 (settle mutant, reached the test) |
+| A2 | 261118-063956-fff668 |
+| A3 | 261118-063956-fff668, 261118-063958-96c6ec; fails without: 261118-064126-e68ae2 (erase mutant) |
+| A4 | 261118-064000-5e01ed (ASan+UBSan), 261118-064002-13f33c (TSan); fails without: 261118-064122-6a437c (N3 unqueued mutant) |
+| A5 | suite 261118-063950-78323a fails only consensus_transport_idle, pre-existing at main 5923b6c (261118-072938-1fb596 vs head 261118-072932-e7e9cf, same bytes); cite the suite rerun once transport-idle-budget lands. CI green but freebsd (pkg fetch, lead reran) |
+| A6 | 261118-063956-fff668, 261118-064000-5e01ed, 261118-064002-13f33c, 261118-064218-d255a1 (Xapiand repro, 0 of 24 seeds spin); fails without: 261118-064120-75b4b1 (shutdown_idles), 261118-064220-b8cb43 (repro spins) |
+
+Messages: msg-71 is A6, done above.
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+consensus:50b91ae. `close(id)` erases the row on an open, fenced, half-opened or unknown id, and
+the id opens again (driver.h pump/erase; docs/DRIVER.md close row). After shutdown a group awaiting
+its turn barrier is watched once, uncancellably, so the loop idles instead of spinning (A6;
+Xapiand's 15 spinning seeds of 24 go to 0). Bytes (96c6ec, 2,000 created rows, process heap per
+row net of the simulated disk): 0 proposals: open 6,625, closed 729, after the log forgets 303;
+10 proposals: 9,062 / 2,206 / 331. Driver part after close: 0 (groups()==0; opened-only rows
+3,666 open, 10 after the Host's purge, fff668). The rest is the journal's (TurnLog index and Host
+table), owned by journal-reopen-closed A4b. Open: consensus_transport_idle (transport-idle-budget);
+Xapiand's simulation fails its post-healing check on seeds 1, 3, 7, 8, 13, 18-21, 23, of which
+1, 3, 7 and 13 also fail without the fix (their WIP sim).
 
 ## Rulings I made
 
