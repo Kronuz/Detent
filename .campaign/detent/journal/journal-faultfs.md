@@ -1,6 +1,6 @@
 # journal-faultfs: journal
 
-State: blocked on the lead (A4 finding, verdict (b)); waiting on jobs 261118-040049-318877 (suite, fresh checkout) 261118-040050-7b72ed (A1) 261118-040056-965498 (A4 reproducer)
+State: waiting on journal-reopen-closed (its A9 fixes the reclaim gap; host_test.cc is its file until it lands)
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
@@ -11,6 +11,11 @@ before and after each crash. Everything else is journal:37c2769's faultfs move.
 
 ## Next
 
+0. msg (lead ruling on (b)): done. The reclaim gap fix is journal-reopen-closed's A9; this quest
+   lands after it. host_test.cc reverted to main's version at journal:fad32f2 (pushed), so A1's
+   grep fails until it returns. After reopen-closed lands: merge main, redo host_test.cc's
+   faultfs move (the case map row stands), rerun every check. A9 cites the reproducer command
+   below (job 261118-040056-965498).
 1. The lead rules on the A4 finding below (a product fix is its own quest). Until it lands,
    turn_log_power fails at seeds 5 and 7, so A3's plain run, A6 and CI stay red.
 2. After the fix: rerun A1, A5 fuzzers (`campaign job rerun`), the suite, A3's plain test; CI.
