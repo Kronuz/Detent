@@ -1601,6 +1601,45 @@
       "updated": "2026-11-17T00:48:42",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
+    "consensus-wave-open": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/store*.h",
+        "test/worker_*",
+        "test/wave_open_test.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
+      "updated": "2026-11-17T15:04:04"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
@@ -1863,7 +1902,42 @@
       "worktree": ""
     },
     "delta-plan-fixed-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T12:51:48",
+          "base": "d1987783ab7c667ca96baec10d8a60c4f19cc764",
+          "blobs": {
+            "docs/perf/delta-plan-scaling.md": "100644:ea3a34b844c7f8156b11091f5773807fcbfcf4f1",
+            "docs/perf/namespace-measure-t9.cc": "100644:56f9c60af5a7ce855f50e89d2834d62376e21a02",
+            "src/detent_local/paged_navigation.hh": "100644:fcef4a765b42cb41e088f0d0e013d4689b9f063a",
+            "src/detent_local/paged_trie_overlay.cc": "100644:f3a241555aaffbb14b59d7b4d07f286f7523e3e9",
+            "src/detent_local/paged_warm_validator.cc": "100644:5b9530b5042922dd7f460c5b9846aa52358ac972",
+            "src/detent_local/paged_warm_validator.hh": "100644:aa7c30be5984e94288c497a941ca140e3ba4f19e",
+            "tests/detent_local/CMakeLists.txt": "100644:17fac23ad55da3763a1fc43bfdff0a6c7adfc10d",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "100644:5652485975951f3d435dd72548d718ab26f49dfc",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "100644:8312b0d4a6251e9d475a2f4ef09cc5f6830f0463"
+          },
+          "by": "review",
+          "commit": "6efa63bf85017c39429eb9b618a8d8397f48a65f",
+          "criteria": "e7c966698fc6837b",
+          "diffs": {
+            "docs/perf/delta-plan-scaling.md": "7edd01fbc70bd1ef",
+            "docs/perf/namespace-measure-t9.cc": "8931e48a77639e27",
+            "src/detent_local/paged_navigation.hh": "31bfee675cf58f8b",
+            "src/detent_local/paged_trie_overlay.cc": "f26cc641083d4dff",
+            "src/detent_local/paged_warm_validator.cc": "88b3e384108ab260",
+            "src/detent_local/paged_warm_validator.hh": "920828db4f29290c",
+            "tests/detent_local/CMakeLists.txt": "d8528df2612b20bf",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "990d6e9fef033c7e",
+            "tests/detent_local/test_delta_plan_moved_definitions.mutant.patch": "38093996dc2c714c"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e53ef87ceceb78f383ac77df520bcedef96a40bc",
+          "reviewed": "ae9a25456ecb18247e8e82b29c3bf088dab1a181",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d7712df68f7f596026f71feeba9abded6cbbf72c",
       "branch": "quest/detent/delta-plan-fixed-cost",
@@ -1916,8 +1990,43 @@
           ]
         }
       ],
-      "landed": [],
-      "lenses": [],
+      "landed": [
+        {
+          "at": "2026-11-17T13:54:53",
+          "commit": "7c0db735c5d8a5426f85422fa95a7303474a5595",
+          "criteria": {
+            "A1": "261117-125210-2dc4f7",
+            "A2": "261117-121549-7a86f2 (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md)",
+            "A3": "261117-125209-0234f0",
+            "A4": "261117-121554-a6db7d (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md), 261117-121549-83f289 (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md), 261117-121529-6da30a (passed at 0b759d101a57; ignores docs-only docs/perf/delta-plan-scaling.md); fails without: 261117-082610-950015, 261117-121537-35314f",
+            "A5": "docs/perf/delta-plan-scaling.md \"The fixed part: moved definitions and repeated page reads\"."
+          },
+          "evidence": [
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "0b759d101a579ed930fe0c564b01fdce264c2668",
+              "docs": [
+                "docs/perf/delta-plan-scaling.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-121554-a6db7d",
+              "level": "none",
+              "seconds": 6.1,
+              "state": "done",
+              "what": "delta-plan-fixed-cost check pins at 0b759d101a57"
+            }
+          ],
+          "final": true,
+          "from": "8e7d0892856ccd8eaef53c342db7f3369c4c81d7",
+          "reason": "",
+          "tested": "586783c166dc23e0669d846b916c19f4d9a370f8"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "namespace-s7-ids"
@@ -1925,9 +2034,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "A delta's plan has a store-sized fixed cost",
-      "updated": "2026-11-17T08:06:07",
+      "updated": "2026-11-17T13:58:16",
       "worktree": "../Detent-wt/detent/delta-plan-fixed-cost"
     },
     "delta-plan-scaling": {
@@ -4978,6 +5087,44 @@
       "title": "journal: Host::close_group refuses a sequence below the last acknowledged record; wake() and a refused post_call",
       "updated": "2026-11-17T05:07:28",
       "worktree": ""
+    },
+    "journal-sync-seam": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "tests/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Journal: every sync through the IO seam",
+      "updated": "2026-11-17T15:04:05"
     },
     "legacy-h": {
       "accepted": {},
@@ -8114,7 +8261,52 @@
       "worktree": ""
     },
     "namespace-s6-hardening": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T15:23:05",
+          "base": "72bb83b6660fd3b49d22451f76e20925cef28598",
+          "blobs": {
+            "docs/status/namespace-s6-cutover.md": "100644:b2f4ddce45975d3d1507c7d907cb2b95faa98a99",
+            "include/detent_delivery/namespace_session.hh": "100644:c6ef20593fc2df7e1ad9eada5864737031b59dd9",
+            "include/detent_distribution/history.hh": "100644:5c6627f1a8cb273d0d70db3b6587a19b0bd297d8",
+            "include/detent_distribution/session_frames.hh": "100644:c15b530dfcb4a1a460ca5f5e74e5d1b34be0a581",
+            "include/detent_distribution/storage.hh": "100644:ecf6cf5e5578282dc47201c77fd76cc49902d260",
+            "src/detent_authority/frames_export.cc": "100644:ce7a426e48e14e6fb722713c888afcc1075feb7d",
+            "src/detent_authority/frames_export.hh": "100644:47a07786503ef5a8feb2ffd1eb092f64263aab93",
+            "src/detent_authority/service.cc": "100644:8ba043f86fe8f998771f5e25eeddc037ba22e3a4",
+            "src/detent_delivery/namespace_session.cc": "100644:fed5c6cab6477457b23f01c3a364c696572aa95b",
+            "src/detent_distribution/session_frames.cc": "100644:f3d130d136b724467c7470aa97531b81fb23c25b",
+            "tests/detent_authority/test_namespace_history.cc": "100644:66b32cce2d223feb02906dd5b55a499ea0547097",
+            "tests/detent_delivery/test_namespace_session.cc": "100644:a36c62fd085ebc39be86f8fd60e87e6186398f0d",
+            "tests/detent_distribution/test_session_frames.cc": "100644:ab33cae73130ed8dd5e49519b5aeea2f62eb38bb",
+            "tests/detent_distribution/test_storage.cc": "100644:9fdd1fffe0858f66ee86a59eea505e4ad103eace"
+          },
+          "by": "review",
+          "commit": "56d618a457e727ef03f7d1bdd110ae328c0e3430",
+          "criteria": "26b93e95a1bac9ed",
+          "diffs": {
+            "docs/status/namespace-s6-cutover.md": "3aa1dd3a75c1e9e1",
+            "include/detent_delivery/namespace_session.hh": "6d0f3701f32d4c5b",
+            "include/detent_distribution/history.hh": "39a90cf68c0da3a0",
+            "include/detent_distribution/session_frames.hh": "be1fe5b950d4f009",
+            "include/detent_distribution/storage.hh": "24a6a65dc6fff86f",
+            "src/detent_authority/frames_export.cc": "de2bf8112341cd43",
+            "src/detent_authority/frames_export.hh": "593fae3533a1e9bc",
+            "src/detent_authority/service.cc": "754f02d565568b16",
+            "src/detent_delivery/namespace_session.cc": "0287d63a6a2dddb2",
+            "src/detent_distribution/session_frames.cc": "21e6bdcd7b2dc863",
+            "tests/detent_authority/test_namespace_history.cc": "d25974fc69653c33",
+            "tests/detent_delivery/test_namespace_session.cc": "d1229708b88739a3",
+            "tests/detent_distribution/test_session_frames.cc": "9a4b6d1ecc6ab214",
+            "tests/detent_distribution/test_storage.cc": "96e0f5dde15fa3fd"
+          },
+          "findings": {},
+          "note": "",
+          "review": "1d1e469a557104d37e267103a4fe4b5fa9f6690b",
+          "reviewed": "94d7cc09b5029c73e0c31eaf329a7ee49f6d15c6",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s8-wiring"
       ],
@@ -8150,17 +8342,60 @@
         "docs/status/namespace-s6-cutover.md",
         "src/detent_authority/service.cc"
       ],
-      "landed": [],
-      "lenses": [],
+      "landed": [
+        {
+          "at": "2026-11-17T16:02:11",
+          "commit": "0ca0b8ef85a858efd6f846741b68034a37330757",
+          "criteria": {
+            "A1": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261117-075322-55a56b, 261117-075322-92def8",
+            "A2": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261116-214157-4dc912, 261117-075322-9e1c41",
+            "A3": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since), 261117-121951-d4c328 (passed at cb469446f80c; only merges from main since); fails without: 261116-214206-789966, 261117-075323-d98365, 261117-121444-739234, 261117-121452-7c08c8, 261117-122454-36ba59, 261117-122502-2e928a",
+            "A4": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261116-214209-bdfa24, 261116-214212-4ab1c1, 261117-075323-bc058a, 261117-075323-0f145c, 261117-121453-54d979, 261117-121453-d4a5f8, 261117-122509-9c0de7, 261117-122514-0cd4cd",
+            "A5": "[manual] include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); checked by the lead 2026-11-17: Ahead is tested first for a same-cluster store above head whatever its incarnation, and FullCopy only for another incarnation at or below head (cutover review F1, position before identity). The header builds and its tests pass: 261117-144103-d40cc6, 261117-122525-281a5f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "a045c1e880ea9b1a82d3783ec549ec9a5323b26c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-122525-281a5f",
+              "level": "light",
+              "seconds": 1348.9,
+              "state": "done",
+              "what": "namespace-s6-hardening check native at a045c1e880ea"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "a045c1e880ea9b1a82d3783ec549ec9a5323b26c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-122525-4f8dea",
+              "level": "none",
+              "seconds": 25.9,
+              "state": "done",
+              "what": "namespace-s6-hardening check pins at a045c1e880ea"
+            }
+          ],
+          "final": true,
+          "from": "ea3493572cbd568e4b827a909b75a7d4cc5f0295",
+          "reason": "",
+          "tested": "0ca0b8ef85a858efd6f846741b68034a37330757"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-17T08:04:57",
-      "worktree": "../Detent-wt/detent/namespace-s6-hardening"
+      "updated": "2026-11-17T16:10:05",
+      "worktree": ""
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
@@ -10933,19 +11168,46 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
-      "journal": "../Detent-wt/detent/peers-retry-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T14:41:45",
+          "commit": "aa7fa351239719a365e211bace4fed5f8ec823f3",
+          "criteria": {
+            "A1": "261117-140518-49afa2, 261117-140519-808620; fails without: 261117-122236-68fffc, 261117-122241-9dae77",
+            "A2": "261117-140519-27f287",
+            "A3": "261117-134723-98cca7 (passed at 5e0ab0575ceb; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build -R consensus_transport_peers --output-on-failure",
+              "commit": "5e0ab0575ceb1521d8b325f92607f6f4b5d1e693",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-134723-98cca7",
+              "level": "light",
+              "seconds": 88.0,
+              "state": "done",
+              "what": "peers-retry-flake check suite at 5e0ab0575ceb"
+            }
+          ],
+          "final": true,
+          "from": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+          "reason": "",
+          "tested": "aa7fa351239719a365e211bace4fed5f8ec823f3"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: overlap is by glob only: this quest writes test/transport/peers_test.cc alone, which transport-identity and transport-idle-cost do not touch (Peers is retired in worker-pump-removal)",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Peers retried-fetch flake on loaded macOS x86_64",
-      "updated": "2026-11-17T08:09:48",
-      "worktree": "../consensus-wt/detent/peers-retry-flake"
+      "updated": "2026-11-17T14:43:31",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
@@ -11930,11 +12192,11 @@
     "rpc-lane-codec": {
       "accepted": {
         "security": {
-          "at": "2026-11-17T06:12:48",
-          "base": "677c8645623b8fdc856416f4a9914557926b061a",
+          "at": "2026-11-17T12:28:17",
+          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
           "blobs": {
-            "CHANGELOG.md": "100644:0b6a0ed2cdca7359fbfa43b8868ee20e2772c09e",
-            "CMakeLists.txt": "100644:efbea5ab4460ed77821157a8853c50a6a3c79ca8",
+            "CHANGELOG.md": "100644:86106e7f971d0904b63535bd9616bd51022d65c6",
+            "CMakeLists.txt": "100644:df72542db3b71af85c0f651138df890960fa3589",
             "docs/mechanisms/rpc-lane.md": "100644:84310f3a7a2fb044bc6d2b5ae4cf27ca381bdf77",
             "fuzz/corpus/rpc/crash-send-past-credit": "100644:ade736df0974f8833da9b9da0f61b80be71247fc",
             "fuzz/corpus/rpc/seed-0": "100644:40748c1675a2843be5092b41c0d623e7210cec81",
@@ -11955,7 +12217,7 @@
             "test/transport/rpc_test.cc": "100644:544dbecd1c570e901a5a6555a3ad119115444f1e"
           },
           "by": "review",
-          "commit": "ecc0735ae1fdc07f252484c8fd588dbcf7460766",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
           "criteria": "d57e274b9cc45c17",
           "diffs": {
             "": "495bd41ab933f933",
@@ -12019,11 +12281,46 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/rpc-lane-codec",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-17T12:28:43",
+          "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "criteria": {
+            "A1": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A2": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A3": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since)",
+            "A4": "261117-075708-1cb2b3 (passed at 2810f00b1ad6; only merges from main since); fails without: 261117-045802-b15bed, 261117-045808-2d42af, 261117-045813-e45d39, 261117-045819-a9a7f2, 261117-045825-90b1dc, 261117-045831-8f2ed2, 261117-045836-0de6ee, 261117-045841-f3bb33, 261117-050452-8737e6, 261117-050457-ef5f13, 261117-050501-e5a32f, 261117-050506-7d6860, 261117-050511-765547, 261117-050516-fffbe9, 261117-050521-7a5f49, 261117-050526-8966c1"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "2810f00b1ad680d65d65a9f46fdff42998ff19d5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-075708-1cb2b3",
+              "level": "light",
+              "seconds": 149.2,
+              "state": "done",
+              "what": "rpc-lane-codec check suite at 2810f00b1ad6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "reason": "",
+          "tested": "84814a9c457c67aaa47299b97314d0adb285a4ab"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-connection"
@@ -12033,10 +12330,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5e: the rpc lane codec, call table, pools with atomic renew, Drain",
-      "updated": "2026-11-17T06:12:48",
-      "worktree": "../consensus-wt/detent/rpc-lane-codec"
+      "updated": "2026-11-17T12:28:58",
+      "worktree": ""
     },
     "s3b-followups": {
       "accepted": {},
@@ -13506,7 +13803,44 @@
       "worktree": "../consensus-wt/detent/transport-groups-ci"
     },
     "transport-identity": {
-      "accepted": {},
+      "accepted": {
+        "security": {
+          "at": "2026-11-17T13:50:39",
+          "base": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "blobs": {
+            "CHANGELOG.md": "100644:9e3cc1d5349ee3f589fd84c52f951a4fc903e1a1",
+            "CMakeLists.txt": "100644:aee1693066e6cf1bcb375a7de4c678543416656e",
+            "docs/mechanisms/host-connection.md": "100644:d6fffdc1d51c3c08fa4fde69bede2fc1e1141d5d",
+            "docs/mechanisms/host-transport.md": "100644:aa501055fc267fc6f2d17c87a15747f7425853b1",
+            "include/consensus/transport/connection.h": "100644:ce4e7706ae59b91427d4955b535a8eb1841c1a4c",
+            "include/consensus/transport/host_transport.h": "100644:21745e03dcb56c940762e44a3fd154e20c3b70a6",
+            "test/transport/admission_test.cc": "100644:f8995a25fcbedcb4af9e6d74ece6178fcee0231f",
+            "test/transport/groups_test.cc": "100644:375c96315e7f4b717a83c903d848e73bd0663031",
+            "test/transport/mutant_commit.py": "100755:8ba50ec6b8d8afec9914c2bb08a1b347d1903c49",
+            "test/transport/tls_certificates.cmake": "100644:8aef02b4f0cd383ed885b24c0def42ef6625860f"
+          },
+          "by": "review",
+          "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+          "criteria": "e176104354e899b1",
+          "diffs": {
+            "CHANGELOG.md": "604df2b388bd7807",
+            "CMakeLists.txt": "2364475a7bb2b80b",
+            "docs/mechanisms/host-connection.md": "c365e163a6892788",
+            "docs/mechanisms/host-transport.md": "bac0ec6e734b2e7c",
+            "include/consensus/transport/connection.h": "9b622be7437a03f8",
+            "include/consensus/transport/host_transport.h": "4d9e5594ee301246",
+            "test/transport/admission_test.cc": "4c68311d669e89a6",
+            "test/transport/groups_test.cc": "d7943748c3be49ac",
+            "test/transport/mutant_commit.py": "2ae9d9b1a6a8e333",
+            "test/transport/tls_certificates.cmake": "6d44d972f5dfd3bb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "13a96a730d938f2550ab43fe404a93c88b5e9e0f",
+          "reviewed": "9fe84c9bbd5cecad85b8959d537a56261f73c396",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "e4e394b06482b4e8a02f6aae5fbc69a12e40bbeb",
       "branch": "quest/detent/transport-identity",
@@ -13535,10 +13869,43 @@
         "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/transport-identity",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T13:50:52",
+          "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+          "criteria": {
+            "A1": "261117-132845-3bee70, 261117-132844-0baa78, 261117-132845-6ffba0; fails without: 261117-083434-aa0196, 261117-083450-824101, 261117-083506-cc7d19, 261117-083522-3b8076, 261117-083538-6cfcce, 261117-083553-54ea6f, 261117-083608-36b07f, 261117-083621-3d1151, 261117-083633-0b9d69, 261117-083644-e936b2, 261117-083655-e2029f, 261117-083704-f48fcf, 261117-121906-918deb, 261117-121920-e422e4, 261117-121929-694e4a, 261117-121939-c2d42f, 261117-121953-0f5f8b, 261117-122010-ffc421, 261117-122026-10df2c, 261117-122035-0f8c5e, 261117-122045-dc679e, 261117-122053-2dc66a, 261117-122101-b62389, 261117-122111-4dfd63, 261117-122119-6a7f7a, 261117-122127-8bcba2",
+            "A2": "261117-132845-3bee70, 261117-132846-18b589"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-132845-3bee70",
+              "level": "light",
+              "seconds": 187.5,
+              "state": "done",
+              "what": "transport-identity check suite at 361d5d243ccc"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "84814a9c457c67aaa47299b97314d0adb285a4ab",
+          "reason": "",
+          "tested": "361d5d243ccc3cc0b9e45fbab3a000e2a223d312"
+        }
+      ],
       "lenses": [
         "security"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "transport-groups"
@@ -13548,13 +13915,38 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T10:12:52",
+      "updated": "2026-11-17T13:51:01",
       "worktree": "../consensus-wt/detent/transport-identity"
     },
     "transport-idle-cost": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T13:47:01",
+          "base": "0ed76ef4035d6b95d16bed569b004c71443c0fbe",
+          "blobs": {
+            "CMakeLists.txt": "100644:4b7ab75bd96d453a4dd7bd4bb77b0f972ff665fd",
+            "bench/transport_idle.cc": "100644:2d8adad5cb5dd657bc9c6769b4fb8ff4283c7b12",
+            "docs/perf/transport-idle-cost.md": "100644:1f6997da984c7bbd75bd13582c44e3567e031e5c",
+            "test/transport/tls_certificates.cmake": "100644:515b7d481411c44006b94b77d1dc89172370b427"
+          },
+          "by": "review",
+          "commit": "e0ae1b92abc364f03a3cc4771b7b1009022096fa",
+          "criteria": "3c146627a0de67ef",
+          "diffs": {
+            "CMakeLists.txt": "67bcf097014c7016",
+            "bench/transport_idle.cc": "fd4b9f496ab543ae",
+            "docs/perf/transport-idle-cost.md": "6aba2c3082074d4c",
+            "test/transport/tls_certificates.cmake": "86bb4b5c3d801776"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ea036b51495f2b810a886ca31434005249bfefc7",
+          "reviewed": "e0ae1b92abc364f03a3cc4771b7b1009022096fa",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "transport-identity"
       ],
@@ -13591,12 +13983,11 @@
         "transport-groups"
       ],
       "provides": [],
-      "reason": "started by force: D106: consensus-transport is the split's last step with only its plan journal (0 code commits) and needs this quest; rpc-lane-codec writes transport/rpc* only and is landing",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "async-drivers 5d: the host transport's idle cost and hop CPU",
-      "updated": "2026-11-17T07:56:22",
+      "updated": "2026-11-17T13:47:01",
       "worktree": "../consensus-wt/detent/transport-idle-cost"
     },
     "voter-read-freshness": {

@@ -2596,38 +2596,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					const auto &cluster = options_.node.context.cluster;
 					const auto &table = node.history()->layout().table();
-					auto freeze = [&](std::string_view name) {
-						return AuthorityHistory::freeze(name, cluster, state, *node.sealed(), table, *files, *history);
-					};
-					std::vector<FramesRequest> requests;
-					for (const auto &[name, store] : task.follows)
-						if (auto frozen = freeze(name))
-							requests.push_back({name, std::move(frozen), store});
-					std::optional<distribution::DirectoryUpdate> directory;
-					if (task.all) {
-						distribution::DirectoryUpdate update;
-						update.from = task.all->cluster == cluster ? task.all->position : 0;
-						update.to = {cluster, state.directory_position()};
-						if (update.from < update.to.position) {
-							const auto &grants = task.admission->credential->grants;
-							state.for_each_directory_entry(
-								update.from, [&](std::uint64_t, const std::string &name, const Namespace &entry) {
-									if (!grants.allows(name))
-										return;
-									update.entries.push_back({name, entry.incarnation, entry.live});
-									const bool followed = std::any_of(task.follows.begin(), task.follows.end(),
-																	  [&](const auto &f) { return f.first == name; });
-									if (entry.live && !followed)
-										if (auto frozen = freeze(name))
-											requests.push_back({name, std::move(frozen), std::nullopt});
-								});
-							directory = std::move(update);
-						}
-					}
-					std::sort(requests.begin(), requests.end(),
-							  [](const auto &a, const auto &b) { return a.name < b.name; });
+					auto plan = plan_frames(task.follows, task.all, task.admission->credential->grants, state, cluster,
+											*node.sealed(), table, *files, *history);
+					auto &requests = plan.requests;
+					auto &directory = plan.directory;
 					for (const auto &request : requests)
-						if (request.history->held_back())
+						if (request.history && request.history->held_back())
 							frames_held_back.add();
 					distribution::Identity update{};
 					check(RAND_bytes(reinterpret_cast<unsigned char *>(update.data()), update.size()) == 1,
@@ -2709,9 +2683,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							frames_idle.add();
 							complete(held, {204, {}});
 						}
-					} catch (const std::exception &) {
+					} catch (const std::exception &error) {
 						frames_errors.add();
-						complete(held, {503, "{\"error\":\"distribution_unavailable\"}"});
+						const auto failure = frames_failure(error);
+						complete(held, {static_cast<int>(failure.status), std::string(failure.body)});
 					}
 				}
 				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.

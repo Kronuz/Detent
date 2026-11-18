@@ -1,0 +1,12 @@
+--- a/src/detent_local/paged_warm_validator.cc
++++ b/src/detent_local/paged_warm_validator.cc
+@@ -272,8 +272,7 @@
+ 			return false;
+ 		auto &old = old_frames[old_depth - 1];
+ 		if (old.phase != NodePhase::Leaf || old.node.kind != p::PageKind::Definition ||
+-			std::string_view(old_key.data(), old_key_size) != std::string_view(key.data(), key_size) ||
+-			!std::ranges::equal(old.node.body, frame.node.body))
++			std::string_view(old_key.data(), old_key_size) != std::string_view(key.data(), key_size))
+ 			return false;
+ 		old.phase = NodePhase::Finish;
+ 		++moved_definitions;

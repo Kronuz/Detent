@@ -181,14 +181,34 @@ FramePlan plan(const NamespaceRequest &request, const Answer &answer) {
 	}
 	case AnswerKind::Current:
 	case AnswerKind::Ahead:
+	case AnswerKind::Dropped:
 		break;
 	}
 	return frame;
+}
+FramePlan plan_dropped(const NamespaceRequest &request) {
+	FramePlan frame{request.name, nullptr, {AnswerKind::Dropped}, *request.dropped};
+	frame.kind = FrameKind::Dropped;
+	frame.ring_after = frame.head.position; // No piece, no entry.
+	return frame;
+}
+// The most a request's plan holds: its frame, the pieces over its spans and the spans they read.
+std::size_t plan_bytes(const NamespaceRequest &request) {
+	const auto spans = request.history ? request.history->spans().size() : 0;
+	return sizeof(Answer) + sizeof(FramePlan) + (spans + 1) * sizeof(PiecePlan) + spans * sizeof(std::size_t);
+}
+// A piece's readers: a checked reader per input, the merge and the keys they hold.
+constexpr std::size_t maximum_key_bytes = 200;
+std::size_t readers_bytes(std::size_t inputs) {
+	return (inputs + 1) * (sizeof(CheckedReader) + maximum_key_bytes) + sizeof(MergedReader) +
+		   inputs * 2 * sizeof(void *);
 }
 } // namespace
 
 struct SessionFramesEncoder::Impl {
 	enum class Phase { Header, Frame, Piece, Records, Ring, Done };
+	StorageLedger::Ticket plan_charge, reader_charge; // The plan and the open piece's readers.
+	std::shared_ptr<StorageLedger> account;
 	std::optional<DirectoryUpdate> directory;
 	std::vector<Answer> answers;
 	std::vector<FramePlan> frames;
@@ -231,12 +251,13 @@ struct SessionFramesEncoder::Impl {
 	}
 	void open_piece(std::string &out) {
 		auto &current = frames[frame];
+		if (piece == current.pieces.size() && current.ring_after == current.head.position) {
+			next_frame();
+			return;
+		}
 		const auto &history = *current.history;
 		if (piece == current.pieces.size()) {
-			if (current.ring_after == current.head.position) {
-				next_frame();
-				return;
-			}
+			reader_charge = account->admit(readers_bytes(0));
 			reader = std::make_unique<CheckedReader>(history.read_ring(current.ring_after),
 													 CheckedReader::Mode::Ring, current.ring_after + 1,
 													 current.head.position);
@@ -245,6 +266,7 @@ struct SessionFramesEncoder::Impl {
 			return;
 		}
 		const auto &plan = current.pieces[piece];
+		reader_charge = account->admit(readers_bytes(plan.spans.size()));
 		m::array(out, 3);
 		m::unsigned_integer(out, static_cast<std::uint8_t>(plan.kind));
 		m::unsigned_integer(out, plan.first);
@@ -267,6 +289,7 @@ struct SessionFramesEncoder::Impl {
 	}
 	void next_frame() {
 		reader.reset();
+		reader_charge.reset();
 		phase = ++frame == frames.size() ? Phase::Done : Phase::Frame;
 	}
 	void records(std::string &out, std::size_t bytes) {
@@ -275,6 +298,7 @@ struct SessionFramesEncoder::Impl {
 			if (!record) {
 				out.push_back('\xc0');
 				reader.reset();
+				reader_charge.reset();
 				++piece;
 				phase = Phase::Piece;
 				return;
@@ -308,8 +332,15 @@ struct SessionFramesEncoder::Impl {
 	}
 };
 SessionFramesEncoder::SessionFramesEncoder(std::optional<DirectoryUpdate> directory,
-										   std::span<const NamespaceRequest> requests)
-	: impl_(std::make_unique<Impl>()) {
+										   std::span<const NamespaceRequest> requests,
+										   std::shared_ptr<StorageLedger> account)
+	: impl_([&] {
+		  if (!account)
+			  account = std::make_shared<StorageLedger>(Limits{}.storage_bytes);
+		  return make_storage_owner<Impl>(account, std::malloc, std::free);
+	  }()) {
+	impl_->account = account;
+	std::size_t charge = 0;
 	if (directory) {
 		if (directory->to.cluster == Identity{} || directory->from > directory->to.position ||
 			directory->entries.size() > directory->to.position - directory->from)
@@ -317,13 +348,26 @@ SessionFramesEncoder::SessionFramesEncoder(std::optional<DirectoryUpdate> direct
 		for (const auto &entry : directory->entries)
 			if (!valid_namespace_name(entry.name) || entry.incarnation == Identity{})
 				throw std::invalid_argument("invalid directory entry");
+		charge += sizeof(DirectoryEntry) * directory->entries.size();
+		for (const auto &entry : directory->entries)
+			charge += entry.name.size();
 	}
+	for (const auto &request : requests)
+		charge += plan_bytes(request);
+	impl_->plan_charge = account->admit(charge);
 	impl_->directory = std::move(directory);
 	std::string_view previous;
 	for (const auto &request : requests) {
-		if (!request.history || !valid_namespace_name(request.name) || (!previous.empty() && request.name <= previous))
+		if (!request.history == !request.dropped || !valid_namespace_name(request.name) ||
+			(!previous.empty() && request.name <= previous) ||
+			(request.dropped && (request.dropped->cluster == Identity{} || request.dropped->incarnation == Identity{})))
 			throw std::invalid_argument("session frames need valid names in strictly increasing order");
 		previous = request.name;
+		if (request.dropped) {
+			impl_->answers.push_back({AnswerKind::Dropped});
+			impl_->frames.push_back(plan_dropped(request));
+			continue;
+		}
 		const auto answer = select_answer(*request.history, request.store);
 		impl_->answers.push_back(answer);
 		if (answer.kind != AnswerKind::Current && answer.kind != AnswerKind::Ahead)
@@ -358,8 +402,9 @@ bool SessionFramesEncoder::step(std::string &out, std::size_t bytes) {
 	return p.phase == Impl::Phase::Done;
 }
 std::string encode_session_frames(std::optional<DirectoryUpdate> directory,
-								  std::span<const NamespaceRequest> requests) {
-	SessionFramesEncoder encoder(std::move(directory), requests);
+								  std::span<const NamespaceRequest> requests,
+								  std::shared_ptr<StorageLedger> account) {
+	SessionFramesEncoder encoder(std::move(directory), requests, std::move(account));
 	std::string out;
 	while (!encoder.step(out, out.size() + 65536)) {
 	}
@@ -415,6 +460,8 @@ struct SessionFramesDecoder::Impl {
 	};
 	FrameSink &sink;
 	Limits limits;
+	// The decoder's working strings and definition, admitted up front, and the directory's rows.
+	StorageLedger::Ticket working, directory_charge;
 	m::Decoder tokens;
 	S state = S::Body;
 	DirectoryUpdate directory;
@@ -432,8 +479,11 @@ struct SessionFramesDecoder::Impl {
 	bool piece_records = false;
 	KnobDef value;
 	std::uint64_t mode = 0;
+	static constexpr std::size_t maximum_name = 198, maximum_key = 200, maximum_group = 128;
 	Impl(FrameSink &target, Limits bounds)
 		: sink(target), limits(bounds),
+		  working(limits.storage_account->admit(2 * (maximum_name + maximum_key + maximum_group) +
+												limits.definition_bytes + 16384)),
 		  tokens(m::Limits{limits.bytes, 16384, 32, std::max<std::uint32_t>(limits.records, limits.namespaces)}) {}
 	static std::uint64_t unsigned_value(const m::Token &token) {
 		wire(token.kind == m::Kind::Unsigned, "session frames expect an unsigned integer");
@@ -449,16 +499,22 @@ struct SessionFramesDecoder::Impl {
 		wire(result != Identity{}, "session frames zero identity");
 		return result;
 	}
-	std::string_view text(const m::Token &token) {
-		wire(token.kind == m::Kind::String, "session frames expect a string");
+	std::string_view text(const m::Token &token, std::size_t maximum) {
+		wire(token.kind == m::Kind::String && token.bytes.size() <= maximum, "session frames expect a string");
 		strings += token.bytes.size();
 		wire(strings <= limits.string_bytes, "session frames string bytes bound");
 		return token.bytes;
 	}
+	void publish_directory() {
+		sink.directory(directory);
+		directory = {};
+		directory_charge.reset();
+		state = S::FrameCount;
+	}
 	void frame_header_done() {
-		const bool forward = kind != FrameKind::FullCopy;
+		const bool forward = kind == FrameKind::Entries || kind == FrameKind::Blocks;
 		wire(forward ? after < to.position : after == 0, "session frame after its target");
-		at = forward ? after : 0;
+		at = forward ? after : kind == FrameKind::Dropped ? to.position : 0;
 		copy_seen = spans_seen = entries_seen = false;
 		sink.frame(name, kind, after, to);
 	}
@@ -558,18 +614,19 @@ struct SessionFramesDecoder::Impl {
 					 token.number <= limits.namespaces,
 				 "session directory entry bound");
 			remaining = token.number;
+			directory_charge = limits.storage_account->admit(remaining * sizeof(DirectoryEntry));
+			directory.entries.reserve(remaining);
 			state = S::Entry;
-			if (!remaining) {
-				sink.directory(directory);
-				state = S::FrameCount;
-			}
+			if (!remaining)
+				publish_directory();
 			break;
 		case S::Entry:
 			array(token, 3);
 			state = S::EntryName;
 			break;
 		case S::EntryName:
-			directory.entries.push_back({std::string(text(token))});
+			directory.entries.push_back({std::string(text(token, maximum_name))});
+			directory_charge.absorb(limits.storage_account->admit(directory.entries.back().name.capacity()));
 			wire(valid_namespace_name(directory.entries.back().name), "invalid session directory name");
 			state = S::EntryIncarnation;
 			break;
@@ -582,10 +639,8 @@ struct SessionFramesDecoder::Impl {
 			directory.entries.back().live = token.number != 0;
 			if (--remaining)
 				state = S::Entry;
-			else {
-				sink.directory(directory);
-				state = S::FrameCount;
-			}
+			else
+				publish_directory();
 			break;
 		case S::FrameCount:
 			frames = unsigned_value(token);
@@ -599,14 +654,14 @@ struct SessionFramesDecoder::Impl {
 			break;
 		case S::FrameName:
 			previous_name = std::move(name);
-			name = text(token);
+			name = text(token, maximum_name);
 			wire(valid_namespace_name(name) && (previous_name.empty() || previous_name < name),
 				 "session frame names are not valid and in order");
 			state = S::FrameKindField;
 			break;
 		case S::FrameKindField: {
 			const auto value = unsigned_value(token);
-			wire(value >= 1 && value <= 3, "unknown session frame kind");
+			wire(value >= 1 && value <= 4, "unknown session frame kind");
 			kind = static_cast<FrameKind>(value);
 			state = S::FrameAfter;
 			break;
@@ -634,6 +689,11 @@ struct SessionFramesDecoder::Impl {
 		case S::PieceCount:
 			pieces = unsigned_value(token);
 			frame_header_done();
+			if (kind == FrameKind::Dropped) {
+				wire(pieces == 0, "a dropped frame holds pieces");
+				state = end_frame();
+				break;
+			}
 			wire(pieces != 0, "session frame without pieces");
 			state = S::Piece;
 			break;
@@ -666,7 +726,7 @@ struct SessionFramesDecoder::Impl {
 			}
 			break;
 		case S::RecordKey:
-			key = text(token);
+			key = text(token, maximum_key);
 			state = S::RecordRevision;
 			break;
 		case S::RecordRevision:
@@ -718,7 +778,7 @@ struct SessionFramesDecoder::Impl {
 			state = S::OverrideName;
 			break;
 		case S::OverrideName:
-			group = text(token);
+			group = text(token, maximum_group);
 			wire(is_valid_group_key(group) && (previous_group.empty() || previous_group < group),
 				 "session override keys are not valid and in order");
 			state = S::OverrideMode;
@@ -753,7 +813,12 @@ struct SessionFramesDecoder::Impl {
 	}
 };
 SessionFramesDecoder::SessionFramesDecoder(FrameSink &sink, Limits limits)
-	: impl_(std::make_unique<Impl>(sink, limits)) {}
+	: impl_([&] {
+		  limits = detail::admitted_limits(std::move(limits));
+		  auto account = limits.storage_account;
+		  return make_storage_owner<Impl>(std::move(account), limits.storage_allocate, limits.storage_release, sink,
+										  limits);
+	  }()) {}
 SessionFramesDecoder::~SessionFramesDecoder() = default;
 void SessionFramesDecoder::feed(std::span<const char> &input, std::size_t &budget) {
 	auto &p = *impl_;

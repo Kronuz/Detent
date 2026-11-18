@@ -425,6 +425,115 @@ void source_failures() {
 	};
 	require(fails(CopyWithTombstone(txs, 8, {{9, 30, true}}, 30), 0), "a full copy holding a tombstone");
 }
+// A dropped namespace is a frame of its own, with the dropped incarnation's cursor and no piece.
+void dropped_frames() {
+	std::vector<Transaction> txs{{{"a:x", def(1, 0)}}};
+	TestHistory live(txs, 0, {}, 0);
+	const d::NamespaceCursor gone{id(1), id(7), 12};
+	std::vector<d::NamespaceRequest> requests{{"a", &live, {}, {}}, {"b", nullptr, d::NamespaceCursor{id(1), id(7), 9}, gone}};
+	d::SessionFramesEncoder encoder({}, requests);
+	require(encoder.answers().size() == 2 && encoder.answers()[1].kind == d::AnswerKind::Dropped, "a dropped answer");
+	std::string body;
+	while (!encoder.step(body, body.size() + 5)) {
+	}
+	auto decoded = decode(body, 1);
+	require(decoded.frames.size() == 2 && decoded.frames[0].kind == d::FrameKind::FullCopy, "the live frame first");
+	require(decoded.frames[1].name == "b" && decoded.frames[1].kind == d::FrameKind::Dropped &&
+				decoded.frames[1].after == 0 && decoded.frames[1].to == gone && decoded.frames[1].pieces.empty() &&
+				decoded.frames[1].ended,
+			"a dropped frame carries the dropped cursor and ends");
+	auto refuses = [&](std::vector<d::NamespaceRequest> bad) {
+		try {
+			d::SessionFramesEncoder(std::nullopt, bad);
+		} catch (const std::invalid_argument &) {
+			return true;
+		}
+		return false;
+	};
+	require(refuses({{"b", &live, {}, gone}}), "a request is a history or a drop, not both");
+	require(refuses({{"b", nullptr, {}, std::nullopt}}), "a request names a history or a drop");
+	require(refuses({{"b", nullptr, {}, d::NamespaceCursor{id(1), d::Identity{}, 1}}}), "a drop names its incarnation");
+	require(!rejected(head(1).frame("a", 4, 0, 5, 0).out), "the hand-built dropped frame decodes");
+	require(rejected(head(1).frame("a", 4, 1, 5, 0).out), "a dropped frame has no after");
+	require(rejected(head(1).frame("a", 4, 0, 5, 1).piece(1, 5, 5).record("a:x", 5, 1).nil().out),
+			"a dropped frame has no pieces");
+	require(rejected(head(1).frame("a", 5, 0, 5, 0).out), "five is not a frame kind");
+}
+
+// The codecs admit their memory through the ledger (R8): at its bound a ledger refuses an answer.
+void ledger_bound() {
+	const auto txs = churn();
+	TestHistory pay(txs, 8, {{9, 16, true}, {17, 24, true}, {25, 30, false}}, 30);
+	d::DirectoryUpdate directory{{id(1), 60}, 0, {}};
+	for (int i = 0; i < 50; ++i)
+		directory.entries.push_back({"ns.with.a.long.enough.name." + std::to_string(i), id(5), true});
+	std::vector<d::NamespaceRequest> requests{{"pay", &pay, d::NamespaceCursor{id(1), id(2), 12}, {}}};
+	const auto body = d::encode_session_frames(directory, requests);
+	auto pressure = [](auto work) {
+		try {
+			work();
+		} catch (const d::StoragePressure &) {
+			return true;
+		}
+		return false;
+	};
+	// Encoder: the plan, then each piece's readers.
+	auto roomy = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
+	{
+		d::SessionFramesEncoder encoder(directory, requests, roomy);
+		const auto planned = roomy->used();
+		require(planned > 0, "the encoder's plan is admitted");
+		std::string out;
+		while (!encoder.step(out, out.size() + 64)) {
+		}
+		require(roomy->used() == planned, "a finished piece refunds its readers");
+		auto tight = std::make_shared<d::StorageLedger>(planned);
+		require(pressure([&] { d::SessionFramesEncoder again(directory, requests, tight); std::string x; while (!again.step(x, x.size() + 64)) {} }),
+				"readers past the ledger are refused");
+	}
+	require(roomy->used() == 0, "the encoder refunds its plan");
+	require(pressure([&] { d::SessionFramesEncoder refused(directory, requests, std::make_shared<d::StorageLedger>(64)); }),
+			"a plan past the ledger is refused");
+	// Decoder: its working strings, then the directory's rows.
+	{
+		struct Quiet final : d::FrameSink {
+			void frame(std::string_view, d::FrameKind, std::uint64_t, const d::NamespaceCursor &) override {}
+			void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
+			void record(std::string_view, std::uint64_t, const KnobDef *) override {}
+		} quiet;
+		d::Limits limits;
+		limits.storage_account = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
+		{
+			d::SessionFramesDecoder decoder(quiet, limits);
+			const auto working = limits.storage_account->used();
+			require(working > 0, "the decoder's working memory is admitted");
+			std::span<const char> input(body.data(), body.size());
+			std::size_t budget = body.size();
+			decoder.feed(input, budget);
+			decoder.finish();
+			require(limits.storage_account->used() == working, "the directory's rows are refunded once delivered");
+			require(limits.storage_account->peak() - working >= directory.entries.size() * sizeof(d::DirectoryEntry),
+					"the directory's rows were admitted up front");
+			d::Limits tight = limits;
+			tight.storage_account = std::make_shared<d::StorageLedger>(working + 64);
+			d::SessionFramesDecoder small(quiet, tight);
+			std::span<const char> again(body.data(), body.size());
+			std::size_t all = body.size();
+			require(pressure([&] { small.feed(again, all); }), "directory rows past the ledger are refused");
+			d::Limits rows = limits;
+			rows.storage_account = std::make_shared<d::StorageLedger>(
+				working + directory.entries.size() * sizeof(d::DirectoryEntry) - 1);
+			d::SessionFramesDecoder bounded(quiet, rows);
+			std::span<const char> third(body.data(), body.size());
+			std::size_t rest = body.size();
+			require(pressure([&] { bounded.feed(third, rest); }), "the directory's rows are refused as a block");
+		}
+		require(limits.storage_account->used() == 0, "the decoder refunds everything");
+		d::Limits none = limits;
+		none.storage_account = std::make_shared<d::StorageLedger>(64);
+		require(pressure([&] { d::SessionFramesDecoder refused(quiet, none); }), "a decoder past the ledger is refused");
+	}
+}
 } // namespace
 
 int main() {
@@ -435,6 +544,8 @@ int main() {
 		chunking_and_directory();
 		refusals();
 		source_failures();
+		dropped_frames();
+		ledger_bound();
 	} catch (const std::exception &error) {
 		std::cerr << "test_distribution_session_frames: " << error.what() << '\n';
 		return 1;
