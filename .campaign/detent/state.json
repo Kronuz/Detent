@@ -13600,6 +13600,7 @@
         "test/transport/groups_test.cc",
         "bench/transport_idle.cc",
         "docs/mechanisms/host-transport.md",
+        "docs/perf/transport-idle-cost.md",
         "CHANGELOG.md",
         "CMakeLists.txt",
         "test/transport/mutant_commit.py"
@@ -13616,7 +13617,7 @@
       "risk": "high",
       "status": "active",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-17T19:16:46",
+      "updated": "2026-11-17T19:29:45",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
