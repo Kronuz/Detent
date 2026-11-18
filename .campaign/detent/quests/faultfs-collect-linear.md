@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-`filesystem::collect()` (faultfs.h:477-489 at faultlab:a452a8c) checks every inode against every name, durable name and log entry, and runs on every remove, replace and sync_directory, so a run is cubic: journal's reopen_distinct takes 0.84 s at 100 groups, 2.69 s at 200 and 24.51 s at 400 on faultfs, against 0.26-0.78 s on MemoryIO (job 261118-083844-874284), and the three heap cases cannot finish (journal-faultfs). After this quest collect() gathers the referenced ids once per call and frees what nothing references, linear in names + log + inodes, with unchanged semantics: which inodes survive a crash and which are freed.
+`filesystem::collect()` (faultfs.h:477-489 at faultlab:a452a8c) checks every inode against every name, durable name and log entry, and runs on every remove, replace and sync_directory, so a run is cubic: journal's reopen_distinct takes 0.84 s at 100 groups, 2.69 s at 200 and 24.51 s at 400 on faultfs, against 0.26-0.78 s on MemoryIO (job 261118-083844-874284), and the three heap cases cannot finish (journal-faultfs). After this quest a run's collection cost is not quadratic in live inodes: collect() gathers the referenced ids once per call or, if a run still grows with live inodes, references are counted incrementally so an operation costs O(what it touches) (lead's call, 2026-11-18), with unchanged semantics: which inodes survive a crash and which are freed.
 
 ## Acceptance criteria
 
