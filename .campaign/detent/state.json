@@ -12230,18 +12230,47 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/reactor-on-wheel",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T02:55:56",
+          "commit": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+          "criteria": {
+            "A1": "261117-083939-245653, 261117-083948-d8d15e",
+            "A2": "261117-121331-5118b5",
+            "A3": "ARCHITECTURE.md, section \"Timers: one wheel, one Asio timer per loop\" (reactor:99aff1b)",
+            "A4": "manual: lead grep 2026-11-17 over Kronuz default branches: no code user (Xapiand:f5e267411 moved manager.cc; cluster archived); in-repo `git grep PeriodicTimer` at reactor:bf874dc names only CHANGELOG.md (reactor:0d3bc71 removed it, its tests and docs)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-083939-245653",
+              "level": "light",
+              "seconds": 28.9,
+              "state": "done",
+              "what": "reactor-on-wheel check suite at bf874dcfb5e6"
+            }
+          ],
+          "final": true,
+          "from": "411f1f56559a26e7ca385d76d5b3d86f098e3b1e",
+          "reason": "",
+          "tested": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Reactor loop timers on the wheel",
-      "updated": "2026-11-12T11:38:04",
-      "worktree": "../reactor-wt/detent/reactor-on-wheel"
+      "updated": "2026-11-18T02:55:57",
+      "worktree": ""
     },
     "reactor-task-sessions": {
       "accepted": {},
