@@ -1027,7 +1027,8 @@
       "consumes": [],
       "files": [
         "include/consensus/driver.h",
-        "test/driver_close_test.cc"
+        "test/driver_close_test.cc",
+        "CMakeLists.txt"
       ],
       "journal": "../Detent-wt/detent/consensus-close-fenced",
       "landed": [],
@@ -1039,7 +1040,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
-      "updated": "2026-11-17T22:33:31",
+      "updated": "2026-11-17T22:40:41",
       "worktree": "../consensus-wt/detent/consensus-close-fenced"
     },
     "consensus-dns-peers": {
