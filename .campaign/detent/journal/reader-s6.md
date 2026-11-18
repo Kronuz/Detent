@@ -1,9 +1,25 @@
 # reader-s6: journal
 
-State: waiting on jobs: gates 36c38c b0bfa4 22758c 27f6fb 89843a; plain 76dd6c 62b83d cb2a71 55b928; soak 2b8463 8df624 48524e 4e87a1 fb8998 0d1e8b f45dad 538d0c; mutants (17 kept at `Detent:4fafed3`, F1-F4 c09e87 fc5e6e 2934a2 ba2018 at head); A7 2f0400; msg-1 0f6566 f07232. A16 blocked (Blocked on).
+State: waiting on jobs at `Detent:bd6581b` (ids `261118-10xxxx-<suffix>`): gates 1790af 04640c 631262 1c93af 300581; plain c435d5 d779ed 701d0a 0206b9; soak cc66a6 4e9d80 2fcb28 ec46f4 ca8025 b84d11 e3734b f6d5ec; Q6-1 mutant 90e1ea; A7 1bf0d7; A16 smoke a01c45, then exclusive dab009 (stopped) and f1bca2 (running); F2-F4 fc5e6e 2934a2 ba2018; msg-1 0f6566 f07232.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- `Detent:bd6581b` ports the first-read gate (lead ruling on A16): `first_read_core --core` times a
+  fresh process's `detent_open` and first `detent_get`; main's arm is `first_read_phases --client`
+  (runtime, `PreparedReader::open`, refresh thread, first `try_get`), built from main's tree.
+  `--generate` builds each tree's own store (10,000 int knobs `n<i % N>:k<i>` = 3i + 1, N = 1 and
+  1,000) inside the job under `.scratch/first-read`; `--publish` is the running publisher (a
+  one-knob delta to `n0` every 20 ms, collected every 16). `measure` runs six interleaved
+  main/branch pairs per cell, 200 reads per run, and fails unless every branch run is 200/200
+  below 1 ms; it prints each arm's medians, p99s, the paired difference and the noise floor.
+- Jobs at `Detent:8ccef6c`: A10 76dd6c and A11 62b83d passed; the rest were cancelled when the
+  head moved and resubmitted at `Detent:bd6581b`. A7 2f0400 failed in 1 s: the slot had no
+  `build-reader` (it was reset), and the command did not configure; 1bf0d7 configures first.
+- Q6-1 62fc42 survived because of a harness bug, not a code gap: `mutant.py` read each edit from
+  the base, so with two edits to `core.cc` only the last one landed. The `remembered` gate was
+  removed but `refresh_locked`'s 200 ms check was left in place. `mutant.py` now chains the edits
+  to one path, and Q6-1 at `daff3f2` removes both (90e1ea). No other mutant edits one path twice.
+
 
 - `Detent:470a127` merged main; `Detent:4fafed3` fixes SR1 and FIX-2 in `read_selected`
   (`generation.cc`, granted by the lead): non-blocking opens of `selected`, its image and the
@@ -36,41 +52,30 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Fill Evidence as the jobs above pass (all ids `261118-09xxxx-<suffix>`).
-2. msg-1: read 0f6566 and f07232; answer with core vs pinned p50/p99.
-3. A16 once the lead rules on Blocked on.
-4. Regenerate every mutant at the final head if the code changes before landing.
+1. A16: read the smoke a01c45; if it fails, fix `first_read_phases.cc` or the gate script (head
+   moves: rerun gates). When dab009 and f1bca2 pass, put the per-cell numbers in Evidence.
+2. Fill Evidence as the other jobs pass; msg-1 from 0f6566 and f07232.
+3. Before landing, regenerate every mutant at the final head (`mutant.py` now chains same-path edits).
 
 ## Blocked on
 
-- A16 (first-read gate, D49). `docs/perf/first-read-gate.sh` times the pre-S6 `detent::Client`
-  (`prepared_client_probe --read`), not `detent_open`/`detent_get`; its inputs
-  (`.scratch/capacity-trials/5000000-restore-r12`: `expected-values.bin`, `agent-0/managed.json`,
-  and `DENSE_CORPUS`) are gone from the home; and `first-read-gate.sh`, `first_read_gate.py` and
-  `first_read_phases.cc` are outside this file set. Options:
-  1. Grant `docs/perf/first-read-gate.*` and `tests/detent_system/first_read_gate.py`; I add a
-     core arm (a fresh-process `detent_open` + first `detent_get` probe in `tests/detent_reader/`)
-     interleaved against main's Client arm, and the lead restores or names the 5M corpus.
-  2. Same probe on a corpus `reader_bench --generate` builds (no 5M restore), 1 and 1,000
-     namespaces, publisher stopped and running, exclusive under 10 min per state.
-  Recommendation: 2 now (it proves the 1 ms bound through the core with what exists), 1 when the
-  corpus is back if the lead wants the main comparison on the 5M shape.
+Nothing (A16 ruled by the lead: gate script and `first_read_phases.cc` granted, small in-job corpus).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 36c38c (queued, head `Detent:8ccef6c`) |
-| A4 | t3-asan 27f6fb, t3-tsan 89843a (queued); asan b0bfa4, tsan 22758c |
-| A7 | 2f0400 (queued, `Detent:69ea114`) |
-| A8 | mutants 9b4bb9 4e137b f5658e 855a2e 347eee 4baa90 34bd94 363cb7 62fc42 7ae4a1 d7fb02 (at `Detent:4fafed3`; their tests unchanged since) |
+| A1-A3, A5, A6, A15 | native 1790af (queued, `Detent:bd6581b`) |
+| A4 | t3-asan 1c93af, t3-tsan 300581 (queued); asan 04640c, tsan 631262 |
+| A7 | 1bf0d7 (queued) |
+| A8 | mutants killed: D5-1 9b4bb9, D5-2 4e137b, D5-3 f5658e, D10-1 855a2e, D10-2 347eee, D10-3 4baa90, D2-1 34bd94, D4-1 363cb7, FIX-1 7ae4a1, FIX-2 d7fb02 (at `Detent:4fafed3`); Q6-1 90e1ea queued |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)" and "Fork and cold preparation" |
-| A10 | plain 76dd6c; mutants 862642 cc96ed 9d6c47 ea240d 4d9871 |
-| A11 | plain 62b83d; mutant ef5614 |
-| A12 | cold cases cb2a71; soak rounds 2b8463 8df624 48524e 4e87a1 fb8998 0d1e8b f45dad 538d0c; mutants F1-F4 c09e87 fc5e6e 2934a2 ba2018 (head) |
-| A13 | cb2a71 (`test_reader_switch cold`, child ledger check) |
-| A14 | 55b928 (`test_reader_switch capacity`) |
-| A16 | blocked (Blocked on) |
+| A10 | mutants killed 862642 cc96ed 9d6c47 ea240d 4d9871; plain c435d5 queued (76dd6c passed at `Detent:8ccef6c`) |
+| A11 | mutant killed ef5614; plain d779ed queued (62b83d passed at `Detent:8ccef6c`) |
+| A12 | F1 c09e87 killed; F2-F4 fc5e6e 2934a2 ba2018, cold cases 701d0a, soak cc66a6 4e9d80 2fcb28 ec46f4 ca8025 b84d11 e3734b f6d5ec queued |
+| A13 | 701d0a queued (`test_reader_switch cold`, child ledger check) |
+| A14 | 0206b9 queued (`test_reader_switch capacity`) |
+| A16 | dab009 (stopped), f1bca2 (running), exclusive after smoke a01c45; numbers pending |
 
 ## Messages
 
@@ -97,6 +102,13 @@ Pending.
   check; `parks`, `forks`, `test_reader_core` and `test_reader_files` are unchanged), so F1-F4
   were cancelled (998758 eb96b2 17a24b 82cbad) and resubmitted at `Detent:8ccef6c`; the other 17
   stay at `Detent:4fafed3`.
+- A16 gate shape: the gated number is each process's `total_ns` from before `detent_open` (or
+  the Client's runtime) to the checked first value, launch and loading excluded as before. A run
+  clones the tree's store (`cp -c`), reads its files into the cache, and starts five warmup
+  processes. Each tree builds its own store, as the 5M gate did. The gate targets join each tree
+  through `CMAKE_PROJECT_detent_INCLUDE` with a deferred `include`, so no `CMakeLists.txt` is
+  edited. `first-read-gate.md` and `first_read_gate.py` still describe and run the 5M Client gate.
+  They are outside this file set and are the lead's to retire.
 - A12 soak: eight jobs of one round each (four concurrent full `test_reader_switch`, Release),
   since 8 rounds took about 2 h on 2026-11-07 and a light soak job is capped at 30 min.
 - A verified hit compares the reference's length, keys, height and digest with the page header's
