@@ -12124,6 +12124,8 @@
     "reader-yield-stall": {
       "accepted": {},
       "after": [],
+      "base": "9f86ec32fcd631c96389c967e7853134e7a94c6a",
+      "branch": "quest/detent/reader-yield-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -12144,6 +12146,7 @@
         "test/transport/yield_stall_test.cc",
         "docs/mechanisms/connection.md"
       ],
+      "journal": "../Detent-wt/detent/reader-yield-stall",
       "landed": [],
       "lenses": [
         "correctness"
@@ -12153,9 +12156,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus transport: a reader's yield resumes promptly under load",
-      "updated": "2026-11-17T21:14:09"
+      "updated": "2026-11-17T21:15:31",
+      "worktree": "../consensus-wt/detent/reader-yield-stall"
     },
     "recovery-delivery": {
       "accepted": {},
