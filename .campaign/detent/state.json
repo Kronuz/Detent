@@ -1828,7 +1828,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-transport",
+      "journal": "",
       "landed": [],
       "lenses": [
         "security",
@@ -1847,8 +1847,8 @@
       "risk": "high",
       "status": "dropped",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-17T19:03:01",
-      "worktree": "../consensus-wt/detent/consensus-transport"
+      "updated": "2026-11-18T02:06:40",
+      "worktree": ""
     },
     "consensus-wave-open": {
       "accepted": {
