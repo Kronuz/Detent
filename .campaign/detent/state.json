@@ -1851,7 +1851,30 @@
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-wave-open": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T02:01:18",
+          "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+          "blobs": {
+            "CHANGELOG.md": "100644:5fd531597ec4ba939af414765b35ed0de0c0d151",
+            "CMakeLists.txt": "100644:4d6d72453a2f2bb1c39e4524e1a490a3eb69948e",
+            "test/wave_open_test.cc": "100644:be5ebaedb974766b26be9a920374329e6f528252"
+          },
+          "by": "review",
+          "commit": "58bf9cca7be986431bdfca486818f030abfd901f",
+          "criteria": "d0ec9118ab92b5c0",
+          "diffs": {
+            "CHANGELOG.md": "e4716eead23b13aa",
+            "CMakeLists.txt": "fc602d7a8cf8222b",
+            "test/wave_open_test.cc": "2bc51057fae7c648"
+          },
+          "findings": {},
+          "note": "",
+          "review": "10d89b42b254a1c94d6fd249784f72da06531c35",
+          "reviewed": "c20f3fd8cbd0b05d022acc253daabd2e2ca86967",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-turn-bound"
       ],
@@ -1892,7 +1915,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-17T19:52:47",
+      "updated": "2026-11-18T02:01:18",
       "worktree": "../consensus-wt/detent/consensus-wave-open"
     },
     "container-selection": {
