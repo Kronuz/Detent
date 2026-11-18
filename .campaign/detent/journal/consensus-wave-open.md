@@ -43,7 +43,7 @@ Nothing yet.
 | A1 | 261118-002646-cafc64 (x20 x4), 261118-002652-7a5cb2 (old pin fails); suite efda7e pending |
 | A2 | 261118-002658-ddd230 (mutant fails); suite efda7e pending |
 | A3 | 261118-002706-6c6519 pending |
-| A4 | [manual] the Xapiand lead or the lead runs the reproducer against consensus:c20f3fd |
+| A4 | [manual] the Xapiand lead ran its reproducer, job 261118-003837-3e3d58 (strata:88d72629, consensus:c20f3fd, journal:4272229): `GROUP_FOOTPRINT_NOSYNC=1 GROUP_FOOTPRINT_WAVE=64 group_footprint_test 64 0` opened 64 at once, all committed their first write, 0 fenced on open, exit 0; all 64 fenced before the fix |
 
 ## Result
 
