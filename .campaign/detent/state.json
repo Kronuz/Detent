@@ -792,7 +792,42 @@
       "updated": "2026-11-08T15:38:10"
     },
     "completion-sync-data": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-17T20:04:56",
+          "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:39a4da2c88911011b15ed22197131d46c240d89f",
+            "CHANGELOG.md": "100644:e3375c75c045bbad9c05ef125abf04637a3550b6",
+            "CMakeLists.txt": "100644:acef2512905bf93b096c88199004a7fe99e631dc",
+            "docs/mechanisms/completion-seam.md": "100644:09573f618053ccce2cbf247952bf7bae75e99b05",
+            "include/completion/io.h": "100644:21cb7b077696ae3a17608c8d12688b2c436b904c",
+            "include/completion/operation.h": "100644:cb18ed56beba10d354fc16d6086e60ebd18588f3",
+            "test/check_seam.py": "100644:44f86c5dbb53266d045c526471010a956c2e5d14",
+            "test/executor_direct_mutant.sh": "100755:c7cfc6b552ccd9dede8987498d09a3e1a5a05bd1",
+            "test/sync_seam_test.cc": "100644:2b2a0285541935ef41de8609f42191b272ab936d"
+          },
+          "by": "review",
+          "commit": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "criteria": "7907e61b84141775",
+          "diffs": {
+            "ARCHITECTURE.md": "209563ac2b85d12d",
+            "CHANGELOG.md": "32c4ff94b2c04e49",
+            "CMakeLists.txt": "2947bdc090b53e73",
+            "docs/mechanisms/completion-seam.md": "f7e3af6c4b9320cb",
+            "include/completion/io.h": "e91fe4ee992ce551",
+            "include/completion/operation.h": "e1d861d4d36a2873",
+            "test/check_seam.py": "fef1a2dde4e9c292",
+            "test/executor_direct_mutant.sh": "6097b468b9b80e1c",
+            "test/sync_seam_test.cc": "96c76791f60d2df5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "a101fa022c6ef598c4bf82f1641f76f4c91734ab",
+          "reviewed": "f4c19b1cf8c28973a5c0f5147134fd955546f210",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
       "branch": "quest/detent/completion-sync-data",
@@ -820,7 +855,9 @@
       ],
       "journal": "../Detent-wt/detent/completion-sync-data",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -830,7 +867,7 @@
       "risk": "normal",
       "status": "review",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T19:57:45",
+      "updated": "2026-11-17T20:04:56",
       "worktree": "../completion-wt/detent/completion-sync-data"
     },
     "completion-sync-files": {
