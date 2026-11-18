@@ -237,7 +237,7 @@ both change a contract, so they are the lead's (see Blocked on).
 - F2 = 261118-003144-3730d0 (store-keeps-opens killed by identity at 303cad1; also
   261117-224140-de7732 at 13b32d3, aborting on line 1234's epoch3 assertion).
 - F3 = 261118-003140-29e975 (no-generation-clear killed by `reconnect` at 303cad1; plain
-  261118-051308-3586fb). no-current survives (261117-235613-498ed0): equivalent today (R7).
+  261118-055550-dd540c). no-current survives (261117-235613-498ed0): equivalent today (R7).
 - F4 = consensus:590308d, docs only, rows from 261118-051307-54a699.
 - F5 (non-blocking) fixed in 48d04eb; no test can fail without it for the same reason as
   no-current (R7).
@@ -248,7 +248,7 @@ both change a contract, so they are the lead's (see Blocked on).
 |---|---|
 | A1 | 261118-051310-6f4073 (5923b6c): `scan` 0.750 visited per frame at 100, 1,000 and 10,000 groups; fails-without main-feed 261118-003230-dd075a: 28.5, 255.2, 2,529.1 (asserts); uncredited-kept 261118-003225-fc8c65 |
 | A2 | 261118-051310-270a7b (strict, 5923b6c): 3 of 3, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 561-683 ms after |
-| A3 | order 261118-051309-9ccc8f, identity -051308-c84325, reconnect -051308-3586fb, leftover -051309-8d3e3f, TSan -051307-47d1ad (all 5923b6c); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
+| A3 | order 261118-051309-9ccc8f, identity -051308-c84325, reconnect -055550-dd540c, leftover -055551-373422, TSan -051307-47d1ad (all 5923b6c); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
 | A4 | suite 261118-051311-f0eff6 (5923b6c); CI at 5923b6c |
 | A5 | 261118-051307-54a699 (5923b6c): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
 | A6 | `test/transport/groups_test.cc`: "every 250 ms: progress, links, host 1's frames, host 2's reads, the sockets" |
