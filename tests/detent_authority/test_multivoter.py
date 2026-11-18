@@ -12,11 +12,14 @@ import ssl
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, BinaryIO
 
 import readiness_load
 
+# The authority's floor for consensus_limits.log_entries; a checkpoint falls due every half of it.
+LOG_ENTRIES = 64
 TOKEN = "0123456789abcdef0123456789abcdef"
 CONTEXT = {
     "cluster": "63" + "00" * 15,
@@ -27,6 +30,35 @@ CONTEXT = {
 
 class StartupBindCollision(RuntimeError):
     pass
+
+
+def bind_collisions(
+    children: dict[int, subprocess.Popen[bytes]], directory: Path
+) -> list[int]:
+    """Nodes that exited because another process bound their reserved port first."""
+    return [
+        index
+        for index, child in children.items()
+        if child.poll() is not None
+        and "bind: Address already in use"
+        in (directory / f"node-{index}.log").read_text()
+    ]
+
+
+def with_fresh_ports(run: Callable[[], None]) -> None:
+    """Runs a cluster on reserved-then-released ports, again on fresh ports when
+    another process takes one before startup (at most three attempts)."""
+    for attempt in range(3):
+        try:
+            run()
+            return
+        except StartupBindCollision:
+            if attempt == 2:
+                raise
+            print(
+                "Retrying initial startup with fresh ports after a bind collision",
+                file=sys.stderr,
+            )
 
 
 def request(
@@ -54,6 +86,24 @@ def request(
         return response.status, json.loads(response.read())
     finally:
         connection.close()
+
+
+def settled(
+    send: Callable[[], tuple[int, dict[str, Any]]], what: str
+) -> dict[str, Any]:
+    """Repeats `send` until it answers 200, for at most 10 s. A transport error leaves the
+    outcome unknown: the retry carries the same nonce or producer sequence, which the
+    authority reconciles."""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            status, body = send()
+        except (OSError, http.client.HTTPException):
+            status, body = 0, {}
+        if status == 200:
+            return body
+        time.sleep(0.02)
+    raise AssertionError(f"request failed: {what}")
 
 
 def main() -> None:
@@ -98,7 +148,7 @@ def main() -> None:
             ],
         }
         if snapshots:
-            configuration["consensus_limits"] = {"log_entries": 64}
+            configuration["consensus_limits"] = {"log_entries": LOG_ENTRIES}
         if load:
             configuration["credentials"].extend(readiness_load.credentials())
         if sys.platform.startswith("linux"):
@@ -171,14 +221,15 @@ def main() -> None:
         )
 
     def successful(path: str, fields: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
+        index = 0
+
+        def send() -> tuple[int, dict[str, Any]]:
+            nonlocal index
             index = leader()
-            status, body = request(ports[index + 3], context, path, fields)
-            if status == 200:
-                return index, body
-            time.sleep(0.02)
-        raise AssertionError(f"request failed: {path}")
+            return request(ports[index + 3], context, path, fields)
+
+        body = settled(send, path)
+        return index, body
 
     try:
         for index in range(3):
@@ -189,13 +240,7 @@ def main() -> None:
                 "/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15}
             )
         except AssertionError as error:
-            collisions = [
-                index
-                for index, child in children.items()
-                if child.poll() is not None
-                and "bind: Address already in use"
-                in (directory / f"node-{index}.log").read_text()
-            ]
+            collisions = bind_collisions(children, directory)
             if collisions:
                 raise StartupBindCollision(
                     f"reserved ports were taken before startup: nodes {collisions}"
@@ -268,7 +313,21 @@ def main() -> None:
                     break
                 time.sleep(0.02)
             else:
-                raise AssertionError("unconsumed-response transaction did not commit")
+                # A leader deposed before replicating drops the write: unless its reply says
+                # committed, the outcome is unknown and the same-sequence retry below settles it.
+                try:
+                    status = lost.getresponse().status
+                except (OSError, http.client.HTTPException):
+                    status = 0
+                if status == 200:
+                    _, observed = successful(
+                        "/v2/read", {"namespace": "ns", "keys": ["ns:key"]}
+                    )
+                    assert observed["key_revisions"]["ns:key"] == 2, observed
+                print(
+                    f"lost transaction unsettled after 5 s (reply {status})",
+                    file=sys.stderr,
+                )
         finally:
             # Deliberately discard the original HTTP response without reading it.
             lost.close()
@@ -299,45 +358,56 @@ def main() -> None:
             ]
             children[lagging].kill()
             children[lagging].wait(timeout=5)
-            last_receipt: dict[str, Any] = {}
-            for sequence in range(3, 101):
-                _, last_receipt = successful(
-                    "/v2/transactions",
-                    {
-                        "generation": 1,
-                        "sequence": sequence,
-                        "namespace": "ns",
-                        "operations": [
-                            {
-                                "key": "ns:key",
-                                "value": {"default": sequence},
-                                "expected_revision": sequence - 1,
-                            }
-                        ],
-                    },
-                )
-                assert last_receipt["revision"] == sequence
+            # Write until both survivors checkpoint past the lagging voter's commit, so it can only
+            # catch up by a snapshot; the 98-write cap and 15 s after it bound the wait.
             surviving = [index for index in range(3) if children[index].poll() is None]
+            last_receipt: dict[str, Any] = {}
+            checkpoints: list[dict[str, Any]] = []
+            last = 2
             deadline = time.monotonic() + 15
             while True:
-                checkpoints = [
-                    request(ports[index + 3], context, "/v1/health")[1]
-                    for index in surviving
-                ]
-                if all(
-                    health["checkpoint_published_boundary"] > offline_commit
-                    for health in checkpoints
-                ):
-                    break
-                assert time.monotonic() < deadline, checkpoints
-                time.sleep(0.3)
+                if last >= 2 + LOG_ENTRIES // 2:
+                    try:
+                        checkpoints = [
+                            request(ports[index + 3], context, "/v1/health")[1]
+                            for index in surviving
+                        ]
+                    except (OSError, http.client.HTTPException) as error:
+                        checkpoints = [{"error": str(error)}]
+                    if all(
+                        health.get("checkpoint_published_boundary", 0) > offline_commit
+                        for health in checkpoints
+                    ):
+                        break
+                if last < 100:
+                    last += 1
+                    _, last_receipt = successful(
+                        "/v2/transactions",
+                        {
+                            "generation": 1,
+                            "sequence": last,
+                            "namespace": "ns",
+                            "operations": [
+                                {
+                                    "key": "ns:key",
+                                    "value": {"default": last},
+                                    "expected_revision": last - 1,
+                                }
+                            ],
+                        },
+                    )
+                    assert last_receipt["revision"] == last
+                    deadline = time.monotonic() + 15
+                else:
+                    assert time.monotonic() < deadline, checkpoints
+                    time.sleep(0.3)
             start(lagging)
             deadline = time.monotonic() + 20
             while True:
                 try:
                     health = request(ports[lagging + 3], context, "/v1/health")[1]
                     if (
-                        health.get("revision") == 100
+                        health.get("revision") == last
                         and health.get("checkpoint_published_boundary", 0)
                         > offline_commit
                     ):
@@ -348,41 +418,44 @@ def main() -> None:
                     "lagging voter did not install nonempty snapshot"
                 )
                 time.sleep(0.3)
-            _, replayed = successful("/v2/result", {"generation": 1, "sequence": 100})
+            _, replayed = successful("/v2/result", {"generation": 1, "sequence": last})
             assert replayed == last_receipt
             _, read = successful("/v2/read", {"namespace": "ns", "keys": ["ns:key"]})
-            assert read["key_revisions"]["ns:key"] == 100
+            assert read["key_revisions"]["ns:key"] == last
 
             _, continued = successful(
                 "/v2/transactions",
                 {
                     "generation": 1,
-                    "sequence": 101,
+                    "sequence": last + 1,
                     "namespace": "ns",
                     "operations": [
                         {
                             "key": "ns:key",
-                            "value": {"default": 101},
-                            "expected_revision": 100,
+                            "value": {"default": last + 1},
+                            "expected_revision": last,
                         }
                     ],
                 },
             )
-            assert continued["revision"] == 101
+            assert continued["revision"] == last + 1
             replaced = leader()
             children[replaced].kill()
             children[replaced].wait(timeout=5)
             _, after_election = successful(
                 "/v2/read", {"namespace": "ns", "keys": ["ns:key"]}
             )
-            assert after_election["key_revisions"]["ns:key"] == 101
-            _, retained = successful("/v2/result", {"generation": 1, "sequence": 101})
+            assert after_election["key_revisions"]["ns:key"] == last + 1
+            _, retained = successful(
+                "/v2/result", {"generation": 1, "sequence": last + 1}
+            )
             assert retained == continued
             start(replaced)
             print(
                 json.dumps(
                     {
                         "phase": "snapshot_catchup",
+                        "writes": last - 2,
                         "survivors": checkpoints,
                         "lagging": health,
                     }
@@ -491,14 +564,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    for attempt in range(3):
-        try:
-            main()
-            break
-        except StartupBindCollision:
-            if attempt == 2:
-                raise
-            print(
-                "Retrying initial startup with fresh ports after a bind collision",
-                file=sys.stderr,
-            )
+    with_fresh_ports(main)

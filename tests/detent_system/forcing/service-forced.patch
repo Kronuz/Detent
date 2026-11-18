@@ -1,0 +1,34 @@
+diff --git a/tests/detent_authority/test_service.cc b/tests/detent_authority/test_service.cc
+index e1b900a7..fe7aa118 100644
+--- a/tests/detent_authority/test_service.cc
++++ b/tests/detent_authority/test_service.cc
+@@ -616,6 +616,7 @@ int main() {
+ 		unsigned frozen = 0;
+ 		// Readers are served in the order the owner gives them credit, not the order they were started.
+ 		std::vector<bool> served(readers.size());
++		std::thread late;
+ 		for (unsigned count = 0; count < readers.size(); ++count) {
+ 			unsigned i = readers.size();
+ 			for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30); i == readers.size();
+@@ -641,6 +642,13 @@ int main() {
+ 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 1);
+ 			else
+ 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
++			if (count + 1 == readers.size()) { // forced window: the last admission outlives the loop by 200 ms
++				late = std::thread([&writer = readers[i].writer, held = *reply] {
++					std::this_thread::sleep_for(std::chrono::milliseconds(200));
++					writer.release(held);
++				});
++				continue;
++			}
+ 			assert(readers[i].writer.release(*reply));
+ 			wait_released(readers[i].writer);
+ 		}
+@@ -662,6 +670,7 @@ int main() {
+ 		for (auto &reader : terminal_readers)
+ 			start_read(service, reader, "fedcba9876543210fedcba9876543210",
+ 					   "{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
++		late.join();
+ 		auto terminal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+ 		for (;;) {
+ 			Writer writer;

@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import os
 import shutil
 import socket
 import ssl
@@ -22,7 +23,15 @@ import time
 from pathlib import Path
 from typing import Any
 
-from test_multivoter import CONTEXT, TOKEN, request
+from test_multivoter import (
+    CONTEXT,
+    TOKEN,
+    StartupBindCollision,
+    bind_collisions,
+    request,
+    settled,
+    with_fresh_ports,
+)
 
 NAMES = ["one", "two", "three"]
 
@@ -140,6 +149,10 @@ def run(
 
         def health(index: int) -> dict[str, Any] | None:
             if children[index].poll() is not None:
+                if collisions := bind_collisions(dict(enumerate(children)), directory):
+                    raise StartupBindCollision(
+                        f"reserved ports were taken before startup: nodes {collisions}"
+                    )
                 raise AssertionError(f"node {index} exited at startup")
             try:
                 return request(ports[index + 3], context, "/v1/health")[1]
@@ -167,14 +180,26 @@ def run(
         print(
             f"hosts {hosts}: ready after {time.monotonic() - began:.2f} s", flush=True
         )
-        leader = leaders[0]
-        status, receipt = request(
-            ports[leader + 3],
-            context,
-            "/v2/open",
-            {"expected_generation": 0, "nonce": "6e" + "00" * 15},
-        )
-        assert status == 200, (status, receipt)
+
+        def open_on_leader() -> tuple[int, dict[str, Any]]:
+            # Each attempt asks which node leads: one that stalled may have lost it.
+            bodies = [health(index) for index in range(3)]
+            current = [
+                index
+                for index, body in enumerate(bodies)
+                if body and body.get("role") == 2
+            ]
+            if len(current) != 1:
+                return 0, {}
+            return request(
+                ports[current[0] + 3],
+                context,
+                "/v2/open",
+                {"expected_generation": 0, "nonce": "6e" + "00" * 15},
+            )
+
+        receipt = settled(open_on_leader, "/v2/open")
+        assert receipt.get("generation") == 1, receipt
         if scenario == "names":
             check_dual_stack(ports[0])
     except BaseException:
@@ -204,12 +229,14 @@ def main() -> None:
         "names": ["localhost"] * 3,
         "unresolvable": ["localhost", "localhost", "voter-3.invalid"],
     }[scenario]
-    run(
-        binary,
-        certificates,
-        Path.cwd() / ".scratch" / f"dns-voters-{scenario}",
-        hosts,
-        scenario,
+    with_fresh_ports(
+        lambda: run(
+            binary,
+            certificates,
+            Path.cwd() / ".scratch" / f"dns-voters-{scenario}-{os.getpid()}",
+            hosts,
+            scenario,
+        )
     )
     print(f"dns voters {scenario}: passed")
 
