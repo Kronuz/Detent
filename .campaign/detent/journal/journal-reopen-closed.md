@@ -29,6 +29,8 @@ Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c
 
 Nothing. A8 resolved by D118 (lead): 10,000 ids, slope under 1 B; memory_io.h gets no fix (faultlab step 8 deletes it). The 100,000-id run was quadratic in jt::MemoryIO::sync_directory (1,000 ids 4.8 s, 2,000 17.1 s, 4,000 50.0 s).
 
+Lead: the reviewer's TSan probe 261118-064549-618682 exits 1 by design (it greps the race count): its log has 0 "WARNING: ThreadSanitizer" lines at 4d364f1, the clean result for F3.
+
 ## Evidence
 
 Reruns at journal:4d364f1 (old -> new): 055802-5965d3 -> 064542-c3da37; 055803-802427 -> 064542-8aa7cc; 043341-b92534, 055806-c71ad7 -> 064543-47189d; 043343-e3fdca, 055806-91a898 -> 064543-8b4151; 055804-b5ad99 -> 064543-3d0836; 043411-fd6782, 055806-fd33bc -> 064544-c6adb3; 055802-799652 -> 064544-b64d11; 055802-8fadd5 -> 064545-8b40b9; 055803-110ddf -> 064545-0fcd78; 055743-0fc5ca -> 064545-0ad089; 055745-5573e8 -> 064546-8208bc; 055803-42a124 -> 064546-bf20ed; 055804-3d69f0 -> 064547-7604e6; 055804-78be82 -> 064547-a8c91c; 043337-6f4c2f, 055805-322172 -> 064547-389464; 043339-8b3682, 055805-6844b0 -> 064548-0fc1ad; 055804-288249 (suite) -> 064548-69f7ab; reviewer probes 063202-5ac0ed -> 064549-cb889d, 063451-fc94be and 063204-ea6729 -> 064549-618682. The table below still names the d23c57b jobs until these finish.
@@ -41,7 +43,7 @@ All at journal:d23c57b (journal_test.cc changed for A8, so every job reran). Mut
 | A2 | 261118-064542-c3da37 (pass); 055804-b5ad99 (TSan, pass); 055806-fd33bc (fails-without: no hold, FAIL: busy) |
 | A3 | 261118-064544-b64d11 (reopen_crash, pass) |
 | A4 | 261118-064545-8b40b9 (reopen_churn, pass) |
-| A5 | `docs/mechanisms/group-lifetime.md`: "" |
+| A5 | `docs/mechanisms/group-lifetime.md`: "# A group's lifetime in a live Host" |
 | A6 | 261118-064548-69f7ab (suite, pass); CI |
 | A7 | 261118-064545-0fcd78 (reopen_heap, pass) |
 | A8 | 261118-064545-0ad089 (106,296 B at 1,000 and at 10,000: slope 0, pass); 055745-5573e8 (main's headers: 392 B per group, fails as required) |
