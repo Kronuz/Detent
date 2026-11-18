@@ -1690,7 +1690,9 @@
     },
     "consensus-wave-open": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "journal-turn-bound"
+      ],
       "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
       "branch": "quest/detent/consensus-wave-open",
       "checks": [
@@ -1724,12 +1726,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: shares only CHANGELOG.md with transport-feed-scan; a CHANGELOG conflict is a trivial merge",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "active",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-17T19:04:36",
+      "updated": "2026-11-17T19:52:47",
       "worktree": "../consensus-wt/detent/consensus-wave-open"
     },
     "container-selection": {
