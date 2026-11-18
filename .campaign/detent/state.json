@@ -5729,6 +5729,34 @@
       "updated": "2026-11-18T07:23:02",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
+    "journal-group-io-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "build"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "low",
+      "status": "planned",
+      "title": "Journal: measure group_io's per-call cost by id count (goal5 O4)",
+      "updated": "2026-11-18T07:23:50"
+    },
     "journal-host-guards": {
       "accepted": {
         "durability": {
