@@ -1975,20 +1975,55 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-wave-open",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T05:09:47",
+          "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+          "criteria": {
+            "A1": "261118-044944-ec59e7, 261118-034224-183afe; fails without: 261118-002652-7a5cb2",
+            "A2": "261118-044944-ec59e7; fails without: 261118-002658-ddd230",
+            "A3": "261118-034225-e2c134",
+            "A4": "[manual] the Xapiand lead ran its reproducer, xapiand job ...003837-3e3d58 (strata:88d72629, consensus:c20f3fd, journal:4272229): `GROUP_FOOTPRINT_NOSYNC=1 GROUP_FOOTPRINT_WAVE=64 group_footprint_test 64 0` opened 64 at once, all committed their first write, 0 fenced on open, exit 0; all 64 fenced before the fix"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-044944-ec59e7",
+              "level": "light",
+              "seconds": 653.8,
+              "state": "done",
+              "what": "consensus-wave-open check suite at 91564ba86d25"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "91564ba86d25396c4c7768667cd365a01cefa27a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8876195e782558e38c5ec30183453837cb31bdfe",
+          "reason": "",
+          "tested": "91564ba86d25396c4c7768667cd365a01cefa27a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus: 64 groups opened at once never fence storage outside the worker",
-      "updated": "2026-11-18T03:42:45",
-      "worktree": "../consensus-wt/detent/consensus-wave-open"
+      "updated": "2026-11-18T05:09:49",
+      "worktree": ""
     },
     "consensus-worker-release": {
       "accepted": {},
@@ -14306,7 +14341,58 @@
       "worktree": ""
     },
     "transport-feed-scan": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T04:52:10",
+          "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+          "blobs": {
+            "CHANGELOG.md": "100644:99c01ea5e180a2e1e9c408d62724ff4af7e82120",
+            "CMakeLists.txt": "100644:1d0df9fb4851d0d3860bbfafe9b30026513609a3",
+            "bench/transport_idle.cc": "100644:2596abc6c72907c092106b8dbb0b23e8e6c9f851",
+            "docs/mechanisms/host-transport.md": "100644:59b3b4948355cba8897a41c23963b89f6f87e2a0",
+            "docs/perf/transport-idle-cost.md": "100644:142e47779cc98977cbab6037ec933ad2ffff7c12",
+            "include/consensus/transport/host_transport.h": "100644:5de7bd435c357f3942bca827e705952dd32590fa",
+            "test/transport/groups_test.cc": "100644:fc2bd4f4f93ce7d2bdc6c9432d9a89496245df25",
+            "test/transport/mutant_commit.py": "100755:1f89b65d9b40252f8e38ec4b49ad95d7f3d34bd6"
+          },
+          "by": "review",
+          "commit": "4b88ad2161dc2e818d37b05b5ec0faac28c0d878",
+          "criteria": "d4d1723c30b8fd6c",
+          "diffs": {
+            "CHANGELOG.md": "a6620ce255319bbd",
+            "CMakeLists.txt": "6942556daab266d9",
+            "bench/transport_idle.cc": "cb124834fa5cfd1a",
+            "docs/mechanisms/host-transport.md": "08cf4baaa4fda888",
+            "docs/perf/transport-idle-cost.md": "2c2c69085e2edf57",
+            "include/consensus/transport/host_transport.h": "acd0b2b3138aed56",
+            "test/transport/groups_test.cc": "bb0d43fe091c78d1",
+            "test/transport/mutant_commit.py": "ea8de93bfdd29d81"
+          },
+          "findings": {
+            "G1": {
+              "jobs": [
+                {
+                  "cmd": ".scratch/build/consensus_transport_groups_test .scratch/build/tls-fixture backlog",
+                  "commit": "4b88ad2161dc2e818d37b05b5ec0faac28c0d878",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-034607-ab6dcf",
+                  "level": "light",
+                  "seconds": 1.5,
+                  "state": "done",
+                  "what": "G1 backlog: owed records merge with the queue full; every group credited whole"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "194d2d1ddc2fef85d2c784b3bd692e4fc914c9bd",
+          "reviewed": "596a06548bcc7cd1b669582572ebd9510b5d0b1b",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "transport-identity",
         "transport-groups-ci"
@@ -14350,7 +14436,7 @@
       "risk": "high",
       "status": "active",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-17T19:29:45",
+      "updated": "2026-11-18T04:52:10",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
