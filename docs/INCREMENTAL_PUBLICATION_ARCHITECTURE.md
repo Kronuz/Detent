@@ -5,14 +5,14 @@
 
 ## Boundary
 
-Retain the selected-descriptor and public reader interfaces, profile-1 distribution encoders, publication sink and completion scheduler. Add a sealed paged-publication plan to the existing DiskStore state machine. Whole-image v1 remains supported; paged publication is an explicit configuration choice. Stage 6 retains sustained ingestion, fleet/bootstrap/reconnect storms, multi-host failure domains, audit/rollback and pinned dependency reproduction.
+Retain the selected-descriptor and public reader interfaces, profile-1 distribution encoders, publication sink. Add a sealed paged-publication plan to the existing DiskStore state machine. Whole-image v1 remains supported; paged publication is an explicit configuration choice. Stage 6 retains sustained ingestion, fleet/bootstrap/reconnect storms, multi-host failure domains, audit/rollback and pinned dependency reproduction.
 
 ```text
 Validated update + exact recovered base
                  ↓
 Budgeted page builder → sealed publication plan
                  ↓
-Existing DiskStore operations + CompletionPort
+Existing DiskStore operations
                  ↓
 Durable root selection → validated recovered root
                  ↓
@@ -45,7 +45,7 @@ The private canonical trie cursor consumes sorted typed keys with one lookahead 
 
 ## Durable selection
 
-Add a plan overload to DiskStore publication while retaining ImageBuilder callers. Compose existing managed preparation/publication operations and CompletionPort; add neither a second IO engine nor a journal rewrite.
+Add a plan overload to DiskStore publication while retaining ImageBuilder callers. Compose existing managed preparation/publication operations; add neither a second IO engine nor a journal rewrite.
 
 Reserve peak coexistence of new segments, ownership records and root selection before creation. Durable ownership precedes large payload writes. Synchronize every dependency before root selection and its directory barrier. Cancellation after possible selection requires authentic reconciliation before visibility or upstream feedback.
 

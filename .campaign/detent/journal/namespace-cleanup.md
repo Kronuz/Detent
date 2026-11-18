@@ -1,0 +1,41 @@
+# namespace-cleanup: journal
+
+State: waiting on jobs 261118-063637-4b25ea 261118-063640-a80eea 261118-063642-b28568 261118-063645-ed68b7 261118-063434-d5b163 261118-063647-b2bc43 261118-063648-6e156f
+Quest: .campaign/detent/quests/namespace-cleanup.md (the lead's; never edit it)
+
+## Doing
+
+msg (lead): 4d282a was not a valid kill: it died of `std::invalid_argument: seal namespace count` (a limit of one namespace refuses the seal decode before the table check), the same failure the unmutated test would hit. Fixed at 4d654623: a `Sprawl` log (60 namespaces of 100 characters, one changed per seal, a table at every seal) under `namespaces = 1`, so only the table outgrows its bound. A3's hash, repair and one_knob jobs had dead patch/target pairs (s4-a3 no longer applies; c4 has no killing test); resubmitted with s4-f1/test_delivery_hash_stats_tear, s3b-m3/test_local_paged_snapshot_plan and c1/test_local_paged_definition.
+
+## Next
+
+1. Read 3f932a's log: it must end in an assertion on `refused.find("above its kind's bound")`/`starts_with("history file layout ")` (an abort at the assert, not an exception); quote that line here. d5b163 is the plain run and must pass; if either fails, adjust Sprawl (names, count) and rerun.
+2. A3: 3f932a, d1c59a, e22141 and 4826a4 must each show MUTANT KILLED with a nonzero exit; the already-killed runners are agent_store f9e36d, dense 262af3, bindings e74f8d.
+3. Push, report.
+
+## Follow-ups
+
+1. c4 survives: `tests/detent/mutants/c4-no-percentage-check.patch` removes the check in `src/detent_local/paged_leaf_body.cc` `LeafBody::step` that throws `std::invalid_argument("paged leaf body percentage and rollout value disagree")` when a non-namespace leaf's percentage and rollout value disagree. Runner `tests/detent/one_knob_mutant.sh PATCH TARGET` with TARGET `test_local_paged_definition` printed `MUTANT SURVIVED` (job 261118-054256-dbe2be, exit 0, which is the convention for a survivor: a `--fails-without` job on it fails). No test in the tree names that message; okt-followups C4 claims test_view and the bindings tests. Gap: a paged definition leaf whose rollout percentage and value disagree is not refused under test. Not in A3's rows.
+
+## Blocked on
+
+Nothing. (A1's test lives in tests/detent_authority/test_history_power_cut.cc, beside `refused_seal`; now in the file set.)
+
+## Evidence
+
+| Criterion | Evidence |
+|---|---|
+| A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-075319-490873 (`history_mutant.sh table-unbounded`, --fails-without); plain run 261118-075318-1a4c6f; suite 261118-075318-5020fb |
+| A2 | `git grep` job 261118-075317-0b2741 (src include tests: no match); suite 261118-075318-5020fb |
+| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 261118-054257-262af3, bindings 261118-054258-e74f8d, hash 261118-075319-ba8233, repair 261118-075320-b501c0, one_knob 261118-075320-93fabc, history 261118-075319-490873; survivor exits 0: 261118-084943-54e21f. service/mirror/test_history runners already used the convention |
+| A4 | native 261118-075318-5020fb, pins 261118-075318-64bc71 |
+
+## Result
+
+CompletionScheduler, CompletionPort, CoordinatorOptions::completion_port and test_completion_scheduler deleted (NativeDriver alias moved to coordinator.hh); live docs updated (DEPENDENCY_UPGRADES, INCREMENTAL_PUBLICATION_ARCHITECTURE, design/http-coroutines). Historical status docs and benchmarks/library-adoption-closure-20261019.json still name test_completion_scheduler (records of past runs, left).
+
+## Rulings I made
+
+1. Runner convention: exit the run's own nonzero status when killed, 0 when survived, 126 with no verdict (as service_mutant.sh).
+2. history.cc needed no change: the bound check was right, only unprotected. The mutant is a new inline case `table-unbounded` in history_mutant.sh, not a patch file.
+3. A3 jobs use one representative patch per runner; the plain runners' conversion is what is proven.

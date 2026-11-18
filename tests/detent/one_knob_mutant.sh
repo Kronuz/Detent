@@ -1,7 +1,8 @@
 #!/bin/bash
-# Applies one mutant patch from tests/detent/mutants, builds TARGET and runs it. Exits 0 when the
-# run fails (the mutant is killed), 1 when it passes (it survives) and 3 with no verdict: the patch
-# does not apply or the mutant does not build.
+# Applies one mutant patch from tests/detent/mutants, builds TARGET and runs it. Exits the run's own
+# nonzero status when it fails (the mutant is killed), 0 when it passes (it survives) and 126 with no
+# verdict (the patch does not apply or the mutant does not build): `campaign job submit --fails-without`
+# passes on a nonzero status but 124, 126, 127.
 #   one_knob_mutant.sh PATCH TARGET
 set -uo pipefail
 patch=${1:?mutant patch}
@@ -9,7 +10,7 @@ target=${2:?test target}
 build=.scratch/build-mutant
 no_verdict() {
 	echo "NO VERDICT: $patch: $1"
-	exit 3
+	exit 126
 }
 git apply --check "$patch" && git apply "$patch" || no_verdict "patch does not apply"
 trap 'git apply -R "$patch"' EXIT
@@ -26,7 +27,7 @@ test -n "$binary" || no_verdict "no $target binary"
 status=$?
 if test "$status" -ne 0; then
 	echo "MUTANT KILLED: $patch by $target (status $status)"
-	exit 0
+else
+	echo "MUTANT SURVIVED: $patch"
 fi
-echo "MUTANT SURVIVED: $patch"
-exit 1
+exit "$status"

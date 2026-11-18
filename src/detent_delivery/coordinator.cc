@@ -124,10 +124,7 @@ struct Coordinator::Impl {
 		  sources(options.authority_endpoints, options.source.endpoint, options.quorum_refresh,
 				  options.reconnect_seed ^ UINT64_C(0x6a09e667f3bcc909)),
 		  store(std::move(disk)), driver(std::move(completion)), domain(retirement), worker(pool),
-		  base(domain.make<RecoveryResult>(options)) {
-		if (options.completion_port && !options.completion_port->uses(driver))
-			throw std::invalid_argument("coordinator completion port driver mismatch");
-	}
+		  base(domain.make<RecoveryResult>(options)) {}
 	// Asks for a Replace and a repair publication of the selected generation; a network wait in progress ends so
 	// the loop can ask. Idempotent while pending, so later reports do not cancel the Replace being received.
 	void request_repair(bool wake) noexcept {
