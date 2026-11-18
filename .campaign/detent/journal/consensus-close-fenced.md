@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-021458-8f5b01 261118-021459-b2a48d
+State: waiting on jobs 261118-021458-8f5b01 261118-021757-fd5aa8 261118-021759-37b257 261118-021800-0604b4
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -30,7 +30,19 @@ Not done: N3 (a test erasing a still-queued group).
 
 ## Blocked on
 
-Nothing. The lead put CMakeLists.txt in my file set; the registration is committed (consensus:c06510a).
+Lead: who closes the journal group when a Driver row closes (F2). Owner: the Worker (worker.h:1139
+`kronuz::journal::Store store_`); `Worker::close()` (worker.h:179) only sets `closing_`, and nothing
+calls `Store::close()` (store.h:389) -> `Journal::close()` (journal.h:355) -> `Host::close_group` ->
+`TurnDriver::forget`. That call cannot simply be added in driver.h or worker.h: Journal::close
+requires a healthy store (a fenced row throws), no pending replacement, the last record durable, and
+a checkpoint covering every batch (`frontier_.sequence == base_sequence`). A lone row with batches
+past its last checkpoint, or any fenced row, fails it, and `TurnLog::forget` on such a group would
+let retention reclaim live uncheckpointed records (data loss). TurnLog `index_` is the retention's
+live-record index, correct while the records are live. Options: (a) Worker::close writes a covering
+checkpoint, then store_.close() (healthy rows only; needs the application's capture, so not automatic);
+(b) a Host-side release that drops the in-memory per-group state (shards_/opened_/sequences_/index_
+and the recover guard) while the records stay durable and recoverable (the journal-reopen-closed
+quest). Recommendation: (b). worker.h is needed only for (a); I do not change it.
 
 ## Evidence
 
