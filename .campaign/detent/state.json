@@ -14343,11 +14343,11 @@
     "transport-feed-scan": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-18T04:52:10",
-          "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+          "at": "2026-11-18T05:12:13",
+          "base": "8876195e782558e38c5ec30183453837cb31bdfe",
           "blobs": {
             "CHANGELOG.md": "100644:99c01ea5e180a2e1e9c408d62724ff4af7e82120",
-            "CMakeLists.txt": "100644:1d0df9fb4851d0d3860bbfafe9b30026513609a3",
+            "CMakeLists.txt": "100644:c6331c40be8bba2650ba4fcd7c54c62234fef53f",
             "bench/transport_idle.cc": "100644:2596abc6c72907c092106b8dbb0b23e8e6c9f851",
             "docs/mechanisms/host-transport.md": "100644:59b3b4948355cba8897a41c23963b89f6f87e2a0",
             "docs/perf/transport-idle-cost.md": "100644:142e47779cc98977cbab6037ec933ad2ffff7c12",
@@ -14356,7 +14356,7 @@
             "test/transport/mutant_commit.py": "100755:1f89b65d9b40252f8e38ec4b49ad95d7f3d34bd6"
           },
           "by": "review",
-          "commit": "4b88ad2161dc2e818d37b05b5ec0faac28c0d878",
+          "commit": "afaa58e24963513497f5c23eda1c828d3ccd1954",
           "criteria": "d4d1723c30b8fd6c",
           "diffs": {
             "CHANGELOG.md": "a6620ce255319bbd",
@@ -14373,14 +14373,14 @@
               "jobs": [
                 {
                   "cmd": ".scratch/build/consensus_transport_groups_test .scratch/build/tls-fixture backlog",
-                  "commit": "4b88ad2161dc2e818d37b05b5ec0faac28c0d878",
+                  "commit": "afaa58e24963513497f5c23eda1c828d3ccd1954",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-034607-ab6dcf",
+                  "job": "261118-045307-0627ca",
                   "level": "light",
-                  "seconds": 1.5,
+                  "seconds": 2.0,
                   "state": "done",
-                  "what": "G1 backlog: owed records merge with the queue full; every group credited whole"
+                  "what": "G1 backlog: owed records merge with the queue full; every group credited whole at afaa58e24963"
                 }
               ],
               "kind": "gap",
@@ -14436,7 +14436,7 @@
       "risk": "high",
       "status": "active",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-18T04:52:10",
+      "updated": "2026-11-18T05:12:13",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
