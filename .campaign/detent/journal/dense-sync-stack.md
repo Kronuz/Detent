@@ -44,6 +44,10 @@ Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat
 
 3a. Main diagnosis (msg from lead): job 2e8717's authority logs say `detentd: authority recovery application fenced` on all three voters (service.cc:1983, replay of the committed journal at start), so detentd starts and fences while replaying the Oct-23 journal; it is not a harness or argument mismatch (the harness is the tree's own). The Oct-23 state-N holds journal-0000000000000001, manifest, owner.lock; main also creates empty `state-N.history` beside it (src/detent_authority/history.cc, 65c7ac81, 2026-11-12). Hypothesis: a journal or command format change between Detent:d04794d and main (candidates 53abd637 per-namespace positions and incarnations, 711a114e one-knob-type int64, 65c7ac81 history). Probes (light, 10K, exit code is the bootstrap's): old fixture at d04794d 6c2712, at 53abd637's parent e7158a, at 53abd637 dd5db9, at 711a114e 39af41; fresh 10K seeded at main then bootstrapped at main 08680a (must pass or main really fails to elect). Script docs/measurements/dense-sync-stack-20261118/probe-fixture.sh. If fresh main passes: a fixture format change, greenfield no-compat, so main needs a main-seeded fixture (91 min more at 5M) or the main arm is dropped; name the first bad commit from the probes. If fresh main fails: main regression, bisect between Detent:327ca58 and main.
 
+## Follow-ups for the lead (not this quest)
+
+1. Silent failure on an old journal, whichever way the probes go: main's detentd, given an old-format state, starts, fences while replaying the committed journal and then sits with no leader (the harness gave up after 240 s; the 100K arm waited 900 s). The only output is `detentd: authority recovery application fenced` (src/detent_authority/service.cc:1983, job 261118-064115-2e8717, events.jsonl actor_output). It should refuse the old format at startup with a named error (format and version found, expected) and exit nonzero. Owner: authority, outside this quest's file set.
+
 ## Blocked on
 
 Resolved by D119 (see 5M above). Was: A4 at 5M. `.scratch/capacity-trials/5000000-flat-r1` (the 5M fixture of 11-07 and A9) is
