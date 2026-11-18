@@ -6865,7 +6865,9 @@
         "docs/status/**",
         "docs/mechanisms/**",
         "tests/detent_authority/test_history_power_cut.cc",
-        "tests/detent_delivery/mutants/**"
+        "tests/detent_delivery/mutants/**",
+        "tests/detent_local/mutants/cor1-unguarded-parent.patch",
+        "tests/detent_testing/mutants/s3b-fu-a3-rebase-restarts.patch"
       ],
       "history": [
         {
@@ -6910,7 +6912,7 @@
       "risk": "low",
       "status": "active",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-18T06:35:50",
+      "updated": "2026-11-18T06:37:09",
       "worktree": "../Detent-wt/detent/namespace-cleanup"
     },
     "namespace-design": {
