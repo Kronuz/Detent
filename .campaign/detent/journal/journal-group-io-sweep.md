@@ -18,7 +18,9 @@ after from the head, same bench source (A3).
 
 ## Next
 
-1. When 261118-123558-25b19c ends: after table into docs/perf/group-io.md (A4), push, CI.
+1. When 261118-123558-25b19c ends: after table (median and calls/run, before beside after) into
+   docs/perf/group-io.md, with the 1M/1K ratio (A4); check the suite, mutants and CI run
+   44392889900; push; Evidence table from `campaign brief`; State "ready for review".
 
 ## Blocked on
 
@@ -32,7 +34,11 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261118-123519-0b53cd (suite at journal:965cd55, includes host_test view_sweep): running |
+| A2 | 261118-123533-1944ae (never sweeps, journal:5522996), 261118-123541-c1f81b (sweeps a live range, journal:6be5c51), --fails-without, after the suite: queued |
+| A3 | 261118-123558-25b19c (exclusive, before = ea397ab include/, after = journal:965cd55): queued |
+| A4 | [artifact] docs/perf/group-io.md after table: pending A3's numbers |
+| CI | GitHub run 44392889900 on quest/detent/journal-group-io-sweep at journal:965cd55: queued |
 
 ## Result
 
