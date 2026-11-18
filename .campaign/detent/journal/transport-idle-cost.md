@@ -1,6 +1,6 @@
 # transport-idle-cost: journal
 
-State: waiting on jobs 261117-171843-129613 261117-171843-41bde3 261117-171844-6513c0 261117-171844-b0ba7a 261117-171845-4f0a0a 261117-171845-d67111
+State: waiting on jobs 261117-171843-129613 261117-171843-41bde3 261117-171844-6513c0 261117-171844-b0ba7a 261117-171845-4f0a0a
 Quest: .campaign/detent/quests/transport-idle-cost.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,7 +18,7 @@ wheels apart by requested size and address (F3). Reran the six at 73cd955: A1 12
 Local smoke at 73cd955 (light hold, not evidence): A1's per idle group now 253-368 B, over 64 B
 at every configuration (stored 206 B, then its frames 162 B at H = 5, L = 4); per end 44,667 B
 (L = 1), 48,792 B (L = 4) <= 49,152; per host 99-100% (L = 1), 107-108% (L = 4) of D108, within
-10%. So A1 129613 and the suite (ctest `consensus_transport_idle`) are expected to fail on the
+10%. Suite d67111 failed only on ctest `consensus_transport_idle` (57 tests, 1 failed), as expected; A1 129613 is expected to fail on the
 64 B per group. Blocked on 1.
 
 ## Next
