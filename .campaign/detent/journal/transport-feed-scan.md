@@ -39,6 +39,15 @@ Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded 
   sndq 450 KB: a control frame waits behind about 4 MiB (kernel both ends plus a data frame), so its
   gap is that over the drain rate. Diag committed consensus:ed8f840 (printed on failure only),
   pushed for CI to show the stall.
+- CI with the diag: 44254116276 (dispatch, ed8f840) all green; 44255750747 (dispatch) macos-x86_64
+  green; push run 44253167825 cancelled by the dispatch. No failure to read yet (base rate on this
+  branch before: 2 of 3 runs failed upload).
+- CI correlation: in 44216299768 connection_test's coarse_writer took 9,414 ms beside upload (6.2 s
+  here); but slow_reader runs 5.2-5.7 s on that runner in runs where upload passed, so not proof.
+  Upload always starts 9.0-11.6 s into connection_test (ctest --parallel 2), passing runs too.
+- b686ce2 adds links, host 1 sent/dropped to the samples (pushed). Probe branch
+  probe/transport-feed-scan-upload (78dc721 = b686ce2 + 6 more `upload` ctest entries beside
+  connection_test; never lands; .scratch/probe/probe_commit.py): run 44257918794.
 
 ## Next
 
