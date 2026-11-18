@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-000951-aad80b 261118-000959-776077 261118-001006-e17e93 261118-001028-7ef567 261118-001036-648cac 261118-001042-9c4249
+State: waiting on jobs 261118-021458-8f5b01 261118-021459-b2a48d
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:c5d15d9 (pushed). All earlier jobs are void: my command piped the build into
-`grep` under `set -e`, which exits 1 on a clean build, so plain/ASan/TSan never ran the test.
-Resubmitted without the grep: plain A1-A3 aad80b, ASan A4 776077, TSan A4 e17e93, suite A5 9c4249,
-fails-without under ASan (build failure exits 0 so it cannot pass vacuously; prints "reached the
-test"): settle() 7ef567, pump() erase 648cac. CI at 1c4f173: ASan, FreeBSD, arm64, clang, gcc, macos-arm64
-green with the test; TSan failed at link (my operator new vs TSan's runtime; fixed with COUNT_BYTES);
-macos-x86_64 groups_upload is the known flake.
+Review CHANGES at c5d15d9. Pushed consensus:26f7dbf. F1 done: docs/DRIVER.md lines 83, 91, 135 and a
+driver.h comment now say close erases the row, the id opens again, and `dropped(id)` for an id not
+open is the Driver-wide count of drops on ids not open (kept as is, documented); line 135 also states
+the journal's refusal of create/recover until the host reopens (N1). F2: `created_bytes` (report only)
+prints, for 2,000 created rows with 0 and 10 proposals, process heap per row open / closed / after the
+turn log forgets the group, net of the simulated disk's heap (the MemoryIO Disk lives on the counted
+heap, so the reviewer's 2,398 B probably includes it). Job 8f5b01 runs it; suite b2a48d at 26f7dbf.
+By reading journal 7c08540 what stays after a Driver close (it never calls Journal::close, so
+Host::close_group and TurnDriver::forget never run): Host::shards_ node (GroupEntry) and Host::opened_
+node, fixed per id; TurnLog::sequences_ node and index_[group] (one map node per live record), which
+scale with the group's records. Fill the numbers from 8f5b01 into Result and the report to the lead.
+Not done: N3 (a test erasing a still-queued group).
 
 ## Next
 
