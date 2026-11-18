@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D104 step 8: include/journal/memory_io.h is deleted from journal, with its mentions in AGENTS.md, ARCHITECTURE.md and docs; nothing in journal, consensus or Detent includes it.
 
 ## Acceptance criteria
 
@@ -14,18 +14,16 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 `git grep memory_io` over journal and consensus main finds nothing; the suite passes, plus CI: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18; needs consensus-faultfs. Greenfield: no shim.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.

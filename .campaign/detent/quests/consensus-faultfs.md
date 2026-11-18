@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D104 step 6-7: consensus's tests that build a journal on `journal::MemoryIO` (blocking_entry, driver_simulation, driver, shared_cluster, shared_worker, transport/peers, waiter, wave_open) run on faultlab's faultfs, as journal's own tests do since journal-faultfs (journal:d90797c, faultlab:a3b71d1). Their power-cut and crash cases use faultfs's crash model; no test includes journal/memory_io.h afterwards.
 
 ## Acceptance criteria
 
@@ -14,18 +14,18 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 `git grep memory_io` over consensus finds nothing; every converted test passes: jobs.
+- A2 Each converted crash or power-cut case still detects what it detected: one --fails-without mutant per crash-model test (driver, shared_worker, wave_open at least) still fails on faultfs: jobs.
+- A3 The suite passes, plus CI, with suite time within 1.5x of main's: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 after journal-faultfs; lands after consensus-close-fenced, consensus-dns-threads and consensus-worker-release, which touch these tests or CMakeLists.txt.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
