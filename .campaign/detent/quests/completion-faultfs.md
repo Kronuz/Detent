@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D104's first move. completion's sync-seam tests (test/sync_seam_test.cc over test/seam_support.h) carry their own in-process crash model. After this quest they run on faultlab's faultfs (Kronuz/faultlab at faultlab:5ec8a9e, API fixed, over completion:d8b538c): one crash and media model, its recorder and event log, and completion's own model is deleted, with no shim. faultlab is a test-only dependency, pinned by commit.
 
 ## Acceptance criteria
 
@@ -14,18 +14,20 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 Every crash case the old model covered runs on faultfs with the same or stronger assertions; the journal maps each old case to its new one: the suite job.
+- A2 completion's own crash model is gone: `git grep` finds no crash or tear state in test/seam_support.h or elsewhere in test/ outside faultfs calls: a job.
+- A3 A seeded fault kills it: drop one sync in the seam (a mutant) and a faultfs case fails: a job.
+- A4 faultlab's rules hold in the tests as written: a sync does not make mapped stores durable, no folds after the power cut, and two file versions only (append sizes not modeled); any case that needs more is listed in the journal, not faked.
+- A5 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes faultlab:faultfs at faultlab:5ec8a9e. No completion API change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed by the lead 2026-11-18 when faultlab-core landed (Xapiand lead). D104.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
