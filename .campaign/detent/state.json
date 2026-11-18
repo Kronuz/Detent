@@ -884,6 +884,8 @@
     "connection-slow-reader-flake": {
       "accepted": {},
       "after": [],
+      "base": "edbb162eabbe5ad1ee9b4a6353204aee1ee65018",
+      "branch": "quest/detent/connection-slow-reader-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -903,6 +905,7 @@
         "test/transport/connection_test.cc",
         "test/transport/groups_upload*"
       ],
+      "journal": "../Detent-wt/detent/connection-slow-reader-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -910,9 +913,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
-      "updated": "2026-11-17T18:52:51"
+      "updated": "2026-11-17T19:03:54",
+      "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
     "consensus-dns-peers": {
       "accepted": {
