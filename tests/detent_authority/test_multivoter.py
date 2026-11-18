@@ -311,7 +311,21 @@ def main() -> None:
                     break
                 time.sleep(0.02)
             else:
-                raise AssertionError("unconsumed-response transaction did not commit")
+                # A leader deposed before replicating drops the write: unless its reply says
+                # committed, the outcome is unknown and the same-sequence retry below settles it.
+                try:
+                    status = lost.getresponse().status
+                except (OSError, http.client.HTTPException):
+                    status = 0
+                if status == 200:
+                    _, observed = successful(
+                        "/v2/read", {"namespace": "ns", "keys": ["ns:key"]}
+                    )
+                    assert observed["key_revisions"]["ns:key"] == 2, observed
+                print(
+                    f"lost transaction unsettled after 5 s (reply {status})",
+                    file=sys.stderr,
+                )
         finally:
             # Deliberately discard the original HTTP response without reading it.
             lost.close()

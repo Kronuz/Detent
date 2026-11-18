@@ -73,6 +73,9 @@ int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
 	std::filesystem::create_directories(directory.parent_path());
+	// A crashed earlier run with this pid leaves its state behind; the checks below need none.
+	for (auto suffix : {"", "-read-only", "-admission", ".history", "-read-only.history", "-admission.history"})
+		std::filesystem::remove_all(directory.string() + suffix);
 	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
 		auto invalid = options(directory);
 		invalid.timeout = timeout;
