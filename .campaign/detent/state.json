@@ -2081,6 +2081,9 @@
       "risk": "normal",
       "status": "blocked",
       "title": "Name the sender of the coordinator fixture's stray bytes",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-12T19:35:01"
     },
     "coordinator-idle-flake": {
@@ -2980,10 +2983,9 @@
         "namespace-s1-s2"
       ],
       "provides": [],
-      "reason": "Parked 2026-11-08 mid-merge as wip/dense-s2-parked (f7bf999, conflict markers kept); needs dense-pages and namespace-s1-s2 landed; the lead may fold it into dense-pages",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Grouped syncs for Dense pages publication",
       "updated": "2026-11-08T12:45:00"
     },
@@ -4500,6 +4502,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-2: shared HTTP clients and common TLS",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:06"
     },
     "http-coroutines": {
@@ -5891,10 +5896,9 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "Parked 2026-11-05; needs reader-s6 landed, then merges main and proves the .ccache and macos-15 bindings CI fixes (handoff step 2)",
       "repo": ".",
       "risk": "critical",
-      "status": "blocked",
+      "status": "planned",
       "title": "Legacy H: the Client goes, bindings on the reader core",
       "updated": "2026-11-08T15:38:08"
     },
@@ -6641,6 +6645,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:06"
     },
     "namespace-cleanup": {
@@ -11948,6 +11955,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-4: the authority's ordered map from persistent-map",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T12:45:08"
     },
     "pin-wave": {
@@ -12560,15 +12570,16 @@
         "correctness"
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
-      "needs": [],
+      "needs": [
+        "dense-pages"
+      ],
       "provides": [
         "detent-c-abi",
         "libdetent-reader"
       ],
-      "reason": "Parked 2026-11-05 by the Dense-only scope (D1, superseded by D4); fork fix passed 32/32 on 2026-11-07; resumes when the lead starts it; its files overlap active dense-pages",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Reader S6: the lock-free reader core",
       "updated": "2026-11-08T21:26:34"
     },
@@ -12819,6 +12830,9 @@
       "risk": "high",
       "status": "blocked",
       "title": "EX-1: one resource-accounting implementation in allocators",
+      "until": [
+        "owner"
+      ],
       "updated": "2026-11-08T17:30:07"
     },
     "retained-state": {
