@@ -45,7 +45,25 @@ The lead, for three files outside my set (work continues by direct build):
 
 ## Result
 
-<pending>
+Pending jobs. consensus:ad10797: `LookupThreads` in include/consensus/transport/resolve.h
+owns lookup threads (bound 16 for the process), `Lookup::start`/`abandon()` unchanged for
+links.h and peers.h; test/transport/resolve_test.cc (cases delivers, abandoned, shutdown,
+rebuilds, plus an at-exit join check).
+
+Proposed text for docs/mechanisms/peer-dns.md, "The lookup and its thread" (outside my
+file set), replacing its second and third paragraphs:
+
+> `Lookup::start` queues the lookup on the process's `LookupThreads`, which runs at most 16
+> (`process_bound`) at once and starts a thread only when a lookup waits and none is free;
+> a thread returns once the queue is empty. `getaddrinfo` cannot be cancelled, so the
+> lookup does not use asio's `async_resolve`, which runs every lookup of an `io_context` on
+> one thread: a hung lookup holds one of the 16, and only 16 hung at once stall the rest.
+> `stop()` and the destructor call `abandon()`: a queued lookup leaves the queue with its
+> resolver unstarted; a running one's delivery is cleared under the lookup's mutex, and its
+> thread drops the answer when the resolver returns. The process's `LookupThreads` is
+> destroyed at exit: it drops the queue, delivers nothing more, and joins every thread,
+> waiting for each running resolver to return (a stuck `getaddrinfo` delays exit by up to the
+> system resolver's timeout; resolve_test measures 307 ms for a resolver stuck 300 ms).
 
 ## Rulings I made
 
