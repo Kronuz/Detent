@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-063956-fff668 261118-063958-96c6ec 261118-064000-5e01ed 261118-064002-13f33c 261118-064120-75b4b1 261118-064122-6a437c 261118-064124-3e5bb0 261118-064126-e68ae2 261118-064218-d255a1 261118-064220-b8cb43 261118-063950-78323a
+State: waiting on jobs 261118-063958-96c6ec 261118-064000-5e01ed 261118-064002-13f33c 261118-064122-6a437c 261118-064124-3e5bb0 261118-064126-e68ae2 261118-064218-d255a1 261118-064220-b8cb43 261118-063950-78323a
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,9 +28,9 @@ spins, and so do 4, 6, 8-10, 14-16, 18-24, the quest's list exactly. Seeds 1, 3,
 data voter after healing" with the fix; seeds 1, 3, 7 and 13 fail that way without it too (the rest spin first), so it is their
 WIP simulation's, not a spin: reported to the lead, not fixed here. The suite case runs 5 s.
 
-Jobs at 50b91ae: plain A1-A3+A6 fff668, created_bytes report 96c6ec, ASan 5e01ed, TSan 13f33c,
+Jobs at 50b91ae: plain A1-A3+A6 fff668 (passed, 62 checks), created_bytes report 96c6ec, ASan 5e01ed, TSan 13f33c,
 mutants (setup failures exit 0, so only the test can fail them; read "reached the test"): A6 watch
-75b4b1, N3 unqueued 6a437c, settle 3e5bb0, erase e68ae2; Xapiand repro fixed d255a1 (0 spins over
+75b4b1 (done: reached the test, "the loop idles after shutdown" FAIL, exit 1), N3 unqueued 6a437c, settle 3e5bb0, erase e68ae2; Xapiand repro fixed d255a1 (0 spins over
 1-24) and unfixed b8cb43 (fails-without); suite 78323a; CI running.
 
 F2 numbers (plain job 261118-021905-0952ab, 2,000 created rows, process heap net of the simulated disk):
