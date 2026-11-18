@@ -36,7 +36,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | suite job 261112-115026-65553f (ctest in Release: events, callback_failure, accept_pressure incl. the manual-clock retry) |
+| A1 | suite job 261117-083939-245653 (ctest in Release: events, callback_failure, accept_pressure incl. the manual-clock retry) |
 | A2 | pending: exclusive job 261112-115020-3a3dea |
 | A3 | ARCHITECTURE.md, section "Timers: one wheel, one Asio timer per loop" (reactor:99aff1b) |
 | A4 | manual: lead grep 2026-11-17 over Kronuz default branches: no code user (Xapiand:f5e267411 moved manager.cc; cluster archived); in-repo `git grep PeriodicTimer` at reactor:bf874dc names only CHANGELOG.md (reactor:0d3bc71 removed it, its tests and docs) |
