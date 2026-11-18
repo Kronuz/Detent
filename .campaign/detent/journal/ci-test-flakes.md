@@ -29,7 +29,7 @@ whole set is resubmitted at Detent:6a39c344. Session 3's set at afef9684 had thr
    before `open_on_leader()`, whose `health()` probe swallows the stalled node's timeout and returns
    no leader, so no request reached the stalled node and `settled()`'s transport catch never ran. The
    forcing now stalls the leader the probe chose, just before the /v2/open is sent (6a39c344).
-2. Native suite 261117-123504-e38040, exit 8: `test_transport_peers.cc:168 (committed && leader)` and
+2. Native suite 261118-041911-28e19b, exit 8: `test_transport_peers.cc:168 (committed && leader)` and
    poll_publisher timeout. Neither binary builds from a file this branch changes (diff vs main: test
    scripts, test_service.cc, test_repair.cc, test_paged_publication_artifacts.cc, ci.yml). The same
    peers abort hit namespace-s6-hardening's native check 261117-075327-c3d9ec at Detent:bfcb4159, no
@@ -165,13 +165,15 @@ transport_peers 261117-173010-dc4a00 / -173015-11a288, poll_publisher -173020-20
 
 Nothing.
 
+Lead: native suite 261118-010244-ff2310 at 432d379 failed on two timeouts under load 11 (test_agent_store_crash at 900 s, test_authority_distribution_poll_publisher at 90 s, both outside this quest's files, poll_publisher's load timeout attributed above); its rerun 261118-041911-28e19b at 9604a10 passed 284 of 284.
+
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
 | A1 | pending: forced and mutant pairs above, at afef9684 |
 | A2 | pending: soaks above, at afef9684 |
-| A3 | pending: 261117-123441-a5f929 (pins), 261117-123504-e38040 (suite) |
+| A3 | pending: 261118-010246-9864a0 (pins), 261118-041911-28e19b (suite) |
 | A4 | pending: 261117-123401-a48568 (TSan x100), mutant 261117-123048-36df58 |
 | A5 | CI: `.github/workflows/ci.yml` failure_artifacts gains `.scratch/stage6/*/*.jsonl`, `*/*.json`, `*/*/*.json`; drivers remove a passing run's directory. Soak pending (above) |
 | A6 | pending: cause 7; forced 261117-122918-255da8, mutant 261117-122940-785822, x200 (A2 scrub jobs) |
