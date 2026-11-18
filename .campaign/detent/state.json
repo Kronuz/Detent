@@ -4614,6 +4614,8 @@
     "faultfs-collect-linear": {
       "accepted": {},
       "after": [],
+      "base": "adc4fc291632919446c651d348530a4e430071e3",
+      "branch": "quest/detent/faultfs-collect-linear",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -4634,6 +4636,7 @@
         "test/faultfs_test.cc",
         "docs/**"
       ],
+      "journal": "../Detent-wt/detent/faultfs-collect-linear",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -4641,9 +4644,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/faultlab",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "faultlab: faultfs collect() linear in inodes",
-      "updated": "2026-11-18T08:59:19"
+      "updated": "2026-11-18T08:59:26",
+      "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
     "fixture-500k": {
       "accepted": {},
