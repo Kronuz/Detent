@@ -16,7 +16,6 @@ msg (lead): 4d282a was not a valid kill: it died of `std::invalid_argument: seal
 ## Follow-ups
 
 1. c4 survives: `tests/detent/mutants/c4-no-percentage-check.patch` removes the check in `src/detent_local/paged_leaf_body.cc` `LeafBody::step` that throws `std::invalid_argument("paged leaf body percentage and rollout value disagree")` when a non-namespace leaf's percentage and rollout value disagree. Runner `tests/detent/one_knob_mutant.sh PATCH TARGET` with TARGET `test_local_paged_definition` printed `MUTANT SURVIVED` (job 261118-054256-dbe2be, exit 0, which is the convention for a survivor: a `--fails-without` job on it fails). No test in the tree names that message; okt-followups C4 claims test_view and the bindings tests. Gap: a paged definition leaf whose rollout percentage and value disagree is not refused under test. Not in A3's rows.
-2. The 13 stale s3b-* delivery mutant patches and s4-a3 are deleted. Two stale patches remain outside the delivery file set and no longer apply at this head: tests/detent_local/mutants/cor1-unguarded-parent.patch and tests/detent_testing/mutants/s3b-fu-a3-rebase-restarts.patch; the lead decides (delete or regenerate).
 
 ## Blocked on
 
