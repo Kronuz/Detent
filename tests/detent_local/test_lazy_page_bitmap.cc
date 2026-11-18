@@ -6,10 +6,12 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <random>
 #include <thread>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <vector>
 
@@ -338,8 +340,17 @@ void neighbour_corruption() {
 	check(cases == pages.size() * 4);
 	std::printf("neighbour corruption: %u cases refused\n", cases);
 }
+// Flips one byte of a mapped page in place: the private mapping takes a writable copy of its page.
+void flip_mapped(std::span<const char> mapped, std::size_t at) {
+	const auto size = static_cast<std::uintptr_t>(::getpagesize());
+	auto *byte = const_cast<char *>(mapped.data() + at);
+	auto *page = reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(byte) & ~(size - 1));
+	check(::mprotect(page, size, PROT_READ | PROT_WRITE) == 0);
+	*byte ^= 1;
+	check(::mprotect(page, size, PROT_READ) == 0);
+}
 // A page damaged after first touch is refused by the next lookup: at its logical digest by the hit
-// compare, at its magic by the lookup's header decode. The mapping must show the damage.
+// compare, at its magic by the lookup's header decode.
 void touched_corruption() {
 	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	const auto target = fixture->definitions[1];
@@ -349,16 +360,13 @@ void touched_corruption() {
 		const auto state = harness.state();
 		check(state.definition("b", name).has_value());
 		const auto mapped = harness.access->resolve(target);
-		const auto before = mapped[at];
-		flip(*fixture, target, at);
-		check(mapped[at] == char(before ^ 1));
+		flip_mapped(mapped, at);
 		bool caught = false;
 		try {
 			state.definition("b", name);
 		} catch (const x::ReadSourceFailure &) {
 			caught = true;
 		}
-		flip(*fixture, target, at);
 		check(caught);
 	}
 	std::puts("touched corruption: digest and magic refused after first touch");
