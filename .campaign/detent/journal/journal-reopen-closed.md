@@ -1,6 +1,6 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs at journal:d23c57b: 261118-055743-0fc5ca 055745-5573e8 055802-5965d3 055802-799652 055802-8fadd5 055803-110ddf 055803-42a124 055803-802427 055804-288249 055804-b5ad99 055804-78be82 055804-3d69f0 055805-322172 055805-6844b0 055806-91a898 055806-fd33bc 055806-c71ad7.
+State: ready for review at journal:d23c57b; all 17 jobs came out as they should.
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
@@ -12,10 +12,8 @@ Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c
 
 ## Next
 
-1. Read the jobs in State; fold any failure.
-2. (done by supersession or lead) cancel 261118-043345-74c02a (invalid: its literal mutation matches twice, exits 124; 043411-fd6782 replaces it). My cancel was refused by the permission classifier.
-3. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct, reclaim_syncs.
-4. Durability review.
+1. Durability review.
+2. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct, reclaim_syncs.
 
 ## Blocked on
 
@@ -27,15 +25,15 @@ All at journal:d23c57b (journal_test.cc changed for A8, so every job reran). Mut
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-055802-5965d3 (reopen cases); 055803-802427 (host and journal default runs); 055806-c71ad7 (fails-without: start() submits outside a try); 055806-91a898 (fails-without: the old guard) |
-| A2 | 261118-055802-5965d3; 055804-b5ad99 (TSan); 055806-fd33bc (fails-without: no hold) |
-| A3 | 261118-055802-799652 (reopen_crash) |
-| A4 | 261118-055802-8fadd5 (reopen_churn) |
+| A1 | 261118-055802-5965d3 (reopen cases, pass); 055803-802427 (host and journal default runs, pass); 055806-c71ad7 (fails-without: start() outside a try, FAIL: storage permit unavailable); 055806-91a898 (fails-without: old guard, FAIL: old guard) |
+| A2 | 261118-055802-5965d3 (pass); 055804-b5ad99 (TSan, pass); 055806-fd33bc (fails-without: no hold, FAIL: busy) |
+| A3 | 261118-055802-799652 (reopen_crash, pass) |
+| A4 | 261118-055802-8fadd5 (reopen_churn, pass) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-055804-288249 (suite); CI |
-| A7 | 261118-055803-110ddf (reopen_heap) |
-| A8 | 261118-055743-0fc5ca (10,000 distinct closes, slope under 1 B); 055745-5573e8 (fails-without at main's headers: positive slope) |
-| A9 | 261118-055804-3d69f0 (turn_log_power 8, faultfs overlay --ref c606068); 055804-78be82 (200 seeds); 055805-322172 (fails-without: unordered reclaim); 055803-42a124 (barriers per segment after: 1.0); 055805-6844b0 (before: 0.939) |
+| A6 | 261118-055804-288249 (suite, pass); CI |
+| A7 | 261118-055803-110ddf (reopen_heap, pass) |
+| A8 | 261118-055743-0fc5ca (106,296 B at 1,000 and at 10,000: slope 0, pass); 055745-5573e8 (main's headers: 392 B per group, fails as required) |
+| A9 | 261118-055804-3d69f0 (turn_log_power 8, pass); 055804-78be82 (200 seeds, pass); 055805-322172 (fails-without: unordered reclaim, FAIL at 5/116, 5/161, 7/219); 055803-42a124 (1.0 barriers per segment after); 055805-6844b0 (0.939 before) |
 
 At journal:c92eb27, before the A8 edit: passed 043305, 6c91a2, eb6e13, 9d76bf, 161c74, b3f159, 1ce564, suite 09b70e; fails-without held 6f4c2f, 8b3682, b92534, e3fdca, fd6782. Local 2,000-id run at d23c57b: slope -0.027 B per group.
 
