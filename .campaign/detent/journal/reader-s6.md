@@ -52,7 +52,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. A16: read the smoke a01c45; if it fails, fix `first_read_phases.cc` or the gate script (head
+1. A16: put dab009's and f1bca2's cell lines in `first-read-gate.md` Results and Evidence. Read the smoke a01c45 first; if it fails, fix `first_read_phases.cc` or the gate script (head
    moves: rerun gates). When dab009 and f1bca2 pass, put the per-cell numbers in Evidence.
 2. Fill Evidence as the other jobs pass; msg-1 from 0f6566 and f07232.
 3. Before landing, regenerate every mutant at the final head (`mutant.py` now chains same-path edits).
@@ -107,8 +107,12 @@ Pending.
   clones the tree's store (`cp -c`), reads its files into the cache, and starts five warmup
   processes. Each tree builds its own store, as the 5M gate did. The gate targets join each tree
   through `CMAKE_PROJECT_detent_INCLUDE` with a deferred `include`, so no `CMakeLists.txt` is
-  edited. `first-read-gate.md` and `first_read_gate.py` still describe and run the 5M Client gate.
-  They are outside this file set and are the lead's to retire.
+  edited.
+- Retiring the 5M gate (lead's ruling): `docs/perf/first-read-gate.md` now describes only the ported
+  gate. `tests/detent_system/first_read_gate.py` is deleted, since `git grep` finds no caller. The
+  file set names `docs/perf/first_read_gate.py`, which does not exist, so the lead should correct
+  the path to `tests/detent_system/first_read_gate.py`. `first_read_export.cc` stays, because
+  `docs/perf/one-knob-type.sh` builds it.
 - A12 soak: eight jobs of one round each (four concurrent full `test_reader_switch`, Release),
   since 8 rounds took about 2 h on 2026-11-07 and a light soak job is capped at 30 min.
 - A verified hit compares the reference's length, keys, height and digest with the page header's

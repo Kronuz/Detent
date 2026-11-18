@@ -1,66 +1,86 @@
-# First-read gate (A15, reader.md T2)
+# First-read gate (reader.md T2, D49)
 
-Measures 200 fresh-process first reads per run for the baseline (`main` when Dense merges it) and
-the Dense head, over 1- and 1,000-namespace stores of the same 5M corpus, with the publisher
-running and stopped, in six interleaved baseline/Dense pairs per cell.
+Checks the first-read bound: 200 of 200 fresh-process first reads through the reader core finish
+below 1 ms. Each cell (1 or 1,000 namespaces, publisher stopped or running) interleaves the
+branch's core reads with main's own first reads. Script: `docs/perf/first-read-gate.sh`. Both
+programs are built from `tests/detent_system/first_read_phases.cc`.
 
 ## What it times
 
-The pre-S6 read path: `prepared_client_probe --read` measures `first_live_ns` with
-`steady_clock`, from before `detent::Client` construction (managed read source) to the first
-checked value; process launch and dynamic loading are excluded. reader.md T2 names S6's
-`detent_open`; S6 is not on `main`, so this gate times the path that exists on both sides. Each
-measured process follows a warmup process for its key, and every arm reads its store's files into
-the page cache first (resident data). 40 integer keys from the 5M recipe, 5 rounds.
+Each sample is its own process, timed with `steady_clock` from the first step to the checked
+first value. Process launch and dynamic loading are excluded.
 
-## How it is built
+| Side | Program | Steps timed |
+|---|---|---|
+| Branch (reader core) | `first_read_core --core DIR NAME EXPECTED` | `detent_open`, then the first `detent_get` |
+| Main (pre-S6 Client) | `first_read_phases --client DIR NAMESPACE KEY EXPECTED` | the Client's retirement runtime, `PreparedReader::open`, its refresh thread, the first `try_get` |
 
-`first-read-gate.sh prepare` builds both trees in one light job with Homebrew LLVM 23.1.2
-(the qualification's toolchain; the job fails on any other version), Release (`-O3`),
-`DETENT_READ_COUNTERS=OFF`, with the SDK that LLVM's config file names as the sysroot (another
-SDK puts its C headers ahead of libc++ through zlib's include dir), and checks the compiler path,
-its detected version, the sysroot, the build type and the counters in each CMake cache. Each tree exports the
-pinned corpus (`DENSE_CORPUS`, sha256 recorded) with its own builder through
-`tests/detent_system/first_read_export.cc` (layout version 2 for the baseline, 3 for Dense),
-which also writes the empty owner lock and the `.read` and `.live` records the agent's cold start
-opens, derived from one full recovery as `tests/detent_local/trusted_records.hh` does. The
-1,000-namespace shape is test_dense_fullbuild's:
-every record in `primary` plus 999 namespaces of 100 integer knobs (5,099,900 records).
+Each sample prints one JSON line: each step's wall time, user and system CPU and minor faults,
+`total_ns` (the gated number), and the store path's component count. Reads cycle through 40
+integer keys.
 
-`first-read-gate.sh measure` runs `tests/detent_system/first_read_gate.py` under `exclusive`;
-a trailing `stopped` or `running` runs only that publisher state's arms, so each half fits one
-30-minute hold.
-Each (namespaces, publisher) cell runs six pairs, baseline then Dense, alternating
-(B, D, B, D, ...); the first pair's order flips from cell to cell (stopped/1 starts with the
-baseline, stopped/1000 with Dense, running/1 with the baseline, running/1000 with Dense). Runs use
-fresh APFS clones. A running run starts the tree's own `detent-agent` over the clone with its
-upstream port bound but not listening (as the 2026-10-26 qualification did) and measures once the
-agent logs readiness. With 12 runs of about 6 s per cell, each publisher state's job (24 runs)
-takes a few minutes and fits one 30-minute hold.
+## The stores
 
-`result.json` records per run the count below 1 ms, median, p99, maximum, median attach, lookup
-and CPU, major faults, and input hashes, and per cell the D51 verdict:
+`first-read-gate.sh prepare OUT` builds both trees with the following settings:
 
-1. Each arm's six run medians, in run order.
-2. The six paired differences (Dense minus baseline, pair by pair).
-3. Each arm's spread: the median absolute difference of consecutive same-arm run medians (five
-   differences).
-4. The noise floor: the larger of the two spreads.
-5. Dense is NO WORSE iff the median of the six paired differences is at most the noise floor;
-   otherwise WORSE, a real regression.
+1. Homebrew LLVM 23.1.2. The job fails on any other version.
+2. Release, with `DETENT_READ_COUNTERS=OFF`.
+3. The SDK named by LLVM's config file as the sysroot.
 
-The runner prints every run median, the paired differences, both spreads, the noise floor, the
-counts below 1 ms and the verdict as one `A15 verdict` line per cell. The 1 ms bound belongs to
-reader-s6.
+It checks each CMake cache for these settings. The gate's targets join each tree through
+`CMAKE_PROJECT_detent_INCLUDE`, which defers an `include` to the end of the top-level
+`CMakeLists.txt`, so no tree is edited. Main comes from the job's `--ref BASELINE=main`.
+
+Each tree writes its own store with its own writer (`first_read_phases --generate`):
+
+- 10,000 int knobs `n<i % N>:k<i>` = 3i + 1, plus `n0:tick`.
+- N = 1 or 1,000 namespaces.
+- The store lives under `OUT` inside the job's checkout, so the path depth is the job's.
+
+## The runs
+
+`first-read-gate.sh measure OUT [stopped|running]` runs under `exclusive`. Each cell runs six
+main/branch pairs, alternating. Main goes first in even cells and the branch in odd ones.
+
+Each run does the following:
+
+1. It clones the tree's store with `cp -c`.
+2. For a running cell, it starts that tree's publisher over the clone (`first_read_phases
+   --publish`), which publishes a one-knob delta to `n0` every 20 ms and collects every 16
+   publications.
+3. It reads every store file into the page cache, so the data is resident.
+4. It starts five warmup processes, then takes 200 samples.
+
+Per run, the script prints the count below 1 ms, the median, the p99, the maximum and each step's
+median. Per cell, it prints one `A16 cell` line with these fields:
+
+- Both arms' counts below 1 ms.
+- Both arms' run medians and p99s.
+- The median of the six paired differences (branch minus main).
+- The noise floor: the larger of the two arms' median absolute differences between consecutive
+  run medians.
+
+The job fails unless every branch run reads 200 of 200 below 1 ms. Main's numbers are the
+comparison and do not gate.
+
+## How to run it
+
+```sh
+campaign job submit --quest reader-s6 --for A16 --level exclusive --minutes 10 --ref BASELINE=main \
+  --build 'bash docs/perf/first-read-gate.sh prepare .scratch/first-read' \
+  -- bash docs/perf/first-read-gate.sh measure .scratch/first-read stopped
+```
+
+Run it once with `stopped` and once with `running`. Each publisher state covers two cells of 2,460
+processes and fits one 10-minute exclusive hold.
 
 ## Attribution
 
-`first-read-gate.sh profile PREPARED OUT` (exclusive) splits the first read into the steps the
-pre-S6 Client takes, with `tests/detent_system/first_read_phases.cc` built from each tree: the
-process-default retirement runtime (its thread), the directory trust walk cold and again warm, the
-prepared attach (`PreparedReader::open`), the refresh worker's thread, and the lookup with its
-segment mappings, each with wall time, user and system CPU and minor faults. Per arm it also
-records warm per-operation means (`--micro`: each syscall the attach makes, the ACL checks, a
-pack mapping, SHA-256 of 4 KiB, thread start, the whole trust walk and attach). Arms: B1, D1,
-D1000, B1000 at the job's path (11 components), then D1 and B1 cloned to a 4-component path; per
-key a warmup, one `--read` sample and one `--phases` sample, each its own process.
+`first_read_phases --phases` splits the Client's read further: it adds the directory trust walk
+cold and warm ahead of attach and reports segment mapping time. `--micro DIR ITERATIONS` prints
+warm per-operation means: the attach's syscalls, the ACL checks, a pack mapping, SHA-256 of 4 KiB,
+thread start, the trust walk and attach. Run both by hand against a prepared store.
+
+## Results
+
+Pending: jobs dab009 (stopped) and f1bca2 (running).
