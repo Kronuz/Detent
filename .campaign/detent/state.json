@@ -16200,18 +16200,51 @@
       "files": [
         "test/turn_seal_test.cc"
       ],
-      "journal": "../Detent-wt/detent/turn-seal-forget-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T15:01:57",
+          "commit": "47c98b6ea52f41295af0fb09dbd9d6c9dfa1b5c0",
+          "criteria": {
+            "A1": "261118-140358-398c2a, 261118-140437-ce3f9e, 261118-145058-160e82, 261118-145101-c37907; fails without: 261118-145927-c7d7a0",
+            "A2": "261118-140359-9147b4"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "47c98b6ea52f41295af0fb09dbd9d6c9dfa1b5c0",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-140359-9147b4",
+              "level": "light",
+              "seconds": 320.2,
+              "state": "done",
+              "what": "turn-seal-forget-flake check suite at 47c98b6ea52f"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "47c98b6ea52f41295af0fb09dbd9d6c9dfa1b5c0",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "ea397ab052bc54d320633e3f02f824fb5dd49e49",
+          "reason": "",
+          "tested": "47c98b6ea52f41295af0fb09dbd9d6c9dfa1b5c0"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "journal: turn_seal forget_threads' 'group 2 keeps sealing' fails on macOS x86_64 CI",
-      "updated": "2026-11-18T14:03:04",
-      "worktree": "../journal-wt/detent/turn-seal-forget-flake"
+      "updated": "2026-11-18T15:01:59",
+      "worktree": ""
     },
     "voter-read-freshness": {
       "accepted": {},
