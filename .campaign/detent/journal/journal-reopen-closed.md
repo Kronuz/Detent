@@ -37,15 +37,15 @@ All at journal:d23c57b (journal_test.cc changed for A8, so every job reran). Mut
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-055802-5965d3 (reopen cases, pass); 055803-802427 (host and journal default runs, pass); 055806-c71ad7 (fails-without: start() outside a try, FAIL: storage permit unavailable); 055806-91a898 (fails-without: old guard, FAIL: old guard) |
-| A2 | 261118-055802-5965d3 (pass); 055804-b5ad99 (TSan, pass); 055806-fd33bc (fails-without: no hold, FAIL: busy) |
-| A3 | 261118-055802-799652 (reopen_crash, pass) |
-| A4 | 261118-055802-8fadd5 (reopen_churn, pass) |
-| A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-055804-288249 (suite, pass); CI |
-| A7 | 261118-055803-110ddf (reopen_heap, pass) |
-| A8 | 261118-055743-0fc5ca (106,296 B at 1,000 and at 10,000: slope 0, pass); 055745-5573e8 (main's headers: 392 B per group, fails as required) |
-| A9 | 261118-055804-3d69f0 (turn_log_power 8, pass); 055804-78be82 (200 seeds, pass); 055805-322172 (fails-without: unordered reclaim, FAIL at 5/116, 5/161, 7/219); 055803-42a124 (1.0 barriers per segment after); 055805-6844b0 (0.939 before) |
+| A1 | 261118-064542-c3da37 (reopen cases, pass); 055803-802427 (host and journal default runs, pass); 055806-c71ad7 (fails-without: start() outside a try, FAIL: storage permit unavailable); 055806-91a898 (fails-without: old guard, FAIL: old guard) |
+| A2 | 261118-064542-c3da37 (pass); 055804-b5ad99 (TSan, pass); 055806-fd33bc (fails-without: no hold, FAIL: busy) |
+| A3 | 261118-064544-b64d11 (reopen_crash, pass) |
+| A4 | 261118-064545-8b40b9 (reopen_churn, pass) |
+| A5 | `docs/mechanisms/group-lifetime.md`: "" |
+| A6 | 261118-064548-69f7ab (suite, pass); CI |
+| A7 | 261118-064545-0fcd78 (reopen_heap, pass) |
+| A8 | 261118-064545-0ad089 (106,296 B at 1,000 and at 10,000: slope 0, pass); 055745-5573e8 (main's headers: 392 B per group, fails as required) |
+| A9 | 261118-064547-7604e6 (turn_log_power 8, pass); 055804-78be82 (200 seeds, pass); 055805-322172 (fails-without: unordered reclaim, FAIL at 5/116, 5/161, 7/219); 055803-42a124 (1.0 barriers per segment after); 055805-6844b0 (0.939 before) |
 
 At journal:c92eb27, before the A8 edit: passed 043305, 6c91a2, eb6e13, 9d76bf, 161c74, b3f159, 1ce564, suite 09b70e; fails-without held 6f4c2f, 8b3682, b92534, e3fdca, fd6782. Local 2,000-id run at d23c57b: slope -0.027 B per group.
 
