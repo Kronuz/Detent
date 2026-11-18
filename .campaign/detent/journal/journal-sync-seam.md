@@ -1,23 +1,21 @@
 # journal-sync-seam: journal
 
-State: waiting on jobs 261117-185442-6f0142 261117-185506-392924; then on completion-sync-data (D113)
+State: waiting on jobs 261117-200917-ac87f4 (suite) 261117-200923-d18138 (A4 before) 261117-200935-1fd941 (A4 after); A1 waits on turn_driver.h:276
 Quest: .campaign/detent/quests/journal-sync-seam.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-sync-seam (branch quest/detent/journal-sync-seam)
 
 ## Doing
 
-Sync-API sites routed through `IO::sync_files` via `detail::sync_file` (primitives.h), journal:14515ab:
-host `replace_file` (the host-table commit), `TurnLog::preallocate`, `Journal::create` header, `Journal::recover` torn-tail truncate.
-Test: test/sync_seam_test.cc (journal:15f4f0a, test only; journal:14515ab, with the fix). CountingIO counts seam calls and each `File::sync` past them.
+Repinned completion to f4c19b1 (journal:54d2972, pushed). Turn log barriers go through `detail::sync_data_file` (`IO::sync_data_files`); `TurnLog::flush(write)` is the same barrier for a driver; `PrefixIO` forwards `sync_data_files` (review N1). sync_seam_test gained `turn_flush` and `open_cost [groups]`.
 
 ## Next
 
-1. Read the fails-without job 261117-185442-6f0142's log: it must fail on the test's own checks, not on a build error; fix a compile error if any. Read the suite 261117-185506-392924.
-2. After completion-sync-data lands: repin completion, route `sync_data` sites (turn_log.h, turn_driver.h) through `io.sync_data_files`, add the turn flush case to sync_seam_test, A1 grep job, A4 at the strict level (never exclusive), perf line in docs/.
+1. Read the suite and the A4 pair; write the perf line in docs/MEASUREMENTS.md with the numbers.
+2. A1: after turn_driver.h:276 (`write.file->sync_data()` in `TurnDriver::commit`, journal-turn-bound's file) becomes `log_.flush(write)`, submit the grep job (see Evidence). Not edited here: not in my file set.
 
 ## Blocked on
 
-Nothing for the lead. D113 (option A) ruled: completion-sync-data adds `IO::sync_data_files` and routes the executor's Sync and SyncData through the seam; this quest lands after it. Steps 2 above wait for it.
+turn_driver.h:276, one line, journal-turn-bound's file: `write.file->sync_data()` must become `log_.flush(write)` for A1's grep to pass. Who edits it: journal-turn-bound or me with the lead's word. Note for completion: `PosixIO` does not override `sync_data_files` (the default calls `PosixFile::sync_data`), so Xapiand's `sync_calls_` skip hook does not cover data syncs; a PosixIO override routing them through `sync_calls_` would.
 
 ## Evidence
 
@@ -25,10 +23,10 @@ Jobs prove criteria by their tags (`--for A1`).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | blocked: grep job after the fork above; today's direct sites: turn_log.h (sync_data x2), turn_driver.h (sync_data), and the Sync/SyncData primitives in artifact.h, mutation.h, turn_driver.h |
-| A2 | queued: fails-without at journal:15f4f0a 261117-185442-6f0142; suite with the fix at journal:14515ab 261117-185506-392924. Covers host table, segments, torn tail; the turn flush case is blocked |
-| A3 | queued: suite 261117-185506-392924 |
-| A4 | blocked: needs the turn flush routed; Xapiand's footprint reproducer is Xapiand:d5b84cdf4's group_footprint_test |
+| A1 | pending: `! grep -rnE '(->|\.)sync(_data)?\(\)|fsync|fdatasync|F_FULLFSYNC' include src --exclude=memory_io.h`; today it finds only turn_driver.h:276 |
+| A2 | suite 261117-200917-ac87f4 at journal:54d2972 (cases host_table, turn_segments, turn_flush, journal_tail); fails-without at journal:15f4f0a 261117-185442-6f0142 failed 9 of 13 checks on main's code |
+| A3 | suite 261117-200917-ac87f4 (the earlier one, 261117-185506-392924, passed at journal:14515ab) |
+| A4 | strict jobs: before 261117-200923-d18138 (main's library, journal:3282210), after 261117-200935-1fd941; numbers pending |
 
 ## Result
 
