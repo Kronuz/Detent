@@ -449,6 +449,37 @@
       "closed": "filed as consensus-close-fenced A6 (it holds driver.h)",
       "id": "msg-71",
       "text": "consensus Driver spins after stop while a group awaits its turn barrier. Cause: include/consensus/driver.h:647 (step: if (w.awaiting_turn() && !g.watching) watch(g)) with :928 (watch waits on turns_.durable(..., shutdown_.token())). Once shutdown() requests shutdown_ (:942), every watch throws task::cancelled at once, its callback marks the group ready, step re-watches: a loop that never idles until the barrier lands (inline scheduler: forever; a reactor: 100% CPU until the fsync completes). Confirmed by instrumenting a scratch driver.h: in the spin, groups show run_one IOPending, awaiting_turn 1, turns failed 0, watch woken 600,000 times with task cancelled. Repro at consensus:ecb2a37 (quest/xapiand/consensus-sim-loops, per-loop Driver simulation): SIM_DRIVER_SEEDS=1 build/consensus_simulation_test 0 1000 2 -> 'node 3 loop 0 spins' at a power-cut shut; hits ~2/3 of seeds (seeds 2,4,6,8,9,10,14-16,18-24 of 1-24). Single-loop sim rarely reached it. Not fixed on our side (your files; consensus-close-fenced is changing close)."
+    },
+    {
+      "at": "2026-11-18T05:31:59",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-72",
+      "items": {
+        "dense-sync-stack": "frees tests/detent_local/test_paged_publication_artifacts.cc for dense-sync-stack",
+        "namespace-cleanup": "frees tests/**/*_mutant.sh, **/CMakeLists.txt for namespace-cleanup",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees tests/detent_authority/** for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "dense-sync-stack",
+          "namespace-cleanup",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "ci-test-flakes landed: unlocks frees tests/detent_local/test_paged_publication_artifacts.cc for dense-sync-stack; frees tests/**/*_mutant.sh, **/CMakeLists.txt for namespace-cleanup; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -14467,18 +14498,55 @@
         "test/transport/mutant_commit.py"
       ],
       "journal": "../Detent-wt/detent/transport-feed-scan",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T05:57:03",
+          "commit": "5923b6c7c7bfe02842036fa12273163956e78db5",
+          "criteria": {
+            "A1": "261118-051310-6f4073; fails without: 261117-205619-b7decf, 261117-235757-353ffb, 261118-003225-fc8c65, 261118-003230-dd075a",
+            "A2": "261118-051310-270a7b",
+            "A3": "261118-051307-597b29, 261118-051309-9ccc8f, 261118-051307-47d1ad, 261118-051308-c84325, 261118-055550-dd540c, 261118-055551-373422, 261118-051310-e7d269; fails without: 261117-205624-60f65d, 261117-205629-2d0bb7, 261117-205635-ba674d, 261117-205640-4bcb97, 261117-205644-19bf1a, 261117-205650-ca8493, 261117-205655-0e4768, 261117-205701-055b4c, 261117-205712-090779, 261117-224140-de7732, 261117-235604-889a1c, 261117-235623-f9fa6f, 261117-235634-a4c728, 261117-235647-fa1840, 261117-235702-c5f364, 261117-235717-ba7ee1, 261117-235726-6bde5e, 261117-235736-5cf7c7, 261117-235745-eb0aef, 261118-003140-29e975, 261118-003144-3730d0, 261118-003149-33d638, 261118-003154-39e24f, 261118-003159-140f13, 261118-003205-86e82e, 261118-003209-002b2b, 261118-003215-0923b5, 261118-003219-7f79c8, 261118-034609-0c0786, 261118-034611-6144e1",
+            "A4": "261118-051311-f0eff6",
+            "A5": "261118-051307-54a699",
+            "A6": "`test/transport/groups_test.cc`: \"every 250 ms: progress, links, host 1's frames, host 2's reads, the sockets\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "5923b6c7c7bfe02842036fa12273163956e78db5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-051311-f0eff6",
+              "level": "light",
+              "seconds": 281.8,
+              "state": "done",
+              "what": "transport-feed-scan check suite at 5923b6c7c7bf"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "5923b6c7c7bfe02842036fa12273163956e78db5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "91564ba86d25396c4c7768667cd365a01cefa27a",
+          "reason": "",
+          "tested": "5923b6c7c7bfe02842036fa12273163956e78db5"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "HostTransport feed without a per-frame scan of every group",
-      "updated": "2026-11-18T05:55:28",
+      "updated": "2026-11-18T05:57:05",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
     },
     "transport-groups": {
