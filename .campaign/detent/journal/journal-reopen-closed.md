@@ -1,6 +1,6 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs 261118-055432-ee8f37 (TSan rerun), 055432-fca65e (A9 200-seed rerun), 055434-04dc20 (permit mutant with the 'reached the test' marker), all at journal:c92eb27; A8 blocked (see Blocked on).
+State: waiting on jobs at journal:d23c57b: 261118-055743-0fc5ca 055745-5573e8 055802-5965d3 055802-799652 055802-8fadd5 055803-110ddf 055803-42a124 055803-802427 055804-288249 055804-b5ad99 055804-78be82 055804-3d69f0 055805-322172 055805-6844b0 055806-91a898 055806-fd33bc 055806-c71ad7.
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
@@ -13,31 +13,31 @@ Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c
 ## Next
 
 1. Read the jobs in State; fold any failure.
-2. Lead: cancel 261118-043345-74c02a (invalid: its literal mutation matches twice, exits 124; 043411-fd6782 replaces it). My cancel was refused by the permission classifier.
+2. (done by supersession or lead) cancel 261118-043345-74c02a (invalid: its literal mutation matches twice, exits 124; 043411-fd6782 replaces it). My cancel was refused by the permission classifier.
 3. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct, reclaim_syncs.
 4. Durability review.
 
 ## Blocked on
 
-A8's 100,000-close run cannot finish: 4c29f5 and 9c13d7 (main's headers too) hit the 30-minute cap after linking. Cause, measured locally at c92eb27 with an ids knob (patch parked in my worktree's .scratch/distinct-knob.patch, uncommitted): 1,000 ids 4.8 s, 2,000 17.1 s, 4,000 50.0 s, quadratic; `sample` puts the time in jt::MemoryIO::sync_directory (memory_io.h:163-167), which rebuilds the whole durable namespace map per sync, O(files on the disk). Host heap stays flat in every run (0-16 B over 900-3,600 closes). 100,000 ids would take hours on this harness, at main as well. Options:
-1. Recommended: add include/journal/memory_io.h to my set; sync_directory then updates only the names changed since the last sync, so the run goes linear and A8 keeps its wording (100,000 ids, one job, with --long if it still passes 30 minutes).
-2. Reword A8 to 10,000 closes, with the heap shown flat by slope (bytes at 1,000, 5,000 and 10,000), plus the knob committed; about 5 minutes at most on today's harness.
+Nothing. A8 resolved by D118 (lead): 10,000 ids, slope under 1 B; memory_io.h gets no fix (faultlab step 8 deletes it). The 100,000-id run was quadratic in jt::MemoryIO::sync_directory (1,000 ids 4.8 s, 2,000 17.1 s, 4,000 50.0 s).
 
 ## Evidence
 
-All at journal:c92eb27. Jobs at a92dde9/cd6d017 are void (no build). Mutant and faultfs jobs run `.scratch/jobs/tree.sh` (my worktree), which builds a git-archive copy of the commit, so the checkout stays clean.
+All at journal:d23c57b (journal_test.cc changed for A8, so every job reran). Mutant and faultfs jobs run `.scratch/jobs/tree.sh` (my worktree), which builds a git-archive copy of the commit and prints "reached the test" before running it.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-043305-84c658 (reopen cases); 043320-b3f159 (host and journal default runs); 043341-b92534 and 055434-04dc20 (fails-without: start() submits outside a try, FAIL: storage permit unavailable); 043343-e3fdca (fails-without: the old guard, FAIL: old guard) |
-| A2 | 261118-043305-84c658; 055432-ee8f37 (TSan; 043318 void, DNS); 043411-fd6782 (fails-without: no hold, FAIL: a recover of a group a live Store holds is busy) |
-| A3 | 261118-043307-6c91a2 (reopen_crash, passed) |
-| A4 | 261118-043309-eb6e13 (reopen_churn, passed) |
+| A1 | 261118-055802-5965d3 (reopen cases); 055803-802427 (host and journal default runs); 055806-c71ad7 (fails-without: start() submits outside a try); 055806-91a898 (fails-without: the old guard) |
+| A2 | 261118-055802-5965d3; 055804-b5ad99 (TSan); 055806-fd33bc (fails-without: no hold) |
+| A3 | 261118-055802-799652 (reopen_crash) |
+| A4 | 261118-055802-8fadd5 (reopen_churn) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-043358-09b70e (suite, passed); CI |
-| A7 | 261118-043312-9d76bf (reopen_heap) |
-| A8 | blocked: 043314-4c29f5 and 043356-9c13d7 hit the 30-minute cap (see Blocked on) |
-| A9 | 261118-043332-1ce564 (turn_log_power 8 at head, faultfs overlay --ref c606068); 055432-fca65e (200 seeds; 043334 void, DNS; 8 seeds took 4 s locally, so 200 fit one job: the binary only takes a seed count, not a range); 043337-6f4c2f (fails-without: unordered reclaim, FAIL at seed 5 cut 116); 043316-161c74 (barriers per segment after: 1.0); 043339-8b3682 (before: 0.939) |
+| A6 | 261118-055804-288249 (suite); CI |
+| A7 | 261118-055803-110ddf (reopen_heap) |
+| A8 | 261118-055743-0fc5ca (10,000 distinct closes, slope under 1 B); 055745-5573e8 (fails-without at main's headers: positive slope) |
+| A9 | 261118-055804-3d69f0 (turn_log_power 8, faultfs overlay --ref c606068); 055804-78be82 (200 seeds); 055805-322172 (fails-without: unordered reclaim); 055803-42a124 (barriers per segment after: 1.0); 055805-6844b0 (before: 0.939) |
+
+At journal:c92eb27, before the A8 edit: passed 043305, 6c91a2, eb6e13, 9d76bf, 161c74, b3f159, 1ce564, suite 09b70e; fails-without held 6f4c2f, 8b3682, b92534, e3fdca, fd6782. Local 2,000-id run at d23c57b: slope -0.027 B per group.
 
 Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead first ruled it lands after journal-faultfs; latest message gives me host_test.cc and drops the wait, done at cd6d017). Lead's note (void a92dde9 jobs, `parked` shadowing): already fixed at journal:4885819; everything resubmitted at journal:c92eb27.
 
@@ -64,3 +64,4 @@ Not yet measured.
 10. A fenced operation that refuses submission is dropped, not failed: complete() needs a submitted operation, so there is nothing to tell it; its caller already sees the fence. Its record is written: its sequence is assigned and later records of the group may follow it, and a durable unacknowledged record is a state the old rule allows.
 11. A9 by ordering, not by recovery: a segment-number gap is the only sign of a lost live segment whose groups wrote nothing after it, so recovery cannot tell a reclaimed gap from a lost one without weakening damage detection. Ordering costs one ordering point per extra segment in a batch (measured 352 per 5,797 segments) and nothing for single-segment batches.
 12. A9's reproducer stays journal-faultfs's file: jobs overlay it from --ref FF=journal@c606068 onto a copy of my tree; nothing of faultfs enters my file set.
+13. reopen_distinct keeps JOURNAL_DISTINCT_IDS (default 10,000; early = ids/10, middle = ids/2) for timing other counts.
