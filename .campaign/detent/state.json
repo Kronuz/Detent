@@ -8342,19 +8342,60 @@
         "docs/status/namespace-s6-cutover.md",
         "src/detent_authority/service.cc"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-17T16:02:11",
+          "commit": "0ca0b8ef85a858efd6f846741b68034a37330757",
+          "criteria": {
+            "A1": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261117-075322-55a56b, 261117-075322-92def8",
+            "A2": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261116-214157-4dc912, 261117-075322-9e1c41",
+            "A3": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since), 261117-121951-d4c328 (passed at cb469446f80c; only merges from main since); fails without: 261116-214206-789966, 261117-075323-d98365, 261117-121444-739234, 261117-121452-7c08c8, 261117-122454-36ba59, 261117-122502-2e928a",
+            "A4": "261117-122519-346027 (passed at cb469446f80c; only merges from main since), 261117-144103-d40cc6 (passed at cb469446f80c; only merges from main since), 261117-122525-281a5f (passed at cb469446f80c; only merges from main since), 261117-122525-4f8dea (passed at cb469446f80c; only merges from main since); fails without: 261116-214209-bdfa24, 261116-214212-4ab1c1, 261117-075323-bc058a, 261117-075323-0f145c, 261117-121453-54d979, 261117-121453-d4a5f8, 261117-122509-9c0de7, 261117-122514-0cd4cd",
+            "A5": "[manual] include/detent_distribution/history.hh tier comment rewritten to the F1 rule (Ahead first, whatever the incarnation); checked by the lead 2026-11-17: Ahead is tested first for a same-cluster store above head whatever its incarnation, and FullCopy only for another incarnation at or below head (cutover review F1, position before identity). The header builds and its tests pass: 261117-144103-d40cc6, 261117-122525-281a5f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "a045c1e880ea9b1a82d3783ec549ec9a5323b26c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-122525-281a5f",
+              "level": "light",
+              "seconds": 1348.9,
+              "state": "done",
+              "what": "namespace-s6-hardening check native at a045c1e880ea"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "a045c1e880ea9b1a82d3783ec549ec9a5323b26c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261117-122525-4f8dea",
+              "level": "none",
+              "seconds": 25.9,
+              "state": "done",
+              "what": "namespace-s6-hardening check pins at a045c1e880ea"
+            }
+          ],
+          "final": true,
+          "from": "ea3493572cbd568e4b827a909b75a7d4cc5f0295",
+          "reason": "",
+          "tested": "0ca0b8ef85a858efd6f846741b68034a37330757"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "S6 hardening: ledger admission, staged sink, drop and unfreezable signals (P1)",
-      "updated": "2026-11-17T15:23:05",
-      "worktree": "../Detent-wt/detent/namespace-s6-hardening"
+      "updated": "2026-11-17T16:10:05",
+      "worktree": ""
     },
     "namespace-s6-v1-removal": {
       "accepted": {},
