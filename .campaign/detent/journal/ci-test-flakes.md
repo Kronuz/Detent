@@ -1,12 +1,27 @@
 # ci-test-flakes: journal
 
-State: waiting on jobs 261117-234948-483694 -234955-a588f5 -235001-67ee1b (A1 lostwrite mutant,
-service-stale pair) and probes -235008-5cd352 -235015-1d92d0; forced/lostwrite 234942-985c20 passed 3/3.
-Full `campaign job rerun` held until the probe: a catch-up timeout fix that edits test_multivoter
-would invalidate the whole set again.
+State: waiting on jobs at Detent:432d3791: the 46-job rerun 261118-010235-bad3cc .. -010247-63fc21
+(Jobs, session 5), catchup-time pair -010258-38227c / -010304-e4d517, write-split probes
+-005843-14ec9c / -005846-971e76 (at ffd1d2d3). Branch pushed at 432d3791 for CI.
 Quest: .campaign/detent/quests/ci-test-flakes.md (the lead's; never edit it)
 
 ## Doing
+
+Session 5 (2026-11-18). Read the 055d2df6 jobs:
+- forced/lostwrite 234942-985c20 0 of 3 failed; mutant 234948-483694 3 of 3 failed at line 320
+  "unconsumed-response transaction did not commit": the mutant killed, as expected.
+- forced/service-stale 234955-a588f5 0 of 3; mutant 235001-67ee1b 3 of 3 at test_service.cc:86
+  (stale directory): killed, as expected. Neither exit 1 is a real failure.
+- Probes (catchup-phases-probe): the whole growth is the degraded phase's 98 serial writes.
+  Alone (1d92d0): writes 33.1, 82.7, 126.2 s; everything else 11-12 s; totals 46, 98, 145 s.
+  4-way (5cd352, host load ~23 on 16 CPUs): writes 115-117 s, totals 135-137 s.
+  Per write 0.34-1.29 s: with one voter down every commit waits on both survivors' F_FULLFSYNC.
+Fix (cause 11, 432d3791): write until both survivors checkpoint past the lagging voter's commit
+(the gate the test already waited on), capped at the old 98 writes; a checkpoint falls due every
+log_entries / 2 = 32 commits and 64 is the authority's floor (service.cc:398), so about 33-40
+writes. No timeout changed. Regenerated the cause-6 pair (stall at write 20, was 50); dropped the
+spent phase probes. Write-split probes (leader discovery vs connect vs request) queued at ffd1d2d3
+to attribute per-write cost; they need no further action.
 
 Session 4 (2026-11-17). Merged origin/main (c6718bce): every afef9684 job now ran other code, so the
 whole set is resubmitted at Detent:6a39c344. Session 3's set at afef9684 had three problems:
@@ -83,6 +98,10 @@ merged in c6718bce, fixes it); poll_publisher 0 of 40 at main 20d577 and head 17
 10. lost write: the unread /v2/transactions to a leader deposed before replicating never commits;
    the test needed it within 5 s. Fix: outcome unknown unless the reply is 200; the retry settles it.
    Forced: lostwrite-forced.patch stalls the leader 4 s (elections 1-2 s) before it reads the write.
+11. catch-up timeout: 98 fixed serial writes with one voter down, each waiting on both survivors'
+   sync, took 33-126 s of a 180 s limit (probes 235008-5cd352, 235015-1d92d0). Fix: write until the
+   survivors' checkpoint passes the lagging voter's commit (about 33-40 writes). Forced:
+   catchup-time-forced.patch delays each degraded write 2 s; the mutant (fixed 98) needs >= 196 s.
 1, 2, A5 all-down: no failure in 200 runs each at session 1's fix; resubmitted at the head.
 
 ## Candidate flakes (not fixed)
@@ -102,16 +121,28 @@ merged in c6718bce, fixes it); poll_publisher 0 of 40 at main 20d577 and head 17
 
 ## Next
 
-0. Read probes 5cd352 (x12 at 4-way) and 1d92d0 (x3 alone): which phase grows under load toward the
-   180 s TIMEOUT. Fix it in the test at its cause if the test spends it (no wider timeout), else rescope
-   to the lead with the numbers. Then `campaign job rerun` the whole set at the new head, with
-   lostwrite and service-stale pairs added to A1.
-1. Read the jobs below; every forced passes and every mutant fails; soaks 0 failures.
-2. Attribute the suite's two failures from the attribution jobs; if pre-existing, report to the lead
-   (outside the file set) and rule A3 on the suite's other tests.
-3. Then set State "ready for review".
+1. Read the 432d3791 set below: every forced passes, every mutant fails, soaks 0 failures. Catch-up
+   soaks: record their slowest time against the 180 s limit (was 121-161 s).
+2. Read the write-split probes for the per-write cost attribution (journal only).
+3. CI at 432d3791; then fill Evidence and set State "ready for review".
 
-## Jobs (at 6a39c344; commands use tests/detent_system/forcing)
+## Jobs (session 5, rerun at 432d3791; each replaces the 6a39c344 job of the same order below)
+
+A1 forced / mutant: scrub 261118-010235-bad3cc / -010236-15dc09; dns-port -010236-ef7f24 / -010236-349ad3;
+dns-open -010236-7ef0cd / -010237-317b33; multivoter -010237-42c3a8 / -010237-7078aa; service
+-010237-1fdfe2 / -010237-a3fa5a; paged TSan -010238-181cb7 / -010238-ccc7a1; lostwrite -010246-b5ebc8 /
+-010246-fa1dbf; service-stale -010247-84d464 / -010247-63fc21; catchup-time -010258-38227c /
+-010304-e4d517.
+A2: scrub-worker -010238-5db585 -010238-cabb67 -010239-71fc20 -010239-af5da0 (also A6); dns
+-010239-90de66 -010239-d2883c -010239-c32707 -010240-661a68; relay -010240-923019 -010240-fa9cd3
+-010240-88d585 -010241-68c296; failover -010241-686167 -010241-918a36 -010242-d72e20 -010242-2062ee;
+paged x200 -010242-efeb4a; service x200 -010242-52156e; catchup -010244-92615f -010245-f9e903
+-010245-5d465d -010245-a741ad -010245-57dd3e.
+A4: paged TSan x100 -010243-a6105f. A5: all-down TSan -010243-809ccc -010243-a8fa76 -010243-e79a3d
+-010244-b5b8bf. A3: native suite -010244-ff2310, pins -010246-9864a0.
+Probes at ffd1d2d3: write split x8 4-way 261118-005843-14ec9c, x3 alone -005846-971e76.
+
+## Jobs (session 4, at 6a39c344; commands use tests/detent_system/forcing)
 
 A1 forced (pass) / mutant (fails without): scrub 261117-172346-239143 / -172350-3354ab; dns-port
 -172357-dddbbe / -172403-478d87; dns-open -172408-aacc6b / -172412-5c8827; multivoter -172417-aca3ee /
@@ -165,3 +196,6 @@ Nothing.
    wider set. The lead may move them.
 8. Causes 9 and 10 are fixed in the tests: neither is the product breaking a promise (pid
    reuse of a crashed run's directory; Raft drops an unreplicated write of a deposed leader).
+9. Cause 11 is fixed by writing only what the snapshot needs, not by a wider TIMEOUT: the test's
+   own gate (survivors' checkpoint past the lagging commit) decides when to stop, and the product's
+   64-entry floor keeps it near 32 writes.
