@@ -1,21 +1,20 @@
 # journal-sync-seam: journal
 
-State: waiting on jobs 261117-200917-ac87f4 (suite) 261117-200923-d18138 (A4 before) 261117-200935-1fd941 (A4 after); then on journal-turn-bound landing
+State: waiting on jobs 261118-002316-5ee759 (suite at journal:ce05f0e) 261118-002319-ef7067 (A1 grep)
 Quest: .campaign/detent/quests/journal-sync-seam.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-sync-seam (branch quest/detent/journal-sync-seam)
 
 ## Doing
 
-Repinned completion to f4c19b1 (journal:54d2972, pushed). Turn log barriers go through `detail::sync_data_file` (`IO::sync_data_files`); `TurnLog::flush(write)` is the same barrier for a driver; `PrefixIO` forwards `sync_data_files` (review N1). sync_seam_test gained `turn_flush` and `open_cost [groups]`.
+Merged origin/main (CHANGELOG kept both entries; turn_log.h merged clean). TurnDriver::commit now calls `log_.flush(write)` (journal:ce05f0e, pushed), so no sync bypasses the seam. docs/MEASUREMENTS.md has the open-cost section (52.9 -> 6.4 ms per group); the merge did not touch the open path, so no rerun. turn-seal.md names the seam barrier.
 
 ## Next
 
-1. Read the suite and the A4 pair; write the perf line in docs/MEASUREMENTS.md with the numbers.
-2. A1: after turn_driver.h:276 (`write.file->sync_data()` in `TurnDriver::commit`, journal-turn-bound's file) becomes `log_.flush(write)`, submit the grep job (see Evidence). Not edited here: not in my file set.
+1. Read the suite and the A1 grep; fill the Evidence table; set "ready for review".
 
 ## Blocked on
 
-Ordering, ruled by the lead: journal-turn-bound lands first, then turn_driver.h joins my file set. Then: merge main, change turn_driver.h:276 to `log_.flush(write)`, run A1's grep. PosixIO keeps the default `sync_data_files`; a host IO overrides it (Xapiand's).
+Nothing.
 
 ## Evidence
 
@@ -23,10 +22,10 @@ Jobs prove criteria by their tags (`--for A1`).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: `! grep -rnE '(->|\.)sync(_data)?\(\)|fsync|fdatasync|F_FULLFSYNC' include src --exclude=memory_io.h`; today it finds only turn_driver.h:276 |
-| A2 | suite 261117-200917-ac87f4 at journal:54d2972 (cases host_table, turn_segments, turn_flush, journal_tail); fails-without at journal:15f4f0a 261117-185442-6f0142 failed 9 of 13 checks on main's code |
-| A3 | suite 261117-200917-ac87f4 (the earlier one, 261117-185506-392924, passed at journal:14515ab) |
-| A4 | strict jobs: before 261117-200923-d18138 (main's library, journal:3282210), after 261117-200935-1fd941; numbers pending |
+| A1 | grep job 261118-002319-ef7067 at journal:ce05f0e: `! grep -rnE '(->|\.)sync(_data)?\(\)|fsync|fdatasync|F_FULLFSYNC' include --exclude=memory_io.h` (found only turn_driver.h before) |
+| A2 | suite 261118-002316-5ee759 at journal:ce05f0e (earlier: 261117-200917-ac87f4 at journal:54d2972 ; cases host_table, turn_segments, turn_flush, journal_tail); fails-without at journal:15f4f0a 261117-185442-6f0142 failed 9 of 13 checks on main's code |
+| A3 | suite 261118-002316-5ee759 (the 261117-200917-ac87f4 failure was crc_fixture's timeout, fixed on main) |
+| A4 | strict jobs: before 261117-200923-d18138 (main's library, journal:3282210), after 261117-200935-1fd941; open with seam syncs skipped 52.9 -> 6.4 ms per group (200 groups); line in docs/MEASUREMENTS.md |
 
 ## Result
 
