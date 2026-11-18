@@ -15669,13 +15669,15 @@
         "correctness"
       ],
       "milestone": "N1",
-      "needs": [],
+      "needs": [
+        "detent-refuse-old-format"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-16T08:21:55"
+      "updated": "2026-11-18T09:14:57"
     },
     "warm-graph-5m": {
       "accepted": {
