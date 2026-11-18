@@ -1,0 +1,12 @@
+diff --git a/tests/detent_local/test_paged_publication_artifacts.cc b/tests/detent_local/test_paged_publication_artifacts.cc
+index 4821dee8..bb61a8c0 100644
+--- a/tests/detent_local/test_paged_publication_artifacts.cc
++++ b/tests/detent_local/test_paged_publication_artifacts.cc
+@@ -77,6 +77,7 @@ int main() {
+ 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
+ 				if (pressure) {
+ 					auto admission = account->admit(account->limit() - account->used());
++					std::this_thread::sleep_for(std::chrono::milliseconds(50)); // forced window
+ 					rejects<d::StoragePressure>([&] { artifacts->populate(*plan); });
+ 					rejects<std::logic_error>([&] { artifacts->artifacts(); });
+ 					require(plan->descriptor().generation == next);

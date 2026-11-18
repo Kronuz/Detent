@@ -1,0 +1,24 @@
+diff --git a/tests/detent_authority/test_dns_voters.py b/tests/detent_authority/test_dns_voters.py
+index d4752d10..454d274a 100644
+--- a/tests/detent_authority/test_dns_voters.py
++++ b/tests/detent_authority/test_dns_voters.py
+@@ -34,6 +34,7 @@ from test_multivoter import (
+ )
+ 
+ NAMES = ["one", "two", "three"]
++THIEVES: list[socket.socket] = []
+ 
+ 
+ def configure(
+@@ -123,6 +124,11 @@ def run(
+ ) -> None:
+     directory.mkdir(parents=True)
+     ports, configurations = configure(certificates, directory, hosts)
++    if not THIEVES:  # forced window: another process binds node 2's port before the first startup
++        thief = socket.socket()
++        thief.bind(("127.0.0.1", ports[5]))
++        thief.listen()
++        THIEVES.append(thief)
+     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
+     children: list[subprocess.Popen[bytes]] = []
+     logs = []

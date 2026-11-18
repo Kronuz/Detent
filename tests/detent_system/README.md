@@ -37,3 +37,7 @@ A native macOS 60-second development run with 16 producers and 1,000 records rec
 CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, polling failover, relay fanout and terminal trust rejection. Each managed cohort uses an independent C++ SDK reader to compare every expected integer against the durable local generation. Unavailable cases also compare the selected-generation record before and after the outage. Cohorts stop before the publisher connection-drain assertion.
 
 The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, invalid Next profile, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
+
+## Flake forcings
+
+`forcing/` reproduces the CI flakes fixed by quest ci-test-flakes. Each `<cause>-forced.patch` opens the failing window (a stall, a delay or a held resource) with the fix kept and must pass; each `<cause>-mutant.patch` opens the same window with the fix removed and must fail. `patched.sh PATCH CMD...` applies one in a disposable checkout and runs `CMD`, usually `loop.sh` (one test, repeated, copies at once), `soak.py` (each copy in its own directory) or `tsan_loop.sh`. Run them from the repository root, through `campaign job submit`, never in a working tree you keep.

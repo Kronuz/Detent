@@ -1,0 +1,56 @@
+diff --git a/tests/detent_authority/test_multivoter.py b/tests/detent_authority/test_multivoter.py
+index fc84cca0..6c161fda 100644
+--- a/tests/detent_authority/test_multivoter.py
++++ b/tests/detent_authority/test_multivoter.py
+@@ -7,10 +7,12 @@ import http.client
+ import json
+ import os
+ import shutil
++import signal
+ import socket
+ import ssl
+ import subprocess
+ import sys
++import threading
+ import time
+ from collections.abc import Callable
+ from pathlib import Path
+@@ -94,10 +96,7 @@ def settled(
+     authority reconciles."""
+     deadline = time.monotonic() + 10
+     while time.monotonic() < deadline:
+-        try:
+-            status, body = send()
+-        except (OSError, http.client.HTTPException):
+-            status, body = 0, {}
++        status, body = send()
+         if status == 200:
+             return body
+         time.sleep(0.02)
+@@ -218,12 +217,18 @@ def main() -> None:
+             f"three-process authority did not elect an available leader: {observed}"
+         )
+ 
++    pause_next: list[bool] = [False]
++
+     def successful(path: str, fields: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+         index = 0
+ 
+         def send() -> tuple[int, dict[str, Any]]:
+             nonlocal index
+             index = leader()
++            if pause_next[0]:  # forced window: the leader stalls 3 s, past the client timeout
++                pause_next[0] = False
++                os.kill(children[index].pid, signal.SIGSTOP)
++                threading.Timer(3, os.kill, (children[index].pid, signal.SIGCONT)).start()
+             return request(ports[index + 3], context, path, fields)
+ 
+         body = settled(send, path)
+@@ -344,6 +349,7 @@ def main() -> None:
+             children[lagging].wait(timeout=5)
+             last_receipt: dict[str, Any] = {}
+             for sequence in range(3, 101):
++                pause_next[0] = sequence == 50
+                 _, last_receipt = successful(
+                     "/v2/transactions",
+                     {
