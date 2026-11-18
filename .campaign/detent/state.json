@@ -5529,7 +5529,9 @@
         "include/journal/host.h",
         "include/journal/journal.h",
         "test/journal_test.cc",
-        "docs/mechanisms/**"
+        "docs/mechanisms/**",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h"
       ],
       "journal": "../Detent-wt/detent/journal-reopen-closed",
       "landed": [],
@@ -5543,7 +5545,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T02:13:15",
+      "updated": "2026-11-18T02:20:02",
       "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
