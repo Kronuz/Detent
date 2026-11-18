@@ -1,4 +1,5 @@
 #pragma once
+#include "allocator.hh"
 #include "history.hh"
 #include "protocol.hh"
 #include <memory>
@@ -10,13 +11,16 @@
 //
 //   [1, directory | nil, frame count]
 //   per frame:  [name, frame kind, after, [cluster, incarnation, position], piece count]
+//               a dropped frame: kind 4, after 0, the dropped incarnation's cursor, no pieces
 //   per piece:  [piece kind, first, last]  then records  then nil
 //   record:     [key, revision, definition | nil]          nil definition: a tombstone
 //   directory:  [cluster, from, to, [[name, incarnation, live], ...]]
 //
 // Frames come in name order. A piece's records come in key order, each key once.
 namespace detent::distribution {
-enum class FrameKind : std::uint8_t { Entries = 1, Blocks = 2, FullCopy = 3 };
+// Dropped: the namespace was dropped; the cursor is its last incarnation's, at the drop. It is sent
+// to a session that follows the namespace with a store of it and no longer has a live namespace.
+enum class FrameKind : std::uint8_t { Entries = 1, Blocks = 2, FullCopy = 3, Dropped = 4 };
 // Entry: one ring position [p, p]. Block: a named span sent whole. Span: a trimmed or merged
 // span, not a stored object. FullCopy: the state at `last`, first 0, no tombstones.
 enum class PieceKind : std::uint8_t { Entry = 1, Block = 2, Span = 3, FullCopy = 4 };
@@ -34,17 +38,22 @@ struct DirectoryUpdate {
 	std::vector<DirectoryEntry> entries;
 	bool operator==(const DirectoryUpdate &) const = default;
 };
-// A requested namespace: its history (borrowed until the encoder ends) and the store's cursor.
+// A requested namespace: its history (borrowed until the encoder ends) and the store's cursor, or,
+// for a namespace dropped for good, the cursor of its dropped incarnation and no history.
 struct NamespaceRequest {
 	std::string_view name;
 	const NamespaceHistory *history = nullptr;
 	std::optional<NamespaceCursor> store;
+	std::optional<NamespaceCursor> dropped;
 };
 // Selects every namespace's answer at construction, then emits the body in bounded steps. A
-// Current or Ahead answer gets no frame. Names must be valid and strictly increasing.
+// Current or Ahead answer gets no frame. Names must be valid and strictly increasing. Its own
+// memory is admitted by `account` (a private ledger when none): construction throws
+// StoragePressure when the plan does not fit, and a piece's readers are admitted as it opens.
 class SessionFramesEncoder {
   public:
-	SessionFramesEncoder(std::optional<DirectoryUpdate>, std::span<const NamespaceRequest>);
+	SessionFramesEncoder(std::optional<DirectoryUpdate>, std::span<const NamespaceRequest>,
+						 std::shared_ptr<StorageLedger> account = {});
 	~SessionFramesEncoder();
 	SessionFramesEncoder(const SessionFramesEncoder &) = delete;
 	SessionFramesEncoder &operator=(const SessionFramesEncoder &) = delete;
@@ -55,9 +64,10 @@ class SessionFramesEncoder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	StorageOwner<Impl> impl_;
 };
-std::string encode_session_frames(std::optional<DirectoryUpdate>, std::span<const NamespaceRequest>);
+std::string encode_session_frames(std::optional<DirectoryUpdate>, std::span<const NamespaceRequest>,
+								  std::shared_ptr<StorageLedger> account = {});
 
 // Receives a validated body in order. A record's key and value live until the call returns.
 class FrameSink {
@@ -69,6 +79,8 @@ class FrameSink {
 	virtual void record(std::string_view key, std::uint64_t revision, const KnobDef *value) = 0;
 	virtual void end_frame() {}
 };
+// Its memory (working strings and the directory) is admitted by `limits.storage_account`, which
+// throws StoragePressure at its bound.
 // Checks the grammar and every frame's positions (contiguous from after + 1 to the target, each
 // record inside its piece and above `after`, keys of the frame's namespace in order, no
 // tombstone in a full copy) before the sink sees the value that completes them. A sink must
@@ -87,6 +99,6 @@ class SessionFramesDecoder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	StorageOwner<Impl> impl_;
 };
 } // namespace detent::distribution
