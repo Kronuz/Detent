@@ -1,6 +1,8 @@
 # journal-reopen-closed: journal
 
-State: review fix round 1 (durability F1-F4) at journal:4d364f1 (pushed); waiting on jobs (listed under Doing).
+State: waiting on jobs 261118-064517-9372f4 064519-8a384a 064522-d966b2 064524-caef4a 064526-c0d03d 064529-b4cc89 064531-67fae6 and the reruns below, plus CI at journal:4d364f1 (review fix round 1, pushed).
+
+Findings: F1=261118-064517-9372f4 (fails without: 064519-8a384a); F2=CI linux-tsan at 4d364f1 (+064531-67fae6); F3=261118-064522-d966b2 (fails without: 064524-caef4a); F4=261118-064526-c0d03d (fails without: 064529-b4cc89). Suite: 064548-69f7ab.
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
@@ -28,6 +30,8 @@ Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c
 Nothing. A8 resolved by D118 (lead): 10,000 ids, slope under 1 B; memory_io.h gets no fix (faultlab step 8 deletes it). The 100,000-id run was quadratic in jt::MemoryIO::sync_directory (1,000 ids 4.8 s, 2,000 17.1 s, 4,000 50.0 s).
 
 ## Evidence
+
+Reruns at journal:4d364f1 (old -> new): 055802-5965d3 -> 064542-c3da37; 055803-802427 -> 064542-8aa7cc; 043341-b92534, 055806-c71ad7 -> 064543-47189d; 043343-e3fdca, 055806-91a898 -> 064543-8b4151; 055804-b5ad99 -> 064543-3d0836; 043411-fd6782, 055806-fd33bc -> 064544-c6adb3; 055802-799652 -> 064544-b64d11; 055802-8fadd5 -> 064545-8b40b9; 055803-110ddf -> 064545-0fcd78; 055743-0fc5ca -> 064545-0ad089; 055745-5573e8 -> 064546-8208bc; 055803-42a124 -> 064546-bf20ed; 055804-3d69f0 -> 064547-7604e6; 055804-78be82 -> 064547-a8c91c; 043337-6f4c2f, 055805-322172 -> 064547-389464; 043339-8b3682, 055805-6844b0 -> 064548-0fc1ad; 055804-288249 (suite) -> 064548-69f7ab; reviewer probes 063202-5ac0ed -> 064549-cb889d, 063451-fc94be and 063204-ea6729 -> 064549-618682. The table below still names the d23c57b jobs until these finish.
 
 All at journal:d23c57b (journal_test.cc changed for A8, so every job reran). Mutant and faultfs jobs run `.scratch/jobs/tree.sh` (my worktree), which builds a git-archive copy of the commit and prints "reached the test" before running it.
 
@@ -57,6 +61,10 @@ Not yet measured.
 - Docs: docs/mechanisms/group-lifetime.md.
 
 ## Rulings I made
+
+14. F2 by exclusion, not hooks: TSan's malloc hooks cannot tell a metered allocation from one the memory disk made at free time without a side table, so under TSan journal_test does not replace operator new and the three heap cases skip only their heap check, printing why; their value checks still run.
+15. F1's closed entry stays resident only on a failed commit; any successful update drops the slot's closed entries, so the A8 bound holds once a commit succeeds.
+16. tree.sh gained --flags (untracked script; older options unchanged) for the TSan fails-without.
 
 1. The hold lives in the Journal, not the OwnerSession: escaped readers (read-only, immutable artifacts) do not keep an id from being recovered; every writer path (StoreAppend, artifact and publication operations) holds the Journal, so it does keep the hold.
 2. Busy is std::system_error(EWOULDBLOCK), the IO contract's held-owner-lock error, not Corruption: it is transient and the caller retries.
