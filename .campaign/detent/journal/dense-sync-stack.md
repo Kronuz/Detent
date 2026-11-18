@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on probe jobs 261118-064904-6c2712 (stacked) 261118-064907-e7158a (53abd637 parent) 261118-064909-dd5db9 (53abd637) 261118-064842-39af41 (711a114e) 261118-064844-08680a (fresh main fixture), then the seed 261118-064312-81a63c, the ten 5M arms (main's two, 028406 and 51839b, held until the probes read), the 100K arms and the gates
+State: waiting on jobs. Seeds: 261118-064312-81a63c (5M, Dense/S2/stacked/A-A tree), 261118-070640-2fb122 (5M, main), 261118-070638-b711be (10K+100K, main). Arms: see 5M and main-arm lists in "Main arms on their own fixture". Blocked: cancelling 51839b and the old 100K main arms 71faa7 8e49b7 59781b was denied by the permission classifier; they read the old fixture and will fail at main, the lead cancels them. Also the 100K arms, gates asan a8791e tsan 1bba5b.
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -47,6 +47,10 @@ Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat
 ## Follow-ups for the lead (not this quest)
 
 1. Silent failure on an old journal, whichever way the probes go: main's detentd, given an old-format state, starts, fences while replaying the committed journal and then sits with no leader (the harness gave up after 240 s; the 100K arm waited 900 s). The only output is `detentd: authority recovery application fenced` (src/detent_authority/service.cc:1983, job 261118-064115-2e8717, events.jsonl actor_output). It should refuse the old format at startup with a named error (format and version found, expected) and exit nonzero. Owner: authority, outside this quest's file set.
+
+## Main arms on their own fixture (lead's decision after the probes)
+
+Probes: fresh 10K at main boots main (08680a, done); the Oct-23 fixture boots at d04794d (6c2712) and at 53abd637~1 (e7158a); the 53abd637 and 711a114e probes failed to build (dd5db9, 39af41), so they name no commit. It is a state-format change under no-compat; main refuses nothing by name (follow-up above). Main therefore runs on its own fixtures: `10000-main`, `100000-main` (job b711be) and `5000000-flat-main` (job 2fb122, light, 135 min, `--long`), all in the home capacity-trials, kept. Main arms (`submit-main.sh`, after the seeds): 100K rounds 1-3 d672ef 839960 576dde; 5M rounds 1-2 6aec23 38688c. Old main arms: 028406 cancelled; 51839b (5M r2), 71faa7 8e49b7 59781b (100K r1-3) still queued: cancel was denied by the permission classifier, they will fail at the old fixture, cancel them.
 
 ## Blocked on
 
