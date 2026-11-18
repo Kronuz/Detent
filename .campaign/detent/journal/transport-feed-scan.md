@@ -1,11 +1,7 @@
 # transport-feed-scan: journal
 
-State: waiting on jobs 261117-205640-4bcb97 261117-205644-19bf1a 261117-205650-ca8493
-261117-205655-0e4768 261117-205701-055b4c 261117-205706-359ac3 261117-205712-090779 261117-205717-1de5e8
-261117-205722-8d9231 261117-205726-286944 261117-205742-5a313f; CI needs a push of
-consensus:quest/detent/transport-feed-scan at 4c7666a (contributors do not push). Done: A1 scan,
-A3 order, A2 (3 of 3). After A5's job: the perf doc's per-group table, then `campaign verify` at the
-final head (the queued suite 261117-205742-5a313f is at 01e2c06; docs commits since).
+State: session 3. A1, A2, A3 (order, TSan, 10 of 11 mutants), A4 suite, A5 passed at 01e2c06. Open:
+store-keeps-opens survived (261117-205706-359ac3); A6 (upload on macos-x86_64) investigating.
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
@@ -23,6 +19,26 @@ Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded 
   uncredited-kept/scan 261117-205712-090779 (new); TSan, every groups case, 261117-205717-1de5e8.
 - A2 strict `one 5 1 10000` x3: 261117-205722-8d9231. A5 `cost --quick`: 261117-205726-286944.
 - A4 suite 261117-205742-5a313f. Hop smoke A/B vs edbb162 (strict, not a criterion): 261117-205819-0701eb.
+
+## Session 3
+
+- store-keeps-opens survived because no step re-stores the *receiver* while a peer's open holds:
+  host 2's re-store under epoch2 came after its open was already refused (`opening` erased it).
+  Added identity step "host 2 stores ok again under a third epoch": frames under host 1's epoch2
+  open must stop arriving (0 of 20) and host 2 counts a mismatch.
+- Killer committed consensus:39eeb37; mutant 81d9ec5 (store-keeps-opens at ed8f840): job 261117-224140-de7732;
+  identity at head 261117-224124-dc2270. Local run at 39eeb37 passed.
+- A6: CI logs (.scratch/ci/ in the code worktree): every failure is a near-total stall, not slow
+  throughput: 0.0-18.0 MiB of ~128, 3-15 control frames of 55, longest gap 3.0-4.0 s, host stalls
+  81-111 ms. In 44214025598 host 1's loop 1 took 5.8 s to drain after stop (about dead_after: a
+  writer waiting on a full send buffer). Always alongside connection_test (ctest --parallel 2), but
+  so is the passing 44227964457. Since 44089495483 (transport-groups' first CI).
+- Local (Intel Mac, macOS 15.8.1; CI 15.7.9 VM): 32 of 32 at 4-way, 20 of 20 beside connection_test;
+  under `taskpolicy -b` 3 of 24 fail (gaps 1.0-1.4 s, 20-48 MiB): degraded, not CI's stall.
+  Samples (passing run): receiver socket holds 1.2-1.5 MiB unread with rcvwnd 0.3-16 KB, sender
+  sndq 450 KB: a control frame waits behind about 4 MiB (kernel both ends plus a data frame), so its
+  gap is that over the drain rate. Diag committed consensus:ed8f840 (printed on failure only),
+  pushed for CI to show the stall.
 
 ## Next
 
