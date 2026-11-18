@@ -1,37 +1,35 @@
 # journal-faultfs: journal
 
-State: blocked on the lead (A1: main's journal_test.cc includes memory_io.h); waiting on jobs 261118-072542-e8efc9 (suite, fresh) 261118-072547-893f8e (A3 mutant) 261118-072611-01fdf0 (200-seed power, A3 plain) 261118-072547-8c7169 261118-072548-43baa4 (A5 fuzz) 261118-072548-24b77f (A1, fails) 261118-072559-15ae05 (A1 at main 4d364f1)
+State: waiting on jobs 261118-073224-fadbd6 (suite, fresh) 261118-073226-104826 (A1) 261118-073226-62d124 (A3 mutant) 261118-073227-f02d36 (200-seed power, A3 plain) 261118-073227-cf592c 261118-073227-d4cc9f (A5 fuzz) 261118-073232-e39840 (reopen cases) 261118-073233-28994b (reopen_churn) 261118-073233-3e7cc4 (reopen_heap, A7) 261118-073233-6ed20f (reopen_distinct, A8) 261118-073243-fca863 (reopen_crash, reclaim_syncs)
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
 ## Doing
 
-journal:6ea9494 (pushed) merges main at journal:4d364f1 (journal-reopen-closed, A9's ordered
-reclaim) and redoes host_test.cc's faultfs move on main's version (same rules as the case map's
-host rows). Local probe at 6ea9494 (`.scratch/build`, not evidence): host_test 608 checks, 0
-failures, sealer_close_crash 75 cuts; turn_log_power 8 seeds: 2040 crash points (677 with a
-second loss), 7641 checks, 0 failures. Cut numbers moved (2029 before: A9's ordering points are
-mutations), so 5/116, 5/161 and 7/219 now land on other operations; the seed 5 and 7 sweeps
-cover every cut of those seeds.
+journal:36912d7 (pushed): journal_test.cc moves to faultfs (lead: A1 stays as written; the file
+joined this quest's set). `git grep memory_io.h -- test fuzz` is empty locally. Shared's host is
+faultfs directory `host` behind the unchanged MeteredIO; reopen_crash is `power_off_after(cut -
+1)`, `powered_off()`, `crash(seed * 7919 + cut, size_pick::sector)` (was `power_loss()`, stream
+0); reclaim_syncs runs on the root directory (was prefix `log/`). CMake links faultlab to
+journal_test. TSan carve-out untouched. Before it, journal:6ea9494 merged main at 4d364f1 and
+redid host_test.cc's move.
+
+Local probe at 36912d7 (RelWithDebInfo, `.scratch/rel`, not evidence): default run 194415 checks,
+0 failures, 3.8 s; reopen_crash 16 seeds, 1788 power cuts, 0 failures, 0.9 s. The heap cases'
+numbers come from the jobs.
+
+The reopen-closed numbers each job must hold (journal:4d364f1): reopen_churn 522872 -> 523696 B
+(824 B over 10,000 cycles); reopen_heap (A7) 248.469 B per group before settle, 248.452 after;
+reopen_distinct (A8) 109976 / 110024 / 109976 B at 1,000 / 5,000 / 10,000, slope 0.
 
 ## Next
 
-0. msg (lead: reopen-closed landed): done. Merged origin/main, host_test.cc redone, the power
-   sweep at 200 seeds and every check queued (State).
-1. The lead rules on A1 (Blocked on), then: fold journal_test.cc's move if it joins the file
-   set; rerun A1, the suite and CI.
-2. Fill Evidence from the jobs; ready for review.
+1. Read the jobs (State); compare the heap numbers above; fill Evidence.
+2. CI at 36912d7; then ready for review.
 
 ## Blocked on
 
-**A1 fails on main.** journal-reopen-closed's reopen tests (journal:4d364f1) put
-`#include "journal/memory_io.h"` back in test/journal_test.cc:33, with `jt::Disk` and
-`jt::MemoryIO(disk, "host/")`/`"log/"` at :1794-2192 (no cut or power loss: storage for heap
-metering only). journal_test.cc is outside this quest's file set. Job 261118-072559-15ae05 runs
-A1's grep at main 4d364f1. Options: (1) add test/journal_test.cc to the file set and I move it
-(mechanical: `fl::filesystem`, `host_io`, a `log` directory; MeteredIO subtracts IO-call heap,
-so the metering should hold, checked by the suite); (2) narrow A1 to exclude journal_test.cc
-until step 8. Recommendation: (1).
+Nothing.
 
 ### Resolved: A4 finding (verdict (b)), fixed by journal-reopen-closed A9
 
@@ -74,12 +72,12 @@ translation error.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-072548-24b77f at 6ea9494 (fails: journal_test.cc, Blocked on); main: 261118-072559-15ae05 |
-| A2 | 261118-072542-e8efc9 (suite, fresh checkout, at 6ea9494) |
-| A3 | fails without: 261118-072547-893f8e (mutant at 6ea9494); plain: 261118-072611-01fdf0 |
-| A4 | reported (Resolved section); reproducer 261118-040056-965498 at c606068; fixed by reopen-closed A9: 261118-072611-01fdf0 (200 seeds, 0 failures expected) |
-| A5 | 261118-072547-8c7169, 261118-072548-43baa4 (at 6ea9494) |
-| A6 | 261118-072542-e8efc9; CI at 6ea9494 |
+| A1 | 261118-073226-104826 at 36912d7 |
+| A2 | 261118-073224-fadbd6 (suite, fresh); 261118-073243-fca863 (reopen_crash, reclaim_syncs); 261118-073232-e39840 (reopen cases) |
+| A3 | fails without: 261118-073226-62d124; plain: 261118-073227-f02d36 |
+| A4 | reported (Resolved section); reproducer 261118-040056-965498 at c606068; fixed by reopen-closed A9: 261118-073227-f02d36 (200 seeds) |
+| A5 | 261118-073227-cf592c, 261118-073227-d4cc9f |
+| A6 | 261118-073224-fadbd6; CI at 36912d7; heap holds: 261118-073233-28994b, 261118-073233-3e7cc4, 261118-073233-6ed20f |
 
 ### Old MemoryIO case to faultfs case (A2)
 
@@ -105,6 +103,9 @@ power on fails the case by name (was: an uncaught exception).
 | placement `remap` | copy of `before`, cut `ops+k`, stream 0 | `before.snapshot()`, `power_off_after(k-1)`, crash seed `L*7919+k` (L the loop count) |
 | placement damage, `damaged_absent` | edit `durable` bytes and names directly | overwrite + `sync` through the IO; the removal is `remove` + `sync_directory` |
 | placement `repartition_damaged` | `Disk probe = disk` | `disk.snapshot()` |
+| journal_test reopen cases (`Shared`) | `MemoryIO(disk, "host/")` behind MeteredIO | `host_io(disk)` (faultfs directory `host`) behind MeteredIO |
+| journal_test `reopen_crash_run` | `disk.cut = cut`, `dead()`, `power_loss()` stream 0 | `power_off_after(cut-1)`, `powered_off()`, crash seed `seed*7919+cut`, `size_pick::sector` |
+| journal_test `reclaim_syncs` | `MemoryIO(disk, "log/")` | `fl::io(disk)` (root) |
 | sync_seam `journal_tail` | `disk.names` | `disk.list()` |
 | framing, driver, sync_seam, turn_seal, turn_bound (non-crash), fuzz_framing, fuzz_turn_log, replay | `MemoryIO(disk, "dir/")` | `make_directory("dir")`, `io(disk, "dir")` |
 
@@ -113,6 +114,10 @@ power on fails the case by name (was: an uncaught exception).
 Not final.
 
 ## Rulings I made
+
+- journal_test.cc: reopen_crash seeds its crash `seed * 7919 + cut` as turn_log_power does
+  (MemoryIO drew stream 0 for every run); reclaim_syncs needs no directory, so it runs on the
+  root (only the barrier count is read).
 
 - host_test.cc's redo at 6ea9494 keeps the earlier rows: `host` directory via `host_io`,
   `power_off_after(cut - 1)`, `crash(0)` in recreate and `crash(cut)` in sealer_close_run, both
