@@ -1,39 +1,55 @@
 # transport-feed-scan: journal
 
-State: diagnosing A2's per-group bytes (session 2). Merged main (consensus:d722e7b).
-- The 12 exit-127 jobs quoted binary and argument as one word; resubmit after the fix.
-- Diag jobs (side refs refs/diag/feed-scan-{1,2,3} in consensus, never evidence): 261117-200235-70c7af,
-  261117-200633-177b6a: the extra bytes are `Active` records with `outstanding > 0` (empty deques
-  keep 16 + 4096 B), on some hosts only; every sender sent all 40,000 credits (`credit_out`), the
-  stuck host received fewer (`credit_in` 25,956-39,785 of 40,000), queued 0 at every sender.
-  261117-201119-9985de: one clean run (298.2 B at 10,000). 261117-201457-eeabdc: 4 runs, buffers.
+State: waiting on jobs 261117-205609-750069 261117-205614-ddf195 261117-205619-b7decf 261117-205624-60f65d
+261117-205629-2d0bb7 261117-205635-ba674d 261117-205640-4bcb97 261117-205644-19bf1a 261117-205650-ca8493
+261117-205655-0e4768 261117-205701-055b4c 261117-205706-359ac3 261117-205712-090779 261117-205717-1de5e8
+261117-205722-8d9231 261117-205726-286944 261117-205742-5a313f 261117-205819-0701eb; CI needs a push of
+consensus:quest/detent/transport-feed-scan at 01e2c06 (contributors do not push).
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
 
-Code at consensus:02800e5 (rings, GroupTable, tests, mutants), docs at the next commit; pushed for CI.
-Jobs (none run locally; every build is in a job):
-- 261117-192429-7a781f A1 `scan` at the branch.
-- 261117-192510-9bfb3c A1 `--fails-without`: `scan` at consensus:50c7826, main's feed (edbb162) with
-  `visited` counted in `next()` and `erase_if`, made by `.scratch/mutants/main_feed.py HEAD edbb162`.
-- 261117-192455-ecb4f7 A3 `order`; A3 fails-without at `order`: ring-at-front 261117-192523-618216,
-  bulk-ahead-of-control 261117-192539-506bbb, no-credit 261117-192552-0c5efa.
-- Moved mutants (new mutation points in mutant_commit.py), `--fails-without`: bulk-ahead-of-control/upload
-  261117-192645-af98be, no-credit/credit 261117-192653-5baec9, no-reset-on-end/refill 261117-192700-302fc0,
-  closed-ignored/identity 261117-192707-235bf2, open-once/identity 261117-192713-0b1b10,
-  store-keeps-opens/identity 261117-192717-59d12a (new; if it survives, a gap to close or drop).
-- 261117-192732-5a1a05 A3 TSan: every groups_test case.
-- 261117-192618-59107f A2 strict: `one 5 1 10000` three times, none printing "again".
-- 261117-192631-c1640a idle cost `--quick` at 1,000 groups: A5's numbers, then tighten the bench bound.
-- 261117-192857-815622 hop smoke A/B against edbb162 (strict).
+Code at consensus:01e2c06 (main merged at d722e7b; credit wait, `uncredited`, bound `164 + 52P`).
+Session 1's 12 exit-127 jobs quoted binary and argument as one word: superseded by these, submitted by
+`.scratch/submit.sh` in the code worktree (one argv word each). Mutants regenerated at 01e2c06.
+- A1: `scan` 261117-205609-750069; fails-without at main-feed 75d6da0 (`.scratch/mutants/main_feed.py HEAD edbb162`,
+  now also adding `uncredited`) 261117-205619-b7decf.
+- A3: `order` 261117-205614-ddf195; fails-without ring-at-front/order 261117-205624-60f65d,
+  bulk-ahead-of-control/order 261117-205629-2d0bb7, no-credit/order 261117-205635-ba674d,
+  bulk-ahead-of-control/upload 261117-205640-4bcb97, no-credit/credit 261117-205644-19bf1a,
+  no-reset-on-end/refill 261117-205650-ca8493, closed-ignored/identity 261117-205655-0e4768,
+  open-once/identity 261117-205701-055b4c, store-keeps-opens/identity 261117-205706-359ac3,
+  uncredited-kept/scan 261117-205712-090779 (new); TSan, every groups case, 261117-205717-1de5e8.
+- A2 strict `one 5 1 10000` x3: 261117-205722-8d9231. A5 `cost --quick`: 261117-205726-286944.
+- A4 suite 261117-205742-5a313f. Hop smoke A/B vs edbb162 (strict, not a criterion): 261117-205819-0701eb.
 
 ## Next
 
-1. On results: fix compile or test failures; record numbers.
-2. A5: from 261117-192631-c1640a set the bench's per-group bound to the measured field-by-field figure; rerun cost `--for A5`.
-3. A4: `campaign verify transport-feed-scan` at the final commit; CI green.
-4. docs/perf/transport-idle-cost.md (now in the file set): replace "at 10,000 groups connections
-   end" with A2's job, and the per-group table and `230 + 40P` bound with A5's numbers.
+1. On results: record numbers; any mutant that survives is a gap to close.
+2. docs/perf/transport-idle-cost.md: the per-group table and bound from 261117-205726-286944, A2's job for
+   10,000 groups, the credit wait; drop "at 10,000 groups connections end".
+3. Evidence table; lead pushes for CI.
+
+## Finding: A2's 781.7 B per group (session 2)
+
+Not table growth. Diag jobs at side refs refs/diag/feed-scan-1..5 (consensus; never evidence):
+1. 261117-200235-70c7af, 261117-200633-177b6a: the extra bytes are sending `Active` records with
+   `outstanding > 0`, in no ring, nothing queued: 620-4,957 per lane on some hosts, none on others. Each
+   holds its two emptied `std::deque`s' blocks (libc++ keeps one 4,096 B block and a 16 B map): the
+   `10.47x16 10.47x4096` per 100 groups in A2's job. Every sender sent all 40,000 credit frames
+   (queued 0); the stuck host had received 25,956-39,785 of them.
+2. 261117-201457-eeabdc: at the stuck receiver the socket holds 2-100 KB unread (FIONREAD) and `in_`
+   a partial frame; gone 0.8 s later. 261117-204455-6f15b3 (12 runs, 4 stuck): every stuck reader is
+   parked at connection.h's `co_await task::yield()` after a successful 1,281-5,061 B `SSL_read`
+   (where 5); idle readers wait in `want(SSL_ERROR_WANT_READ)`. The yield's post is not resumed for
+   0.4-1.2 s while the loop runs other handlers (the diag's own `at()` ran). Load-dependent: 0 of 8
+   runs stuck at load 5-7, 4 of 12 at load 8-15. CI macos-x86_64 hit it at 1,000 groups (3.00x4096
+   per 100 groups, 404.2 B, run 44230587749).
+3. Clean runs: 298.2 B at 10,000 groups (stored 127.8, frames 170.5) against 283.6 B at 1,000
+   (136.8, 146.8): a group costs about the same at both.
+The bench read the bytes once sent and received held still for 200 ms; a credit frame arriving moves
+neither, so it measured groups still in flight. Fix in the file set: `HostTransportStats::uncredited`
+(a level), the bench waits for it to reach 0 (10 s at most, printed), `scan` asserts it.
 
 ## Design
 
@@ -101,6 +117,14 @@ both change a contract, so they are the lead's (see Blocked on).
 
 ## Blocked on
 
+- (lead) The reader stall above is in connection.h / task scheduling, outside this quest's file set
+  and unchanged by it (`git diff main -- include/consensus/transport/connection.h` is empty). A yielded
+  reader not resumed for up to 1.2 s is a latency fault for every connection, not only this bench.
+  Options: (a) a quest for it (recommended; the diag refs and jobs above reproduce it under load,
+  about 1 run in 3 at 10,000 groups); (b) fold it into connection-slow-reader-flake. Not
+  attributed at main by a run: main's feed stalls at 10,000 groups for its own reason.
+- (lead) CI: push consensus:quest/detent/transport-feed-scan (01e2c06 or later).
+
 - msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
   (only that line changed) and the mutants are in mutant_commit.py.
 - Nothing. A5 takes the field-by-field route (lead: 104 B + 24 B per peer meets it).
@@ -121,6 +145,9 @@ both change a contract, so they are the lead's (see Blocked on).
 
 ## Recommendation (follow-up, not this quest)
 
+The per-group queues as a vector FIFO (compacted when half consumed) instead of `std::deque`: a group
+in flight then holds tens of bytes instead of 8.2 KB (R6).
+
 An `open_of(group)` callback, as `member_of` is, so the transport stops holding a copy of the
 open the host already has: an idle group's record goes from 104 B to 24 B, which brings it
 under D108's 64 B. It changes the `store` contract and Detent's call sites. The lead deferred it.
@@ -131,3 +158,10 @@ under D108's 64 B. It changes the `store` contract and Detent's call sites. The 
 - R2 Round robin in first-ready order (FIFO rings) instead of group-id order.
 - R3 `opened` on the group loop is per connection, cleared by a newer generation, instead of a
   `(node, lane, generation)` vector per group.
+- R4 The bench waits for `uncredited == 0` before reading idle bytes, which is what its "credit
+  returns" comment meant; it counts a 10 s miss as a failure, not a retry.
+- R5 Per-group bound `164 + 52P`: A5's minimum (104 B stored, 8 + 16 B per peer) at the tables' worst
+  slack, 1.5x an entry for the dense vector plus 8 B for the index at load 0.5. Replaces `230 + 40P`.
+- R6 Not changed here: an `Active` waiting only for credit holds 2 x (4,096 + 16) B of emptied deques
+  (main's `Lane::Group` did too). At 10,000 groups with a frame in flight per peer that is about
+  330 MB a host. A small vector FIFO would make it about 64 B: a follow-up (Recommendation).
