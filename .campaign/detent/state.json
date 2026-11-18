@@ -13834,7 +13834,7 @@
         "README.md",
         "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/task-wheel",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-12T09:23:37",
@@ -13878,8 +13878,8 @@
       "risk": "high",
       "status": "landed",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-12T09:23:43",
-      "worktree": "../task-wt/detent/task-wheel"
+      "updated": "2026-11-18T02:12:32",
+      "worktree": ""
     },
     "transport-admission": {
       "accepted": {},
