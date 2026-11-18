@@ -12907,6 +12907,8 @@
     "peers-tsan-timeout": {
       "accepted": {},
       "after": [],
+      "base": "42019ebb7c1fd2f72a9edc7212c22a6e5c6f95c9",
+      "branch": "quest/detent/peers-tsan-timeout",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -12927,6 +12929,7 @@
         "include/consensus/transport/peers.h",
         "src/transport/peers.cc"
       ],
+      "journal": "../Detent-wt/detent/peers-tsan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -12934,9 +12937,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-18T12:52:44"
+      "updated": "2026-11-18T12:53:02",
+      "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
       "accepted": {},
