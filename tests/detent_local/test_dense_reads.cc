@@ -281,7 +281,7 @@ void mapped_mutation(unsigned variant) {
     auto mappings = std::make_shared<d::StorageLedger>(2 * p::segment_bytes);
     auto access = domain.make<l::detail::LazyPageAccess>(
         source, directory, ::getuid(), source->root,
-        l::ViewLimits{}, domain.factory(), source->account, mappings);
+        l::ViewLimits{}, source->account, mappings);
     for (const auto &page : source->pages)
       access->resolve(page.reference);
     const auto verified = access->page_verifications();
