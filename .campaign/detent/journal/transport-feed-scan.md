@@ -1,6 +1,6 @@
 # transport-feed-scan: journal
 
-State: fix round 2 (G1) at consensus:4b88ad2, pushed; waiting on jobs 261118-034607-ab6dcf (backlog), 261118-034609-0c0786 (fw coalesce-drops-credit), 261118-034611-6144e1 (fw, review script), 261118-034613-a94a25 (suite), 261118-034613-f15cf5 (A2).
+State: fix round 2 (G1) at consensus:4b88ad2, pushed; waiting on jobs 261118-045307-0627ca (backlog), 261118-034609-0c0786 (fw coalesce-drops-credit), 261118-034611-6144e1 (fw, review script), 261118-034613-a94a25 (suite), 261118-045307-857f92 (A2).
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Fix round 2 (session 5): G1
@@ -14,11 +14,11 @@ Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it
   Local run: 575,980 of 575,980 B, 6,000 of 6,000 groups whole, 9,436 credit frames; node 1 had
   read 2 of 6 bulk frames when all 18,000 arrived. No product change: the merge is right.
 - Mutant `coalesce-drops-credit` added to mutant_commit.py (91da6ea, on no branch).
-- Jobs at 4b88ad2: plain backlog 261118-034607-ab6dcf; fails-without at 91da6ea
+- Jobs at 4b88ad2: plain backlog 261118-045307-0627ca; fails-without at 91da6ea
   261118-034609-0c0786; the reviewer's owe-mutants.sh (copy in the code worktree's
   .scratch/g1/: `--cases`, stacked `a+b`, exit 1 when killed, 126 on setup failure) with
   `coalesce-reached coalesce-reached+coalesce-drops-credit` on backlog, fails-without,
-  261118-034611-6144e1; reruns suite 261118-034613-a94a25, A2 261118-034613-f15cf5.
+  261118-034611-6144e1; reruns suite 261118-034613-a94a25, A2 261118-045307-857f92.
 
 ## Fix round 1 (session 4)
 
@@ -233,12 +233,12 @@ both change a contract, so they are the lead's (see Blocked on).
 ## Findings (review fix round 1)
 
 - F1 = 261118-002026-757230 (strict A/B at 303cad1: data at or under main at each position);
-  deciding exclusive 261118-003330-778798 pending. Suite 261118-003238-06723a.
+  deciding exclusive 261118-003330-778798 pending. Suite 261118-045252-a6a671.
 - F2 = 261118-003144-3730d0 (store-keeps-opens killed by identity at 303cad1; also
   261117-224140-de7732 at 13b32d3, aborting on line 1234's epoch3 assertion).
 - F3 = 261118-003140-29e975 (no-generation-clear killed by `reconnect` at 303cad1; plain
-  261118-003134-129143). no-current survives (261117-235613-498ed0): equivalent today (R7).
-- F4 = consensus:590308d, docs only, rows from 261118-003133-eee91a.
+  261118-045306-30cac2). no-current survives (261117-235613-498ed0): equivalent today (R7).
+- F4 = consensus:590308d, docs only, rows from 261118-045305-69c770.
 - F5 (non-blocking) fixed in 48d04eb; no test can fail without it for the same reason as
   no-current (R7).
 
@@ -246,11 +246,11 @@ both change a contract, so they are the lead's (see Blocked on).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-003134-bead1c (303cad1): `scan` 0.750 visited per frame at 100, 1,000 and 10,000 groups; fails-without main-feed 261118-003230-dd075a: 28.5, 255.2, 2,529.1 (asserts); uncredited-kept 261118-003225-fc8c65 |
-| A2 | 261118-003133-4c4eb0 (strict, 303cad1): 3 of 3, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 561-683 ms after |
-| A3 | order 261118-003134-30731c, identity -003133-c1416a, reconnect -003134-129143, leftover -003134-38a9fa, TSan -003133-b42164 (all 303cad1); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
-| A4 | suite 261118-003238-06723a (303cad1); CI at 596a065 running |
-| A5 | 261118-003133-eee91a (303cad1): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
+| A1 | 261118-045306-c3b884 (afaa58e): `scan` 0.750 visited per frame at 100, 1,000 and 10,000 groups; fails-without main-feed 261118-003230-dd075a: 28.5, 255.2, 2,529.1 (asserts); uncredited-kept 261118-003225-fc8c65 |
+| A2 | 261118-045307-857f92 (strict, afaa58e): 3 of 3, 400,040 of 400,040 frames, 298.2 B a group (stored 127.8, frames 170.5), credit back 561-683 ms after |
+| A3 | order 261118-045306-b6154a, identity -003133-c1416a, reconnect -003134-129143, leftover -003134-38a9fa, TSan -003133-b42164 (all 303cad1); fails-without at 303cad1: ring-at-front 261118-003149-33d638, bulk-ahead-of-control -003154-39e24f, no-credit -003159-140f13, no-reset-on-end -003205-86e82e, no-credit-on-refuse -003209-002b2b, closed-ignored -003215-0923b5, open-once -003219-7f79c8, store-keeps-opens -003144-3730d0, no-generation-clear -003140-29e975 |
+| A4 | suite 261118-045252-a6a671 (afaa58e); CI at 596a065 running |
+| A5 | 261118-045305-69c770 (afaa58e): 172.1-295.2 B a group, every row under 164 + 52P; field-by-field minimum 104 + 24P (Design, perf doc A1) |
 | A6 | [artifact] test/transport/groups_test.cc: `upload` prints socket queues and TCP state per host when it fails (consensus:ed8f840, b686ce2); groups-upload-stall reads the next failure |
 
 ## Result
