@@ -1,6 +1,6 @@
 # journal-faultfs: journal
 
-State: waiting on jobs 261118-073224-fadbd6 (suite, fresh) 261118-073226-104826 (A1) 261118-073226-62d124 (A3 mutant) 261118-073227-f02d36 (200-seed power, A3 plain) 261118-073227-cf592c 261118-073227-d4cc9f (A5 fuzz) 261118-073232-e39840 (reopen cases) 261118-073233-28994b (reopen_churn) 261118-073233-3e7cc4 (reopen_heap, A7) 261118-073233-6ed20f (reopen_distinct, A8) 261118-073243-fca863 (reopen_crash, reclaim_syncs)
+State: diagnosing the heap cases' timeouts; waiting on job 261118-083844-874284 (distinct at 100/200/400 on faultfs vs MemoryIO at 4d364f1; samples of heap and churn)
 Quest: .campaign/detent/quests/journal-faultfs.md (the lead's; never edit it)
 Code: /Users/kronuz/code/Kronuz/journal-wt/detent/journal-faultfs (branch quest/detent/journal-faultfs)
 
@@ -23,6 +23,13 @@ The reopen-closed numbers each job must hold (journal:4d364f1): reopen_churn 522
 reopen_distinct (A8) 109976 / 110024 / 109976 B at 1,000 / 5,000 / 10,000, slope 0.
 
 ## Next
+
+0. Heap cases at 36912d7 all hit their deadlines after building, no output: reopen_churn
+   261118-073233-28994b (30 min), reopen_heap 261118-073233-3e7cc4 (A7, 30 min), reopen_distinct
+   261118-073233-6ed20f (A8, 15 min). Suspect faultfs's per-call linear or quadratic scans
+   (`collect()` is O(inodes x names) on every remove and sync_directory, `entries()`,
+   `settle_directory()`). Diagnosis job 261118-083844-874284; script
+   journal-wt `.scratch/heap_probe.sh`.
 
 1. Read the jobs (State); compare the heap numbers above; fill Evidence.
 2. CI at 36912d7; then ready for review.
