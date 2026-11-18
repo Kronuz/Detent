@@ -28,18 +28,16 @@ directory`. The service constructor throws it, and `detentd` prints it and exits
 
 ## Startup failures settle the constructor
 
-A failure after the runtime starts and before admission (a corrupt manifest, a history restore
-that fails, an application replay that fences) used to be swallowed by the runtime's outer
-handler, which marked the service fenced and never settled the constructor's `ready` promise: the
-process stayed up with no leader. `Service::run` now settles `ready` with the exception, so every
-such failure reaches the constructor's caller and `detentd` exits nonzero. After admission `ready`
-is already settled and the handler fences the service as before.
+`Service::run` settles the constructor's `ready` promise with any failure between the runtime's
+start and admission (a corrupt manifest, a failed history restore, an application replay that
+fences), so the constructor throws and `detentd` exits nonzero. After admission `ready` is already
+settled and the same handler fences the service.
 
 ## Format numbers
 
 | Format | Directories |
 |---|---|
-| 1 | Written before the stamp (every directory up to and including `Detent:cbf629bd`'s parent), among them the journals of 2026-10-23. Refused. |
+| 1 | Written before the stamp, among them the journals of 2026-10-23. Refused. |
 | 2 | Written with a stamp. Current. |
 
 Bump `storage_format` with any change to a stored or replicated byte layout: a magic, a command,
