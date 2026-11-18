@@ -1005,6 +1005,39 @@
       "updated": "2026-11-17T19:03:54",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
+    "consensus-close-fenced": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "test/driver_close_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
+      "updated": "2026-11-17T22:03:21"
+    },
     "consensus-dns-peers": {
       "accepted": {
         "correctness": {
