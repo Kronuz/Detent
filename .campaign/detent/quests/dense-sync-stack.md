@@ -19,7 +19,7 @@ the S2 criteria of `namespace-s1-s2` applied to the Dense publication path.
 - A1 A Dense publication syncs through the grouped order (owner records, barrier; payloads, barrier; descriptor, rename, directory, `change`); the agent log reports more than 0 groups at 100K: a job
 - A2 T7 (`test_local_publication_power_cut`) passes over DTPAGE03 publications, restart-then-republish cycles included: a job
 - A3 The sync counters of Dense publications match the sync seam: a job
-- A4 Cold bootstrap, restart, files published and device flushes at 100K, stacked, against Dense alone and S2 alone, with an A/A, under `exclusive` (one arm per job): jobs. The 5M rows run at the milestone (D117)
+- A4 Cold bootstrap, restart, files published and device flushes at 100K (3 rounds) and 5M (2 rounds), stacked, against Dense alone and S2 alone, with an A/A, under `exclusive` (one arm per job, each under the 30-minute cap; the 5M arms took 8-18 min on 2026-11-07). The 5M fixture is rebuilt first as a `light` seeding job (about 91 min, 2026-10-24 capacity run) (D119): jobs
 - A5 The power-cut, disk-store and artifacts tests pass in separate ASan/UBSan and TSan builds: the `asan` and `tsan` gates
 - A6 [artifact] The stacked table beside the two single-change rows: `docs/perf/dense-sync-stack.md`
 
