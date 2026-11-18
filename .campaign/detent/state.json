@@ -13249,7 +13249,9 @@
         "tests/CMakeLists.txt",
         "tests/detent_local/test_lazy_page_access.cc",
         "tests/detent_local/test_lazy_page_bitmap.cc",
-        "tests/detent_reader/**"
+        "tests/detent_reader/**",
+        "src/detent_local/generation.cc",
+        "src/detent_local/paged_navigation.hh"
       ],
       "landed": [],
       "lenses": [
@@ -13268,7 +13270,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-18T09:15:02",
+      "updated": "2026-11-18T09:41:13",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
