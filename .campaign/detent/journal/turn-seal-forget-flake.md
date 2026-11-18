@@ -1,6 +1,6 @@
 # turn-seal-forget-flake: journal
 
-State: working
+State: waiting on jobs 261118-140358-398c2a 261118-140359-860226 261118-140359-9147b4
 Quest: .campaign/detent/quests/turn-seal-forget-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix committed (journal:47c98b6) and pushed: forget_threads runs >=400 turns, then until group 1 is forgotten and group 2 sealed, 10 s deadline. Cause: sequence(2) stayed 0 (writer never staged group 2 in time); failed() cannot be it, begin()/completed() throw into the test rather than set it silently.
 
 ## Next
 
-1. <step>
+1. When jobs finish: A1 loop x200 (398c2a), mutant fails-without (860226), suite (9147b4); then CI; then ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing
 
 ## Evidence
 
