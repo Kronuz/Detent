@@ -12147,7 +12147,7 @@
         "docs/mechanisms/host-connection.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/reader-yield-stall",
+      "journal": "",
       "landed": [],
       "lenses": [
         "correctness"
@@ -12160,8 +12160,8 @@
       "risk": "high",
       "status": "dropped",
       "title": "Consensus transport: a reader's yield resumes promptly under load",
-      "updated": "2026-11-17T21:36:22",
-      "worktree": "../consensus-wt/detent/reader-yield-stall"
+      "updated": "2026-11-17T21:37:30",
+      "worktree": ""
     },
     "recovery-delivery": {
       "accepted": {},
