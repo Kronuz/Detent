@@ -77,6 +77,50 @@ void check(bool b, const char *message) {
 		throw std::invalid_argument(message);
 	}
 }
+// The storage format this build reads and writes: bump it with any change to a stored byte layout
+// (docs/mechanisms/format-refusal.md lists what each number means). Format 1 is every directory
+// written before the stamp existed.
+constexpr unsigned storage_format = 2;
+constexpr unsigned unstamped_format = 1;
+constexpr const char *format_file = "format";
+std::string format_stamp(unsigned format) { return "detent authority storage format " + std::to_string(format) + "\n"; }
+// A directory of another format is refused at startup: Detent reads one format only.
+[[noreturn]] void refuse_format(const std::filesystem::path &directory, const std::string &found) {
+	throw std::runtime_error("authority storage format error: " + directory.string() + " is in " + found +
+							 ", this build expects storage format " + std::to_string(storage_format) +
+							 "; Detent keeps no compatibility, so start from an empty directory");
+}
+// Reads the stamp beside the history files; an existing journal without one is format 1.
+// A new directory is stamped (durably) before its journal exists.
+void check_storage_format(const std::filesystem::path &journal, const std::filesystem::path &history) {
+	auto path = history / format_file;
+	std::ifstream file(path, std::ios::binary);
+	if (file) {
+		std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		for (unsigned format = 0; format < 100; ++format)
+			if (text == format_stamp(format)) {
+				if (format != storage_format)
+					refuse_format(journal, "storage format " + std::to_string(format));
+				return;
+			}
+		refuse_format(journal, "an unreadable format stamp");
+	}
+	if (std::filesystem::exists(journal / "manifest"))
+		refuse_format(journal, "storage format " + std::to_string(unstamped_format) + " (no format stamp)");
+	auto temporary = path;
+	temporary += ".tmp";
+	int fd = ::open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
+	check(fd >= 0, "authority format stamp");
+	auto bytes = format_stamp(storage_format);
+	bool written = ::write(fd, bytes.data(), bytes.size()) == static_cast<ssize_t>(bytes.size()) && ::fsync(fd) == 0;
+	::close(fd);
+	check(written && ::rename(temporary.c_str(), path.c_str()) == 0, "authority format stamp");
+	int directory = ::open(history.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	check(directory >= 0, "authority format stamp");
+	bool synced = ::fsync(directory) == 0;
+	::close(directory);
+	check(synced, "authority format stamp");
+}
 using Object = rapidjson::Value;
 void fields(const Object &v, std::initializer_list<std::string_view> allowed) {
 	check(v.IsObject(), "expected object");
@@ -1424,6 +1468,11 @@ task::task<void> Service::run(std::promise<void> ready) {
 		try {
 			co_await runtime.run(*this, ready);
 		} catch (...) {
+			// A failure before admission settles the constructor; later ones find it settled.
+			try {
+				ready.set_exception(std::current_exception());
+			} catch (const std::future_error &) {
+			}
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
 			health_stamp_ = Clock::now();
@@ -1687,6 +1736,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				throw std::runtime_error("authority directory durability");
 			}
 		}
+		check_storage_format(options_.directory, history_directory);
 		auto node_options = options_.node;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 		node_options.scheduling.async_storage = true;
