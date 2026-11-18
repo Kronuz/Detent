@@ -1,6 +1,12 @@
 # transport-feed-scan: journal
 
-State: waiting on jobs 261117-192429-7a781f 261117-192455-ecb4f7 261117-192510-9bfb3c 261117-192523-618216 261117-192539-506bbb 261117-192552-0c5efa 261117-192618-59107f 261117-192631-c1640a 261117-192645-af98be 261117-192653-5baec9 261117-192700-302fc0 261117-192707-235bf2 261117-192713-0b1b10 261117-192717-59d12a 261117-192732-5a1a05 261117-192857-815622; CI on consensus:quest/detent/transport-feed-scan
+State: diagnosing A2's per-group bytes (session 2). Merged main (consensus:d722e7b).
+- The 12 exit-127 jobs quoted binary and argument as one word; resubmit after the fix.
+- Diag jobs (side refs refs/diag/feed-scan-{1,2,3} in consensus, never evidence): 261117-200235-70c7af,
+  261117-200633-177b6a: the extra bytes are `Active` records with `outstanding > 0` (empty deques
+  keep 16 + 4096 B), on some hosts only; every sender sent all 40,000 credits (`credit_out`), the
+  stuck host received fewer (`credit_in` 25,956-39,785 of 40,000), queued 0 at every sender.
+  261117-201119-9985de: one clean run (298.2 B at 10,000). 261117-201457-eeabdc: 4 runs, buffers.
 Quest: .campaign/detent/quests/transport-feed-scan.md (the lead's; never edit it)
 
 ## Doing
