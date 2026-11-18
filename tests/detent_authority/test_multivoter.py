@@ -18,6 +18,8 @@ from typing import Any, BinaryIO
 
 import readiness_load
 
+# The authority's floor for consensus_limits.log_entries; a checkpoint falls due every half of it.
+LOG_ENTRIES = 64
 TOKEN = "0123456789abcdef0123456789abcdef"
 CONTEXT = {
     "cluster": "63" + "00" * 15,
@@ -146,7 +148,7 @@ def main() -> None:
             ],
         }
         if snapshots:
-            configuration["consensus_limits"] = {"log_entries": 64}
+            configuration["consensus_limits"] = {"log_entries": LOG_ENTRIES}
         if load:
             configuration["credentials"].extend(readiness_load.credentials())
         if sys.platform.startswith("linux"):
@@ -356,48 +358,56 @@ def main() -> None:
             ]
             children[lagging].kill()
             children[lagging].wait(timeout=5)
-            last_receipt: dict[str, Any] = {}
-            for sequence in range(3, 101):
-                _, last_receipt = successful(
-                    "/v2/transactions",
-                    {
-                        "generation": 1,
-                        "sequence": sequence,
-                        "namespace": "ns",
-                        "operations": [
-                            {
-                                "key": "ns:key",
-                                "value": {"default": sequence},
-                                "expected_revision": sequence - 1,
-                            }
-                        ],
-                    },
-                )
-                assert last_receipt["revision"] == sequence
+            # Write until both survivors checkpoint past the lagging voter's commit, so it can only
+            # catch up by a snapshot; the 98-write cap and 15 s after it bound the wait.
             surviving = [index for index in range(3) if children[index].poll() is None]
+            last_receipt: dict[str, Any] = {}
+            checkpoints: list[dict[str, Any]] = []
+            last = 2
             deadline = time.monotonic() + 15
             while True:
-                try:
-                    checkpoints = [
-                        request(ports[index + 3], context, "/v1/health")[1]
-                        for index in surviving
-                    ]
-                except (OSError, http.client.HTTPException) as error:
-                    checkpoints = [{"error": str(error)}]
-                if all(
-                    health.get("checkpoint_published_boundary", 0) > offline_commit
-                    for health in checkpoints
-                ):
-                    break
-                assert time.monotonic() < deadline, checkpoints
-                time.sleep(0.3)
+                if last >= 2 + LOG_ENTRIES // 2:
+                    try:
+                        checkpoints = [
+                            request(ports[index + 3], context, "/v1/health")[1]
+                            for index in surviving
+                        ]
+                    except (OSError, http.client.HTTPException) as error:
+                        checkpoints = [{"error": str(error)}]
+                    if all(
+                        health.get("checkpoint_published_boundary", 0) > offline_commit
+                        for health in checkpoints
+                    ):
+                        break
+                if last < 100:
+                    last += 1
+                    _, last_receipt = successful(
+                        "/v2/transactions",
+                        {
+                            "generation": 1,
+                            "sequence": last,
+                            "namespace": "ns",
+                            "operations": [
+                                {
+                                    "key": "ns:key",
+                                    "value": {"default": last},
+                                    "expected_revision": last - 1,
+                                }
+                            ],
+                        },
+                    )
+                    assert last_receipt["revision"] == last
+                    deadline = time.monotonic() + 15
+                else:
+                    assert time.monotonic() < deadline, checkpoints
+                    time.sleep(0.3)
             start(lagging)
             deadline = time.monotonic() + 20
             while True:
                 try:
                     health = request(ports[lagging + 3], context, "/v1/health")[1]
                     if (
-                        health.get("revision") == 100
+                        health.get("revision") == last
                         and health.get("checkpoint_published_boundary", 0)
                         > offline_commit
                     ):
@@ -408,41 +418,44 @@ def main() -> None:
                     "lagging voter did not install nonempty snapshot"
                 )
                 time.sleep(0.3)
-            _, replayed = successful("/v2/result", {"generation": 1, "sequence": 100})
+            _, replayed = successful("/v2/result", {"generation": 1, "sequence": last})
             assert replayed == last_receipt
             _, read = successful("/v2/read", {"namespace": "ns", "keys": ["ns:key"]})
-            assert read["key_revisions"]["ns:key"] == 100
+            assert read["key_revisions"]["ns:key"] == last
 
             _, continued = successful(
                 "/v2/transactions",
                 {
                     "generation": 1,
-                    "sequence": 101,
+                    "sequence": last + 1,
                     "namespace": "ns",
                     "operations": [
                         {
                             "key": "ns:key",
-                            "value": {"default": 101},
-                            "expected_revision": 100,
+                            "value": {"default": last + 1},
+                            "expected_revision": last,
                         }
                     ],
                 },
             )
-            assert continued["revision"] == 101
+            assert continued["revision"] == last + 1
             replaced = leader()
             children[replaced].kill()
             children[replaced].wait(timeout=5)
             _, after_election = successful(
                 "/v2/read", {"namespace": "ns", "keys": ["ns:key"]}
             )
-            assert after_election["key_revisions"]["ns:key"] == 101
-            _, retained = successful("/v2/result", {"generation": 1, "sequence": 101})
+            assert after_election["key_revisions"]["ns:key"] == last + 1
+            _, retained = successful(
+                "/v2/result", {"generation": 1, "sequence": last + 1}
+            )
             assert retained == continued
             start(replaced)
             print(
                 json.dumps(
                     {
                         "phase": "snapshot_catchup",
+                        "writes": last - 2,
                         "survivors": checkpoints,
                         "lagging": health,
                     }

@@ -1,8 +1,6 @@
-diff --git a/tests/detent_authority/test_multivoter.py b/tests/detent_authority/test_multivoter.py
-index fc84cca0..c57c7c26 100644
 --- a/tests/detent_authority/test_multivoter.py
 +++ b/tests/detent_authority/test_multivoter.py
-@@ -7,10 +7,12 @@ import http.client
+@@ -7,10 +7,12 @@
  import json
  import os
  import shutil
@@ -15,7 +13,7 @@ index fc84cca0..c57c7c26 100644
  import time
  from collections.abc import Callable
  from pathlib import Path
-@@ -218,12 +220,18 @@ def main() -> None:
+@@ -220,12 +222,18 @@
              f"three-process authority did not elect an available leader: {observed}"
          )
  
@@ -34,11 +32,11 @@ index fc84cca0..c57c7c26 100644
              return request(ports[index + 3], context, path, fields)
  
          body = settled(send, path)
-@@ -344,6 +352,7 @@ def main() -> None:
-             children[lagging].wait(timeout=5)
-             last_receipt: dict[str, Any] = {}
-             for sequence in range(3, 101):
-+                pause_next[0] = sequence == 50
-                 _, last_receipt = successful(
-                     "/v2/transactions",
-                     {
+@@ -381,6 +389,7 @@
+                         break
+                 if last < 100:
+                     last += 1
++                    pause_next[0] = last == 20
+                     _, last_receipt = successful(
+                         "/v2/transactions",
+                         {
