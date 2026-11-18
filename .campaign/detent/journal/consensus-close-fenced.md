@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-040534-e39e8e 261118-040536-706b0d 261118-040537-300b61 261118-040539-5a1dfa 261118-040540-ea618e 261118-040542-cc8bb4 261118-040544-24d42c 261118-040545-2b4cb4 (+ erase mutant, see Doing)
+State: waiting on jobs 261118-054326-3bec50 261118-054327-2a5c32 261118-054328-5e174f 261118-054328-b1c614 261118-054329-dfa037 261118-054330-ad2586 261118-054331-529838 261118-054332-ffe478 261118-054333-0cc7e6 261118-054334-479f45
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:0b48da4 (pushed). A6 fix: driver.h watch() takes no token once stopping_ (a cancelled
-watch ended at once and woke the group to watch again: the spin); test shutdown_idles bounds the loop's
-turns after shutdown. N3: the first erase_queued passed its mutant (job 37b257 exit 0), so it never
-reached the queued branch; rewritten to queue close ahead of the fence. Jobs at 0b48da4: plain A1-A3+A6
-e39e8e, ASan 706b0d, TSan 300b61, fails-without A6 (old token) 5a1dfa, N3 mutant ea618e (must exit
-nonzero after "reached the test"), Xapiand repro with --ref SIM=ecb2a37 cc8bb4 (their
-driver_simulation.cc copied over, seeds 1-24), settle mutant 24d42c, suite 2b4cb4, erase mutant
-(submitted last, `campaign job list`).
+Code at consensus:178150a (pushed). At 0b48da4 shutdown_idles failed everywhere ("the loop waits for the
+barrier") because my Loop stopped the turn driver and the Driver with one token, so the turn driver
+ended its waits and nothing was left to watch: the test's expectation was wrong, not the fix (the
+fix's repro, Xapiand's seed 2, passed in cc8bb4, which ran one seed: SIM_DRIVER_SEEDS is the seed
+count and the third argument the first seed). The A6 mutant had failed on that wrong check, so it
+proved nothing. TSan and the suite timed out because created_bytes (20,000 proposals) ran in the
+default all-cases run: now opt-in by name. Fix: Loop has a separate driver_stop; shutdown_idles stops
+only the Driver (the turn driver keeps committing, as in Xapiand's simulation) and exits with a
+failure at once if the loop does not idle within 20,000 turns. Jobs at 178150a: plain A1-A3+A6 3bec50,
+created_bytes report 2a5c32, ASan 5e174f, TSan b1c614, A6 mutant dfa037 (must fail on "the loop idles
+after shutdown", not on a build or another check: read its log), N3 mutant ad2586 (reached + nonzero),
+settle mutant 529838, erase mutant ffe478, Xapiand repro 0cc7e6 (SIM_DRIVER_SEEDS=24 0 1000 1, their
+driver_simulation.cc via --ref SIM=ecb2a37; seeds 1-24 must pass; it printed no "reached the test"
+because it is not a mutant job), suite 479f45.
+If a job fails, read its log; then fill the Evidence table from `campaign brief` and set "ready for
+review".
 
 F2 numbers (plain job 261118-021905-0952ab, 2,000 created rows, process heap net of the simulated disk):
 | rows | records/row | open | closed | after the log forgets them |
