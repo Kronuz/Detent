@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261118-125526-323c20 261118-125534-d50a24 261118-125551-0df91a
+State: waiting on jobs 261118-125526-323c20 261118-125534-d50a24 261118-125551-0df91a, CI 44397775687
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,21 +24,22 @@ flushes it; the kill at 30.01 s lost whatever refused-first printed. No CHECK fi
 unbuffered and empty), so the run neither failed a check nor ended: refused-first or a later case
 ran past ~21.7 s.
 
+Linux probe (lead's msg, ci.yml granted for the probe branch only): consensus:1498386 on
+probe/peers-tsan-timeout, which is never merged and never lands. It replaces .github/workflows/ci.yml
+with a workflow_dispatch job on ubuntu-24.04 that uses CI's TSan flags (clang -O1 -g -fsanitize=thread).
+It runs the peers binary 20 times, in two shards: alone, and beside a looping connection_test (CI's
+ctest --parallel 2). Output is line-buffered through `script` with per-case times. A run past 120 s
+gets `sudo gdb thread apply all bt`, then SIGQUIT. The workflow's source is
+~/.scratch/peers-tsan-timeout/probe-ci.yml. Run: 44397775687 (dispatched 2026-11-18T21:05Z).
+
 ## Next
 
-1. Read the three jobs' summaries: hang (samples) vs slow (per-case maxima).
+1. Read the Linux probe run 44397775687 (`gh run view 44397775687 -R Kronuz/consensus --log`) and the three jobs' summaries: hang (samples) vs slow (per-case maxima).
 2. Fix (hang) or set the timeout from measured times with 2x headroom (slow).
 
 ## Blocked on
 
-msg (lead, Linux probe): the probe needs `.github/workflows/ci.yml`, outside my file set
-(test/transport/peers_test.cc, peers.h, src/transport/peers.cc). groups-upload-stall's probe
-(consensus:0156b46 on origin/probe/groups-upload-stall) replaces that file on its probe branch with
-a workflow_dispatch-only job; there is no separate probe-*.yml. Asking the lead to grant
-.github/workflows/ci.yml for the probe branch quest/detent/peers-tsan-timeout-probe only (never
-lands). Plan once granted: ubuntu-24.04 clang TSan build of consensus_transport_peers_test, the
-binary run 20 times under `stdbuf -oL` with per-case times, `timeout -s QUIT 120` per run plus
-gdb `thread apply all bt` on a run that overstays.
+Nothing.
 
 ## Evidence
 
