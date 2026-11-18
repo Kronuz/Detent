@@ -3672,6 +3672,7 @@
         "src/detent_authority/service.cc",
         "src/detent_authority/history.cc",
         "tests/detent_authority/test_format_refusal.cc",
+        "tests/detent_authority/CMakeLists.txt",
         "docs/mechanisms/format-refusal.md"
       ],
       "landed": [],
@@ -3685,7 +3686,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T09:14:56",
+      "updated": "2026-11-18T09:25:45",
       "worktree": "../Detent-wt/detent/detent-refuse-old-format"
     },
     "dns-voters": {
