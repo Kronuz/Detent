@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-080701-7a71bf 261118-080707-3e11d5 261118-080708-925f6c 261118-080709-0b29b6 261118-080710-cfcb5b 261118-080711-db1d26 261118-080713-3b7683 261118-080714-ff3bc1 261118-080715-aa0fea 261118-080716-6d7d6c 261118-080717-990ff9 261118-080719-369ac2 261118-080724-8ec065
+State: waiting on jobs 261118-091954-0c01fa (suite at a699c96, the merge of main 42019eb); the other evidence jobs are reused at a699c96 (only the merge since 901d9ce)
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -45,9 +45,7 @@ at head e7e9cf. Result: both fail 3 of 3 with the same bytes (loops=4: 154,504 /
 
 ## Next
 
-1. Read each job's log (mutants: "reached the test" then the failing check; F1 db1d26 must fail
-   shutdown_ends; repro: per-seed lines and the 24-seed line; probe: RESULT line; suite: only
-   consensus_transport_idle may fail). Fill Evidence from `campaign brief`; set "ready for review".
+1. When suite 0c01fa finishes: it must pass fully (A5). Then set "ready for review".
 
 ## Blocked on
 
@@ -63,12 +61,12 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-063956-fff668; fails without: 261118-064124-3e5bb0 (settle mutant, reached the test) |
-| A2 | 261118-063956-fff668 |
-| A3 | 261118-063956-fff668, 261118-063958-96c6ec; fails without: 261118-064126-e68ae2 (erase mutant) |
-| A4 | 261118-064000-5e01ed (ASan+UBSan), 261118-064002-13f33c (TSan); fails without: 261118-064122-6a437c (N3 unqueued mutant) |
-| A5 | suite 261118-063950-78323a fails only consensus_transport_idle, pre-existing at main 5923b6c (261118-072938-1fb596 vs head 261118-072932-e7e9cf, same bytes); cite the suite rerun once transport-idle-budget lands. CI green but freebsd (pkg fetch, lead reran) |
-| A6 | 261118-063956-fff668, 261118-064000-5e01ed, 261118-064002-13f33c, 261118-064218-d255a1 (Xapiand repro, 0 of 24 seeds spin); fails without: 261118-064120-75b4b1 (shutdown_idles), 261118-064220-b8cb43 (repro spins) |
+| A1 | 261118-080701-7a71bf; fails without: 261118-080714-ff3bc1 (settle mutant, reached the test) |
+| A2 | 261118-080701-7a71bf |
+| A3 | 261118-080701-7a71bf, 261118-080709-0b29b6; fails without: 261118-080715-aa0fea (erase mutant) |
+| A4 | 261118-080707-3e11d5 (ASan+UBSan), 261118-080708-925f6c (TSan); fails without: 261118-080713-3b7683 (N3 unqueued mutant) |
+| A5 | suite 261118-091954-0c01fa at a699c96 (queued; transport-idle-budget landed at 42019eb, so it must pass fully). CI at a699c96 running |
+| A6 | 261118-080701-7a71bf, 261118-080707-3e11d5, 261118-080708-925f6c, 261118-080716-6d7d6c (Xapiand repro), 261118-080719-369ac2 (review probe); fails without: 261118-080710-cfcb5b (guard removed), 261118-080711-db1d26 (F1 mutant), 261118-080717-990ff9 (repro spins) |
 
 Messages: msg-71 is A6, done above.
 
