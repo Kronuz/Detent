@@ -1,6 +1,6 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261117-205747-39c311 261117-205630-775f61 (probes, queued: machine full of light holds)
+State: waiting on jobs 261117-222825-4c8b1c (trace soak x120) 261117-222829-04c323 (mutant probe at origin/main)
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -102,3 +102,24 @@ and expiries more likely, but 34479e's failures had 0 expiries. Its held was 231
 without draining, so the reader never stalled 0.4 s. The reader is on l2 and the writer's
 deadline on l1, so a reader stall can't trigger the writer's late extension either. 39c311
 decides it; A2 soak and the dump are kept.
+
+## Probes read (round 3)
+
+- 775f61 (mutant compile, 8e3b053): link fails, undefined
+  `driver_simulation::run(unsigned long long, unsigned long long, unsigned long long)` from
+  simulation_test's main. Main's 0455f58 (2026-11-16, "Run the simulation through the Driver")
+  added test/driver_simulation.cc to consensus_simulation_test (CMakeLists:57); tools/mutants.sh
+  still compiles only simulation_test.cc. Main's bug, outside this file set: a small fix to
+  mutants.sh (add driver_simulation.cc to its compile) belongs to the lead. 04c323 runs the
+  same probe at origin/main 9f86ec3 to prove it.
+- 39c311 (trace x60 at 3d2685e): 60 of 60 passed, 1 drained expiry each, 6222-6240 ms, held
+  129 ms. Bursts: 2:0->1575050, then 2002-2009:~823704->~1283310. The writer refills only at the
+  dead_after expiry: the queue still holds ~800 KB then, so writability (queue <= sndbuf-lowat,
+  11340 B) would take ~4 s at the observed ~375 KB/s drain. Normal runs never wake on
+  writability before the expiry.
+- 34479e's failures differ: 6453-6456 ms (+230 ms, all four within 3 ms) and held 231-234 ms. So
+  in a failing run the queue stopped draining ~230 ms once and the expiry never counted.
+  Sizing can't explain 0 expiries: the queue can't empty in 2 s at this rate. The open question
+  is why the 2 s expiry didn't fire or count. Candidates: (a) the writer's loop fired its wheel
+  late, so the late rule extended the deadline; (b) the writer woke early for another reason.
+  4c8b1c traces the writer loop's worst late timer and when (35bd913).
