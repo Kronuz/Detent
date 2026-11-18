@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-072932-e7e9cf 261118-072938-1fb596
+State: blocked on lead: consensus_transport_idle fails on main too (pre-existing; lead files it); everything else green at 50b91ae
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -53,7 +53,9 @@ Suite 78323a fails consensus_transport_idle (per host 0.2% over 52 KB + 2P x 44 
 Attribution: the branch differs from main 5923b6c only in driver.h, DRIVER.md, driver_close_test.cc
 and its CMake registration; no transport source or bench includes driver.h (only bench/driver_idle.cc),
 so consensus_transport_idle builds from identical sources. Jobs: transport_idle x3 at main 1fb596,
-at head e7e9cf. (Lead named main "4ef...": origin/main is 5923b6c, no 4ef commit exists.)
+at head e7e9cf. Result: both fail 3 of 3 with the same bytes (loops=4: 154,504 /
+254,021 / ~449,700 B per host, 108-109% of the fit; "an idle connection end within 48 KB, by the fit
+(loops 4)"), so it is pre-existing at main 5923b6c, not this quest's. (Lead named main "4ef...": origin/main is 5923b6c, no 4ef commit exists.)
 
 ## Next
 
