@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261117-234619-fc462b 261117-234633-101e5d 261117-234646-eec4c1 261117-234659-3d1404 261117-234712-39d2ac 261117-234724-efbb56
+State: waiting on jobs 261118-000951-aad80b 261118-000959-776077 261118-001006-e17e93 261118-001028-7ef567 261118-001036-648cac 261118-001042-9c4249
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,9 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code at consensus:1c4f173 (pushed). Jobs: plain A1-A3 fc462b, ASan A4 101e5d, TSan A4 eec4c1,
-fails-without ASan settle() 3d1404 and pump() erase 39d2ac (both exited 134 before: runtime
-failures), suite A5 efbb56. Check plain's printed per-row bytes: before the Host's purge vs after.
+Code at consensus:c5d15d9 (pushed). All earlier jobs are void: my command piped the build into
+`grep` under `set -e`, which exits 1 on a clean build, so plain/ASan/TSan never ran the test.
+Resubmitted without the grep: plain A1-A3 aad80b, ASan A4 776077, TSan A4 e17e93, suite A5 9c4249,
+fails-without under ASan (build failure exits 0 so it cannot pass vacuously; prints "reached the
+test"): settle() 7ef567, pump() erase 648cac. CI at 1c4f173: ASan, FreeBSD, arm64, clang, gcc, macos-arm64
+green with the test; TSan failed at link (my operator new vs TSan's runtime; fixed with COUNT_BYTES);
+macos-x86_64 groups_upload is the known flake.
 
 ## Next
 
@@ -56,3 +60,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    the retention is the Host's, outside the Driver; Driver rows are erased. The test opens one more
    row (that purge call) before counting, and prints the figure before and after. Whether the Host
    should purge eagerly is a journal question for the lead; not changed here.
+6. consensus_mutants timed out in the suite at 600 s: it had printed 8 of 14 faults (mutant 9, "a
+   leader grants pre-votes", was running); no hang evidence, it builds each fault three ways under
+   -j4 load. Its mutants edit core.h only. I set its ctest TIMEOUT to 1800 (CMakeLists, in my file set).
+   If the suite still times out at 1800 it is a hang: read its log.
