@@ -1274,6 +1274,8 @@
     "consensus-dns-threads": {
       "accepted": {},
       "after": [],
+      "base": "b7f48b2414d8b5822ba2924b9a2df1a252e4364a",
+      "branch": "quest/detent/consensus-dns-threads",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
@@ -1293,6 +1295,7 @@
         "include/consensus/transport/resolve.h",
         "test/transport/resolve_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-dns-threads",
       "landed": [],
       "lenses": [
         "correctness"
@@ -1302,9 +1305,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T03:07:48"
+      "updated": "2026-11-18T03:08:03",
+      "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
       "accepted": {
