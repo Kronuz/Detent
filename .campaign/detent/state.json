@@ -480,6 +480,19 @@
         ]
       },
       "text": "ci-test-flakes landed: unlocks frees tests/detent_local/test_paged_publication_artifacts.cc for dense-sync-stack; frees tests/**/*_mutant.sh, **/CMakeLists.txt for namespace-cleanup; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
+    },
+    {
+      "at": "2026-11-18T06:32:34",
+      "by": "campaign xapiand",
+      "closed": "netlab adds faultlab's network tier (F14); journal-faultfs uses only faultfs's file API, which netlab's criteria don't change; the Xapiand lead tells us if faultfs's API or event format moves",
+      "id": "msg-74",
+      "settles": {
+        "ours": [
+          "journal-faultfs"
+        ],
+        "quest": "xapiand:faultlab-netlab"
+      },
+      "text": "xapiand:faultlab-netlab started and changes contract faultlab:faultfs, which your journal-faultfs consumes"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
