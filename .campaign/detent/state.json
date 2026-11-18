@@ -794,6 +794,8 @@
     "completion-faultfs": {
       "accepted": {},
       "after": [],
+      "base": "d8b538c6778f0a1b969e42c8428995d1d29d4731",
+      "branch": "quest/detent/completion-faultfs",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -819,6 +821,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/completion-faultfs",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -826,9 +829,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "completion: the sync-seam crash model runs on faultlab's faultfs",
-      "updated": "2026-11-18T01:52:26"
+      "updated": "2026-11-18T01:53:02",
+      "worktree": "../completion-wt/detent/completion-faultfs"
     },
     "completion-sync-data": {
       "accepted": {
