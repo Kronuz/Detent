@@ -1,6 +1,6 @@
 # consensus-close-fenced: journal
 
-State: waiting on jobs 261118-021905-0952ab 261118-021907-3d767d 261118-021909-dc9230 261118-021911-f17875 261118-021757-fd5aa8 261118-021759-37b257 261118-021800-0604b4
+State: waiting on jobs 261118-040534-e39e8e 261118-040536-706b0d 261118-040537-300b61 261118-040539-5a1dfa 261118-040540-ea618e 261118-040542-cc8bb4 261118-040544-24d42c 261118-040545-2b4cb4 (+ erase mutant, see Doing)
 Quest: .campaign/detent/quests/consensus-close-fenced.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,26 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Review CHANGES at c5d15d9. Pushed consensus:26f7dbf. F1 done: docs/DRIVER.md lines 83, 91, 135 and a
-driver.h comment now say close erases the row, the id opens again, and `dropped(id)` for an id not
-open is the Driver-wide count of drops on ids not open (kept as is, documented); line 135 also states
-the journal's refusal of create/recover until the host reopens (N1). F2: `created_bytes` (report only)
-prints, for 2,000 created rows with 0 and 10 proposals, process heap per row open / closed / after the
-turn log forgets the group, net of the simulated disk's heap (the MemoryIO Disk lives on the counted
-heap, so the reviewer's 2,398 B probably includes it). Job 8f5b01 runs it; suite b2a48d at 26f7dbf.
-By reading journal 7c08540 what stays after a Driver close (it never calls Journal::close, so
-Host::close_group and TurnDriver::forget never run): Host::shards_ node (GroupEntry) and Host::opened_
-node, fixed per id; TurnLog::sequences_ node and index_[group] (one map node per live record), which
-scale with the group's records. Fill the numbers from 8f5b01 into Result and the report to the lead.
-Not done: N3 (a test erasing a still-queued group).
+Code at consensus:0b48da4 (pushed). A6 fix: driver.h watch() takes no token once stopping_ (a cancelled
+watch ended at once and woke the group to watch again: the spin); test shutdown_idles bounds the loop's
+turns after shutdown. N3: the first erase_queued passed its mutant (job 37b257 exit 0), so it never
+reached the queued branch; rewritten to queue close ahead of the fence. Jobs at 0b48da4: plain A1-A3+A6
+e39e8e, ASan 706b0d, TSan 300b61, fails-without A6 (old token) 5a1dfa, N3 mutant ea618e (must exit
+nonzero after "reached the test"), Xapiand repro with --ref SIM=ecb2a37 cc8bb4 (their
+driver_simulation.cc copied over, seeds 1-24), settle mutant 24d42c, suite 2b4cb4, erase mutant
+(submitted last, `campaign job list`).
+
+F2 numbers (plain job 261118-021905-0952ab, 2,000 created rows, process heap net of the simulated disk):
+| rows | records/row | open | closed | after the log forgets them |
+|---|---|---|---|---|
+| 0 proposals | 5.0 | 6,569 | 681 | 207 |
+| 10 proposals | 25.0 | 9,006 | 2,158 | 235 |
+Driver part after close: 0 (its rows are erased, groups()==0; opened-only rows 3,658 open, 10 B left
+after the Host's purge). Journal part: closed minus forgotten is the TurnLog's per-record index
+(index_[group], one map node per live record): 474 B at 5 records, 1,923 B at 25, about 72 B a record
+plus about 115 B fixed; the 207-235 B left after forget is the Host table (shards_ and opened_ nodes)
+plus sequences_: fixed per id. The reviewer's 2,398 B included the simulated disk. Owned by
+journal-reopen-closed A4b (Host release), not changed here.
 
 ## Next
 
