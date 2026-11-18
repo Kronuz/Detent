@@ -5761,6 +5761,8 @@
     "journal-group-io-cost": {
       "accepted": {},
       "after": [],
+      "base": "4d364f18a9494ce1b0cda283ebbf3a4493b239d4",
+      "branch": "quest/detent/journal-group-io-cost",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4",
@@ -5774,6 +5776,7 @@
         "bench/group_io_bench.cc",
         "docs/perf/group-io.md"
       ],
+      "journal": "../Detent-wt/detent/journal-group-io-cost",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5781,9 +5784,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Journal: measure group_io's per-call cost by id count (goal5 O4)",
-      "updated": "2026-11-18T07:24:00"
+      "updated": "2026-11-18T07:24:14",
+      "worktree": "../journal-wt/detent/journal-group-io-cost"
     },
     "journal-host-guards": {
       "accepted": {
