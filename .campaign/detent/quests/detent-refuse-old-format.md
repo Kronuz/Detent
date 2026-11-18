@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+On a journal written before a format change (dense-sync-stack's probe 261118-064115-2e8717: the 2026-10-23 10K fixture after Detent:53abd637), all three detentd voters log "authority recovery application fenced" (service.cc:1983) and hang with no leader. Detent keeps no backward compatibility, so the old format is not to be read, but it must be refused loudly: startup names the format it found and the one it expects, and exits nonzero.
 
 ## Acceptance criteria
 
@@ -14,18 +14,17 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 A voter started on a journal of an older format exits nonzero within seconds with a named error naming both formats, never fencing and waiting: a test that fails without the fix.
+- A2 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 from dense-sync-stack's main-arm diagnosis; greenfield (no compat) means refuse, not migrate.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
