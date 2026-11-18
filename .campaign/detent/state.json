@@ -10824,8 +10824,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Namespace S8 wiring: relay namespace mirror in the HTTP service",
-      "updated": "2026-11-16T10:24:13",
-      "worktree": "../Detent-wt/detent/namespace-s8-wiring"
+      "updated": "2026-11-18T02:11:55",
+      "worktree": ""
     },
     "namespace-s9-s10": {
       "accepted": {},
