@@ -6034,6 +6034,46 @@
       "updated": "2026-11-18T07:24:14",
       "worktree": "../journal-wt/detent/journal-group-io-cost"
     },
+    "journal-group-io-sweep": {
+      "accepted": {},
+      "after": [
+        "journal-faultfs"
+      ],
+      "checks": [
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/host_test.cc",
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "journal-group-io-cost"
+      ],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "journal: group_io costs O(1) amortized, not O(live ids)",
+      "updated": "2026-11-18T11:17:05"
+    },
     "journal-host-guards": {
       "accepted": {
         "durability": {
