@@ -5612,7 +5612,7 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-turn-bound",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-18T00:19:48",
@@ -5660,8 +5660,8 @@
       "risk": "high",
       "status": "landed",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-18T00:19:54",
-      "worktree": "../journal-wt/detent/journal-turn-bound"
+      "updated": "2026-11-18T02:09:19",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {},
