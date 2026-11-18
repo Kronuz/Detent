@@ -24,8 +24,8 @@ stops the turn driver and the Driver with one token, as Xapiand does. Local: fix
 
 Xapiand repro, local, per seed (SIM_DRIVER_SEEDS=1, first seed s, 1000 steps; their
 driver_simulation.cc from ecb2a37 on this branch): fixed, 0 of 24 seeds spin; unfixed watch, seed 2
-spins (others running). Seeds 1, 3, 7, 8, 13, 18-21, 23 fail "did not apply a new entry on every
-data voter after healing" with the fix; seeds 1 and 3 fail that way without it too, so it is their
+spins, and so do 4, 6, 8-10, 14-16, 18-24, the quest's list exactly. Seeds 1, 3, 7, 8, 13, 18-21, 23 fail "did not apply a new entry on every
+data voter after healing" with the fix; seeds 1, 3, 7 and 13 fail that way without it too (the rest spin first), so it is their
 WIP simulation's, not a spin: reported to the lead, not fixed here. The suite case runs 5 s.
 
 Jobs at 50b91ae: plain A1-A3+A6 fff668, created_bytes report 96c6ec, ASan 5e01ed, TSan 13f33c,
