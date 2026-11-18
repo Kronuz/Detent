@@ -12121,6 +12121,42 @@
       "title": "Reader S7-S9: `detent get` on the core, Python and Rust over the C ABI",
       "updated": "2026-11-08T15:38:09"
     },
+    "reader-yield-stall": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/connection.h",
+        "test/transport/yield_stall_test.cc",
+        "docs/mechanisms/connection.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus transport: a reader's yield resumes promptly under load",
+      "updated": "2026-11-17T21:14:09"
+    },
     "recovery-delivery": {
       "accepted": {},
       "after": [],
