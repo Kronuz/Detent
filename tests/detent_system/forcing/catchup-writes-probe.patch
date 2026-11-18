@@ -1,0 +1,66 @@
+--- a/tests/detent_authority/test_multivoter.py
++++ b/tests/detent_authority/test_multivoter.py
+@@ -18,6 +18,15 @@
+ 
+ import readiness_load
+ 
++BEGAN = time.monotonic()
++CONNECT = [0.0]
++
++
++def phase(name: str) -> None:
++    with open(os.environ["CATCHUP_PHASES"], "a") as out:
++        out.write(f"{os.getpid()} {name} {time.monotonic() - BEGAN:.2f}\n")
++
++
+ TOKEN = "0123456789abcdef0123456789abcdef"
+ CONTEXT = {
+     "cluster": "63" + "00" * 15,
+@@ -71,6 +80,9 @@
+         "localhost", port, timeout=timeout, context=context
+     )
+     try:
++        connected = time.monotonic()
++        connection.connect()
++        CONNECT[0] = time.monotonic() - connected
+         if fields is None:
+             connection.request("GET", path, headers={"Connection": "close"})
+         else:
+@@ -223,8 +235,20 @@
+ 
+         def send() -> tuple[int, dict[str, Any]]:
+             nonlocal index
++            began = time.monotonic()
+             index = leader()
+-            return request(ports[index + 3], context, path, fields)
++            found = time.monotonic()
++            status = 0
++            try:
++                status, body = request(ports[index + 3], context, path, fields)
++                return status, body
++            finally:
++                if path == "/v2/transactions":
++                    done = time.monotonic()
++                    phase(
++                        f"write leader={found - began:.3f} connect={CONNECT[0]:.3f}"
++                        f" request={done - found:.3f} status={status} at"
++                    )
+ 
+         body = settled(send, path)
+         return index, body
+@@ -357,6 +381,7 @@
+             children[lagging].kill()
+             children[lagging].wait(timeout=5)
+             last_receipt: dict[str, Any] = {}
++            phase("lagging-killed")
+             for sequence in range(3, 101):
+                 _, last_receipt = successful(
+                     "/v2/transactions",
+@@ -374,6 +399,7 @@
+                     },
+                 )
+                 assert last_receipt["revision"] == sequence
++            phase("98-writes")
+             surviving = [index for index in range(3) if children[index].poll() is None]
+             deadline = time.monotonic() + 15
+             while True:
