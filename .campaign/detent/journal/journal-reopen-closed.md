@@ -1,19 +1,20 @@
 # journal-reopen-closed: journal
 
-State: waiting on jobs 261118-031529-cb59bd 261118-031533-72cca5 261118-031535-47145a 261118-031537-366ec4 261118-031540-2fae9f 261118-031542-ff0b3c 261118-031545-7889bb 261118-031547-66d2d5 261118-031549-f7e40e 261118-031551-83ea4c 261118-040530-6f6b66. Context past the lead's threshold: handing off (A9 to a fresh contributor, per the lead).
+State: waiting on jobs 261118-043307-6c91a2 043309-eb6e13 043312-9d76bf 043314-4c29f5 043316-161c74 043318-473163 043320-b3f159 043332-1ce564 043334-531661 043337-6f4c2f 043339-8b3682 043341-b92534 043343-e3fdca 043356-9c13d7 043358-09b70e 043411-fd6782 (all at journal:c92eb27).
 Quest: .campaign/detent/quests/journal-reopen-closed.md (the lead's; never edit it)
 
 ## Doing
 
-journal:cd6d017 (pushed) rewrites host_test second_recovery() to the one-holder rule (busy while the first Store lives, then the live host recovers the latest state; reopened host agrees). On top of journal:a92dde9 (A8) and journal:38de42f (hold/park/live).
+Head journal:c92eb27 (pushed): journal:4885819 (permit fix), journal:3516044 + c92eb27 (A9). Every job at a92dde9/cd6d017 is void (journal_test.cc:2127 `parked` shadowed parked(): no build); fixed in journal:4885819.
 
-Known red: suite job 261118-023322-636173 at journal:38de42f failed: journal_journal "FAIL: storage permit unavailable" (an uncaught std::logic_error from StoragePermit::mark_started, admission.h:96, permit tainted) and host_test's three old-rule second_recovery checks (now rewritten). Suspect: reopen_released(true) in journal_test.cc (~line 1917): `a->fence_storage(); staged.reset();` leaves a started-or-staged StoreAppend whose permit is tainted, and TurnDriver::start() calls item.operation->submitted() at turn_driver.h:481 outside any try, so the throw escapes the loop's pump. Unverified; 261118-031529-cb59bd (reopen cases at a92dde9) and 261118-040530-6f6b66 (default runs at cd6d017) will show which case. If confirmed, decide: (a) start() settles an item whose submitted() throws (fail that op only, as settle() at turn_driver.h:646 does) so one tainted Store cannot stop a loop, with a fails-without test; or (b) the test was wrong to fence that way. (a) looks right: a fenced Store must not break its neighbors.
+1. Red suite, confirmed: lldb on reopen_released(fenced) at cd6d017: logic_error "storage permit unavailable" from StoragePermit::mark_started <- StoreAppend::submitted (store.h:69) <- TurnDriver::start (turn_driver.h:481) <- commit(). A fenced Store's staged append refuses submission after the turn is staged; the throw left write_ staged and ends run(), stopping every group on the loop. Pre-existing on main (same loop, turn_driver.h:467), reached only by a fenced Store with a record staged. Fix: start() drops an operation whose submitted() throws (as settle() does); its record goes with the turn, keeping the group's sequence whole. reopen_released also checks a neighbor group's append in that turn completes.
+2. A9: reclaim orders each removal after the first behind the one before (io_.order_files_and_directory({})), final sync_directory unchanged. Reproducer (faultfs, c606068's CMakeLists + turn_log_power_test.cc overlaid on a copy of my tree, never committed): locally 3 FAIL at 5/116, 5/161, 7/219 before; 0 failures after (2040 crash points). Directory barriers per reclaimed segment over turn_log_power's workload, 200 seeds (journal_test reclaim_syncs, local): before 0.939 (5,445 for 5,797 segments), after 1.0 (+6.5% barriers; on a backend with an ordering-only barrier the extra 352 are ordering points, not flushes).
 
 ## Next
 
-1. Read the jobs above; fix the permit failure (see Doing) and any compile or test failure; rerun the A1-A8 jobs and the suite at the fixed head.
-2. A9 (new, from the lead; recommended for a fresh contributor): TurnLog::reclaim (turn_log.h ~369-384) removes or recycles several segments then calls one sync_directory; a power cut can keep a later removal and drop an earlier one, so recovery sees a gap in segment numbers and sets damaged (turn_log.h ~560). No record is lost, but it reports damage. Reproducer: journal-faultfs job 261118-040056-965498's command at journal:c606068, `journal_turn_log_power_test 8`, seeds 5/116, 5/161, 7/219. Fix by ordering the removals (order_files_and_directory, oldest first) or by recovery telling a reclaimed gap (below the oldest live segment's first record / covered by retention) from a lost live segment, whichever is correct with fewer syncs. Report syncs per reclaimed segment before and after. Fails-without at those seeds; a 200-seed sweep. turn_log_power_test.cc is journal-faultfs's file: ask the lead before editing it; test from journal_test.cc or a job running faultfs's binary at a merged head.
-3. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct; until then they run by name as direct-build jobs.
+1. Read the jobs in State; fold any failure.
+2. Lead: cancel 261118-043345-74c02a (invalid: its literal mutation matches twice, exits 124; 043411-fd6782 replaces it). My cancel was refused by the permission classifier.
+3. When CMakeLists.txt joins the set: ctest entries for reopen_crash, reopen_churn, reopen_heap, reopen_distinct, reclaim_syncs.
 4. Durability review.
 
 ## Blocked on
@@ -22,19 +23,21 @@ Nothing. host_test.cc is in the set and the quest no longer waits on journal-fau
 
 ## Evidence
 
+All at journal:c92eb27. Jobs at a92dde9/cd6d017 are void (no build). Mutant and faultfs jobs run `.scratch/jobs/tree.sh` (my worktree), which builds a git-archive copy of the commit, so the checkout stays clean.
+
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-031529-cb59bd (reopen cases); 261118-040530-6f6b66 (host second_recovery, journal default run at cd6d017); 261118-031545-7889bb (fails-without: the old guard restored) |
-| A2 | 261118-031529-cb59bd; 261118-031542-ff0b3c (TSan); 261118-031547-66d2d5 (fails-without: no hold) |
-| A3 | 261118-031533-72cca5 (reopen_crash: 16 seeds, every power cut) |
-| A4 | 261118-031535-47145a (reopen_churn: heap after first and last pass) |
+| A1 | 261118-043305-84c658 (reopen cases, done); 043320-b3f159 (host and journal default runs); 043341-b92534 (fails-without: start() submits outside a try); 043343-e3fdca (fails-without: the old guard) |
+| A2 | 261118-043305-84c658; 043318-473163 (TSan); 043411-fd6782 (fails-without: no hold) |
+| A3 | 261118-043307-6c91a2 (reopen_crash) |
+| A4 | 261118-043309-eb6e13 (reopen_churn) |
 | A5 | [artifact] `docs/mechanisms/group-lifetime.md` (journal:a92dde9) |
-| A6 | 261118-031551-83ea4c (suite at a92dde9; host second_recovery rewritten after it, at cd6d017); 261118-023322-636173 failed at 38de42f (see Doing) |
-| A9 | none yet (see Next 2) |
-| A7 | 261118-031537-366ec4 (reopen_heap: bytes per released group before and after settle) |
-| A8 | 261118-031540-2fae9f (reopen_distinct: heap after 1,000 and 100,000 closes); 261118-031549-f7e40e (fails at main: main's include/ with this test) |
+| A6 | 261118-043358-09b70e (suite); CI |
+| A7 | 261118-043312-9d76bf (reopen_heap) |
+| A8 | 261118-043314-4c29f5 (reopen_distinct); 043356-9c13d7 (fails at main's headers) |
+| A9 | 261118-043332-1ce564 (turn_log_power 8 at head, faultfs overlay --ref c606068); 043334-531661 (200 seeds); 043337-6f4c2f (fails-without: unordered reclaim, FAIL at seed 5 cut 116); 043316-161c74 (barriers per segment after: 1.0); 043339-8b3682 (before: 0.939) |
 
-Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead first ruled it lands after journal-faultfs; latest message gives me host_test.cc and drops the wait, done at cd6d017).
+Messages: msg-68 (mine to lead: close_group already releases; asked turn_log.h), msg-69 (asked turn_log.h, turn_driver.h: granted), msg-70 (host_test.cc conflict: lead first ruled it lands after journal-faultfs; latest message gives me host_test.cc and drops the wait, done at cd6d017). Lead's note (void a92dde9 jobs, `parked` shadowing): already fixed at journal:4885819; everything resubmitted at journal:c92eb27.
 
 ## Result
 
@@ -56,3 +59,6 @@ Not yet measured.
 5. A4 reading: 10,000 cycles in total over 1,000 ids (10 per id), even ids closing into the table and odd ids checkpointing then releasing with one batch uncovered, so the live state per id is constant and a flat heap is the claim.
 6. opened_ and the release queue are per loop, so settle() only parks its own loop's groups (TurnLog is loop-confined).
 7. Heap is measured with a replaced operator new in journal_test that leaves out allocations made inside the memory disk's calls (MeteredIO), so the numbers are the host's state, not MemoryIO's leaked inodes.
+10. A fenced operation that refuses submission is dropped, not failed: complete() needs a submitted operation, so there is nothing to tell it; its caller already sees the fence. Its record is written: its sequence is assigned and later records of the group may follow it, and a durable unacknowledged record is a state the old rule allows.
+11. A9 by ordering, not by recovery: a segment-number gap is the only sign of a lost live segment whose groups wrote nothing after it, so recovery cannot tell a reclaimed gap from a lost one without weakening damage detection. Ordering costs one ordering point per extra segment in a batch (measured 352 per 5,797 segments) and nothing for single-segment batches.
+12. A9's reproducer stays journal-faultfs's file: jobs overlay it from --ref FF=journal@c606068 onto a copy of my tree; nothing of faultfs enters my file set.
