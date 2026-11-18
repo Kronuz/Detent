@@ -15304,7 +15304,7 @@
       "consumes": [],
       "files": [
         "bench/transport_idle.cc",
-        "docs/perf/**"
+        "docs/perf/transport-idle*"
       ],
       "journal": "../Detent-wt/detent/transport-idle-budget",
       "landed": [],
@@ -15316,7 +15316,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Consensus: consensus_transport_idle fails its budget at 4 loops",
-      "updated": "2026-11-18T07:34:43",
+      "updated": "2026-11-18T07:35:18",
       "worktree": "../consensus-wt/detent/transport-idle-budget"
     },
     "transport-idle-cost": {
