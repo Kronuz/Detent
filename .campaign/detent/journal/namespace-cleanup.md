@@ -13,6 +13,11 @@ msg (lead): 4d282a was not a valid kill: it died of `std::invalid_argument: seal
 2. A3: 3f932a, d1c59a, e22141 and 4826a4 must each show MUTANT KILLED with a nonzero exit; the already-killed runners are agent_store f9e36d, dense 262af3, bindings e74f8d.
 3. Push, report.
 
+## Follow-ups
+
+1. c4 survives: `tests/detent/mutants/c4-no-percentage-check.patch` removes the check in `src/detent_local/paged_leaf_body.cc` `LeafBody::step` that throws `std::invalid_argument("paged leaf body percentage and rollout value disagree")` when a non-namespace leaf's percentage and rollout value disagree. Runner `tests/detent/one_knob_mutant.sh PATCH TARGET` with TARGET `test_local_paged_definition` printed `MUTANT SURVIVED` (job 261118-054256-dbe2be, exit 0, which is the convention for a survivor: a `--fails-without` job on it fails). No test in the tree names that message; okt-followups C4 claims test_view and the bindings tests. Gap: a paged definition leaf whose rollout percentage and value disagree is not refused under test. Not in A3's rows.
+2. Stale mutant patches that no longer apply at this head (`git apply --check`): s3b-k1-close-keeps-deadline, s3b-k1-conservative-marks-nothing, s3b-k1-constant-backoff, s3b-k1-no-automatic-retry, s3b-k1-no-conservative-fallback, s3b-k2-no-exception-translation, s3b-k4-open-no-retry, s3b-k4-read-no-retry, s3b-k4-scrub-on-owner, s3b-k4-short-read-no-retry, s3b-m4a-snapshot-admission-uses-prior, s3b-m5-collector-refuses-damaged, s3b-m6-scrub-hashes-mapping (all under tests/detent_delivery/mutants; their claims are unproven until each is regenerated or deleted). s4-a3 was deleted (with its sentence in docs/mechanisms/trusted-restart.md).
+
 ## Blocked on
 
 Nothing. (A1's test lives in tests/detent_authority/test_history_power_cut.cc, beside `refused_seal`; now in the file set.)
@@ -23,7 +28,7 @@ Nothing. (A1's test lives in tests/detent_authority/test_history_power_cut.cc, b
 |---|---|
 | A1 | test: power_cut `Sprawl` under `namespaces = 1` (refuses at "history file layout"); mutant job 261118-063425-3f932a (`history_mutant.sh table-unbounded`, --fails-without; 4d282a is void, see Doing); plain run d5b163; suite 261118-063436-6945df |
 | A2 | `git grep` job 261118-054245-ae0ed2 (src include tests: no match); suite 261118-063436-6945df |
-| A3 | --fails-without jobs: agent_store 261118-054252-f9e36d, dense 262af3, bindings e74f8d (killed); hash 063427-d1c59a, repair 063429-e22141, one_knob 063431-4826a4, history 063425-3f932a (pending); service/mirror/test_history runners already used the convention. 6db3c4, 14f77b, dbe2be and 37fe45 are void |
+| A3 | (c4 and s4-a3 are out of the rows, see Follow-ups) --fails-without jobs: agent_store 261118-054252-f9e36d, dense 262af3, bindings e74f8d (killed); hash 063427-d1c59a, repair 063429-e22141, one_knob 063431-4826a4, history 063425-3f932a (pending); service/mirror/test_history runners already used the convention. 6db3c4, 14f77b, dbe2be and 37fe45 are void |
 | A4 | native 261118-063436-6945df, pins 261118-063436-d7652a |
 
 ## Result
