@@ -3626,6 +3626,8 @@
     "detent-refuse-old-format": {
       "accepted": {},
       "after": [],
+      "base": "519540832732ee95e43b66291928f2101231f8b2",
+      "branch": "quest/detent/detent-refuse-old-format",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
@@ -3650,9 +3652,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T07:06:18"
+      "updated": "2026-11-18T09:14:40",
+      "worktree": "../Detent-wt/detent/detent-refuse-old-format"
     },
     "dns-voters": {
       "accepted": {},
