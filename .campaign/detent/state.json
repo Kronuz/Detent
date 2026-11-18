@@ -5743,7 +5743,8 @@
         "ARCHITECTURE.md",
         "docs/MEASUREMENTS.md",
         "docs/design/**",
-        "test/host_test.cc"
+        "test/host_test.cc",
+        "test/journal_test.cc"
       ],
       "journal": "../Detent-wt/detent/journal-faultfs",
       "landed": [],
@@ -5755,7 +5756,7 @@
       "risk": "normal",
       "status": "active",
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
-      "updated": "2026-11-18T07:23:02",
+      "updated": "2026-11-18T07:26:50",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
     "journal-group-io-cost": {
