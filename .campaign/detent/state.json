@@ -1926,6 +1926,49 @@
       "updated": "2026-11-18T02:01:18",
       "worktree": "../consensus-wt/detent/consensus-wave-open"
     },
+    "consensus-worker-release": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/store*.h",
+        "test/driver_close_test.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "docs/DRIVER.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [
+        "journal-reopen-closed",
+        "consensus-close-fenced",
+        "consensus-wave-open"
+      ],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Consensus: a closed row releases its journal group",
+      "updated": "2026-11-18T02:19:12"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
