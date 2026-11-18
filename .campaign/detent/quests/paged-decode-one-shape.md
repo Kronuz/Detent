@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+reader-s6 made `decode_node`, `decode_external` and `NodeAt::decode` take a page's nodes end, decoded once per page, and kept the `Limits` overloads as wrappers for the walkers outside its file set (contextual reuse, cursor, dependency walk, graph, page and warm validators, overlay assembler, packer, trie overlay) and their tests. After this quest every caller decodes the header once and passes the end; the `Limits` overloads are deleted. One way to decode a node.
 
 ## Acceptance criteria
 
@@ -14,18 +14,17 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 `git grep` finds no caller of a `Limits` overload of decode_node or decode_external, and the overloads are gone: [artifact] `include/detent_local/paged_layout.hh`.
+- A2 The suite passes, plus the codec fuzz smoke and CI: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None (internal).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed 2026-11-18 when reader-s6 kept the wrappers to stay in its file set; lands right after reader-s6.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
