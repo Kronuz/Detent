@@ -1,6 +1,6 @@
 # consensus-wave-open: journal
 
-State: waiting on jobs 261118-002642-efda7e 261118-002646-cafc64 261118-002652-7a5cb2 261118-002658-ddd230 261118-002706-6c6519
+State: waiting on jobs 261118-002642-efda7e 261118-002706-6c6519 (queued) and CI run 44266992531
 Quest: .campaign/detent/quests/consensus-wave-open.md (the lead's; never edit it)
 
 ## Doing
@@ -22,10 +22,15 @@ fences all 64 outside their worker; at 128, the 64 in a later turn fence inside 
 failed" (journal turn_driver.h:230). consensus:c20f3fd accepts either, needs one outside fence,
 and runs the cut ctest at 128.
 
+Done at c20f3fd: cafc64 (A1) 4 concurrent loops x 20 runs of 64 + one 256 each: all
+committed, 0 fenced, rc 0. 7a5cb2 (A1, fails-without) old pin: 64 fenced, "turn exceeds a
+segment". ddd230 (A2, fails-without) mutant: 0 outside fences, first "consensus group fenced",
+64 cores unfenced.
+
 ## Next
 
-1. Read jobs at c20f3fd: suite efda7e (A1,A2); x20x4 cafc64 (A1); old pin 7a5cb2 (A1,
-   --fails-without); mutant ddd230 (A2, --fails-without); TSan 6c6519 (A3). CI on the push.
+1. Read suite efda7e (A1,A2) and TSan 6c6519 (A3); CI 44266992531. Then fill Evidence and set
+   "ready for review".
 
 ## Blocked on
 
@@ -35,10 +40,10 @@ Nothing yet.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
+| A1 | 261118-002646-cafc64 (x20 x4), 261118-002652-7a5cb2 (old pin fails); suite efda7e pending |
+| A2 | 261118-002658-ddd230 (mutant fails); suite efda7e pending |
+| A3 | 261118-002706-6c6519 pending |
+| A4 | [manual] the Xapiand lead or the lead runs the reproducer against consensus:c20f3fd |
 
 ## Result
 
