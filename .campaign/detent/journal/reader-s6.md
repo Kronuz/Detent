@@ -1,36 +1,42 @@
 # reader-s6: journal
 
-State: waiting on jobs 261118-093405-46dfde
+State: waiting on jobs 261118-094346-d77f12 (probe) and 21 mutant jobs (see Doing)
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
 
-Merging main (`Detent:1180d74`, 2,484 commits since `Detent:f4f5263`) into the S6 branch and
-porting the core to main's shapes: one knob type (D1's single `detent_get` with hash and switch),
-no `StorageIdentity`/`storage.meta`, the `selected` table read by `detail::read_selected`, zero-byte
-leases, `SegmentId`, `state_commitment`, `minimum_page_bytes`.
-
-Merge committed `Detent:470a127` and pushed (CI runs on push). Probe job 261118-093405-46dfde
-builds the reader targets and runs core, files, syscalls, lazy-page, change-file tests and the
-switch test's parks, forks and cold phases.
+- `Detent:470a127` merged main; `Detent:4fafed3` fixes SR1 and FIX-2 in `read_selected`
+  (`generation.cc`, granted by the lead): non-blocking opens of `selected`, its image and the
+  store's other record opens; an unlinked table or image returns nullopt and is read again
+  (`checked_or_unlinked`, one fstat, now in `generation_file_access.hh` and shared with
+  `prepared_reader.cc`). `test_reader_files` adds `.image` (35 cases). The record-open hook
+  (`RecordTesting`) moved with it and fires for `selected`, so `replaced_selected` is FIX-2's
+  deterministic regression again.
+- DES-7 done: `paged_navigation.hh` `verified_page_bytes` is the one page check (hit compare;
+  decode and compare; commitment; caller's first-touch checks; bit). `checked_page_bytes` and
+  `LazyPageAccess::resolve` both call it.
+- Probe 261118-094346-d77f12 builds the reader targets and runs core, files, syscalls, lazy-page,
+  change-file and switch parks/forks/cold.
+- Mutants (`.scratch/mutants.json`, `.scratch/mutant.py` make `mutant/reader-s6/<name>` commits on
+  `Detent:4fafed3`), each `--fails-without`, after the probe:
+  D5-1 9b4bb9, D5-2 4e137b, D5-3 f5658e, D10-1 855a2e, D10-2 347eee, D10-3 4baa90, D2-1 34bd94,
+  D4-1 363cb7, Q6-1 62fc42, FIX-1 7ae4a1, FIX-2 d7fb02 (A8); SR1 selected 862642, image cc96ed,
+  change 9d6c47, record ea240d, pack 4d9871 (A10); SR2 ef5614 (A11); freeze F1 998758 (no recheck
+  after the count), F2 eb96b2 (no drain), F3 17a24b (child keeps counts), F4 82cbad (prepare
+  freezes no table) (A12). All ids are `261118-0945xx-<suffix>`.
 
 ## Next
 
-1. Read 46dfde; fix compile or test failures.
-2. Read CI at the pushed head.
-3. Once msg-79 is answered: SR1/FIX-2 in `generation.cc` `read_selected` (O_NONBLOCK; nlink 0 → nullopt).
-4. Jobs: native, asan, tsan, t3-asan, t3-tsan; mutants (A8); SR1/SR2 regressions (A10, A11); fork
-   freeze cases and soak (A12, A13); A14 stress; A16 first-read gate.
+1. Probe green: `campaign verify reader-s6` (native, asan, tsan, t3-asan, t3-tsan).
+2. Plain-test jobs `--for` A1-A3, A5, A6, A10, A11, A13; the A12 soak (four copies of
+   `test_reader_switch`, eight rounds); A14 stress test (to write); A7 reader_bench run.
+3. msg-1: exclusive `reader_bench` before (`Detent:b1d281c`) and after (head), 25 min.
+4. A16 first-read gate through the core.
+5. Regenerate mutants if the code changes before landing.
 
 ## Blocked on
 
-- Lead (msg-79): `src/detent_local/generation.cc` outside the file set. Main's `read_selected` opens
-  `selected` and the image without `O_NONBLOCK` (SR1, A10) and throws on a `selected` renamed over
-  between open and fstat (FIX-2, A8). Recommended: add `generation.cc` to the file set.
-- Lead (DES-7, msg-2): a full merge of `LazyPageAccess::resolve` with `checked_page_bytes` needs
-  `src/detent_local/paged_navigation.hh` (outside the file set) to take view bounds and a
-  post-verify node check. Done inside the set: resolve's hit path is `checked_page_bytes`'s field
-  compare (no decode on a hit), the full decode and compare precede the bitmap set on a miss.
+Nothing.
 
 ## Evidence
 
@@ -41,9 +47,10 @@ switch test's parks, forks and cold phases.
 ## Messages
 
 - msg-1: open; T1 numbers are the lead's to measure on the merged head (exclusive `reader_bench`).
-- msg-2: applied in the merge: `minimum_page_bytes` for the pack extent, header compare before any
-  bitmap answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`.
-  DES-7 partial (see Blocked on).
+- msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
+  answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
+  DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
+- msg-79 (mine to the lead): closed by the lead; `generation.cc` and `paged_navigation.hh` added.
 
 ## Result
 
