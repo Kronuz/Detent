@@ -5369,18 +5369,53 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-sync-seam",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T00:52:30",
+          "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+          "criteria": {
+            "A1": "261118-002319-ef7067",
+            "A2": "261118-002316-5ee759; fails without: 261117-185442-6f0142",
+            "A3": "261118-002316-5ee759",
+            "A4": "261118-004757-dc99ce"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-002316-5ee759",
+              "level": "light",
+              "seconds": 245.5,
+              "state": "done",
+              "what": "journal-sync-seam check suite at ce05f0efd411"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4272229943d332c2c28d1f1316bbeebbb5e4f7fc",
+          "reason": "",
+          "tested": "ce05f0efd411108c749a418f4985412f5af3e2ec"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Journal: every sync through the IO seam",
-      "updated": "2026-11-18T00:23:49",
-      "worktree": "../journal-wt/detent/journal-sync-seam"
+      "updated": "2026-11-18T00:52:38",
+      "worktree": ""
     },
     "journal-turn-bound": {
       "accepted": {
