@@ -3017,6 +3017,8 @@
     "dense-sync-stack": {
       "accepted": {},
       "after": [],
+      "base": "a24b3e704634ed77f8c2a648a274e41265698b19",
+      "branch": "quest/detent/dense-sync-stack",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3064,9 +3066,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-08T12:45:00"
+      "updated": "2026-11-18T05:32:32",
+      "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-walkers": {
       "accepted": {
