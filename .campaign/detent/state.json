@@ -535,6 +535,35 @@
         ]
       },
       "text": "transport-feed-scan landed: unlocks frees test/transport/groups_test.cc for groups-upload-stall; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
+    },
+    {
+      "at": "2026-11-18T07:24:00",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-76",
+      "items": {
+        "journal-group-io-cost": "frees bench/group_io_bench.cc, docs/perf/group-io.md for journal-group-io-cost",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees tests/detent_authority/** for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "journal-group-io-cost",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set journal-group-io-cost: unlocks frees bench/group_io_bench.cc, docs/perf/group-io.md for journal-group-io-cost; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration; frees tests/detent_authority/** for voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7294,17 +7323,57 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T09:14:18",
+          "commit": "a9612b0b3a76834ce343ec8d37da94a7048d03c7",
+          "criteria": {
+            "A1": "261118-075318-5020fb, 261118-075318-64bc71, 261118-075318-1a4c6f; fails without: 261118-054213-4d282a, 261118-063637-4b25ea, 261118-075319-490873",
+            "A2": "261118-075317-0b2741, 261118-075318-5020fb, 261118-075318-64bc71",
+            "A3": "261118-084943-54e21f; fails without: 261118-054252-f9e36d, 261118-054257-262af3, 261118-054258-e74f8d, 261118-063637-4b25ea, 261118-063640-a80eea, 261118-063642-b28568, 261118-063645-ed68b7, 261118-075319-490873, 261118-075319-ba8233, 261118-075320-b501c0, 261118-075320-93fabc",
+            "A4": "261118-075318-5020fb, 261118-075318-64bc71"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "8a61b2e9cae1298a999726515eac86d7c37dd247",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-075318-5020fb",
+              "level": "light",
+              "seconds": 784.4,
+              "state": "done",
+              "what": "namespace-cleanup check native at 8a61b2e9cae1"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "8a61b2e9cae1298a999726515eac86d7c37dd247",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-075318-64bc71",
+              "level": "none",
+              "seconds": 15.4,
+              "state": "done",
+              "what": "namespace-cleanup check pins at 8a61b2e9cae1"
+            }
+          ],
+          "final": true,
+          "from": "66aec69fe324e57b5aeb239684afd10f7ff91fec",
+          "reason": "",
+          "tested": "f33bc1beff30512f8a8e37d31044327223052f72"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace follow-ups: table bound test, CompletionScheduler removal, one mutant convention",
-      "updated": "2026-11-18T06:37:09",
-      "worktree": "../Detent-wt/detent/namespace-cleanup"
+      "updated": "2026-11-18T09:14:25",
+      "worktree": ""
     },
     "namespace-design": {
       "accepted": {},
