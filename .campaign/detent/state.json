@@ -777,6 +777,44 @@
       "title": "The client library, per the JustKnobs spec milestones 1-9",
       "updated": "2026-11-08T15:38:10"
     },
+    "completion-sync-data": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/**",
+        "test/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [
+        "completion:io"
+      ],
+      "repo": "/Users/kronuz/code/Kronuz/completion",
+      "risk": "normal",
+      "status": "planned",
+      "title": "completion: data-only sync through the IO seam",
+      "updated": "2026-11-17T18:56:05"
+    },
     "completion-sync-files": {
       "accepted": {},
       "after": [],
