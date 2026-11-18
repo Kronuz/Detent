@@ -27,7 +27,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261118-140358-398c2a, 261118-140437-ce3f9e, 261118-145058-160e82, 261118-145101-c37907; fails without: 261118-145927-c7d7a0 |
+| A2 | 261118-140359-9147b4 |
 
 ## Result
 
