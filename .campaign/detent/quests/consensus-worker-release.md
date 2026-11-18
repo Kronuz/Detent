@@ -21,7 +21,7 @@ job can show it.
 
 ## Contracts
 
-Consumes journal's Host release (journal-reopen-closed A4b).
+Consumes journal's Host release (journal-reopen-closed A7).
 
 ## Decisions
 
