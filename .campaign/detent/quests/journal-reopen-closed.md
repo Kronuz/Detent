@@ -19,6 +19,7 @@ job can show it.
 - A3 A crash at any point of a close-then-recover cycle recovers a state the old rule allowed (no record lost that was durable, none resurrected that was dropped): a seeded crash sweep job.
 - A4 Churn: 10,000 close/recover cycles of 1,000 ids in one Host hold the Host's memory flat (bytes before and after reported): a job.
 - A7 A Store that can't close into the table (fenced, or batches not covered by a checkpoint) can release its id: the Host drops that id's in-memory state (turn-log sequence, index entries, shard and opened nodes) while retention keeps every durable record, and recover in the live Host rebuilds it exactly: tests, plus heap per released id reported at 10,000 ids (the lead's target: the 2,398 B consensus-close-fenced measured goes to near zero).
+- A8 Distinct ids don't grow the Host (Xapiand goal5-audit G5-J1, a release blocker): `TurnDriver::forget`'s `retired_` entry (turn_driver.h:145, :653) is bounded or removed, so 100,000 distinct ids each opened, written and closed once in one live Host leave heap flat (bytes after the first 1,000 and after all 100,000 reported): a job that fails at main.
 - A5 The mechanism doc states the id lifetime rule: `docs/mechanisms/...`.
 - A6 The suite passes, plus CI.
 

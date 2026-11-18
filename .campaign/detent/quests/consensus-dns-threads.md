@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Xapiand's goal5-audit G5-C1 (consensus:42cb3cf, docs/GOAL5-AUDIT.md): `Lookup::start` (resolve.h:99) runs each DNS lookup on a detached, unowned thread and `abandon()` only stops delivery, so across transport rebuilds the thread count is bounded only by the resolver's timeout. After this quest lookups run on threads the transport owns, with a fixed bound on how many run at once; abandon cancels or reclaims, and shutdown joins them all.
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 A test with a resolver that blocks (never answers) rebuilds the transport 1,000 times and the process's thread count stays at or under the bound: fails at main: a job.
+- A2 Shutdown and destruction join every lookup thread, with no detached thread left: a test under TSan and ASan.
+- A3 Lookups still deliver, and an abandoned lookup's late answer is never delivered: tests.
+- A4 The suite passes, plus CI.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed for callers.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Filed by the lead 2026-11-18 from Xapiand's goal5-audit (G5-C1); cluster-gate waits on it.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
