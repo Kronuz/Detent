@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: working
+State: waiting on CI runs 44319694813 (probe), 44318999208 (main at 5923b6c)
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
