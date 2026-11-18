@@ -780,6 +780,8 @@
     "completion-sync-data": {
       "accepted": {},
       "after": [],
+      "base": "7731315d0660a953f7b3bf956df3127d5a525a03",
+      "branch": "quest/detent/completion-sync-data",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -802,6 +804,7 @@
         "CMakeLists.txt",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/completion-sync-data",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -811,9 +814,10 @@
       ],
       "repo": "/Users/kronuz/code/Kronuz/completion",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "completion: data-only sync through the IO seam",
-      "updated": "2026-11-17T18:56:05"
+      "updated": "2026-11-17T18:56:23",
+      "worktree": "../completion-wt/detent/completion-sync-data"
     },
     "completion-sync-files": {
       "accepted": {},
