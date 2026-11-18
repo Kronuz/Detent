@@ -5458,6 +5458,8 @@
     "journal-reopen-closed": {
       "accepted": {},
       "after": [],
+      "base": "ce05f0efd411108c749a418f4985412f5af3e2ec",
+      "branch": "quest/detent/journal-reopen-closed",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 900",
@@ -5479,6 +5481,7 @@
         "test/journal_test.cc",
         "docs/mechanisms/**"
       ],
+      "journal": "../Detent-wt/detent/journal-reopen-closed",
       "landed": [],
       "lenses": [
         "durability"
@@ -5488,9 +5491,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal: a closed id recovers in the live Host",
-      "updated": "2026-11-18T02:12:40"
+      "updated": "2026-11-18T02:13:15",
+      "worktree": "../journal-wt/detent/journal-reopen-closed"
     },
     "journal-sync-seam": {
       "accepted": {},
