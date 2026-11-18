@@ -1,71 +1,88 @@
 # journal-turn-bound review: durability
 
-Commit: journal:7990fc66995bf63a726cb0a6dc8daa60becbd59c
-Verdict: CHANGES
+Commit: journal:c379267bdb5ec06d3418fbba7cc75f8fda04f7cf
+Verdict: APPROVE
 Date: 2026-11-17
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+This is the fix-round review. The first round gave CHANGES at journal:7990fc66 (F1 owed sealer
+spin, F2 forget floor one short).
+
 ## Evidence I relied on
 
-- Suite 261117-204541-5581db at 7990fc6: exit 0, 53/53, including `journal_turn_bound_wave`,
-  `_wave_run`, `_oversize`, `_crash` and the `journal_turn_seal_*` crash suites (A1, A2, A3, A5).
-- Fails-without 261117-200402-8a9d1f: `wave` fails with "turn exceeds a segment" at main's driver (A1).
-- Consensus 261117-200406-4608c2: 64 at once, all committed, none fenced (A4, read by the lead).
+- Suite 261117-224244-e38ae9 at c379267: exit 0, including `journal_turn_bound_bound`, `_owed`,
+  `_forget`, `_oversize`, `_wave`, `_wave_run` and `_crash` (A1, A2, A3, A5). CI green per the lead.
+- Fails-without at c379267, each reverting only the fixed header, failing on assertions:
+  70d0b4 (`owed` at 7990fc6's driver: "after the refusal the driver goes idle" and the two
+  re-link/re-register idle checks), 24e131 (`forget`: "retired ... 2, 2", the old open-record wait
+  not failing `group_closed`, the new incarnation acknowledging it), a97f37 (`bound` at 68271af:
+  "main's most records commit in one turn: 2 turns" for payloads 10, 100 and 1000, and main's
+  largest single record refused).
+- 1d5f49: main's one-turn limit against the branch, passed.
 
 ## What I checked myself
 
-Probe job 261117-205342-a75577 at 7990fc6 (exit 1: three probes fail as the findings say).
-Scripts: `.scratch/review-journal-turn-bound-durability/` in the Detent home (`run.sh`, `probe.cc`,
+Probe job 261117-235207-1dff03 at c379267, exit 0. Scripts:
+`.scratch/review-journal-turn-bound-durability/r2/` in the Detent home (`run.sh`, `fit.cc`,
 `CMakeLists.txt`); rerun with
 `campaign job submit --quest journal-turn-bound -- sh <dir>/run.sh <dir>`.
 
+- `oracle`: 2000 trials over five geometries (blocks of 256, 300, 512, 1024 and 4096 bytes), each
+  from a log replayed into a random state (up to 40 turns of up to 40 groups, so the offset is mid
+  segment and the carried manifest is full), with candidates of tiny, mixed, multi-block and
+  near-segment records, of warm and fresh groups. For every prefix length n, `fitting(first n)`
+  equals `min(n, k)` (longest and monotone); `stage(first k)` never throws; `stage(first k + 1)`
+  threw `length_error` in all 1666 split trials, and was taken neither fresh nor at the log's
+  current offset in any. 426 single near-segment records were refused, each one encode refuses.
+- `drive`: 180 runs of six random waves through `TurnDriver` (3 geometries, 50 groups, records up
+  to a segment): 64347 operations, 4048 turns, 921 groups refused. The driver never failed; every
+  operation completed; every error was `length_error`; per group the acknowledged records are a
+  prefix and the refused ones the rest; no turn was written that acknowledged nothing; recovery
+  in a new driver equals the acknowledged records exactly.
+
 Answers to the lead's questions:
 
-1. Wave across turns: durable and ordered. `start()` takes a FIFO prefix
-   (turn_driver.h:455-465), one turn is in flight at a time, and each turn's write and
-   `sync_data` finish before the next is staged, so recovery sees acknowledged turns plus the
-   in-flight turn whole or absent, never a gap or reorder. `crash` truly cuts between turns:
-   `split` is set after each acknowledged commit of a wave with records left
-   (turn_bound_test.cc:277), so a counted cut falls in turn 2 or later of that wave, and
-   `between > 0` is asserted and passed in 5581db.
-2. Failing the later records is required. `TurnLog::stage` refuses an out-of-sequence record for
-   the whole turn (turn_log.h:251-255) and recovery marks a gap as lost (turn_log.h:575-576); the
-   one exception, a fresh group's first record being a checkpoint, would make durable a
-   checkpoint whose state includes a failed operation, so the doc's rule is the consistent one
-   (N3). After the refusal the log holds the group through `hole - 1` and recovery rebuilds
-   that, as with a failed turn. The in-memory state is not consistent, though: see F1 and F2.
-3. `start()` uses `whole_room()`, the same `turn_room` as `seal_turn`'s `whole`. Both
-   boundaries are `cost <= room` (taken, sealed) against `cost > room` (refused); `wave` commits
-   a record of exactly the room. The head always fits, so a large record waits only for older
-   records and never starves. "A load that fit one turn before still takes one turn" is not
-   true for a band above the room (N1).
-4. Sealed records are never held back. `seal_turn` budgets every pending record before calling a
-   sealer, so pending plus sealed is at most `whole` whenever a sealer runs, and the prefix takes
-   it all. No sealer runs while pending exceeds the room, and `next_seal_` keeps the rotation.
-   turn_log.h is untouched, and forwarded copies still ride only when `fits()`. Bytes unchanged.
-5. `pending_`, `refused_` and the waiter list are touched only on the loop: `refuse()` runs in
-   `start()`, `refusal()` in `satisfied()` and `await_ready`/`await_resume` on the waiter's home
-   loop, and `forget()` on the loop. `seal_turn` reads `refused_` under `sealers_mutex_` on the
-   loop. `unseal()` and `wake()`, the only other-thread entries, do not touch them.
+1. `fitting()` agrees with encode by construction, and the probe found no case against it.
+   `fits()` (turn_log.h:342-345) is the same emitter encode's fresh path builds
+   (turn_log.h:410-412): offset 0, the current segment, epoch and carried manifest, so block
+   headers, manifests, padding, fragment headers and checksums are counted by the same code.
+   `fitting` emits what `stage` emits without copies: the same `logical` bytes, turn `turn_ + 1`,
+   group and sequence for the manifest, and the end-of-turn tally of `count`; `stage` keeps copies
+   only where they fit (turn_log.h:272), so the turn `fitting` sizes always encodes. The returned
+   prefix is always one `fits()` accepted, so even a non-monotone case could only shorten a turn,
+   never fail one. A prefix that fits fresh is never refused at the current offset, and none was
+   taken there in the probe, so `fitting` neither builds a turn encode refuses nor refuses one it
+   takes. The logical-bytes bound (turn_log.h:284) only caps the search. The `used <= whole_room()`
+   fast path (turn_driver.h:460) rests on `turn_room`, the sealers' bound; `drive` staged every
+   such turn without a throw.
+2. Yes. `refuse()` removes the record and its group's later ones from `pending_` before sealing,
+   so they never reach `stage` or the disk; it settles their operations and fails waits at or
+   past the hole (turn_driver.h:486-513); `await_ready` fails later waits through `satisfied()`
+   (turn_driver.h:377, 411-414). No bytes are written for a refusal, so the crash model is unchanged
+   (A3 suite), and `drive` shows later turns of every other group commit and recover exactly.
+3. Yes. F1: `refuse()` sets every refused group's sealer quiet and re-marks it
+   (turn_driver.h:507-510), `link()` never marks a refused group owed (turn_driver.h:425), and
+   `seal_turn` skips it, so `owed_` drops to zero. A re-registration (`seal()`, unchanged) cannot
+   make it owed: waits at or past the hole are already failed and never link, and those below it
+   are at or under `last_staged`. `owed` covers all three paths and fails without the fix (70d0b4).
+   F2: `forget()` takes `last + 1` (turn_driver.h:148); `forget` shows the old open-record wait
+   fails `group_closed` and the reopened incarnation commits at 4 without acknowledging it, and
+   fails without the fix (24e131).
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | A refused group whose sealer is owed leaves `owed_` set for good, so `idle()` stays false while nothing can be written. `run()` then spins forever without suspending (turn_driver.h:312-320: `start()` returns nullptr, `continue`), and so does the blocking entry (blocking.h:98-101). This is the normal sealer pattern: a waiter on the open record (`staged + 1`) links, making the sealer owed, and the group's staged record is refused. `seal_turn` skips the refused group (turn_driver.h:541) before the call that would set `quiet`, and nothing else clears `owed`. | Probe a75577 `owed`: 1000 `commit()` calls, 0 turns written, `idle()` still false. `owed_entry`: `j::run` still spinning after 3 s. | When `refuse()` refuses a group, set its `Sealing` quiet and `mark()` it under `sealers_mutex_`. Keep `link()` and `seal()` from marking a refused group owed. Test in `oversize`: a sealed group with a waiter on `staged + 1` and a refused record; the driver goes idle, and `run()` sleeps instead of spinning. |
-| F2 | yes | defect | `forget()` of a refused group retires through `last`, the last refused sequence (turn_driver.h:148), but a writer's open record follows it at `last + 1`. That is the record the unrefused path covers with `log_.sequence + 1` (turn_driver.h:146). A `durable(g, last + 1)` linked after the forget does not fail `group_closed`. It waits, and the reopened incarnation's first record (`retired + 1`, journal.h:597-598) then acknowledges it: a false acknowledgment across incarnations. | Probe a75577 `floor`: retired is 2 for both groups. The plain group's old open-record wait fails `group_closed`. The refused group's wait on 3 stays pending, then resolves without error once the new incarnation writes 3. | `floor = std::max(floor, found->second.last + 1)`. Test in `oversize`: after `forget`, `retired(2)` is at least `last + 1`, and a wait on it fails `group_closed`. |
-| N1 | no | gap | `turn_room` is conservative. With 16 KiB segments of 1 KiB blocks, one turn encodes 91 records of 100 bytes (15015 cost units, 109% of the 13661 room), which main's driver wrote in one turn and this branch writes in two. Loads in that band pay one more barrier. Not a durability issue. | Probe a75577 `slack`. | Owner's call. Options: keep it (one bound shared with the sealers, simplest), or take the prefix by `fits()` on the encoded bytes with the sealers budgeted against the same check. |
-| N2 | no | nit | The doc says a record is refused "at the turn that would take it". `refuse()` refuses it at the next `start()` wherever it sits in `pending_`, so waits at or above the hole can fail before the group's older deferred records are durable. The behavior is fine; the sentence is not. | turn_driver.h:489-509; turn-seal.md "A record no segment holds". | Say "at the next turn". |
-| N3 | no | nit | Reason 1 in the doc is not exact for a group's first record: `TurnLog::stage` admits a fresh group's checkpoint at any sequence (turn_log.h:250). The rule still stands on reasons 2 to 4. | turn_log.h:250-253. | Add "except a new group's first checkpoint, whose state would include the failed operation", or leave it. |
-| N4 | no | gap | Once refused, a Journal-backed group cannot close (`Journal::close` needs `sequence == record_sequence_`) or reopen in-process (journal.h:590-591), so `refused_` holds it until the host restarts. This matches a failed turn's outcome, but only for that group. | journal.h:359, 590-591. | None needed. Worth a line in the doc. |
-| N5 | no | nit | Staged records that exceed the room on every turn keep sealers from running; the doc already says the fairness wait stretches. | turn_driver.h:521, 542. | None. |
+| N1 | no | nit | A split turn pays up to 1 + log2(n) trial encodes of up to a segment each on the loop (turn_log.h:292-295), from 0 to n; at the default 64 MiB segment a split of about 100k records is about 17 full-segment encodes and checksums before the real one. It runs only when pending records pass `turn_room`, and it does not affect durability. Derived from the code, not measured. | turn_log.h:283-296; turn_driver.h:460. | Owner's call: keep it, or start `low` at the prefix whose `record_cost` sum fits `turn_room` (known to fit), which narrows the search to the last block or so. |
+| N2 | no | nit | Whether a near-limit record is refused depends on the log's state: a fresh segment's first block carries the current manifest (framing.h:107-110), so a record refused now could fit after a turn with fewer groups. Encode refuses the same record in the same state, where main failed the whole driver, so this is strictly better. `bound` measures the limit only in a new log, where no manifest is carried. | framing.h:107-110; turn_bound_test.cc `main_single`. | Optional: one line in turn-seal.md, "does not encode alone in an empty segment now". |
 
 ## Not run
 
-- No TSan run of the new paths: no new thread interaction, and CI's sanitizers cover the suite.
-- No main-driver run of `slack`; main's one-turn result is inferred from `TurnLog::append` encoding
-  those 91 records in one turn.
-- No crash-model run with sealers active during a split wave; `crash` stages only.
+- No measurement of `fitting`'s cost at 64 MiB segments (N1).
+- No crash model during a split turn beyond the suite's `crash` case: refusal and `fitting` write
+  nothing, so the cut points are those A3 already covers.
+- No TSan run: the fix round adds no thread interaction (`sealers_mutex_` is taken as before);
+  CI's sanitizers cover the suite.

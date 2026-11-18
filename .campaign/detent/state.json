@@ -5382,7 +5382,36 @@
       "worktree": "../journal-wt/detent/journal-sync-seam"
     },
     "journal-turn-bound": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-17T23:57:22",
+          "base": "a412175fe437b59463bcaa97ebc75429643bdc65",
+          "blobs": {
+            "CHANGELOG.md": "100644:12de45aab2512a35a2f27c51c4976b38f269befc",
+            "CMakeLists.txt": "100644:6ffc963592eae604901f1d23e435720512f698c2",
+            "docs/mechanisms/turn-seal.md": "100644:7e627bf9fe9ac71da5eb4b685c0a83e7d7a1ae2a",
+            "include/journal/turn_driver.h": "100644:abd05ce582860422e5568e04f27b830cba088bd2",
+            "include/journal/turn_log.h": "100644:937a90fb60cbbaeb3977acc9579cd2d47fab9922",
+            "test/turn_bound_test.cc": "100644:76616a86d2fffce95c75964bb6f13566ea49b2b4"
+          },
+          "by": "review",
+          "commit": "3d203d7573edba068ee71ed5749d19147660aaed",
+          "criteria": "dcbc4928be21f57d",
+          "diffs": {
+            "CHANGELOG.md": "cac850d0eb494132",
+            "CMakeLists.txt": "c9fed7888187de51",
+            "docs/mechanisms/turn-seal.md": "da833f34f94333a5",
+            "include/journal/turn_driver.h": "5b3795c06d95def3",
+            "include/journal/turn_log.h": "cf50ea8cb4b54f67",
+            "test/turn_bound_test.cc": "0582dc22caad4460"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e385f1082fabef9d8167e926f18c95facae23fc3",
+          "reviewed": "c379267bdb5ec06d3418fbba7cc75f8fda04f7cf",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "13592a1675f0da84c5d2d1a959a8209f52a1d2d9",
       "branch": "quest/detent/journal-turn-bound",
@@ -5439,7 +5468,7 @@
       "risk": "high",
       "status": "review",
       "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
-      "updated": "2026-11-17T21:04:47",
+      "updated": "2026-11-17T23:57:22",
       "worktree": "../journal-wt/detent/journal-turn-bound"
     },
     "legacy-h": {
