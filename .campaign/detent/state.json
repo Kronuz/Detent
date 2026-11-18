@@ -5227,6 +5227,42 @@
       "updated": "2026-11-17T19:52:37",
       "worktree": "../journal-wt/detent/journal-sync-seam"
     },
+    "journal-turn-bound": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_driver.h",
+        "test/turn_bound_test.cc",
+        "test/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Journal: a turn never exceeds a segment; a wave of opens commits",
+      "updated": "2026-11-17T19:52:43"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
