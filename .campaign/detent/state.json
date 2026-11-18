@@ -14454,7 +14454,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/transport-identity",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-17T13:50:52",
@@ -14503,8 +14503,8 @@
       "risk": "high",
       "status": "landed",
       "title": "async-drivers 5c: per-frame identity, the group-open exchange, restart with another L",
-      "updated": "2026-11-17T13:51:01",
-      "worktree": "../consensus-wt/detent/transport-identity"
+      "updated": "2026-11-18T02:09:12",
+      "worktree": ""
     },
     "transport-idle-cost": {
       "accepted": {
