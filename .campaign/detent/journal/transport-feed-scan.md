@@ -41,12 +41,13 @@ Not table growth. Diag jobs at side refs refs/diag/feed-scan-1..5 (consensus; ne
    `10.47x16 10.47x4096` per 100 groups in A2's job. Every sender sent all 40,000 credit frames
    (queued 0); the stuck host had received 25,956-39,785 of them.
 2. 261117-201457-eeabdc: at the stuck receiver the socket holds 2-100 KB unread (FIONREAD) and `in_`
-   a partial frame; gone 0.8 s later. 261117-204455-6f15b3 (12 runs, 4 stuck): every stuck reader is
-   parked at connection.h's `co_await task::yield()` after a successful 1,281-5,061 B `SSL_read`
-   (where 5); idle readers wait in `want(SSL_ERROR_WANT_READ)`. The yield's post is not resumed for
-   0.4-1.2 s while the loop runs other handlers (the diag's own `at()` ran). Load-dependent: 0 of 8
-   runs stuck at load 5-7, 4 of 12 at load 8-15. CI macos-x86_64 hit it at 1,000 groups (3.00x4096
-   per 100 groups, 404.2 B, run 44230587749).
+   a partial frame; gone 0.8 s later: credit still in flight when the run ends, queued behind the
+   burst. 261117-204455-6f15b3 sampled stuck readers at connection.h's `co_await task::yield()`
+   (where 5), read as a parked reader: disproved by the lead's reader-yield-stall trace, job
+   261117-212453-69d3b7 (12 runs, 10,000 groups): the longest yield was 26.6 ms wall and 12.7 ms
+   CPU, one pass of the io_context FIFO behind 3 readers, none over 50 ms; the `where 5` readers
+   were mid-drain when sampled. The quest was dropped. CI macos-x86_64 hit the same in-flight credit
+   at 1,000 groups (3.00x4096 per 100 groups, 404.2 B, run 44230587749).
 3. Clean runs: 298.2 B at 10,000 groups (stored 127.8, frames 170.5) against 283.6 B at 1,000
    (136.8, 146.8): a group costs about the same at both.
 The bench read the bytes once sent and received held still for 200 ms; a credit frame arriving moves
@@ -119,12 +120,6 @@ both change a contract, so they are the lead's (see Blocked on).
 
 ## Blocked on
 
-- (lead) The reader stall above is in connection.h / task scheduling, outside this quest's file set
-  and unchanged by it (`git diff main -- include/consensus/transport/connection.h` is empty). A yielded
-  reader not resumed for up to 1.2 s is a latency fault for every connection, not only this bench.
-  Options: (a) a quest for it (recommended; the diag refs and jobs above reproduce it under load,
-  about 1 run in 3 at 10,000 groups); (b) fold it into connection-slow-reader-flake. Not
-  attributed at main by a run: main's feed stalls at 10,000 groups for its own reason.
 - (lead) CI: push consensus:quest/detent/transport-feed-scan (01e2c06 or later).
 
 - msg-66 (to the lead): granted and closed; `scan` and `order` are in the CMakeLists foreach
