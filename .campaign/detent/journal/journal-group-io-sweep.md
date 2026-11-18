@@ -9,15 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix written in journal-wt (host.h: one range per group in a std::map, batched sweep at
+2x live; test/host_test.cc `view_sweep`). Building and running host_test locally before
+committing; then mutants and jobs.
 
 ## Next
 
-1. <step>
+1. Commit fix + test; submit suite (A1), two mutant --fails-without jobs (A2), exclusive bench
+   A/B with --ref base=ea397ab (A3), then the doc table (A4).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
