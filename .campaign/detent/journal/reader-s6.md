@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs: every job in the home `.scratch/reader-s6-moved.txt` not kept, plus plain c435d5 d779ed 701d0a and A7 5046f5, cancelled and rerun at the commit that records this State (A14 fix); probe of `test_reader_switch capacity` there; msg-1 before 318fd2 (`Detent:b1d281c`) and after 63e21d (head). Ids: `campaign status reader-s6`.
+State: blocked on the msg-1 regression fix, which lives in main's dense-page code outside the file set (see Blocked on). Jobs at `Detent:32e65d8` code run on; ids in `campaign status reader-s6`.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -65,8 +65,20 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Blocked on
 
-- Nothing. Evidence head: the lead moved every job to `Detent:64d8e34`; the A14 fix moves it
-  once more, and every job is rerun at this commit.
+- msg-1 regression (1 thread: +46% hot, +31-49% scattered per lookup): the cause is main's dense-page codec
+  (`Detent:8b041fab`, `NodeAt` walks `Detent:2a971e29`), not reader-s6. `paged::decode_node` and
+  `decode_external` (`src/detent_local/paged_layout.cc`) run the whole `decode_page_header`
+  (magic, zero bytes, `validate(h, limits)`, length) on every node visit and every external, on
+  pages first touch already verified and the hit path already compared. The fix touches
+  `paged_layout.{cc,hh}`, `paged_node_step.hh` and `paged_read_state.cc`, none of which is in my file
+  set. Options:
+  1. Grant those four files to reader-s6. I decode the header once per page in `lookup` and pass
+     the node end to `NodeAt::decode`/`decode_external`; `verify_page_structure` and the first-touch
+     walk already decode it once, so they pass theirs. Test: a page whose header is corrupted after
+     first touch is still refused by the hit compare (existing), and the codec tests stay green.
+  2. A main quest for the codec, landing before reader-s6; msg-1 notes the inherited cost.
+  Recommendation: 1. The pinned arm (main's `ReadView` path) pays the same, so main's own Client
+  regresses too, and the change is about 30 lines. Every job moves once more after it.
 
 ## Evidence
 
@@ -86,8 +98,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Messages
 
-- msg-1: open until before 318fd2 and after 63e21d finish; then the answer is ns per lookup, before and
-  after, at 1 and 8 threads, for hot and scattered keys (100K knobs is fine for msg-1, per the lead).
+- msg-1: answered in Result; the regression is main's codec, fix blocked on files (Blocked on).
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -95,7 +106,32 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Result
 
-Pending.
+msg-1, `reader_bench`, 100K knobs (`--generate 50000`), int, 4 reps x 1M calls, exclusive. Median
+of per-thread p50 / p99 in ns; before 318fd2 at `Detent:b1d281c`, after 63e21d at `Detent:32e65d8`:
+
+| Case | 1 thread before | 1 thread after | 8 threads before | 8 threads after |
+|---|---|---|---|---|
+| core hot | 393 / 446 | 575 / 728 | 468 / 1052 | 702 / 1601 |
+| pinned hot | 394 / 430 | 578 / 724 | 495 / 1086 | 724 / 1645 |
+| core scattered | 659 / 1092 | 980 / 1475 | 798 / 1695 | 1140 / 2590 |
+| pinned scattered | 687 / 1130 | 897 / 1214 | 831 / 1714 | 1124 / 2640 |
+
+Each call includes the clock (about 65 ns). The stores differ in their rollout knobs (bool before, int
+rollout values after, per D1), not in the int keys timed.
+
+Attribution (msg-1 regression):
+- Profile: `sample` of hot 1-thread, both arms, both commits (`.scratch/prof/*.sample.txt`). After,
+  `decode_page_header` is 9.6% of the thread's samples and `decode_node` 8.5%, with
+  `decode_external`, `decode_child` and `get_signed` 3.4% more; before had none of them on the hit
+  path. Clock share fell from 16.9% to 12.3%: per call is 1.37x longer.
+- Experiment: head plus a scratch patch that reads the external count instead of decoding the
+  header in `decode_node`/`decode_external`, interleaved with head, 4 pairs, strict hold, 1 thread,
+  same store (`.scratch/exp/ab.txt`). Median p50, head to patched: pinned hot 580 to 440
+  (-140), pinned scattered 939 to 700 (-239), core hot 591 to 530 (-62, noisy pair), core scattered
+  943 to 692 (-251). That recovers most of the hot gap (394 before) and all of the scattered one.
+- Cleared: `checked_or_unlinked`'s fstat is not on the lookup path (no syscall but the clock in
+  any sample); D1 `detent_get` dispatch adds nothing measurable (core and pinned move together);
+  `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
 
