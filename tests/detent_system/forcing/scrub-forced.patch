@@ -1,0 +1,27 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 1c160c6a..cee956ac 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -674,12 +674,22 @@ struct Coordinator::Impl {
+ 			co_return;
+ 		}
+ 		std::uint64_t reported_passes = 0;
++		std::uint64_t forced_from = 0; // forced window: bytes hashed when a new root was first seen
+ 		while (!closing) {
+ 			const auto now = std::chrono::steady_clock::now();
+ 			// The recovery worker rewrites base->generation until `ready`; the loop never reads it before.
+ 			if (diagnostic.initialized && base->ready.load(std::memory_order_acquire) && base->generation) {
+ 				auto root = l::detail::ScrubSource::root(*base->generation);
+ 				auto result = scrub_result;
++				// forced window: a paced scrub keeps hashing the old root for 250,000 bytes before it rebases
++				if (options.scrub_bytes_per_second < 1'000'000 && root && result->root && root.get() != result->root.get()) {
++					if (!forced_from)
++						forced_from = result->scrub.bytes_hashed() + 1;
++					if (result->scrub.bytes_hashed() + 1 < forced_from + 250'000)
++						root = result->root;
++					else
++						forced_from = 0;
++				}
+ 				const bool changed = root && root.get() != result->root.get();
+ 				if (changed) {
+ 					result->root = std::move(root);

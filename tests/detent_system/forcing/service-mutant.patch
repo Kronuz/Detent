@@ -1,0 +1,48 @@
+diff --git a/tests/detent_authority/test_service.cc b/tests/detent_authority/test_service.cc
+index e1b900a7..e1c5ebf4 100644
+--- a/tests/detent_authority/test_service.cc
++++ b/tests/detent_authority/test_service.cc
+@@ -616,6 +616,7 @@ int main() {
+ 		unsigned frozen = 0;
+ 		// Readers are served in the order the owner gives them credit, not the order they were started.
+ 		std::vector<bool> served(readers.size());
++		std::thread late;
+ 		for (unsigned count = 0; count < readers.size(); ++count) {
+ 			unsigned i = readers.size();
+ 			for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30); i == readers.size();
+@@ -641,27 +642,22 @@ int main() {
+ 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 1);
+ 			else
+ 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
++			if (count + 1 == readers.size()) { // forced window: the last admission outlives the loop by 200 ms
++				late = std::thread([&writer = readers[i].writer, held = *reply] {
++					std::this_thread::sleep_for(std::chrono::milliseconds(200));
++					writer.release(held);
++				});
++				continue;
++			}
+ 			assert(readers[i].writer.release(*reply));
+ 			wait_released(readers[i].writer);
+ 		}
+ 		assert(frozen == 5); // the capture frozen before the progress commit serves the same five readers as before
+-		// A settled read's admission stays held until the owner retires its task; the reader's
+-		// producer is at its cap of 16, so wait for every admission before admitting 16 more.
+-		for (auto idle_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);;) {
+-			Writer writer;
+-			detent_test::run_handle(service, probe, writer);
+-			rapidjson::Document health;
+-			health.Parse(writer.body.c_str());
+-			assert(!health.HasParseError());
+-			if (health["requests"].GetUint64() == 0)
+-				break;
+-			assert(std::chrono::steady_clock::now() < idle_deadline);
+-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+-		}
+ 		std::vector<Read> terminal_readers(16);
+ 		for (auto &reader : terminal_readers)
+ 			start_read(service, reader, "fedcba9876543210fedcba9876543210",
+ 					   "{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
++		late.join();
+ 		auto terminal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+ 		for (;;) {
+ 			Writer writer;

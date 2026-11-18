@@ -16,9 +16,10 @@ job can show it.
 
 - A1 `close(id)` on a fenced row completes and a reopen of the id succeeds: a test, failing at main if it hangs or throws.
 - A2 `close(id)` after a successful open whose caller then fails (no create, no records) completes and frees the row: a test.
-- A3 A closed row holds no bytes: the Driver's per-row count (or a counting allocator) returns to its pre-open value after close, at 10,000 rows: a job.
+- A3 A closed row holds no Driver bytes: the Driver's per-row count returns to its pre-open value after close, at 10,000 rows; heap per created row is reported split into Driver and journal parts, the journal part owned by journal-reopen-closed A7: a job.
 - A4 Close with waiters, IO or a watch in flight still completes them as today: the suite and TSan.
 - A5 The suite passes, plus CI.
+- A6 The Driver never spins after shutdown (msg-71, Xapiand's consensus-sim-loops): `step` re-watching a group that awaits its turn barrier (driver.h:647) after `shutdown_` fires (:942) makes every watch throw `cancelled` at once and re-arm, so the loop never idles until the barrier lands (600,000 wakes seen). Repro: consensus:ecb2a37, `SIM_DRIVER_SEEDS=1 build/consensus_simulation_test 0 1000 2` (seeds 2, 4, 6, 8-10, 14-16, 18-24 of 1-24). After the fix those seeds pass and a test bounds the wakes after shutdown: jobs, fails without.
 
 ## Contracts
 

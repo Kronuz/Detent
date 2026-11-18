@@ -73,6 +73,9 @@ int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
 	std::filesystem::create_directories(directory.parent_path());
+	// A crashed earlier run with this pid leaves its state behind; the checks below need none.
+	for (auto suffix : {"", "-read-only", "-admission", ".history", "-read-only.history", "-admission.history"})
+		std::filesystem::remove_all(directory.string() + suffix);
 	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
 		auto invalid = options(directory);
 		invalid.timeout = timeout;
@@ -645,6 +648,19 @@ int main() {
 			wait_released(readers[i].writer);
 		}
 		assert(frozen == 5); // the capture frozen before the progress commit serves the same five readers as before
+		// A settled read's admission stays held until the owner retires its task; the reader's
+		// producer is at its cap of 16, so wait for every admission before admitting 16 more.
+		for (auto idle_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);;) {
+			Writer writer;
+			detent_test::run_handle(service, probe, writer);
+			rapidjson::Document health;
+			health.Parse(writer.body.c_str());
+			assert(!health.HasParseError());
+			if (health["requests"].GetUint64() == 0)
+				break;
+			assert(std::chrono::steady_clock::now() < idle_deadline);
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		}
 		std::vector<Read> terminal_readers(16);
 		for (auto &reader : terminal_readers)
 			start_read(service, reader, "fedcba9876543210fedcba9876543210",

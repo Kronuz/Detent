@@ -12,8 +12,9 @@ esac
 mkdir -p "$repository/.scratch/stage6"
 output=$(mktemp -d "$repository/.scratch/stage6/authority-writers-XXXXXX")
 rmdir "$output"
-exec "$python" "$repository/tests/detent_system/run_writers.py" \
+"$python" "$repository/tests/detent_system/run_writers.py" \
   --scenario "$repository/tests/detent_system/presets/smoke.json" \
   --binary "$binary" --build "$build" \
   --certificates "$build/tests/detent_authority/tls-fixture" \
   --output "$output" "$@"
+rm -rf "$output" # a failed run keeps its directory, which CI uploads

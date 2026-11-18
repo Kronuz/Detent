@@ -4,6 +4,8 @@
 #include "paged_publication_artifacts.hh"
 #include "reader_metadata.hh"
 #include "live_record.hh"
+#include <chrono>
+#include <thread>
 template <class Error, class Call> void rejects(Call call) {
 	try {
 		call();
@@ -11,6 +13,13 @@ template <class Error, class Call> void rejects(Call call) {
 		return;
 	}
 	throw std::runtime_error("invalid paged artifact operation accepted");
+}
+template <class Test> void eventually(Test test) {
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	while (!test()) {
+		require(std::chrono::steady_clock::now() < deadline);
+		std::this_thread::yield();
+	}
 }
 int main() {
 	const auto directory =
@@ -60,6 +69,8 @@ int main() {
 					}
 					plan.emplace(construction.take());
 				}
+				// The builder's work and input owners retire on the runtime thread; the plan is left.
+				eventually([&] { return domain.residents() == 1; });
 				next = l::next_generation(recovered.descriptor(), plan->descriptor().cursor, plan->descriptor().profile,
 										  false)
 						   .id;

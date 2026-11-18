@@ -1,6 +1,6 @@
 #pragma once
 #include "client.hh"
-#include "completion_scheduler.hh"
+#include "detent_distribution/allocator.hh"
 #include "detent_local/disk_store.hh"
 #include "hash_stats.hh"
 #include "publication_sink.hh"
@@ -11,6 +11,7 @@
 #include <vector>
 
 namespace detent::delivery {
+using NativeDriver = kronuz::journal::AsioCompletionDriver<kronuz::io::completion::NativeQueue>;
 namespace detail {
 struct CoordinatorAccess;
 }
@@ -25,7 +26,6 @@ struct CoordinatorOptions {
 	std::optional<distribution::Cursor> reset_from;
 	std::chrono::milliseconds poll_interval{200};
 	std::shared_ptr<PublicationSink> publication_sink;
-	std::optional<CompletionPort> completion_port;
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
 	LocalImageFormat image_format = LocalImageFormat::PagedV2;

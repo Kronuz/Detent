@@ -2,8 +2,9 @@
 # usage, from the checkout root, in a light job: history_mutant.sh MUTANT
 # Applies one history mutant (S5.2's seven, S5.3's six, the S5.3 review's ten) to the source, builds the test
 # that must kill it and runs it.
-# Exits 0 when the test fails (the mutant is killed) and 1 when it passes or the mutant
-# or its build does not apply, as `campaign job submit --fails-without` expects.
+# Exits the test's own nonzero status when it fails (the mutant is killed), 0 when it passes (it
+# survives) and 126 when the mutant or its build does not apply (no verdict): `campaign job submit
+# --fails-without` passes on a nonzero status but 124, 126, 127.
 set -u
 mutant=${1:?usage: history_mutant.sh MUTANT}
 build=.scratch/history-mutant-build
@@ -90,14 +91,18 @@ drop-block-bound|drop-seal-bound|drop-table-bound) file=src/detent_authority/his
 	drop-seal-bound) new='	return std::max({b.base, b.block, b.table});' ;;
 	*) new='	return std::max({b.base, b.block, b.seal});' ;;
 	esac ;;
+table-unbounded) file=src/detent_authority/history.cc test=test_authority_history_power_cut
+	old='	if (table)
+		within(table_name, table->size(), bounds.table);'
+	new='' ;;
 no-count-cut) file=src/detent_authority/history_layout.cc test=test_authority_history_cluster
 	old='			else if (items.size() > max_blocks)
 				rule = Cut::Count;
 '
 	new='' ;;
-*) echo "unknown mutant $mutant"; exit 1 ;;
+*) echo "unknown mutant $mutant"; exit 126 ;;
 esac
-OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 1; }
+OLD="$old" NEW="$new" python3 - "$file" <<'EOF' || { echo "mutant does not apply"; exit 126; }
 import os, sys
 path = sys.argv[1]
 text = open(path).read()
@@ -110,18 +115,17 @@ git diff --stat
 trap 'git checkout -- "$file"' EXIT
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON \
-	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null || { echo "configure failed"; exit 1; }
-cmake --build "$build" -j4 --target "$test" >/dev/null || { echo "build failed"; exit 1; }
+	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null || { echo "configure failed"; exit 126; }
+cmake --build "$build" -j4 --target "$test" >/dev/null || { echo "build failed"; exit 126; }
 binary=$(find "$build" -name "$test" -type f -perm -u+x | head -n 1)
-[ -n "$binary" ] || { echo "no $test"; exit 1; }
+[ -n "$binary" ] || { echo "no $test"; exit 126; }
 args=()
 if [ "$test" = test_authority_history_transport ]; then
 	# Its TLS fixture comes from the certificates test.
-	ctest --test-dir "$build" -R '^authority_tls_certificates$' >/dev/null || { echo "no TLS fixture"; exit 1; }
+	ctest --test-dir "$build" -R '^authority_tls_certificates$' >/dev/null || { echo "no TLS fixture"; exit 126; }
 	args=("$(dirname "$binary")/tls-fixture")
 fi
 "$binary" ${args[@]+"${args[@]}"}
 status=$?
-if [ "$status" -eq 0 ]; then echo "mutant $mutant survived $test"; exit 1; fi
-echo "mutant $mutant killed by $test (status $status)"
-exit 0
+if [ "$status" -eq 0 ]; then echo "mutant $mutant survived $test"; else echo "mutant $mutant killed by $test (status $status)"; fi
+exit "$status"

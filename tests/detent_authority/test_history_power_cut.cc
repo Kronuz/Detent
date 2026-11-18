@@ -184,6 +184,51 @@ struct Growth : Seals {
 		}
 	}
 };
+// Many namespaces, one changed per seal, a table at every seal: the table outgrows a bound that one
+// seal's changes stay within.
+struct Sprawl : Seals {
+	static constexpr unsigned namespaces = 60;
+	Sprawl() {
+		State s(context());
+		std::uint64_t index = 0, sequence = 0;
+		auto entry = [&](std::uint64_t bytes) {
+			if (s.close_entry(bytes))
+				seals.push_back(s);
+		};
+		Command open;
+		open.context = context();
+		open.kind = Kind::Open;
+		open.producer = "p";
+		open.nonce[0] = 'n';
+		s.apply(++index, open);
+		entry(0);
+		start = s;
+		LayoutPolicy policy;
+		policy.seal_transactions = 1;
+		policy.period = 1;
+		policy.carry_bytes = 64;
+		policy.carry_count = 0;
+		policy.alpha_num = policy.alpha_den = 1;
+		policy.log_entries = 64;
+		AdministrativeCommand enable{context(), AdministrativeKind::EnablePositions, {}, {}, {}, policy};
+		enable.nonce[0] = 's';
+		assert(s.administer(++index, enable).status == Status::Applied);
+		entry(64);
+		for (unsigned i = 0; i < namespaces; ++i) {
+			auto name = "s" + std::to_string(i);
+			name.resize(100, 'x');
+			Command c;
+			c.context = context();
+			c.producer = "p";
+			c.generation = 1;
+			c.sequence = ++sequence;
+			c.name_space = name;
+			c.mutations.push_back({name + ":k", detent::KnobDef{1}, {}, {}});
+			s.apply(++index, c);
+			entry(64);
+		}
+	}
+};
 // One run on `disk`: recovered from the checkpoint, then every seal above it, with up to
 // `lag` writes queued behind apply. Records the seal of the checkpoint a node could
 // persist: every `every` seals, once its history is durable.
@@ -361,6 +406,11 @@ int main(int argc, char **argv) {
 		narrow.request_bytes = 1;
 		narrow.mutations = 1;
 		refused_seal(Growth(1), narrow, "history file seal ");
+		// Only the table's bound is tight here: each seal changes one namespace, within the one the limits
+		// allow, but the table lists them all.
+		Limits single;
+		single.namespaces = 1;
+		refused_seal(Sprawl(), single, "history file layout ");
 	}
 
 	// A count-cut seal: a restart, and a cut at every primitive, recover the same bytes (F9).
