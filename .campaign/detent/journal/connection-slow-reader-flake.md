@@ -1,9 +1,22 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261117-222825-4c8b1c (trace soak x120) 261117-222829-04c323 (mutant probe at origin/main)
+State: cause 2 (coarse_writer, 0 drained expiries) NOT fixed; causes 1 fixed. Merged origin/main, pushed d9fca7d, CI 44435046094 (queued).
+Waiting on jobs: f79a8e (coarse_writer x120, pulse off), 69ed8e (suite), reruns d59b1b 7b7c57 e7bfa3 6afa43 b4fac6 5c2349 f98a6a e4f648 f43386 (A1/A2/A4 at d9fca7d).
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 4 (session 3), at f1af254 (origin/main merged) and d9fca7d:
+- 4c8b1c (trace x120 at 35bd913, 10 ms pulse on): 120 of 120 pass, 1 drained expiry each, 6114-6242 ms,
+  loop lateness 18 ms at most. 04c323: mutants.sh link failure reproduced at main 9f86ec3 (main's); main
+  has since fixed it (driver_simulation.cc in the compile), so consensus_mutants is no longer blocked.
+- The failure (34479e, 4 of 60 at 17e1a34, no pulse): 0 drained expiries, +230 ms, held 231-234 ms. With
+  the pulse it did not recur in 120 runs. Hypothesis: the pulse wakes the writer's loop every 10 ms and
+  masks a late wheel fire of the 2 s stuck deadline; late_deadline then extends by the lateness
+  (deadline.h:81), the writer wakes on writability inside the extension, and no expiry counts. The
+  pulse is now off by default (COARSE_WRITER_PULSE_MS); f79a8e runs x120 without it. If it fails there
+  again, the stall is a product/wheel matter (late fire), not test sizing: then A3 needs rewording and
+  the case should assert the stuck rule for a late fire too, or the lead rules it a wheel quest.
 
 Round 3 (session 2), at 8e3b053 (origin/main merged) and 3d2685e (trace):
 - 34479e and 19718e ran 9f8aa7b, a commit later reset off the branch (17e1a34 is its parent);
