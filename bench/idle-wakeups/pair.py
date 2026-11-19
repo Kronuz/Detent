@@ -140,6 +140,20 @@ class Pair:
             time.sleep(0.05)
         raise RuntimeError(f"{path} was not applied")
 
+    def wait_history(self, timeout: float = 30) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            status, _ = self.call(
+                self.authority_port,
+                "/v2/history/layouts",
+                {"namespaces": NAMES},
+                token=MIRROR,
+            )
+            if status == 200:
+                return
+            time.sleep(0.02)
+        raise RuntimeError("the authority's history never became available")
+
     def launch(self, name: str, command: list[str]) -> None:
         with (self.root / f"{name}.log").open("wb") as log:
             self.children[name] = subprocess.Popen(
@@ -220,6 +234,9 @@ class Pair:
             )
             if receipt.get("status") != "applied":
                 raise RuntimeError(f"transaction refused: {receipt}")
+        # The history answers a few hundred ms after the last write; a relay started before then
+        # fails its first sync and retries one interval later, a minute in the idle count.
+        self.wait_history()
         relay = private(
             self.root / "relay.json",
             {
