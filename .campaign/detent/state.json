@@ -13856,6 +13856,34 @@
       "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
       "updated": "2026-11-18T14:27:14"
     },
+    "peers-busy-roundtrip-bound": {
+      "accepted": {},
+      "after": [
+        "peers-tsan-timeout"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "consensus: peers_test busy round-trip bound (64 ms) fails under load at 256 ms",
+      "updated": "2026-11-19T05:38:03"
+    },
     "peers-retry-flake": {
       "accepted": {},
       "after": [],
