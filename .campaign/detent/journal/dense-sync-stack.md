@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs. Seeds: 261118-064312-81a63c (5M, Dense/S2/stacked/A-A tree), 261118-070640-2fb122 (5M, main), 261118-070638-b711be (10K+100K, main). Arms: see 5M and main-arm lists in "Main arms on their own fixture". Blocked: cancelling 51839b and the old 100K main arms 71faa7 8e49b7 59781b was denied by the permission classifier; they read the old fixture and will fail at main, the lead cancels them. Also the 100K arms, gates asan a8791e tsan 1bba5b.
+State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Not yet ready for review: A6 waits on the 5M rows. Blocked on: file-set grant for docs/measurements/dense-sync-stack-20261118/, and the A4 evidence binding (below).
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -23,15 +23,9 @@ step; then checks the grouped order.
 
 ## Next
 
-1. Read 136e37 (A1-A3 test) and the two mutants (19aed1 n6, 95665a owner group unsynced): each must
-   print "reached the test" and fail. If the owner-group mutant survives, recovery does not read
-   `.owner` bytes: report it.
-2. Read A1 cold boot b5ef57 (100K at main: "in N groups", N > 0; also says whether the Oct-23
-   100000-r3 fixture still loads on main). Rerun it at the final head.
-3. Read the 12 A4 arms (100K, exclusive, one arm-run per job; arms dense=Detent:9852a3c,
-   s2=Detent:35296ba, stacked=Detent:d04794d (first tree with both), main=Detent:ea1fddc; 3 rounds
-   each, interleaved). Write docs/perf/dense-sync-stack.md (A6).
-4. Gates queued: native 608f32, asan a8791e, tsan 1bba5b; branch pushed (CI on quest/detent/dense-sync-stack).
+1. When 9f93de and 576dde finish: fill the 100K stacked r3 and main r3 rows and medians in docs/perf/dense-sync-stack.md (`python3 <scratch>/sum.py` pattern: SUMMARY lines of `campaign job log`).
+2. When the 5M arms finish: write the 5M table (median of 2 rounds per arm, A/A = aa r1 vs r2 and vs stacked), fill main's 5M fixture row in docs/measurements/dense-sync-stack-20261118/README.md (size, records, revision, seed seconds from 2fb122).
+3. Then mark "ready for review" (durability).
 
 ## 5M (D119)
 
@@ -50,28 +44,23 @@ Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat
 
 ## Main arms on their own fixture (lead's decision after the probes)
 
-Probes: fresh 10K at main boots main (08680a, done); the Oct-23 fixture boots at d04794d (6c2712) and at 53abd637~1 (e7158a); the 53abd637 and 711a114e probes failed to build (dd5db9, 39af41), so they name no commit. It is a state-format change under no-compat; main refuses nothing by name (follow-up above). Main therefore runs on its own fixtures: `10000-main`, `100000-main` (job b711be) and `5000000-flat-main` (job 2fb122, light, 135 min, `--long`), all in the home capacity-trials, kept. Main arms (`submit-main.sh`, after the seeds): 100K rounds 1-3 d672ef 839960 576dde; 5M rounds 1-2 6aec23 38688c. Old main arms: 028406 cancelled; 51839b (5M r2), 71faa7 8e49b7 59781b (100K r1-3) still queued: cancel was denied by the permission classifier, they will fail at the old fixture, cancel them.
+Probes: fresh 10K at main boots main (08680a, done); the Oct-23 fixture boots at d04794d (6c2712) and at 53abd637~1 (e7158a); the 53abd637 and 711a114e probes failed to build (dd5db9, 39af41), so they name no commit. It is a state-format change under no-compat; main refuses nothing by name (follow-up above). Main therefore runs on its own fixtures: `10000-main`, `100000-main` (job b711be) and `5000000-flat-main` (job 2fb122, light, 135 min, `--long`), all in the home capacity-trials, kept. Main arms (`submit-main.sh`, after the seeds): 100K rounds 1-3 d672ef 839960 576dde; 5M rounds 1-2 6aec23 38688c. Old main arms 028406 51839b 71faa7 8e49b7 59781b: cancelled.
 
 ## Blocked on
 
-Resolved by D119 (see 5M above). Was: A4 at 5M. `.scratch/capacity-trials/5000000-flat-r1` (the 5M fixture of 11-07 and A9) is
-gone; only 10000-r3, 100000-r3 and 130000-r3 remain. And a 5M arm (about 8-10 min boot plus
-restarts) exceeds the 10-minute exclusive cap, so it needs `--long` (deferred, proves nothing
-before landing). Options: (a) regenerate the 5M fixture with run_fleet (5000000.json) at a tree all
-four arms read, as a light `--long` job, then one `--long` exclusive job per arm; (b) accept 100K
-plus 130K rows and the 11-07 5M screen as the 5M context; (c) drop 5M. Recommend (b) now, (a) as a
-milestone check if the 5M number must decide something.
+1. File-set grant: docs/measurements/dense-sync-stack-20261118/ (README.md, seed.py, seed-fixture.sh, probe-fixture.sh, submit-5m.sh, submit-main.sh). They are A4's method: the kept-fixture record (D119), the seed scripts the 5M and main fixtures came from, the fixture-format probes, and the scripts that queued every 5M and main arm. docs/perf/dense-sync-stack.md links the README. Recommend granting the directory; the alternative is folding them into docs/perf/ under the perf doc's name.
+2. A4 evidence binding: the brief asks to `campaign job rerun` the eight 100K arms at head. Each arm is pinned by design to its own tree (dense Detent:9852a3c, s2 Detent:35296ba, stacked Detent:d04794d, main Detent:ea1fddc); a rerun at the quest head would build the head eight times and erase the comparison. Not rerun. Options: (a) accept the arm jobs as A4 evidence at their arm commits (recommended); (b) rerun only the main arm at the merged head, as "stacked on today's main" (3 x 100K + 2 x 5M exclusive, the 5M ones after a fresh main seed if the state format moved again); (c) restructure as one job per row at head with `--ref` arm checkouts. The queued 5M arms are left as they are (nothing to move: each already runs at its arm tree).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-055013-136e37 (grouped order in the DTPAGE03 test); 261118-054101-b5ef57 (100K log line) |
+| A1 | 261118-055013-136e37 (grouped order in the DTPAGE03 test; carried across the main merge); 261118-070747-d672ef, 261118-070751-839960 (100K at main: "publication synced 11 files in 2 groups") |
 | A2 | 261118-055013-136e37; mutants 261118-055014-19aed1, 261118-055016-95665a (--fails-without) |
 | A3 | 261118-055013-136e37 |
-| A4 | pending: 12 exclusive 100K jobs above |
-| A5 | CI on push |
-| A6 | docs/perf/dense-sync-stack.md (pending) |
+| A4 | 100K: 261118-054306-b5fe77 261118-054307-5a3cb1 261118-054308-15108e 261118-054310-9848a1 261118-054311-2e72e9 261118-054312-c42fcf 261118-054314-792ca7 261118-054315-78f04e 261118-070747-d672ef 261118-070751-839960, pending 9f93de 576dde; 5M: 261118-064421-90a1aa, pending the rest (State) |
+| A5 | 261118-055412-a8791e (asan), 261118-055412-1bba5b (tsan), 261118-055412-608f32 (native) |
+| A6 | docs/perf/dense-sync-stack.md (100K done; 5M pending) |
 
 ## Result
 
