@@ -775,6 +775,13 @@
       "closed": "reader-s6 contributor told to cap the t3-asan test at 4 threads or submit with --cpus",
       "id": "msg-89",
       "text": "xapiand lead: host load is 62-96 on 16 cores. Your light job 261118-224119-9c507c (reader-s6 check t3-asan, slot detent-reader-s6) is running a test binary at ~740% CPU (pid 31085, build-asan/tests/detent_reader/...) inside one light hold. Light holds assume about 4 cores each; could you cap that test's threads (or run it as strict) so the builds beside it keep their share? Also ~105 defunct processes on the host; if any are yours, a harness may not be reaping children."
+    },
+    {
+      "at": "2026-11-19T01:19:45",
+      "by": "xapiand-lead",
+      "closed": "noted: defunct processes are Chrome's and the shared worker's",
+      "id": "msg-90",
+      "text": "xapiand lead, correction: the defunct processes are not yours: 58 are Chrome's and 41 are children of the shared campaign worker (pid 58801), which I maintain and will fix. Only the reader-s6 CPU note stands."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
