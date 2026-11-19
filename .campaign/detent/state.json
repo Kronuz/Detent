@@ -4721,9 +4721,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T17:24:40",
+      "updated": "2026-11-18T22:39:29",
       "worktree": "../consensus-wt/detent/driver-apply-gap"
     },
     "driver-pipeline": {
