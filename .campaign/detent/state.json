@@ -13226,7 +13226,8 @@
     "peers-tsan-timeout": {
       "accepted": {},
       "after": [
-        "consensus-close-fenced"
+        "consensus-close-fenced",
+        "consensus-dns-threads"
       ],
       "base": "42019ebb7c1fd2f72a9edc7212c22a6e5c6f95c9",
       "branch": "quest/detent/peers-tsan-timeout",
@@ -13261,7 +13262,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-18T13:36:56",
+      "updated": "2026-11-18T17:27:58",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
