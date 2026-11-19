@@ -839,6 +839,25 @@
       "closed": "audit done: 37 untracked rows, list sent to the Xapiand lead; filing quests",
       "id": "msg-95",
       "text": "xapiand lead, from the owner: we keep finding things that were decided or said but never became a quest or tracked row (e.g. D74 'remove manager.cc' sat unfiled until today; the nightly dispatcher's missing retry). Please run the same sweep on Detent: your PLAN decisions, hunt list, docs and memory notes for work that implies build/remove/migrate/follow-up but has no quest or row, and check whether it is already done. File what is real; send me a short list of the untracked items and anything that crosses into shared libraries. I am running the same audit on xapiand now."
+    },
+    {
+      "at": "2026-11-19T05:45:35",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-96",
+      "items": {
+        "dense-power-cut-cycles": "dense-power-cut-cycles",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "dense-power-cut-cycles",
+          "dense-sync-stack-5m-times",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "dense-sync-stack landed: unlocks dense-power-cut-cycles; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3891,9 +3910,9 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_local/test_local_publication_power_cut*",
-        "tests/detent_local/*power_cut*",
-        "tests/detent_local/agent_store_*"
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_local/paged_power_cut_mutant.sh",
+        "tests/detent_local/CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [],
@@ -3906,7 +3925,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Dense pages: the power-cut matrix cuts after kill, restart and republish",
-      "updated": "2026-11-19T05:45:52",
+      "updated": "2026-11-19T06:03:55",
       "worktree": "../Detent-wt/detent/dense-power-cut-cycles"
     },
     "dense-sync-stack": {
