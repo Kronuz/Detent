@@ -16,6 +16,7 @@ job can show it.
 
 - A1 [manual] The cause is named from a CI failure's socket samples (run id quoted in the journal).
 - A2 The fix has a test or probe that fails without it, or the cause is shown to be the runner (then the test's bound is set from the samples): jobs.
+- A4 `backlog` (groups_test.cc:1620, from transport-feed-scan) holds its merge claim deterministically: on consensus main 42019eb CI run 44357306609 linux-x86_64-gcc it delivered all 18000 frames with 18000 credit frames (no merge) because node 1 read at full speed before host 2 owed more than one record per group; the test must make host 2 hold owed credit across frames (or assert what the run guarantees), and its mutant (no merging) must still fail: jobs.
 - A3 The suite passes, plus CI.
 
 ## Contracts
@@ -28,4 +29,4 @@ Filed by the lead 2026-11-17 from transport-feed-scan A6: no fix without a named
 
 ## May land early
 
-None.
+A4's test-only fix to `backlog` (and its host-transport.md row), once A4's jobs and CI pass at its commit: consensus main's CI is red on it and Xapiand's branches wait.

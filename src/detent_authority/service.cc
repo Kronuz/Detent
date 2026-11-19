@@ -77,6 +77,55 @@ void check(bool b, const char *message) {
 		throw std::invalid_argument(message);
 	}
 }
+// The storage format this build reads and writes: bump it with any change to a stored byte layout
+// (docs/mechanisms/format-refusal.md lists what each number means). Format 1 is the layout before
+// Detent:53abd637, whose images and replay this build does not read.
+constexpr unsigned storage_format = 2;
+constexpr const char *format_file = "format";
+std::string format_stamp(unsigned format) { return "detent authority storage format " + std::to_string(format) + "\n"; }
+// A directory of another format is refused at startup: Detent reads one format only.
+[[noreturn]] void refuse_format(const std::filesystem::path &directory, const std::string &found) {
+	throw std::runtime_error("authority storage format error: " + directory.string() + " is in " + found +
+							 ", this build expects storage format " + std::to_string(storage_format) +
+							 "; Detent keeps no compatibility, so start from an empty directory");
+}
+// Writes the stamp durably: a temporary file, synced, renamed, and the directory synced.
+void write_format_stamp(const std::filesystem::path &history) {
+	auto path = history / format_file;
+	auto temporary = path;
+	temporary += ".tmp";
+	int fd = ::open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
+	check(fd >= 0, "authority format stamp");
+	auto bytes = format_stamp(storage_format);
+	bool written = ::write(fd, bytes.data(), bytes.size()) == static_cast<ssize_t>(bytes.size()) && ::fsync(fd) == 0;
+	::close(fd);
+	check(written && ::rename(temporary.c_str(), path.c_str()) == 0, "authority format stamp");
+	int directory = ::open(history.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	check(directory >= 0, "authority format stamp");
+	bool synced = ::fsync(directory) == 0;
+	::close(directory);
+	check(synced, "authority format stamp");
+}
+// Checks the stamp beside the history files before the journal opens. Another stamp (format 1 or a
+// newer one) or an unreadable one is refused. A directory with a journal and no stamp is unknown:
+// it returns true and the caller decides by replay. A new directory is stamped.
+bool check_storage_format(const std::filesystem::path &journal, const std::filesystem::path &history) {
+	std::ifstream file(history / format_file, std::ios::binary);
+	if (file) {
+		std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		for (unsigned format = 0; format < 100; ++format)
+			if (text == format_stamp(format)) {
+				if (format != storage_format)
+					refuse_format(journal, "storage format " + std::to_string(format));
+				return false;
+			}
+		refuse_format(journal, "an unreadable format stamp");
+	}
+	if (std::filesystem::exists(journal / "manifest"))
+		return true;
+	write_format_stamp(history);
+	return false;
+}
 using Object = rapidjson::Value;
 void fields(const Object &v, std::initializer_list<std::string_view> allowed) {
 	check(v.IsObject(), "expected object");
@@ -1424,6 +1473,11 @@ task::task<void> Service::run(std::promise<void> ready) {
 		try {
 			co_await runtime.run(*this, ready);
 		} catch (...) {
+			// A failure before admission settles the constructor; later ones find it settled.
+			try {
+				ready.set_exception(std::current_exception());
+			} catch (const std::future_error &) {
+			}
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
 			health_stamp_ = Clock::now();
@@ -1687,6 +1741,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				throw std::runtime_error("authority directory durability");
 			}
 		}
+		const bool unstamped = check_storage_format(options_.directory, history_directory);
 		auto node_options = options_.node;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 		node_options.scheduling.async_storage = true;
@@ -1947,48 +2002,60 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			peer_history->attach(peers);
 			peers->start();
 		}
-		if (std::filesystem::exists(options_.directory / "manifest")) {
-			node.recover();
-		} else {
-			Identity id{};
-			std::random_device random;
-			for (char &byte : id) {
-				byte = static_cast<char>(random());
-			}
-			if (id == Identity{}) {
-				id[0] = 1;
-			}
-			node.create(id);
-		}
-		auto origin = Clock::now();
-		while (!node.worker().ready()) {
-			node.service({0, election_delay()});
-			dispatch(owned_node);
-			node.take_network_actions();
-			if (node.worker().fenced()) {
-				throw std::runtime_error("authority storage initialization fenced");
-			}
-			timer.expires_after(std::chrono::milliseconds(1));
-			co_await detent::transport::await_timer(timer);
-		}
-		// Seed the first deadline before Start. Later Tick samples affect future
-		// resets and cannot randomize a deadline that is already in force.
-		node.service({0, election_delay()});
-		node.start();
-		// Storage readiness precedes incremental committed application replay.
-		// Finish that replay before admitting live requests.
-		while (node.state().applied_index() < node.worker().committed() || node.application_work_pending()) {
-			node.service({0, election_delay()});
-			dispatch(owned_node);
-			check(!node.worker().fenced(), "authority recovery application fenced");
-			if (node.state().reclamation_pending()) {
-				co_await task::yield();
+		// A directory with a journal and no stamp is read by replay: one that does not read as this
+		// format is format 1; one that does is stamped.
+		Clock::time_point origin;
+		try {
+			if (std::filesystem::exists(options_.directory / "manifest")) {
+				node.recover();
 			} else {
+				Identity id{};
+				std::random_device random;
+				for (char &byte : id) {
+					byte = static_cast<char>(random());
+				}
+				if (id == Identity{}) {
+					id[0] = 1;
+				}
+				node.create(id);
+			}
+			origin = Clock::now();
+			while (!node.worker().ready()) {
+				node.service({0, election_delay()});
+				dispatch(owned_node);
+				node.take_network_actions();
+				if (node.worker().fenced()) {
+					throw std::runtime_error("authority storage initialization fenced");
+				}
 				timer.expires_after(std::chrono::milliseconds(1));
 				co_await detent::transport::await_timer(timer);
 			}
+			// Seed the first deadline before Start. Later Tick samples affect future
+			// resets and cannot randomize a deadline that is already in force.
+			node.service({0, election_delay()});
+			node.start();
+			// Storage readiness precedes incremental committed application replay.
+			// Finish that replay before admitting live requests.
+			while (node.state().applied_index() < node.worker().committed() || node.application_work_pending()) {
+				node.service({0, election_delay()});
+				dispatch(owned_node);
+				check(!node.worker().fenced(), "authority recovery application fenced");
+				if (node.state().reclamation_pending()) {
+					co_await task::yield();
+				} else {
+					timer.expires_after(std::chrono::milliseconds(1));
+					co_await detent::transport::await_timer(timer);
+				}
+			}
+			check(!node.worker().fenced(), "authority committed application/profile mismatch");
+		} catch (const std::exception &error) {
+			if (unstamped)
+				refuse_format(options_.directory, "storage format 1 (no format stamp, and it does not read as format " +
+													  std::to_string(storage_format) + ": " + error.what() + ")");
+			throw;
 		}
-		check(!node.worker().fenced(), "authority committed application/profile mismatch");
+		if (unstamped)
+			write_format_stamp(history_directory);
 		publish_health();
 		ready.set_value();
 		started = true;
