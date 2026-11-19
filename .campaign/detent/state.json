@@ -4401,6 +4401,8 @@
     "driver-apply-gap": {
       "accepted": {},
       "after": [],
+      "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+      "branch": "quest/detent/driver-apply-gap",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -4422,6 +4424,7 @@
         "test/driver_simulation.cc",
         "test/driver_test.cc"
       ],
+      "journal": "../Detent-wt/detent/driver-apply-gap",
       "landed": [],
       "lenses": [
         "correctness"
@@ -4433,9 +4436,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T17:24:26"
+      "updated": "2026-11-18T17:24:40",
+      "worktree": "../consensus-wt/detent/driver-apply-gap"
     },
     "driver-pipeline": {
       "accepted": {},
