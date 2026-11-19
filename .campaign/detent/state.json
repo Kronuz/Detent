@@ -9171,6 +9171,38 @@
       ],
       "updated": "2026-11-08T17:30:06"
     },
+    "multi-voter-idle-wake": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/service.cc",
+        "include/detent/owner_loop.hh",
+        "tests/detent_authority/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
+      "updated": "2026-11-19T06:36:30"
+    },
     "namespace-cleanup": {
       "accepted": {},
       "after": [
