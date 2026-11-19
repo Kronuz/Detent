@@ -7430,6 +7430,8 @@
     "journal-close-in-doubt": {
       "accepted": {},
       "after": [],
+      "base": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+      "branch": "quest/detent/journal-close-in-doubt",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
@@ -7445,6 +7447,7 @@
         "test/**",
         "docs/**"
       ],
+      "journal": "../Detent-wt/detent/journal-close-in-doubt",
       "landed": [],
       "lenses": [
         "correctness"
@@ -7454,9 +7457,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
-      "updated": "2026-11-19T14:11:34"
+      "updated": "2026-11-19T14:40:00",
+      "worktree": "../journal-wt/detent/journal-close-in-doubt"
     },
     "journal-driver": {
       "accepted": {
