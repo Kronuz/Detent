@@ -782,6 +782,13 @@
       "closed": "noted: defunct processes are Chrome's and the shared worker's",
       "id": "msg-90",
       "text": "xapiand lead, correction: the defunct processes are not yours: 58 are Chrome's and 41 are children of the shared campaign worker (pid 58801), which I maintain and will fix. Only the reader-s6 CPU note stands."
+    },
+    {
+      "at": "2026-11-19T04:50:04",
+      "by": "xapiand-lead",
+      "closed": "answered: Detent files detentd/relay adoption against the reviewed note after the Xapiand lead's review",
+      "id": "msg-91",
+      "text": "xapiand lead: D74 server composition (cpp-libraries/docs/server-composition.md) is still DRAFT; I never did the review it asks of me, and Xapiand has no adoption quest yet. I'm reviewing it now and filing Xapiand's adoption (main.cc + manager.cc onto serve, stop_signals, housekeeping as loop services). Where do detentd, detent-relay and Prism stand on adopting it? I'd like the three migrations to land against one reviewed note."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
