@@ -1571,6 +1571,35 @@
       "updated": "2026-11-19T04:52:10",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
+    "consensus-batch-turn-room": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "test/worker_test.cc",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus worker: validate a batch against the host's turn room",
+      "updated": "2026-11-19T05:59:18"
+    },
     "consensus-close-fenced": {
       "accepted": {
         "correctness": {
