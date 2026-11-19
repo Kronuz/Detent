@@ -61,7 +61,13 @@ median. Per cell, it prints one `A16 cell` line with these fields:
   run medians.
 
 The job fails unless every branch run reads 200 of 200 below 1 ms. Main's numbers are the
-comparison and do not gate.
+comparison and do not gate. A main read that exits nonzero is counted in its run's `failed` and its
+message in `failures`, and the run goes on: with the publisher running, main's Client refuses a
+generation file collected under it ("invalid local generation descriptor"), which the branch reads
+again. A branch read that exits nonzero stops the job.
+
+Each run line also carries `phase_medians` (wall, user and system CPU and minor faults per phase)
+and `slow`, every read at or over 1 ms with the same fields, to attribute the misses.
 
 ## How to run it
 

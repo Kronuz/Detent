@@ -89,6 +89,9 @@ def command(code, store, namespaces, i):
 def sample(code, store, namespaces, i):
     result = subprocess.run(command(code, store, namespaces, i), capture_output=True, text=True, timeout=10)
     if result.returncode:
+        # main's Client refuses a generation file collected under it; the branch must never fail.
+        if code == "main":
+            return {"failed": result.stderr.strip()[-200:]}
         raise RuntimeError(f"{code} exit {result.returncode}: {result.stderr[-400:]}")
     return json.loads(result.stdout.strip().splitlines()[-1])
 
@@ -115,13 +118,20 @@ def run(code, namespaces, publisher, index):
             agent.kill()
             agent.wait()
         shutil.rmtree(store, ignore_errors=True)
+    failed = [s["failed"] for s in samples if "failed" in s]
+    samples = [s for s in samples if "failed" not in s]
     totals = sorted(s["total_ns"] for s in samples)
-    phases = [k for k in samples[0] if k.endswith("_ns") and k != "total_ns"]
+    # Each read at or over 1 ms with its phases' wall, CPU and faults, against the run's medians.
+    slow = [{k: v for k, v in s.items() if k != "components"} for s in samples if s["total_ns"] >= 1_000_000]
     return {
         "code": code, "namespaces": namespaces, "publisher": publisher, "index": index,
         "components": samples[0]["components"], "below_1ms": sum(t < 1_000_000 for t in totals),
+        "failed": len(failed), "failures": sorted(set(failed)),
         "median_ns": int(statistics.median(totals)), "p99_ns": totals[int(len(totals) * 0.99) - 1],
-        "max_ns": totals[-1], "phase_medians_ns": {p: int(statistics.median(s[p] for s in samples)) for p in phases},
+        "max_ns": totals[-1],
+        "phase_medians": {k: int(statistics.median(s[k] for s in samples)) for k in samples[0]
+                          if k.endswith(("_ns", "_us", "_faults")) and k != "total_ns"},
+        "slow": slow,
     }
 
 
@@ -147,6 +157,7 @@ for publisher in states:
         cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed,
                 "branch_below_1ms": [r["below_1ms"] for r in arm["branch"]],
                 "main_below_1ms": [r["below_1ms"] for r in arm["main"]],
+                "main_failed": [r["failed"] for r in arm["main"]],
                 "branch_medians_ns": medians["branch"], "main_medians_ns": medians["main"],
                 "branch_p99_ns": [r["p99_ns"] for r in arm["branch"]], "main_p99_ns": [r["p99_ns"] for r in arm["main"]],
                 "paired_diff_median_ns": int(statistics.median(diffs)),
