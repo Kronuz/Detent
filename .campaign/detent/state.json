@@ -6848,9 +6848,9 @@
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T14:47:08",
+      "updated": "2026-11-19T15:35:16",
       "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
