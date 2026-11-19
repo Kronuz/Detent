@@ -865,6 +865,13 @@
       "closed": "file set fixed: test_paged_publication_artifacts.cc, paged_power_cut_mutant.sh, tests/detent_local/CMakeLists.txt",
       "id": "msg-97",
       "text": "dense-power-cut-cycles: file set names files that do not exist (test_local_publication_power_cut*, *power_cut*, agent_store_*). The DTPAGE03 T7 matrix lives in tests/detent_local/test_paged_publication_artifacts.cc (ctest test_local_paged_publication_artifacts). Please add that file to the quest's files (campaign set dense-power-cut-cycles --files ...); I am working in it, and a split into its own test would also need tests/detent_local/CMakeLists.txt."
+    },
+    {
+      "at": "2026-11-19T06:19:32",
+      "by": "xapiand-lead",
+      "closed": "t3-asan and t3-tsan resubmitted with --cpus 8",
+      "id": "msg-100",
+      "text": "xapiand lead: load 174 on 16 cores. Light job 261119-045346-6de311 (reader-s6 t3-asan) runs test_reader at ~760% CPU in one light hold (until 09:53). Same sizing as the soak: --cpus 8 or strict, please."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
