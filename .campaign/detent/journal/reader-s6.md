@@ -1,12 +1,23 @@
 # reader-s6: journal
 
-State: blocked on the lead (Blocked on 1, ruling 1 of 2026-11-19 needs two files outside the set and rests on a premise the code does not hold); also waiting on jobs 261119-044036-f68cf2 (running), 261119-044037-fee608 261119-044037-891946 261119-044037-22df97 261119-044037-b4fe42 261119-044038-baa905 261119-044041-2d8fe1 (queued) at `Detent:2fb2a41`. Pushed.
+State: waiting on jobs at `Detent:e77b31d` (pushed): gates native 6e68ac, asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651; A16 4a5487 2e857f; rebench 27840a (strict); mutants, plain A7/A10-A14 and the soak (ids under Evidence, after native); old gates fee608 891946 22df97 b4fe42 at `Detent:2fb2a41` still queued (read when they run). Not ready for review until the gates, A16 and the t3-tsan child exit close.
+Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
 - Correctness: (1) Ring and one freer: can a view be freed while a pin holds it (D5's seq_cst reload; STATS-1 58fade shows the hook now pins)? (2) Is a page's verified bit published only after `verify_page` and the first-touch walk complete, and read with acquire? (3) Q6 (a): is the empty-store reopen at most once per 200 ms under 16 concurrent readers? (4) Does the merge of main's format refusal (`Detent:c9eac84`) leave the reader refusing old formats the same way as main? (5) A16's split: does `count` plus a short exclusive `measure` still test D49's bound?
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Results recorded 2026-11-19 (resumed after the lead's msg-1 ruling, option b):
+  - `Detent:e77b31d` reapplies `Detent:09be4f1` (raw external count places the nodes end) and
+    replaces mutation 3 with `damaged_counts`: the root page ends an exact heap allocation; 14 values
+    of the node count (offset 14) and external count (offset 12), in and out of bounds, each after
+    first touch; every lookup of all 1,001 rows returns a body inside the segment or a
+    `ReadSourceFailure`. ASan+UBSan 817ba5 passed: 6,406 results, 7,608 refusals.
+  - Mutant BOUND-1 (decode_external drops `require(index < externals)`) killed under ASan, bf6dfc:
+    `heap-buffer-overflow paged_layout.cc:66 in decode_child` (external count 0 puts the entry past
+    the page). HDR-2 is now the code, so it is no longer a mutant.
+  - native f68cf2 at `Detent:2fb2a41` (header decode still in lookup) passed.
 - Results recorded 2026-11-19:
   - msg-1 bench dd2b26 (exclusive, `Detent:518085f`, no header decode in lookup), 1 thread median
     p50: core hot 467.5 (reps 467 463 485 468), scattered 711.5 (reps 719 702 704 729); aa9860 at
@@ -172,77 +183,45 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. msg-1: on the lead's answer to Blocked on 1, implement (a) or (b), run `touched`, `test_dense_reads`
-   and aa9860's command, and write the final table to `docs/perf/`.
-2. A16: read baa905 and 2d8fe1 (D121).
-2a. t3-tsan: read b4fe42's child status.
-3. Gates 132c68 65b1c1 b41c94 9c507c 279a47; then rerun mutants (HDR-1, STATS-1, A8, A10-A12),
-   soak and A7-A14 at the settled head, and mark Evidence.
+1. Rebench 27840a (strict, interleaved against `Detent:b1d281c`): write the hot and scattered table
+   to the journal's Result and `docs/perf/reader-lookup.md` with the ~70 ns node codec stated as
+   paged-decode-one-shape's; scattered must not regress against 659.
+2. A16 4a5487 (stopped) and 2e857f (running) under D121 at `Detent:e77b31d`; on a failure, profile
+   the branch's open and lookup phases.
+3. t3-tsan 52f651 (and b4fe42 at `Detent:2fb2a41`): name the cold-fork child's exit at line 649 from
+   its printed status, exit and signal; fix it if it is the product.
+4. Gates, mutants, plain A7/A10-A14 and soak at `Detent:e77b31d`: mark Evidence.
+5. When 1-4 close: "ready for review" with 3-5 questions per lens.
 
 ## Blocked on
 
-1. msg-1, lead ruling 1 (2026-11-19: mutation 3 stays; validate at first touch, keep a private copy,
-   lookups never read the mapped value). What the code shows:
-   - Lookup never reads the node count. `PagedReadState::lookup` uses the header only for its nodes
-     end (length minus 68 x externals, offset 12); the node count (offset 14) is read only by
-     `validate(PageHeader)` and `verify_page_structure`. With `Detent:09be4f1`, mutation 3's damaged
-     count was ignored and the read returned the verified result; the test failed because it demands
-     a refusal. Under the ruled assertion (verified result or refusal) 09be4f1 passes mutation 3 as is.
-   - The value that does steer is the external count: it places every external entry. The reverted
-     code reads it from the mapping on every lookup too (`decode_page_header` bounds it, so a damaged
-     count that stays in bounds steers both before and after 09be4f1).
-   - The body also steers: slots, labels, prefixes and external references are read from the mapping
-     on every lookup, and a Linux private mapping shows file writes until copy-on-write. "A value
-     damaged after verification never steers a read" holds for no mapped byte today.
-   Options:
-   (a) Private external count (what the ruling needs for the header): `VerifiedPages` keeps a 16-bit
-       count per 80-byte granule, stored before the bit's release and read after its acquire (2 bytes
-       per 80 mapped, 2.5% of mapped bytes as ledgered heap, 5x the bitmap; A14's ledger values move).
-       `PagedPageAccess` gains a resolve that returns bytes and the verified nodes end (default: decode
-       the header). Needs `src/detent_local/verified_pages.hh` and `src/detent_local/paged_page_access.hh`
-       (outside the set; 12 other `PagedPageAccess`/`VerifiedPages` users compile against them).
-       Mutation 3 asserts verified-or-refused; a new case damages the external count within bounds and
-       asserts the verified result; the mutant reading the mapped count must fail it. Expected: the
-       59 ns (dd2b26).
-   (b) Reapply 09be4f1 with mutation 3 asserting verified-or-refused, and state that header and body
-       bytes after first touch are trusted as the mapping's owner wrote them (the reader already
-       requires the publisher's uid). Same 59 ns, no memory.
-   (c) Private page copies at first touch (heap equal to touched bytes) for the full guarantee.
-   Recommend (a) with the two files granted, and the body question (b vs c) to the owner via the
-   security review.
-2. A16 under D121: 0992ec (running, 1,000 namespaces) is +72.6 us against a 53 us floor at
-   `Detent:518085f`; baa905 and 2d8fe1 decide it at the head. If it fails, I profile the branch's
-   open and lookup phases there.
-3. t3-tsan cold-fork child failure (279a47, 1 of 3 repeats): a real failure until named; b4fe42 at
-   `Detent:2fb2a41` prints the child's status. If it is the product, I fix it.
-4. Remaining hot gap after msg-1 (lead ruling 2): the shared node codec, about 70 ns of 133
-   (baceeb), goes to paged-decode-one-shape; it is stated here and goes into `docs/perf/` with the
-   final bench. Scattered must not regress (659 before; 805 at `Detent:18adf2b`, 711 without the
-   header decode).
+Nothing on the lead. Lead ruling of 2026-11-19 on msg-1 (option b) applied at `Detent:e77b31d`;
+the in-place reading question goes to the security reviewer (State).
 
 ## Evidence
 
-All at `Detent:18adf2b`; mutants regenerated there (`.scratch/mutant.py`). Older passes no longer count.
-Probe 485215 (codec, dense, lazy-page with `touched`, reader core and files) passed.
+At `Detent:e77b31d` unless named; mutants regenerated there (`.scratch/move2.py`, ids in
+`.scratch/move-out-e77b31d.txt`), each after native 6e68ac. Pending until each job finishes.
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 8858e9 |
-| A4 | asan 1c6cee, tsan 3c4a1b, t3-asan eb1d87, t3-tsan ea7399 |
-| A7 | b9837d |
-| A8 | mutants D5-1 8445c8, D5-2 1fe887, D5-3 6a8a03, D10-1 092144, D10-2 431265, D10-3 2d19f4, D2-1 b4eafd, D4-1 3c206c, FIX-1 bfde28, FIX-2 3f55ca, Q6-1 3f52f6, HDR-1 adf29d, HDR-2 7b363f (D5-1 to D4-1 killed) |
-| A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)" and "Fork and cold preparation" |
-| A10 | plain 2332d5; mutants SR1-selected e182b0, SR1-image 4bef61, SR1-change b73f2b, SR1-record e176e3, SR1-pack 736a52 |
-| A11 | plain 269fec; mutant SR2 c9e640 |
-| A12 | cold 161706; mutants F1 3a55c5, F2 822725, F3 533ecf, F4 2e752f; soak chained (D120) 03744a a32223 0f00a7 6d3b7c d70d82 824720 57d00a c47ec5 |
-| A13 | 161706 |
-| A14 | 9d28de |
-| A16 | b69551 (stopped), da956e (running); at `Detent:32e65d8` 0d023e and 1fc66f failed (198-200 of 200 per run, branch medians 30-60 us above main) |
+| A1-A3, A5, A6, A15 | native 6e68ac (pending) |
+| A4 | asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651 (pending); mutant STATS-1 676367 |
+| A7 | fe6295 |
+| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983; memory safety: ASan dense reads 817ba5 passed, BOUND-1 bf6dfc killed (ASan heap overflow) |
+| A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation" and "Mapped bytes after verification" |
+| A10 | plain 9e9963; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
+| A11 | plain 5d7c5a; mutant SR2 0b8176 |
+| A12 | cold 263864; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak chained (D120) 4c385e de37ba 7d30e3 1291e7 1b8196 cc2e3d 5bf4f7 f15ae8 |
+| A13 | 263864 |
+| A14 | 8ef120 |
+| A16 | stopped 4a5487, running 2e857f (D121; pending) |
 
 ## Messages
 
-- msg-1: attributed (Doing, baceeb and dd2b26); fix `Detent:73c0b6c` (one header decode per page);
-  `Detent:09be4f1` reverted; open on Blocked on 1.
+- msg-1: attributed (Doing, baceeb and dd2b26); `Detent:73c0b6c` decodes each header once per page;
+  lead ruling (option b) applied at `Detent:e77b31d` (raw nodes end again, memory-safety test and
+  BOUND-1); the remaining node-codec gap goes to paged-decode-one-shape; closes with rebench 27840a.
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -278,6 +257,17 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- msg-1 option (b) shape: the memory-safety case holds the segment in an exact `new char[]` whose
+  last bytes are the root page, so a read past the page is an ASan heap overflow, and checks every
+  returned body lies inside the segment, so native runs check it too. The asan gate's filter
+  (`test_reader_|change_file|lazy_page`) does not run `test_local_dense_reads`; 817ba5 runs it under
+  ASan as its own job. BOUND-1 drops the index bound, since the in-bounds external count 0 reaches
+  it; dropping `end <= size` instead is not reached by any damaged count (the node walk stays on
+  the real nodes and `decode_external` keeps its own end check).
+- Old gates at `Detent:2fb2a41` were not cancelled (the lead asked to read them); the A16 pair moved
+  to `Detent:e77b31d` through `campaign job rerun`, which superseded baa905 and 2d8fe1 itself.
+- Mutants run after native 6e68ac, so a broken tree cannot count as a kill.
 
 - Lead rulings 2026-11-19 recorded: mutation 3 stays; node-step inlining goes to
   paged-decode-one-shape and the quest may land with that gap stated; t3-asan keeps 16 readers
