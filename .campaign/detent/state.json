@@ -15012,9 +15012,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-19T09:52:17",
+      "updated": "2026-11-19T09:59:08",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
