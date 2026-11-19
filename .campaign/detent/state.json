@@ -1068,6 +1068,13 @@
         ]
       },
       "text": "driver-witness-removal-sink landed: unlocks frees docs/** for consensus-batch-turn-room; frees test/driver_test.cc for consensus-faultfs; frees docs/** for consensus-transport; frees docs/DRIVER.md, include/consensus/driver.h for consensus-worker-release; frees include/consensus/driver.h, docs/DRIVER.md for driver-pipeline; frees docs/** for transport-admission"
+    },
+    {
+      "at": "2026-11-19T13:22:38",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:63b43bd, gated on task-asio-layout",
+      "id": "msg-117",
+      "text": "xapiand lead: task-driver-layout landed on task main at task:63b43bd (inline_scheduler driver_ in every build; layout test release 216 vs debug 224 before, 224/224 after). Its review found the same hazard in task_asio.hh (cancellable_asio_awaiter::on_loop_, :504-506): quest task-asio-layout started; I'll send that commit too."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
