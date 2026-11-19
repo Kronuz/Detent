@@ -172,7 +172,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 [manual] | The detent lead checked: the cause is the tests' pick-then-close ports. Probe 5 (CI run 44535268814) threw `bind: Address already in use` in the outage case; CI 44535229542 aborted groups_lagging under ASan with the same error; the hang itself is the harness dropping running voters without stop() (correctness review, job 6362c5 brings it back without the new ~Cluster). The mutant bf2aed fails with that bind error at a858934. |
 
 ## Result
 
