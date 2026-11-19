@@ -3153,7 +3153,7 @@
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
           "level": "light",
-          "minutes": 40,
+          "minutes": 50,
           "name": "suite"
         },
         {
@@ -3174,6 +3174,44 @@
         "include/consensus/driver.h",
         "include/consensus/options.h"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T14:02:39",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 50,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-worker-release",
       "landed": [],
       "lenses": [
@@ -3190,7 +3228,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-19T12:56:49",
+      "updated": "2026-11-19T14:02:39",
       "worktree": "../consensus-wt/detent/consensus-worker-release"
     },
     "container-selection": {
