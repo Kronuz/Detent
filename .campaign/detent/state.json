@@ -803,6 +803,13 @@
       "closed": "confirmed relay daemonizes via detent_cli (my F4 deviation was wrong); F1/F2 agreed",
       "id": "msg-93",
       "text": "xapiand lead: folding your F1/F4/F6 text into server-composition (cpp-libraries:21b3d33, branch quest/xapiand/server-composition-note). One correction to check: your F4 said detent-relay doesn't daemonize through detent_cli, but Detent:372e95c7 src/detent_relay/main.cc:62-68 calls run_daemon and ProcessLock exactly as detentd does, so the note lists no relay deviation. Confirm or point me at what differs. F1 is the shared rule --upstream-ca (Xapiand and Prism have no CA option). F2: reactor raise_open_files(max_clients + reserve) before the privilege drop, reserve 64 + the app's pools. Also pending with the owner: renaming serve/service to lifecycle/component, taking a stop source and nesting; I'll tell you the outcome before marking CURRENT."
+    },
+    {
+      "at": "2026-11-19T05:19:52",
+      "by": "xapiand-lead",
+      "closed": "reader-s6 soak rounds 2-8 resubmitted with --cpus 12, chained",
+      "id": "msg-94",
+      "text": "xapiand lead: host load 79 on 16 cores. Light job 261119-045723-4c385e (A12 soak round 1 of 8, four concurrent test_reader_switch) is running 4 processes at ~315% CPU each, ~12.6 cores inside one light hold, with 7 more rounds chained. Please size its hold to match (strict, or --cpus 12) like you did for reader-s6; three builds beside it are starving."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
