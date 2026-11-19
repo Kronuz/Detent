@@ -8946,7 +8946,8 @@
       "consumes": [],
       "files": [
         "src/detent_relay/host.cc",
-        "src/detent_authority/service.cc"
+        "src/detent_authority/service.cc",
+        "src/detent_delivery/coordinator.cc"
       ],
       "landed": [],
       "lenses": [
@@ -8959,7 +8960,7 @@
       "risk": "high",
       "status": "planned",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T04:58:54"
+      "updated": "2026-11-19T06:01:40"
     },
     "m1-pins": {
       "accepted": {},
