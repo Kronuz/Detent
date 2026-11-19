@@ -133,7 +133,10 @@ no edit to groups_test.cc, cause 4 left to the follow-up. Carrying on with cause
 
 ## Blocked on
 
-Nothing. Lead ruled: cause 3 stays unreproduced (below); A1 amended at Detent main.
+A3 reads as a job criterion whatever its row says: campaign_tool.py's `criteria()` takes the tag
+only right after the id (`- A3 [manual] ...`), and the quest file has `[manual]` mid-line ("...
+before fixing: [manual] the journal says..."). The lead's file: move the tag to `- A3 [manual] If a
+cause is in product code...`. The journal row is in the manual form already.
 
 ## Cause 3, unreproduced
 
