@@ -1,6 +1,6 @@
 # logger-slack-mutant: journal
 
-State: waiting on jobs 261119-151549-b76537 (A1), 261119-151551-345463 (A2), 261119-151553-9aeb12 (50x loop)
+State: waiting on CI at logger:f596c71 (main merged; jobs b76537, 345463, 9aeb12 passed at logger:5216469)
 Quest: .campaign/detent/quests/logger-slack-mutant.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,8 +28,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261119-151549-b76537 (`sh test/deferred_mutant.sh`) |
-| A2 | job 261119-151551-345463 (suite) |
+| A1 | 261119-151549-b76537 (`sh test/deferred_mutant.sh`: slack mutant killed) |
+| A2 | 261119-151551-345463 (suite); 261119-151553-9aeb12 (slack test x50) |
 
 ## Result
 
