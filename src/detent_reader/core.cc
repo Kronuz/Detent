@@ -392,7 +392,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		attempted = store_word;
 		const x::ChangeWord *sequence = change->mapping.sequence(whole_store_slot);
 		const auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
-		std::optional<l::Descriptor> table;
+		std::optional<x::Selected> table;
 		try {
 			table = x::PreparedReader::selected(handle.directory, handle.publisher);
 		} catch (const l::GenerationUnavailable &) {
@@ -416,12 +416,12 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 					throw Failure{DETENT_SOURCE_FAILURE};
 			}
 			Generation *generation = nullptr;
-			if (had && had->generation->attached.descriptor.generation == table->generation)
+			if (had && had->generation->attached.descriptor.generation == table->descriptor.generation)
 				generation = had->generation;
 			else {
 				DETENT_WINDOW(Attaching);
 				auto attached = x::PreparedReader::attach(handle.directory, handle.publisher,
-				                                          l::ViewLimits::prepared());
+				                                          l::ViewLimits::prepared(), {}, &*table);
 				const auto &cursor = attached.descriptor.cursor;
 				if (had) {
 					// A4: no regression within an incarnation.

@@ -59,7 +59,7 @@ GenerationSelection PreparedReader::selection(const std::filesystem::path &path,
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};
     require(::fstat(directory.fd, &info) == 0);
-    return {selected(directory.fd, publisher), {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+    return {selected(directory.fd, publisher).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	if (!generation.paged_)
@@ -99,16 +99,16 @@ AttachedGeneration::~AttachedGeneration() {
 	if (lease >= 0)
 		::close(lease);
 }
-Descriptor PreparedReader::selected(int directory, uid_t publisher) {
+Selected PreparedReader::selected(int directory, uid_t publisher) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt)
-		if (const auto table = read_selected(directory, publisher))
-			return table->descriptor;
+		if (auto table = read_selected(directory, publisher))
+			return *table;
 	throw GenerationUnavailable("selected generation changed while reading it");
 }
 AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLimits limits,
-                                          std::optional<d::Cursor> expected) {
+                                          std::optional<d::Cursor> expected, const Selected *read) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
-		const auto table = read_selected(directory, publisher);
+		const auto table = attempt == 0 && read ? std::optional(*read) : read_selected(directory, publisher);
 		if (!table)
 			continue;
 		if (!table->paged)
