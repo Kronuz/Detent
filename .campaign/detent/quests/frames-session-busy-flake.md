@@ -5,27 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+test_authority_frames_service failed once on main's macos-x86_64 CI (run 44559384726, Detent:8f48e4ba) with `frames status 409: {"error":"session_busy"}` at 4.74 s; no earlier run in the last 40 shows it. session_busy means a second frames request reached a session whose previous request was still open (service.cc:2243, 2645). Find whether the test asks again before its previous reply settled (a test race) or the service holds a session busy after its reply was sent (a service defect), and fix the cause, not with a retry.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 The cause is named in the journal with the line that produces it, shown by a reproduction that fails at main (a delay injected at the named point, or a loop of the test under load): jobs.
+- A2 The fix passes 200 runs of the test under light load and the reproduction from A1, which must fail without the fix (`--fails-without`): jobs.
+- A3 The suite and CI pass: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from main's CI. Ordered after loop-idle-waits, which changes the authority's idle waits in service.cc; reproduce at the merged code.
