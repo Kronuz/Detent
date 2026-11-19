@@ -13591,6 +13591,39 @@
       "updated": "2026-11-12T14:21:33",
       "worktree": ""
     },
+    "old-flakes-disposition": {
+      "accepted": {},
+      "after": [
+        "detent-faultlab"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/managed.py",
+        "tests/detent_authority/test_transport_https.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_delivery/test_managed_process.sh",
+        "docs/status/http-coroutines.md",
+        "docs/DEPENDENCY_UPGRADES.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
+      "updated": "2026-11-19T06:00:43"
+    },
     "one-knob-type": {
       "accepted": {
         "correctness": {
