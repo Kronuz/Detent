@@ -15069,20 +15069,54 @@
         "test/transport/links_test.cc",
         "test/transport/connection_test.cc"
       ],
-      "journal": "../Detent-wt/detent/peers-tsan-timeout",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T11:41:33",
+          "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "criteria": {
+            "A1": "The detent lead checked: the cause is the tests' pick-then-close ports. Probe 5 (CI run 44535268814) threw `bind: Address already in use` in the outage case; CI 44535229542 aborted groups_lagging under ASan with the same error; the hang itself is the harness dropping running voters without stop() (correctness review, job 6362c5 brings it back without the new ~Cluster). The mutant bf2aed fails with that bind error at a858934.",
+            "A2": "261119-095751-3b68ef; fails without: 261118-135207-6362c5, 261119-053738-37e35d, 261119-094236-92ae93, 261119-095753-bf2aed",
+            "A3": "261119-095815-401d23, 261119-095803-4214f8, 261119-095801-b6cc19"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-095803-4214f8",
+              "level": "light",
+              "seconds": 1086.1,
+              "state": "done",
+              "what": "peers-tsan-timeout check suite at 015a7ea36ec6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "reason": "",
+          "tested": "015a7ea36ec69fb25d71d6065808a26995ebf376"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-19T11:41:23",
-      "worktree": "../consensus-wt/detent/peers-tsan-timeout"
+      "updated": "2026-11-19T11:43:58",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
