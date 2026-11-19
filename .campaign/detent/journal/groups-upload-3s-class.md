@@ -1,6 +1,6 @@
 # groups-upload-3s-class: journal
 
-State: waiting on jobs 261118-205311-962da3 261118-205312-f556f8 261118-205321-1d7dff 261118-205323-25f32e, CI on consensus:84608cc
+State: waiting on jobs 261118-205311-962da3 261118-205312-f556f8 261118-205321-1d7dff 261118-205323-25f32e, CI 44461388834 on consensus:84608cc
 Quest: .campaign/detent/quests/groups-upload-3s-class.md (the lead's; never edit it)
 
 ## Doing
@@ -9,16 +9,22 @@ Probe at consensus:84608cc (branch pushed; CI running). Jobs: suite, upload x20 
 
 ## Next
 
-1. Read the jobs and CI on 84608cc; fill the Evidence rows.
-2. The lead rules on the bound (Blocked on). A2 closes on the next sampled macos-x86_64 failure, which now carries the loop probe.
-3. Merge main once groups-upload-stall lands (this branch already holds its c782db1, fast-forwarded).
+1. Read the jobs and CI 44461388834 on 84608cc; fill the Evidence rows; mark ready to land the probe (lead's ruling, msg below).
+2. Merge main once groups-upload-stall lands (this branch already holds its c782db1, fast-forwarded).
 
 ## Blocked on
 
-The lead, on what the test accepts (it changes the case's pass rule):
-1. Wait: keep the bound; the next sampled failure's loop probe says runner or product (Notes, "what the probe tells"). Recommended, since the cause is not yet proven.
-2. Now: `timed` also retries when a loop stamp waited 250 ms or more (a loop stall counted like a host stall). A deterministic product block still fails all three attempts (the blocked mutant would); an intermittent one is masked like a host stall today.
-Then, once a sampled failure shows the stuck thread runnable with a frozen pc, take option 2.
+Nothing of mine. For landing: the file set names test/groups_test.cc; the file is
+test/transport/groups_test.cc, and docs/mechanisms/host-transport.md comes in with
+groups-upload-stall's commits (gone from the diff once it lands and main is merged).
+`campaign status` flags both; the lead's to correct.
+
+## Messages
+
+- Lead's ruling on the bound: option 1. Done: no retry in `timed` (it would hide a handler
+  that never returns); the probe lands once its jobs and CI pass; A2 stays open in Result. A
+  blocked handler in a sampled failure is a product defect: the lead grants the transport
+  files then.
 
 ## Notes
 
@@ -86,12 +92,20 @@ Then, once a sampled failure shows the stuck thread runnable with a frozen pc, t
 
 ## Result
 
-<pending>
+consensus:84608cc (test only, test/transport/groups_test.cc): `upload`'s samples carry, per loop
+of both hosts, the stamp age, the thread's CPU ms, its run state and, once stuck 250 ms, its
+stack (Notes, "The probe"). A1: the 1,525 ms gap of 44443844218 is about 1.3 s of host 1's
+connection loop not turning, with both sockets empty and windows open, then the designed
+one-frame wait (about 250 ms). The bound is unchanged.
+
+Open: A2 waits for a sampled loop-stall failure, which the probe attributes (Notes, "What the
+probe tells"): a blocked or long handler is a product defect (transport files granted then); a
+runnable thread with a frozen pc is the runner.
 
 ## Rulings I made
 
 - The file set's test/groups_test.cc is test/transport/groups_test.cc (no other exists).
 - Branch fast-forwarded to groups-upload-stall's c782db1 (unlanded): the probe sits in the same
   sampler and summary its quest adds, so merging main after it lands is trivial.
-- A probe rather than a bound change: the samples locate the stall but cannot attribute it, and
-  changing the pass rule is the lead's (Blocked on).
+- A probe rather than a bound change: the samples locate the stall but cannot attribute it; the
+  lead ruled option 1 (no retry in `timed`).
