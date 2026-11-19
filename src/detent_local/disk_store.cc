@@ -43,6 +43,7 @@ bool rejected(std::exception_ptr error) {
 		return false;
 	}
 }
+void (*io_hook)(c::PosixIO &) noexcept = nullptr;
 DiskUsage census(const StoreUsage &usage) noexcept { return {usage.bytes, usage.entries, usage.generations}; }
 // One cycle or one collection on the agent store. run() touches only the store and this work.
 struct AgentWork final : DiskWork {
@@ -73,6 +74,8 @@ struct AgentWork final : DiskWork {
 	}
 };
 } // namespace
+
+void detail::DiskStoreTesting::install(void (*hook)(c::PosixIO &) noexcept) noexcept { io_hook = hook; }
 
 struct DiskStore::Impl {
 	explicit Impl(std::shared_ptr<detail::StoreCore> value) : core(std::move(value)) {}
@@ -429,6 +432,8 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	auto store = std::allocate_shared<DiskStore>(distribution::StorageAllocator<DiskStore>(account),
 												 DiskStore::FactoryTag{}, core);
 	auto io = std::make_shared<c::PosixIO>(directory, options.artifact_mode);
+	if (io_hook)
+		io_hook(*io);
 	struct stat info{};
 	if (::fstat(io->native_directory_handle(), &info) != 0)
 		throw std::system_error(errno, std::generic_category(), "managed store directory inspection");
