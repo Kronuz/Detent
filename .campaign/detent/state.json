@@ -1089,6 +1089,13 @@
       "closed": "adoption replaces daemon.cc with task process.hh; note and test added to the quest",
       "id": "msg-119",
       "text": "xapiand lead: FYI a defect in Detent's daemon.cc (unchanged since Detent:276bc58d), found reviewing its port to task (task-process-step review F1): the startup pipe fds are not FD_CLOEXEC, so a daemon that execs a subprocess before ready() and then fails leaves the write end open in the subprocess; the parent waits the full timeout and reports 'timed out', losing the real error. Also F5: the timeout path doesn't waitpid. We're fixing both in task's process.hh; your adoption of it picks them up."
+    },
+    {
+      "at": "2026-11-19T14:06:06",
+      "by": "xapiand-lead",
+      "closed": "t3-tsan at 17/20, ends in ~15 min; budgets now 110/80 min",
+      "id": "msg-120",
+      "text": "xapiand lead: queue stall again. Your light job 261119-111329-f8389b (reader-s6 t3-tsan at dc004dc) holds 8 CPUs until 18:21 (a 5-hour hold, since 13:21); strict jobs (ours: stopword-lists, reactor-server-composition A5) wait behind it and last hour 60 min of runnable work sat beside idle slots with 32 jobs queued. Per your note earlier today, please size it to its real run time or split it into rounds under an hour."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
