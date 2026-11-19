@@ -1,7 +1,7 @@
-# First-read gate (reader.md T2, D49)
+# First-read gate (reader.md T2, D49, D121)
 
-Checks the first-read bound: 200 of 200 fresh-process first reads through the reader core finish
-below 1 ms. Each cell (1 or 1,000 namespaces, publisher stopped or running) interleaves the
+Checks the first-read bound (D121): fresh-process first reads through the reader core are no slower
+than main's beyond the noise floor, and their p99 is below 1 ms; 200 of 200 below 1 ms is the target. Each cell (1 or 1,000 namespaces, publisher stopped or running) interleaves the
 branch's core reads with main's own first reads. Script: `docs/perf/first-read-gate.sh`. Both
 programs are built from `tests/detent_system/first_read_phases.cc`.
 
@@ -60,8 +60,10 @@ median. Per cell, it prints one `A16 cell` line with these fields:
 - The noise floor: the larger of the two arms' median absolute differences between consecutive
   run medians.
 
-The job fails unless every branch run reads 200 of 200 below 1 ms. Main's numbers are the
-comparison and do not gate. A main read that exits nonzero is counted in its run's `failed` and its
+The gate is D121, per cell: the median of the six paired differences (branch minus main) is at
+most the noise floor, and the p99 of the cell's 1,200 pooled branch reads is below 1 ms. The cell
+line carries both arms' pooled p99s. 200 of 200 below 1 ms per run is a target, reported and not
+gated: on an exclusive hold main misses it too (job 369849). A main read that exits nonzero is counted in its run's `failed` and its
 message in `failures`, and the run goes on: with the publisher running, main's Client refuses a
 generation file collected under it ("invalid local generation descriptor"), which the branch reads
 again. A branch read that exits nonzero stops the job.

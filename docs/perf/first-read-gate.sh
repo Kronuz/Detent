@@ -133,7 +133,7 @@ def run(code, namespaces, publisher, index):
         "max_ns": totals[-1],
         "phase_medians": {k: int(statistics.median(s[k] for s in samples)) for k in samples[0]
                           if k.endswith(("_ns", "_us", "_faults")) and k != "total_ns"},
-        "slow": slow,
+        "slow": slow, "totals": totals,
     }
 
 
@@ -150,11 +150,17 @@ for publisher in states:
         for pair in range(PAIRS):
             for code in (("branch", "main") if flip else ("main", "branch")):
                 results.append(run(code, namespaces, publisher, pair))
-                print(json.dumps(results[-1]), flush=True)
+                print(json.dumps({k: v for k, v in results[-1].items() if k != "totals"}), flush=True)
         arm = {code: [r for r in results if r["code"] == code] for code in ("main", "branch")}
         medians = {code: [r["median_ns"] for r in arm[code]] for code in arm}
         diffs = [b - m for b, m in zip(medians["branch"], medians["main"])]
-        passed = mode == "count" or all(r["below_1ms"] == READS for r in arm["branch"])
+        pooled = {code: sorted(t for r in arm[code] for t in r["totals"]) for code in arm}
+        p99 = {code: pooled[code][int(len(pooled[code]) * 0.99) - 1] for code in arm}
+        diff = int(statistics.median(diffs))
+        floor = int(max(spread(medians["main"]), spread(medians["branch"])))
+        # D121: the branch's median paired difference within the noise floor, and the p99 of the
+        # cell's pooled branch reads below 1 ms; 200/200 per run is reported, not gated.
+        passed = mode == "count" or (diff <= floor and p99["branch"] < 1_000_000)
         ok &= passed
         cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed,
                 "branch_below_1ms": [r["below_1ms"] for r in arm["branch"]],
@@ -162,15 +168,15 @@ for publisher in states:
                 "main_failed": [r["failed"] for r in arm["main"]],
                 "branch_medians_ns": medians["branch"], "main_medians_ns": medians["main"],
                 "branch_p99_ns": [r["p99_ns"] for r in arm["branch"]], "main_p99_ns": [r["p99_ns"] for r in arm["main"]],
-                "paired_diff_median_ns": int(statistics.median(diffs)),
-                "noise_floor_ns": int(max(spread(medians["main"]), spread(medians["branch"])))}
+                "paired_diff_median_ns": diff, "noise_floor_ns": floor,
+                "branch_pooled_p99_ns": p99["branch"], "main_pooled_p99_ns": p99["main"]}
         cells.append(cell)
         print("A16 cell " + json.dumps(cell), flush=True)
 shutil.rmtree(runs, ignore_errors=True)
 if mode == "count":
     print(f"A16 count PASS: no branch failure; main refused {sum(sum(c['main_failed']) for c in cells)} reads in {len(cells)} cells")
 else:
-    print(f"A16 {'PASS' if ok else 'FAIL'}: every branch run {READS}/{READS} below 1 ms in {len(cells)} cells")
+    print(f"A16 {'PASS' if ok else 'FAIL'}: paired difference within the noise floor and pooled branch p99 below 1 ms in {len(cells)} cells")
 sys.exit(0 if ok else 1)
 PY
 }
