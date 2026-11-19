@@ -1,19 +1,25 @@
 # groups-upload-loop-stall: journal
 
-State: working
+State: waiting on jobs 261119-150455-9311c3 (watches probe run 44634341014), CI 44634220600 on consensus:7fcd21f
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
 
-Naming what the kernel waits on inside write(2): local reproduction on this x86_64 macOS 15.8
-host (ctest -j2 of connection, groups_credit, groups_reader, groups_upload, as CI orders them),
-and the probe extended with mbuf and VM counters.
+Waiting for probe run 44634341014 (probe/groups-upload-loop-stall at consensus:bf56a07, never
+lands): the whole suite x10 on 4 macos-15-intel shards, as CI runs it (ctest --parallel 2); at
+upload's first stuck sample the test starts `sudo spindump` on itself (GROUPS_PROBE_SPINDUMP),
+so the stuck thread's kernel frames name what write(2) waits on. Spindump files are the run's
+artifacts (spindump-<shard>). CI 44634220600 on the quest branch (consensus:7fcd21f, the kernel
+counters in upload's samples) may catch one too.
 
 ## Next
 
-1. Reproduce locally; extend the probe (mbstat m_wait/m_drain, VM free and free_wanted) and
-   read it at a stuck sample.
-2. Name the kernel wait, then fix or bound (A2).
+1. Read 44634341014: the kernel frames of host 1's connection loop (1.1) in write(2) and of the
+   sampler thread; the kernel counters at the stuck samples.
+2. Name the kernel wait. A product cause (something the transport holds or does): fix in
+   connection.h (ask the lead for the file) with a test that fails without it. A host cause
+   (a global kernel lock or memory wait): the bound from the measured stall (A2).
+3. Suite job and CI at the final commit (A3).
 
 ## Blocked on
 
@@ -54,6 +60,18 @@ Nothing.
   kernel memory allocation that can wait for pages), and every other allocator and freer sleeps
   uninterruptibly ("m_clalloc", PZERO-1) while one does; mbuf_sleep also sleeps PZERO-1. sblock
   and sbwait sleep with PCATCH (state W), so neither is this U.
+
+- The sampler stalls with the writer. Run 4 printed samples at 258 and 517 ms and none after
+  (16 expected); run 5 at 505 then 3,220 ms; run 2 at 647 then 1,352 ms; the pre-probe
+  failure 44443844218 at 555 then 1,164 ms. The sampler's sockets() takes each socket's lock
+  (getsockname, FIONREAD, SO_NWRITE, TCP_CONNECTION_INFO), so the writer most likely blocks
+  past sosend's unlocked allocation, inside the protocol output with host 1's socket locked,
+  on something global (an interface, filter or policy lock: pf, NECP, the loopback path).
+  This is the hypothesis the spindump tests.
+- Local reproduction, this host (x86_64 macOS 15.8.1, 32 GB, nmbclusters 262144): CI's order
+  (ctest -j2 of connection, groups_credit, groups_reader, groups_upload) 12 times: 0 failures,
+  no stuck sample (.scratch/.../repro1.txt). The kernel probe's line, here:
+  `{kern wait +0 drain +0 16kcl 4422/6247 fail +0; vm free 2034 MiB wanted 0 pageins +236 swapins +0 decomp +218}`.
 
 ## Evidence
 
