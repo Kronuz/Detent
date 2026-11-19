@@ -5,27 +5,14 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+dense-sync-stack lands on 100K exclusive times and 5M counts measured under light load. This quest adds the 5M cold bootstrap and restart times: the stacked arm against Dense alone, S2 alone and main, 2 rounds, each arm an `exclusive` job at its named commit, run in a quiet window agreed with the other campaigns sharing the machine.
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 [manual] Each 5M arm ran `exclusive` at its named commit; the lead checks the ids against `campaign job list`.
+- A2 [artifact] The 5M times beside the 100K table: `docs/perf/dense-sync-stack.md`
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+- The fixture is `.scratch/capacity-trials/5000000-flat-r1` (D119: never deleted for disk).
+- Ask the Xapiand lead for the window before submitting; the arms starved for hours on 2026-11-18 at priority -1.
