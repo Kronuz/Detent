@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261119-053737-3bb236 261119-053738-37e35d 261119-053751-c55045 261119-053752-19cd10 261119-053745-c0444c, CI 44535229542 (quest), probe 5 44535268814
+State: waiting on jobs 261119-053751-c55045 261119-053752-19cd10 261119-053745-c0444c, CI 44535229542 (quest), probe 5 44535268814
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -105,8 +105,8 @@ Budget: consensus:c81a075 sets TIMEOUT 50 for consensus_transport_peers (CMakeLi
 
 1. Read probe 5 (`gh run view 44535268814 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
    if a run threw, name the exception here and fix its cause with a test; else record 0 of 320.
-2. Read the merged-head jobs (A2 3bb236 + fails-without 37e35d at mutant 0a85773, A3 c55045 +
-   19cd10, suite c0444c) and CI 44535229542; paste `campaign brief`'s table; ready for review.
+2. A2 at the merged head is done: 3bb236 passes, fails-without 37e35d at mutant 0a85773 hangs
+   (exit 8). Read A3 c55045 + 19cd10 and suite c0444c and CI 44535229542; paste `campaign brief`'s table; ready for review.
 
 Merged main (consensus:ae08d92) at consensus:e62cc77, no conflicts. Mutant for fails-without:
 consensus:0a85773 (refs/mutants/peers-tsan-timeout/no-cluster-stop-merged, merged head without
@@ -142,3 +142,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    until drained", and the harness broke it on unwind.
 3. macOS batch b's timing failures (load ~170) are not this quest's work, per the lead; they are
    noted above.
+4. The fails-without test is tagged A2, the quest file's criterion for "a test that fails without
+   the fix"; A1 is [manual] and keeps its journal row (the lead's message called it A1).
+5. A3's TSan runs are strict holds (2 CPUs, the test's busy threads): light runs at nice 19 fail
+   peers' timing checks under host load (batch b), which would test the host, not the fix.
