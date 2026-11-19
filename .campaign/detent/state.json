@@ -6256,7 +6256,53 @@
       "worktree": ""
     },
     "journal-group-io-sweep": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T16:51:15",
+          "base": "ea397ab052bc54d320633e3f02f824fb5dd49e49",
+          "blobs": {
+            "bench/group_io_bench.cc": "100644:c39dbfdc01b207791039a9f7feca8d17234b8c96",
+            "docs/perf/group-io.md": "100644:c442b88eab8b21d1e70173c7494c9bec0ae82eb0",
+            "include/journal/host.h": "100644:9a3af690059a513e2b3e917fe67d35ff6f9487e8",
+            "test/host_test.cc": "100644:76206bf149596fd3aba65a3379141c712084e0bf"
+          },
+          "by": "review",
+          "commit": "4d38a563398d04497bde6b182e8134fd80da6211",
+          "criteria": "57131d144fc298b6",
+          "diffs": {
+            "bench/group_io_bench.cc": "a61bd6d3b30f9687",
+            "docs/perf/group-io.md": "19e4d3486fa605ff",
+            "include/journal/host.h": "71259afe143f2ccb",
+            "test/host_test.cc": "a4a30d01885feb9e"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure'",
+                  "commit": "4d2eef6deead4225f401621ac371311fd0316c9f",
+                  "docs": [
+                    "docs/perf/group-io.md"
+                  ],
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261118-145236-96e656",
+                  "level": "light",
+                  "seconds": 235.7,
+                  "state": "done",
+                  "what": "check suite at the fix 4d2eef6 (host_test view_sweep, closed_view)"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "F1 doc rewritten at journal:4d38a56 (A4 artifact); F2 fixed by lead ruling at 4d2eef6 with closed_view and mutants 7b2d4c/9a888f/7efc6f; F3 is journal-host-ranges-race; A3 rerun 05f3b3: 1M random 729 ns (was 667, before 88.9 ms)",
+          "review": "ec36ba625eb536f021cb7468925f56ef35c0a0d1",
+          "reviewed": "965cd553fd639e50794a2fb6cec7cdd53da5e888",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "journal-faultfs"
       ],
@@ -6286,7 +6332,9 @@
       ],
       "journal": "../Detent-wt/detent/journal-group-io-sweep",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [
         "journal-group-io-cost"
@@ -6296,7 +6344,7 @@
       "risk": "normal",
       "status": "review",
       "title": "journal: group_io costs O(1) amortized, not O(live ids)",
-      "updated": "2026-11-18T14:02:25",
+      "updated": "2026-11-18T16:51:15",
       "worktree": "../journal-wt/detent/journal-group-io-sweep"
     },
     "journal-host-guards": {
