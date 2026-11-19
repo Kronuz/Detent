@@ -73,7 +73,9 @@ measure() {
 import json, shutil, statistics, subprocess, sys
 from pathlib import Path
 
-prepared, states = Path(sys.argv[1]).resolve(), sys.argv[2:] or ["stopped", "running"]
+# mode: "measure" gates the 1 ms bound (exclusive); "count" gates only that the branch never fails
+# and counts main's refusals, which do not depend on load (light).
+mode, prepared, states = sys.argv[1], Path(sys.argv[2]).resolve(), sys.argv[3:] or ["stopped", "running"]
 KNOBS, READS, PAIRS, WARMUP = 10000, 200, 6, 5
 KEYS = [(j * 7919) % KNOBS for j in range(40)]
 runs = prepared / "runs"
@@ -152,7 +154,7 @@ for publisher in states:
         arm = {code: [r for r in results if r["code"] == code] for code in ("main", "branch")}
         medians = {code: [r["median_ns"] for r in arm[code]] for code in arm}
         diffs = [b - m for b, m in zip(medians["branch"], medians["main"])]
-        passed = all(r["below_1ms"] == READS for r in arm["branch"])
+        passed = mode == "count" or all(r["below_1ms"] == READS for r in arm["branch"])
         ok &= passed
         cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed,
                 "branch_below_1ms": [r["below_1ms"] for r in arm["branch"]],
@@ -165,13 +167,16 @@ for publisher in states:
         cells.append(cell)
         print("A16 cell " + json.dumps(cell), flush=True)
 shutil.rmtree(runs, ignore_errors=True)
-print(f"A16 {'PASS' if ok else 'FAIL'}: every branch run {READS}/{READS} below 1 ms in {len(cells)} cells")
+if mode == "count":
+    print(f"A16 count PASS: no branch failure; main refused {sum(sum(c['main_failed']) for c in cells)} reads in {len(cells)} cells")
+else:
+    print(f"A16 {'PASS' if ok else 'FAIL'}: every branch run {READS}/{READS} below 1 ms in {len(cells)} cells")
 sys.exit(0 if ok else 1)
 PY
 }
 
 case ${1:-} in
 prepare) prepare "${2:?OUT}" ;;
-measure) shift; measure "${1:?OUT}" "${@:2}" ;;
-*) echo "usage: $0 prepare OUT | measure OUT [stopped|running]" >&2; exit 2 ;;
+measure | count) measure "$1" "${2:?OUT}" "${@:3}" ;;
+*) echo "usage: $0 prepare OUT | measure OUT [stopped|running] | count OUT [stopped|running]" >&2; exit 2 ;;
 esac

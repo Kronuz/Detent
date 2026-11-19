@@ -80,6 +80,10 @@ campaign job submit --quest reader-s6 --for A16 --level exclusive --minutes 10 -
 Run it once with `stopped` and once with `running`. Each publisher state covers two cells of 2,460
 processes and fits one 10-minute exclusive hold.
 
+`first-read-gate.sh count OUT running` runs the same cells under `light`: it fails only if a branch
+read fails, and its last line totals main's refused reads. Those refusals depend on the publisher's
+collection, not on load, so the exclusive run is kept for the timing and the slow-read breakdown.
+
 ## Attribution
 
 `first_read_phases --phases` splits the Client's read further: it adds the directory trust walk
