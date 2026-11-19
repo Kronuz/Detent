@@ -347,6 +347,49 @@ void rebase_keeps_progress(const std::filesystem::path &dir) {
 			  scrub.failures()[1] == packs[1].ownership.segment);
 	}
 }
+// Every byte the scrub hashes lands in the pack hash counts, and a pack counts as one call when its digest is
+// taken (matching, damaged or mismatched alike); a verified pack skipped by rebase and an unopened pack count nothing.
+void counts_what_it_hashes(const std::filesystem::path &dir) {
+	auto packs = synthetic(4, 6000, 11);
+	packs[2].bytes[9] ^= 1;
+	packs[3].ownership.checksum[0] ^= 1;
+	materialize(packs, dir);
+	const auto list = inputs(packs);
+	std::uint64_t total = 0;
+	for (const auto &pack : packs)
+		total += pack.bytes.size();
+	const auto t0 = Clock::now();
+	x::PackScrub scrub(1'000'000'000, 1000);
+	l::paged::reset_hash_counts();
+	scrub.begin(list, t0, dir);
+	// A cut inside the first pack counts its bytes and no call yet.
+	CHECK(scrub.step(t0 + 1s, 2500) == 2500);
+	auto counts = l::paged::hash_counts();
+	CHECK(counts.pack_bytes == 2500 && counts.pack_calls == 0);
+	scrub.step(t0 + 2s);
+	counts = l::paged::hash_counts();
+	CHECK(scrub.failures().size() == 2);
+	CHECK(counts.pack_bytes == total && counts.pack_bytes == scrub.bytes_hashed() && counts.pack_calls == 4);
+	CHECK(counts.page_calls == 0 && counts.page_bytes == 0 && counts.metadata_calls == 0);
+	// A rebase skips the packs this pass verified and counts only what it hashes again.
+	l::paged::reset_hash_counts();
+	x::PackScrub keep(1'000'000'000, 1000);
+	keep.begin(std::span(list).first(3), t0, dir);
+	CHECK(keep.step(t0 + 1s, packs[0].bytes.size() + packs[1].bytes.size()) > 0 && keep.running());
+	CHECK(l::paged::hash_counts().pack_calls == 2);
+	keep.rebase(list, t0 + 1s, dir);
+	keep.step(t0 + 2s);
+	counts = l::paged::hash_counts();
+	CHECK(counts.pack_calls == 4 && counts.pack_bytes == total && keep.bytes_hashed() == total);
+	// A missing pack is never hashed.
+	std::filesystem::remove(pack_path(dir, packs[0]));
+	l::paged::reset_hash_counts();
+	x::PackScrub gone(1'000'000'000, 1000);
+	gone.begin(list, t0, dir);
+	gone.step(t0 + 1s);
+	counts = l::paged::hash_counts();
+	CHECK(counts.pack_calls == 3 && counts.pack_bytes == total - packs[0].bytes.size());
+}
 } // namespace
 int main() {
 	const auto root = std::filesystem::current_path() / ".scratch" / ("pack-scrub-" + std::to_string(::getpid()));
@@ -362,6 +405,7 @@ int main() {
 	unreadable_packs(root / "unreadable");
 	withdraws_verified_pages(root / "bits");
 	rebase_keeps_progress(root / "rebase");
+	counts_what_it_hashes(root / "counts");
 	real_store(root);
 	std::cout << "ok\n";
 	return 0;

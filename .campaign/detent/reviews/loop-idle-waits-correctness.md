@@ -1,6 +1,6 @@
 # loop-idle-waits review: correctness
 
-Commit: Detent:3039133093a2b10b3ccf0b3dbdff470a0082796a (code; the branch head Detent:0fc0688c adds the journal only)
+Commit: Detent:d7de180bc026 (Detent:cc942c46 plus a merge of main bringing rename-detentd)
 Verdict: CHANGES
 Date: 2026-11-19
 
@@ -8,127 +8,107 @@ APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: 
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-This is round 2, from a fresh context, after round 1 approved Detent:f5cab9d9 and the suite then hung.
-The work-guard fix is right, and it closes the class of loops that run out of work. One blocking
-regression remains, and round 1 missed it. Since f5cab9d9, a multi-voter authority's absence check
-no longer sees a stop that lands mid-pass (F7). CI's linux-tsan job caught it at Detent:21abab78,
-whose authority code is the same as this commit's.
+Round 3, from a fresh context, reviewing fix round 2. The F7 fix is right: `owner_absence` catches
+every case the last review named, and it never marks a return that main's rule would not. F8 and F9
+are closed. One new blocking defect comes from the merge, not from the fix: the A1/A3 bench still
+builds and runs `detentd`, which no longer exists at this commit, so A1 and A3 cannot be re-proved
+at the head (F10).
 
 ## Evidence I relied on
 
-- 261119-072616-b3ced4 (suite at f5cab9d9, failed). Seven tests timed out:
-  test_delivery_worker_lifetime, repair_{delta,unchanged,relay,scrub-worker,forced-again} and
-  relay_delta_shutdown_published.
-- CI run 44555535342 at Detent:21abab78 (the same src as f5cab9d9).
-  1. Every platform timed out in coordinator tests, 4 to 38 per platform, all of them the
-     unguarded-run class.
-  2. linux-tsan also failed test_relay_service a5: "voter 2, knowing no leader, answered
-     /v2/history/layouts 200" (F7).
-  3. There was no sanitizer report. test_authority_idle_wake passed everywhere, TSan included (F4).
-- A search of the last 40 failed CI runs on any branch (since 2026-11-16). "knowing no leader"
-  appears only in 44555535342, on this quest's branch. Main's two latest failures do not include
-  test_relay_service.
-- Not yet run, so not relied on: the suite at 30391330 (261119-101104-bee765, running), the six A2
-  mutants (261119-101125-b77320 through 261119-101136-147391), A1 (261119-101138-d37b48), A3
-  (261119-101145-1602c6) and CI at 0fc0688c (44585265812).
+All at Detent:cc942c46, whose quest code equals d7de180b's except the rename (`git diff cc942c46
+d7de180b -- src include` is the detentd move and its include paths only).
+
+- 261119-103519-3b65cd, exit 8: absence-merged (the round-2 rule) fails test_owner_absence (log:
+  test 163 failed). The other five A2 mutants (644510, c4f26f, 3937ff, 5a6c35, 241774) exit 8.
+- 261119-103506-5b36b1 (suite) and 261119-103617-426e37 (wake and absence tests, 20 repeats), exit 0.
+- 261119-103541-50a978, -42bdbc, -da90b6, -4f2621: test_relay_service a5 under TSan, 20 runs,
+  exit 0. That is the end-to-end witness of the absence wiring (F7's failure was this test).
+- 261119-103510-a7a809 and 261119-103520-8e4934 (A1), 261119-103510-0db86e (A3), exit 0.
 
 ## What I checked myself
 
-The scripts are under `.scratch/detent/review-loop-idle-waits-correctness/` (`r2_probe.sh`,
-`r2_work_guard.cc`, `r2_absence_model.py`). I ran each one locally before submitting it as a job.
+Script: `.scratch/detent/review-loop-idle-waits-correctness/r3_absence_variants.sh`. It compiles
+test_owner_absence.cc verbatim against the real `owner_absence` and nine wrong variants, and it
+checks the real rule exhaustively (slept 0-40 ms, next up to 60 ms, planned 0-70 ms) against main's
+whole gap. Job 261119-125800-b7d5e4 was queued (load 65 on 16 CPUs) when I wrote this. It is the
+confirming job, and the conclusions below do not rest on it.
 
-- **261119-102319-246c64, done, exit 0 (guard probe).** It tests the coordinator's exact
-  construction, `asio::prefer(any_io_executor{io.get_executor()}, outstanding_work.tracked)`,
-  against the pinned asio 1.36.
-  1. tracked: run() on an unguarded io_context returned after 204.5 ms, once the job posted, and
-     set() had run.
-  2. untracked: run() returned after 0.0 ms, under the job, with set() not run. This is the
-     suite's hang.
-  3. dropped: a job the pool destroyed unrun released the work, and run() returned at 108.6 ms.
-  4. copied: 64 copies of the executor all counted and all released.
-- **261119-102930-c95b7b, done, exit 0 (absence model, F7).** head leaves `returned`
-  unset after a 2.5 s stop mid-pass, where main sets it. The split rule in F7's fix is right in all
-  three cases.
-- **261119-102322-12a601, queued (the seven tests that hung at f5cab9d9).** It runs each 4 times,
-  4 at once, stopping at the first failure. It is queued behind the suite in the quest's slot, so I
-  do not rely on it.
+### Q1: the rule (owner_loop.hh:63-67, wired at service.cc:2120-2127, 3290-3292)
 
-### Q1: is that the whole class?
+`absence = (slept - pass) + max(0, next - max(planned, slept))`. Given pass <= slept <= next (both
+are `Clock::now()`, a steady_clock, service.cc:42), `gap - absence = min(next, max(planned, slept)) - slept`.
+That is exactly the part of the planned sleep slept through, so 0 <= absence <= gap.
 
-Yes. Only five waits in the quest's code do not register work: the coordinator's `worker_done`
-events (coordinator.cc:230, 296, 358, 702, 798). All five capture `owner_executor()`, which is
-tracked (185-187). Every other wait still keeps its run() alive:
+1. Stopped mid-pass: the stop is in `slept - pass`. It is caught.
+2. Stopped during the sleep: the lateness is the stop minus whatever planned sleep was left. It is
+   caught.
+3. A stall split across the pass and the sleep: the parts are summed (60 + 60 = 120 ms). It is
+   caught. The last review's "either part alone" would have missed this case, so the sum is stricter.
+4. A long planned sleep: it is not counted (R4).
+5. Never more lenient than main? Not literally. It is more lenient by the planned sleep slept
+   through. With peers, `wake_by` caps that at 1 ms (service.cc:1533-1535), and main's own gap
+   included the same 1 ms poll. Without peers the window can be up to 250 ms, but a lone voter has
+   no peer frames waiting in its sockets, and that is what `returned` guards against. It never marks
+   a return that main would not (absence <= gap).
+6. Yields (3248, 3270, 3276) leave `slept_from` at min, so the whole gap counts, as on main. The
+   first pass measures from `last_pass` (2095), about 0.
 
-1. Relay host: its OwnerLoop holds a work guard (owner_loop.hh:68), and every turn ends in a post or
-   an armed `tick` (host.cc:476-485). run() returns only at `owner.io().stop()` (470).
-2. Authority: on OwnerLoop. Every sleep is a timer wait (service.cc:1480-1486), at startup, in the
-   main loop and in the stop drain.
-3. detent-agent's managed host (managed_host.cc:199-213): `io.run()` has no guard, but its 20 ms
-   watch timer re-arms until `drained()`. A coordinator drains only after its worker job has
-   settled.
-4. Mirror thread and reply pumps: they are not loops the quest changed. It adds only the `answered`
-   and `changed` callbacks, which raise the owner's wake.
-5. Test harnesses: run_phase (scripted_upstream.hh:404-461), test_worker and test_coordinator run
-   io.run() with no guard. They were the hung tests, and tracked work now covers them. Nothing is
-   left unrun when run() returns: it returns only once no job holds work.
+### Q2: coverage
 
-### Q2: is the work guard released on every path?
+By hand, each variant is killed. The probe confirms it.
 
-Yes. The guard lives only in the worker lambda's capture and in the set() handler it posts.
+1. Counting the planned sleep, or measuring the pass to the deadline: (c) gives 251 ms, want 2 ms.
+2. Dropping the pass part: (a) gives 0.1 ms, want 2500.1 ms.
+3. Dropping the lateness: (b).
+4. The merged rule: (a). Job 3b65cd proves this one.
+5. Measuring lateness from the deadline only: (g) gives 16 ms, want 11 ms.
+6. Taking the max instead of the sum: (f).
+7. Dropping the clamp: (d) goes negative.
 
-1. Normal path: it is released when the lambda ends, after the post is queued, so the count never
-   reaches zero in between.
-2. Pool stopped or destroyed with the job unrun: the job's destruction releases it (probe:
-   dropped).
-3. A throw on the worker: each body catches into `result->failure`. The disk job's `work->run()` is
-   noexcept (disk_store.hh:32). A throw from the final post reaches asio thread_pool's
-   `std::terminate` (thread_pool.ipp:41-44): no hang, and no leaked guard.
-4. Cancellation and forced shutdown: `OwnerLoop::stop()` calls `io.stop()`, which ignores the work
-   count. Every host and test joins the worker pool before its io_context is destroyed, so no
-   tracked executor outlives its context: relay host.cc:526 (`startup` is declared after
-   `owner`), managed_host.cc:219, and the tests declare `io` before `worker`.
-5. One exception: test_coordinator_teardown's failure path (nit F8).
+"Wrong clock" cannot be written in the function: the signature fixes steady_clock. It can be
+written in the wiring, though. For example, `slept_until = Clock::now()` after the `co_await`
+zeroes the lateness. test_owner_absence does not see the wiring, and only a5 does, by timing (F11).
 
-### Q3: are the two harness fixes honest?
+### Q3: F8 and F9
 
-Both are honest, and neither narrows coverage.
+1. F8: `Join` is declared after `owner`, `coordinator` and `driver`
+   (test_coordinator_teardown.cc:68-72), so a throwing `require` joins the pool before those three
+   are destroyed. A second `join()` after line 106's is what the pool's own destructor already does.
+   It is closed.
+2. F9: every A1 result line records `interval_ms`. a7a809 ran at 60000. 8e4934 ran at 250 with
+   `IDLE_INTERVAL_MS=250`, which is configuration.cc:80's default. The journal's pending row names
+   both. The row should carry the 250 ms numbers too: detentd 68-70 interrupt wakeups/s and 20 owner
+   turns/s, against 10 and 4 at 60000, with main at about 850 (nit F12).
 
-1. relay-enqueue now runs `test_delivery_coordinator_subscription-relay-http` (CMakeLists:80-81).
-   That mode is the one that calls relay_service_fixture::qualify. Its check
-   `wakes > idle_wakes` comes after a sweep that leaves the runtime idle. If the name ever stopped
-   matching, ctest would find no tests and exit 0: the mutant would survive, the safe direction.
-   The suite still runs every mode. The covering test proves that the callback fires, not that
-   host.cc serves the request within a turn (F3, unchanged).
-2. A1's `wait_history()` (pair.py:143-155) runs before the relay starts. The sampling window starts
-   2 s after both report ready, so the wait does not touch what is measured.
-   1. The relay's retry one interval after a failed first sync is pre-existing behavior
-      (mirror_service.cc:345).
-   2. A1 now measures at `interval_ms` 60000, the configuration's maximum; the default is 250
-      (configuration.cc:80). The result records the interval, but the A1 Evidence row must state
-      it (F9).
+### Q4: round-1 semantics
+
+Fix round 2 touches only the absence lines in service.cc, a pure function in owner_loop.hh, the
+teardown test and the bench. `wake.begin_turn()`, the post-`co_await` `scheduled_wakeup` clamp,
+`rescan = true`, every `raise()` site and the coordinator's tracked executors (the guard) are
+unchanged, and the merge does not touch them. No lost wake is reintroduced, and the round-1 guard
+analysis stands.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F7 | yes | defect | A multi-voter authority no longer detects a stop that lands mid-pass, so after a stop it trusts frames that waited in its sockets and serves stale history. On main, the absence counts from the previous pass's start (e3e2808e:2066). Here it counts from `max(last_pass, slept_until)` (service.cc:2120), and for peers `slept_until` is the end of a 1 ms sleep planned after the stall (3276, 3285-3289). The stall never registers: `returned` stays unset, the queued frames refresh `leader_contact`, and the voter answers 200 while it knows no leader. Under TSan a pass is long, so a stop usually lands mid-pass. | CI 44555535342 linux-tsan, test_relay_service a5 (`refuses`, test_relay_service.py:609); absent from 40 failed CI runs elsewhere; model 261119-102930-c95b7b (done, exit 0: head misses the stop, main catches it) | Count the two parts apart. The pass part is `sleep_start - last_pass`. The sleep part is `owner_started - planned_until`. Either one at election_min or more sets `returned`. This keeps R4's purpose: a planned 250 ms single-voter sleep is not an absence. Test: factor the rule into a function and unit-test three cases (stop mid-pass, stop in sleep, long planned sleep with no stop). Add a mutant that restores head's rule, and the unit test must kill it. test_relay_service a5 under CI TSan must pass. |
-| F8 | no | nit | In test_coordinator_teardown, a failure path (`require` throwing before `worker.join()`) destroys the OwnerLoop while `worker`, declared before it, may still hold a job. That job's tracked executor, and its post, then touch a freed io_context. Only a failing test reaches this path. | test_coordinator_teardown.cc:57, 65, 92-103 | Declare `worker` inside the OwnerLoop's scope after `owner`, or join in a scope guard. |
-| F9 | no | gap | A1 runs the relay at `interval_ms` 60000. That honestly isolates each loop's own deadlines, but it does not show an idle relay at its 250 ms default. | idle_loops.py:37; configuration.cc:80 | State the interval in the Evidence row. Optionally add a 250 ms row. |
-| F1 | no | defect | Carried from round 1, unchanged: a lone voter's first election can wait for the 250 ms health sleep. | service.cc:3279-3283 | As in round 1. |
+| F10 | yes | defect | After the merge, the A1/A3 bench still names the renamed daemon. compare.sh builds target `detentd`, which no longer exists (the target is now `detent-authority`, src/CMakeLists.txt:118), and pair.py runs `build/src/detentd`. A1 and A3 reruns at d7de180b fail in the build, at head and at the main baseline alike, so these criteria cannot have evidence at the landing commit. It also breaks rename-detentd's A1 rule (`git grep detentd` finds only dated records) once this lands. | bench/idle-wakeups/compare.sh:3,16; pair.py:1,57,126,208-219; idle_loops.py:1,46,62,71; paths.py:3,5 (`git grep -i detentd d7de180b`) | Rename to `detent-authority` in compare.sh and pair.py, and in the labels and docstrings. Test: `campaign job rerun` a7a809, 8e4934 and 0db86e at the fixed commit, all exit 0. |
+| F11 | no | gap | test_owner_absence pins the rule but not its wiring in service.cc. A wiring slip, such as `slept_until` taken after the sleep or `slept_from` not reset, survives the unit test. It shows only in test_relay_service a5, by timing. | service.cc:2120-2127, 3290-3292 | Optional: a wiring mutant run against a5 in Release, where a stop usually lands in the 1 ms sleep. |
+| F12 | no | nit | The A1 Evidence row should carry both intervals' numbers, and the 250 ms row should read detentd's 68 interrupt wakeups/s against its real deadlines (relay syncs at 4/s). | 8e4934 log | State them in the row. |
+| F1 | no | defect | Carried, unchanged: a lone voter's first election can wait for the 250 ms health sleep. | service.cc:3279-3283 | As in round 1. |
 | F2 | no | defect | Carried, unchanged: a snapshot install is not counted as relay turn progress (up to 100 ms). | host.cc:428-432 | As in round 1. |
-| F3 | no | gap | Carried: no relay test runs host.cc's sleeping turn. Each lost relay wake is bounded by the 100 ms health turn. | relay_service_fixture.hh:129-132 | As in round 1. |
-| F4 | no | gap | Partly answered: test_authority_idle_wake passed on all six CI platforms and on linux-tsan in 44555535342. One run is not a flake rate. | CI 44555535342 | Read it again in CI at 0fc0688c. |
-| F5 | no | nit | Corrected and closed. A throw from a worker's final post reaches asio thread_pool's `std::terminate` (thread_pool.ipp:41-44), not an endless wait. | asio 1.36 thread_pool.ipp | None. |
-| F6 | no | nit | Carried: read A1's "no wakeups" claim from `interrupt_wakeups_per_s`, not from `owner_turns_per_s`. | idle_loops.py | As in round 1. |
+| F3 | no | gap | Carried: no relay test runs host.cc's sleeping turn; each lost relay wake is bounded by the 100 ms health turn. | relay_service_fixture.hh:129-132 | As in round 1. |
+| F4 | no | gap | Carried: read test_authority_idle_wake in CI at the landing commit. | CI | As before. |
+| F6 | no | nit | Carried: read "no wakeups" from `interrupt_wakeups_per_s`. | idle_loops.py | As in round 1. |
+| F7 | no | defect | Closed: `owner_absence` catches a stop mid-pass, in the sleep, and split across both, and never exceeds main's gap. | 3b65cd; Q1 above | None. |
+| F8 | no | nit | Closed. | test_coordinator_teardown.cc:68-72 | None. |
+| F9 | no | gap | Closed: 8e4934 runs at the 250 ms default, and the interval is recorded. | 8e4934 | None. |
 
 ## Not run
 
-- The suite, the A2 mutants, A1, A3 and CI at this code: queued or running as the contributor's
-  jobs, not rerun here. CI at 0fc0688c will show F7 again only if TSan lands a stop mid-pass.
-- 261119-102322-12a601 (the seven formerly hung tests under load): queued. Read it before landing.
-- An A/B of test_relay_service a5, head against main, on real binaries: a Release build seldom
-  lands a stop mid-pass, so a clean run proves nothing. I relied on the CI failure, the code and the
-  model.
-- The 21 Linux coordinator timeouts in 44555535342 beyond the seven local ones: by their harnesses
-  they are the same unguarded-run class, but only CI at 0fc0688c confirms it.
-- The multi-voter wake path itself, which belongs to quest multi-voter-idle-wake.
+- 261119-125800-b7d5e4 (the variant and property probe) was queued when I wrote this. Confirm it
+  exits 0.
+- The suite at d7de180b (261119-125133-46bdc3, queued) and CI at d7de180b (running).
+- A Release a5 run against a wiring mutant (F11).
+- The seven formerly hung tests under load (261119-102322-12a601, from round 2): I did not reread it.

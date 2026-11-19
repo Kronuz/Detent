@@ -1029,6 +1029,114 @@
         ]
       },
       "text": "rename-detentd landed: unlocks frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
+    },
+    {
+      "at": "2026-11-19T12:53:22",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:b7e2449 and gated on task F7 (NDEBUG layout)",
+      "id": "msg-114",
+      "text": "xapiand lead: task-inbox-first landed on task main (task:b7e2449): cross-thread post_call checked every step (R1 10->10,000 fixed), inline flush when off_loop can't start (a flush must never wait on the loop), owner read under the lock, Debug one-driver assert. Open in task, small: F7 driver_ member only in Debug (layout differs by NDEBUG). Xapiand's adoption is being planned as quests now (docs/design/lifecycle-adoption.md)."
+    },
+    {
+      "at": "2026-11-19T12:54:08",
+      "by": "xapiand-lead",
+      "closed": "task-driver-layout started; adoption waits for its landing commit",
+      "id": "msg-115",
+      "text": "xapiand lead: agreed, F7 is blocking. Quest task-driver-layout started (driver_ in every build, check Debug-only, two-TU layout test with a mutant). I'll message the landing commit."
+    },
+    {
+      "at": "2026-11-19T12:56:37",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-116",
+      "items": {
+        "consensus-batch-turn-room": "frees docs/** for consensus-batch-turn-room",
+        "consensus-faultfs": "frees test/driver_test.cc for consensus-faultfs",
+        "consensus-transport": "frees docs/** for consensus-transport",
+        "consensus-worker-release": "frees docs/DRIVER.md, include/consensus/driver.h for consensus-worker-release",
+        "driver-pipeline": "frees include/consensus/driver.h, docs/DRIVER.md for driver-pipeline",
+        "transport-admission": "frees docs/** for transport-admission"
+      },
+      "settles": {
+        "start": [
+          "consensus-batch-turn-room",
+          "consensus-faultfs",
+          "consensus-transport",
+          "consensus-worker-release",
+          "driver-pipeline",
+          "transport-admission"
+        ]
+      },
+      "text": "driver-witness-removal-sink landed: unlocks frees docs/** for consensus-batch-turn-room; frees test/driver_test.cc for consensus-faultfs; frees docs/** for consensus-transport; frees docs/DRIVER.md, include/consensus/driver.h for consensus-worker-release; frees include/consensus/driver.h, docs/DRIVER.md for driver-pipeline; frees docs/** for transport-admission"
+    },
+    {
+      "at": "2026-11-19T13:22:38",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:63b43bd, gated on task-asio-layout",
+      "id": "msg-117",
+      "text": "xapiand lead: task-driver-layout landed on task main at task:63b43bd (inline_scheduler driver_ in every build; layout test release 216 vs debug 224 before, 224/224 after). Its review found the same hazard in task_asio.hh (cancellable_asio_awaiter::on_loop_, :504-506): quest task-asio-layout started; I'll send that commit too."
+    },
+    {
+      "at": "2026-11-19T13:49:09",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:fb32493",
+      "id": "msg-118",
+      "text": "xapiand lead: task-asio-layout landed on task main at task:fb32493 (cancellable_asio_awaiter::on_loop_ in every build, set only in Debug; release asm identical at 4061 instructions). Whole-repo NDEBUG sweep found no other conditional member/base/state. Both layout blockers for your adoption are done."
+    },
+    {
+      "at": "2026-11-19T13:59:52",
+      "by": "xapiand-lead",
+      "closed": "adoption replaces daemon.cc with task process.hh; note and test added to the quest",
+      "id": "msg-119",
+      "text": "xapiand lead: FYI a defect in Detent's daemon.cc (unchanged since Detent:276bc58d), found reviewing its port to task (task-process-step review F1): the startup pipe fds are not FD_CLOEXEC, so a daemon that execs a subprocess before ready() and then fails leaves the write end open in the subprocess; the parent waits the full timeout and reports 'timed out', losing the real error. Also F5: the timeout path doesn't waitpid. We're fixing both in task's process.hh; your adoption of it picks them up."
+    },
+    {
+      "at": "2026-11-19T14:06:06",
+      "by": "xapiand-lead",
+      "closed": "t3-tsan at 17/20, ends in ~15 min; budgets now 110/80 min",
+      "id": "msg-120",
+      "text": "xapiand lead: queue stall again. Your light job 261119-111329-f8389b (reader-s6 t3-tsan at dc004dc) holds 8 CPUs until 18:21 (a 5-hour hold, since 13:21); strict jobs (ours: stopword-lists, reactor-server-composition A5) wait behind it and last hour 60 min of runnable work sat beside idle slots with 32 jobs queued. Per your note earlier today, please size it to its real run time or split it into rounds under an hour."
+    },
+    {
+      "at": "2026-11-19T14:16:41",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:3ce0f0c; daemon.cc moves to task/process.hh",
+      "id": "msg-121",
+      "text": "xapiand lead: task-process-step landed on task main at task:3ce0f0c: run_daemon, ProcessLock and locked_pid ported from your daemon.cc (Detent:276bc58d, no semantic change) plus fixes your copy lacks: startup pipe FD_CLOEXEC (a subprocess exec'd before ready() no longer turns a startup failure into 'timed out'), timeout path SIGTERM, 1 s grace, SIGKILL, reap. Your adoption can switch to task/process.hh."
+    },
+    {
+      "at": "2026-11-19T14:41:05",
+      "by": "xapiand-lead",
+      "closed": "ordered reactor-tls-cache and logger-slack-mutant after theirs",
+      "id": "msg-122",
+      "text": "xapiand lead: closed msg-138..142. Ordering: reactor-server-composition (accepted, landing on CI) goes before your reactor-tls-cache; logger-fork-reset (atfork child reset of the LOG mutex/cv, logger.cc/h, test/exit.cc, docs/fork.md) lands before your logger-slack-mutant. Consensus/group quests on our side are not started."
+    },
+    {
+      "at": "2026-11-19T14:41:32",
+      "by": "campaign xapiand",
+      "closed": "task-settle-notes after xapiand:task-fire-pending-guard",
+      "id": "msg-123",
+      "settles": {
+        "ours": [
+          "task-settle-notes"
+        ],
+        "quest": "xapiand:task-fire-pending-guard"
+      },
+      "text": "xapiand:task-fire-pending-guard started and may change files your task-settle-notes changes (order them with --after xapiand:task-fire-pending-guard, or narrow the files)"
+    },
+    {
+      "at": "2026-11-19T14:57:07",
+      "by": "xapiand-lead",
+      "closed": "D127 recorded; http-limits will go after http-drop-user-data (started first)",
+      "id": "msg-124",
+      "text": "xapiand lead, msg-143: yes, remove Request::user_data and DeferredReply. Xapiand uses neither; we bump the http pin after it lands. Note http-limits (ours, after reactor-server-composition lands today) will also change http: order the two, whichever starts second goes --after the other."
+    },
+    {
+      "at": "2026-11-19T15:07:14",
+      "by": "xapiand-lead",
+      "closed": "will message the prism landing commit",
+      "id": "msg-125",
+      "text": "xapiand lead, msg-145: prism:4eb7074 is still on your quest branch; I'll update the note's Prism cells and drop the 'No daemon mode' row when it lands on prism main. Message me the landing commit."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3087,11 +3195,13 @@
       "after": [
         "driver-apply-gap"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/consensus-worker-release",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
           "level": "light",
-          "minutes": 40,
+          "minutes": 50,
           "name": "suite"
         },
         {
@@ -3112,6 +3222,45 @@
         "include/consensus/driver.h",
         "include/consensus/options.h"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T14:02:39",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 50,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
+      "journal": "../Detent-wt/detent/consensus-worker-release",
       "landed": [],
       "lenses": [
         "durability"
@@ -3125,9 +3274,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-18T12:58:25"
+      "updated": "2026-11-19T14:02:39",
+      "worktree": "../consensus-wt/detent/consensus-worker-release"
     },
     "container-selection": {
       "accepted": {},
@@ -3637,6 +3787,8 @@
     "delta-plan-warm": {
       "accepted": {},
       "after": [],
+      "base": "f3594fd06a2542aa0fb5425823fa49917587698c",
+      "branch": "quest/detent/delta-plan-warm",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3657,9 +3809,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "delta plan: measure a warm second plan on one mapping",
-      "updated": "2026-11-19T06:00:37"
+      "updated": "2026-11-19T14:40:41",
+      "worktree": "../Detent-wt/detent/delta-plan-warm"
     },
     "dense-distribution": {
       "accepted": {
@@ -4255,6 +4408,8 @@
       "after": [
         "dense-sync-stack"
       ],
+      "base": "5f593cda81b30d10a3d45fb2c3fc2867773f4869",
+      "branch": "quest/detent/dense-sync-stack-5m-times",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4274,9 +4429,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
-      "updated": "2026-11-18T22:39:03"
+      "updated": "2026-11-19T14:40:45",
+      "worktree": "../Detent-wt/detent/dense-sync-stack-5m-times"
     },
     "dense-walkers": {
       "accepted": {
@@ -5436,15 +5592,15 @@
     "driver-witness-removal-sink": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T09:22:02",
-          "base": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "at": "2026-11-19T12:56:05",
+          "base": "015a7ea36ec69fb25d71d6065808a26995ebf376",
           "blobs": {
             "docs/DRIVER.md": "100644:8c61200dbf6ad376caef06ec3a58f68b94717814",
             "include/consensus/driver.h": "100644:f08016d8db65bc0604898561e82df16b94bf125b",
             "test/driver_test.cc": "100644:c1adaefe08ad6b185a0e36fe03d8ee0a34978c0c"
           },
           "by": "review",
-          "commit": "5f1223ccd5870341b9ddb620eff1c1bccf34a403",
+          "commit": "5935efae4064a5ee88026e9e4684a50c69fada43",
           "criteria": "c2a086283ad7be81",
           "diffs": {
             "docs/DRIVER.md": "cc2e3a90551e4c58",
@@ -5503,20 +5659,48 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/driver-witness-removal-sink",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T12:56:24",
+          "commit": "5935efae4064a5ee88026e9e4684a50c69fada43",
+          "criteria": {
+            "A1": "261119-091207-dec2aa (passed at 5f1223ccd587; only merges from main since), 261119-091214-7078ef (passed at 5f1223ccd587; only merges from main since); fails without: 261119-091209-95db09, 261119-091211-f71e84",
+            "A2": "261119-120329-3e2df5, 261119-091227-c4741a (passed at 5f1223ccd587; only merges from main since), 261119-091230-bf323c (passed at 5f1223ccd587; only merges from main since), 261119-091232-713002 (passed at 5f1223ccd587; only merges from main since), 261119-091235-8e7ebd (passed at 5f1223ccd587; only merges from main since)",
+            "A3": "`docs/DRIVER.md`, \"The witness transitions, both ways\" (consensus:5f1223c)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "5935efae4064a5ee88026e9e4684a50c69fada43",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-120329-3e2df5",
+              "level": "light",
+              "seconds": 1147.6,
+              "state": "done",
+              "what": "driver-witness-removal-sink check suite at 5935efae4064"
+            }
+          ],
+          "final": true,
+          "from": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "reason": "",
+          "tested": "5935efae4064a5ee88026e9e4684a50c69fada43"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
-      "updated": "2026-11-19T11:38:39",
-      "worktree": "../consensus-wt/detent/driver-witness-removal-sink"
+      "updated": "2026-11-19T12:56:36",
+      "worktree": ""
     },
     "drivers-completion-seam": {
       "accepted": {
@@ -6255,6 +6439,8 @@
       "after": [
         "groups-upload-3s-class"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/groups-upload-loop-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -6273,6 +6459,7 @@
       "files": [
         "test/transport/groups_test.cc"
       ],
+      "journal": "../Detent-wt/detent/groups-upload-loop-stall",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6280,9 +6467,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "groups_upload: name and fix the 1.3 s connection-loop stall from a probed CI failure",
-      "updated": "2026-11-18T21:17:58"
+      "updated": "2026-11-19T14:40:22",
+      "worktree": "../consensus-wt/detent/groups-upload-loop-stall"
     },
     "groups-upload-stall": {
       "accepted": {},
@@ -6473,6 +6661,8 @@
     "http-affinity-death-tsan": {
       "accepted": {},
       "after": [],
+      "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+      "branch": "quest/detent/http-affinity-death-tsan",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6485,6 +6675,7 @@
       "files": [
         "test/coroutine_test.cc"
       ],
+      "journal": "../Detent-wt/detent/http-affinity-death-tsan",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6492,9 +6683,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "http: fix coroutine_test's affinity death test race under TSan",
-      "updated": "2026-11-19T05:59:49"
+      "updated": "2026-11-19T14:40:18",
+      "worktree": "../http-wt/detent/http-affinity-death-tsan"
     },
     "http-client-adoption": {
       "accepted": {},
@@ -6591,7 +6783,11 @@
     },
     "http-drop-user-data": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "http-affinity-death-tsan"
+      ],
+      "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+      "branch": "quest/detent/http-drop-user-data",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6604,15 +6800,24 @@
       "files": [
         "http_message.h",
         "http_deferred.h",
+        "http_handler.h",
+        "http_asio.h",
+        "http_request_parser.h",
+        "examples/kv_store.cc",
         "test/deferred_test.cc",
         "test/deferred_asio_test.cc",
         "test/timeouts_test.cc",
+        "test/asio_test.cc",
+        "test/coroutine_test.cc",
+        "test/readahead_test.cc",
         "CMakeLists.txt",
         "docs/**",
         "CHANGELOG.md",
         "README.md",
-        "ARCHITECTURE.md"
+        "ARCHITECTURE.md",
+        "AGENTS.md"
       ],
+      "journal": "../Detent-wt/detent/http-drop-user-data",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6622,9 +6827,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T05:59:44"
+      "updated": "2026-11-19T14:47:08",
+      "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
       "accepted": {
@@ -7282,6 +7488,41 @@
       "status": "planned",
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
       "updated": "2026-11-19T05:59:59"
+    },
+    "journal-close-in-doubt": {
+      "accepted": {},
+      "after": [],
+      "base": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+      "branch": "quest/detent/journal-close-in-doubt",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "docs/**"
+      ],
+      "journal": "../Detent-wt/detent/journal-close-in-doubt",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "review",
+      "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
+      "updated": "2026-11-19T15:28:18",
+      "worktree": "../journal-wt/detent/journal-close-in-doubt"
     },
     "journal-driver": {
       "accepted": {
@@ -9084,7 +9325,11 @@
     },
     "logger-slack-mutant": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "xapiand:logger-fork-reset"
+      ],
+      "base": "455cad0a185b2c9037bb3bb65c99a4e3736b0cc3",
+      "branch": "quest/detent/logger-slack-mutant",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -9103,8 +9348,12 @@
       "files": [
         "test/deferred_mutant.sh",
         "test/deferred.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "logger.h",
+        "logger.cc",
+        "test/wake_mutant.sh"
       ],
+      "journal": "../Detent-wt/detent/logger-slack-mutant",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -9112,9 +9361,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "logger: a mutant for the deferred lines' 8 ms slack",
-      "updated": "2026-11-19T05:59:53"
+      "updated": "2026-11-19T15:16:13",
+      "worktree": "../logger-wt/detent/logger-slack-mutant"
     },
     "logger-wheel-ab": {
       "accepted": {},
@@ -14858,9 +15108,9 @@
     },
     "pack-scrub-hash-count": {
       "accepted": {},
-      "after": [
-        "namespace-s6-v1-removal"
-      ],
+      "after": [],
+      "base": "ff38ccd31af2905bb373d1cf7312b0454dd97d41",
+      "branch": "quest/detent/pack-scrub-hash-count",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -14875,16 +15125,44 @@
         "src/detent_local/pack_scrub.hh",
         "tests/detent_testing/test_pack_scrub.cc"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T15:21:59",
+          "commit": "9c5f1bbf21e0592b1bb25d4a93f75cfa835392c7",
+          "criteria": {
+            "A1": "261119-144306-5c63f3; fails without: 261119-144312-8d0f2c",
+            "A2": "261119-144316-8e7e71"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "a800bbfb6e50471465a659f217cb850f551679ae",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-144316-8e7e71",
+              "level": "light",
+              "seconds": 729.3,
+              "state": "done",
+              "what": "pack-scrub-hash-count check suite at a800bbfb6e50"
+            }
+          ],
+          "final": true,
+          "from": "e443e87488acb4091636d1b124cc76c3c3d66491",
+          "reason": "",
+          "tested": "e51b91c1ae98f4fa4c60b538d34a57f7895cb91d"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "landed",
       "title": "PackScrub counts what it hashes",
-      "updated": "2026-11-19T06:01:02"
+      "updated": "2026-11-19T15:22:46",
+      "worktree": ""
     },
     "paged-decode-one-shape": {
       "accepted": {},
@@ -14967,6 +15245,8 @@
       "after": [
         "peers-tsan-timeout"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/peers-busy-roundtrip-bound",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -14979,6 +15259,7 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
+      "journal": "../Detent-wt/detent/peers-busy-roundtrip-bound",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -14986,9 +15267,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: peers_test busy round-trip bound (64 ms) fails under load at 256 ms",
-      "updated": "2026-11-19T05:38:03"
+      "updated": "2026-11-19T14:40:24",
+      "worktree": "../consensus-wt/detent/peers-busy-roundtrip-bound"
     },
     "peers-retry-flake": {
       "accepted": {},
@@ -15371,9 +15653,9 @@
     },
     "prism-server-composition": {
       "accepted": {},
-      "after": [
-        "server-composition-adoption"
-      ],
+      "after": [],
+      "base": "4d3c96d16ccaceecba270a120ae25faf9a8ff138",
+      "branch": "quest/detent/prism-server-composition",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
@@ -15392,7 +15674,60 @@
       "files": [
         "src/**",
         "CMakeLists.txt",
-        "ARCHITECTURE.md"
+        "ARCHITECTURE.md",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-19T15:31:32",
+          "lenses": [
+            [],
+            [
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
+      "journal": "../Detent-wt/detent/prism-server-composition",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/prism",
+      "risk": "normal",
+      "status": "review",
+      "title": "Prism adopts the server composition note (D122)",
+      "updated": "2026-11-19T15:31:32",
+      "worktree": "../prism-wt/detent/prism-server-composition"
+    },
+    "prism-server-composition-limits": {
+      "accepted": {},
+      "after": [
+        "prism-server-composition",
+        "xapiand:http-limits",
+        "xapiand:reactor-server-composition"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "ARCHITECTURE.md",
+        "README.md",
+        "CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [],
@@ -15402,8 +15737,8 @@
       "repo": "/Users/kronuz/code/Kronuz/prism",
       "risk": "normal",
       "status": "planned",
-      "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T06:24:29"
+      "title": "Prism: the composition steps that wait on http::Limits, reactor's server TLS and Http::stop_accepting",
+      "updated": "2026-11-19T15:06:30"
     },
     "quickstart-managed": {
       "accepted": {},
@@ -15675,7 +16010,11 @@
     },
     "reactor-tls-cache": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "xapiand:reactor-server-composition"
+      ],
+      "base": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+      "branch": "quest/detent/reactor-tls-cache",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -15691,6 +16030,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/reactor-tls-cache",
       "landed": [],
       "lenses": [
         "correctness"
@@ -15700,9 +16040,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T05:59:39"
+      "updated": "2026-11-19T14:42:10",
+      "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
     "reader-acl": {
       "accepted": {},
@@ -15873,6 +16214,7 @@
         },
         {
           "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+          "later": true,
           "level": "light",
           "minutes": 90,
           "name": "asan"
@@ -15885,14 +16227,15 @@
         },
         {
           "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+          "later": true,
           "level": "light",
-          "minutes": 240,
+          "minutes": 80,
           "name": "t3-asan"
         },
         {
           "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
           "level": "light",
-          "minutes": 300,
+          "minutes": 110,
           "name": "t3-tsan"
         }
       ],
@@ -15931,6 +16274,85 @@
         "tests/detent_local/test_dense_reads.cc",
         "docs/perf/reader-lookup.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T14:07:09",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 240,
+                "name": "t3-asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 300,
+                "name": "t3-tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "later": true,
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              }
+            ]
+          ],
+          "reason": "hold budgets sized to measured run time (t3-tsan 77 min, t3-asan 57 min) so a 5-hour light hold stops blocking the shared queue; commands unchanged",
+          "voided": [],
+          "weakened": [
+            "gate check asan deferred",
+            "gate check t3-asan deferred"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "security",
@@ -15948,7 +16370,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-19T04:59:32",
+      "updated": "2026-11-19T14:07:09",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -17550,7 +17972,11 @@
     },
     "task-settle-notes": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "xapiand:task-fire-pending-guard"
+      ],
+      "base": "0316befffa225849f04a8064ea6c46a334e52b94",
+      "branch": "quest/detent/task-settle-notes",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -17564,6 +17990,7 @@
         "test/sync_test.cc",
         "docs/API.md"
       ],
+      "journal": "../Detent-wt/detent/task-settle-notes",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -17571,9 +17998,10 @@
       "provides": [],
       "repo": "../task",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "task: same-thread settle test and the cancel-callback wait rule",
-      "updated": "2026-11-19T06:00:12"
+      "updated": "2026-11-19T14:42:16",
+      "worktree": "../task-wt/detent/task-settle-notes"
     },
     "task-wheel": {
       "accepted": {

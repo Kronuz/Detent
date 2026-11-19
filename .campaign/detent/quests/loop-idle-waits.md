@@ -9,7 +9,7 @@ detent-relay's host turn (src/detent_relay/host.cc:398, 407) and detentd's autho
 
 ## Acceptance criteria
 
-- A1 An idle detentd and an idle detent-relay make no loop wakeups over 10 s beyond their real deadlines (counted wakeups, before and after at named commits): jobs.
+- A1 An idle detent-authority and an idle detent-relay make no loop wakeups over 10 s beyond their real deadlines (counted wakeups, before and after at named commits): jobs.
 - A2 A test posts work to an idle loop and sees it served within one turn, with no timer involved; it fails at a mutant that drops the wake (--fails-without): jobs.
 - A3 Throughput and p99 of the relay and authority benches stay within 5% of main (strict, before and after): jobs.
 - A4 The suite, TSan and CI pass: jobs.
