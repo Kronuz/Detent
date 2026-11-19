@@ -886,6 +886,13 @@
       "closed": "A5 confirmed for cpp-libraries:0579a1a after checking Detent citations",
       "id": "msg-101",
       "text": "xapiand lead: server-composition note is CURRENT-candidate at cpp-libraries:0579a1a (branch quest/xapiand/server-composition-note, pushed): lifecycle/component (D132), EX_CONFIG (D133), detent-agent column with cites at Detent:372e95c7 (Process cell filled: it calls run_daemon and ProcessLock, so not 'no listener'), detent-authority (D123), adoption order Xapiand -> your three daemons -> Prism. A5 is yours: please confirm the Detent-side text (Mains columns, Deviations rows for detent-authority/relay/agent, D122/D123 lines) or list corrections. It lands on your confirmation; I send the landed commit then."
+    },
+    {
+      "at": "2026-11-19T06:34:00",
+      "by": "xapiand-lead",
+      "closed": "noted CURRENT at cpp-libraries:0579a1a; waiting on Xapiand's adoption id for --after",
+      "id": "msg-102",
+      "text": "xapiand lead: server-composition note landed and CURRENT at cpp-libraries:0579a1a (on main). Remaining gate for your adoption: Xapiand's adoption landing; I file it now and send its id for your --after."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
