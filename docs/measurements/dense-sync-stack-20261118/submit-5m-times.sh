@@ -1,5 +1,5 @@
 #!/bin/bash
-# usage: submit-5m-times.sh ARM ROUND   (ARM: dense|s2|stacked|main; one exclusive job: 10K smoke, then the 5M cold bootstrap and restarts)
+# usage: submit-5m-times.sh ARM ROUND   (about 4-6 min in the hold; ARM: dense|s2|stacked|main; one exclusive job: 10K smoke, then the 5M cold bootstrap and restarts)
 # Dense, S2 and stacked read 5000000-flat-r1; main reads its own 5000000-flat-main (README.md). Harness: main at ea1fddc.
 set -eu
 arm=$1 round=$2
@@ -10,8 +10,7 @@ case $arm in
   main) commit=ea1fddc8af10b3fffa44e71e8800c270fd7218ba fixture=5000000-flat-main smoke=10000-main ;;
 esac
 B='mkdir -p .scratch && cmake -S . -B .scratch/build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build-rel -j4 --target detentd detent-agent detent-relay detent_system_mixed_oracle && git rev-parse HEAD >.scratch/build-rel/BUILT_COMMIT'
-campaign job submit --quest dense-sync-stack-5m-times --for A1 --level exclusive --minutes 25 \
-  --long "5M cold bootstrap runs about 4 min plus the 10K smoke; campaign caps exclusive at 10" --priority 0 \
+campaign job submit --quest dense-sync-stack-5m-times --level exclusive --minutes 10 \
   --commit $commit --ref h=/Users/kronuz/code/Kronuz/Detent@ea1fddc8af10b3fffa44e71e8800c270fd7218ba \
   --slot dss-$arm --env ARM=$arm --env ROUND=$round --env FIXTURE=$fixture --env SMOKE=$smoke --env TIMES=5m \
   --what "5M times $arm round $round" --build "$B" -- \
