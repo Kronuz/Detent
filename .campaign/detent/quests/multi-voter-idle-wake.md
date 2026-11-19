@@ -5,27 +5,14 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D124: loop-idle-waits stops polling everywhere except a multi-voter detent-authority, where incoming peer frames wait in consensus `Peers` until the turn calls `admit()` and nothing wakes the loop (consensus pin a197efb). After this quest, the Detent pin is past consensus:0acfaff (`Worker::next_deadline()`), Peers wakes the owner loop when a frame arrives, and the multi-voter turn sleeps until a wake or its next deadline.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 A three-voter test with idle peers counts owner-loop wakeups over 10 s at main and at the head; the head wakes only for deadlines and frames: jobs.
+- A2 A test where a peer frame arrives during an idle wait is admitted within one turn, with a mutant that drops the Peers wake failing it (`--fails-without`): jobs.
+- A3 The suite and CI pass, and the consensus pin bump carries its own changelog check: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 (D124, from loop-idle-waits msg-103). Needs the consensus pin bump; if a consensus quest is needed for the Peers wake hook, file it in ../consensus and order this after it.
