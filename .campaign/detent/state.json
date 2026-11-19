@@ -6005,6 +6005,32 @@
       "title": "Affinity checked against the loop thread (D9)",
       "updated": "2026-11-08T15:38:34"
     },
+    "http-affinity-death-tsan": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/coroutine_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "low",
+      "status": "planned",
+      "title": "http: fix coroutine_test's affinity death test race under TSan",
+      "updated": "2026-11-19T05:59:49"
+    },
     "http-client-adoption": {
       "accepted": {},
       "after": [],
