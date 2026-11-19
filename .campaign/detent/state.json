@@ -935,6 +935,25 @@
       "closed": "the nightly was cancelled by campaign-state pushes to main (concurrency cancel-in-progress); fixed in ci.yml; macOS failure filed as frames-session-busy-flake",
       "id": "msg-108",
       "text": "xapiand lead: nightly backlog run cpp-libraries 44534483604 finished: 73 of 75 libraries green; Detent's nightly 44545028079 was cancelled (linux-tsan, linux-asan-ubsan, linux-benchmarks cancelled; source-checks and pin-check green). FYI if that cancel wasn't yours."
+    },
+    {
+      "at": "2026-11-19T06:03:55",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-99",
+      "items": {
+        "delta-plan-warm": "frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "delta-plan-warm",
+          "dense-sync-stack-5m-times",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set dense-power-cut-cycles: unlocks frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5240,11 +5259,47 @@
         "include/consensus/core.h",
         "include/consensus/worker.h"
       ],
-      "journal": "../Detent-wt/detent/driver-apply-gap",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T09:02:18",
+          "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "criteria": {
+            "A1": "Seed 399: the trace (`SIM_DRIVER_TRACE=1`, first read at consensus:40eeec7, before the fix) shows no Driver path advanced apply past delivery. Node 2 led term 6 (step 2749) and placed 6:120..6:126 while node 3 was down (booted step 2999); the heal loop's \"healed\" placed 6:126 (heal round 1). Node 3 (founded a Witness for odd seeds, driver_simulation.cc:276) won term 7 (round 37; its vote can only be node 1's, as node 2's log is longer); node 1 won term 8 (round 44); index 120 committed with a new entry (round 46), so 6:120..6:126 were replaced. The old loop re-proposed only on an error or no placement, so it waited 4,000 rounds on 6:126. Node 3's \"application 0\" is the witness rule. The reviewer's probe (261118-224440-51acaf, rerun at the head as 261119-053719-817bdb) checks the Driver's own `state().applied` against delivery after every step and heal round: 78,235,641 checks over seeds 1-10000 x 3000, none past delivery (this supersedes the trace awk check, F3). The real path the quest names exists outside the simulation's fixed membership: review F1, a learner whose promotion to witness is appended (core.h note_append) acknowledges ranges below it through `witness(g)` (driver.h, newest membership) and keeps that apply index when a later term truncates the promotion; reproduced by `truncated_promotion` (A2). Rerun of the trace at the head: 261119-044634-3835e7.",
+            "A2": "261119-044225-2f4e74 (passed at ee032308e6e9; only merges from main since); fails without: 261118-173953-5ceffe, 261119-044228-4bb073",
+            "A3": "261119-044534-b31c95 (passed at ee032308e6e9; only merges from main since), 261119-044537-1eca78 (passed at ee032308e6e9; only merges from main since), 261119-044543-64d814 (passed at ee032308e6e9; only merges from main since), 261119-044545-e73fc9 (passed at ee032308e6e9; only merges from main since), 261119-044547-4209fe (passed at ee032308e6e9; only merges from main since), 261119-044549-6f6e5c (passed at ee032308e6e9; only merges from main since), 261119-044551-9fd2e0 (passed at ee032308e6e9; only merges from main since), 261119-044553-f4004e (passed at ee032308e6e9; only merges from main since), 261119-044554-af9719 (passed at ee032308e6e9; only merges from main since), 261119-044557-c04687 (passed at ee032308e6e9; only merges from main since), 261119-044559-1edb20 (passed at ee032308e6e9; only merges from main since), 261119-044601-50fd2d (passed at ee032308e6e9; only merges from main since), 261119-044604-84c1d3 (passed at ee032308e6e9; only merges from main since), 261119-044607-fdbd78 (passed at ee032308e6e9; only merges from main since), 261119-044609-312784 (passed at ee032308e6e9; only merges from main since), 261119-044611-e9850d (passed at ee032308e6e9; only merges from main since), 261119-044613-0375fb (passed at ee032308e6e9; only merges from main since), 261119-044614-97a942 (passed at ee032308e6e9; only merges from main since), 261119-044616-10d85e (passed at ee032308e6e9; only merges from main since), 261119-044618-dbd1d0 (passed at ee032308e6e9; only merges from main since), 261119-044524-300372 (passed at ee032308e6e9; only merges from main since), 261119-044528-fa2a93 (passed at ee032308e6e9; only merges from main since)",
+            "A4": "261119-044634-1c8de7 (passed at ee032308e6e9; only merges from main since)",
+            "A5": "261119-063015-8873f3"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-063015-8873f3",
+              "level": "light",
+              "seconds": 998.0,
+              "state": "done",
+              "what": "driver-apply-gap check suite at 4b0b214c46c1"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "reason": "",
+          "tested": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-close-fenced"
@@ -5252,10 +5307,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-19T05:46:42",
-      "worktree": "../consensus-wt/detent/driver-apply-gap"
+      "updated": "2026-11-19T09:02:39",
+      "worktree": ""
     },
     "driver-pipeline": {
       "accepted": {},
