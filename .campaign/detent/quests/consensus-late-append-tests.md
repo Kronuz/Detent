@@ -5,27 +5,14 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus-late-append fixed two paths without tests (reviews/consensus-late-append-correctness.md:70-71 F1, F2): a late success must acknowledge its read probe (R4), and the snapshot guard must hold. After this quest each has a test that fails when its fix is reverted.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 A late success acknowledges its read probe: a test that fails with the R4 fix reverted (--fails-without): jobs.
+- A2 The snapshot guard refuses what it guards: a test that fails with the guard removed (--fails-without): jobs.
+- A3 The suite passes: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (R4).

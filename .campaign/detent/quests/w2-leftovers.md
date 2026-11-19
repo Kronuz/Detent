@@ -5,27 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Two w2 review findings never got a quest (PLAN Not quests yet 6; `docs/reviews/w2-s1-s8-code-review.md:43-49`): CR3, `run_partition.py` never writes to the stale leader and requires a refusal; CR4, Detent's `await_io` (`include/detent_transport/await_io.hh`, 4 uses) sits beside `task::await_asio` (9 uses), two shapes for one thing. After this quest the partition test writes to the stale leader and requires a refusal, and one await shape remains; whether it is `task::await_asio` or `await_io` moved into the task library is the architect's call, recorded as a decision.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 The partition test writes to the stale leader and fails if the write is accepted (--fails-without at a mutant that accepts it): jobs.
+- A2 [decision] Which await shape stays: a PLAN.md Decisions id.
+- A3 One await shape in Detent (`git grep await_io` empty, or `await_asio` gone) and the suite passes: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (U11).

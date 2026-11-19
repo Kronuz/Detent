@@ -5,27 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`reactor::tls::configure` (`reactor_tls.h:56`) reloads certificates from disk on every call (transport-groups-ci journal:72). After this quest loaded certificates are cached and reused, a changed certificate is still picked up, and the per-call cost is measured.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 Repeated `configure` calls on unchanged files load the certificates once: a test counting loads that fails without the cache (--fails-without): jobs.
+- A2 A rotated certificate is served after rotation, never a stale one: a test: jobs.
+- A3 `configure` cost before and after at named commits (strict): jobs.
+- A4 The suite, ASan and TSan pass: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (J4).

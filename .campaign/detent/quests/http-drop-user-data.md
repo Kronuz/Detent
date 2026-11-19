@@ -5,27 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`docs/design/http-coroutines.md:513, 550` (follow-up 3, owner direction on Q4) commits http to removing `Request::user_data` (`http_message.h:135`) and `DeferredReply` (`http_deferred.h:251`) and adding `Request::deadline()`; neither old surface has a consumer. After this quest both are gone and handlers read their deadline from the request. It changes a shared public API, so it needs the Xapiand lead's agreement before landing.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 `user_data` and `DeferredReply` are gone, and Detent and Xapiand build against the new http: jobs.
+- A2 `Request::deadline()` returns the request's deadline: a test: jobs.
+- A3 [decision] The Xapiand lead agrees to the removal: a PLAN.md Decisions id.
+- A4 The suite and CI pass: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (U14).

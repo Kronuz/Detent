@@ -5,27 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+coroutine_test's affinity death test fails 5 of 10 runs under TSan at http:eb08b59 (http-idle-cost journal:155-160; reviews/http-idle-cost-correctness.md:58 C3), reported for the lead and unfixed through http:ec273dd. After this quest the test passes under TSan reliably, or the race is shown to be in http and fixed there.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 Rerun first: the failure rate at http main under TSan (20 runs): jobs.
+- A2 The death test passes 20 of 20 under TSan after the fix: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (J6).

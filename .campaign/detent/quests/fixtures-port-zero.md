@@ -5,27 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Fixtures reserve ports and release them before the daemon binds, a race with any other process (PLAN Not quests yet 5; namespace-s8-wiring journal:158-162, D5, D8): `authority.py:149` (`release_ports`), `managed.py:151` (reservation socket), `test_relay_service.py:168` (`free_port`), `test_dual_stack.py:39`. D5 and D8 went to namespace-followups, whose A1-A4 omit them. After this quest every daemon fixture starts on port 0 and reads the bound port from the daemon.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 No fixture reserves a port (`git grep release_ports\|free_port` empty in tests) and the system tests pass: jobs.
+- A2 The system tests pass 10 runs in a row under `-j` with another process churning ports: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (U10).

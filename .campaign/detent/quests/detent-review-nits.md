@@ -5,27 +5,14 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Small review findings left open: `docs/perf/delta-plan-scaling.md:98` claims "-20%, within noise" without probe 911a1f (delta-plan-fixed-cost C2); `history.cc:510` does an O(n^2) `find_if` (namespace-followups N2); cleanup errors replace the original error in `mirror.cc:220-224, 321-323` (N6). After this quest the claim cites its probe or is restated, the lookup is linear, and the original error survives cleanup. rpc-lane-codec N5 (consensus error code 7) waits on the Xapiand lead and is not in scope.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 A failing mirror step whose cleanup also fails reports the original error: a test that fails without the fix (--fails-without): jobs.
+- A2 The history lookup is linear and the suite passes: jobs.
+- A3 [artifact] The delta-plan claim cites probe 911a1f or is restated: `docs/perf/delta-plan-scaling.md`.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (R8).

@@ -5,27 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Two first-touch page checks exist, `LazyPageAccess::resolve` and `checked_page_bytes`; D42 DES-7 (reviews/dense-pages-design.md:77) merges them when reader-s6 rewrites `resolve`, but that went by message only and reader-s6's quest omits it. After this quest one check serves both paths.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 One first-touch check remains (`checked_page_bytes` or `resolve`'s, not both), and a corrupt-page test fails at a mutant that skips it on either path (--fails-without): jobs.
+- A2 First-read cost unchanged within 5% (first-read gate, before and after at named commits): jobs.
+- A3 The suite passes: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (U6).

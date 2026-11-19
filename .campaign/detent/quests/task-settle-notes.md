@@ -5,27 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+drivers-task-wheel's review parked F6 and F7 for journal-driver or consensus-driver, and neither took them (reviews/drivers-task-wheel-correctness.md:117-118): task:95798a0 has no `inline-nested` same-thread settle case, and `docs/API.md` does not state the cancel-callback wait rule. After this quest both exist.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 An inline-nested same-thread settle test passes, and fails at a mutant that settles re-entrantly (--fails-without): jobs.
+- A2 [artifact] The cancel-callback wait rule: `docs/API.md`.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (R3).

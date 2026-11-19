@@ -5,27 +5,15 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D73 has the lead archive stash and scheduler once nothing uses them (`docs/dev/superseded-libraries.md`; superseded-sweep quest:13). Both are still unarchived; Detent, logger, prism and http-log no longer use them, but Xapiand pins scheduler (`Xapiand/CMakeLists.txt:546`). `superseded-libraries.md:38,47,90` also still lists Detent's pins and cluster as unarchived (audit D4). After this quest both repositories are archived on GitHub, the cpp-libraries README marks them archived, and the doc is current.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 [manual] `gh repo view Kronuz/stash` and `Kronuz/scheduler` show archived.
+- A2 [artifact] Pins, archive state and cluster are current: `docs/dev/superseded-libraries.md`.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from the untracked-commitment audit (U4, D4).
+Archiving is an owner-visible external action: ask the owner before running it; blocked on Xapiand dropping its scheduler pin.
+Order after xapiand's server-composition adoption quest (`--after xapiand:ID` once filed); the pin goes away there.
