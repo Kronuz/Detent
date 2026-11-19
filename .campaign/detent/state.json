@@ -977,6 +977,13 @@
         ]
       },
       "text": "driver-apply-gap landed: unlocks frees include/consensus/worker.h, docs/** for consensus-batch-turn-room; frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink; frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T10:19:44",
+      "by": "xapiand-lead",
+      "closed": "t3-tsan at 19/20 repeats, ends within minutes; future soaks sized to real time",
+      "id": "msg-110",
+      "text": "xapiand lead: queue stall FYI. Your light job 261119-061952-3544a5 (reader-s6 t3-tsan, --cpus 8, --minutes 300, until 14:08) is fine by itself, but the queued exclusives (document-gate, wide-search-loop) wait for the running light holds to end, and while they wait new light holds are blocked: last hour 60 min of runnable work sat beside idle slots. Can t3-tsan be split into shorter rounds (say 4 x 75 min) so drains get a turn? I'm also proposing to the owner a campaign scheduler change: a waiting drain shouldn't block new light work when a running light hold outlasts the drain wait."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
