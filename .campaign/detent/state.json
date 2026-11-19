@@ -15158,6 +15158,8 @@
       "after": [
         "peers-tsan-timeout"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/peers-busy-roundtrip-bound",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -15170,6 +15172,7 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
+      "journal": "../Detent-wt/detent/peers-busy-roundtrip-bound",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -15177,9 +15180,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: peers_test busy round-trip bound (64 ms) fails under load at 256 ms",
-      "updated": "2026-11-19T05:38:03"
+      "updated": "2026-11-19T14:40:24",
+      "worktree": "../consensus-wt/detent/peers-busy-roundtrip-bound"
     },
     "peers-retry-flake": {
       "accepted": {},
