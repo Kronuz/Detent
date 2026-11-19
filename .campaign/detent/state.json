@@ -5586,7 +5586,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
-      "updated": "2026-11-18T20:57:03",
+      "updated": "2026-11-19T04:42:52",
       "worktree": ""
     },
     "hash-once": {
