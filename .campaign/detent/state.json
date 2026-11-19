@@ -5959,6 +5959,35 @@
       "title": "Stage 6 component 1: bounded runner and native fleet tooling",
       "updated": "2026-11-08T15:38:24"
     },
+    "frames-session-busy-flake": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_authority/test_authority_frames_service*",
+        "src/detent_authority/service.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "test_authority_frames_service gets 409 session_busy on macOS CI",
+      "updated": "2026-11-19T08:20:03"
+    },
     "groups-upload-3s-class": {
       "accepted": {},
       "after": [
