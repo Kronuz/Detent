@@ -858,6 +858,13 @@
         ]
       },
       "text": "dense-sync-stack landed: unlocks dense-power-cut-cycles; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T05:49:18",
+      "by": "dense-power-cut-cycles",
+      "closed": "file set fixed: test_paged_publication_artifacts.cc, paged_power_cut_mutant.sh, tests/detent_local/CMakeLists.txt",
+      "id": "msg-97",
+      "text": "dense-power-cut-cycles: file set names files that do not exist (test_local_publication_power_cut*, *power_cut*, agent_store_*). The DTPAGE03 T7 matrix lives in tests/detent_local/test_paged_publication_artifacts.cc (ctest test_local_paged_publication_artifacts). Please add that file to the quest's files (campaign set dense-power-cut-cycles --files ...); I am working in it, and a split into its own test would also need tests/detent_local/CMakeLists.txt."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
