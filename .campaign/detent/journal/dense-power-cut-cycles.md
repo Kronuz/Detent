@@ -1,6 +1,6 @@
 # dense-power-cut-cycles: journal
 
-State: working
+State: waiting on jobs 261119-055252-757710 261119-055255-9815e2 261119-055304-fe7712 261119-055306-ca033c 261119-055308-4179ea
 Quest: .campaign/detent/quests/dense-power-cut-cycles.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,7 +11,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Kill cycles and deferred counter checks are written in
 `tests/detent_local/test_paged_publication_artifacts.cc` (T7 `power_cut::matrix`); mutant runner
-`tests/detent_local/paged_power_cut_mutant.sh {f2|owners-unsynced}`. Jobs submitted, see Evidence.
+`tests/detent_local/paged_power_cut_mutant.sh {f2|owners-unsynced}`. Jobs at quest/detent/dense-power-cut-cycles 0491457b:
+- 261119-055252-757710 (A1, strict): the matrix in the suite's Debug build, 3 timed runs (after).
+- 261119-055255-9815e2 (strict, base dcb09eb3, slot dpc-base): the same 3 timed runs (before).
+- 261119-055304-fe7712 (A2, --fails-without): f2 must die at a "kill, restart, power cut".
+- 261119-055306-ca033c (A2, --fails-without): owner-unsynced (95665a's edit) must die at a cut.
+- 261119-055308-4179ea (A3): the suite.
 
 ## Next
 
@@ -44,4 +49,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The counter checks (startup, publication, total) move after the cuts, into `Run::check` beside
+  the order check: 95665a's mutant drops a sync group, so the counters caught it before any cut.
+- A kill restarts only when it selects the base (a kill after the rename selects the published
+  generation, which has no next publication to make) and leaves bytes a cut would lose (its files
+  differ from its durable-only cut); distinct kills are keyed by names plus staged and durable bytes.
+- A kill's restart is cut with Entries {Durable, All} x Data::Zeros, as the cut restarts are.
+- The A2 runner counts a mutant killed only when the test fails at a cut whose message names it
+  (`kill, restart, power cut after event` for f2), so a counter or order failure does not count.
