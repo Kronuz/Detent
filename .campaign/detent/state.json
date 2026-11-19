@@ -7519,9 +7519,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
-      "updated": "2026-11-19T14:40:00",
+      "updated": "2026-11-19T15:28:18",
       "worktree": "../journal-wt/detent/journal-close-in-doubt"
     },
     "journal-driver": {
