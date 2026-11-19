@@ -16,10 +16,11 @@ shift
 here=$(cd "$(dirname "$0")" && pwd)
 build=${W_BUILD:-$PWD/.scratch/delta-plan-warm/build}
 exe=$build/delta_plan_warm
-corpus=${CORPUS:?CORPUS names the corpus}
-root=${W_ROOT:-$PWD/.scratch/delta-plan-warm/$(basename "$corpus" .bin)}
+corpus=${CORPUS:-}
+root=${W_ROOT:-$PWD/.scratch/delta-plan-warm/$(basename "${corpus:-none}" .bin)}
 check_corpus() {
 	local got
+	: "${CORPUS:?CORPUS names the corpus}"
 	got=$(shasum -a 256 "$corpus" | cut -d' ' -f1)
 	[[ ${CORPUS_SHA256:-$got} == "$got" ]] || { echo "corpus digest $got != $CORPUS_SHA256" >&2; exit 1; }
 	echo "corpus $corpus sha256 $got"
