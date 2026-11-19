@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-214145-4748d9
+State: waiting on jobs 261118-214447-666fec 261118-214449-5d9a15 261118-214507-d39df7 261118-214529-7441ed 261118-214531-9748fd 261118-214532-7ff35e 261118-214533-18c77e 261118-214535-e427d1 261118-214536-d96e0d 261118-214538-f02c6d 261118-214539-942f84
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,36 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Suite gate at e20721d failed (261118-212248-85299d): consensus_transport_resolve aborted
-at shutdown's entry check `os_threads() == baseline` (line 227) after 5 s, under ctest -j4.
-Investigating; one hypothesis per experiment.
+Suite gate at e20721d failed (261118-212248-85299d): consensus_transport_resolve aborted at
+shutdown's entry check `os_threads() == baseline` (line 227) after 5 s, under ctest -j4.
 
-consensus:d76b788 instruments the test: `settles()` replaces the bare count waits and on a
-timeout prints the count over time and each thread's name and run state; the test names its
-threads (warm-up, lookup, abandoner, opener). No product change.
+Cause (test baseline, not product, not the bound): on macOS a joined thread can stay in
+task_threads for a moment after join returns. main() read the baseline right after joining
+the warm-up thread, so under load it counted that thread: baseline 2 while the process had 1.
+Evidence: loop 261118-214145-4748d9 at consensus:d76b788 (instrumented test; full binary, 8 at
+once) had 46 of 288 runs fail, every one "expected 2 (baseline 2, 1 before the warm-up
+thread); count over time: 0ms:1", one thread listed (main). No surplus thread in any run.
+(That job was superseded by the fixed loop's submit before it finished; tally read from its
+slot.)
 
-Loop 261118-214145-4748d9 (--for A4, at d76b788): the full binary 1,600 times, 8 at once.
+What changed (voids the correctness acceptance; test only, resolve.h untouched):
+- consensus:d76b788 test/transport/resolve_test.cc: `settles()` replaces the bare count waits
+  and prints the count over time and each thread's name and run state on a timeout; the test
+  names its threads (warm-up, lookup, abandoner, opener).
+- consensus:88c035b merges origin/main (84608cc, groups_test.cc only).
+- consensus:f427934 resolve_test.cc: baseline = the count seen inside the warm-up thread less
+  that thread; main waits for the system to reach it (5 s) and, without ASan/TSan, asserts it
+  equals the count before the warm-up. The post-join waits print how long joined threads stay
+  listed (input for the 1 s bounds, unchanged).
 
-1. Read the loop's failures: which thread is surplus or missing, and how the count moved.
-2. Fix the cause; merge origin/main (84608cc, groups_test.cc); verify + loop again.
+Jobs at f427934: loop 666fec (--for A4); fails-without loop 5d9a15 at d76b788; suite d39df7
+(verify); plain 7441ed (A1,A3); TSan 9748fd, ASan 7ff35e (A2); mutants unbounded 18c77e (A1),
+destroyed-at-exit e427d1, detach-at-destruction d96e0d (A2), delivery-outside-lock f02c6d,
+queued-kept 942f84 (A3). Branch pushed for CI.
+
+1. Read the jobs; if the loop's post-join listing times approach 1 s, derive the bound from
+   them with headroom; paste `campaign brief`'s table into Evidence.
+2. Lead: confirm the test-only change by job or send it back to review.
 ## Blocked on
 
 Nothing. Lead re-accepts correctness once the d0f5cbf jobs pass.
@@ -43,6 +61,14 @@ rebuilds, and an at-exit join check). consensus:ed241c3: docs/mechanisms/peer-dn
 describes the bound, abandonment, and the join at exit with its measured wait;
 test/transport/dns_mutants.sh `shared-thread` is now `process_bound = 1`.
 ## Rulings I made
+
+Flake (suite 85299d):
+
+10. The baseline is a value, computed while the warm-up thread is alive (its count less one),
+    not read after the join; equality with the pre-warm-up count is asserted only without a
+    sanitizer, since ASan/TSan may start threads of their own with the first thread.
+11. The 1 s post-join bounds stay: in the fixed loop's first runs joined lookup threads left
+    the list in 0-1 ms; the loop reports the median, p99 and max over 1,600 runs.
 
 Review round 1:
 
