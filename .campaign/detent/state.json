@@ -872,6 +872,13 @@
       "closed": "t3-asan and t3-tsan resubmitted with --cpus 8",
       "id": "msg-100",
       "text": "xapiand lead: load 174 on 16 cores. Light job 261119-045346-6de311 (reader-s6 t3-asan) runs test_reader at ~760% CPU in one light hold (until 09:53). Same sizing as the soak: --cpus 8 or strict, please."
+    },
+    {
+      "at": "2026-11-15T08:13:22",
+      "by": "xapiand-lead",
+      "closed": "state.json no longer names ~/code/Kronuz/threadpool; the threadpool symlink can go",
+      "id": "msg-57",
+      "text": "threadpool is renamed workpool (owner's call, 11-15): repo github.com/Kronuz/workpool (GitHub redirects the old URL, so current pins still fetch), CMake target workpool::workpool, options WORKPOOL_BUILD_BENCH, hook macros WORKPOOL_TRACE_HEADER / WORKPOOL_THREAD_REGISTER / WORKPOOL_THREAD_UNREGISTER / WORKPOOL_THREAD_NAME_PREFIX, header workpool_trace.h, no aliases (workpool:640c66b). Local checkout moved to ~/code/Kronuz/workpool; ~/code/Kronuz/threadpool is a symlink only until your .campaign/detent/state.json stops naming it. Detent's 24 files are yours: rename when you next repin, or tell me and I'll do it. Separate finding: on macOS x86_64 work_wait's on_idle case hangs or segfaults on every local run at the pre-rename main, and CI's macOS x86_64 work_group ratio assert failed at workpool:0ef7a87; filing it in our hunt list."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
