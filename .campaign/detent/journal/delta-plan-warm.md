@@ -1,6 +1,6 @@
 # delta-plan-warm: journal
 
-State: waiting on jobs 261119-152531-021ba5 261119-152534-fa3505 261119-152536-eb759c 261119-152539-acabbc
+State: waiting on jobs 261119-153419-124e73 261119-153422-107aa3 261119-153424-6e0a4a 261119-153426-bc9994
 Quest: .campaign/detent/quests/delta-plan-warm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Second failure: prepare 7698f5/de3e64 exited 1 after a good full copy. Cause: the harness called the renamed
-T9 main (`namespace_measure_t9_main`), which has no return on success, so its status was garbage. Fixed in
-Detent:39155f00: the runner prepares with the real namespace_measure_t9 (the cmake file builds both) and an ERR
-trap prints any failing command. Build 4878c5 and corpus 9c34e4 (500K) stand. Resubmitted at 39155f00: build
-261119-152531-021ba5, prepare 500K 261119-152534-fa3505, prepare 5M 261119-152536-eb759c, smoke 500K strict
-261119-152539-acabbc.
+Chain at Detent:39155f00 passed (build 021ba5, prepare 500K fa3505, 5M eb759c, smoke acabbc). Smoke, 500K f 0.05
+uniform, one process: plan A cold 2.012 s (CPU 1.724), A again on the same mapping 1.405 s (1.396), B (seed 1010)
+1.547 s (1.512): warm same 30% less, other delta 23% less. Exclusive rounds submitted `--for A1` (10 min each):
+500K rounds 1-5 (arms 0.05 c0.05 0.5) 261119-153419-124e73; 5M rounds 1, 2, 3 (same arms) 261119-153422-107aa3,
+261119-153424-6e0a4a, 261119-153426-bc9994. Odd rounds plan AAB, even BBA.
 
 ## Next
 
-1. Read the smoke (warm plans differ from cold? JSON per plan). Fix the harness if not.
-2. Exclusive rounds (<=10 min each, `--for A1`): 500K arms 0.05, c0.05, 0.5, rounds 1-2; 5M the same.
-3. Write the results into docs/perf/delta-plan-scaling.md ("A warm second plan"); fill the Evidence rows.
+1. Read the rounds (median per role per arm, ranges), write "A warm second plan" into
+   docs/perf/delta-plan-scaling.md at the named commit, fill the Evidence rows, ready for review.
 
 ## Blocked on
 
