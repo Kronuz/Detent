@@ -1,6 +1,6 @@
 # peers-busy-roundtrip-bound: journal
 
-State: waiting on jobs 261119-144617-d7f473 261119-144622-bacf48
+State: waiting on jobs 261119-150015-3024fe 261119-150018-1465fa 261119-150026-8569a4 261119-150028-62a3e2
 Quest: .campaign/detent/quests/peers-busy-roundtrip-bound.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 1 (A1): consensus:7beb709 makes fetch-alongside-consensus print, per run, the longest gap
-between scenario pumps (executor stall), a 1 ms-sleep watchdog thread's worst oversleep (host
-stall), and the fetching phase's round-trip bucket counts. Probes (~/.scratch/peers-busy-roundtrip-bound/probe.sh:
-6 workers x N runs beside 16 niced spinners; one line per run, passing too):
-- d7f473 RelWithDebInfo x72 -> ~/.scratch/peers-busy-roundtrip-bound/rel-1
-- bacf48 TSan x36 -> ~/.scratch/peers-busy-roundtrip-bound/tsan-1
+Step 1 (A1). First probes (consensus:7beb709, 6 workers x N beside 16 niced spinners, ~/.scratch/peers-busy-roundtrip-bound/{rel,tsan}-1):
+- RelWithDebInfo, d7f473: 67 of 72 fail peers_test.cc:1210 (the bound). Fetching slowest bucket
+  <=256 ms in 67, <=64 ms in 5; quiet phase <=16 ms in 72 of 72. Pump gap while fetching 88-163 ms
+  (quiet 1-3 ms); watchdog thread host stall 0-1 ms in every run. Buckets while fetching:
+  ~35 in 4 ms, ~75 in 16 ms, ~8 in 64 ms, ~5 in 256 ms of ~120 round trips.
+- TSan, bacf48: 3 of 36 fail (1 s bucket), 33 pass at the 256 ms bound; quiet <=16 ms in 31, <=64 ms in 5.
+- So the executor stops for 100+ ms while fetching, the oversleeping watchdog does not see a host
+  stall (a sleeper is favoured over a busy thread, so it proves little). Next probe separates
+  executor work from time off the CPU with thread CPU time per pump gap (af3d2b1):
+  3024fe rel loaded x48, 1465fa TSan loaded x36, 8569a4 rel quiet x20 (strict), 62a3e2 TSan quiet x15 (strict).
 
 ## Next
 
-1. Read the probes: does the slowest bucket track the pump gap / host stall (cause: host) or not (transport wait)?
-2. Derive the bound: 64 ms plus the host stall measured in the phase (stated headroom), keeping a
-   100 ms transport delay failing; mutant = writer pauses 100 ms before sending an append
-   (refs/mutants/peers-busy-roundtrip-bound/append-delay-100ms), job --fails-without; the failing
-   CHECK must be the bound's line.
+1. Read them: the worst gap's CPU vs wall time (work or off CPU), and the quiet-host baseline.
+2. Derive the bound with stated headroom, keeping a 100 ms transport delay failing; mutant =
+   writer pauses 100 ms before sending an append (refs/mutants/peers-busy-roundtrip-bound/append-delay-100ms),
+   job --fails-without; the failing CHECK must be the bound's line.
 3. Suite (consensus, --minutes 50) and CI.
 
 ## Blocked on
