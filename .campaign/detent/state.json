@@ -4323,6 +4323,43 @@
       "updated": "2026-11-11T13:26:12",
       "worktree": ""
     },
+    "detent-faultlab": {
+      "accepted": {},
+      "after": [
+        "dense-power-cut-cycles"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_authority/cluster_harness.hh",
+        "tests/detent_authority/test_history_*.cc",
+        "tests/detent_authority/test_namespace_power_cut.cc",
+        "tests/detent_agent/test_agent_store_crash.cc",
+        "tests/detent_relay/test_relay_mirror.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_system/network.py",
+        "tests/detent_testing/**",
+        "tests/CMakeLists.txt",
+        "tests/*/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
+      "updated": "2026-11-19T06:00:18"
+    },
     "detent-on-drivers": {
       "accepted": {},
       "after": [],
