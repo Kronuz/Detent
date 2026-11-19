@@ -5517,20 +5517,48 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/driver-witness-removal-sink",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T12:56:24",
+          "commit": "5935efae4064a5ee88026e9e4684a50c69fada43",
+          "criteria": {
+            "A1": "261119-091207-dec2aa (passed at 5f1223ccd587; only merges from main since), 261119-091214-7078ef (passed at 5f1223ccd587; only merges from main since); fails without: 261119-091209-95db09, 261119-091211-f71e84",
+            "A2": "261119-120329-3e2df5, 261119-091227-c4741a (passed at 5f1223ccd587; only merges from main since), 261119-091230-bf323c (passed at 5f1223ccd587; only merges from main since), 261119-091232-713002 (passed at 5f1223ccd587; only merges from main since), 261119-091235-8e7ebd (passed at 5f1223ccd587; only merges from main since)",
+            "A3": "`docs/DRIVER.md`, \"The witness transitions, both ways\" (consensus:5f1223c)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "5935efae4064a5ee88026e9e4684a50c69fada43",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-120329-3e2df5",
+              "level": "light",
+              "seconds": 1147.6,
+              "state": "done",
+              "what": "driver-witness-removal-sink check suite at 5935efae4064"
+            }
+          ],
+          "final": true,
+          "from": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "reason": "",
+          "tested": "5935efae4064a5ee88026e9e4684a50c69fada43"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
-      "updated": "2026-11-19T12:56:05",
-      "worktree": "../consensus-wt/detent/driver-witness-removal-sink"
+      "updated": "2026-11-19T12:56:36",
+      "worktree": ""
     },
     "drivers-completion-seam": {
       "accepted": {
