@@ -1686,75 +1686,7 @@
       "worktree": ""
     },
     "consensus-dns-threads": {
-      "accepted": {
-        "correctness": {
-          "at": "2026-11-18T20:58:24",
-          "base": "c782db1b11cf79781698be768debca1598cc684b",
-          "blobs": {
-            "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
-            "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
-            "include/consensus/transport/resolve.h": "100644:bca2deff8ad18699afa8fc31fcf5dbcb84a651d7",
-            "test/transport/dns_mutants.sh": "100755:76498905ec8785be6cb17279627e4440ab6eb04e",
-            "test/transport/resolve_test.cc": "100644:3d61274cf49e8fb407523a2a98c05a1f927616de"
-          },
-          "by": "review",
-          "commit": "e20721dd4d305d6bb0fff2e122fb4f4571a0d890",
-          "criteria": "41315d8a4c52f7d1",
-          "diffs": {
-            "CMakeLists.txt": "e677a95f10cedc23",
-            "docs/mechanisms/peer-dns.md": "d5faaccaa498ca7e",
-            "include/consensus/transport/resolve.h": "e8d40bcd326e072f",
-            "test/transport/dns_mutants.sh": "cf3d8bdc9f484cc9",
-            "test/transport/resolve_test.cc": "56a43632ae096f68"
-          },
-          "findings": {
-            "F1": {
-              "jobs": [
-                {
-                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "d0f5cbf55d152aeb12cee6b50e6769cc1776101f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261118-172845-1cff2c",
-                  "level": "light",
-                  "seconds": 1225.5,
-                  "state": "done",
-                  "what": "consensus-dns-threads check suite at d0f5cbf55d15"
-                }
-              ],
-              "kind": "defect",
-              "reproduced": false
-            },
-            "F2": {
-              "jobs": [
-                {
-                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "d0f5cbf55d152aeb12cee6b50e6769cc1776101f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261118-172845-1cff2c",
-                  "level": "light",
-                  "seconds": 1225.5,
-                  "state": "done",
-                  "what": "consensus-dns-threads check suite at d0f5cbf55d15"
-                }
-              ],
-              "kind": "gap",
-              "reproduced": false
-            }
-          },
-          "fix_scope": {
-            "paths": [
-              "CMakeLists.txt"
-            ],
-            "reason": "CMakeLists registers the F1/F2 regression tests; no mechanism. Main's merge adds only groups-upload-stall's test bound and a doc line (consensus:c782db1), unrelated to the resolver"
-          },
-          "note": "",
-          "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
-          "reviewed": "ed241c3bdd7fd366a339e0fad17bee8bb4b5075b",
-          "verdict": "CHANGES"
-        }
-      },
+      "accepted": {},
       "after": [
         "consensus-close-fenced"
       ],
@@ -1766,12 +1698,6 @@
           "level": "light",
           "minutes": 40,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -1781,6 +1707,42 @@
         "docs/mechanisms/peer-dns.md",
         "test/transport/dns_mutants.sh",
         "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-18T21:21:58",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D116: CI 44461880244 fails only groups_upload on macos-x86_64 (gap 3795 ms, reader 1.5 MiB/s, sampled for groups-upload-loop-stall); every other platform green",
+          "voided": [
+            "correctness"
+          ],
+          "weakened": [
+            "gate check ci removed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/consensus-dns-threads",
       "landed": [],
@@ -1794,7 +1756,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T20:58:24",
+      "updated": "2026-11-18T21:21:58",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
