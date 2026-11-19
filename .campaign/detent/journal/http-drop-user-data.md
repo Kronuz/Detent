@@ -1,6 +1,6 @@
 # http-drop-user-data: journal
 
-State: waiting on jobs 261119-145409-701207 261119-145429-db04cf 261119-145430-8ae0a9 261119-145432-2c024b 261119-145550-cc5355 261119-145612-62f648
+State: waiting on jobs 261119-145409-701207 261119-145430-8ae0a9 261119-145432-2c024b 261119-145550-cc5355 261119-145612-62f648
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
@@ -10,7 +10,8 @@ Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it
 
 ## Next
 
-1. Read the jobs; fix any failure; check CI (TSan is CI's) on `http:b931f28`.
+1. Read the jobs; fix any failure; check CI run 44632790004 (TSan is CI's) on `http:b931f28`.
+   `campaign wait` was refused by the permission classifier this session; the lead resumes me.
 2. When http-affinity-death-tsan lands: merge http `main` (merge, never rebase), rerun the suite.
 3. Cite the Xapiand lead's PLAN.md decision for A3 when the lead records it.
 
@@ -20,7 +21,7 @@ Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it
 |---|---|---|
 | 261119-145409-701207 | http suite at `http:b931f28` | A1, A4 |
 | 261119-145432-2c024b | `timeouts_test` at `http:b931f28` | A2 |
-| 261119-145429-db04cf | mutant `http:8d52571` (no `set_deadline`, buffered path): `timeouts_test` must fail | A2 |
+| 261119-145429-db04cf | mutant `http:8d52571` (no `set_deadline`, buffered path): `timeouts_test` must fail; done, it fails on exactly "a buffered request's deadline is its request timeout" | A2 |
 | 261119-145430-8ae0a9 | mutant `http:b13278b` (no `set_deadline`, streamed path): `timeouts_test` must fail | A2 |
 | 261119-145550-cc5355 | Detent `ee5b62c2` build + suite with `FETCHCONTENT_SOURCE_DIR_HTTP_LIB` at `http:b931f28` | A1 |
 | 261119-145612-62f648 | Xapiand `1a933d883` `xapiand` build with http at `http:b931f28` | A1 |
