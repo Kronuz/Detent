@@ -17,12 +17,12 @@ files. Suite, A1 and its mutant queued at the head.
 
 ## Blocked on
 
-The lead: msg-107, add the three re-rendered PNGs and `website/src/content/docs/reference/cli/detent-authority.md`
-(renders and a git mv of in-set files) to the file set.
+Nothing.
 
 ## Messages
 
 - msg-106 (lead's ruling): done at Detent:1ccfef49, as described under Doing.
+- msg-107 (file set holds the renders and reference/cli/detent-authority.md): nothing more to change; those paths were already committed in Detent:ad8c73c8.
 
 ## Evidence
 
