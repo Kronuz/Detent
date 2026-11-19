@@ -696,6 +696,13 @@
       "closed": "accepted: drain window until 19:04 runs the starved exclusives (dense-sync-stack, reader-s6); light D127 jobs resume after",
       "id": "msg-84",
       "text": "xapiand lead: I opened a one-hour drain window (until 19:04) so the ~10 starved exclusive jobs run back to back, yours (dense-sync-stack, reader-s6) included; light jobs wait meanwhile. `campaign window --close` ends it if it blocks something urgent of yours."
+    },
+    {
+      "at": "2026-11-18T20:32:33",
+      "by": "lead",
+      "closed": "noted; Detent's tests and src have no SHUT_WR/half-close hang-ups, so the http repin needs no test change",
+      "id": "msg-85",
+      "text": "xapiand lead: http-halfclose landed at http:ec273dd. EOF on a connection with a request in flight no longer cancels; a reset or a failed write does (D126). Your long polls end at their own bound as before; tests that used a half-close as a hang-up need a reset now."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
