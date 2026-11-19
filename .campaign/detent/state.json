@@ -4862,7 +4862,36 @@
       "updated": "2026-11-10T11:59:38"
     },
     "driver-apply-gap": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T05:46:42",
+          "base": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "blobs": {
+            "docs/DRIVER.md": "100644:7ecaf8e7fd077199e6ff37de97d0745ccae2f3e4",
+            "include/consensus/core.h": "100644:155782a46d573f96025fdd06399cda7dae25584d",
+            "include/consensus/driver.h": "100644:77f0b894c2fb3c1d68dec8dab9cb15697de720b9",
+            "include/consensus/worker.h": "100644:f49c532cd314ce10ffe6a920fd5cae857075e263",
+            "test/driver_simulation.cc": "100644:d33258abb7e3b20a817d9378879e03c57779b4cf",
+            "test/driver_test.cc": "100644:982e480690abf645edba64b53cce287ececcb3d2"
+          },
+          "by": "review",
+          "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "criteria": "a821a5a7132e6df2",
+          "diffs": {
+            "docs/DRIVER.md": "84f586ceb556060e",
+            "include/consensus/core.h": "c906efbf3d49babb",
+            "include/consensus/driver.h": "c2977a5b1d0a0038",
+            "include/consensus/worker.h": "b07edf8a1fcb6d3c",
+            "test/driver_simulation.cc": "f60e3a210f6e5cb4",
+            "test/driver_test.cc": "0e852e56351d1392"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ba06cfd3ff368cf742dfaaa1692ccad3915f23d8",
+          "reviewed": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
       "branch": "quest/detent/driver-apply-gap",
@@ -4903,7 +4932,7 @@
       "risk": "high",
       "status": "review",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-19T04:47:42",
+      "updated": "2026-11-19T05:46:42",
       "worktree": "../consensus-wt/detent/driver-apply-gap"
     },
     "driver-pipeline": {
