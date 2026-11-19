@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261119-094233-df6d37 261119-094236-92ae93 261119-094246-5e06c6 261119-094248-7787ad 261119-094255-4f7912, CI 44580052688 (quest), probe 6 44580003789
+State: waiting on jobs 261119-094246-5e06c6 261119-094248-7787ad 261119-094255-4f7912, CI 44580052688 (quest), probe 6 44580003789
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -128,8 +128,9 @@ without SO_REUSEADDR, so peers tests side by side never share one. No retry on E
 
 ## Next
 
-1. Read jobs: df6d37 (A2 taken-ports), 92ae93 (fails-without at a858934: expect `taken-ports:
-   threw: bind: Address already in use`), 5e06c6 + 7787ad (A3 20 of 20), 4f7912 (suite).
+1. Read jobs 5e06c6 + 7787ad (A3 20 of 20) and 4f7912 (suite). A2 done: df6d37 passes at
+   abb7276 (1.1 s); fails-without 92ae93 at a858934 exits 8 with `taken-ports: threw: bind:
+   Address already in use` (deterministic: the old picker's ports are always ephemeral).
 2. Read probe 6 (`gh run view 44580003789 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
    no `threw`; any rc 134 at :1172 is the round-trip bound (peers-busy-roundtrip-bound).
 3. CI 44580052688; paste `campaign brief`'s table; ready for review.
