@@ -4,9 +4,10 @@
 # --fails-without, the test must fail. A build that fails exits 126, which proves nothing.
 #   owner-wake       OwnerWake::raise sets its flag but never ends a sleep    test_owner_wake
 #   authority-enqueue  Service::enqueue queues a task without a wake          test_authority_idle_wake
-#   relay-enqueue    the relay's Service::handle slots a task without a wake  test_delivery_coordinator
+#   relay-enqueue    the relay's Service::handle slots a task without a wake  test_delivery_coordinator_subscription-relay-http
 #   reply-writable   OwnedReplyPump's writable callback skips the wake        test_distribution_reply_pump
 #   coordinator-disk the disk worker never settles its event on the owner     test_delivery_coordinator
+#   coordinator-work a worker job does not hold the owner's io_context as work test_delivery_worker_lifetime
 set -u
 mutant=${1:?mutant}
 build=.scratch/loop-idle-waits-mutant
@@ -29,13 +30,18 @@ authority-enqueue)
 	target=test_authority_idle_wake ;;
 relay-enqueue)
 	mutate src/detent_relay/service.cc $'\tif (!task) {\n\t\tp.wake();' $'\tif (!task) {'
-	target=test_delivery_coordinator ;;
+	target=test_delivery_coordinator test=test_delivery_coordinator_subscription-relay-http ;;
 reply-writable)
 	mutate src/detent_distribution_http/reply_pump.cc $'held->writable.store(true);\n\t\t\tchanged();' 'held->writable.store(true);'
 	target=test_distribution_reply_pump ;;
 coordinator-disk)
 	mutate src/detent_delivery/coordinator.cc $'work->run();\n\t\t\t\t\tasio::post(owner, [worker_done] { worker_done->set(); });' 'work->run();'
 	target=test_delivery_coordinator ;;
+coordinator-work)
+	mutate src/detent_delivery/coordinator.cc \
+		'asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked)' \
+		'options.source.scheduler->executor()'
+	target=test_delivery_worker_lifetime ;;
 *)
 	echo "unknown mutant $mutant" >&2
 	exit 126 ;;
@@ -44,4 +50,4 @@ cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON \
 	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null || exit 126
 cmake --build "$build" -j4 --target "$target" >/dev/null || exit 126
-ctest --test-dir "$build" -R "^$target\$" --output-on-failure --timeout 120
+ctest --test-dir "$build" -R "^${test:-$target}\$" --output-on-failure --timeout 120
