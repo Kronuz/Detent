@@ -1,6 +1,6 @@
 # rename-detentd: journal
 
-State: waiting on jobs 261119-064153-70e0ac
+State: waiting on jobs 261119-064309-e7a340 261119-064310-b5175d 261119-064311-8a1334
 Quest: .campaign/detent/quests/rename-detentd.md (the lead's; never edit it)
 
 ## Doing
@@ -17,16 +17,21 @@ files. Suite, A1 and its mutant queued at the head.
 
 ## Blocked on
 
-Nothing.
+The lead: msg-107, add the three re-rendered PNGs and `website/src/content/docs/reference/cli/detent-authority.md`
+(renders and a git mv of in-set files) to the file set.
+
+## Messages
+
+- msg-106 (lead's ruling): done at Detent:1ccfef49, as described under Doing.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending the lead's ruling; check script `.campaign/detent/journal/rename-detentd.check.sh` |
-| A2 | suite 261119-064153-70e0ac (queued) |
-| A3 | `diagrams/01_overview.svg`, `07_agent.svg`, `08_detent_deps.svg`, `09_thirdparty_deps.svg`, `diagrams/10_how_actors.png`, `docs/diagrams/actors-overview.png`, `actors-where.png`: re-rendered with the d2-diagrams script, each composited on white and #0d1117 and checked: no overlap, no arrow through a box. Sizes at 1x: 918x385, 1057x430, 1200x746, 1004x807, 1094x540, 951x463, 1043x644 |
-| A4 | pending |
+| A1 | check 261119-064310-b5175d and its mutant 261119-064311-8a1334 (`DetentD` appended to README.md must fail), both queued; script `.campaign/detent/journal/rename-detentd.check.sh` |
+| A2 | suite 261119-064309-e7a340 (queued) |
+| A3 | `diagrams/01_overview.svg`, `diagrams/07_agent.svg`, `diagrams/08_detent_deps.svg`, `diagrams/09_thirdparty_deps.svg`, `diagrams/10_how_actors.png`, `docs/diagrams/actors-overview.png`, `docs/diagrams/actors-where.png`: re-rendered with the d2-diagrams script, each composited on white and #0d1117 and checked: no overlap, no arrow through a box. Sizes at 1x: 918x385, 1057x430, 1200x746, 1004x807, 1094x540, 951x463, 1043x644 |
+| A4 | CI running on the pushed branch at Detent:1ccfef49 |
 
 ## Result
 
