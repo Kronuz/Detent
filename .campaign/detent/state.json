@@ -15892,19 +15892,19 @@
         "website/src/content/docs/welcome.md",
         "website/src/lib/sidebar.mjs",
         "website/src/plugins/ec-rest-curl.mjs",
-        "src/detent_authority/main.cc"
+        "src/detent_authority/main.cc",
+        "packaging/**"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: only overlap is src/CMakeLists.txt: rename changes the detentd target lines, reader-s6 its reader sources; disjoint hunks, whichever lands second merges main",
       "repo": ".",
       "risk": "normal",
       "status": "active",
       "title": "Rename detentd to detent-authority (D123)",
-      "updated": "2026-11-19T06:29:18",
+      "updated": "2026-11-19T06:42:25",
       "worktree": "../Detent-wt/detent/rename-detentd"
     },
     "resource-adoption": {
