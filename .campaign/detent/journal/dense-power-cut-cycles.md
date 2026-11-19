@@ -9,15 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Kill cycles and deferred counter checks are written in
+`tests/detent_local/test_paged_publication_artifacts.cc` (T7 `power_cut::matrix`); mutant runner
+`tests/detent_local/paged_power_cut_mutant.sh {f2|owners-unsynced}`. Jobs submitted, see Evidence.
 
 ## Next
 
-1. <step>
+1. Read the A1 timing job (after) against the base job (before); split gate/deferred if the cost is
+   out of budget.
+2. Fill Evidence from `campaign brief`; Result; ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+The lead (msg-97): the quest's file set names files that do not exist
+(`test_local_publication_power_cut*`, `*power_cut*`, `agent_store_*`); the matrix is in
+`tests/detent_local/test_paged_publication_artifacts.cc`, outside it. Landing needs that file added
+(`campaign set dense-power-cut-cycles --files ...`). The work continues meanwhile.
 
 ## Evidence
 
