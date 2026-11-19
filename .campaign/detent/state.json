@@ -15913,7 +15913,12 @@
         "docs/status/salvage-2026-11-03.md",
         "docs/status/salvage-followups.md",
         "tests/detent_authority/test_dns_voters.py",
-        "tests/detent_authority/test_lost_quorum.py"
+        "tests/detent_authority/test_lost_quorum.py",
+        "diagrams/*.png",
+        "diagrams/*.svg",
+        "docs/diagrams/*.png",
+        "docs/diagrams/*.svg",
+        "website/src/content/docs/reference/cli/detent-authority.md"
       ],
       "landed": [],
       "lenses": [],
@@ -15924,7 +15929,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Rename detentd to detent-authority (D123)",
-      "updated": "2026-11-19T06:42:30",
+      "updated": "2026-11-19T06:47:28",
       "worktree": "../Detent-wt/detent/rename-detentd"
     },
     "resource-adoption": {
