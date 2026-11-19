@@ -3101,6 +3101,8 @@
       "after": [
         "driver-apply-gap"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/consensus-worker-release",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
@@ -3126,6 +3128,7 @@
         "include/consensus/driver.h",
         "include/consensus/options.h"
       ],
+      "journal": "../Detent-wt/detent/consensus-worker-release",
       "landed": [],
       "lenses": [
         "durability"
@@ -3139,9 +3142,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-18T12:58:25"
+      "updated": "2026-11-19T12:56:49",
+      "worktree": "../consensus-wt/detent/consensus-worker-release"
     },
     "container-selection": {
       "accepted": {},
