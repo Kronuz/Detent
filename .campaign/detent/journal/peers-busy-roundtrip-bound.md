@@ -1,6 +1,6 @@
 # peers-busy-roundtrip-bound: journal
 
-State: working
+State: waiting on jobs 261119-144617-d7f473 261119-144622-bacf48
 Quest: .campaign/detent/quests/peers-busy-roundtrip-bound.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1 (A1): consensus:7beb709 makes fetch-alongside-consensus print, per run, the longest gap
+between scenario pumps (executor stall), a 1 ms-sleep watchdog thread's worst oversleep (host
+stall), and the fetching phase's round-trip bucket counts. Probes (~/.scratch/peers-busy-roundtrip-bound/probe.sh:
+6 workers x N runs beside 16 niced spinners; one line per run, passing too):
+- d7f473 RelWithDebInfo x72 -> ~/.scratch/peers-busy-roundtrip-bound/rel-1
+- bacf48 TSan x36 -> ~/.scratch/peers-busy-roundtrip-bound/tsan-1
 
 ## Next
 
-1. <step>
+1. Read the probes: does the slowest bucket track the pump gap / host stall (cause: host) or not (transport wait)?
+2. Derive the bound: 64 ms plus the host stall measured in the phase (stated headroom), keeping a
+   100 ms transport delay failing; mutant = writer pauses 100 ms before sending an append
+   (refs/mutants/peers-busy-roundtrip-bound/append-delay-100ms), job --fails-without; the failing
+   CHECK must be the bound's line.
+3. Suite (consensus, --minutes 50) and CI.
 
 ## Blocked on
 
