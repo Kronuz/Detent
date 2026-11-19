@@ -315,14 +315,14 @@ enum class Outcome { Published, Unchanged, Refused, Failed };
 // Opens the store directory and `change` (Q6 (a): an absent store is not an error).
 void open_store(detent_reader &handle, Change *&change) {
 	if (handle.directory < 0) {
-		struct stat info{};
-		if (::stat(handle.store.c_str(), &info) != 0 && errno == ENOENT)
-			throw l::GenerationUnavailable("store directory does not exist yet");
 		try {
 			handle.directory = x::open_publisher_directory(handle.store, handle.publisher);
 		} catch (const std::bad_alloc &) {
 			throw;
 		} catch (...) {
+			struct stat info{};
+			if (::stat(handle.store.c_str(), &info) != 0 && errno == ENOENT)
+				throw l::GenerationUnavailable("store directory does not exist yet");
 			throw Failure{DETENT_UNTRUSTED};
 		}
 	}
