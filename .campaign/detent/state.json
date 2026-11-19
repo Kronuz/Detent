@@ -17842,6 +17842,8 @@
     "task-settle-notes": {
       "accepted": {},
       "after": [],
+      "base": "0316befffa225849f04a8064ea6c46a334e52b94",
+      "branch": "quest/detent/task-settle-notes",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -17855,6 +17857,7 @@
         "test/sync_test.cc",
         "docs/API.md"
       ],
+      "journal": "../Detent-wt/detent/task-settle-notes",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -17862,9 +17865,10 @@
       "provides": [],
       "repo": "../task",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "task: same-thread settle test and the cancel-callback wait rule",
-      "updated": "2026-11-19T06:00:12"
+      "updated": "2026-11-19T14:40:37",
+      "worktree": "../task-wt/detent/task-settle-notes"
     },
     "task-wheel": {
       "accepted": {
