@@ -15653,9 +15653,7 @@
     },
     "prism-server-composition": {
       "accepted": {},
-      "after": [
-        "server-composition-adoption"
-      ],
+      "after": [],
       "base": "4d3c96d16ccaceecba270a120ae25faf9a8ff138",
       "branch": "quest/detent/prism-server-composition",
       "checks": [
@@ -15680,17 +15678,33 @@
         "README.md",
         "AGENTS.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T15:31:32",
+          "lenses": [
+            [],
+            [
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "journal": "../Detent-wt/detent/prism-server-composition",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/prism",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T15:06:27",
+      "updated": "2026-11-19T15:31:32",
       "worktree": "../prism-wt/detent/prism-server-composition"
     },
     "prism-server-composition-limits": {
