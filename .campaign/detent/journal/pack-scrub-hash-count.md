@@ -1,40 +1,37 @@
 # pack-scrub-hash-count: journal
 
-State: working
+State: waiting on jobs 261119-144306-5c63f3 261119-144312-8d0f2c 261119-144316-8e7e71
 Quest: .campaign/detent/quests/pack-scrub-hash-count.md (the lead's; never edit it)
-
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix is pack_scrub.cc:a800bbfb (count_hash(Pack, 0, count) per slice, (Pack, 1, 0) per digest). Test
+counts_what_it_hashes in test_pack_scrub.cc checks exact bytes and calls. Jobs queued: A1 plain test,
+A1 mutant (sed removes the count lines; test must fail), A2 suite.
 
 ## Next
 
-1. <step>
+1. On job completion: check results, fill Evidence, set ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. (Quest says "after namespace-s6-v1-removal"; the lead sequences landing.)
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | plain 261119-144306-5c63f3; mutant --fails-without 261119-144312-8d0f2c |
+| A2 | suite 261119-144316-8e7e71 |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+PackScrub now counts hashing as Pack hashes: bytes per slice read, one call per digest taken (match,
+mismatch alike; unreadable, missing and rebase-skipped packs count nothing), same as the graph validator
+(calls at digest). Hence delivery HashStats.checked covers scrubs. No docs change.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Kind is Pack (checked counters), as the other pack hashes in the validators.
+2. Bytes are counted per slice and the call at the digest, so a pass cut short still counts what it hashed
+   (matches bytes_hashed()).
