@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-172630-494843 261118-172631-775cea 261118-172631-2a69bd 261118-172632-4f2e4b 261118-172633-aed45d 261118-172633-d869e1 261118-172634-4f4d2c 261118-172648-70f3f3
+State: waiting on jobs 261118-172840-c24261 261118-172841-27bb27 261118-172841-daad3d 261118-172841-dc467b 261118-172842-715091 261118-172842-91deab 261118-172843-0977dc 261118-172843-ac3852 261118-172845-1cff2c
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,19 +18,19 @@ but rt.sh then only counted ASan reports. rt.sh now also counts "runtime error:"
 replacement 261118-063756-2fdd9f at abc01bb reports "caught (exit 134)", fails-without as it
 must. Not a gap in F1's fix or test. (rerun reused it at 8d24f40: only merges since.)
 
-Reruns at 8d24f40: plain 494843 (A1,A3), TSan 775cea (A2), ASan+UBSan 2a69bd (A2);
-mutants F2 4f2e4b, unbounded aed45d, queued-kept d869e1, detach-at-destruction 4f4d2c;
-suite 70f3f3 (--for A4, forced fresh: main's driver and host_transport changes).
+msg (lead): CMakeLists.txt joined my file set. consensus:d0f5cbf registers resolve_test in
+both transport foreach lists (only those two entries; peers-tsan-timeout owns a TIMEOUT line
+after me). Pushed for CI. The 8d24f40 reruns were superseded/cancelled.
 
-1. Read the jobs and CI at 8d24f40; paste `campaign brief`'s table into Evidence.
+Reruns at d0f5cbf: plain c24261 (A1,A3), TSan 27bb27 (A2), ASan+UBSan daad3d (A2); mutants
+F1 dc467b, F2 715091, unbounded 91deab, queued-kept 0977dc, detach-at-destruction ac3852;
+suite 1cff2c (--for A4, now includes consensus_transport_resolve).
+
+1. Read the jobs and CI at d0f5cbf; paste `campaign brief`'s table into Evidence.
 2. Lead: re-accept correctness after main's 14 files (none in resolve.h's callers).
 ## Blocked on
 
-Lead: CMakeLists.txt is not in my file set (`campaign get consensus-dns-threads files`), so
-resolve_test is still not registered in the suite; A4's suite covers links/peers but not
-resolve_test, which runs only through rt.sh jobs. Options: (a) add CMakeLists.txt to the file
-set and I add resolve_test to both transport `foreach(t ...)` lists (recommended, one line
-each); (b) land with resolve_test covered by the rt.sh jobs only.
+Nothing. Lead re-accepts correctness once the d0f5cbf jobs pass.
 
 ## Evidence
 
