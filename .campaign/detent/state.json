@@ -9025,7 +9025,68 @@
       "worktree": ""
     },
     "loop-idle-waits": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T07:50:38",
+          "base": "be6f4177c34750e90eb41d2d6723ff9786a5da90",
+          "blobs": {
+            "bench/idle-wakeups/compare.sh": "100755:e1186f944d73645c1f82dcb0ef7d999826add330",
+            "bench/idle-wakeups/idle_loops.py": "100644:bb54a1606a22e48b62208c883aad2b67813b5909",
+            "bench/idle-wakeups/pair.py": "100644:092c97e8e118f17d0db25b930b89d80827cc7319",
+            "bench/idle-wakeups/paths.py": "100644:68a970000d8cf78dbd64876aca0ea777c0139954",
+            "bench/idle-wakeups/usage.c": "100644:33ef0ad3813ad94e3a3be8e4aa04fabb9562140e",
+            "include/detent/owner_loop.hh": "100644:d096b62a904eb74a498895c6ebe41a5d5e6b260b",
+            "include/detent_distribution_http/reply_pump.hh": "100644:763bda1f908bf9841d3c06ae79bd6ac34f84d4c2",
+            "include/detent_relay/mirror_service.hh": "100644:6f09e21c7e6852f31d9fb766efcf6159af6bf6d7",
+            "include/detent_relay/service.hh": "100644:b6fe12b4b87f3728735d2ee054948efda69f1f5d",
+            "src/detent_authority/service.cc": "100644:c9a77ce34f989aa146d1726bba175a42a0eaa5d6",
+            "src/detent_delivery/coordinator.cc": "100644:5b6d071c96441a65534d88ab47544a934051e843",
+            "src/detent_distribution_http/reply_pump.cc": "100644:7c8a333889fa517426cdfb863b86216edf94faf6",
+            "src/detent_relay/host.cc": "100644:918d28cb97ec2ba5b889282d79a1b5d8754d3337",
+            "src/detent_relay/mirror_service.cc": "100644:8230499bd9c995ed147138708ee7dc2f550c1b22",
+            "src/detent_relay/service.cc": "100644:eef60e74ba4f86d6c3d29afc6ce130abfcbd560f",
+            "tests/detent_authority/CMakeLists.txt": "100644:386618eea8aac8752675755ab0664549afafcca1",
+            "tests/detent_authority/test_idle_wake.cc": "100644:1c8b3b8dbca7bf98275d88110d6e43da05ccf90f",
+            "tests/detent_delivery/CMakeLists.txt": "100644:979b493aab7bc7839eaa1d0d5fd61814117e4263",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "100755:7d27704e6c28a9b9201a93b89ac1c2797fe5a538",
+            "tests/detent_delivery/relay_service_fixture.hh": "100644:eb99db6ebf1ec8d9e2852a4f2b12210415d6942f",
+            "tests/detent_delivery/test_owner_wake.cc": "100644:4175810dba3396b194a971e0ae5b9a5f9f4e9710",
+            "tests/detent_delivery/test_reply_pump.cc": "100644:a0fa0f627e1914f8b7ba244f84c83641c712fca4"
+          },
+          "by": "review",
+          "commit": "f5cab9d91e69a4187707575f26fefe04b72b3eff",
+          "criteria": "12daa201164b1441",
+          "diffs": {
+            "bench/idle-wakeups/compare.sh": "1bb69db6cc6b4ee5",
+            "bench/idle-wakeups/idle_loops.py": "b2def26758f6e8c6",
+            "bench/idle-wakeups/pair.py": "ef95f85906019692",
+            "bench/idle-wakeups/paths.py": "844ad8897f6acdc5",
+            "bench/idle-wakeups/usage.c": "38f74f473f32db23",
+            "include/detent/owner_loop.hh": "4d45b4b39ae064f6",
+            "include/detent_distribution_http/reply_pump.hh": "7d64dc267622bee7",
+            "include/detent_relay/mirror_service.hh": "2bb1131cc8b07f8d",
+            "include/detent_relay/service.hh": "2f97b22e310ed8fb",
+            "src/detent_authority/service.cc": "7fde94db2f8e52e5",
+            "src/detent_delivery/coordinator.cc": "70c365555114d2d2",
+            "src/detent_distribution_http/reply_pump.cc": "18a852947572dc7c",
+            "src/detent_relay/host.cc": "2c1484ae7a13efdd",
+            "src/detent_relay/mirror_service.cc": "443f1ba376153777",
+            "src/detent_relay/service.cc": "e6d47a9383f6f441",
+            "tests/detent_authority/CMakeLists.txt": "cd9ee72048934327",
+            "tests/detent_authority/test_idle_wake.cc": "c9fcffe1d6c0e691",
+            "tests/detent_delivery/CMakeLists.txt": "8c1fcc1be3a3d0e8",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "16b39a0f1efeb276",
+            "tests/detent_delivery/relay_service_fixture.hh": "d089c360288623dd",
+            "tests/detent_delivery/test_owner_wake.cc": "12b98cd4837244eb",
+            "tests/detent_delivery/test_reply_pump.cc": "8be5cafb967e1bc4"
+          },
+          "findings": {},
+          "note": "",
+          "review": "5c94d7ef7c4f1fb2c34a9002a6ef65f067ed0a70",
+          "reviewed": "f5cab9d91e69a4187707575f26fefe04b72b3eff",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "rename-detentd"
       ],
@@ -9068,7 +9129,7 @@
       "risk": "high",
       "status": "review",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T07:37:37",
+      "updated": "2026-11-19T07:50:38",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
