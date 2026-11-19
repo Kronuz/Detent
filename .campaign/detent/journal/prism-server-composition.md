@@ -1,43 +1,30 @@
 # prism-server-composition: journal
 
-State: blocked on lead: land now with a follow-up after http-limits, or hold (Blocked on); CI run 44633849414 queued
+State: waiting on jobs CI run 44634843777 (then ready for review)
 Quest: .campaign/detent/quests/prism-server-composition.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs at prism:4eb7074 done: build gate passed, lifecycle test passed, zero-grace mutant fails the
-test (the in-flight 4 MiB response is cut). GitHub CI run 44633849414 on the pushed branch is queued.
+All jobs passed at prism:805acc1; GitHub CI run 44634843777 is running there.
 
 ## Next
 
-1. Confirm CI run 44633849414 green (`campaign verify prism-server-composition`).
-2. On the lead's ruling: (a) ready for review as is, or (b) adopt `http::Limits`, `raise_open_files`,
-   `server_context` and the stop phases once http-limits lands.
+1. When CI run 44634843777 is green, set State ready for review.
 
 ## Blocked on
 
-Lead: three of the outcome's steps need library work that has not landed.
-1. One limits struct: `http::Limits` is Xapiand quest http-limits (planned, after
-   reactor-server-composition).
-2. `raise_open_files` and `tls::server_context`: Xapiand quest reactor-server-composition (in review,
-   unlanded).
-3. Http's `stop()` closing only listeners, with in-flight requests finishing instead of being
-   cancelled: http-limits' `stop_accepting()` over reactor's stop phases.
-Options: (a) land this now (process, signals, options/config, lifecycle, no polling) and file a
-follow-up prism quest after http-limits lands; (b) hold this quest open until then. Recommend (a):
-small and landed, and the remaining change is the constructor, one call and Http's stop/drain.
-Also: README.md and AGENTS.md still show the positional port (`./prism 8880`), now `--port`; they
-are outside the file set. Recommend adding both to the file set (or the follow-up's).
-Note owner (Xapiand lead): the note's "No daemon mode (Prism) ... Stays" row and Prism's Options
-and Mains cells are outdated by this change; ARCHITECTURE.md has the new row.
+Nothing. msg (lead's answers): land now; the three library-gated steps go to quest
+prism-server-composition-limits, named in ARCHITECTURE.md's deviation rows; README.md and
+AGENTS.md now say `--port` (prism:805acc1); the lead tells the Xapiand lead about the note's row;
+server-composition-adoption is not a dependency.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `ARCHITECTURE.md` "How `main` is put together": the Mains row by step, options, deviations with reasons (prism:4eb7074) |
-| A2 | 261119-150056-8de58f; fails without: 261119-150116-cb39e6 (grace 0: the slow reader's response is cut, `slow.whole` fails) |
-| A3 | 261119-150055-92bbee; CI run 44633849414 pending |
+| A1 | `ARCHITECTURE.md` "How `main` is put together": the Mains row by step, options, deviations with reasons naming prism-server-composition-limits (prism:805acc1) |
+| A2 | 261119-150720-9d025e (prism:805acc1), 261119-150056-8de58f (prism:4eb7074); fails without: 261119-150116-cb39e6 (grace 0 cuts the in-flight response) |
+| A3 | 261119-150718-559dc2 (prism:805acc1); CI run 44634843777 running |
 
 Local run (not evidence): `load: 14867 whole responses, 0 cut; exit 0 866 ms after SIGTERM`.
 
