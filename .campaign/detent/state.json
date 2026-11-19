@@ -14997,7 +14997,10 @@
         "test/transport/peers_test.cc",
         "include/consensus/transport/peers.h",
         "src/transport/peers.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/transport/groups_test.cc",
+        "test/support/**",
+        "test/CMakeLists.txt"
       ],
       "journal": "../Detent-wt/detent/peers-tsan-timeout",
       "landed": [],
@@ -15009,7 +15012,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-18T17:27:58",
+      "updated": "2026-11-19T09:51:57",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
