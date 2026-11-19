@@ -1151,6 +1151,13 @@
         "quest": "xapiand:http-limits"
       },
       "text": "xapiand:http-limits started and may change files your http-affinity-death-tsan changes (order them with --after xapiand:http-limits, or narrow the files); may change files your http-drop-user-data changes (order them with --after xapiand:http-limits, or narrow the files)"
+    },
+    {
+      "at": "2026-11-19T15:33:31",
+      "by": "xapiand-lead",
+      "closed": "reactor-tls-cache merges reactor main at 6fdd45f and reruns; -limits quest already ordered after it",
+      "id": "msg-127",
+      "text": "xapiand lead: reactor-server-composition landed at reactor:6fdd45f (phased stop: stop_accepting, wait_requests, cancel, force; raise_open_files; tls::server_context; seconds_to_expiry). Your reactor-tls-cache and prism-server-composition-limits can build on it. http-limits started (http), ordered after your http-drop-user-data."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
