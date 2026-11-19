@@ -18,6 +18,7 @@
 #include <limits>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <pthread.h>
 #include <string>
 #include <sys/stat.h>
@@ -122,7 +123,8 @@ struct Entry {
 struct View {
 	Change *change = nullptr; // null while the store has no change file (Q6)
 	std::uint64_t store_seen = 0;
-	bool table = false; // `selected` was present when the view was built
+	std::uint64_t seen = 0;           // the whole-store sequence, loaded with `store_seen` (D4 rule 1)
+	std::optional<x::Selected> table; // `selected` as read after those loads; empty when absent
 	std::vector<Entry> entries;
 	const Entry *find(std::string_view) const noexcept { return entries.empty() ? nullptr : &entries.front(); }
 };
@@ -391,17 +393,24 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		const auto store_word = change->mapping.store().load(std::memory_order_acquire);
 		attempted = store_word;
 		const x::ChangeWord *sequence = change->mapping.sequence(whole_store_slot);
-		const auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
-		std::optional<x::Selected> table;
-		try {
-			table = x::PreparedReader::selected(handle.directory, handle.publisher);
-		} catch (const l::GenerationUnavailable &) {
-		}
+		auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
 		const Entry *had = installed ? installed->find({}) : nullptr;
+		std::optional<x::Selected> table;
+		if (!force && !had && installed && installed->change == change && installed->store_seen == store_word) {
+			// D4: a first attach at an unchanged store word uses the view's table and the sequence
+			// loaded before it, so a publish since then still moves that sequence.
+			table = installed->table;
+			seen = installed->seen;
+		} else
+			try {
+				table = x::PreparedReader::selected(handle.directory, handle.publisher);
+			} catch (const l::GenerationUnavailable &) {
+			}
 		built = new View;
 		built->change = change;
 		built->store_seen = store_word;
-		built->table = table.has_value();
+		built->seen = seen;
+		built->table = table;
 		if (table && (had || want)) {
 			if (!sequence) {
 				// A slot past the mapping: only the winner remaps (D4 rule 4).
@@ -435,8 +444,12 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 			}
 			built->entries.push_back({generation, sequence, seen});
 		}
+		const auto same_table = [](const std::optional<x::Selected> &a, const std::optional<x::Selected> &b) {
+			return a.has_value() == b.has_value() && (!a || a->descriptor.generation == b->descriptor.generation);
+		};
 		if (installed && built->change == installed->change && built->store_seen == installed->store_seen &&
-		    built->table == installed->table && built->entries.size() == installed->entries.size() &&
+		    built->seen == installed->seen && same_table(built->table, installed->table) &&
+		    built->entries.size() == installed->entries.size() &&
 		    (built->entries.empty() || (built->entries[0].generation == installed->entries[0].generation &&
 		                                built->entries[0].seen == installed->entries[0].seen))) {
 			delete built;
