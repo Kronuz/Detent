@@ -179,6 +179,9 @@ struct Coordinator::Impl {
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
+	// A worker job ends by setting its event on the owner, never on the worker: the waiting frame lives on
+	// the owner, so no set() can race its destruction at teardown.
+	asio::any_io_executor owner_executor() const { return options.source.scheduler->executor(); }
 	void notify_candidate() noexcept {
 		if (candidate_wake)
 			candidate_wake->cancel();
@@ -220,7 +223,8 @@ struct Coordinator::Impl {
 		// The task retains its result through authentic worker completion even
 		// when request interest has been cancelled on the owner executor.
 		const auto settlement = recovery;
-		asio::post(worker, [result, selected, recovery = std::move(recovery),
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), selected, recovery = std::move(recovery),
 							probe_pause = selected ? std::exchange(prepared_probe_pause, {}) : nullptr,
 							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
@@ -242,6 +246,7 @@ struct Coordinator::Impl {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
 		diagnostic.worker_pending = true;
 		try {
@@ -249,8 +254,7 @@ struct Coordinator::Impl {
 				fail_worker_wait = false;
 				throw std::bad_alloc();
 			}
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await *worker_done;
 			if (std::exchange(fail_settled_worker_wait, false))
 				throw std::bad_alloc();
 		} catch (...) {
@@ -285,7 +289,8 @@ struct Coordinator::Impl {
 		auto limits = options.view_limits;
 		limits.retirement_domain = nullptr;
 		auto result = factory.make<CandidateComparisonResult>();
-		asio::post(worker, [result, input = std::move(input), source = std::move(source), factory, heap,
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), input = std::move(input), source = std::move(source), factory, heap,
 							limits]() mutable {
 			try {
 				l::detail::CandidateFlatValidator validator(std::move(input), factory, heap, limits);
@@ -308,12 +313,12 @@ struct Coordinator::Impl {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
 		construction = &result->control;
 		diagnostic.worker_pending = true;
 		try {
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await *worker_done;
 		} catch (...) {
 			if (!result->ready.load(std::memory_order_acquire))
 				std::terminate();
@@ -346,7 +351,8 @@ struct Coordinator::Impl {
 		auto heap = domain.storage_account();
 		auto limits = options.view_limits;
 		limits.retirement_domain = nullptr;
-		asio::post(worker, [result, source = std::move(source), actual = std::move(actual),
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), source = std::move(source), actual = std::move(actual),
 							directory = context.directory, prior = context.paged.prior, compact, force, repair, factory, heap, limits]() mutable {
 			try {
 				if (!source && compact) {
@@ -438,12 +444,12 @@ struct Coordinator::Impl {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
 		construction = &result->control;
 		diagnostic.worker_pending = true;
 		try {
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await *worker_done;
 		} catch (...) {
 			if (!result->ready.load(std::memory_order_acquire))
 				std::terminate();
@@ -689,7 +695,8 @@ struct Coordinator::Impl {
 						reported_passes = result->scrub.passes();
 					result->failure = {};
 					result->ready.store(false, std::memory_order_relaxed);
-					asio::post(worker, [result, begin, changed, now, paused = scrub_pause] {
+					auto worker_done = std::make_shared<task::event>();
+					asio::post(worker, [result, worker_done, owner = owner_executor(), begin, changed, now, paused = scrub_pause] {
 						try {
 							const auto passes = result->scrub.passes();
 							// A new root keeps the progress the pass made over the packs it shares.
@@ -706,14 +713,9 @@ struct Coordinator::Impl {
 							result->failure = std::current_exception();
 						}
 						result->ready.store(true, std::memory_order_release);
+						asio::post(owner, [worker_done] { worker_done->set(); });
 					});
-					while (!result->ready.load(std::memory_order_acquire)) {
-						scrub_wake->expires_after(std::chrono::milliseconds(1));
-						const auto error = co_await task::await_asio<void(asio::error_code)>(
-							[&](auto handler) { scrub_wake->async_wait(std::move(handler)); });
-						if (error && error != asio::error::operation_aborted)
-							throw asio::system_error(error);
-					}
+					co_await *worker_done;
 					if (scrub_pause && scrub_pause->reached.load(std::memory_order_acquire))
 						scrub_pause.reset();
 					if (closing)
@@ -789,18 +791,12 @@ struct Coordinator::Impl {
 			notify_candidate();
 			if (auto work = store->work()) {
 				// The worker runs the store's disk work; the owner settles it once the work is done.
-				auto done = std::make_shared<std::atomic<bool>>(false);
-				asio::post(worker, [work, done] {
+				auto worker_done = std::make_shared<task::event>();
+				asio::post(worker, [work, worker_done, owner = owner_executor()] {
 					work->run();
-					done->store(true, std::memory_order_release);
+					asio::post(owner, [worker_done] { worker_done->set(); });
 				});
-				while (!done->load(std::memory_order_acquire)) {
-					disk_wake->expires_after(std::chrono::milliseconds(1));
-					const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
-						[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
-					if (error && error != asio::error::operation_aborted)
-						throw asio::system_error(error);
-				}
+				co_await *worker_done;
 				store->advance();
 				if (store->error() || store->publication_status() == l::DiskPublicationStatus::Fenced)
 					fence(store->error() ? store->error() : store->publication_error());
