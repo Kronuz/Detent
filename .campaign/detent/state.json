@@ -954,6 +954,29 @@
         ]
       },
       "text": "set dense-power-cut-cycles: unlocks frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T09:02:39",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-109",
+      "items": {
+        "consensus-batch-turn-room": "frees include/consensus/worker.h, docs/** for consensus-batch-turn-room",
+        "delta-plan-warm": "frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "driver-witness-removal-sink": "frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "consensus-batch-turn-room",
+          "delta-plan-warm",
+          "dense-sync-stack-5m-times",
+          "driver-witness-removal-sink",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "driver-apply-gap landed: unlocks frees include/consensus/worker.h, docs/** for consensus-batch-turn-room; frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink; frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
