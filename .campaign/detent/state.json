@@ -17953,6 +17953,40 @@
       "title": "Voters serve history only after a leader-confirmed read",
       "updated": "2026-11-18T09:14:57"
     },
+    "w2-leftovers": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-v1-removal"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/run_partition.py",
+        "include/detent_transport/await_io.hh",
+        "include/detent_transport/https_client.hh",
+        "src/detent_delivery/client.cc",
+        "src/detent_delivery/namespace_session.cc",
+        "tests/detent_delivery/task_support.hh",
+        "tests/detent_delivery/relay_network_fixture.hh"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "stale-leader write probe; one await shape",
+      "updated": "2026-11-19T06:00:55"
+    },
     "warm-graph-5m": {
       "accepted": {
         "correctness": {
