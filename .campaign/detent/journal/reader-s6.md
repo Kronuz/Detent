@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:e77b31d` (pushed): gates native 6e68ac, asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651; A16 4a5487 2e857f; rebench 27840a (strict); mutants, plain A7/A10-A14 and the soak (ids under Evidence, after native); old gates fee608 891946 22df97 b4fe42 at `Detent:2fb2a41` still queued (read when they run). Not ready for review until the gates, A16 and the t3-tsan child exit close. Lead: Blocked on 1 (a file for `docs/perf/`).
+State: waiting on jobs at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`): native 9d4b5b, asan 5f1cad, tsan 619e0a, t3-asan 416f56 and t3-tsan f8389b (`--cpus 8`; verify's own 4af87f and 5ca22f cancelled as duplicates without it); A16 stopped 9f40bf, running 5fb83e; mutants SEL-1 48b91f, SEL-2 6f99e1 (after native); reruns A16 count 7acc18, dense ASan edcde5, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921, soak round 3cdb4e; CI on GitHub. A16's 30 us is localized and removed (Doing, 2026-11-19 A16 attribution). Lead: Blocked on 1 (a file for `docs/perf/`).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,37 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- A16 attribution (2026-11-19, lead's step 1-4):
+  - Phase: the first `detent_get`, not `detent_open`. In 4a5487/2e857f the branch's lookup phase is
+    306-311 us (stopped) and 352-383 us (running) with 180-235 us system time, against main's lookup
+    of 161-229 us; open is 390-427 us against main's runtime+attach+thread of 515-540 us. The
+    branch's first `detent_get` runs `refresh_locked`, which read `selected` twice: once in
+    `PreparedReader::selected` and again in `PreparedReader::attach`, after `detent_open` had read it
+    once already. Main's Client reads it once. Each `read_selected` is two `openat`s (table and
+    image), fstats, two `pread`s and a table decode.
+  - Fixes: `Detent:c027f04` attach starts from the table the refresh read (re-reads only on a
+    retry); `Detent:65afbd0` a first attach at the installed view's store word and `change` takes
+    the view's table and the sequence loaded before it (D4's own rule; `detent_refresh` always
+    reads); `Detent:2dae6ab` stats the store path only when the trust walk fails.
+  - A/B db0806 (strict, beside 5 light holds; 6 rotated rounds x 200 fresh first reads; branch
+    stores at main's path depth, `.scratch/a16/ab.py`), median us and paired difference against
+    e77b31d: 1 namespace e77b31d 688.6, c027f04 638.5 (-47.8), 65afbd0 612.8 (-72.4), 2dae6ab 604.3
+    (-73.3), main 652.4 (-29.8); 1,000 namespaces 725.4, 687.0 (-49.9), 652.2 (-82.7), 659.8 (-56.4),
+    main 712.2 (-24.2). Lookup phase 298 to 222 us (1 ns) and 324 to 251 us (1,000 ns). The stat
+    change is within noise (kept: one path lookup less, same statuses). The head is about 50 us
+    faster than main in both cells, so nothing is inherent: Blocked on gains no item.
+  - Guard: `test_reader_core selected_reads` (`Detent:36f8722`) counts `selected` reads: 1 at open,
+    0 more at the first lookup, 1 per switch, 1 when a publish lands between open and first lookup.
+    Mutants SEL-1 (attach ignores the refresh's table) 48b91f and SEL-2 (first attach re-reads)
+    6f99e1, `.scratch/mutants-sel.json`.
+  - Merged main at `Detent:10020fa` (clean). A16 keeps BASELINE `Detent:8cd932c`: main's read path
+    is unchanged since (`git diff 8cd932c 3d0571cd -- src include`: authority service, disk_store
+    and store_core only).
+- Rebench 27840a (strict, 6 interleaved pairs, 1 thread, e77b31d against b1d281c), median p50 /
+  p99 ns: core hot 402.0 to 460.5 (+58.5) / 481.5 to 574.5; core scattered 648.5 to 697.0 (+48.5) /
+  1052 to 884; pinned hot 406.5 to 462.5 (+56) / 447 to 520.5; pinned scattered 688 to 701 (+13) /
+  1110 to 923. The hot gap is the out-of-line node codec, which the lead's ruling sends to
+  paged-decode-one-shape; scattered is +13 to +49 ns over 659.
 - Results recorded 2026-11-19 (resumed after the lead's msg-1 ruling, option b):
   - `Detent:e77b31d` reapplies `Detent:09be4f1` (raw external count places the nodes end) and
     replaces mutation 3 with `damaged_counts`: the root page ends an exact heap allocation; 14 values
@@ -183,15 +214,12 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Rebench 27840a (strict, interleaved against `Detent:b1d281c`): write the hot and scattered table
-   to the journal's Result and `docs/perf/reader-lookup.md` with the ~70 ns node codec stated as
-   paged-decode-one-shape's; scattered must not regress against 659.
-2. A16 4a5487 (stopped) and 2e857f (running) under D121 at `Detent:e77b31d`; on a failure, profile
-   the branch's open and lookup phases.
-3. t3-tsan 52f651 (and b4fe42 at `Detent:2fb2a41`): name the cold-fork child's exit at line 649 from
-   its printed status, exit and signal; fix it if it is the product.
-4. Gates, mutants, plain A7/A10-A14 and soak at `Detent:e77b31d`: mark Evidence.
-5. When 1-4 close: "ready for review" with 3-5 questions per lens.
+1. Read the gates, A16 9f40bf/5fb83e and SEL-1/SEL-2 at `Detent:dc004dc`; mark Evidence.
+2. Rebench table into `docs/perf/` once Blocked on 1 is ruled (the numbers are in Doing).
+3. t3-tsan f8389b: if the cold-fork child exits nonzero again at line 649, name it from its printed
+   status, exit and signal.
+4. When 1-3 close: "ready for review" with 3-5 questions per lens; the reviewers should also check
+   SEL's first attach from the view's table (D4 rule 1 with the recorded sequence).
 
 ## Blocked on
 
@@ -262,6 +290,14 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- A16 fix: attach from the refresh's table changes the ledger's design-vs-code line "attach re-reads
+  `selected`" (Decisions 1) toward D4's text; `docs/status/reader-s5-s6.md` now says what the code
+  does. The first attach takes the view's table only when not forced, with no entry, the same
+  `change` mapping and the same store word, and takes the view's recorded sequence with it, so a
+  publish after the open still triggers a refresh (a sequence moved without the word gets a fresh
+  read on the next lookup, since the entry then exists). t3 gates rerun from 015cc6/3544a5 to keep
+  `--cpus 8`; verify's copies without it were cancelled.
 
 - msg-1 option (b) shape: the memory-safety case holds the segment in an exact `new char[]` whose
   last bytes are the root page, so a read past the page is an ASan heap overflow, and checks every
