@@ -4374,6 +4374,8 @@
       "after": [
         "dense-sync-stack"
       ],
+      "base": "5f593cda81b30d10a3d45fb2c3fc2867773f4869",
+      "branch": "quest/detent/dense-sync-stack-5m-times",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4393,9 +4395,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
-      "updated": "2026-11-18T22:39:03"
+      "updated": "2026-11-19T14:40:45",
+      "worktree": "../Detent-wt/detent/dense-sync-stack-5m-times"
     },
     "dense-walkers": {
       "accepted": {
