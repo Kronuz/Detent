@@ -1,9 +1,18 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261118-211655-ca13b5, 261118-211656-2bfc30, 261118-211658-ec2fb0 (A1), 261118-211713-61ad72 (x200), 261118-211714-e3cfba (coarse x120 loaded), 261118-211716-cc66bd (mutant), 261118-211733-5d017a (suite, 50 min), CI 44464145833, all at 830f04a (main merged at 0e53c04). Round 7: coarse_writer sized from the reader's measured capacity.
+State: waiting on jobs 261118-221112-dc092b, 261118-221113-2e6334, 261118-221114-81f711, 261118-221115-3049dd (A1, 896 KiB forcing and --fails-without at main), CI on 9a8ebf4 (main merged). Round 7 held per the lead: 61ad72, e3cfba, cc66bd, 5d017a, CI 44464145833 green at 830f04a; ca13b5, e3cfba, cc66bd, 5d017a reused at 9a8ebf4.
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 7 bookkeeping (lead's message after round 2):
+- Main merged (9a8ebf4: groups_test.cc only).
+- 2bfc30 (1 MiB at main) failed 0 of 3: main passes at 1 MiB (2 expiries, 6.4 s), so 1 MiB is no
+  forcing. 512 KiB fails at main but is refused by value at the head (mark within the 653696 B
+  capacity). Forcing moves to 896 KiB: head pace 994 ms, 40 frames, ~40 s; 2e6334 at the head, 81f711
+  at main. 3049dd keeps 512 KiB at main. The main jobs are now --fails-without (exit nonzero only
+  when all 3 fail); 4c4173/55466b and their head reruns d59b1b/7b7c57 are superseded by
+  dc092b (cause 1 at main) and 3049dd.
 
 Round 7, the precondition at 4050afc (aa0e71 120 of 120, c0c368, CI 44458203198 macos-arm64, macos-x86_64):
 "SO_RCVBUF 524288 pinned, 1046912 sampled at most ... -88448 B spare". Every one of those runs passed
@@ -125,10 +134,10 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Cause 1: 261117-191526-4c4173 (3 of 3 fail at 51601dd, READ_SLOWLY_BUILD_MS=400), 261118-211655-ca13b5 (0 of 3 at 830f04a). Cause 2: 261117-193124-55466b (3 of 3 fail at 51601dd, 512 KiB), 261118-211656-2bfc30 (3 of 3 fail at 51601dd, 1 MiB), 261118-211658-ec2fb0 (0 of 3 at 830f04a, 1 MiB). Cause 3: unreproduced (A1 amended); the shrink knob is gone (17e1a34), so its jobs are dropped. |
-| A2 | 261118-211713-61ad72 (connection x200 at 4-way, 830f04a); 261118-211714-e3cfba (coarse_writer x120 at 4-way with 6 busy loops, 830f04a); mutant 261118-211716-cc66bd (--fails-without: unpaced reader must stop on "precondition broken"). Superseded at 4050afc: aa0e71, c0c368 (precondition on the readback), df12a1 (fixture missing). |
-| A3 | [manual] every cause is in connection_test.cc's sizing, build order and a rerun rule, none in the product (connection.h unchanged). |
-| A4 | Suite 261118-211733-5d017a at 830f04a (replaces 261118-202631-c0c368, failed at 4050afc); CI 44464145833 at 830f04a (44458203198 failed at 4050afc). |
+| A1 | Cause 1: 261118-221112-dc092b (--fails-without at main 51601dd, READ_SLOWLY_BUILD_MS=400, 3 of 3), 261118-211655-ca13b5 (0 of 3 at 830f04a, reused at 9a8ebf4). Cause 2: 261118-221114-81f711 (--fails-without at 51601dd, 896 KiB), 261118-221115-3049dd (--fails-without at 51601dd, 512 KiB), 261118-221113-2e6334 (0 of 3 at 9a8ebf4, 896 KiB). Cause 3: unreproduced (A1 amended). Replaced, not cited: 4c4173, d59b1b, 55466b, 7b7c57, 2bfc30 (1 MiB passes at main), and the d9fca7d head runs 6afa43, b4fac6, e7bfa3, e4f648, f43386, f98a6a. |
+| A2 | 261118-211713-61ad72 (connection x200 at 4-way, 830f04a); 261118-211714-e3cfba (coarse_writer x120 at 4-way, 6 busy loops); mutant 261118-211716-cc66bd (--fails-without: killed on "precondition broken"). |
+| A3 | [manual] Checked by the contributor (this journal, rounds 1-7): `git -C consensus diff main...9a8ebf4 --stat` touches only test/transport/connection_test.cc; include/consensus/transport/connection.h is unchanged. Each cause (backlog built on the running dialer loop, sizing from an assumed buffer, the reader's capacity past its pin) is in the test. |
+| A4 | Suite 261118-211733-5d017a (passed at 830f04a, reused at 9a8ebf4); CI 44464145833 green at 830f04a; CI at 9a8ebf4 running. |
 
 ## Result
 
