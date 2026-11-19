@@ -17,3 +17,4 @@ groups-upload-3s-class named the unexplained groups_upload class: host 1's conne
 
 - Start when a probed failure appears: sweep consensus CI failures of groups_upload after consensus:84608cc lands.
 - A product fix in the transport needs include/consensus/transport/* or src/transport/*: the lead grants them.
+- The same class hit consensus_transport_groups_reader on macos-x86_64 (CI 44467383652, group 2 longest gap 2600 ms; excerpt .scratch/groups-reader-44467383652.txt): its fix covers groups_reader too.
