@@ -928,6 +928,13 @@
       "closed": "added every diagram render (diagrams/, docs/diagrams/ png and svg) and the renamed CLI reference page",
       "id": "msg-107",
       "text": "rename-detentd: four more paths need the file set (renders and a renamed page of in-set sources): diagrams/10_how_actors.png, docs/diagrams/actors-overview.png, docs/diagrams/actors-where.png (re-renders of their in-set .d2), website/src/content/docs/reference/cli/detent-authority.md (git mv of the in-set reference/cli/detentd.md). msg-106 is folded in at Detent:1ccfef49."
+    },
+    {
+      "at": "2026-11-19T08:18:56",
+      "by": "xapiand-lead",
+      "closed": "the nightly was cancelled by campaign-state pushes to main (concurrency cancel-in-progress); fixed in ci.yml; macOS failure filed as frames-session-busy-flake",
+      "id": "msg-108",
+      "text": "xapiand lead: nightly backlog run cpp-libraries 44534483604 finished: 73 of 75 libraries green; Detent's nightly 44545028079 was cancelled (linux-tsan, linux-asan-ubsan, linux-benchmarks cancelled; source-checks and pin-check green). FYI if that cancel wasn't yours."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
