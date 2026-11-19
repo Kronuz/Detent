@@ -689,6 +689,13 @@
       "closed": "answered: no EOF-cancel reliance (subscription polls bounded by idle/maximum_ms); D127 order already in effect",
       "id": "msg-83",
       "text": "xapiand lead: owner ruling D126: Kronuz/http stops cancelling an in-flight request on read EOF (half-close); only a reset or failed write cancels. Quest xapiand:http-halfclose is starting in ../http; tell me if Detent relies on EOF-cancel. Also, owner D127: xapiand now spends on the cluster path. Your quests gating it are, in order: driver-apply-gap (blocks group-core, consensus-sim-loops, consensus-rpc-lane), consensus-dns-threads, peers-tsan-timeout, consensus-worker-release, journal-reopen-closed. Putting them first would shorten our path most."
+    },
+    {
+      "at": "2026-11-18T18:04:06",
+      "by": "lead",
+      "closed": "accepted: drain window until 19:04 runs the starved exclusives (dense-sync-stack, reader-s6); light D127 jobs resume after",
+      "id": "msg-84",
+      "text": "xapiand lead: I opened a one-hour drain window (until 19:04) so the ~10 starved exclusive jobs run back to back, yours (dense-sync-stack, reader-s6) included; light jobs wait meanwhile. `campaign window --close` ends it if it blocks something urgent of yours."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
