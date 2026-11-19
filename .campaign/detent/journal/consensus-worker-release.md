@@ -1,6 +1,6 @@
 # consensus-worker-release: journal
 
-State: waiting on jobs 261119-135115-1d13cf 261119-135117-bf02e4 261119-135119-b6b882 261119-135121-52f24d 261119-135123-4b09cc 261119-135125-1a5534 261119-135126-88fd6c 261119-135138-89cbce 261119-135140-f9a18c 261119-135142-11af82 261119-135144-860ad8 261119-135146-52f61f 261119-135147-8ca554
+State: waiting on jobs 261119-140158-51b1ce 261119-135117-bf02e4 261119-135119-b6b882 261119-135121-52f24d 261119-135123-4b09cc 261119-135125-1a5534 261119-135126-88fd6c 261119-135138-89cbce 261119-135140-f9a18c 261119-135142-11af82 261119-135144-860ad8 261119-135146-52f61f 261119-135147-8ca554
 Quest: .campaign/detent/quests/consensus-worker-release.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,7 +29,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A6 | suite 261119-135115-1d13cf (pending) |
+| A6 | gate suite 261119-140158-51b1ce (campaign verify, 40-min bound; the direct 50-min 135115-1d13cf cancelled as a duplicate) |
 | A1 | 261119-135117-bf02e4 (branch); fails at main's headers: 261119-135119-b6b882; mutants 135138-89cbce (no table close), 135142-11af82 (no settle), 135146-52f61f (watch) |
 | A2 | after 261119-135121-52f24d; before (main's headers) 261119-135123-4b09cc; mutant 135140-f9a18c |
 | A3 | 261119-135125-1a5534 (200 seeds) |
