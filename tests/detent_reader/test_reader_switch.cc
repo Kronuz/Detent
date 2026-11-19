@@ -4,6 +4,8 @@
 #include "detent_testing/generation_writer.hh"
 #include "testing.hh"
 #include "lazy_page_access.hh"
+#include <algorithm>
+#include <climits>
 #include <csignal>
 #include <cstdio>
 #include <atomic>
@@ -17,6 +19,7 @@
 #include <poll.h>
 #include <string>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -122,6 +125,28 @@ std::size_t descriptors() {
 		count += ::fcntl(fd, F_GETFD) != -1;
 	return count;
 }
+std::vector<int> open_descriptors() {
+	std::vector<int> open;
+	for (int fd = 0; fd != 4096; ++fd)
+		if (::fcntl(fd, F_GETFD) != -1)
+			open.push_back(fd);
+	return open;
+}
+// Each descriptor in `now` and not in `before`, with its path or its file type.
+void name_descriptors(const std::vector<int> &before, const std::vector<int> &now) {
+	for (const int fd : now) {
+		if (std::find(before.begin(), before.end(), fd) != before.end())
+			continue;
+		struct stat info{};
+		const char *type = ::fstat(fd, &info) != 0 ? "?" : S_ISFIFO(info.st_mode) ? "pipe" : S_ISSOCK(info.st_mode) ? "socket"
+		                   : S_ISREG(info.st_mode) ? "file" : S_ISDIR(info.st_mode) ? "directory" : "other";
+		char path[PATH_MAX] = "";
+#ifdef F_GETPATH
+		(void)::fcntl(fd, F_GETPATH, path);
+#endif
+		std::fprintf(stderr, "  descriptor %d: %s %s\n", fd, type, path);
+	}
+}
 // Mappings of files under `store`.
 std::size_t mappings(const std::filesystem::path &store) {
 	const auto prefix = std::filesystem::canonical(store).string();
@@ -201,6 +226,7 @@ void switching(const std::filesystem::path &root) {
 	std::this_thread::sleep_for(100ms);
 	std::thread([] {}).join(); // a sanitizer runtime starts its own thread on the first pthread_create
 	const auto fds = descriptors(), maps = mappings(store), before = threads();
+	const auto open_before = open_descriptors();
 	std::atomic<bool> stop{false};
 	std::atomic<std::uint64_t> lookups{0}, max_live{0}, refreshes{0}, unavailable{0};
 	{
@@ -272,7 +298,12 @@ void switching(const std::filesystem::path &root) {
 		CHECK(held_fds > fds);
 		CHECK(held_maps > maps);
 	}
-	CHECK(threads_settle(before) && descriptors() == fds && mappings(store) == maps);
+	const bool settled = threads_settle(before);
+	const auto end_fds = descriptors(), end_maps = mappings(store);
+	std::fprintf(stderr, "T3 after close: threads %zu (before %zu), descriptors %zu (before %zu), mappings %zu (before %zu)\n",
+	             threads(), before, end_fds, fds, end_maps, maps);
+	name_descriptors(open_before, open_descriptors());
+	CHECK(settled && end_fds == fds && end_maps == maps);
 	::munmap(shared, sizeof(Shared));
 }
 
