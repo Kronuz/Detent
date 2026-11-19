@@ -1474,16 +1474,51 @@
         }
       ],
       "journal": "../Detent-wt/detent/connection-slow-reader-flake",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T04:51:51",
+          "commit": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+          "criteria": {
+            "A1": "261118-223426-9ebaf9 (passed at 1bace1ebdfd8; only merges from main since), 261118-223429-3998b5 (passed at 1bace1ebdfd8; only merges from main since); fails without: 261118-221112-dc092b, 261118-221115-3049dd",
+            "A2": "261118-223432-13d2c9 (passed at 1bace1ebdfd8; only merges from main since), 261118-223436-ed18de (passed at 1bace1ebdfd8; only merges from main since); fails without: 261118-211716-cc66bd, 261118-223440-f7b703",
+            "A3": "manual (who: the contributor, connection-slow-reader-flake; checked: `git -C consensus diff origin/main...1bace1e --stat` changes only test/transport/connection_test.cc, so include/consensus/transport/connection.h and all product code are unchanged; each named cause is in the test: the backlog built on the running dialer loop, sizing from an assumed send buffer, the reader's capacity past its pin, a pace that ignored the half-read frame)",
+            "A4": "261118-223443-6c49b0 (passed at 1bace1ebdfd8; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "1bace1ebdfd8af2b5bb17ecbb83d571620e2d731",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-223443-6c49b0",
+              "level": "light",
+              "seconds": 1462.5,
+              "state": "done",
+              "what": "connection-slow-reader-flake check suite at 1bace1ebdfd8"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "122564d61c2f8cd5ac1273a9c5746c7fc2419b8e",
+          "reason": "",
+          "tested": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
-      "updated": "2026-11-18T20:26:28",
+      "updated": "2026-11-19T04:52:10",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
     "consensus-close-fenced": {
