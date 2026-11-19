@@ -1,6 +1,6 @@
 # delta-plan-warm: journal
 
-State: waiting on jobs 261119-145559-4878c5 261119-145602-9c34e4 261119-145604-7698f5 261119-145607-de3e64 261119-145609-293d70
+State: waiting on jobs 261119-152531-021ba5 261119-152534-fa3505 261119-152536-eb759c 261119-152539-acabbc
 Quest: .campaign/detent/quests/delta-plan-warm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-First chain failed: the runner required CORPUS even for `build` (261119-144618-cf06c9; dependents skipped).
-Fixed in Detent:1fa84385 (CORPUS checked only where read; dry run with a cmake shim passes `build` without it).
-Resubmitted at 1fa84385: build 261119-145559-4878c5, 500K corpus 261119-145602-9c34e4, prepare 5M
-261119-145604-7698f5, prepare 500K 261119-145607-de3e64, smoke 261119-145609-293d70 (strict).
+Second failure: prepare 7698f5/de3e64 exited 1 after a good full copy. Cause: the harness called the renamed
+T9 main (`namespace_measure_t9_main`), which has no return on success, so its status was garbage. Fixed in
+Detent:39155f00: the runner prepares with the real namespace_measure_t9 (the cmake file builds both) and an ERR
+trap prints any failing command. Build 4878c5 and corpus 9c34e4 (500K) stand. Resubmitted at 39155f00: build
+261119-152531-021ba5, prepare 500K 261119-152534-fa3505, prepare 5M 261119-152536-eb759c, smoke 500K strict
+261119-152539-acabbc.
 
 ## Next
 
