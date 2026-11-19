@@ -172,9 +172,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    noted above.
 4. The fails-without test is tagged A2, the quest file's criterion for "a test that fails without
    the fix"; A1 is [manual] and keeps its journal row (the lead's message called it A1).
+5. A3's TSan runs are strict holds (2 CPUs, the test's busy threads): light runs at nice 19 fail
+   peers' timing checks under host load (batch b), which would test the host, not the fix.
 6. The claim is a UDP socket, not the TCP port held open: holding a bound TCP socket beside
    Peers' listener needs SO_REUSEPORT on both on macOS, which Peers must not set, and a listening
    hold would accept during a restart and break the refused-connection cases.
 7. The picker lives in peers_test.cc (the file set); groups_test.cc is reported under Blocked on.
-5. A3's TSan runs are strict holds (2 CPUs, the test's busy threads): light runs at nice 19 fail
-   peers' timing checks under host load (batch b), which would test the host, not the fix.
