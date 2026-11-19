@@ -1,6 +1,6 @@
 # http-affinity-death-tsan: journal
 
-State: working
+State: waiting on jobs 261119-144222-6534ff
 Quest: .campaign/detent/quests/http-affinity-death-tsan.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1 job 261119-144222-6534ff (http:ec273dd, TSan RelWithDebInfo, coroutine_test x20, prints the first two TSan reports). Hypothesis: RelWithDebInfo defines NDEBUG, so the death test's NDEBUG branch performs the deliberate off-thread writer/BodyStream touch for real, and TSan reports it as a race (exit 66 before the reply). To confirm from the report.
 
 ## Next
 
-1. <step>
+1. Read the A1 report; name the race.
+2. Fix in test/coroutine_test.cc (skip the NDEBUG branch under TSan, or the real cause if the report differs); push.
+3. A2 loop job x20 at the fix.
 
 ## Blocked on
 
