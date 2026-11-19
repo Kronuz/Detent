@@ -14633,6 +14633,37 @@
       "title": "reactor sessions on task (step R)",
       "updated": "2026-11-08T15:38:29"
     },
+    "reactor-tls-cache": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "reactor_tls.h",
+        "test/tls_test.cc",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "high",
+      "status": "planned",
+      "title": "reactor tls::configure: load certificates once, reload on change",
+      "updated": "2026-11-19T05:59:39"
+    },
     "reader-acl": {
       "accepted": {},
       "after": [],
