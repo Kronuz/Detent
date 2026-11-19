@@ -1955,18 +1955,48 @@
         }
       ],
       "journal": "../Detent-wt/detent/consensus-dns-threads",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T05:32:53",
+          "ci_skipped": "D116: CI 44467383652 (rerun) fails only groups_upload on macos-x86_64 (gap 4731 ms; the loop-stall class in groups-upload-loop-stall); every other platform green",
+          "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "criteria": {
+            "A1": "261118-214529-7441ed (passed at f427934f3c77; only merges from main since); fails without: 261118-045515-48fe11, 261118-055342-38236d, 261118-172842-91deab, 261118-214533-18c77e",
+            "A2": "261118-214531-9748fd (passed at f427934f3c77; only merges from main since), 261118-214532-7ff35e (passed at f427934f3c77; only merges from main since); fails without: 261118-045520-9559dc, 261118-055345-061f08, 261118-063756-2fdd9f, 261118-172841-dc467b, 261118-172843-ac3852, 261118-214535-e427d1, 261118-214536-d96e0d",
+            "A3": "261118-214529-7441ed (passed at f427934f3c77; only merges from main since); fails without: 261118-045518-1bd27b, 261118-055341-67d3bb, 261118-055343-f6ac66, 261118-172842-715091, 261118-172843-0977dc, 261118-214538-f02c6d, 261118-214539-942f84",
+            "A4": "261119-050819-2ffd6d, 261118-214447-666fec (passed at f427934f3c77; only merges from main since); fails without: 261118-205327-b8dccb, 261118-214449-5d9a15"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+              "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-050819-2ffd6d",
+              "level": "light",
+              "seconds": 1451.0,
+              "state": "done",
+              "what": "consensus-dns-threads check suite at ae08d92e6384"
+            }
+          ],
+          "final": true,
+          "from": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+          "reason": "",
+          "tested": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-19T05:08:16",
+      "updated": "2026-11-19T05:32:56",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
