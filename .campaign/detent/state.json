@@ -3635,7 +3635,7 @@
     "dense-sync-stack": {
       "accepted": {
         "durability": {
-          "at": "2026-11-18T18:10:46",
+          "at": "2026-11-18T22:39:21",
           "base": "34ee9823766d0a32aad7ad0b25586643bdbf2922",
           "blobs": {
             "docs/measurements/dense-sync-stack-20261118/README.md": "100644:b1de8633e635c5efd3c7cdfe4f8f38ea622417b8",
@@ -3650,8 +3650,8 @@
             "tests/detent_local/test_paged_publication_artifacts.cc": "100644:7ca32160869d66b09eb72bdaa7686a9e28736970"
           },
           "by": "review",
-          "commit": "9f4f681f7f2d9d76b79186ab1c524cf2fc451364",
-          "criteria": "835b70751413dfba",
+          "commit": "bdb2263a2548fccae243e5c2a100b7fb2569aaac",
+          "criteria": "8689c78d79d12427",
           "diffs": {
             "docs/measurements/dense-sync-stack-20261118/README.md": "35f921c93e9a796f",
             "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "bb1f57f832ea3167",
@@ -3724,7 +3724,7 @@
       "risk": "high",
       "status": "review",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T18:10:46",
+      "updated": "2026-11-18T22:39:21",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-sync-stack-5m-times": {
