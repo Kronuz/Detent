@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs 988de0 (build-all at `Detent:ebaa638`), then 63fdce (STATS-1), c7f32f and 28641a (A16); 01ef48 and a39a36 (TSan at `Detent:b1d281c` and `Detent:32e65d8`); ea0609 (profile) and b9981e (A/B). All ids are `261118-18xxxx-<suffix>`. Next: `campaign verify` at the head once 988de0 passes.
+State: waiting on jobs. After build-all c15d2f at `Detent:751b648`: line-275 attribution 473f09, fe4089, ab35b3, f94397; STATS-1 58fade; A16 369849 (stopped), e69c8b (running). Also queued: TSan 01ef48 (`Detent:b1d281c`), a39a36 (`Detent:32e65d8`), profile ea0609, A/B b9981e. All ids are `261118-18xxxx-<suffix>`. Next: `campaign verify` once c15d2f passes.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -15,9 +15,14 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
   Jobs 01ef48 (`Detent:b1d281c`) and a39a36 (`Detent:32e65d8`) run the same TSan test to confirm
   it. Fix `Detent:c471f2f`: `stats` pins the view as a lookup does (`Pin`, `acquire`). Mutant
   STATS-1 (the unpinned relaxed read back; `.scratch/mutants-tsan.json`) is 63fdce, run
-  `--fails-without`. TSan's "invariant at line 275" (descriptors and mappings back to baseline after
-  close) failed in the same runs. I think the cause is the macOS symbolizer the reports start, but
-  the STATS-1 and head runs have to show it.
+  `--fails-without`. TSan's "invariant at line 275" (T3's threads, descriptors and store mappings
+  back to baseline after close) failed in the same runs. It is unexplained until a run shows the
+  cause; the lead will not accept it as tooling noise without one. `Detent:751b648`: T3 prints the
+  counts at baseline and at the end, and names each descriptor open at the end but not at baseline
+  (path or type). `.scratch/t3/t3.sh` runs `test_reader_switch switch` and passes when the invariant
+  holds: STATS-1 symbolized 473f09, STATS-1 `TSAN_OPTIONS=symbolize=0` fe4089, head TSan ab35b3,
+  head without TSan f94397. If symbolize=0 holds where symbolized fails, it is the symbolizer's
+  pipe. Otherwise the named descriptor is a leak, and I fix it.
 - A16: each arm already reads a store its own code wrote. `prepare` generates `main/store-*` with
   main's `first_read_phases` and `branch/store-*` with the branch's, and each publisher is its own
   arm's binary, so there is no format mismatch. Main's arm exits on "invalid local generation
@@ -180,7 +185,7 @@ Attribution (msg-1 regression):
 
 ## Rulings I made
 
-- Job moves for the TSan and A16 step: at `Detent:ebaa638` only build-all, STATS-1, both A16 cells and
+- Job moves for the TSan and A16 step: at `Detent:751b648` (ebaa638's jobs cancelled) only build-all, STATS-1, both A16 cells and
   (after build-all) the gate checks. The mutants, soak and A7-A14 move once, after the msg-1 fix, since
   that moves the head again. A16 keeps BASELINE `Detent:8cd932c` so its numbers compare with b69551
   and da956e.
