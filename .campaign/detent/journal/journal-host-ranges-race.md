@@ -38,7 +38,7 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | pending jobs |
-| A2 | [artifact] `docs/mechanisms/host-ranges.md`; the rule at `ranges_`'s declaration, `group_io`'s comment and `owned_ranges` in `include/journal/host.h` (journal:0fc8c14) |
+| A2 | `docs/mechanisms/host-ranges.md`; the rule is at `ranges_`'s declaration, `group_io`'s comment and `owned_ranges` in `include/journal/host.h` |
 | A3 | pending job |
 | A4 | pending jobs |
 
