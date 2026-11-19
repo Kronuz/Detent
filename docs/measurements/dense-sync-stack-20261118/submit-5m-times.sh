@@ -2,6 +2,7 @@
 # usage: submit-5m-times.sh ARM ROUND   (about 4-6 min in the hold; ARM: dense|s2|stacked|main; one exclusive job: 10K smoke, then the 5M cold bootstrap and restarts)
 # Dense, S2 and stacked read 5000000-flat-r1; main reads its own 5000000-flat-main (README.md). Harness: main at ea1fddc.
 set -eu
+cd "$(dirname "$0")/../../.."
 arm=$1 round=$2
 case $arm in
   dense) commit=9852a3c498e97486551c374e6c5d025cb7c1ae26 fixture=5000000-flat-r1 smoke=10000-r3 ;;
