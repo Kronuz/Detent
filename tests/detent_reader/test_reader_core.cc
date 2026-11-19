@@ -73,6 +73,32 @@ void replaced_selected(const std::filesystem::path &root) {
 	std::uint64_t revision = 0;
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
 }
+// `selected` is read once per table: at open, which the first lookup attaches from while the store
+// word holds (D4), and once per switch, which attaches from that read.
+void selected_reads(const std::filesystem::path &root) {
+	const auto store = root / "selected-reads";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	unsigned reads = 0;
+	x::RecordTesting::install([](std::string_view name, void *context) {
+		if (name == "selected")
+			++*static_cast<unsigned *>(context);
+	}, &reads);
+	struct Reset {
+		~Reset() { x::RecordTesting::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && reads == 1);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1 && reads == 1);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	reads = 0;
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2 && reads == 1);
+	// A publish between the open and the first lookup moves the store word: the lookup reads again.
+	Opened late(store);
+	CHECK(late.status == DETENT_OK && writer.publish_json(knobs(3)) == 3);
+	reads = 0;
+	CHECK(get(late.handle, "t:rev", DETENT_OK) == 3 && reads == 1);
+}
 void replaced_change(const std::filesystem::path &root) {
 	const auto store = root / "replaced-change";
 	{
@@ -337,6 +363,7 @@ int main() {
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
 	replaced_selected(root);
+	selected_reads(root);
 	replaced_change(root);
 	values(root);
 	wrapper(root);
