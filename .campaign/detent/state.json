@@ -15704,7 +15704,8 @@
         "CMakeLists.txt",
         "ARCHITECTURE.md",
         "README.md",
-        "AGENTS.md"
+        "AGENTS.md",
+        "BENCHMARKS.md"
       ],
       "history": [
         {
@@ -15732,7 +15733,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T15:31:32",
+      "updated": "2026-11-19T15:47:05",
       "worktree": "../prism-wt/detent/prism-server-composition"
     },
     "prism-server-composition-limits": {
