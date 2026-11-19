@@ -1,6 +1,6 @@
 # task-settle-notes: journal
 
-State: working
+State: waiting on jobs 261119-144904-ce9830 261119-144917-4bc31f
 Quest: .campaign/detent/quests/task-settle-notes.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+task:3df9339 (branch quest/detent/task-settle-notes) adds `test_settle_inline` to test/sync_test.cc and the cancel-callback wait rule to docs/API.md. Jobs: suite 261119-144904-ce9830; mutant (settle without the `requester_ != this thread` clause) 261119-144917-4bc31f.
 
 ## Next
 
-1. <step>
+1. When both jobs pass, record the ids in Evidence and set State to ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -27,7 +27,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | jobs 261119-144904-ce9830 (suite), 261119-144917-4bc31f (--fails-without mutant) |
+| A2 | artifact: docs/API.md, under `cancel_callback` (task:3df9339) |
 
 ## Result
 
@@ -37,4 +38,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The case lives in sync_test.cc (the quest's file set), not deadline_test.cc as F6 suggested. It drives the scenario through a parent source (parent.request -> the deadline's callback advances past the deadline), uses a watchdog thread so the self-wait mutant fails instead of hanging.
+- The mutant runs as a sed on task.hh inside the job's checkout, so no mutant commit exists.
