@@ -1816,8 +1816,8 @@
     "consensus-dns-threads": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T04:47:15",
-          "base": "122564d61c2f8cd5ac1273a9c5746c7fc2419b8e",
+          "at": "2026-11-19T05:08:16",
+          "base": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
           "blobs": {
             "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
             "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
@@ -1826,7 +1826,7 @@
             "test/transport/resolve_test.cc": "100644:b2d96b2dc6611e98fec6eaf9b719a7bcaf24250c"
           },
           "by": "review",
-          "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
+          "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
           "criteria": "41315d8a4c52f7d1",
           "diffs": {
             "CMakeLists.txt": "e677a95f10cedc23",
@@ -1840,14 +1840,14 @@
               "jobs": [
                 {
                   "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
+                  "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-214507-d39df7",
+                  "job": "261119-044734-8ddccc",
                   "level": "light",
-                  "seconds": 1392.5,
+                  "seconds": 1215.4,
                   "state": "done",
-                  "what": "consensus-dns-threads check suite at f427934f3c77"
+                  "what": "consensus-dns-threads check suite at 3e1930f16062"
                 }
               ],
               "kind": "defect",
@@ -1857,14 +1857,14 @@
               "jobs": [
                 {
                   "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
+                  "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-214507-d39df7",
+                  "job": "261119-044734-8ddccc",
                   "level": "light",
-                  "seconds": 1392.5,
+                  "seconds": 1215.4,
                   "state": "done",
-                  "what": "consensus-dns-threads check suite at f427934f3c77"
+                  "what": "consensus-dns-threads check suite at 3e1930f16062"
                 }
               ],
               "kind": "gap",
@@ -1875,7 +1875,7 @@
             "paths": [
               "CMakeLists.txt"
             ],
-            "reason": "test-only resolve_test.cc baseline fix (loop 666fec passes, 5d9a15 fails without); main's merge adds flow-control bench and docs, unrelated to the resolver"
+            "reason": "test-only resolve_test.cc baseline fix; main's merges add connection_test.cc (slow-reader, test-only) and flow-control docs/bench, unrelated to the resolver"
           },
           "note": "",
           "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
@@ -1952,7 +1952,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-19T04:47:15",
+      "updated": "2026-11-19T05:08:16",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
