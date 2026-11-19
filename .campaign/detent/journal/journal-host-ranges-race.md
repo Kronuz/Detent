@@ -1,6 +1,6 @@
 # journal-host-ranges-race: journal
 
-State: working
+State: waiting on jobs 261118-171650-fec55c 261118-171651-bda9c1 261118-171652-d9b588 261118-171653-be20d1 261118-171654-892bc9
 Quest: .campaign/detent/quests/journal-host-ranges-race.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,7 +12,10 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 Fix committed (journal:f3fc19e): `ranges_` is one table per loop, owned by the loop's thread.
 Jobs submitted for A1 (TSan at head; --fails-without at mutant journal:d545123,
 `refs/mutants/journal-host-ranges-race/shared-table`), A3 (exclusive bench, three arms) and A4
-(campaign verify: suite, tsan, ci).
+(campaign verify: suite, tsan, ci). Branch pushed to origin at journal:f3fc19e; GitHub CI running.
+Jobs: suite 261118-171650-fec55c, tsan 261118-171651-bda9c1, A1 head 261118-171652-d9b588, A1
+mutant 261118-171653-be20d1, A3 261118-171654-892bc9. A3 scripts:
+`.scratch/detent/journal-host-ranges-race/a3-build.sh` and `a3-run.sh` in the home.
 
 ## Next
 
