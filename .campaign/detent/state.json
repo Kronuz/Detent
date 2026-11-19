@@ -1383,20 +1383,57 @@
         "CMakeLists.txt",
         "docs/DRIVER.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-close-fenced",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T17:23:45",
+          "commit": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+          "criteria": {
+            "A1": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since); fails without: 261117-224124-3ca3bb, 261117-224642-346496, 261117-234659-3d1404, 261118-001028-7ef567, 261118-021909-dc9230, 261118-040544-24d42c, 261118-064124-3e5bb0, 261118-080714-ff3bc1",
+            "A2": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since)",
+            "A3": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since), 261118-080709-0b29b6 (passed at 901d9cebb447; only merges from main since); fails without: 261117-224646-fc0854, 261117-234712-39d2ac, 261118-001036-648cac, 261118-021911-f17875, 261118-040544-24d42c, 261118-040557-d7b5cf, 261118-064126-e68ae2, 261118-080715-aa0fea",
+            "A4": "261118-080707-3e11d5 (passed at 901d9cebb447; only merges from main since), 261118-080708-925f6c (passed at 901d9cebb447; only merges from main since); fails without: 261118-040540-ea618e, 261118-064122-6a437c, 261118-080713-3b7683",
+            "A5": "261118-091954-0c01fa (passed at a699c96abf87; only merges from main since)",
+            "A6": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since), 261118-080707-3e11d5 (passed at 901d9cebb447; only merges from main since), 261118-080708-925f6c (passed at 901d9cebb447; only merges from main since), 261118-080716-6d7d6c (passed at 901d9cebb447; only merges from main since), 261118-080719-369ac2 (passed at 901d9cebb447; only merges from main since); fails without: 261118-040539-5a1dfa, 261118-064120-75b4b1, 261118-064220-b8cb43, 261118-080710-cfcb5b, 261118-080711-db1d26, 261118-080717-990ff9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "a699c96abf87bad051e619df316ca12e4c05cdc6",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-091954-0c01fa",
+              "level": "light",
+              "seconds": 754.8,
+              "state": "done",
+              "what": "consensus-close-fenced check suite at a699c96abf87"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6a76867f30826b27731b92c9f3122722cf4788e7",
+          "reason": "",
+          "tested": "377e47231b8d25e80cdabd2308c76d1d80a9cae1"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
-      "updated": "2026-11-18T08:42:12",
-      "worktree": "../consensus-wt/detent/consensus-close-fenced"
+      "updated": "2026-11-18T17:23:58",
+      "worktree": ""
     },
     "consensus-dns-peers": {
       "accepted": {
