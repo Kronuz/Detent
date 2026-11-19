@@ -1,15 +1,15 @@
 # prism-server-composition: journal
 
-State: waiting on jobs CI run 44634843777 (then ready for review)
+State: ready for review
 Quest: .campaign/detent/quests/prism-server-composition.md (the lead's; never edit it)
 
 ## Doing
 
-All jobs passed at prism:805acc1; GitHub CI run 44634843777 is running there.
+All jobs and GitHub CI run 44634843777 passed at prism:805acc1.
 
 ## Next
 
-1. When CI run 44634843777 is green, set State ready for review.
+1. Review (lead launches it).
 
 ## Blocked on
 
@@ -24,7 +24,7 @@ server-composition-adoption is not a dependency.
 |---|---|
 | A1 | `ARCHITECTURE.md` "How `main` is put together": the Mains row by step, options, deviations with reasons naming prism-server-composition-limits (prism:805acc1) |
 | A2 | 261119-150720-9d025e (prism:805acc1), 261119-150056-8de58f (prism:4eb7074); fails without: 261119-150116-cb39e6 (grace 0 cuts the in-flight response) |
-| A3 | 261119-150718-559dc2 (prism:805acc1); CI run 44634843777 running |
+| A3 | 261119-150718-559dc2 (prism:805acc1); CI run 44634843777 green |
 
 Local run (not evidence): `load: 14867 whole responses, 0 cut; exit 0 866 ms after SIGTERM`.
 
