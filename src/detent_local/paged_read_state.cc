@@ -58,8 +58,9 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 						throw ReadSourceFailure("local page names a missing segment");
 					bytes = checked_page_bytes(segments[found], reference);
 				}
-				// The one full header decode per page; its nodes end bounds every node and external.
-				nodes_end = paged::nodes_end(paged::decode_page_header(bytes, paged_format_limits()));
+				// The mapped external count places the nodes end; decode_node and decode_external bound
+				// every read to the page, so any count gives an in-page read or a refusal.
+				nodes_end = bytes.size() - paged::child_bytes * read_integer(bytes, 12, 2);
 				resolve = false;
 				at = {};
 			}

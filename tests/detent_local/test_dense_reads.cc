@@ -6,8 +6,10 @@
 #include "prepared_reader_fixture.hh"
 #include "segment_names.hh"
 #include <fcntl.h>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -252,12 +254,64 @@ void mutation(unsigned kind) {
     root[64] = 0;
   else if (kind == 2)
     l::write_integer(root, node.slots.data() - root.data(), 64, 2);
-  else if (kind == 3)
-    root[14] = char(0xff);
   else
     root[24] ^= 1;
   rejects<l::detail::ReadSourceFailure>(
       [&] { state.lookup(source->rows.front().key, p::PageKind::Definition); });
+}
+// Lookups read a verified page's counts from its bytes, so damage after first touch must give a
+// read inside the segment or a refusal. The root page ends its own exact allocation, so a read past
+// it is a heap overflow under ASan.
+void damaged_counts() {
+  auto source = fixture(1000);
+  const auto size = source->bytes.size();
+  const auto offset = source->root.tree.offset;
+  const auto length = source->root.tree.length;
+  check(offset + length == size);
+  const auto exact = std::make_unique<char[]>(size);
+  std::memcpy(exact.get(), source->bytes.data(), size);
+  source->inputs[0].bytes = {exact.get(), size};
+  l::detail::VerifiedPages verified(size, source->account);
+  const auto state = read_state(source, verified);
+  auto root = std::span<char>(exact.get() + offset, length);
+  const std::vector<char> original(root.begin(), root.end());
+  const auto externals = l::read_integer(root, 12, 2);
+  const auto nodes = l::read_integer(root, 14, 2);
+  check(externals > 1);
+  struct Damage {
+    std::size_t at;
+    std::uint64_t value;
+  };
+  const std::uint64_t fit = (length - p::page_header_bytes) / p::child_bytes;
+  const Damage damages[] = {
+      {14, 0},           {14, 1},          {14, nodes - 1}, {14, nodes + 1},
+      {14, 0xff00},      {14, 0xffff},     {12, 0},         {12, 1},
+      {12, externals - 1}, {12, externals + 1}, {12, fit}, {12, fit + 1},
+      {12, 0x7fff},      {12, 0xffff}};
+  std::size_t results = 0, refusals = 0;
+  for (const auto &damage : damages) {
+    std::copy(original.begin(), original.end(), root.begin());
+    for (const auto &row : source->rows)
+      check(state.lookup(row.key, row.key.front() == 'K' ? p::PageKind::Definition
+                                                        : p::PageKind::Namespace)
+                .has_value());
+    l::write_integer(root, damage.at, damage.value, 2);
+    for (const auto &row : source->rows) {
+      try {
+        const auto body = state.lookup(
+            row.key, row.key.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace);
+        if (body)
+          check(body->data() >= exact.get() && body->size() <= size &&
+                body->data() + body->size() <= exact.get() + size);
+        ++results;
+      } catch (const l::detail::ReadSourceFailure &) {
+        ++refusals;
+      }
+    }
+  }
+  check(refusals > 0 && results > 0);
+  std::cout << "damaged counts: " << results << " results, " << refusals
+            << " refusals, all inside the segment\n";
 }
 void mapped_mutation(unsigned variant) {
   auto source = fixture(1000);
@@ -440,8 +494,9 @@ int main(int argc, char **argv) {
       state.lookup(source->rows.front().key, p::PageKind::Definition);
     });
   }
-  for (unsigned kind = 0; kind < 5; ++kind)
+  for (unsigned kind = 0; kind < 4; ++kind)
     mutation(kind);
+  damaged_counts();
   for (unsigned variant = 0; variant < 5; ++variant)
     mapped_mutation(variant);
   std::cout << "dense reads, one-hash first touch, exact starts and mapped "
