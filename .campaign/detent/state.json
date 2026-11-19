@@ -1014,6 +1014,21 @@
         ]
       },
       "text": "peers-tsan-timeout landed: unlocks frees CMakeLists.txt for consensus-late-append-tests; frees test/transport/groups_test.cc for groups-upload-loop-stall; frees test/transport/peers_test.cc for peers-busy-roundtrip-bound; frees include/consensus/transport/**, test/transport/** for transport-group-bytes; frees test/transport/** for transport-receive-bound"
+    },
+    {
+      "at": "2026-11-19T12:38:30",
+      "by": "campaign",
+      "closed": "noted; loop-idle-waits merges main after its round-2 jobs",
+      "id": "msg-113",
+      "items": {
+        "server-composition-adoption": "frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
+      },
+      "settles": {
+        "start": [
+          "server-composition-adoption"
+        ]
+      },
+      "text": "rename-detentd landed: unlocks frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
