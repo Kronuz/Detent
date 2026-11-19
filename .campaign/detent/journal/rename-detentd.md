@@ -1,6 +1,6 @@
 # rename-detentd: journal
 
-State: waiting on jobs 261119-064309-e7a340 261119-064310-b5175d 261119-064311-8a1334
+State: waiting on jobs 261119-064309-e7a340 261119-064310-b5175d 261119-064311-8a1334 (push of the journal-only commits refused: GitHub 500; origin is at Detent:b2dfaf4b)
 Quest: .campaign/detent/quests/rename-detentd.md (the lead's; never edit it)
 
 ## Doing
