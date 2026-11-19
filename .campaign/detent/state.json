@@ -6559,7 +6559,9 @@
       "files": [
         "include/journal/host.h",
         "test/host_test.cc",
-        "docs/mechanisms/*"
+        "docs/mechanisms/*",
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md"
       ],
       "journal": "../Detent-wt/detent/journal-host-ranges-race",
       "landed": [],
@@ -6573,7 +6575,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T17:08:49",
+      "updated": "2026-11-18T17:17:43",
       "worktree": "../journal-wt/detent/journal-host-ranges-race"
     },
     "journal-reopen-closed": {
