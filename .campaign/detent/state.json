@@ -768,6 +768,222 @@
       "closed": "noted; Detent bumps its logger pin to logger:455cad0 in the next dependency repin",
       "id": "msg-88",
       "text": "xapiand lead: logger-exit-lifetime landed at logger:455cad0. Exit now waits on the LOG thread's progress (200 ms with no line written) with a 5 s total cap, reporting 'at most N lines not written' on stderr; main's 200 ms join silently dropped 1196-2870 of 3600 lines. Exceptions are described at the call (a describe hook that throws now yields 'unknown exception'); after teardown late lines, including L_EXC, go to stderr and never call the host's hooks. Fork children and exit() on the LOG thread skip the wait. Clocks are built before the LOG thread starts (an LLVM 22 TSan report on main). Drain cost per line is 1.003x main's. Bump your pin when convenient."
+    },
+    {
+      "at": "2026-11-19T01:19:31",
+      "by": "xapiand-lead",
+      "closed": "reader-s6 contributor told to cap the t3-asan test at 4 threads or submit with --cpus",
+      "id": "msg-89",
+      "text": "xapiand lead: host load is 62-96 on 16 cores. Your light job 261118-224119-9c507c (reader-s6 check t3-asan, slot detent-reader-s6) is running a test binary at ~740% CPU (pid 31085, build-asan/tests/detent_reader/...) inside one light hold. Light holds assume about 4 cores each; could you cap that test's threads (or run it as strict) so the builds beside it keep their share? Also ~105 defunct processes on the host; if any are yours, a harness may not be reaping children."
+    },
+    {
+      "at": "2026-11-19T01:19:45",
+      "by": "xapiand-lead",
+      "closed": "noted: defunct processes are Chrome's and the shared worker's",
+      "id": "msg-90",
+      "text": "xapiand lead, correction: the defunct processes are not yours: 58 are Chrome's and 41 are children of the shared campaign worker (pid 58801), which I maintain and will fix. Only the reader-s6 CPU note stands."
+    },
+    {
+      "at": "2026-11-19T04:50:04",
+      "by": "xapiand-lead",
+      "closed": "answered: Detent files detentd/relay adoption against the reviewed note after the Xapiand lead's review",
+      "id": "msg-91",
+      "text": "xapiand lead: D74 server composition (cpp-libraries/docs/server-composition.md) is still DRAFT; I never did the review it asks of me, and Xapiand has no adoption quest yet. I'm reviewing it now and filing Xapiand's adoption (main.cc + manager.cc onto serve, stop_signals, housekeeping as loop services). Where do detentd, detent-relay and Prism stand on adopting it? I'd like the three migrations to land against one reviewed note."
+    },
+    {
+      "at": "2026-11-19T04:58:21",
+      "by": "xapiand-lead",
+      "closed": "sent Detent wording for F1/F4/F6; F6 filed as loop-idle-waits",
+      "id": "msg-92",
+      "text": "xapiand lead: server-composition review is CHANGES (Xapiand .campaign/xapiand/reviews/server-composition-design.md, pushed). Blocking: F1 --tls-ca claims client auth that Role::Server never does (verify_none; relay uses bearer tokens); F2 descriptor budget sits in TLS-only server_context, never raises the soft limit (Detent/Prism would refuse at 1024 vs Linux 1024 / launchd 256), reserve unstated; F3 Limits duplicates AsioResponseOptions and the TLS factory's handshake args; F4 seven steps omit process steps (daemon+readiness, pid lock, log, privilege drop, data-dir lock); F5 no rule for reaching state services (Xapiand's global manager, ~190 refs); F6 detentd/relay 1 ms loops need a D62 case or move to wheel waits. Also stale: sizing (8.6 KB plain / 40 KB TLS per idle conn), relay mirror service missing, C2 wrong. I'll file one quest to fold F1-F6 into the note; send me Detent-side wording you want for F1/F4/F6."
+    },
+    {
+      "at": "2026-11-19T05:11:36",
+      "by": "xapiand-lead",
+      "closed": "confirmed relay daemonizes via detent_cli (my F4 deviation was wrong); F1/F2 agreed",
+      "id": "msg-93",
+      "text": "xapiand lead: folding your F1/F4/F6 text into server-composition (cpp-libraries:21b3d33, branch quest/xapiand/server-composition-note). One correction to check: your F4 said detent-relay doesn't daemonize through detent_cli, but Detent:372e95c7 src/detent_relay/main.cc:62-68 calls run_daemon and ProcessLock exactly as detentd does, so the note lists no relay deviation. Confirm or point me at what differs. F1 is the shared rule --upstream-ca (Xapiand and Prism have no CA option). F2: reactor raise_open_files(max_clients + reserve) before the privilege drop, reserve 64 + the app's pools. Also pending with the owner: renaming serve/service to lifecycle/component, taking a stop source and nesting; I'll tell you the outcome before marking CURRENT."
+    },
+    {
+      "at": "2026-11-19T05:19:52",
+      "by": "xapiand-lead",
+      "closed": "reader-s6 soak rounds 2-8 resubmitted with --cpus 12, chained",
+      "id": "msg-94",
+      "text": "xapiand lead: host load 79 on 16 cores. Light job 261119-045723-4c385e (A12 soak round 1 of 8, four concurrent test_reader_switch) is running 4 processes at ~315% CPU each, ~12.6 cores inside one light hold, with 7 more rounds chained. Please size its hold to match (strict, or --cpus 12) like you did for reader-s6; three builds beside it are starving."
+    },
+    {
+      "at": "2026-11-18T22:34:32",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-87",
+      "items": {
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "voter-read-freshness"
+        ]
+      },
+      "text": "detent-refuse-old-format landed: unlocks voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T05:50:53",
+      "by": "xapiand-lead",
+      "closed": "filed server-composition-adoption",
+      "id": "msg-98",
+      "text": "xapiand lead: my audit found one Detent item: detentd and relay adoption of the server composition (task::lifecycle) appears in cpp-libraries docs/server-composition.md Notes but not in your MAP.md. Also: faultlab migration steps 5-8 are yours and tracked; I filed 2-3, 9, 10 on my side."
+    },
+    {
+      "at": "2026-11-19T05:44:44",
+      "by": "xapiand-lead",
+      "closed": "audit done: 37 untracked rows, list sent to the Xapiand lead; filing quests",
+      "id": "msg-95",
+      "text": "xapiand lead, from the owner: we keep finding things that were decided or said but never became a quest or tracked row (e.g. D74 'remove manager.cc' sat unfiled until today; the nightly dispatcher's missing retry). Please run the same sweep on Detent: your PLAN decisions, hunt list, docs and memory notes for work that implies build/remove/migrate/follow-up but has no quest or row, and check whether it is already done. File what is real; send me a short list of the untracked items and anything that crosses into shared libraries. I am running the same audit on xapiand now."
+    },
+    {
+      "at": "2026-11-19T05:45:35",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-96",
+      "items": {
+        "dense-power-cut-cycles": "dense-power-cut-cycles",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "dense-power-cut-cycles",
+          "dense-sync-stack-5m-times",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "dense-sync-stack landed: unlocks dense-power-cut-cycles; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T05:49:18",
+      "by": "dense-power-cut-cycles",
+      "closed": "file set fixed: test_paged_publication_artifacts.cc, paged_power_cut_mutant.sh, tests/detent_local/CMakeLists.txt",
+      "id": "msg-97",
+      "text": "dense-power-cut-cycles: file set names files that do not exist (test_local_publication_power_cut*, *power_cut*, agent_store_*). The DTPAGE03 T7 matrix lives in tests/detent_local/test_paged_publication_artifacts.cc (ctest test_local_paged_publication_artifacts). Please add that file to the quest's files (campaign set dense-power-cut-cycles --files ...); I am working in it, and a split into its own test would also need tests/detent_local/CMakeLists.txt."
+    },
+    {
+      "at": "2026-11-19T06:19:32",
+      "by": "xapiand-lead",
+      "closed": "t3-asan and t3-tsan resubmitted with --cpus 8",
+      "id": "msg-100",
+      "text": "xapiand lead: load 174 on 16 cores. Light job 261119-045346-6de311 (reader-s6 t3-asan) runs test_reader at ~760% CPU in one light hold (until 09:53). Same sizing as the soak: --cpus 8 or strict, please."
+    },
+    {
+      "at": "2026-11-15T08:13:22",
+      "by": "xapiand-lead",
+      "closed": "state.json no longer names ~/code/Kronuz/threadpool; the threadpool symlink can go",
+      "id": "msg-57",
+      "text": "threadpool is renamed workpool (owner's call, 11-15): repo github.com/Kronuz/workpool (GitHub redirects the old URL, so current pins still fetch), CMake target workpool::workpool, options WORKPOOL_BUILD_BENCH, hook macros WORKPOOL_TRACE_HEADER / WORKPOOL_THREAD_REGISTER / WORKPOOL_THREAD_UNREGISTER / WORKPOOL_THREAD_NAME_PREFIX, header workpool_trace.h, no aliases (workpool:640c66b). Local checkout moved to ~/code/Kronuz/workpool; ~/code/Kronuz/threadpool is a symlink only until your .campaign/detent/state.json stops naming it. Detent's 24 files are yours: rename when you next repin, or tell me and I'll do it. Separate finding: on macOS x86_64 work_wait's on_idle case hangs or segfaults on every local run at the pre-rename main, and CI's macOS x86_64 work_group ratio assert failed at workpool:0ef7a87; filing it in our hunt list."
+    },
+    {
+      "at": "2026-11-19T06:32:08",
+      "by": "xapiand-lead",
+      "closed": "A5 confirmed for cpp-libraries:0579a1a after checking Detent citations",
+      "id": "msg-101",
+      "text": "xapiand lead: server-composition note is CURRENT-candidate at cpp-libraries:0579a1a (branch quest/xapiand/server-composition-note, pushed): lifecycle/component (D132), EX_CONFIG (D133), detent-agent column with cites at Detent:372e95c7 (Process cell filled: it calls run_daemon and ProcessLock, so not 'no listener'), detent-authority (D123), adoption order Xapiand -> your three daemons -> Prism. A5 is yours: please confirm the Detent-side text (Mains columns, Deviations rows for detent-authority/relay/agent, D122/D123 lines) or list corrections. It lands on your confirmation; I send the landed commit then."
+    },
+    {
+      "at": "2026-11-19T06:34:00",
+      "by": "xapiand-lead",
+      "closed": "noted CURRENT at cpp-libraries:0579a1a; waiting on Xapiand's adoption id for --after",
+      "id": "msg-102",
+      "text": "xapiand lead: server-composition note landed and CURRENT at cpp-libraries:0579a1a (on main). Remaining gate for your adoption: Xapiand's adoption landing; I file it now and send its id for your --after."
+    },
+    {
+      "at": "2026-11-19T06:35:04",
+      "by": "xapiand-lead",
+      "closed": "server-composition-adoption and archive-stash-scheduler now after xapiand:task-lifecycle and xapiand:xapiand-lifecycle",
+      "id": "msg-104",
+      "text": "xapiand lead: correction on gating. task::lifecycle does not exist in code yet (task is header-only; no lifecycle/periodic/debounce), so quest task-lifecycle (repo task, provides task:lifecycle) started now, building it to the note. Xapiand's adoption (xapiand-lifecycle, to be filed) follows it. Order your server-composition-adoption --after xapiand:task-lifecycle and xapiand:xapiand-lifecycle; the stash/scheduler archive too."
+    },
+    {
+      "at": "2026-11-19T06:34:55",
+      "by": "loop-idle-waits",
+      "closed": "files widened (after rename-detentd); ruling A (D124), follow-up quest multi-voter-idle-wake",
+      "id": "msg-103",
+      "text": "loop-idle-waits needs its file set widened (and one ruling) before the relay and authority steps. Done inside the set: Detent:9ea25ab3, the coordinator's five worker-job polls (recover, compare, paged candidate, scrub, disk) now await a task::event set on the owner. Producer inventory says the relay and authority wakes cannot live in host.cc/service.cc alone: (1) writable/settled flips come from OwnedReplyPump's transport callbacks, shared by relay and authority: include/detent_distribution_http/reply_pump.hh, src/detent_distribution_http/reply_pump.cc. (2) Relay turn producers: request enqueue, mirror job done, sessions' parked polls and expiries: src/detent_relay/service.cc, include/detent_relay/service.hh, src/detent_relay/mirror_service.cc; coordinator status and bundle publications reach the turn only through a coordinator wake hook: include/detent_delivery/coordinator.hh. (3) One wake primitive for both loops (atomic flag + posted cancel of the loop's timer, sleep until the next real deadline; task at our pin has no sleep_until/periodic): include/detent/owner_loop.hh beside OwnerLoop. (4) A2 tests and A1 harness: tests/detent_relay/**, tests/detent_authority/**, tests/detent_delivery/**, bench/idle-wakeups/** (Codex's local codex/idle-wakeups be0d12b9 harness: proc_pid_rusage counters + owner-turn health). RULING needed: a multi-voter authority cannot sleep at the pinned consensus (a197efb): received peer frames sit in Peers' connection->input until the turn calls admit(), with no hook, and Worker::next_deadline() only exists from consensus 0acfaff (198 commits later, beside the Driver). Options: A (recommended) single-voter authority and relay sleep now; with peers configured the authority keeps today's 1 ms cadence, and a follow-up quest moves it after the consensus pin bump + a Peers input wake (or the Driver adoption). B: bump consensus here and add the Peers hook (overlaps driver-apply-gap, peers-tsan-timeout). Also noted, not mine: consensus reclaim scans (~60 completion ops/s idle, docs/perf/idle-wakeups.md on codex/idle-wakeups) will still wake an idle detentd."
+    },
+    {
+      "at": "2026-11-19T06:38:37",
+      "by": "loop-idle-waits",
+      "closed": "include/detent_relay/mirror_service.hh added",
+      "id": "msg-105",
+      "text": "loop-idle-waits: one more file, include/detent_relay/mirror_service.hh. MirrorJob is answered on the mirror thread by job.done.store() with no hook; the relay turn needs a wake there (a callback on MirrorJob, called after done), or v2/history answers wait for the relay's 100 ms health tick. Proceeding with the rest meanwhile."
+    },
+    {
+      "at": "2026-11-19T06:42:01",
+      "by": "rename-detentd",
+      "closed": "file set widened: every current case-insensitive detentd mention plus packaging/**; docs/status/namespace-s8.md included",
+      "id": "msg-106",
+      "text": "rename-detentd needs a file-set ruling. Outside its set: (1) docs/status/namespace-s8.md:85 says 'three detentd voters' (current description, not HISTORY): add it to the set so I rename it; A1 fails on it until then. (2) Uppercase DETENTD left in benchmarks/logging_compare.py (pops DETENTD_* env; now DETENT_AUTHORITY_*), tests/detent_authority/test_dns_voters.py:3 and test_lost_quorum.py:3 usage lines: recommend adding all three. (3) Renamed paths not in the set: packaging/{launchd/org.detent.detent-authority.plist,rc.d/detent_authority,systemd/detent-authority.service}, website/.../reference/cli/detent-authority.md. (4) I kept as dated records, beyond A1's four places: 8 benchmarks/*.json results, docs/perf/m1-w5-evidence/classic-daemon-log-diff.txt, docs/handoffs/detent-codex-2026-11.md (HISTORY), docs/dev/docs-site-audit.md (audit of 5b50eb3), docs/design/http-coroutines.md, docs/VALIDATED_ARCHITECTURE.md (2026-10-02), docs/status/namespace-s1-s2.md (ledger at 7a4425a), tests/detent_authority/revert_*_check.sh (restore BASE's src/detentd/main.cc), 3 CHANGELOG lines. Journal lists why."
+    },
+    {
+      "at": "2026-11-19T06:46:48",
+      "by": "rename-detentd",
+      "closed": "added every diagram render (diagrams/, docs/diagrams/ png and svg) and the renamed CLI reference page",
+      "id": "msg-107",
+      "text": "rename-detentd: four more paths need the file set (renders and a renamed page of in-set sources): diagrams/10_how_actors.png, docs/diagrams/actors-overview.png, docs/diagrams/actors-where.png (re-renders of their in-set .d2), website/src/content/docs/reference/cli/detent-authority.md (git mv of the in-set reference/cli/detentd.md). msg-106 is folded in at Detent:1ccfef49."
+    },
+    {
+      "at": "2026-11-19T08:18:56",
+      "by": "xapiand-lead",
+      "closed": "the nightly was cancelled by campaign-state pushes to main (concurrency cancel-in-progress); fixed in ci.yml; macOS failure filed as frames-session-busy-flake",
+      "id": "msg-108",
+      "text": "xapiand lead: nightly backlog run cpp-libraries 44534483604 finished: 73 of 75 libraries green; Detent's nightly 44545028079 was cancelled (linux-tsan, linux-asan-ubsan, linux-benchmarks cancelled; source-checks and pin-check green). FYI if that cancel wasn't yours."
+    },
+    {
+      "at": "2026-11-19T06:03:55",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-99",
+      "items": {
+        "delta-plan-warm": "frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "delta-plan-warm",
+          "dense-sync-stack-5m-times",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set dense-power-cut-cycles: unlocks frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T09:02:39",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-109",
+      "items": {
+        "consensus-batch-turn-room": "frees include/consensus/worker.h, docs/** for consensus-batch-turn-room",
+        "delta-plan-warm": "frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm",
+        "dense-sync-stack-5m-times": "frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times",
+        "driver-witness-removal-sink": "frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink",
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "consensus-batch-turn-room",
+          "delta-plan-warm",
+          "dense-sync-stack-5m-times",
+          "driver-witness-removal-sink",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "driver-apply-gap landed: unlocks frees include/consensus/worker.h, docs/** for consensus-batch-turn-room; frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink; frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T10:19:44",
+      "by": "xapiand-lead",
+      "closed": "t3-tsan at 19/20 repeats, ends within minutes; future soaks sized to real time",
+      "id": "msg-110",
+      "text": "xapiand lead: queue stall FYI. Your light job 261119-061952-3544a5 (reader-s6 t3-tsan, --cpus 8, --minutes 300, until 14:08) is fine by itself, but the queued exclusives (document-gate, wide-search-loop) wait for the running light holds to end, and while they wait new light holds are blocked: last hour 60 min of runnable work sat beside idle slots. Can t3-tsan be split into shorter rounds (say 4 x 75 min) so drains get a turn? I'm also proposing to the owner a campaign scheduler change: a waiting drain shouldn't block new light work when a running light hold outlasts the drain wait."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -800,6 +1016,35 @@
       "status": "landed",
       "title": "Actors documentation",
       "updated": "2026-11-08T15:38:08"
+    },
+    "archive-stash-scheduler": {
+      "accepted": {},
+      "after": [
+        "xapiand:task-lifecycle",
+        "xapiand:xapiand-lifecycle"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/dev/superseded-libraries.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "archive the stash and scheduler repositories",
+      "updated": "2026-11-19T06:35:13"
     },
     "async-drivers": {
       "accepted": {},
@@ -1453,17 +1698,81 @@
         }
       ],
       "journal": "../Detent-wt/detent/connection-slow-reader-flake",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T04:51:51",
+          "commit": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+          "criteria": {
+            "A1": "261118-223426-9ebaf9 (passed at 1bace1ebdfd8; only merges from main since), 261118-223429-3998b5 (passed at 1bace1ebdfd8; only merges from main since); fails without: 261118-221112-dc092b, 261118-221115-3049dd",
+            "A2": "261118-223432-13d2c9 (passed at 1bace1ebdfd8; only merges from main since), 261118-223436-ed18de (passed at 1bace1ebdfd8; only merges from main since); fails without: 261118-211716-cc66bd, 261118-223440-f7b703",
+            "A3": "manual (who: the contributor, connection-slow-reader-flake; checked: `git -C consensus diff origin/main...1bace1e --stat` changes only test/transport/connection_test.cc, so include/consensus/transport/connection.h and all product code are unchanged; each named cause is in the test: the backlog built on the running dialer loop, sizing from an assumed send buffer, the reader's capacity past its pin, a pace that ignored the half-read frame)",
+            "A4": "261118-223443-6c49b0 (passed at 1bace1ebdfd8; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "1bace1ebdfd8af2b5bb17ecbb83d571620e2d731",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-223443-6c49b0",
+              "level": "light",
+              "seconds": 1462.5,
+              "state": "done",
+              "what": "connection-slow-reader-flake check suite at 1bace1ebdfd8"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "122564d61c2f8cd5ac1273a9c5746c7fc2419b8e",
+          "reason": "",
+          "tested": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
-      "updated": "2026-11-18T20:26:28",
+      "updated": "2026-11-19T04:52:10",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
+    },
+    "consensus-batch-turn-room": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "test/worker_test.cc",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus worker: validate a batch against the host's turn room",
+      "updated": "2026-11-19T05:59:18"
     },
     "consensus-close-fenced": {
       "accepted": {
@@ -1587,6 +1896,35 @@
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
       "updated": "2026-11-18T17:23:58",
       "worktree": ""
+    },
+    "consensus-dns-notes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/resolve.h",
+        "test/transport/resolve_test.cc",
+        "docs/mechanisms/peer-dns.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus resolve: emplace inside the try, exit-wait CHANGELOG, fork note",
+      "updated": "2026-11-19T05:59:13"
     },
     "consensus-dns-peers": {
       "accepted": {
@@ -1753,38 +2091,38 @@
     "consensus-dns-threads": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-18T21:22:00",
-          "base": "c782db1b11cf79781698be768debca1598cc684b",
+          "at": "2026-11-19T05:08:16",
+          "base": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
           "blobs": {
             "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
             "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
             "include/consensus/transport/resolve.h": "100644:bca2deff8ad18699afa8fc31fcf5dbcb84a651d7",
             "test/transport/dns_mutants.sh": "100755:76498905ec8785be6cb17279627e4440ab6eb04e",
-            "test/transport/resolve_test.cc": "100644:3d61274cf49e8fb407523a2a98c05a1f927616de"
+            "test/transport/resolve_test.cc": "100644:b2d96b2dc6611e98fec6eaf9b719a7bcaf24250c"
           },
           "by": "review",
-          "commit": "e20721dd4d305d6bb0fff2e122fb4f4571a0d890",
+          "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
           "criteria": "41315d8a4c52f7d1",
           "diffs": {
             "CMakeLists.txt": "e677a95f10cedc23",
             "docs/mechanisms/peer-dns.md": "d5faaccaa498ca7e",
             "include/consensus/transport/resolve.h": "e8d40bcd326e072f",
             "test/transport/dns_mutants.sh": "cf3d8bdc9f484cc9",
-            "test/transport/resolve_test.cc": "56a43632ae096f68"
+            "test/transport/resolve_test.cc": "c65f486677290dfc"
           },
           "findings": {
             "F1": {
               "jobs": [
                 {
                   "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "d0f5cbf55d152aeb12cee6b50e6769cc1776101f",
+                  "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-172845-1cff2c",
+                  "job": "261119-044734-8ddccc",
                   "level": "light",
-                  "seconds": 1225.5,
+                  "seconds": 1215.4,
                   "state": "done",
-                  "what": "consensus-dns-threads check suite at d0f5cbf55d15"
+                  "what": "consensus-dns-threads check suite at 3e1930f16062"
                 }
               ],
               "kind": "defect",
@@ -1794,14 +2132,14 @@
               "jobs": [
                 {
                   "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
-                  "commit": "d0f5cbf55d152aeb12cee6b50e6769cc1776101f",
+                  "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-172845-1cff2c",
+                  "job": "261119-044734-8ddccc",
                   "level": "light",
-                  "seconds": 1225.5,
+                  "seconds": 1215.4,
                   "state": "done",
-                  "what": "consensus-dns-threads check suite at d0f5cbf55d15"
+                  "what": "consensus-dns-threads check suite at 3e1930f16062"
                 }
               ],
               "kind": "gap",
@@ -1812,7 +2150,7 @@
             "paths": [
               "CMakeLists.txt"
             ],
-            "reason": "CMakeLists registers the F1/F2 regression tests; no mechanism; main's merge adds only groups-upload-stall's test bound and a doc line"
+            "reason": "test-only resolve_test.cc baseline fix; main's merges add connection_test.cc (slow-reader, test-only) and flow-control docs/bench, unrelated to the resolver"
           },
           "note": "",
           "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
@@ -1878,18 +2216,48 @@
         }
       ],
       "journal": "../Detent-wt/detent/consensus-dns-threads",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T05:32:53",
+          "ci_skipped": "D116: CI 44467383652 (rerun) fails only groups_upload on macos-x86_64 (gap 4731 ms; the loop-stall class in groups-upload-loop-stall); every other platform green",
+          "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "criteria": {
+            "A1": "261118-214529-7441ed (passed at f427934f3c77; only merges from main since); fails without: 261118-045515-48fe11, 261118-055342-38236d, 261118-172842-91deab, 261118-214533-18c77e",
+            "A2": "261118-214531-9748fd (passed at f427934f3c77; only merges from main since), 261118-214532-7ff35e (passed at f427934f3c77; only merges from main since); fails without: 261118-045520-9559dc, 261118-055345-061f08, 261118-063756-2fdd9f, 261118-172841-dc467b, 261118-172843-ac3852, 261118-214535-e427d1, 261118-214536-d96e0d",
+            "A3": "261118-214529-7441ed (passed at f427934f3c77; only merges from main since); fails without: 261118-045518-1bd27b, 261118-055341-67d3bb, 261118-055343-f6ac66, 261118-172842-715091, 261118-172843-0977dc, 261118-214538-f02c6d, 261118-214539-942f84",
+            "A4": "261119-050819-2ffd6d, 261118-214447-666fec (passed at f427934f3c77; only merges from main since); fails without: 261118-205327-b8dccb, 261118-214449-5d9a15"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+              "commit": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-050819-2ffd6d",
+              "level": "light",
+              "seconds": 1451.0,
+              "state": "done",
+              "what": "consensus-dns-threads check suite at ae08d92e6384"
+            }
+          ],
+          "final": true,
+          "from": "62eb8fc7c758be0576be4b7e5874c0926aaeb35f",
+          "reason": "",
+          "tested": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T21:22:00",
+      "updated": "2026-11-19T05:32:56",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
@@ -2441,6 +2809,34 @@
       "updated": "2026-11-15T22:53:38",
       "worktree": ""
     },
+    "consensus-late-append-tests": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/consensus_test.cc",
+        "test/retained_state_test.cc",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "consensus: tests for late-success read probe and the snapshot guard",
+      "updated": "2026-11-19T05:59:16"
+    },
     "consensus-quiescence": {
       "accepted": {},
       "after": [],
@@ -2531,12 +2927,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "no code built; its file set blocked transport-feed-scan, transport-admission, consensus-wave-open and connection-slow-reader-flake. Re-planned as the contributor's proposed split (journal B1-B3) once those land",
       "repo": "../consensus",
       "risk": "high",
-      "status": "dropped",
+      "status": "planned",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-18T02:06:40",
+      "updated": "2026-11-19T06:01:28",
       "worktree": ""
     },
     "consensus-wave-open": {
@@ -3194,6 +3589,33 @@
       "updated": "2026-11-15T23:15:37",
       "worktree": ""
     },
+    "delta-plan-warm": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/perf/delta-plan-scaling.md",
+        "tests/detent_local/test_delta_plan_scaling*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "delta plan: measure a warm second plan on one mapping",
+      "updated": "2026-11-19T06:00:37"
+    },
     "dense-distribution": {
       "accepted": {
         "design": {
@@ -3605,6 +4027,8 @@
     "dense-power-cut-cycles": {
       "accepted": {},
       "after": [],
+      "base": "dcb09eb38874587a376ad4b2b55535db7edfc714",
+      "branch": "quest/detent/dense-power-cut-cycles",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3615,9 +4039,9 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_local/test_local_publication_power_cut*",
-        "tests/detent_local/*power_cut*",
-        "tests/detent_local/agent_store_*"
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_local/paged_power_cut_mutant.sh",
+        "tests/detent_local/CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [],
@@ -3628,38 +4052,39 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Dense pages: the power-cut matrix cuts after kill, restart and republish",
-      "updated": "2026-11-18T18:11:09"
+      "updated": "2026-11-19T06:03:55",
+      "worktree": "../Detent-wt/detent/dense-power-cut-cycles"
     },
     "dense-sync-stack": {
       "accepted": {
         "durability": {
-          "at": "2026-11-18T22:39:21",
-          "base": "34ee9823766d0a32aad7ad0b25586643bdbf2922",
+          "at": "2026-11-19T04:42:21",
+          "base": "dc736814ecd8289c5f44abe754c55029ba2e1665",
           "blobs": {
-            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:b1de8633e635c5efd3c7cdfe4f8f38ea622417b8",
+            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:c98579962501b4bb9d753a8ab67369b04989af80",
             "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "100755:9bd03e6043fe031f3e7536b510794d0e039e9bbe",
             "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "100755:841ef23b8e765d7458cad3a7173389c73f15788e",
             "docs/measurements/dense-sync-stack-20261118/seed.py": "100644:09880e141eac6fafdfc6ed9b22f2324650eb7340",
             "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "100755:aa0b0fbeaa38c6813e667bcff31895bacb9ef7c8",
             "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "100755:8e5bd7d21586967e0517b6abfa8d21e57fc8852c",
-            "docs/perf/dense-sync-stack.md": "100644:5128022634aed5ceefbcb462d85305b7696161ba",
+            "docs/perf/dense-sync-stack.md": "100644:d31f96329216160133bdf24d15a7dcb7ea9159e9",
             "src/detent_local/disk_store.cc": "100644:d9027979188c909ab8be80bca2cff5f3ae861e3b",
             "src/detent_local/store_core.hh": "100644:5e9af8398e5ae0499e8a3e4ef81326108ef2b654",
             "tests/detent_local/test_paged_publication_artifacts.cc": "100644:7ca32160869d66b09eb72bdaa7686a9e28736970"
           },
           "by": "review",
-          "commit": "bdb2263a2548fccae243e5c2a100b7fb2569aaac",
+          "commit": "8586ee740d8e1d139054e140a5fd61bf7f68c826",
           "criteria": "8689c78d79d12427",
           "diffs": {
-            "docs/measurements/dense-sync-stack-20261118/README.md": "35f921c93e9a796f",
+            "docs/measurements/dense-sync-stack-20261118/README.md": "47a76963e13f39aa",
             "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "bb1f57f832ea3167",
             "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "a67330b785ad354d",
             "docs/measurements/dense-sync-stack-20261118/seed.py": "449e583c508f6f5f",
             "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "b22eb658be1ece49",
             "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "e90ba64c48f0d744",
-            "docs/perf/dense-sync-stack.md": "9e794784abb44a55",
+            "docs/perf/dense-sync-stack.md": "bb78174d2c134ccd",
             "src/detent_local/disk_store.cc": "05ebd2546a0fc18e",
             "src/detent_local/store_core.hh": "9fd7f04e6bf16cc3",
             "tests/detent_local/test_paged_publication_artifacts.cc": "1f7c6b788ff0aab0"
@@ -3710,10 +4135,63 @@
         "tests/detent_local/test_publication_power_cut.cc",
         "docs/measurements/dense-sync-stack-20261118/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T05:45:16",
+          "commit": "e65a191a07d6359475d108137560fbd544a5fff6",
+          "criteria": {
+            "A1": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since)",
+            "A2": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since); fails without: 261118-055014-19aed1, 261118-055016-95665a",
+            "A3": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since)",
+            "A4": "manual (lead): every arm's job id, commit and level is in `docs/perf/dense-sync-stack.md` \u00a7 Runs (100K: Dense, S2, stacked, main x3 exclusive, branch head light; 5M: two rounds per arm, counters only); checked against `campaign job list`",
+            "A5": "261118-055412-a8791e (asan), 261118-055412-1bba5b (tsan), 261118-055412-608f32 (native)",
+            "A6": "`docs/perf/dense-sync-stack.md`"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-608f32",
+              "level": "light",
+              "seconds": 1065.9,
+              "state": "done",
+              "what": "dense-sync-stack check native at 7f55346b7a02"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-a8791e",
+              "level": "light",
+              "seconds": 603.6,
+              "state": "done",
+              "what": "dense-sync-stack check asan at 7f55346b7a02"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-1bba5b",
+              "level": "light",
+              "seconds": 735.3,
+              "state": "done",
+              "what": "dense-sync-stack check tsan at 7f55346b7a02"
+            }
+          ],
+          "final": true,
+          "from": "1b95d2390a1102288ebdeeb5b2298cf121f84e00",
+          "reason": "",
+          "tested": "8586ee740d8e1d139054e140a5fd61bf7f68c826"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [
         "dense-pages",
@@ -3722,10 +4200,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T22:39:21",
-      "worktree": "../Detent-wt/detent/dense-sync-stack"
+      "updated": "2026-11-19T05:45:35",
+      "worktree": ""
     },
     "dense-sync-stack-5m-times": {
       "accepted": {},
@@ -4045,6 +4523,43 @@
       "updated": "2026-11-11T13:26:12",
       "worktree": ""
     },
+    "detent-faultlab": {
+      "accepted": {},
+      "after": [
+        "dense-power-cut-cycles"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_authority/cluster_harness.hh",
+        "tests/detent_authority/test_history_*.cc",
+        "tests/detent_authority/test_namespace_power_cut.cc",
+        "tests/detent_agent/test_agent_store_crash.cc",
+        "tests/detent_relay/test_relay_mirror.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_system/network.py",
+        "tests/detent_testing/**",
+        "tests/CMakeLists.txt",
+        "tests/*/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
+      "updated": "2026-11-19T06:00:18"
+    },
     "detent-on-drivers": {
       "accepted": {},
       "after": [],
@@ -4146,6 +4661,40 @@
       "title": "Detent: refuse an old journal format at startup with a named error",
       "updated": "2026-11-18T22:34:32",
       "worktree": "../Detent-wt/detent/detent-refuse-old-format"
+    },
+    "detent-review-nits": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-v1-removal",
+        "delta-plan-warm",
+        "detent-faultlab"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/perf/delta-plan-scaling.md",
+        "src/detent_authority/history.cc",
+        "src/detent_relay/mirror.cc",
+        "tests/detent_authority/test_change_history.cc",
+        "tests/detent_relay/test_relay_mirror.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "review nits: delta-plan noise claim, history find_if, mirror cleanup errors",
+      "updated": "2026-11-19T06:01:04"
     },
     "dns-voters": {
       "accepted": {},
@@ -4684,7 +5233,36 @@
       "updated": "2026-11-10T11:59:38"
     },
     "driver-apply-gap": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T05:46:42",
+          "base": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "blobs": {
+            "docs/DRIVER.md": "100644:7ecaf8e7fd077199e6ff37de97d0745ccae2f3e4",
+            "include/consensus/core.h": "100644:155782a46d573f96025fdd06399cda7dae25584d",
+            "include/consensus/driver.h": "100644:77f0b894c2fb3c1d68dec8dab9cb15697de720b9",
+            "include/consensus/worker.h": "100644:f49c532cd314ce10ffe6a920fd5cae857075e263",
+            "test/driver_simulation.cc": "100644:d33258abb7e3b20a817d9378879e03c57779b4cf",
+            "test/driver_test.cc": "100644:982e480690abf645edba64b53cce287ececcb3d2"
+          },
+          "by": "review",
+          "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "criteria": "a821a5a7132e6df2",
+          "diffs": {
+            "docs/DRIVER.md": "84f586ceb556060e",
+            "include/consensus/core.h": "c906efbf3d49babb",
+            "include/consensus/driver.h": "c2977a5b1d0a0038",
+            "include/consensus/worker.h": "b07edf8a1fcb6d3c",
+            "test/driver_simulation.cc": "f60e3a210f6e5cb4",
+            "test/driver_test.cc": "0e852e56351d1392"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ba06cfd3ff368cf742dfaaa1692ccad3915f23d8",
+          "reviewed": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
       "branch": "quest/detent/driver-apply-gap",
@@ -4707,13 +5285,51 @@
         "include/consensus/driver.h",
         "docs/DRIVER.md",
         "test/driver_simulation.cc",
-        "test/driver_test.cc"
+        "test/driver_test.cc",
+        "include/consensus/core.h",
+        "include/consensus/worker.h"
       ],
-      "journal": "../Detent-wt/detent/driver-apply-gap",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T09:02:18",
+          "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+          "criteria": {
+            "A1": "Seed 399: the trace (`SIM_DRIVER_TRACE=1`, first read at consensus:40eeec7, before the fix) shows no Driver path advanced apply past delivery. Node 2 led term 6 (step 2749) and placed 6:120..6:126 while node 3 was down (booted step 2999); the heal loop's \"healed\" placed 6:126 (heal round 1). Node 3 (founded a Witness for odd seeds, driver_simulation.cc:276) won term 7 (round 37; its vote can only be node 1's, as node 2's log is longer); node 1 won term 8 (round 44); index 120 committed with a new entry (round 46), so 6:120..6:126 were replaced. The old loop re-proposed only on an error or no placement, so it waited 4,000 rounds on 6:126. Node 3's \"application 0\" is the witness rule. The reviewer's probe (261118-224440-51acaf, rerun at the head as 261119-053719-817bdb) checks the Driver's own `state().applied` against delivery after every step and heal round: 78,235,641 checks over seeds 1-10000 x 3000, none past delivery (this supersedes the trace awk check, F3). The real path the quest names exists outside the simulation's fixed membership: review F1, a learner whose promotion to witness is appended (core.h note_append) acknowledges ranges below it through `witness(g)` (driver.h, newest membership) and keeps that apply index when a later term truncates the promotion; reproduced by `truncated_promotion` (A2). Rerun of the trace at the head: 261119-044634-3835e7.",
+            "A2": "261119-044225-2f4e74 (passed at ee032308e6e9; only merges from main since); fails without: 261118-173953-5ceffe, 261119-044228-4bb073",
+            "A3": "261119-044534-b31c95 (passed at ee032308e6e9; only merges from main since), 261119-044537-1eca78 (passed at ee032308e6e9; only merges from main since), 261119-044543-64d814 (passed at ee032308e6e9; only merges from main since), 261119-044545-e73fc9 (passed at ee032308e6e9; only merges from main since), 261119-044547-4209fe (passed at ee032308e6e9; only merges from main since), 261119-044549-6f6e5c (passed at ee032308e6e9; only merges from main since), 261119-044551-9fd2e0 (passed at ee032308e6e9; only merges from main since), 261119-044553-f4004e (passed at ee032308e6e9; only merges from main since), 261119-044554-af9719 (passed at ee032308e6e9; only merges from main since), 261119-044557-c04687 (passed at ee032308e6e9; only merges from main since), 261119-044559-1edb20 (passed at ee032308e6e9; only merges from main since), 261119-044601-50fd2d (passed at ee032308e6e9; only merges from main since), 261119-044604-84c1d3 (passed at ee032308e6e9; only merges from main since), 261119-044607-fdbd78 (passed at ee032308e6e9; only merges from main since), 261119-044609-312784 (passed at ee032308e6e9; only merges from main since), 261119-044611-e9850d (passed at ee032308e6e9; only merges from main since), 261119-044613-0375fb (passed at ee032308e6e9; only merges from main since), 261119-044614-97a942 (passed at ee032308e6e9; only merges from main since), 261119-044616-10d85e (passed at ee032308e6e9; only merges from main since), 261119-044618-dbd1d0 (passed at ee032308e6e9; only merges from main since), 261119-044524-300372 (passed at ee032308e6e9; only merges from main since), 261119-044528-fa2a93 (passed at ee032308e6e9; only merges from main since)",
+            "A4": "261119-044634-1c8de7 (passed at ee032308e6e9; only merges from main since)",
+            "A5": "261119-063015-8873f3"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-063015-8873f3",
+              "level": "light",
+              "seconds": 998.0,
+              "state": "done",
+              "what": "driver-apply-gap check suite at 4b0b214c46c1"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "ae08d92e63840f1cd3e55e327cfe357ec46ac7f5",
+          "reason": "",
+          "tested": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-close-fenced"
@@ -4721,10 +5337,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T17:24:40",
-      "worktree": "../consensus-wt/detent/driver-apply-gap"
+      "updated": "2026-11-19T09:02:39",
+      "worktree": ""
     },
     "driver-pipeline": {
       "accepted": {},
@@ -4771,6 +5387,65 @@
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
       "updated": "2026-11-18T04:03:10"
+    },
+    "driver-witness-removal-sink": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T09:22:02",
+          "base": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "blobs": {
+            "docs/DRIVER.md": "100644:8c61200dbf6ad376caef06ec3a58f68b94717814",
+            "include/consensus/driver.h": "100644:f08016d8db65bc0604898561e82df16b94bf125b",
+            "test/driver_test.cc": "100644:c1adaefe08ad6b185a0e36fe03d8ee0a34978c0c"
+          },
+          "by": "review",
+          "commit": "5f1223ccd5870341b9ddb620eff1c1bccf34a403",
+          "criteria": "c2a086283ad7be81",
+          "diffs": {
+            "docs/DRIVER.md": "cc2e3a90551e4c58",
+            "include/consensus/driver.h": "f0bb3850063d8fd8",
+            "test/driver_test.cc": "d70c217fc0f5f54a"
+          },
+          "findings": {},
+          "note": "",
+          "review": "028022caa71d0814534c4941fb73264fd504918b",
+          "reviewed": "5f1223ccd5870341b9ddb620eff1c1bccf34a403",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "driver-apply-gap"
+      ],
+      "base": "4b0b214c46c1175b00e909ecdc6a50f9c47d271e",
+      "branch": "quest/detent/driver-witness-removal-sink",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "test/driver_test.cc",
+        "docs/DRIVER.md"
+      ],
+      "journal": "../Detent-wt/detent/driver-witness-removal-sink",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "review",
+      "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
+      "updated": "2026-11-19T09:22:02",
+      "worktree": "../consensus-wt/detent/driver-witness-removal-sink"
     },
     "drivers-completion-seam": {
       "accepted": {
@@ -5341,6 +6016,37 @@
       "updated": "2026-11-13T17:01:07",
       "worktree": ""
     },
+    "fixtures-port-zero": {
+      "accepted": {},
+      "after": [
+        "old-flakes-disposition"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/authority.py",
+        "tests/detent_system/managed.py",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_relay/test_relay_service.py"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "daemon fixtures bind port 0 and read the bound port",
+      "updated": "2026-11-19T06:00:49"
+    },
     "fleet-runner": {
       "accepted": {},
       "after": [],
@@ -5371,6 +6077,35 @@
       "status": "landed",
       "title": "Stage 6 component 1: bounded runner and native fleet tooling",
       "updated": "2026-11-08T15:38:24"
+    },
+    "frames-session-busy-flake": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_authority/test_authority_frames_service*",
+        "src/detent_authority/service.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "test_authority_frames_service gets 409 session_busy on macOS CI",
+      "updated": "2026-11-19T08:20:03"
     },
     "groups-upload-3s-class": {
       "accepted": {},
@@ -5441,7 +6176,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
-      "updated": "2026-11-18T21:26:52",
+      "updated": "2026-11-19T04:42:56",
       "worktree": ""
     },
     "groups-upload-loop-stall": {
@@ -5572,7 +6307,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
-      "updated": "2026-11-18T20:57:03",
+      "updated": "2026-11-19T04:42:52",
       "worktree": ""
     },
     "hash-once": {
@@ -5663,6 +6398,32 @@
       "status": "landed",
       "title": "Affinity checked against the loop thread (D9)",
       "updated": "2026-11-08T15:38:34"
+    },
+    "http-affinity-death-tsan": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/coroutine_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "low",
+      "status": "planned",
+      "title": "http: fix coroutine_test's affinity death test race under TSan",
+      "updated": "2026-11-19T05:59:49"
     },
     "http-client-adoption": {
       "accepted": {},
@@ -5756,6 +6517,43 @@
       "status": "landed",
       "title": "W2: Detent's HTTP path on task::task",
       "updated": "2026-11-08T12:45:37"
+    },
+    "http-drop-user-data": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "http_message.h",
+        "http_deferred.h",
+        "test/deferred_test.cc",
+        "test/deferred_asio_test.cc",
+        "test/timeouts_test.cc",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md",
+        "README.md",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "high",
+      "status": "planned",
+      "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
+      "updated": "2026-11-19T05:59:44"
     },
     "http-idle-cost": {
       "accepted": {
@@ -6378,6 +7176,42 @@
       "updated": "2026-11-11T15:55:18",
       "worktree": ""
     },
+    "journal-blocking-wake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_driver.h",
+        "test/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
+      "updated": "2026-11-19T05:59:59"
+    },
     "journal-driver": {
       "accepted": {
         "durability": {
@@ -6929,6 +7763,45 @@
       "updated": "2026-11-18T17:08:12",
       "worktree": ""
     },
+    "journal-hop-on-task": {
+      "accepted": {},
+      "after": [
+        "journal-blocking-wake"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_driver.h",
+        "test/**",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal turn driver: fallback hop on a task primitive",
+      "updated": "2026-11-19T06:00:06"
+    },
     "journal-host-guards": {
       "accepted": {
         "durability": {
@@ -7165,7 +8038,7 @@
       "risk": "high",
       "status": "landed",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T22:31:26",
+      "updated": "2026-11-19T04:42:59",
       "worktree": ""
     },
     "journal-reopen-closed": {
@@ -8138,6 +9011,40 @@
       "updated": "2026-11-12T14:59:48",
       "worktree": ""
     },
+    "logger-slack-mutant": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/deferred_mutant.sh",
+        "test/deferred.cc",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "low",
+      "status": "planned",
+      "title": "logger: a mutant for the deferred lines' 8 ms slack",
+      "updated": "2026-11-19T05:59:53"
+    },
     "logger-wheel-ab": {
       "accepted": {},
       "after": [],
@@ -8264,6 +9171,114 @@
       "title": "Measure a slim deferred-line wheel record in logger",
       "updated": "2026-11-12T13:48:33",
       "worktree": ""
+    },
+    "loop-idle-waits": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T07:50:38",
+          "base": "be6f4177c34750e90eb41d2d6723ff9786a5da90",
+          "blobs": {
+            "bench/idle-wakeups/compare.sh": "100755:e1186f944d73645c1f82dcb0ef7d999826add330",
+            "bench/idle-wakeups/idle_loops.py": "100644:bb54a1606a22e48b62208c883aad2b67813b5909",
+            "bench/idle-wakeups/pair.py": "100644:092c97e8e118f17d0db25b930b89d80827cc7319",
+            "bench/idle-wakeups/paths.py": "100644:68a970000d8cf78dbd64876aca0ea777c0139954",
+            "bench/idle-wakeups/usage.c": "100644:33ef0ad3813ad94e3a3be8e4aa04fabb9562140e",
+            "include/detent/owner_loop.hh": "100644:d096b62a904eb74a498895c6ebe41a5d5e6b260b",
+            "include/detent_distribution_http/reply_pump.hh": "100644:763bda1f908bf9841d3c06ae79bd6ac34f84d4c2",
+            "include/detent_relay/mirror_service.hh": "100644:6f09e21c7e6852f31d9fb766efcf6159af6bf6d7",
+            "include/detent_relay/service.hh": "100644:b6fe12b4b87f3728735d2ee054948efda69f1f5d",
+            "src/detent_authority/service.cc": "100644:c9a77ce34f989aa146d1726bba175a42a0eaa5d6",
+            "src/detent_delivery/coordinator.cc": "100644:5b6d071c96441a65534d88ab47544a934051e843",
+            "src/detent_distribution_http/reply_pump.cc": "100644:7c8a333889fa517426cdfb863b86216edf94faf6",
+            "src/detent_relay/host.cc": "100644:918d28cb97ec2ba5b889282d79a1b5d8754d3337",
+            "src/detent_relay/mirror_service.cc": "100644:8230499bd9c995ed147138708ee7dc2f550c1b22",
+            "src/detent_relay/service.cc": "100644:eef60e74ba4f86d6c3d29afc6ce130abfcbd560f",
+            "tests/detent_authority/CMakeLists.txt": "100644:386618eea8aac8752675755ab0664549afafcca1",
+            "tests/detent_authority/test_idle_wake.cc": "100644:1c8b3b8dbca7bf98275d88110d6e43da05ccf90f",
+            "tests/detent_delivery/CMakeLists.txt": "100644:979b493aab7bc7839eaa1d0d5fd61814117e4263",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "100755:7d27704e6c28a9b9201a93b89ac1c2797fe5a538",
+            "tests/detent_delivery/relay_service_fixture.hh": "100644:eb99db6ebf1ec8d9e2852a4f2b12210415d6942f",
+            "tests/detent_delivery/test_owner_wake.cc": "100644:4175810dba3396b194a971e0ae5b9a5f9f4e9710",
+            "tests/detent_delivery/test_reply_pump.cc": "100644:a0fa0f627e1914f8b7ba244f84c83641c712fca4"
+          },
+          "by": "review",
+          "commit": "f5cab9d91e69a4187707575f26fefe04b72b3eff",
+          "criteria": "12daa201164b1441",
+          "diffs": {
+            "bench/idle-wakeups/compare.sh": "1bb69db6cc6b4ee5",
+            "bench/idle-wakeups/idle_loops.py": "b2def26758f6e8c6",
+            "bench/idle-wakeups/pair.py": "ef95f85906019692",
+            "bench/idle-wakeups/paths.py": "844ad8897f6acdc5",
+            "bench/idle-wakeups/usage.c": "38f74f473f32db23",
+            "include/detent/owner_loop.hh": "4d45b4b39ae064f6",
+            "include/detent_distribution_http/reply_pump.hh": "7d64dc267622bee7",
+            "include/detent_relay/mirror_service.hh": "2bb1131cc8b07f8d",
+            "include/detent_relay/service.hh": "2f97b22e310ed8fb",
+            "src/detent_authority/service.cc": "7fde94db2f8e52e5",
+            "src/detent_delivery/coordinator.cc": "70c365555114d2d2",
+            "src/detent_distribution_http/reply_pump.cc": "18a852947572dc7c",
+            "src/detent_relay/host.cc": "2c1484ae7a13efdd",
+            "src/detent_relay/mirror_service.cc": "443f1ba376153777",
+            "src/detent_relay/service.cc": "e6d47a9383f6f441",
+            "tests/detent_authority/CMakeLists.txt": "cd9ee72048934327",
+            "tests/detent_authority/test_idle_wake.cc": "c9fcffe1d6c0e691",
+            "tests/detent_delivery/CMakeLists.txt": "8c1fcc1be3a3d0e8",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "16b39a0f1efeb276",
+            "tests/detent_delivery/relay_service_fixture.hh": "d089c360288623dd",
+            "tests/detent_delivery/test_owner_wake.cc": "12b98cd4837244eb",
+            "tests/detent_delivery/test_reply_pump.cc": "8be5cafb967e1bc4"
+          },
+          "findings": {},
+          "note": "",
+          "review": "5c94d7ef7c4f1fb2c34a9002a6ef65f067ed0a70",
+          "reviewed": "f5cab9d91e69a4187707575f26fefe04b72b3eff",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "rename-detentd"
+      ],
+      "base": "be6f4177c34750e90eb41d2d6723ff9786a5da90",
+      "branch": "quest/detent/loop-idle-waits",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_relay/host.cc",
+        "src/detent_authority/service.cc",
+        "src/detent_delivery/coordinator.cc",
+        "include/detent/owner_loop.hh",
+        "include/detent_distribution_http/reply_pump.hh",
+        "src/detent_distribution_http/reply_pump.cc",
+        "src/detent_relay/service.cc",
+        "include/detent_relay/service.hh",
+        "src/detent_relay/mirror_service.cc",
+        "include/detent_delivery/coordinator.hh",
+        "tests/detent_relay/**",
+        "tests/detent_authority/**",
+        "tests/detent_delivery/**",
+        "bench/idle-wakeups/**",
+        "include/detent_relay/mirror_service.hh"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "active",
+      "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
+      "updated": "2026-11-19T10:31:02",
+      "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
       "accepted": {},
@@ -8393,6 +9408,38 @@
         "owner"
       ],
       "updated": "2026-11-08T17:30:06"
+    },
+    "multi-voter-idle-wake": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/service.cc",
+        "include/detent/owner_loop.hh",
+        "tests/detent_authority/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
+      "updated": "2026-11-19T06:36:30"
     },
     "namespace-cleanup": {
       "accepted": {},
@@ -12829,6 +13876,42 @@
       "title": "Namespace S9-S10: detent-image seeding and the group count",
       "updated": "2026-11-10T13:11:10"
     },
+    "observability-core": {
+      "accepted": {},
+      "after": [
+        "reader-s6"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent/reader.h",
+        "include/detent/reader.hh",
+        "include/detent_local/read_counters.hh",
+        "src/detent_reader/**",
+        "tests/detent_reader/**",
+        "docs/design/observability.md",
+        "docs/mechanisms/read-counters.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "knob observability OB1-OB3 in the reader core",
+      "updated": "2026-11-19T06:00:24"
+    },
     "observability-design": {
       "accepted": {
         "design": {
@@ -12948,6 +14031,39 @@
       "title": "One knob type: review follow-ups C1-C5",
       "updated": "2026-11-12T14:21:33",
       "worktree": ""
+    },
+    "old-flakes-disposition": {
+      "accepted": {},
+      "after": [
+        "detent-faultlab"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/managed.py",
+        "tests/detent_authority/test_transport_https.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_delivery/test_managed_process.sh",
+        "docs/status/http-coroutines.md",
+        "docs/DEPENDENCY_UPGRADES.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
+      "updated": "2026-11-19T06:00:43"
     },
     "one-knob-type": {
       "accepted": {
@@ -13643,6 +14759,62 @@
       "updated": "2026-11-12T03:46:56",
       "worktree": ""
     },
+    "online-capacity": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/ONLINE_CAPACITY_ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "online capacity increases: build the parked blueprint or drop it",
+      "updated": "2026-11-19T06:00:59"
+    },
+    "pack-scrub-hash-count": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-v1-removal"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/pack_scrub.cc",
+        "src/detent_local/pack_scrub.hh",
+        "tests/detent_testing/test_pack_scrub.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "PackScrub counts what it hashes",
+      "updated": "2026-11-19T06:01:02"
+    },
     "paged-decode-one-shape": {
       "accepted": {},
       "after": [],
@@ -13685,6 +14857,67 @@
       "status": "planned",
       "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
       "updated": "2026-11-18T14:27:14"
+    },
+    "paged-first-touch-one-shape": {
+      "accepted": {},
+      "after": [
+        "reader-s6",
+        "paged-decode-one-shape"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/lazy_page_access.*",
+        "src/detent_local/paged_*.cc",
+        "src/detent_local/paged_*.hh",
+        "tests/detent_local/test_lazy_page_access.cc",
+        "tests/detent_local/*paged*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "paged reads: one first-touch page check",
+      "updated": "2026-11-19T06:00:31"
+    },
+    "peers-busy-roundtrip-bound": {
+      "accepted": {},
+      "after": [
+        "peers-tsan-timeout"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "consensus: peers_test busy round-trip bound (64 ms) fails under load at 256 ms",
+      "updated": "2026-11-19T05:38:03"
     },
     "peers-retry-flake": {
       "accepted": {},
@@ -13771,7 +15004,12 @@
         "test/transport/peers_test.cc",
         "include/consensus/transport/peers.h",
         "src/transport/peers.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/transport/groups_test.cc",
+        "test/support/**",
+        "test/CMakeLists.txt",
+        "test/transport/links_test.cc",
+        "test/transport/connection_test.cc"
       ],
       "journal": "../Detent-wt/detent/peers-tsan-timeout",
       "landed": [],
@@ -13781,9 +15019,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-18T17:27:58",
+      "updated": "2026-11-19T09:59:08",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
@@ -13999,6 +15237,42 @@
       "title": "Prepared-reader attachment, opt-in",
       "updated": "2026-11-08T15:38:03"
     },
+    "prism-server-composition": {
+      "accepted": {},
+      "after": [
+        "server-composition-adoption"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "build"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/prism",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Prism adopts the server composition note (D122)",
+      "updated": "2026-11-19T06:24:29"
+    },
     "quickstart-managed": {
       "accepted": {},
       "after": [],
@@ -14131,6 +15405,38 @@
       "title": "RC-5: the composed release candidate",
       "updated": "2026-11-08T15:38:09"
     },
+    "reactor-abortlist-thread": {
+      "accepted": {},
+      "after": [
+        "reactor-tls-cache"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "reactor.h",
+        "test/session_test.cc",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "high",
+      "status": "planned",
+      "title": "reactor: a session ending on another loop untracks on the owning loop",
+      "updated": "2026-11-19T05:59:41"
+    },
     "reactor-on-wheel": {
       "accepted": {},
       "after": [
@@ -14234,6 +15540,37 @@
       "status": "landed",
       "title": "reactor sessions on task (step R)",
       "updated": "2026-11-08T15:38:29"
+    },
+    "reactor-tls-cache": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "reactor_tls.h",
+        "test/tls_test.cc",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "high",
+      "status": "planned",
+      "title": "reactor tls::configure: load certificates once, reload on change",
+      "updated": "2026-11-19T05:59:39"
     },
     "reader-acl": {
       "accepted": {},
@@ -14459,7 +15796,8 @@
         "src/detent_local/paged_node_step.hh",
         "src/detent_local/paged_read_state.cc",
         "tests/detent_local/test_foreign_generation.cc",
-        "tests/detent_local/test_dense_reads.cc"
+        "tests/detent_local/test_dense_reads.cc",
+        "docs/perf/reader-lookup.md"
       ],
       "landed": [],
       "lenses": [
@@ -14478,7 +15816,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-18T14:46:39",
+      "updated": "2026-11-19T04:59:32",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -14669,6 +16007,152 @@
       "title": "SC-1: relay snapshot lifecycle with retained bootstrap paths",
       "updated": "2026-11-08T15:38:02"
     },
+    "rename-detentd": {
+      "accepted": {},
+      "after": [],
+      "base": "967408eb2227069397808c6dc080d84a3136e9af",
+      "branch": "quest/detent/rename-detentd",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/tls-fixture-diagnostics.yml",
+        "benchmarks/distributor-publication-preliminary-20261020.json",
+        "benchmarks/fleet-persistent-transport-qualification.json",
+        "benchmarks/library-adoption-closure-20261019.json",
+        "benchmarks/library-adoption-progress-20261017.json",
+        "benchmarks/logging-footprint.json",
+        "benchmarks/managed-failover-qualification.json",
+        "benchmarks/raft-apply-retry-qualification-20261020.json",
+        "benchmarks/xapiand-logging-preliminary-20261020.json",
+        "CHANGELOG.md",
+        "CMakeLists.txt",
+        "diagrams/01_overview.d2",
+        "diagrams/01_overview.svg",
+        "diagrams/07_agent.d2",
+        "diagrams/07_agent.svg",
+        "diagrams/08_detent_deps.d2",
+        "diagrams/08_detent_deps.svg",
+        "diagrams/09_thirdparty_deps.d2",
+        "diagrams/09_thirdparty_deps.svg",
+        "diagrams/10_how_actors.d2",
+        "docs/ACTORS.md",
+        "docs/AUTHORITY_ARCHITECTURE.md",
+        "docs/AUTHORITY_TRANSPORT.md",
+        "docs/DEPENDENCY_UPGRADES.md",
+        "docs/design/http-coroutines.md",
+        "docs/dev/docs-e2e.md",
+        "docs/dev/docs-site-audit.md",
+        "docs/diagrams/actors-overview.d2",
+        "docs/diagrams/actors-where.d2",
+        "docs/handoffs/detent-codex-2026-11.md",
+        "docs/HOW_IT_WORKS.md",
+        "docs/LIBRARY_BOUNDARIES.md",
+        "docs/LOGGING.md",
+        "docs/mechanisms/bound-port-report.md",
+        "docs/mechanisms/format-refusal.md",
+        "docs/mechanisms/status-probe.md",
+        "docs/perf/dense-sync-stack.md",
+        "docs/perf/m1-w5-evidence.md",
+        "docs/perf/m1-w5-evidence/classic-daemon-log-diff.txt",
+        "docs/SERVICES.md",
+        "docs/USAGE.md",
+        "docs/VALIDATED_ARCHITECTURE.md",
+        "include/detent/json_patch.hh",
+        "packaging/homebrew/detent.rb",
+        "packaging/launchd/org.detent.detentd.plist",
+        "packaging/rc.d/detentd",
+        "packaging/systemd/detentd.service",
+        "QUICKSTART.md",
+        "README.md",
+        "src/CMakeLists.txt",
+        "src/detent_cli/config.cc",
+        "src/detent/json_schema.cc",
+        "src/detentd/main.cc",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_authority/revert_followup_check.sh",
+        "tests/detent_authority/revert_ready_check.sh",
+        "tests/detent_authority/test_daemon_alone.py",
+        "tests/detent_authority/test_daemon_ready.sh",
+        "tests/detent_authority/test_daemon_stop.sh",
+        "tests/detent_delivery/CMakeLists.txt",
+        "tests/detent_relay/CMakeLists.txt",
+        "tests/detent_relay/relay_health_check.sh",
+        "tests/detent_relay/service_mutant.sh",
+        "tests/detent_relay/test_relay_service.py",
+        "tests/detent_system/CMakeLists.txt",
+        "tests/detent_system/forcing/sys_soak.sh",
+        "tests/detent_system/README.md",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_system/test_mixed.py",
+        "tests/docs/check_docs.py",
+        "tests/docs/e2e_exceptions.txt",
+        "tests/docs/run_e2e.py",
+        "tests/support/bound_port.sh",
+        "tools/w5/http_replay.py",
+        "tools/w5/run_identity.sh",
+        "tools/w5/writers_row.py",
+        "website/src/content/docs/architecture.md",
+        "website/src/content/docs/architecture/authority.md",
+        "website/src/content/docs/architecture/dependencies.md",
+        "website/src/content/docs/architecture/how-it-works.md",
+        "website/src/content/docs/basics.md",
+        "website/src/content/docs/guides/durable-authority.md",
+        "website/src/content/docs/guides/managed-delivery.md",
+        "website/src/content/docs/installation.md",
+        "website/src/content/docs/next.md",
+        "website/src/content/docs/operations/authority.md",
+        "website/src/content/docs/operations/logging.md",
+        "website/src/content/docs/operations/services.md",
+        "website/src/content/docs/quickstart.md",
+        "website/src/content/docs/reference/cli.md",
+        "website/src/content/docs/reference/cli/detentd.md",
+        "website/src/content/docs/reference/configuration.md",
+        "website/src/content/docs/reference/http-api.md",
+        "website/src/content/docs/reference/observability.md",
+        "website/src/content/docs/welcome.md",
+        "website/src/lib/sidebar.mjs",
+        "website/src/plugins/ec-rest-curl.mjs",
+        "src/detent_authority/main.cc",
+        "packaging/**",
+        "benchmarks/logging_compare.py",
+        "docs/status/actors-docs.md",
+        "docs/status/http-coroutines.md",
+        "docs/status/legacy-wave2.md",
+        "docs/status/m1-pins.md",
+        "docs/status/namespace-s1-s2.md",
+        "docs/status/namespace-s8.md",
+        "docs/status/post-w2.md",
+        "docs/status/quickstart-managed.md",
+        "docs/status/salvage-2026-11-03.md",
+        "docs/status/salvage-followups.md",
+        "tests/detent_authority/test_dns_voters.py",
+        "tests/detent_authority/test_lost_quorum.py",
+        "diagrams/*.png",
+        "diagrams/*.svg",
+        "docs/diagrams/*.png",
+        "docs/diagrams/*.svg",
+        "website/src/content/docs/reference/cli/detent-authority.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "active",
+      "title": "Rename detentd to detent-authority (D123)",
+      "updated": "2026-11-19T06:47:28",
+      "worktree": "../Detent-wt/detent/rename-detentd"
+    },
     "resource-adoption": {
       "accepted": {},
       "after": [],
@@ -14732,6 +16216,34 @@
         "owner"
       ],
       "updated": "2026-11-08T17:30:07"
+    },
+    "retained-byte-limit-test": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-v1-removal"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_authority/test_node.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "test that recovery is refused below the stored history's bytes",
+      "updated": "2026-11-19T06:01:00"
     },
     "retained-state": {
       "accepted": {},
@@ -15221,6 +16733,40 @@
       "title": "One server composition note for Prism, Detent and Xapiand",
       "updated": "2026-11-12T11:16:23",
       "worktree": ""
+    },
+    "server-composition-adoption": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits",
+        "rename-detentd",
+        "xapiand:task-lifecycle",
+        "xapiand:xapiand-lifecycle"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detentd/**",
+        "src/detent_relay/main.cc",
+        "src/detent_cli/**",
+        "src/detent_agent/main.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
+      "updated": "2026-11-19T06:35:10"
     },
     "service-shape": {
       "accepted": {
@@ -15841,6 +17387,33 @@
       "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
       "updated": "2026-11-08T15:38:27"
     },
+    "task-settle-notes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/sync_test.cc",
+        "docs/API.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../task",
+      "risk": "low",
+      "status": "planned",
+      "title": "task: same-thread settle test and the cancel-callback wait rule",
+      "updated": "2026-11-19T06:00:12"
+    },
     "task-wheel": {
       "accepted": {
         "correctness": {
@@ -16279,6 +17852,39 @@
       "title": "HostTransport feed without a per-frame scan of every group",
       "updated": "2026-11-18T05:57:05",
       "worktree": "../consensus-wt/detent/transport-feed-scan"
+    },
+    "transport-group-bytes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**",
+        "bench/transport_idle.cc",
+        "docs/mechanisms/host-transport.md",
+        "docs/perf/transport-idle-cost.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "consensus host transport: per-group bytes, vector FIFO, one GroupTable lookup, owe order",
+      "updated": "2026-11-19T06:21:20"
     },
     "transport-groups": {
       "accepted": {
@@ -16887,6 +18493,39 @@
       "updated": "2026-11-17T19:01:10",
       "worktree": ""
     },
+    "transport-receive-bound": {
+      "accepted": {},
+      "after": [
+        "transport-group-bytes"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "test/transport/**",
+        "docs/mechanisms/host-transport.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "consensus host transport: bound a receiver's per-loop batches",
+      "updated": "2026-11-19T05:59:10"
+    },
     "turn-seal-forget-flake": {
       "accepted": {},
       "after": [],
@@ -16998,6 +18637,40 @@
       "status": "planned",
       "title": "Voters serve history only after a leader-confirmed read",
       "updated": "2026-11-18T09:14:57"
+    },
+    "w2-leftovers": {
+      "accepted": {},
+      "after": [
+        "namespace-s6-v1-removal"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/run_partition.py",
+        "include/detent_transport/await_io.hh",
+        "include/detent_transport/https_client.hh",
+        "src/detent_delivery/client.cc",
+        "src/detent_delivery/namespace_session.cc",
+        "tests/detent_delivery/task_support.hh",
+        "tests/detent_delivery/relay_network_fixture.hh"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "stale-leader write probe; one await shape",
+      "updated": "2026-11-19T06:00:55"
     },
     "warm-graph-5m": {
       "accepted": {

@@ -6,6 +6,10 @@
 #include "paged_root_prefix.hh"
 #include "recovery_context.hh"
 namespace detent::local::detail {
+// A test's hook on each store's PosixIO before the store opens it: completion's sync seam.
+struct DiskStoreTesting {
+	static void install(void (*)(kronuz::io::completion::PosixIO &) noexcept) noexcept;
+};
 struct StoreCore {
 	StoreCore(std::shared_ptr<distribution::StorageLedger> account, DiskStoreOptions options,
 			  distribution::RetirementFactory allocator)

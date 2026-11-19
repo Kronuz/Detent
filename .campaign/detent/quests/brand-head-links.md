@@ -8,7 +8,7 @@ through `site.webmanifest`, `favicon.svg` with `favicon.ico` as fallback, all un
 site base path. Follows detent-brand (icons in `website/public/`) and docs-e2e (owns
 `astro.config.mjs` while active).
 
-## Criteria
+## Acceptance criteria
 
 - A1 The site builds and its pages carry the touch-icon and manifest links with the base path (check `site`).
 - A2 [artifact] `website/public/site.webmanifest` names `icon-192.png` and `icon-512.png` under `/Detent/`.

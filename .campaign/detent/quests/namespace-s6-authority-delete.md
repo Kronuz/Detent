@@ -24,3 +24,7 @@ D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.md`): 
 ## May land early
 
 Nothing: it removes a wire.
+
+## Notes
+
+Audit 2026-11-19 (J12): namespace-s6-cutover review F3, F4, F6 and F8 were never placed (namespace-s6-cutover journal:65-75). F4 is confirmed open (`src/detent_authority/service.cc:1582`, one answer in flight); F3, F6 and F8 are unchecked in code. Close or disposition each here.

@@ -27,3 +27,7 @@ D96, D97, D102, D106. Xapiand cluster-release (Xapiand:15c3e05ac) and consensus-
 ## May land early
 
 Tests; the transport is additive beside Peers.
+
+## Notes
+
+Re-planned 2026-11-19 from the untracked-commitment audit (U1): dropped 2026-11-17 (Detent:7487ddec) to re-plan once its split quests landed, and they have. On consensus main `rpc.h` is included by no production header and `host_transport.h` has no lane. A6's N2 is verified open: `rpc.h:386` `send` accepts bytes past a known total. consensus-fetch-macos's F13, F16 and F19 fold in here (D102). consensus-quiescence and detent-on-drivers wait on it, and Xapiand's consensus-rpc-lane orders after `detent:consensus-transport`.

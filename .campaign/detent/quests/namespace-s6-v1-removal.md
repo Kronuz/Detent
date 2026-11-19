@@ -27,3 +27,7 @@ D93, D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.m
 ## May land early
 
 Nothing: it switches every consumer's wire.
+
+## Notes
+
+Audit 2026-11-19 (J11): the relay's `SessionFramesEncoder(std::nullopt, requests)` (`src/detent_relay/namespace_relay.cc:314`) uses the encoder's private default ledger, not the shared one (namespace-s6-hardening journal:55); moving the relay onto v2 passes the shared ledger, with a test that fails on the private one.
