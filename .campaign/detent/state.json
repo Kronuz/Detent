@@ -14922,6 +14922,42 @@
       "title": "Prepared-reader attachment, opt-in",
       "updated": "2026-11-08T15:38:03"
     },
+    "prism-server-composition": {
+      "accepted": {},
+      "after": [
+        "server-composition-adoption"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "build"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/prism",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Prism adopts the server composition note (D122)",
+      "updated": "2026-11-19T06:24:29"
+    },
     "quickstart-managed": {
       "accepted": {},
       "after": [],
