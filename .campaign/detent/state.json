@@ -3426,9 +3426,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T17:14:19",
+      "updated": "2026-11-18T17:15:01",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-walkers": {
