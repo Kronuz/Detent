@@ -19,3 +19,4 @@ detent-authority (formerly detentd), detent-relay and detent-agent are composed 
 Filed 2026-11-19 (Xapiand lead's audit, msg-98). Waits on the note's CURRENT commit and the owner's lifecycle/component rename ruling.
 Audit 2026-11-19 (J10): the cpp-libraries README links `docs/server-composition.md` (server-composition journal:14); a one-line cpp-libraries commit beside this quest.
 - The note is CURRENT at cpp-libraries:0579a1a (2026-11-19, msg-102). Adopt against that commit.
+- D125's secrets rule goes into cpp-libraries docs/server-composition.md's Options step for all five daemons, Xapiand included (agreed with the Xapiand lead, 2026-11-19): draft it as a follow-up commit on cpp-libraries, and the lead sends the diff to the Xapiand lead to confirm before it lands.
