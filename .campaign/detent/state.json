@@ -1767,8 +1767,8 @@
     "consensus-dns-threads": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T04:37:52",
-          "base": "84608ccb0f885d6b689f4db895e30a72154d0054",
+          "at": "2026-11-19T04:47:15",
+          "base": "122564d61c2f8cd5ac1273a9c5746c7fc2419b8e",
           "blobs": {
             "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
             "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
@@ -1777,7 +1777,7 @@
             "test/transport/resolve_test.cc": "100644:b2d96b2dc6611e98fec6eaf9b719a7bcaf24250c"
           },
           "by": "review",
-          "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
+          "commit": "3e1930f16062573524afb1e2ee2c8c6d6c28a490",
           "criteria": "41315d8a4c52f7d1",
           "diffs": {
             "CMakeLists.txt": "e677a95f10cedc23",
@@ -1826,7 +1826,7 @@
             "paths": [
               "CMakeLists.txt"
             ],
-            "reason": "test-only: resolve_test.cc takes its thread baseline inside the warm-up thread (macOS lists a joined thread briefly); loop 666fec passes at f427934, 5d9a15 fails at d76b788; resolve.h unchanged"
+            "reason": "test-only resolve_test.cc baseline fix (loop 666fec passes, 5d9a15 fails without); main's merge adds flow-control bench and docs, unrelated to the resolver"
           },
           "note": "",
           "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
@@ -1903,7 +1903,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-19T04:37:52",
+      "updated": "2026-11-19T04:47:15",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
