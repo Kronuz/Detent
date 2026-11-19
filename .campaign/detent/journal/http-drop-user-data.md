@@ -1,19 +1,17 @@
 # http-drop-user-data: journal
 
-State: waiting on jobs 261119-145409-701207 261119-145430-8ae0a9 261119-145432-2c024b 261119-145550-cc5355 261119-145612-62f648
+State: ready for review
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
 
-`http:b931f28` on `quest/detent/http-drop-user-data` (pushed; CI runs there): the removal,
-`Request::deadline()`, tests and docs in one commit. Jobs queued (below).
+Nothing: correctness review launched by the lead at `http:b931f28`.
 
 ## Next
 
-1. Read the jobs; fix any failure; check CI run 44632790004 (TSan is CI's) on `http:b931f28`.
-   `campaign wait` was refused by the permission classifier this session; the lead resumes me.
-2. When http-affinity-death-tsan lands: merge http `main` (merge, never rebase), rerun the suite.
-3. Cite the Xapiand lead's PLAN.md decision for A3 when the lead records it.
+1. When http-affinity-death-tsan lands: merge http `main` (merge, never rebase), rerun the suite
+   and the A2 jobs as `campaign brief` asks.
+2. Fold in review findings by id.
 
 ## Jobs
 
@@ -55,14 +53,19 @@ A3: the lead asked the Xapiand lead; the reply becomes a PLAN.md decision to cit
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet: Xapiand lead's decision> |
-| A4 | <no evidence yet> |
+| A1 | 261119-145409-701207 (http suite); Detent build + suite with http at `http:b931f28`: 261119-145550-cc5355; Xapiand `xapiand` build: 261119-145612-62f648 |
+| A2 | 261119-145432-2c024b; fails without: 261119-145429-db04cf (buffered), 261119-145430-8ae0a9 (streamed) |
+| A3 | Detent `.campaign/detent/PLAN.md` D127 (Xapiand lead's agreement, msg-124) |
+| A4 | 261119-145409-701207; CI green at `http:b931f28` |
 
 ## Result
 
-<Not yet.>
+`http:b931f28`: `Request::user_data`, `ResponseWriter::defer()`, `DeferredReply`,
+`detail::DeferredExchange` and the transport's deferred path are gone (-575/+132 lines);
+`Request::deadline()` is set on the buffered and streamed paths. Docs: `CHANGELOG.md`
+(2026-11-19), `ARCHITECTURE.md` "Response ownership", `docs/TRANSPORT.md`,
+`docs/mechanisms/coroutine-handlers.md`, `docs/OWNED_STREAMING.md`. Detent and Xapiand build
+unchanged against it; the pin bumps and http-log's two doc lines are the lead's.
 
 ## Rulings I made
 
