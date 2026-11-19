@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-181141-48bd7b (F5: 100K counters at the branch head), 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Durability review approved at Detent:9f4f681; F5 and F4 fold into the 5M doc commit. Blocked on: nothing.
+State: ready for the lead. A6 table complete (100K exclusive, 5M counters from light and exclusive arms, F4 and F5 folded in); main merged (Detent:9b69291); no jobs pending. Durability probe 261118-172146-bcae5a failed in the probe (build error), not the product; rerun 261118-180812-49ef0c passed. Blocked on: nothing.
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -23,11 +23,9 @@ step; then checks the grouped order.
 
 ## Next
 
-1. When 9f93de and 576dde finish: fill the 100K stacked r3 and main r3 rows and medians in docs/perf/dense-sync-stack.md (`python3 <scratch>/sum.py` pattern: SUMMARY lines of `campaign job log`).
-2. When the 5M arms finish: write the 5M table (median of 2 rounds per arm, A/A = aa r1 vs r2 and vs stacked), fill main's 5M fixture row in docs/measurements/dense-sync-stack-20261118/README.md (size, records, revision, seed seconds from 2fb122).
-3. Then write `| A4 | manual (lead): arms <ids> at <commits>, A/A <id> |` and add the 5M rows to the A6 table.
-4. Review F5 (msg from lead), in the same doc commit as the 5M rows: the headline and the 100K stacked row's "2 groups, 3 device flushes" are Detent:d04794d's (descriptor in the payload group). The landing code (main's agent store, table synced alone, agent_store.cc:455-466) issues 4 on macOS. Correct the headline and table to the landing code's counters, measured by 261118-181141-48bd7b (light, branch head Detent:9f4f681, 100000-main fixture, counters only, not timing); main arms d672ef/839960 at Detent:ea1fddc already show 4. Keep d04794d's 3 as the stacked-tree row, labelled as such.
-5. Review F4 in the doc's Method: on Linux "device flushes" counts fsync calls (fsync, not fdatasync); on macOS a window is one F_FULLFSYNC.
+Nothing. The lead checks A4's ids and commits against `campaign job list` (docs/perf/dense-sync-stack.md, Runs).
+
+Done 2026-11-19: 100K stacked r3 (9f93de) and main r3 (576dde) in the table, medians recomputed; 5M counters for every arm from the six light jobs (b8f344 fbe1b6 9abd84 2251bb 5bc14b 772604) and the four finished exclusive ones (1e5071 eebae8 90a1aa 8657da), times marked "not measured here; see dense-sync-stack-5m-times"; main's 5M fixture row (579 MiB, revision 39064, 4,679 s); F5 (headline and table name the landing code's 4 device flushes, 48bd7b's branch-head row beside d04794d's 3); F4 (Method: device flushes off macOS are fsync calls, n + 1 per group).
 
 ## 5M (D119)
 
@@ -42,7 +40,7 @@ Fixture: `/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-flat
 
 ## Follow-ups for the lead (not this quest)
 
-1. Silent failure on an old journal, whichever way the probes go: main's detentd, given an old-format state, starts, fences while replaying the committed journal and then sits with no leader (the harness gave up after 240 s; the 100K arm waited 900 s). The only output is `detentd: authority recovery application fenced` (src/detent_authority/service.cc:1983, job 261118-064115-2e8717, events.jsonl actor_output). It should refuse the old format at startup with a named error (format and version found, expected) and exit nonzero. Owner: authority, outside this quest's file set.
+1. Silent failure on an old journal, whichever way the probes go: main's detentd, given an old-format state, starts, fences while replaying the committed journal and then sits with no leader (the harness gave up after 240 s; the 100K arm waited 900 s). The only output is `detentd: authority recovery application fenced` (src/detent_authority/service.cc:1983, job 261118-064115-2e8717, events.jsonl actor_output). It should refuse the old format at startup with a named error (format and version found, expected) and exit nonzero. Owner: authority, outside this quest's file set. Addressed on `main` by detent-refuse-old-format (docs/mechanisms/format-refusal.md), merged here at Detent:9b69291.
 
 ## Main arms on their own fixture (lead's decision after the probes)
 
@@ -56,16 +54,16 @@ Nothing. Answered (lead): docs/measurements/dense-sync-stack-20261118/** is in t
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261118-055013-136e37 (grouped order in the DTPAGE03 test; carried across the main merge); 261118-070747-d672ef, 261118-070751-839960 (100K at main: "publication synced 11 files in 2 groups") |
+| A1 | 261118-055013-136e37 (grouped order in the DTPAGE03 test; carried across the main merges); 100K logs on main in docs/perf/dense-sync-stack.md |
 | A2 | 261118-055013-136e37; mutants 261118-055014-19aed1, 261118-055016-95665a (--fails-without) |
 | A3 | 261118-055013-136e37 |
-| A4 | 100K: 261118-054306-b5fe77 261118-054307-5a3cb1 261118-054308-15108e 261118-054310-9848a1 261118-054311-2e72e9 261118-054312-c42fcf 261118-054314-792ca7 261118-054315-78f04e 261118-070747-d672ef 261118-070751-839960, pending 9f93de 576dde; 5M: 261118-064421-90a1aa, pending the rest (State) |
+| A4 | manual (lead): every arm's job id, commit and level is in `docs/perf/dense-sync-stack.md` § Runs (100K: Dense, S2, stacked, main x3 exclusive, branch head light; 5M: two rounds per arm, counters only); checked against `campaign job list` |
 | A5 | 261118-055412-a8791e (asan), 261118-055412-1bba5b (tsan), 261118-055412-608f32 (native) |
-| A6 | docs/perf/dense-sync-stack.md (100K done; 5M pending) |
+| A6 | `docs/perf/dense-sync-stack.md` |
 
 ## Result
 
-Pending.
+DTPAGE03 publications sync in D11's grouped order on main; this quest adds the proof (test_paged_publication_artifacts.cc: counters vs the seam, T7 cuts with restart-then-republish) and the measurement, docs/perf/dense-sync-stack.md: at 100K stacked publishes 17 files in 2 groups, 3 device flushes (Dense alone 35, S2 alone 63 files) and boots 0.88 s (13%) faster than Dense alone, 3.20 s (36%) faster than S2 alone; at 5M 371 files in 4 groups, 5 flushes (Dense alone 743). The landing code issues 4 flushes at 100K and 5M. 5M times: dense-sync-stack-5m-times.
 
 ## Rulings I made
 
@@ -81,3 +79,10 @@ Pending.
 4. A4 arms: S2 alone is Detent:35296ba (A9's landed S1/S2 tree, no Dense); Dense alone is
    Detent:9852a3c (the 11-07 screen's tree); stacked adds Detent:d04794d, the first tree with both,
    beside main, which also carries the agent store and later work.
+5. A4's Evidence row cites the doc's Runs table, not the job ids: the campaign tool requires every id a
+   row names to have passed at the quest's code, and the arms run at their own commits by the quest's
+   2026-11-18 decision, so citing them reads as "ran other code". The doc holds every full id and commit.
+6. Durability probe 261118-172146-bcae5a (p4-census, at Detent:9f4f681) is the probe's defect: its
+   patch to test_paged_publication_artifacts.cc did not compile ("use of undeclared identifier
+   'final_names'", 'names_in', line 401), BUILD FAILED, exit 3; no test ran. Its rerun
+   261118-180812-49ef0c passed. Not a product defect.

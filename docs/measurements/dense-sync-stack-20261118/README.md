@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-18) The kept 5M authority fixture and how it was seeded. Maintainer: Detent campaign.
+> Status: CURRENT (2026-11-19) The kept 5M authority fixture and how it was seeded. Maintainer: Detent campaign.
 
 # The 5M fixture
 
@@ -13,7 +13,7 @@ Each fixture's `seeded.json` gives its records and revision; the seed seconds ar
 | Path | Size | Records, revision | Seed seconds | Seed commit | Seed job |
 | --- | ---: | --- | ---: | --- | --- |
 | `.scratch/capacity-trials/5000000-flat-r1` (Dense, S2, stacked, A/A) | 579 MiB | 5,000,000, 39064 | 4,578 | Detent:9852a3c | 261118-064312-81a63c |
-| `.scratch/capacity-trials/5000000-flat-main` (main) | pending | pending | pending | Detent:ea1fddc | 261118-070640-2fb122 |
+| `.scratch/capacity-trials/5000000-flat-main` (main) | 579 MiB | 5,000,000, 39064 | 4,679 | Detent:ea1fddc | 261118-070640-2fb122 |
 | `.scratch/capacity-trials/100000-main` (main, 100K) | 10 MiB | 100,000, 784 | 75 | Detent:ea1fddc | 261118-070638-b711be |
 | `.scratch/capacity-trials/10000-main` (main, smoke) | 1 MiB | 10,000, 80 | 8 | Detent:ea1fddc | 261118-070638-b711be |
 
