@@ -15,7 +15,7 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 job can show it.
 
 - A1 A test drives group_io on one loop and commit/publish on another concurrently; under TSan it reports the race without the fix (--fails-without) and passes with it: jobs.
-- A2 The ownership rule for `ranges_` (which thread, which lock) is stated where host.h declares it, and in a mechanism note: [artifact] `docs/mechanisms/host-ranges.md`.
+- A2 [artifact] The ownership rule for `ranges_` (which thread, which lock) is stated where host.h declares it, and in a mechanism note: `docs/mechanisms/host-ranges.md`.
 - A3 group_io per call stays within 1.2x of journal-group-io-sweep's after table at 1K and 1M ids (exclusive): jobs.
 - A4 The suite, TSan and CI pass.
 

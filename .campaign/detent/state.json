@@ -653,6 +653,135 @@
         ]
       },
       "text": "journal-group-io-cost landed: unlocks journal-group-io-sweep; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T17:08:12",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-81",
+      "items": {
+        "journal-host-ranges-race": "frees include/journal/host.h, test/host_test.cc for journal-host-ranges-race",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "journal-host-ranges-race",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "journal-group-io-sweep landed: unlocks frees include/journal/host.h, test/host_test.cc for journal-host-ranges-race; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T17:50:36",
+      "by": "lead",
+      "closed": "answered: no EOF-cancel reliance (subscription polls bounded by idle/maximum_ms); D127 order already in effect",
+      "id": "msg-83",
+      "text": "xapiand lead: owner ruling D126: Kronuz/http stops cancelling an in-flight request on read EOF (half-close); only a reset or failed write cancels. Quest xapiand:http-halfclose is starting in ../http; tell me if Detent relies on EOF-cancel. Also, owner D127: xapiand now spends on the cluster path. Your quests gating it are, in order: driver-apply-gap (blocks group-core, consensus-sim-loops, consensus-rpc-lane), consensus-dns-threads, peers-tsan-timeout, consensus-worker-release, journal-reopen-closed. Putting them first would shorten our path most."
+    },
+    {
+      "at": "2026-11-18T18:04:06",
+      "by": "lead",
+      "closed": "accepted: drain window until 19:04 runs the starved exclusives (dense-sync-stack, reader-s6); light D127 jobs resume after",
+      "id": "msg-84",
+      "text": "xapiand lead: I opened a one-hour drain window (until 19:04) so the ~10 starved exclusive jobs run back to back, yours (dense-sync-stack, reader-s6) included; light jobs wait meanwhile. `campaign window --close` ends it if it blocks something urgent of yours."
+    },
+    {
+      "at": "2026-11-18T20:32:33",
+      "by": "lead",
+      "closed": "noted; Detent's tests and src have no SHUT_WR/half-close hang-ups, so the http repin needs no test change",
+      "id": "msg-85",
+      "text": "xapiand lead: http-halfclose landed at http:ec273dd. EOF on a connection with a request in flight no longer cancels; a reset or a failed write does (D126). Your long polls end at their own bound as before; tests that used a half-close as a hang-up need a reset now."
+    },
+    {
+      "at": "2026-11-18T17:24:26",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-82",
+      "items": {
+        "driver-apply-gap": "frees include/consensus/driver.h, docs/DRIVER.md, test/driver_simulation.cc, test/driver_test.cc for driver-apply-gap",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "driver-apply-gap",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set driver-apply-gap: unlocks frees include/consensus/driver.h, docs/DRIVER.md, test/driver_simulation.cc, test/driver_test.cc for driver-apply-gap; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T21:26:52",
+      "by": "campaign",
+      "closed": "noted; groups-upload-loop-stall waits for a probed CI failure (one sample saved from 44461880244, pre-probe)",
+      "id": "msg-86",
+      "items": {
+        "groups-upload-loop-stall": "frees test/transport/groups_test.cc for groups-upload-loop-stall",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "groups-upload-loop-stall",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "groups-upload-3s-class landed: unlocks frees test/transport/groups_test.cc for groups-upload-loop-stall; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T22:35:43",
+      "by": "xapiand-lead",
+      "closed": "noted; Detent bumps its logger pin to logger:455cad0 in the next dependency repin",
+      "id": "msg-88",
+      "text": "xapiand lead: logger-exit-lifetime landed at logger:455cad0. Exit now waits on the LOG thread's progress (200 ms with no line written) with a 5 s total cap, reporting 'at most N lines not written' on stderr; main's 200 ms join silently dropped 1196-2870 of 3600 lines. Exceptions are described at the call (a describe hook that throws now yields 'unknown exception'); after teardown late lines, including L_EXC, go to stderr and never call the host's hooks. Fork children and exit() on the LOG thread skip the wait. Clocks are built before the LOG thread starts (an LLVM 22 TSan report on main). Drain cost per line is 1.003x main's. Bump your pin when convenient."
+    },
+    {
+      "at": "2026-11-19T01:19:31",
+      "by": "xapiand-lead",
+      "closed": "reader-s6 contributor told to cap the t3-asan test at 4 threads or submit with --cpus",
+      "id": "msg-89",
+      "text": "xapiand lead: host load is 62-96 on 16 cores. Your light job 261118-224119-9c507c (reader-s6 check t3-asan, slot detent-reader-s6) is running a test binary at ~740% CPU (pid 31085, build-asan/tests/detent_reader/...) inside one light hold. Light holds assume about 4 cores each; could you cap that test's threads (or run it as strict) so the builds beside it keep their share? Also ~105 defunct processes on the host; if any are yours, a harness may not be reaping children."
+    },
+    {
+      "at": "2026-11-19T01:19:45",
+      "by": "xapiand-lead",
+      "closed": "noted: defunct processes are Chrome's and the shared worker's",
+      "id": "msg-90",
+      "text": "xapiand lead, correction: the defunct processes are not yours: 58 are Chrome's and 41 are children of the shared campaign worker (pid 58801), which I maintain and will fix. Only the reader-s6 CPU note stands."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -1284,7 +1413,7 @@
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 50,
           "name": "suite"
         },
         {
@@ -1299,6 +1428,44 @@
         "test/transport/connection_test.cc",
         "test/transport/groups_upload*"
       ],
+      "history": [
+        {
+          "at": "2026-11-18T20:26:28",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 50,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "journal": "../Detent-wt/detent/connection-slow-reader-flake",
       "landed": [],
       "lenses": [],
@@ -1309,7 +1476,7 @@
       "risk": "low",
       "status": "active",
       "title": "Consensus CI: read_slowly and groups_upload stop failing on main",
-      "updated": "2026-11-17T19:03:54",
+      "updated": "2026-11-18T20:26:28",
       "worktree": "../consensus-wt/detent/connection-slow-reader-flake"
     },
     "consensus-close-fenced": {
@@ -1383,20 +1550,57 @@
         "CMakeLists.txt",
         "docs/DRIVER.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-close-fenced",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T17:23:45",
+          "commit": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+          "criteria": {
+            "A1": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since); fails without: 261117-224124-3ca3bb, 261117-224642-346496, 261117-234659-3d1404, 261118-001028-7ef567, 261118-021909-dc9230, 261118-040544-24d42c, 261118-064124-3e5bb0, 261118-080714-ff3bc1",
+            "A2": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since)",
+            "A3": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since), 261118-080709-0b29b6 (passed at 901d9cebb447; only merges from main since); fails without: 261117-224646-fc0854, 261117-234712-39d2ac, 261118-001036-648cac, 261118-021911-f17875, 261118-040544-24d42c, 261118-040557-d7b5cf, 261118-064126-e68ae2, 261118-080715-aa0fea",
+            "A4": "261118-080707-3e11d5 (passed at 901d9cebb447; only merges from main since), 261118-080708-925f6c (passed at 901d9cebb447; only merges from main since); fails without: 261118-040540-ea618e, 261118-064122-6a437c, 261118-080713-3b7683",
+            "A5": "261118-091954-0c01fa (passed at a699c96abf87; only merges from main since)",
+            "A6": "261118-080701-7a71bf (passed at 901d9cebb447; only merges from main since), 261118-080707-3e11d5 (passed at 901d9cebb447; only merges from main since), 261118-080708-925f6c (passed at 901d9cebb447; only merges from main since), 261118-080716-6d7d6c (passed at 901d9cebb447; only merges from main since), 261118-080719-369ac2 (passed at 901d9cebb447; only merges from main since); fails without: 261118-040539-5a1dfa, 261118-064120-75b4b1, 261118-064220-b8cb43, 261118-080710-cfcb5b, 261118-080711-db1d26, 261118-080717-990ff9"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "a699c96abf87bad051e619df316ca12e4c05cdc6",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-091954-0c01fa",
+              "level": "light",
+              "seconds": 754.8,
+              "state": "done",
+              "what": "consensus-close-fenced check suite at a699c96abf87"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6a76867f30826b27731b92c9f3122722cf4788e7",
+          "reason": "",
+          "tested": "377e47231b8d25e80cdabd2308c76d1d80a9cae1"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus: Driver::close frees a fenced or half-opened row fully",
-      "updated": "2026-11-18T08:42:12",
-      "worktree": "../consensus-wt/detent/consensus-close-fenced"
+      "updated": "2026-11-18T17:23:58",
+      "worktree": ""
     },
     "consensus-dns-peers": {
       "accepted": {
@@ -1563,36 +1767,38 @@
     "consensus-dns-threads": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-18T06:39:12",
-          "base": "91564ba86d25396c4c7768667cd365a01cefa27a",
+          "at": "2026-11-19T04:37:52",
+          "base": "84608ccb0f885d6b689f4db895e30a72154d0054",
           "blobs": {
+            "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
             "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
             "include/consensus/transport/resolve.h": "100644:bca2deff8ad18699afa8fc31fcf5dbcb84a651d7",
             "test/transport/dns_mutants.sh": "100755:76498905ec8785be6cb17279627e4440ab6eb04e",
-            "test/transport/resolve_test.cc": "100644:3d61274cf49e8fb407523a2a98c05a1f927616de"
+            "test/transport/resolve_test.cc": "100644:b2d96b2dc6611e98fec6eaf9b719a7bcaf24250c"
           },
           "by": "review",
-          "commit": "abc01bbd0cfe078774c91ae420817ad0c9aaefaa",
+          "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
           "criteria": "41315d8a4c52f7d1",
           "diffs": {
+            "CMakeLists.txt": "e677a95f10cedc23",
             "docs/mechanisms/peer-dns.md": "d5faaccaa498ca7e",
             "include/consensus/transport/resolve.h": "e8d40bcd326e072f",
             "test/transport/dns_mutants.sh": "cf3d8bdc9f484cc9",
-            "test/transport/resolve_test.cc": "56a43632ae096f68"
+            "test/transport/resolve_test.cc": "c65f486677290dfc"
           },
           "findings": {
             "F1": {
               "jobs": [
                 {
-                  "cmd": "bash /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-dns-threads/.scratch/dns-fix/rt.sh asan",
-                  "commit": "abc01bbd0cfe078774c91ae420817ad0c9aaefaa",
+                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                  "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-055338-321238",
+                  "job": "261118-214507-d39df7",
                   "level": "light",
-                  "seconds": 43.4,
+                  "seconds": 1392.5,
                   "state": "done",
-                  "what": "resolve_test under ASan+UBSan (F1 at-exit throw clean)"
+                  "what": "consensus-dns-threads check suite at f427934f3c77"
                 }
               ],
               "kind": "defect",
@@ -1601,20 +1807,26 @@
             "F2": {
               "jobs": [
                 {
-                  "cmd": "bash /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-dns-threads/.scratch/dns-fix/rt.sh plain",
-                  "commit": "abc01bbd0cfe078774c91ae420817ad0c9aaefaa",
+                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                  "commit": "f427934f3c77afe5acf809dce4662a066a06a1ad",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261118-055335-e81e18",
+                  "job": "261118-214507-d39df7",
                   "level": "light",
-                  "seconds": 21.7,
+                  "seconds": 1392.5,
                   "state": "done",
-                  "what": "resolve_test plain at the F1/F2 fix"
+                  "what": "consensus-dns-threads check suite at f427934f3c77"
                 }
               ],
               "kind": "gap",
               "reproduced": false
             }
+          },
+          "fix_scope": {
+            "paths": [
+              "CMakeLists.txt"
+            ],
+            "reason": "test-only: resolve_test.cc takes its thread baseline inside the warm-up thread (macOS lists a joined thread briefly); loop 666fec passes at f427934, 5d9a15 fails at d76b788; resolve.h unchanged"
           },
           "note": "",
           "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
@@ -1633,12 +1845,6 @@
           "level": "light",
           "minutes": 40,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -1646,7 +1852,44 @@
         "include/consensus/transport/resolve.h",
         "test/transport/resolve_test.cc",
         "docs/mechanisms/peer-dns.md",
-        "test/transport/dns_mutants.sh"
+        "test/transport/dns_mutants.sh",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-18T21:21:58",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D116: CI 44461880244 fails only groups_upload on macos-x86_64 (gap 3795 ms, reader 1.5 MiB/s, sampled for groups-upload-loop-stall); every other platform green",
+          "voided": [
+            "correctness"
+          ],
+          "weakened": [
+            "gate check ci removed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/consensus-dns-threads",
       "landed": [],
@@ -1660,7 +1903,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T06:39:12",
+      "updated": "2026-11-19T04:37:52",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
@@ -3373,8 +3616,75 @@
       "updated": "2026-11-15T23:16:26",
       "worktree": ""
     },
-    "dense-sync-stack": {
+    "dense-power-cut-cycles": {
       "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_local/test_local_publication_power_cut*",
+        "tests/detent_local/*power_cut*",
+        "tests/detent_local/agent_store_*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "dense-sync-stack"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Dense pages: the power-cut matrix cuts after kill, restart and republish",
+      "updated": "2026-11-18T18:11:09"
+    },
+    "dense-sync-stack": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-18T22:39:21",
+          "base": "34ee9823766d0a32aad7ad0b25586643bdbf2922",
+          "blobs": {
+            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:b1de8633e635c5efd3c7cdfe4f8f38ea622417b8",
+            "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "100755:9bd03e6043fe031f3e7536b510794d0e039e9bbe",
+            "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "100755:841ef23b8e765d7458cad3a7173389c73f15788e",
+            "docs/measurements/dense-sync-stack-20261118/seed.py": "100644:09880e141eac6fafdfc6ed9b22f2324650eb7340",
+            "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "100755:aa0b0fbeaa38c6813e667bcff31895bacb9ef7c8",
+            "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "100755:8e5bd7d21586967e0517b6abfa8d21e57fc8852c",
+            "docs/perf/dense-sync-stack.md": "100644:5128022634aed5ceefbcb462d85305b7696161ba",
+            "src/detent_local/disk_store.cc": "100644:d9027979188c909ab8be80bca2cff5f3ae861e3b",
+            "src/detent_local/store_core.hh": "100644:5e9af8398e5ae0499e8a3e4ef81326108ef2b654",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "100644:7ca32160869d66b09eb72bdaa7686a9e28736970"
+          },
+          "by": "review",
+          "commit": "bdb2263a2548fccae243e5c2a100b7fb2569aaac",
+          "criteria": "8689c78d79d12427",
+          "diffs": {
+            "docs/measurements/dense-sync-stack-20261118/README.md": "35f921c93e9a796f",
+            "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "bb1f57f832ea3167",
+            "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "a67330b785ad354d",
+            "docs/measurements/dense-sync-stack-20261118/seed.py": "449e583c508f6f5f",
+            "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "b22eb658be1ece49",
+            "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "e90ba64c48f0d744",
+            "docs/perf/dense-sync-stack.md": "9e794784abb44a55",
+            "src/detent_local/disk_store.cc": "05ebd2546a0fc18e",
+            "src/detent_local/store_core.hh": "9fd7f04e6bf16cc3",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "1f7c6b788ff0aab0"
+          },
+          "findings": {},
+          "note": "",
+          "review": "102109fdd8270bf5c4c22bfa2119d9f21ecb14a7",
+          "reviewed": "9f4f681f7f2d9d76b79186ab1c524cf2fc451364",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "a24b3e704634ed77f8c2a648a274e41265698b19",
       "branch": "quest/detent/dense-sync-stack",
@@ -3411,7 +3721,8 @@
         "src/detent_local/store_core.hh",
         "tests/detent_local/test_disk_store.cc",
         "tests/detent_local/test_paged_publication_artifacts.cc",
-        "tests/detent_local/test_publication_power_cut.cc"
+        "tests/detent_local/test_publication_power_cut.cc",
+        "docs/measurements/dense-sync-stack-20261118/**"
       ],
       "landed": [],
       "lenses": [
@@ -3425,10 +3736,38 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T05:32:32",
+      "updated": "2026-11-18T22:39:21",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
+    },
+    "dense-sync-stack-5m-times": {
+      "accepted": {},
+      "after": [
+        "dense-sync-stack"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/measurements/dense-sync-stack-20261118/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "Dense pages",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
+      "updated": "2026-11-18T22:39:03"
     },
     "dense-walkers": {
       "accepted": {
@@ -3781,8 +4120,35 @@
         "tests/detent_authority/CMakeLists.txt",
         "docs/mechanisms/format-refusal.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T22:34:21",
+          "commit": "18325bd61d6282b6157fa250bf54451cf1ce1ee5",
+          "criteria": {
+            "A1": "261118-092815-15d102; fails without: 261118-092816-620656",
+            "A2": "261118-092819-c7250d"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+              "commit": "10ca354490d0ba5dddfd8a7e566da2f4c0a68f5c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-092819-c7250d",
+              "level": "light",
+              "seconds": 966.1,
+              "state": "done",
+              "what": "detent-refuse-old-format check suite at 10ca354490d0"
+            }
+          ],
+          "final": true,
+          "from": "ecc176d9831e146fcf4178bee9f9c5834f08aa55",
+          "reason": "",
+          "tested": "0e8d2f8325e365f3e565b43312a589da1bd30abc"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "namespace-cleanup"
@@ -3790,9 +4156,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T09:25:45",
+      "updated": "2026-11-18T22:34:32",
       "worktree": "../Detent-wt/detent/detent-refuse-old-format"
     },
     "dns-voters": {
@@ -4334,6 +4700,8 @@
     "driver-apply-gap": {
       "accepted": {},
       "after": [],
+      "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+      "branch": "quest/detent/driver-apply-gap",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -4353,10 +4721,9 @@
         "include/consensus/driver.h",
         "docs/DRIVER.md",
         "test/driver_simulation.cc",
-        "test/driver_test.cc",
-        "test/driver_apply_test.cc",
-        "CMakeLists.txt"
+        "test/driver_test.cc"
       ],
+      "journal": "../Detent-wt/detent/driver-apply-gap",
       "landed": [],
       "lenses": [
         "correctness"
@@ -4368,9 +4735,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T12:58:19"
+      "updated": "2026-11-18T22:39:29",
+      "worktree": "../consensus-wt/detent/driver-apply-gap"
     },
     "driver-pipeline": {
       "accepted": {},
@@ -5018,6 +5386,112 @@
       "title": "Stage 6 component 1: bounded runner and native fleet tooling",
       "updated": "2026-11-08T15:38:24"
     },
+    "groups-upload-3s-class": {
+      "accepted": {},
+      "after": [
+        "groups-upload-stall"
+      ],
+      "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+      "branch": "quest/detent/groups-upload-3s-class",
+      "checks": [
+        {
+          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc"
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T21:25:03",
+          "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+          "criteria": {
+            "A1": "[manual] run 44443844218 (macos-x86_64, c782db1) named in Notes: host 1's connection loop did not turn for about 1.3 s with both sockets empty and windows open, then the designed one-frame wait (about 250 ms); not the control lane, a window or loss. Reproduced by the blocked-loop mutant (b959fbf, local)",
+            "A2": "261118-211831-97019b; fails without: 261118-205321-1d7dff, 261118-205323-25f32e",
+            "A3": "261118-205311-962da3, 261118-205312-f556f8"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-205311-962da3",
+              "level": "light",
+              "seconds": 1083.2,
+              "state": "done",
+              "what": "groups-upload-3s-class check suite at 84608ccb0f88"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c782db1b11cf79781698be768debca1598cc684b",
+          "reason": "",
+          "tested": "84608ccb0f885d6b689f4db895e30a72154d0054"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "landed",
+      "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
+      "updated": "2026-11-18T21:26:52",
+      "worktree": ""
+    },
+    "groups-upload-loop-stall": {
+      "accepted": {},
+      "after": [
+        "groups-upload-3s-class"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 50,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups_upload: name and fix the 1.3 s connection-loop stall from a probed CI failure",
+      "updated": "2026-11-18T21:17:58"
+    },
     "groups-upload-stall": {
       "accepted": {},
       "after": [
@@ -5031,12 +5505,6 @@
           "level": "light",
           "minutes": 30,
           "name": "suite"
-        },
-        {
-          "cmd": "ci:ci",
-          "level": "light",
-          "minutes": 30,
-          "name": "ci"
         }
       ],
       "consumes": [],
@@ -5044,18 +5512,82 @@
         "test/transport/groups_test.cc",
         "docs/mechanisms/host-transport.md"
       ],
-      "journal": "../Detent-wt/detent/groups-upload-stall",
-      "landed": [],
+      "history": [
+        {
+          "at": "2026-11-18T20:55:25",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D116: the ci gate fails only groups_upload on macos-x86_64 (run 44443844218, the sampled class now in groups-upload-3s-class); every other platform green",
+          "voided": [],
+          "weakened": [
+            "gate check ci removed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T20:55:30",
+          "ci_skipped": "D116: CI 44443844218 fails only groups_upload on macos-x86_64; every other platform green",
+          "commit": "c782db1b11cf79781698be768debca1598cc684b",
+          "criteria": {
+            "A1": "[manual] 44441165298 probe-3 iteration 17 names the cause of the sampled 1.09 s stall (Notes, Probe 3); the seven recorded CI failures all lie outside the bound (Notes, table), so the 3-4 s class is open (Result)",
+            "A2": "261118-182248-eb67f9, 261118-182249-1c6fef, 261118-182311-d7590a; fails without: 261118-182031-0eb0f5, 261118-182036-93e65a, 261118-182251-4f4a38, 261118-182252-0ca070",
+            "A3": "261118-203558-364d0b",
+            "A4": "261118-182254-e926dc, 261118-182255-c111a2; fails without: 261118-114620-92a85d, 261118-114638-5f511f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "c782db1b11cf79781698be768debca1598cc684b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-203558-364d0b",
+              "level": "light",
+              "seconds": 1016.8,
+              "state": "done",
+              "what": "groups-upload-stall check suite at c782db1b11cf"
+            }
+          ],
+          "final": true,
+          "from": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+          "reason": "",
+          "tested": "c782db1b11cf79781698be768debca1598cc684b"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
-      "updated": "2026-11-18T11:52:39",
-      "worktree": "../consensus-wt/detent/groups-upload-stall"
+      "updated": "2026-11-18T20:57:03",
+      "worktree": ""
     },
     "hash-once": {
       "accepted": {},
@@ -6528,7 +7060,34 @@
       "worktree": ""
     },
     "journal-host-ranges-race": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T22:22:33",
+          "base": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+          "blobs": {
+            "bench/group_io_bench.cc": "100644:d673056e8ea2e2dd316bad50849dbab4c6c89df7",
+            "docs/mechanisms/host-ranges.md": "100644:8017e78c2c1f575af86c6814083bcca9bdeefa32",
+            "docs/perf/group-io.md": "100644:074cc34567c6392c5efd0a462c5adacc32b8ce49",
+            "include/journal/host.h": "100644:6c4f7f764b5d2578ba787ba79d92d75bf221404d",
+            "test/host_test.cc": "100644:7b056fb759207c573ee0ef941e41b06a5a05c8fd"
+          },
+          "by": "review",
+          "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "criteria": "956342bbd13ad5ad",
+          "diffs": {
+            "bench/group_io_bench.cc": "3c7ee6073a580814",
+            "docs/mechanisms/host-ranges.md": "b3a31a695f45bd51",
+            "docs/perf/group-io.md": "9f06c89c6181f0be",
+            "include/journal/host.h": "0cd2637b1f4c2b41",
+            "test/host_test.cc": "1624c290fb18068d"
+          },
+          "findings": {},
+          "note": "",
+          "review": "908efdfe0eecb986bc04fea37ba617579dfc25e2",
+          "reviewed": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-group-io-sweep"
       ],
@@ -6558,22 +7117,70 @@
       "files": [
         "include/journal/host.h",
         "test/host_test.cc",
-        "docs/mechanisms/*"
+        "docs/mechanisms/*",
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md"
       ],
-      "journal": "../Detent-wt/detent/journal-host-ranges-race",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T22:31:00",
+          "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "criteria": {
+            "A1": "261118-185127-cf5001; fails without: 261118-172115-84fa95, 261118-172118-3b8390, 261118-185129-a1418f, 261118-185131-950d48",
+            "A2": "`docs/mechanisms/host-ranges.md`; the rule is also at the ranges_ declaration, the group_io comment and owned_ranges in `include/journal/host.h`",
+            "A3": "261118-185216-340039",
+            "A4": "261118-185126-82265f, 261118-185126-2eeb43"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-185126-82265f",
+              "level": "light",
+              "seconds": 317.4,
+              "state": "done",
+              "what": "journal-host-ranges-race check suite at 0202ebc059ad"
+            },
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fsanitize=thread >/dev/null && cmake --build .scratch/tsan -j4 && ctest --test-dir .scratch/tsan --output-on-failure -j2 --stop-on-failure",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-185126-2eeb43",
+              "level": "light",
+              "seconds": 486.7,
+              "state": "done",
+              "what": "journal-host-ranges-race check tsan at 0202ebc059ad"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+          "reason": "",
+          "tested": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T17:08:49",
-      "worktree": "../journal-wt/detent/journal-host-ranges-race"
+      "updated": "2026-11-18T22:31:26",
+      "worktree": ""
     },
     "journal-reopen-closed": {
       "accepted": {
@@ -13154,7 +13761,8 @@
     "peers-tsan-timeout": {
       "accepted": {},
       "after": [
-        "consensus-close-fenced"
+        "consensus-close-fenced",
+        "consensus-dns-threads"
       ],
       "base": "42019ebb7c1fd2f72a9edc7212c22a6e5c6f95c9",
       "branch": "quest/detent/peers-tsan-timeout",
@@ -13189,7 +13797,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-18T13:36:56",
+      "updated": "2026-11-18T17:27:58",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {

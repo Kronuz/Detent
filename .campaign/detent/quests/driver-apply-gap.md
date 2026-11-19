@@ -15,7 +15,7 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 job can show it.
 
 - A1 [manual] The path that advances apply without delivering to the application is named from a trace of seed 399, with the step and event sequence in the journal.
-- A2 A deterministic test (driver_apply_test or a driver_test case) reproduces that path and fails without the fix; seed 399 passes with it: jobs.
+- A2 A deterministic driver_test case reproduces that path and fails without the fix; seed 399 passes with it: jobs.
 - A3 The Driver simulation passes 10,000 seeds x 3,000 steps (split into light jobs chained per D120), and the A2 test under TSan and ASan: jobs.
 - A4 DRIVER.md states the invariant (apply index never passes the application's delivered index) where it describes apply: [artifact] `docs/DRIVER.md`.
 - A5 The suite passes, plus CI: jobs.
