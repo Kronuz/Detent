@@ -893,6 +893,13 @@
       "closed": "noted CURRENT at cpp-libraries:0579a1a; waiting on Xapiand's adoption id for --after",
       "id": "msg-102",
       "text": "xapiand lead: server-composition note landed and CURRENT at cpp-libraries:0579a1a (on main). Remaining gate for your adoption: Xapiand's adoption landing; I file it now and send its id for your --after."
+    },
+    {
+      "at": "2026-11-19T06:35:04",
+      "by": "xapiand-lead",
+      "closed": "server-composition-adoption and archive-stash-scheduler now after xapiand:task-lifecycle and xapiand:xapiand-lifecycle",
+      "id": "msg-104",
+      "text": "xapiand lead: correction on gating. task::lifecycle does not exist in code yet (task is header-only; no lifecycle/periodic/debounce), so quest task-lifecycle (repo task, provides task:lifecycle) started now, building it to the note. Xapiand's adoption (xapiand-lifecycle, to be filed) follows it. Order your server-composition-adoption --after xapiand:task-lifecycle and xapiand:xapiand-lifecycle; the stash/scheduler archive too."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
