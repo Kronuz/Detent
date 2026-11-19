@@ -6810,7 +6810,84 @@
       "updated": "2026-11-08T12:45:37"
     },
     "http-drop-user-data": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T15:58:03",
+          "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+          "blobs": {
+            "AGENTS.md": "100644:ddaa305d2d466b473dd18eddb07ed217728fe2e5",
+            "ARCHITECTURE.md": "100644:c29b11a401ccf0cb301034e98d2749f2901f8560",
+            "CHANGELOG.md": "100644:964614ccdd0c58e5a376500c050510e166d0527d",
+            "CMakeLists.txt": "100644:f038eb5f13aa18ea1fa04e071d4528e4f0f0d61e",
+            "README.md": "100644:ae8da674195b870dcba3372f6799dc124d88567d",
+            "docs/AUDIT.md": "100644:122d6844603ea8cf1433a8933b937dbdca282916",
+            "docs/OWNED_STREAMING.md": "100644:b8f9d448aa09e327fc637792cfec740f3fd2dccb",
+            "docs/TRANSPORT.md": "100644:0d73a95fa2b7bce6fe7b4758a6a84e95351c7f4c",
+            "docs/mechanisms/coroutine-handlers.md": "100644:fda78d0ac242621ba33af2ec41ed84b208ca476b",
+            "examples/kv_store.cc": "100644:9122bd7b03201c37c848e7a7c3816cf91c9b32e8",
+            "http_asio.h": "100644:e7d2a3e7972076714374caa3e2c9f7e0d384ca69",
+            "http_deferred.h": "100644:44a544552719f37a0b491c604c9e6fd596741f72",
+            "http_handler.h": "100644:eea93bfcbd92a9f5ee096fad9c18d581b8779cfb",
+            "http_message.h": "100644:8b5eba250b9b239772fa2495faccac27ee21334b",
+            "http_request_parser.h": "100644:70f518cb455eb7a8d46bc9160b07b19647f38b3f",
+            "test/asio_test.cc": "100644:aba74cfde8262af2a4c17a4ee366abc1a17254b6",
+            "test/coroutine_test.cc": "100644:be37ae827872c2ab3c739d91afe7b4429c03fb37",
+            "test/deferred_asio_test.cc": "deleted",
+            "test/deferred_test.cc": "100644:86ec882338d16c610342fc1012166a505a0c65c3",
+            "test/readahead_test.cc": "100644:7ec20e28081ea001e498ee6b4764d27bde357d31",
+            "test/timeouts_test.cc": "100644:67cb0146d37b520bcd5e21e3e6d29bae04c435d9"
+          },
+          "by": "review",
+          "commit": "054970910c65dec41f6788df960290d2df46514d",
+          "criteria": "587f1f7d123c6781",
+          "diffs": {
+            "AGENTS.md": "a358312d4dbdcacd",
+            "ARCHITECTURE.md": "2f0586b68a37695a",
+            "CHANGELOG.md": "b43d68b35b81bda9",
+            "CMakeLists.txt": "56410f2dcb540ccb",
+            "README.md": "4d320dadd2f4faf7",
+            "docs/AUDIT.md": "4bfec443871f7347",
+            "docs/OWNED_STREAMING.md": "1850bb2cd4fd388b",
+            "docs/TRANSPORT.md": "5f5a4577ae9731cd",
+            "docs/mechanisms/coroutine-handlers.md": "730ce51dbfb4e60d",
+            "examples/kv_store.cc": "eb42351dbb97b3bc",
+            "http_asio.h": "bfd0cf975f04871d",
+            "http_deferred.h": "9137f4b04fbdb6f9",
+            "http_handler.h": "cde118796ccb82d7",
+            "http_message.h": "a6dafc915a73a941",
+            "http_request_parser.h": "a2f4c23b92f62fef",
+            "test/asio_test.cc": "9f9f7f442eb0eff5",
+            "test/coroutine_test.cc": "85931384d412108f",
+            "test/deferred_asio_test.cc": "3c05cfc3f68f1877",
+            "test/deferred_test.cc": "edf78b34aff2d459",
+            "test/readahead_test.cc": "062defd9787ac9c4",
+            "test/timeouts_test.cc": "b153db440766a33f"
+          },
+          "findings": {
+            "D1": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                  "commit": "054970910c65dec41f6788df960290d2df46514d",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261119-154010-049d80",
+                  "level": "light",
+                  "seconds": 166.9,
+                  "state": "done",
+                  "what": "http-drop-user-data check suite at 054970910c65"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "b98a6e9212811c73d30cb5d161207392ef0b4f02",
+          "reviewed": "b931f281b4854eb0504de9f811fc945fefee65dd",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "http-affinity-death-tsan"
       ],
@@ -6857,7 +6934,7 @@
       "risk": "high",
       "status": "review",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T15:35:16",
+      "updated": "2026-11-19T15:58:03",
       "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
