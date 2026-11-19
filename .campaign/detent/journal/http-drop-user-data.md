@@ -1,6 +1,6 @@
 # http-drop-user-data: journal
 
-State: waiting on jobs 261119-154010-049d80
+State: waiting on jobs 261119-155820-ab2ecb
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
@@ -13,8 +13,8 @@ rerun 261119-154010-049d80 (A1, A4). G1 and N4 (optional tests) not taken.
 
 ## Next
 
-1. When http-affinity-death-tsan lands: merge http `main` (merge, never rebase), rerun the suite
-   and the A2 jobs as `campaign brief` asks.
+1. When http-affinity-death-tsan lands (not yet: active at `http:9b1ccdc`): merge http `main`
+   (merge, never rebase), rerun the suite and the A2 jobs as `campaign brief` asks, check CI.
 2. Fold in review findings by id.
 
 ## Jobs
@@ -57,10 +57,13 @@ A3: the lead asked the Xapiand lead; the reply becomes a PLAN.md decision to cit
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-145409-701207 (http suite); Detent build + suite with http at `http:b931f28`: 261119-145550-cc5355; Xapiand `xapiand` build: 261119-145612-62f648 |
-| A2 | 261119-145432-2c024b; fails without: 261119-145429-db04cf (buffered), 261119-145430-8ae0a9 (streamed) |
+| A1 | 261119-154010-049d80 (http suite at `http:0549709`); Detent build + suite with http at `http:b931f28`: 261119-145550-cc5355; Xapiand `xapiand` build: 261119-145612-62f648 (0549709 changes docs and drops an uncalled overload only) |
+| A2 | 261119-155820-ab2ecb (queued, `timeouts_test` at `http:0549709`); fails without: 261119-145429-db04cf (buffered), 261119-145430-8ae0a9 (streamed) |
 | A3 | Detent `.campaign/detent/PLAN.md` D127 (Xapiand lead's agreement, msg-124) |
-| A4 | 261119-145409-701207; CI green at `http:b931f28` |
+| A4 | 261119-154010-049d80; CI at `http:0549709` running |
+
+Correctness review: accepted at `http:0549709` (D1 confirmed by 049d80; the probe's keep-alive
+failures were the probe's, rerun 261119-155346-bc9393 0 failures).
 
 ## Result
 
