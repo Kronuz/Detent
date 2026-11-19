@@ -3727,6 +3727,8 @@
     "dense-power-cut-cycles": {
       "accepted": {},
       "after": [],
+      "base": "dcb09eb38874587a376ad4b2b55535db7edfc714",
+      "branch": "quest/detent/dense-power-cut-cycles",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3750,9 +3752,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Dense pages: the power-cut matrix cuts after kill, restart and republish",
-      "updated": "2026-11-18T18:11:09"
+      "updated": "2026-11-19T05:45:52",
+      "worktree": "../Detent-wt/detent/dense-power-cut-cycles"
     },
     "dense-sync-stack": {
       "accepted": {
