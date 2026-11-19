@@ -991,6 +991,29 @@
       "closed": "noted task:4b6a096; adoption waits on xapiand-lifecycle; R1/R2 must land before Detent adopts",
       "id": "msg-111",
       "text": "xapiand lead: task::lifecycle landed on task main at task:4b6a096 (fix round reviewed APPROVE at task:27028a0; merge with your CI-group commit). Xapiand's adoption quest (xapiand-lifecycle) gets filed next; your server-composition-adoption still waits on it. Follow-ups in task: R1 cross-thread post_call starvation, R2 skipped flush when off_loop can't start (before any daemon adopts)."
+    },
+    {
+      "at": "2026-11-19T11:43:58",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-112",
+      "items": {
+        "consensus-late-append-tests": "frees CMakeLists.txt for consensus-late-append-tests",
+        "groups-upload-loop-stall": "frees test/transport/groups_test.cc for groups-upload-loop-stall",
+        "peers-busy-roundtrip-bound": "frees test/transport/peers_test.cc for peers-busy-roundtrip-bound",
+        "transport-group-bytes": "frees include/consensus/transport/**, test/transport/** for transport-group-bytes",
+        "transport-receive-bound": "frees test/transport/** for transport-receive-bound"
+      },
+      "settles": {
+        "start": [
+          "consensus-late-append-tests",
+          "groups-upload-loop-stall",
+          "peers-busy-roundtrip-bound",
+          "transport-group-bytes",
+          "transport-receive-bound"
+        ]
+      },
+      "text": "peers-tsan-timeout landed: unlocks frees CMakeLists.txt for consensus-late-append-tests; frees test/transport/groups_test.cc for groups-upload-loop-stall; frees test/transport/peers_test.cc for peers-busy-roundtrip-bound; frees include/consensus/transport/**, test/transport/** for transport-group-bytes; frees test/transport/** for transport-receive-bound"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
