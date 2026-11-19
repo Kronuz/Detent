@@ -682,6 +682,13 @@
         ]
       },
       "text": "journal-group-io-sweep landed: unlocks frees include/journal/host.h, test/host_test.cc for journal-host-ranges-race; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T17:50:36",
+      "by": "lead",
+      "closed": "answered: no EOF-cancel reliance (subscription polls bounded by idle/maximum_ms); D127 order already in effect",
+      "id": "msg-83",
+      "text": "xapiand lead: owner ruling D126: Kronuz/http stops cancelling an in-flight request on read EOF (half-close); only a reset or failed write cancels. Quest xapiand:http-halfclose is starting in ../http; tell me if Detent relies on EOF-cancel. Also, owner D127: xapiand now spends on the cluster path. Your quests gating it are, in order: driver-apply-gap (blocks group-core, consensus-sim-loops, consensus-rpc-lane), consensus-dns-threads, peers-tsan-timeout, consensus-worker-release, journal-reopen-closed. Putting them first would shorten our path most."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
