@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Not yet ready for review: A6 waits on the 5M rows. Blocked on: file-set grant for docs/measurements/dense-sync-stack-20261118/, and the A4 evidence binding (below).
+State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Not yet ready for review: A6 waits on the 5M rows. Ready for review (durability); the lead's durability review runs alongside the 5M arms. Blocked on: nothing.
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -25,7 +25,7 @@ step; then checks the grouped order.
 
 1. When 9f93de and 576dde finish: fill the 100K stacked r3 and main r3 rows and medians in docs/perf/dense-sync-stack.md (`python3 <scratch>/sum.py` pattern: SUMMARY lines of `campaign job log`).
 2. When the 5M arms finish: write the 5M table (median of 2 rounds per arm, A/A = aa r1 vs r2 and vs stacked), fill main's 5M fixture row in docs/measurements/dense-sync-stack-20261118/README.md (size, records, revision, seed seconds from 2fb122).
-3. Then mark "ready for review" (durability).
+3. Then write `| A4 | manual (lead): arms <ids> at <commits>, A/A <id> |` and add the 5M rows to the A6 table.
 
 ## 5M (D119)
 
@@ -48,8 +48,7 @@ Probes: fresh 10K at main boots main (08680a, done); the Oct-23 fixture boots at
 
 ## Blocked on
 
-1. File-set grant: docs/measurements/dense-sync-stack-20261118/ (README.md, seed.py, seed-fixture.sh, probe-fixture.sh, submit-5m.sh, submit-main.sh). They are A4's method: the kept-fixture record (D119), the seed scripts the 5M and main fixtures came from, the fixture-format probes, and the scripts that queued every 5M and main arm. docs/perf/dense-sync-stack.md links the README. Recommend granting the directory; the alternative is folding them into docs/perf/ under the perf doc's name.
-2. A4 evidence binding: the brief asks to `campaign job rerun` the eight 100K arms at head. Each arm is pinned by design to its own tree (dense Detent:9852a3c, s2 Detent:35296ba, stacked Detent:d04794d, main Detent:ea1fddc); a rerun at the quest head would build the head eight times and erase the comparison. Not rerun. Options: (a) accept the arm jobs as A4 evidence at their arm commits (recommended); (b) rerun only the main arm at the merged head, as "stacked on today's main" (3 x 100K + 2 x 5M exclusive, the 5M ones after a fresh main seed if the state format moved again); (c) restructure as one job per row at head with `--ref` arm checkouts. The queued 5M arms are left as they are (nothing to move: each already runs at its arm tree).
+Nothing. Answered (lead): docs/measurements/dense-sync-stack-20261118/** is in the file set; A4 is [manual], checked against each arm's commit, no head rerun.
 
 ## Evidence
 
