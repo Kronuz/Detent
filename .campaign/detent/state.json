@@ -3753,6 +3753,8 @@
     "delta-plan-warm": {
       "accepted": {},
       "after": [],
+      "base": "f3594fd06a2542aa0fb5425823fa49917587698c",
+      "branch": "quest/detent/delta-plan-warm",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3773,9 +3775,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "delta plan: measure a warm second plan on one mapping",
-      "updated": "2026-11-19T06:00:37"
+      "updated": "2026-11-19T14:40:41",
+      "worktree": "../Detent-wt/detent/delta-plan-warm"
     },
     "dense-distribution": {
       "accepted": {
