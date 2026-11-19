@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261118-135201-486193 261118-135207-6362c5, CI 44405920724 (quest), probe 4 44405919972
+State: waiting on jobs 261119-053737-3bb236 261119-053738-37e35d 261119-053751-c55045 261119-053752-19cd10 261119-053745-c0444c, CI 44535229542 (quest), probe 5 44535268814
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -61,10 +61,15 @@ refused-first or slow-resolver in CI.
   mutant consensus:a1eb72a (no ~Cluster stop; refs/mutants/peers-tsan-timeout/no-cluster-stop),
   which must time out.
 
-**Still open: what throws.** Probe 4 (run 44405919972, consensus:998120b = fix + probe ci.yml)
-prints the exception. Suspect: binding a port picked earlier by free_port fails with EADDRINUSE,
-because the load or the voters' own dials took it as an ephemeral source port. Fix that next,
-or the hang becomes a reported failure instead.
+**What throws: not caught yet.** Probe 4 (run 44405919972, consensus:998120b = fix + probe
+ci.yml, beside the connection_test load): 0 of 420 runs failed (2 full shards x 30, 2 shards x 180
+of hung-resolver and slow-resolver alone), so nothing threw. Before the fix the hang rate beside
+the load was 2 of 140 full runs (probe 1: 1 of 20, probe 2: 1 of 120). Probe 2's stacks do not
+tell which call threw: epoll_wait's timeout=-1 is asio's timerfd mode, not an idle context.
+Suspect, unproven: the Peers constructor's bind (peers.h:118) fails with EADDRINUSE because a
+port free_port picked was taken before the voter bound it (by the load's own bind(0), which
+also prefers odd ports). Probe 5 (run 44535268814, consensus:373b4ca = merged head e62cc77 +
+probe ci.yml, 8 full shards x 40 beside the load) prints the exception if it recurs.
 
 Budget: consensus:c81a075 sets TIMEOUT 50 for consensus_transport_peers (CMakeLists.txt, granted).
 
@@ -98,9 +103,15 @@ Budget: consensus:c81a075 sets TIMEOUT 50 for consensus_transport_peers (CMakeLi
 
 ## Next
 
-1. Read probe 4 (`gh run view 44405919972 -R Kronuz/consensus --log`): which exception, in which case; fix that cause with a test.
-2. A3: peers 20 of 20 under TSan (STRICT=1 loop.sh job), `campaign verify`, CI on the quest branch (44405920724 is at 1867287).
-3. Merge main (after consensus-close-fenced lands; it also registers a test in CMakeLists.txt) before landing.
+1. Read probe 5 (`gh run view 44535268814 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
+   if a run threw, name the exception here and fix its cause with a test; else record 0 of 320.
+2. Read the merged-head jobs (A2 3bb236 + fails-without 37e35d at mutant 0a85773, A3 c55045 +
+   19cd10, suite c0444c) and CI 44535229542; paste `campaign brief`'s table; ready for review.
+
+Merged main (consensus:ae08d92) at consensus:e62cc77, no conflicts. Mutant for fails-without:
+consensus:0a85773 (refs/mutants/peers-tsan-timeout/no-cluster-stop-merged, merged head without
+~Cluster). A3 runs as two strict batches of 10 (a strict job lasts at most 10 minutes; macOS
+batch b showed nice-19 runs fail timing checks under load).
 
 ## Blocked on
 
