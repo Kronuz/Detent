@@ -15108,9 +15108,7 @@
     },
     "pack-scrub-hash-count": {
       "accepted": {},
-      "after": [
-        "namespace-s6-v1-removal"
-      ],
+      "after": [],
       "base": "ff38ccd31af2905bb373d1cf7312b0454dd97d41",
       "branch": "quest/detent/pack-scrub-hash-count",
       "checks": [
@@ -15136,7 +15134,7 @@
       "risk": "normal",
       "status": "active",
       "title": "PackScrub counts what it hashes",
-      "updated": "2026-11-19T14:40:32",
+      "updated": "2026-11-19T15:21:04",
       "worktree": "../Detent-wt/detent/pack-scrub-hash-count"
     },
     "paged-decode-one-shape": {
