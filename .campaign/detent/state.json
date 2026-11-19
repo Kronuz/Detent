@@ -5455,7 +5455,7 @@
       "risk": "normal",
       "status": "landed",
       "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
-      "updated": "2026-11-18T21:26:52",
+      "updated": "2026-11-19T04:42:56",
       "worktree": ""
     },
     "groups-upload-loop-stall": {
