@@ -646,7 +646,11 @@ void cold_forks(const std::filesystem::path &root) {
 		for (auto &reader : readers)
 			reader.join();
 		int status = 0;
-		CHECK(::waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+		CHECK(::waitpid(child, &status, 0) == child);
+		if (!WIFEXITED(status) || WEXITSTATUS(status))
+			std::fprintf(stderr, "cold fork %d: child status %d, exit %d, signal %d\n", int(mode), status,
+						 WIFEXITED(status) ? WEXITSTATUS(status) : -1, WIFSIGNALED(status) ? WTERMSIG(status) : 0);
+		CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
 		CHECK(mode != ColdMode::InFlight || race.waits.load() > 0);
 		// Parent thaw retains its live preparation counts and allows another fork.
 		const auto check_parent = ::fork();
