@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_relay/service.hh"
 #include "support/handler_harness.hh"
+#include <atomic>
 #include <rapidjson/document.h>
 #include <sha256.h>
 
@@ -60,8 +61,11 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 								 std::make_shared<d::StorageLedger>(account, 8 * 1024 * 1024),
 								 std::make_shared<d::StorageLedger>(account, 2 * 1024 * 1024)}};
 	const std::array bindings{r::SessionBinding{bundle, authorization.principal, target}};
+	// The owner's wake: a request enqueued or a reply changed must reach it, or the owner sleeps through it.
+	std::atomic<unsigned> wakes{0};
 	auto runtime = std::allocate_shared<r::ServiceRuntime>(d::StorageAllocator<r::ServiceRuntime>(metadata),
-														   accounts, registry, bindings);
+														   accounts, registry, bindings, r::ServiceLimits{}, nullptr,
+														   [&wakes] { wakes.fetch_add(1); });
 	auto service = std::make_unique<r::Service>(runtime);
 	for (unsigned lane = 0; lane != 4; ++lane) {
 		auto ledger = lane == 3 ? metadata : accounts.requests[lane];
@@ -113,13 +117,19 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 			   ",\"coding\":\"raw\",\"profile\":1,\"force_snapshot\":true}",
 		   open);
 	const auto opening = drain(open);
+	// Idle: a sweep without a rescan ends, and then a turn changes nothing, so the owner may sleep.
+	for (unsigned turn = 0; turn < 1000 && !runtime->swept(); ++turn)
+		runtime->step(r::Sessions::Clock::now(), false);
+	check(runtime->swept() && !runtime->step(r::Sessions::Clock::now(), false));
 	rapidjson::Document parsed;
 	parsed.Parse(opening.data(), opening.size());
 	check(!parsed.HasParseError() && parsed.HasMember("session") && parsed["session"].IsString());
 	const std::string session = parsed["session"].GetString();
 	Writer next(account);
+	const auto idle_wakes = wakes.load();
 	submit("/v2/distribution/session/next",
 		   "{\"version\":1,\"session\":\"" + session + "\",\"after\":0,\"wait_ms\":0}", next);
+	check(wakes.load() > idle_wakes); // the enqueue woke the owner
 	std::optional<http::detail::OwnedStreamExchange::Write> held;
 	for (unsigned turn = 0; turn < 10000 && !held; ++turn) {
 		runtime->step(r::Sessions::Clock::now());
