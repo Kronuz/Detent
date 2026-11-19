@@ -16,3 +16,4 @@ driver-apply-gap judges witness status by the membership in force at a range's l
 ## Notes
 
 Filed 2026-11-19 from driver-apply-gap (fix round 1, consensus:ee03230). High risk: consensus apply safety.
+- From driver-apply-gap's re-review (consensus:4b0b214): G1, DRIVER.md:190 claims what the removal case breaks, so fix that line here; G2, a driver_test case that pins the 'last index' rule (judging at the first index or at the commit index must fail it).
