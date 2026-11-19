@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-detentd, detent-relay and detent-agent are composed the way cpp-libraries' docs/server-composition.md states once the Xapiand lead marks it CURRENT at a named commit: --upstream-ca, one limits struct, raise_open_files(max_clients + reserve) at start, the readiness pipe and pid flock (already in detent_cli), lifecycle/component services and stop handling, no fixed-interval polling (loop-idle-waits). Start only after the note is CURRENT and Xapiand's adoption has landed, so the shapes match.
+detent-authority (formerly detentd), detent-relay and detent-agent are composed the way cpp-libraries' docs/server-composition.md states once the Xapiand lead marks it CURRENT at a named commit: --upstream-ca, one limits struct, raise_open_files(max_clients + reserve) at start, the readiness pipe and pid flock (already in detent_cli), lifecycle/component services and stop handling, no fixed-interval polling (loop-idle-waits). Start only after the note is CURRENT and Xapiand's adoption has landed, so the shapes match.
 
 ## Acceptance criteria
 
