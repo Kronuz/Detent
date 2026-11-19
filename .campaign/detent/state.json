@@ -6769,7 +6769,9 @@
     },
     "http-drop-user-data": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "http-affinity-death-tsan"
+      ],
       "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
       "branch": "quest/detent/http-drop-user-data",
       "checks": [
@@ -6784,14 +6786,22 @@
       "files": [
         "http_message.h",
         "http_deferred.h",
+        "http_handler.h",
+        "http_asio.h",
+        "http_request_parser.h",
+        "examples/kv_store.cc",
         "test/deferred_test.cc",
         "test/deferred_asio_test.cc",
         "test/timeouts_test.cc",
+        "test/asio_test.cc",
+        "test/coroutine_test.cc",
+        "test/readahead_test.cc",
         "CMakeLists.txt",
         "docs/**",
         "CHANGELOG.md",
         "README.md",
-        "ARCHITECTURE.md"
+        "ARCHITECTURE.md",
+        "AGENTS.md"
       ],
       "journal": "../Detent-wt/detent/http-drop-user-data",
       "landed": [],
@@ -6805,7 +6815,7 @@
       "risk": "high",
       "status": "active",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T14:40:13",
+      "updated": "2026-11-19T14:47:08",
       "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
