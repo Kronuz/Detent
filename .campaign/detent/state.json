@@ -3649,31 +3649,31 @@
     "dense-sync-stack": {
       "accepted": {
         "durability": {
-          "at": "2026-11-18T22:39:21",
-          "base": "34ee9823766d0a32aad7ad0b25586643bdbf2922",
+          "at": "2026-11-19T04:42:21",
+          "base": "dc736814ecd8289c5f44abe754c55029ba2e1665",
           "blobs": {
-            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:b1de8633e635c5efd3c7cdfe4f8f38ea622417b8",
+            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:c98579962501b4bb9d753a8ab67369b04989af80",
             "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "100755:9bd03e6043fe031f3e7536b510794d0e039e9bbe",
             "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "100755:841ef23b8e765d7458cad3a7173389c73f15788e",
             "docs/measurements/dense-sync-stack-20261118/seed.py": "100644:09880e141eac6fafdfc6ed9b22f2324650eb7340",
             "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "100755:aa0b0fbeaa38c6813e667bcff31895bacb9ef7c8",
             "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "100755:8e5bd7d21586967e0517b6abfa8d21e57fc8852c",
-            "docs/perf/dense-sync-stack.md": "100644:5128022634aed5ceefbcb462d85305b7696161ba",
+            "docs/perf/dense-sync-stack.md": "100644:d31f96329216160133bdf24d15a7dcb7ea9159e9",
             "src/detent_local/disk_store.cc": "100644:d9027979188c909ab8be80bca2cff5f3ae861e3b",
             "src/detent_local/store_core.hh": "100644:5e9af8398e5ae0499e8a3e4ef81326108ef2b654",
             "tests/detent_local/test_paged_publication_artifacts.cc": "100644:7ca32160869d66b09eb72bdaa7686a9e28736970"
           },
           "by": "review",
-          "commit": "bdb2263a2548fccae243e5c2a100b7fb2569aaac",
+          "commit": "8586ee740d8e1d139054e140a5fd61bf7f68c826",
           "criteria": "8689c78d79d12427",
           "diffs": {
-            "docs/measurements/dense-sync-stack-20261118/README.md": "35f921c93e9a796f",
+            "docs/measurements/dense-sync-stack-20261118/README.md": "47a76963e13f39aa",
             "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "bb1f57f832ea3167",
             "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "a67330b785ad354d",
             "docs/measurements/dense-sync-stack-20261118/seed.py": "449e583c508f6f5f",
             "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "b22eb658be1ece49",
             "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "e90ba64c48f0d744",
-            "docs/perf/dense-sync-stack.md": "9e794784abb44a55",
+            "docs/perf/dense-sync-stack.md": "bb78174d2c134ccd",
             "src/detent_local/disk_store.cc": "05ebd2546a0fc18e",
             "src/detent_local/store_core.hh": "9fd7f04e6bf16cc3",
             "tests/detent_local/test_paged_publication_artifacts.cc": "1f7c6b788ff0aab0"
@@ -3738,7 +3738,7 @@
       "risk": "high",
       "status": "review",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T22:39:21",
+      "updated": "2026-11-19T04:42:21",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-sync-stack-5m-times": {
