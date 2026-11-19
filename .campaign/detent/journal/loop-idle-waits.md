@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: blocked on lead: file set widening and the multi-voter ruling (msg-103); suite job queued at the head
+State: blocked on lead: file set widening and the multi-voter ruling (msg-103); waiting on jobs 261119-063530-99e0ff (suite)
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
