@@ -180,8 +180,11 @@ struct Coordinator::Impl {
 			throw asio::system_error(error);
 	}
 	// A worker job ends by setting its event on the owner, never on the worker: the waiting frame lives on
-	// the owner, so no set() can race its destruction at teardown.
-	asio::any_io_executor owner_executor() const { return options.source.scheduler->executor(); }
+	// the owner, so no set() can race its destruction at teardown. The job holds the owner's io_context as
+	// outstanding work until then, so a loop with nothing else queued cannot return under the wait.
+	asio::any_io_executor owner_executor() const {
+		return asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked);
+	}
 	void notify_candidate() noexcept {
 		if (candidate_wake)
 			candidate_wake->cancel();
