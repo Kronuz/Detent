@@ -653,6 +653,35 @@
         ]
       },
       "text": "journal-group-io-cost landed: unlocks journal-group-io-sweep; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T17:08:12",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-81",
+      "items": {
+        "journal-host-ranges-race": "frees include/journal/host.h, test/host_test.cc for journal-host-ranges-race",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "journal-host-ranges-race",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "journal-group-io-sweep landed: unlocks frees include/journal/host.h, test/host_test.cc for journal-host-ranges-race; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4391,9 +4420,7 @@
         "include/consensus/driver.h",
         "docs/DRIVER.md",
         "test/driver_simulation.cc",
-        "test/driver_test.cc",
-        "test/driver_apply_test.cc",
-        "CMakeLists.txt"
+        "test/driver_test.cc"
       ],
       "landed": [],
       "lenses": [
@@ -4408,7 +4435,7 @@
       "risk": "high",
       "status": "planned",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T12:58:19"
+      "updated": "2026-11-18T17:24:26"
     },
     "driver-pipeline": {
       "accepted": {},
