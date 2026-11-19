@@ -3,38 +3,71 @@
 State: working
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Naming what the kernel waits on inside write(2): local reproduction on this x86_64 macOS 15.8
+host (ctest -j2 of connection, groups_credit, groups_reader, groups_upload, as CI orders them),
+and the probe extended with mbuf and VM counters.
 
 ## Next
 
-1. <step>
+1. Reproduce locally; extend the probe (mbstat m_wait/m_drain, VM free and free_wanted) and
+   read it at a stuck sample.
+2. Name the kernel wait, then fix or bound (A2).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
+
+## Notes
+
+- A1. Five probed CI failures of groups_upload, all macos-x86_64, all with the same stack
+  (excerpts: Detent/.scratch/detent/groups-upload-loop-stall/ci-probe-excerpts.txt):
+  1. Run 44613773204, job 135882671999 (main 5935efa): gap 1,040 ms.
+  2. Run 44535229542, job 135614852865 (e62cc77): gap 1,740 ms.
+  3. Run 44472936768, job 135387007770 (d7091f6): gap 1,575 ms.
+  4. Run 44467383652, job 135565218285 (f427934): gap 4,731 ms, nothing uploaded.
+  5. Run 44465252451, job 135361420028 (main 84608cc): gap 3,530 ms.
+
+  From 1 (sockets elided):
+  ```
+  upload:   554 ms  6.0 MiB 3 beats; links 1/1 sent 14 dropped 0 reads 9; [49622>49621 unread 43 sndq 0 sndwnd 1028864 ...] [49621>49622 unread 0 sndq 0 ...] {1.0 age 0 cpu 91 R} {1.1 age 308 cpu 0 U pc write+0xa < bwrite_conv+0x1c < bio_write_intern+0xa5 < BIO_write+0x17 < tls_retry_write_records+0x8e < ssl3_write_bytes+0x4a2 < SSL_write+0x19 < kronuz::consensus::transport::Connection::flush(...)+0x197} {2.0 age 0 cpu 0 R} {2.1 age 0 cpu 0 R}
+  upload:   982 ms  6.0 MiB 3 beats; ... {1.1 age 731 cpu 0 U pc write+0xa < ... < Connection::flush(...)+0x197} ...
+  upload:  1327 ms 10.0 MiB 18 beats; links 1/1 sent 32 dropped 37 reads 13; ... {1.1 age 0 cpu 12 R} ...
+  ```
+  From 4: host 1's connection loop sat in the same write(2) from about 260 ms to the end of the
+  4 s run, with both sockets empty (unread 0, sndq 0) and sndwnd 853 KB.
+
+  Answer: a handler that did not return, not a thread the runner did not run. Host 1's
+  connection loop (1.1) is inside write(2), called by SSL_write in Connection::flush, in run
+  state U (TH_STATE_UNINTERRUPTIBLE: a kernel wait without PCATCH), with 0 ms CPU, for 0.3 to
+  4.6 s, while its socket's send queue is empty and the peer's window open. A thread the
+  runner did not run is R. So the write blocks in the kernel on something other than socket
+  space: a non-blocking socket's write can still sleep.
+- In every failure the only test beside upload (ctest --parallel 2) is
+  consensus_transport_connection, 9 to 14 s into its run, and upload starts as groups_reader
+  ends. The earlier probe (probe/groups-upload-stall, upload beside a looping connection_test)
+  failed 1 of 360; CI's macos-x86_64 failed 5 of about 15 runs on 2026-11-19.
+- XNU (apple-oss-distributions/xnu main, read in .scratch/.../xnu/): x86_64 uses the mcache mbuf
+  allocator (kern.ipc.mb_uses_mcache 1 here). sosend's cluster allocations are TRYHARD, but
+  slab_alloc first calls freelist_populate(M_WAIT), which grows the pool through m_clalloc (a
+  kernel memory allocation that can wait for pages), and every other allocator and freer sleeps
+  uninterruptibly ("m_clalloc", PZERO-1) while one does; mbuf_sleep also sleeps PZERO-1. sblock
+  and sbwait sleep with PCATCH (state W), so neither is this U.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | [manual] Notes, A1: five probed CI failures (run ids there), all host 1's connection loop in write(2) under SSL_write in Connection::flush, state U, 0 CPU, sockets empty: a handler that did not return (a kernel wait inside write), not an unscheduled thread |
+| A2 | pending |
+| A3 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- A1's "runner or product" from the probe: U with 0 CPU inside write(2) is a call that did not
+  return; which kernel resource it waits on decides whether the fix is in the product.
