@@ -2,7 +2,8 @@
 # usage, from the checkout root: compare.sh build|idle|paths [BASELINE_CHECKOUT]
 #   build (light, a job's --build): detentd and detent-relay (Release) here and, when given, at
 #         BASELINE_CHECKOUT.
-#   idle  (A1, strict): idle_loops.py, three rounds alternating head and baseline.
+#   idle  (A1, strict): idle_loops.py, three rounds alternating head and baseline, with the relay's
+#         sync interval IDLE_INTERVAL_MS (default 60000; the configuration's default is 250).
 #   paths (A3, strict): paths.py, five rounds alternating head and baseline.
 set -eu
 mode=${1:?build, idle or paths}
@@ -25,7 +26,8 @@ build)
 	exit 0 ;;
 idle)
 	rounds=3
-	run() { /usr/local/bin/python3 "$here/idle_loops.py" --build "$1" --usage .scratch/idle-usage --label "$2"; } ;;
+	run() { /usr/local/bin/python3 "$here/idle_loops.py" --build "$1" --usage .scratch/idle-usage --label "$2" \
+		--interval-ms "${IDLE_INTERVAL_MS:-60000}"; } ;;
 paths)
 	rounds=5
 	run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2"; } ;;
