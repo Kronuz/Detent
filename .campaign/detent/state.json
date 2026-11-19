@@ -703,6 +703,35 @@
       "closed": "noted; Detent's tests and src have no SHUT_WR/half-close hang-ups, so the http repin needs no test change",
       "id": "msg-85",
       "text": "xapiand lead: http-halfclose landed at http:ec273dd. EOF on a connection with a request in flight no longer cancels; a reset or a failed write does (D126). Your long polls end at their own bound as before; tests that used a half-close as a hang-up need a reset now."
+    },
+    {
+      "at": "2026-11-18T17:24:26",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-82",
+      "items": {
+        "driver-apply-gap": "frees include/consensus/driver.h, docs/DRIVER.md, test/driver_simulation.cc, test/driver_test.cc for driver-apply-gap",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "driver-apply-gap",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set driver-apply-gap: unlocks frees include/consensus/driver.h, docs/DRIVER.md, test/driver_simulation.cc, test/driver_test.cc for driver-apply-gap; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5277,18 +5306,52 @@
       "files": [
         "test/transport/groups_test.cc"
       ],
-      "journal": "../Detent-wt/detent/groups-upload-3s-class",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T21:25:03",
+          "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+          "criteria": {
+            "A1": "[manual] run 44443844218 (macos-x86_64, c782db1) named in Notes: host 1's connection loop did not turn for about 1.3 s with both sockets empty and windows open, then the designed one-frame wait (about 250 ms); not the control lane, a window or loss. Reproduced by the blocked-loop mutant (b959fbf, local)",
+            "A2": "261118-211831-97019b; fails without: 261118-205321-1d7dff, 261118-205323-25f32e",
+            "A3": "261118-205311-962da3, 261118-205312-f556f8"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-205311-962da3",
+              "level": "light",
+              "seconds": 1083.2,
+              "state": "done",
+              "what": "groups-upload-3s-class check suite at 84608ccb0f88"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "84608ccb0f885d6b689f4db895e30a72154d0054",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c782db1b11cf79781698be768debca1598cc684b",
+          "reason": "",
+          "tested": "84608ccb0f885d6b689f4db895e30a72154d0054"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
-      "updated": "2026-11-18T20:57:34",
-      "worktree": "../consensus-wt/detent/groups-upload-3s-class"
+      "updated": "2026-11-18T21:26:52",
+      "worktree": ""
     },
     "groups-upload-loop-stall": {
       "accepted": {},
