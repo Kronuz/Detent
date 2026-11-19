@@ -15855,6 +15855,8 @@
     "reactor-tls-cache": {
       "accepted": {},
       "after": [],
+      "base": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
+      "branch": "quest/detent/reactor-tls-cache",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -15870,6 +15872,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/reactor-tls-cache",
       "landed": [],
       "lenses": [
         "correctness"
@@ -15879,9 +15882,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T05:59:39"
+      "updated": "2026-11-19T14:40:06",
+      "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
     "reader-acl": {
       "accepted": {},
