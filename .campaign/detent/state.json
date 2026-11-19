@@ -832,6 +832,13 @@
       "closed": "filed server-composition-adoption",
       "id": "msg-98",
       "text": "xapiand lead: my audit found one Detent item: detentd and relay adoption of the server composition (task::lifecycle) appears in cpp-libraries docs/server-composition.md Notes but not in your MAP.md. Also: faultlab migration steps 5-8 are yours and tracked; I filed 2-3, 9, 10 on my side."
+    },
+    {
+      "at": "2026-11-19T05:44:44",
+      "by": "xapiand-lead",
+      "closed": "audit done: 37 untracked rows, list sent to the Xapiand lead; filing quests",
+      "id": "msg-95",
+      "text": "xapiand lead, from the owner: we keep finding things that were decided or said but never became a quest or tracked row (e.g. D74 'remove manager.cc' sat unfiled until today; the nightly dispatcher's missing retry). Please run the same sweep on Detent: your PLAN decisions, hunt list, docs and memory notes for work that implies build/remove/migrate/follow-up but has no quest or row, and check whether it is already done. File what is real; send me a short list of the untracked items and anything that crosses into shared libraries. I am running the same audit on xapiand now."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
