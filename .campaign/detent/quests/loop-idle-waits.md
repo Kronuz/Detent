@@ -5,27 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+detent-relay's host turn (src/detent_relay/host.cc:398, 407) and detentd's authority service (src/detent_authority/service.cc:2030, 2046, 3182, 3317) re-arm a 1 ms timer when a turn makes no progress, so an idle server wakes 1,000 times a second. After this quest an idle loop sleeps until work arrives (a post on enqueue, or a wheel wait at the next real deadline), per the server-composition note's F6 (Xapiand review, 2026-11-19). A mixed shape stays only with a D62 cost case.
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 An idle detentd and an idle detent-relay make no loop wakeups over 10 s beyond their real deadlines (counted wakeups, before and after at named commits): jobs.
+- A2 A test posts work to an idle loop and sees it served within one turn, with no timer involved; it fails at a mutant that drops the wake (--fails-without): jobs.
+- A3 Throughput and p99 of the relay and authority benches stay within 5% of main (strict, before and after): jobs.
+- A4 The suite, TSan and CI pass: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+High risk: concurrency (a lost wake hangs a server). Filed from the Xapiand lead's server-composition review F6 (msg-92).
