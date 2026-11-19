@@ -10,7 +10,7 @@ detent-authority (formerly detentd), detent-relay and detent-agent are composed 
 ## Acceptance criteria
 
 - A1 [artifact] Each main follows the note's steps in order, deviations listed with reasons in the note's Mains table: `docs/` mechanism note for Detent's mains.
-- A2 detentd and detent-relay start, serve and stop through the shared lifecycle; a test stops each with SIGTERM under load and sees in-flight requests finish within the shutdown bound: jobs.
+- A2 detent-authority, detent-relay and detent-agent start, serve and stop through the shared lifecycle; a test stops each with SIGTERM under load and sees in-flight requests finish within the shutdown bound: jobs.
 - A3 The suite and CI pass: jobs.
 - A4 One config shape (D125): each daemon reads detent-<role>.json holding process and role settings, with secrets in one private file named by path; authority.json and relay.json and agent.json are gone, and a test starts each daemon from its single file plus secrets file and refuses a secrets file with group or other access: jobs.
 
