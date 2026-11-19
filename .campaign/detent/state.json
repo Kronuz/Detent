@@ -9276,6 +9276,8 @@
     "logger-slack-mutant": {
       "accepted": {},
       "after": [],
+      "base": "455cad0a185b2c9037bb3bb65c99a4e3736b0cc3",
+      "branch": "quest/detent/logger-slack-mutant",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -9296,6 +9298,7 @@
         "test/deferred.cc",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/logger-slack-mutant",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -9303,9 +9306,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "logger: a mutant for the deferred lines' 8 ms slack",
-      "updated": "2026-11-19T05:59:53"
+      "updated": "2026-11-19T14:40:34",
+      "worktree": "../logger-wt/detent/logger-slack-mutant"
     },
     "logger-wheel-ab": {
       "accepted": {},
