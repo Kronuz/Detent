@@ -15011,7 +15011,32 @@
       "worktree": ""
     },
     "peers-tsan-timeout": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T11:41:23",
+          "base": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "blobs": {
+            "CMakeLists.txt": "100644:81e3e0526270b4a2920d1f44615630f74a43df4e",
+            "test/support/ports.h": "100644:4dff996064ed31c6c2d74551c332a8734a4018aa",
+            "test/transport/groups_test.cc": "100644:faf597e5f65b2576e4ffad55dcfee262e83d9ee3",
+            "test/transport/peers_test.cc": "100644:28d6f1ac86fc679dfc9811339618a3fe0ba06fb3"
+          },
+          "by": "review",
+          "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "criteria": "9b03acbb1b948b97",
+          "diffs": {
+            "CMakeLists.txt": "7beda6c0cb027150",
+            "test/support/ports.h": "68fe98b8a2bcdbc3",
+            "test/transport/groups_test.cc": "0bac6efff606983f",
+            "test/transport/peers_test.cc": "785108da56d29bfb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9b5ecc4d33396e38b9f5bf2c83a134d661f2640f",
+          "reviewed": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-close-fenced",
         "consensus-dns-threads"
@@ -15046,7 +15071,9 @@
       ],
       "journal": "../Detent-wt/detent/peers-tsan-timeout",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -15054,7 +15081,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-19T09:59:08",
+      "updated": "2026-11-19T11:41:23",
       "worktree": "../consensus-wt/detent/peers-tsan-timeout"
     },
     "persistent-map-adoption": {
