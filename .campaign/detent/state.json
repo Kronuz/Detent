@@ -9066,9 +9066,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T06:38:47",
+      "updated": "2026-11-19T07:37:37",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
