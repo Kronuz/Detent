@@ -761,6 +761,13 @@
         ]
       },
       "text": "groups-upload-3s-class landed: unlocks frees test/transport/groups_test.cc for groups-upload-loop-stall; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T22:35:43",
+      "by": "xapiand-lead",
+      "closed": "noted; Detent bumps its logger pin to logger:455cad0 in the next dependency repin",
+      "id": "msg-88",
+      "text": "xapiand lead: logger-exit-lifetime landed at logger:455cad0. Exit now waits on the LOG thread's progress (200 ms with no line written) with a 5 s total cap, reporting 'at most N lines not written' on stderr; main's 200 ms join silently dropped 1196-2870 of 3600 lines. Exceptions are described at the call (a describe hook that throws now yields 'unknown exception'); after teardown late lines, including L_EXC, go to stderr and never call the host's hooks. Fork children and exit() on the LOG thread skip the wait. Clocks are built before the LOG thread starts (an LLVM 22 TSan report on main). Drain cost per line is 1.003x main's. Bump your pin when convenient."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
