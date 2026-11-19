@@ -6736,6 +6736,8 @@
     "http-drop-user-data": {
       "accepted": {},
       "after": [],
+      "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+      "branch": "quest/detent/http-drop-user-data",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6757,6 +6759,7 @@
         "README.md",
         "ARCHITECTURE.md"
       ],
+      "journal": "../Detent-wt/detent/http-drop-user-data",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6766,9 +6769,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T05:59:44"
+      "updated": "2026-11-19T14:40:13",
+      "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
       "accepted": {
