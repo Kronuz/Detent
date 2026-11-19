@@ -8998,7 +8998,9 @@
     },
     "loop-idle-waits": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "rename-detentd"
+      ],
       "base": "be6f4177c34750e90eb41d2d6723ff9786a5da90",
       "branch": "quest/detent/loop-idle-waits",
       "checks": [
@@ -9013,7 +9015,18 @@
       "files": [
         "src/detent_relay/host.cc",
         "src/detent_authority/service.cc",
-        "src/detent_delivery/coordinator.cc"
+        "src/detent_delivery/coordinator.cc",
+        "include/detent/owner_loop.hh",
+        "include/detent_distribution_http/reply_pump.hh",
+        "src/detent_distribution_http/reply_pump.cc",
+        "src/detent_relay/service.cc",
+        "include/detent_relay/service.hh",
+        "src/detent_relay/mirror_service.cc",
+        "include/detent_delivery/coordinator.hh",
+        "tests/detent_relay/**",
+        "tests/detent_authority/**",
+        "tests/detent_delivery/**",
+        "bench/idle-wakeups/**"
       ],
       "landed": [],
       "lenses": [
@@ -9026,7 +9039,7 @@
       "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T06:25:21",
+      "updated": "2026-11-19T06:36:17",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
