@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:e77b31d` (pushed): gates native 6e68ac, asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651; A16 4a5487 2e857f; rebench 27840a (strict); mutants, plain A7/A10-A14 and the soak (ids under Evidence, after native); old gates fee608 891946 22df97 b4fe42 at `Detent:2fb2a41` still queued (read when they run). Not ready for review until the gates, A16 and the t3-tsan child exit close.
+State: waiting on jobs at `Detent:e77b31d` (pushed): gates native 6e68ac, asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651; A16 4a5487 2e857f; rebench 27840a (strict); mutants, plain A7/A10-A14 and the soak (ids under Evidence, after native); old gates fee608 891946 22df97 b4fe42 at `Detent:2fb2a41` still queued (read when they run). Not ready for review until the gates, A16 and the t3-tsan child exit close. Lead: Blocked on 1 (a file for `docs/perf/`).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -195,8 +195,13 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Blocked on
 
-Nothing on the lead. Lead ruling of 2026-11-19 on msg-1 (option b) applied at `Detent:e77b31d`;
-the in-place reading question goes to the security reviewer (State).
+1. File set: step 3 of the 2026-11-19 ruling puts the rebench in `docs/perf/`, and the set holds only
+   `docs/perf/first-read-gate.{sh,md}`. Options: (a) add `docs/perf/reader-lookup.md`; (b) put the
+   table in `docs/mechanisms/reader-core.md` (in the set). Recommend (a). Until then the table goes in
+   the journal's Result only.
+
+The msg-1 ruling (option b) is applied at `Detent:e77b31d`; the in-place reading question goes to
+the security reviewer (State).
 
 ## Evidence
 
