@@ -5245,7 +5245,7 @@
       ],
       "consumes": [],
       "files": [
-        "test/groups_test.cc"
+        "test/transport/groups_test.cc"
       ],
       "journal": "../Detent-wt/detent/groups-upload-3s-class",
       "landed": [],
@@ -5257,7 +5257,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
-      "updated": "2026-11-18T20:36:11",
+      "updated": "2026-11-18T20:57:34",
       "worktree": "../consensus-wt/detent/groups-upload-3s-class"
     },
     "groups-upload-stall": {
