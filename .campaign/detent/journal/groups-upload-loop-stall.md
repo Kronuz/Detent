@@ -1,24 +1,19 @@
 # groups-upload-loop-stall: journal
 
-State: waiting on jobs 261119-150455-9311c3 (watches probe run 44634341014), CI 44634220600 on consensus:7fcd21f
+State: waiting on jobs 261119-155015-0d1014 (watches probe run 44640924436, the second 40 suites)
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting for probe run 44634341014 (probe/groups-upload-loop-stall at consensus:bf56a07, never
-lands): the whole suite x10 on 4 macos-15-intel shards, as CI runs it (ctest --parallel 2); at
-upload's first stuck sample the test starts `sudo spindump` on itself (GROUPS_PROBE_SPINDUMP),
-so the stuck thread's kernel frames name what write(2) waits on. Spindump files are the run's
-artifacts (spindump-<shard>). CI 44634220600 on the quest branch (consensus:7fcd21f, the kernel
-counters in upload's samples) may catch one too.
+Probe run 44640924436 (probe/groups-upload-loop-stall, consensus:bf56a07): a second 40 suites
+on macos-15-intel with spindump at upload's first stuck sample.
 
 ## Next
 
-1. Read 44634341014: the kernel frames of host 1's connection loop (1.1) in write(2) and of the
-   sampler thread; the kernel counters at the stuck samples.
-2. Name the kernel wait. A product cause (something the transport holds or does): fix in
-   connection.h (ask the lead for the file) with a test that fails without it. A host cause
-   (a global kernel lock or memory wait): the bound from the measured stall (A2).
+1. Read 44640924436 (logs and spindump-<shard> artifacts). A stall: name the kernel wait from
+   its kernel frames. None again: report to the lead (cause not named; options in Blocked on).
+2. Then as before: a product cause needs connection.h (ask the lead); a host cause gets the
+   bound from the measured stall, with a mutant.
 3. Suite job and CI at the final commit (A3).
 
 ## Blocked on
@@ -72,6 +67,12 @@ Nothing.
   (ctest -j2 of connection, groups_credit, groups_reader, groups_upload) 12 times: 0 failures,
   no stuck sample (.scratch/.../repro1.txt). The kernel probe's line, here:
   `{kern wait +0 drain +0 16kcl 4422/6247 fail +0; vm free 2034 MiB wanted 0 pageins +236 swapins +0 decomp +218}`.
+
+- Probe run 44634341014 (4 shards x 10 whole suites, ctest --parallel 2, macos-15-intel:
+  15 GB, nmbclusters 65536, mb_uses_mcache 1, sudo works): 0 of 40 suites failed, no stuck
+  sample, so spindump never ran and there is no artifact. CI 44634220600 on consensus:7fcd21f
+  (the kernel counters) passed on every platform, macos-x86_64 included. No other probed
+  failure since 2026-11-19 21:15Z. The kernel wait inside write(2) is not named yet.
 
 ## Evidence
 
