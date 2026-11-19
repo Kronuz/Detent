@@ -25,8 +25,8 @@ Nothing.
 | A4 | 261119-145820-931e5c (suite), 261119-145900-52089d (host + shared_store under TSan), CI 44633320764 (Linux TSan, ASan/UBSan) |
 
 Local run before the jobs: under main's host.h, close_in_doubt fails 4 checks ("the turn log lost
-this group" after the restart) and failed_close_crash loses records at 24 of 192 points (every
-sync_directory-after case with a create in another slot, 8 seeds x ...); at the fix 0 of 192.
+this group" after the restart) and failed_close_crash loses records at 24 of 192 points (each a
+create in another slot behind a commit that reached the rename); at the fix 0 of 192.
 
 ## Result
 
