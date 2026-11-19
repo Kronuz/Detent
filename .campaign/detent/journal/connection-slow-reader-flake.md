@@ -1,9 +1,31 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261118-202518-aa0e71 (coarse_writer x120, 6 busy loops), 261118-202519-df12a1 (mutant, no pacing), 261118-202520-521f65 (suite), all at 4050afc (main merged); CI 44458203198. The precondition fired at f116bfa on macOS: the pin was on the listener, not the accepted socket (fixed); the mutant 93b72b proved nothing while the head failed.
+State: waiting on jobs 261118-211655-ca13b5, 261118-211656-2bfc30, 261118-211658-ec2fb0 (A1), 261118-211713-61ad72 (x200), 261118-211714-e3cfba (coarse x120 loaded), 261118-211716-cc66bd (mutant), 261118-211733-5d017a (suite, 50 min), CI 44464145833, all at 830f04a (main merged at 0e53c04). Round 7: coarse_writer sized from the reader's measured capacity.
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 7, the precondition at 4050afc (aa0e71 120 of 120, c0c368, CI 44458203198 macos-arm64, macos-x86_64):
+"SO_RCVBUF 524288 pinned, 1046912 sampled at most ... -88448 B spare". Every one of those runs passed
+48 of 48 with 2 drained expiries: only the check failed.
+- Measured (fill probes, .scratch/rcvprobe, this Mac, 15.6 build 24G): a loopback reader pinned at P
+  holds P + 522624 B, at every pin tried (131072 -> 653696, 174762 -> 697386, 262144 -> 784768,
+  524288 -> 1046912), any send buffer (512 KiB, 1.5, 3 MiB), readback and FIONREAD agree; it grows
+  within 3 ms of the first data. Not 2x: 2x the readback would hold at 512 KiB with 1664 B to spare
+  and fail at every smaller pin. autorcvbufmax is 4 MiB, so not a ceiling either.
+- Fix (830f04a): reader_capacity(pin) fills a reader at the same pin once before the run, capacity =
+  max(FIONREAD held, readback). Pin 128 KiB. The writer's buffer and mark = capacity + 1 MiB (knob
+  overrides), pace = 2 dead_after x size / (lowat - capacity) = 250 ms, frames = (sndbuf + capacity)
+  / size + 16 = 52 (13.5 s). Checks: sampled SO_RCVBUF <= capacity, spare = peak - capacity - pulled_max
+  - wake > 0, and lowat > capacity before the run; each a hard failure by value, no rerun. The
+  precondition line prints on every coarse run ("precondition holds/broken").
+- Headroom here: capacity 653696, sampled 647630 at most; peak 1707988, pulled 606208, wake 12588:
+  435496 B spare, (peak - capacity - wake) / pulled = 1.72x. Knob 1 MiB at the head: pace 664 ms,
+  32.3 s, 9 expiries, 115854 B spare (1.42x). Knob 512 KiB at the head now fails by value: the mark
+  (524288) is within the capacity (653696), so no pace makes the wait certain; cause 2's forcing moves
+  to 1 MiB (2bfc30 at 51601dd must fail 3 of 3; 55466b, 512 KiB at main, stands).
+- Mutant df12a1 "failed" because its build lacked the TLS fixture (use_certificate_chain_file abort),
+  not the check: script fixed (ctest -R consensus_tls_certificates), resubmitted as cc66bd.
 
 Round 6, the precondition at f116bfa (29d81b, a2966e, CI 44445906462 macos-arm64 and macos-x86_64):
 "SO_RCVBUF 538956 pinned, 1046912 sampled at most; reader pulled 606208 B; -88448 B spare".
@@ -103,22 +125,26 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Cause 1: 4c4173 (3 of 3 fail at main 51601dd, READ_SLOWLY_BUILD_MS=400), f52a2f -> 261118-171202-e7bfa3 (0 of 3 at head d9fca7d). Cause 2: 55466b (3 of 3 fail at 51601dd, COARSE_WRITER_SNDBUF=512 KiB), 0c344d -> 261118-171202-6afa43, 4103a5 -> 261118-171203-f98a6a (0 of 3). Shrink: 1d47a2 -> 261118-171202-b4fac6, dee9ea -> e4f648, 80c40b -> f43386 (0 of 3). The reruns of 4c4173 (d59b1b) and 55466b (7b7c57) "failed" because they ran at head, where the forcing no longer fails: the originals at 51601dd stand. Cause 3: unreproduced (A1 amended). |
-| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120 at d9fca7d: 120 of 120); at 4050afc: 261118-202518-aa0e71 (x120, loaded), mutant 261118-202519-df12a1 (29d81b, a2966e, 93b72b at f116bfa: precondition fired on macOS, superseded) |
+| A1 | Cause 1: 261117-191526-4c4173 (3 of 3 fail at 51601dd, READ_SLOWLY_BUILD_MS=400), 261118-211655-ca13b5 (0 of 3 at 830f04a). Cause 2: 261117-193124-55466b (3 of 3 fail at 51601dd, 512 KiB), 261118-211656-2bfc30 (3 of 3 fail at 51601dd, 1 MiB), 261118-211658-ec2fb0 (0 of 3 at 830f04a, 1 MiB). Cause 3: unreproduced (A1 amended); the shrink knob is gone (17e1a34), so its jobs are dropped. |
+| A2 | 261118-211713-61ad72 (connection x200 at 4-way, 830f04a); 261118-211714-e3cfba (coarse_writer x120 at 4-way with 6 busy loops, 830f04a); mutant 261118-211716-cc66bd (--fails-without: unpaced reader must stop on "precondition broken"). Superseded at 4050afc: aa0e71, c0c368 (precondition on the readback), df12a1 (fixture missing). |
 | A3 | [manual] every cause is in connection_test.cc's sizing, build order and a rerun rule, none in the product (connection.h unchanged). |
-| A4 | Suite 261118-202520-521f65 at 4050afc; CI 44458203198 at 4050afc (44435046094 green at d9fca7d). |
+| A4 | Suite 261118-211733-5d017a at 830f04a (replaces 261118-202631-c0c368, failed at 4050afc); CI 44464145833 at 830f04a (44458203198 failed at 4050afc). |
 
 ## Result
 
-Open: cause 2's 4-of-60 (34479e, 17e1a34's sibling 9f8aa7b) is unexplained: 0 of 242 since at d9fca7d and
-the pulse head. Its mechanism would be the queue draining in < 2 s (>= 780 KB/s against 512 KB/s seen),
-most likely a reader receive buffer past 512 KiB; the next occurrence prints its rcvbuf and write bursts.
-Cause 3 (coarse_writer 13 of 48 on macos-x86_64) is unreproduced. A breach of the two preconditions now fails by value (f116bfa).
+830f04a (test/transport/connection_test.cc): coarse_writer is sized from the reader's measured
+capacity and fails by value when the sampled buffer exceeds it, the spare is gone, or the mark sits
+within it. Cause 2's old 4-of-60 (34479e) is consistent with this: a reader holding P + 510 KiB drains
+the queue faster than the 512 KiB the old formula assumed. Cause 3 stays unreproduced.
 
 ## Rulings I made
 
 - Forcing knobs are environment variables read by the test (`READ_SLOWLY_BUILD_MS`,
   `COARSE_WRITER_SNDBUF`, `COARSE_WRITER_SHRINK`); default off.
+- Round 7: the lead's option 2 (measure the capacity by filling a reader once, size the queue from
+  it), not 2x the readback: 2x is wrong at every pin but 512 KiB (P + 522624 measured). Pin 128 KiB
+  keeps the pace at 250 ms and the run at 13.5 s. Cause 2's head forcing uses 1 MiB, since 512 KiB
+  is now refused by value on macOS (mark within the capacity).
 
 ## Lead's message (reader-yield-stall), answered
 
