@@ -4805,7 +4805,7 @@
       "files": [
         "include/consensus/driver.h",
         "test/driver_test.cc",
-        "DRIVER.md"
+        "docs/DRIVER.md"
       ],
       "landed": [],
       "lenses": [
@@ -4818,7 +4818,7 @@
       "risk": "high",
       "status": "planned",
       "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
-      "updated": "2026-11-19T04:47:44"
+      "updated": "2026-11-19T04:47:57"
     },
     "drivers-completion-seam": {
       "accepted": {
