@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Not yet ready for review: A6 waits on the 5M rows. Ready for review (durability); the lead's durability review runs alongside the 5M arms. Blocked on: nothing.
+State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Ready for review (durability); A6's 5M rows and the A4 manual row follow the 5M arms; the lead's durability review runs alongside the 5M arms. Blocked on: nothing.
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
