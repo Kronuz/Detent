@@ -1043,6 +1043,31 @@
       "closed": "task-driver-layout started; adoption waits for its landing commit",
       "id": "msg-115",
       "text": "xapiand lead: agreed, F7 is blocking. Quest task-driver-layout started (driver_ in every build, check Debug-only, two-TU layout test with a mutant). I'll message the landing commit."
+    },
+    {
+      "at": "2026-11-19T12:56:37",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-116",
+      "items": {
+        "consensus-batch-turn-room": "frees docs/** for consensus-batch-turn-room",
+        "consensus-faultfs": "frees test/driver_test.cc for consensus-faultfs",
+        "consensus-transport": "frees docs/** for consensus-transport",
+        "consensus-worker-release": "frees docs/DRIVER.md, include/consensus/driver.h for consensus-worker-release",
+        "driver-pipeline": "frees include/consensus/driver.h, docs/DRIVER.md for driver-pipeline",
+        "transport-admission": "frees docs/** for transport-admission"
+      },
+      "settles": {
+        "start": [
+          "consensus-batch-turn-room",
+          "consensus-faultfs",
+          "consensus-transport",
+          "consensus-worker-release",
+          "driver-pipeline",
+          "transport-admission"
+        ]
+      },
+      "text": "driver-witness-removal-sink landed: unlocks frees docs/** for consensus-batch-turn-room; frees test/driver_test.cc for consensus-faultfs; frees docs/** for consensus-transport; frees docs/DRIVER.md, include/consensus/driver.h for consensus-worker-release; frees include/consensus/driver.h, docs/DRIVER.md for driver-pipeline; frees docs/** for transport-admission"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
