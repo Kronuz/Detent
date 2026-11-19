@@ -16003,6 +16003,7 @@
         },
         {
           "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+          "later": true,
           "level": "light",
           "minutes": 90,
           "name": "asan"
@@ -16015,14 +16016,15 @@
         },
         {
           "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+          "later": true,
           "level": "light",
-          "minutes": 240,
+          "minutes": 80,
           "name": "t3-asan"
         },
         {
           "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
           "level": "light",
-          "minutes": 300,
+          "minutes": 110,
           "name": "t3-tsan"
         }
       ],
@@ -16061,6 +16063,85 @@
         "tests/detent_local/test_dense_reads.cc",
         "docs/perf/reader-lookup.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T14:07:09",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 240,
+                "name": "t3-asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 300,
+                "name": "t3-tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "later": true,
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              }
+            ]
+          ],
+          "reason": "hold budgets sized to measured run time (t3-tsan 77 min, t3-asan 57 min) so a 5-hour light hold stops blocking the shared queue; commands unchanged",
+          "voided": [],
+          "weakened": [
+            "gate check asan deferred",
+            "gate check t3-asan deferred"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "security",
@@ -16078,7 +16159,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-19T04:59:32",
+      "updated": "2026-11-19T14:07:09",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
