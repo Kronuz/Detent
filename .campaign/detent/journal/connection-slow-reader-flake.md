@@ -1,6 +1,6 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261118-183609-e4ab32 (coarse_writer x120 at 887dafe), 261118-183610-4a286b (suite at 887dafe), CI 44445515615 (887dafe). Pulse knob removed; cause 2's rerun rule in. Ready for review once those pass.
+State: waiting on jobs 261118-183926-29d81b (coarse_writer x120, 6 busy loops), 261118-183927-a2966e (x120, host as is), 261118-183928-93b72b (mutant: no pacing, --fails-without), 261118-183929-ad8107 (suite), CI 44445906462, all at f116bfa. e4ab32 and 4a286b (887dafe, the retry) cancelled. Not yet compiled locally: a build error shows in the first job.
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -16,47 +16,21 @@ Round 5, lead's ruling on f79a8e (120 of 120, pulse off, d9fca7d):
   1.53x dead_after (2000 ms), and the factor is the test's own (pace = 1.5 dead_after / mark bytes), not a fit.
   A failing run needed the queue to empty in < 2 s: at least 780 KB/s, 1.5x the fastest drain seen.
   A rcvbuf that autotuned past 512 KiB would give that (not seen: 524288 at the end in every traced run).
-- Ruling applied: runner branch. A whole coarse run with no expired wait reruns (at most twice) like a
-  host-stalled run, and prints its bursts, rcvbuf and wedge stat. 887dafe. The pulse (COARSE_WRITER_PULSE_MS)
-  and its lateness fields are removed: no test used it.
-- Forced mutant for the rerun: none; the 0-expiry run was not reproduced, so no test fails without it
-  (A2's soak is the evidence).
-
-Round 4 (session 3), at f1af254 (origin/main merged) and d9fca7d:
-- 4c8b1c (trace x120 at 35bd913, 10 ms pulse on): 120 of 120 pass, 1 drained expiry each, 6114-6242 ms,
-  loop lateness 18 ms at most. 04c323: mutants.sh link failure reproduced at main 9f86ec3 (main's); main
-  has since fixed it (driver_simulation.cc in the compile), so consensus_mutants is no longer blocked.
-- The failure (34479e, 4 of 60 at 17e1a34, no pulse): 0 drained expiries, +230 ms, held 231-234 ms. With
-  the pulse it did not recur in 120 runs. Hypothesis: the pulse wakes the writer's loop every 10 ms and
-  masks a late wheel fire of the 2 s stuck deadline; late_deadline then extends by the lateness
-  (deadline.h:81), the writer wakes on writability inside the extension, and no expiry counts. The
-  pulse is now off by default (COARSE_WRITER_PULSE_MS); f79a8e runs x120 without it. If it fails there
-  again, the stall is a product/wheel matter (late fire), not test sizing: then A3 needs rewording and
-  the case should assert the stuck rule for a late fire too, or the lead rules it a wheel quest.
-
-Round 3 (session 2), at 8e3b053 (origin/main merged) and 3d2685e (trace):
-- 34479e and 19718e ran 9f8aa7b, a commit later reset off the branch (17e1a34 is its parent);
-  the sizing is the same. 34479e: 4 of 60 coarse_writer 48 of 48 in 6453-6456 ms, 0 drained
-  expiries, held 231-234 ms, sndbuf 1584204, lowat 1572864, poll events 0x10 at the last sample.
-- 0x10 is POLLHUP: the last sample is after the writer's SHUT_WR, so it says nothing about a wait.
-  The wedge stat now counts POLLHUP as not wedged (3d2685e).
-- Trace 3d2685e: every run prints the write bursts (gaps are the writer's waits) and the reader's
-  SO_RCVBUF at accept and end; hypothesis under test: the reader's buffer grows past 512 KiB, so
-  the writer never waits dead_after.
-- Mutants: eb211c (transport-idle-cost, "passed") configured without `-G Ninja`: 57 tests, and
-  CMakeLists registers consensus_mutants only under Ninja. It never ran mutants, so it is no
-  baseline. Probe 775f61 (fresh checkout at 8e3b053) runs the first mutant's compile as
-  tools/mutants.sh does and prints its build.log; if it fails there, it is main's (this branch
-  touches only connection_test.cc), and a job at origin/main shows it.
-
-Next on resume: read 39c311's bursts for passing vs failing runs; read 775f61's build.log; then
-fix cause 2 (with a forcing at 17e1a34), job at origin/main for mutants, suite, x200, CI.
-
-Round 1 (consensus 51601dd, forcing knobs): 4c4173 forced cause 1, 3 of 3 failed at line 724
-(0 of 64, dialer 2, acceptor 3, 449-459 ms, stalled 3-4 ms, held 0-2 ms: the CI signature).
-207149 coarse_writer x24 at 4-way on this Intel Mac passed 24 of 24: sndbuf 1584204, lowat 1572864,
-1 expiry each, 6.3 s. So this Mac does not show causes 2 and 3; the CI runner's kernel differs.
-f6a66f and 149085 never ran their cases (xargs -I limit); resubmitted below.
+- Lead overruled the retry (it hides the next real failure): 887dafe is superseded. f116bfa makes the
+  expiry certain by construction, and asserts why:
+  1. The reader's SO_RCVBUF is pinned at min(512 KiB, sndbuf/3) on the listener (a set buffer is not
+     autotuned; its readback, doubled on Linux, is the pinned size). rcvbuf_max is sampled every 2 ms.
+  2. Pace: per_frame >= 2 dead_after x frame / (lowat - rcvbuf) = 250 ms for 64 KiB, 256 KB/s: the reader
+     pulls at most half of what is left of the queue in dead_after. The sleep per frame is the cap (a
+     token bucket without the bucket: no burst to size).
+  3. read_slowly, for a coarse run that wakes at an empty queue, prints and asserts by value before any
+     other check: reader SO_RCVBUF max <= pinned, and queue peak - rcvbuf_max - pulled_max - (sndbuf -
+     lowat) > 0, where pulled_max is the most the reader pulled in any dead_after (frames its handler took
+     in the window, plus one half-read, plus one 16 KiB record). A breach prints "precondition broken" with
+     the numbers; no rerun loop remains (the host-stall rerun that predates it stays).
+- Mutant 93b72b: the handler's sleep removed; the script exits 1 only if coarse_writer prints "precondition
+  broken"; a build failure exits 0 (the job fails), so a pass is the check firing.
+- 3 and the headroom figures above (3055 ms, 1.53x) are for the 125 ms pace; at 250 ms the same bound is 2x.
 
 ## Causes (all test-side; no product cause, A3)
 
@@ -111,17 +85,16 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 | Criterion | Evidence |
 |---|---|
 | A1 | Cause 1: 4c4173 (3 of 3 fail at main 51601dd, READ_SLOWLY_BUILD_MS=400), f52a2f -> 261118-171202-e7bfa3 (0 of 3 at head d9fca7d). Cause 2: 55466b (3 of 3 fail at 51601dd, COARSE_WRITER_SNDBUF=512 KiB), 0c344d -> 261118-171202-6afa43, 4103a5 -> 261118-171203-f98a6a (0 of 3). Shrink: 1d47a2 -> 261118-171202-b4fac6, dee9ea -> e4f648, 80c40b -> f43386 (0 of 3). The reruns of 4c4173 (d59b1b) and 55466b (7b7c57) "failed" because they ran at head, where the forcing no longer fails: the originals at 51601dd stand. Cause 3: unreproduced (A1 amended). |
-| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120, pulse off: 120 of 120, 1 expiry each); 261118-183609-e4ab32 (x120 at 887dafe, the head) |
+| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120 at d9fca7d: 120 of 120); at f116bfa: 261118-183926-29d81b (x120, loaded), 261118-183927-a2966e (x120), mutant 261118-183928-93b72b |
 | A3 | [manual] every cause is in connection_test.cc's sizing, build order and a rerun rule, none in the product (connection.h unchanged). |
-| A4 | Suite 261118-183610-4a286b at 887dafe; CI 44445515615 at 887dafe (44435046094 green at d9fca7d). |
+| A4 | Suite 261118-183929-ad8107 at f116bfa; CI 44445906462 at f116bfa (44435046094 green at d9fca7d). |
 
 ## Result
 
 Open: cause 2's 4-of-60 (34479e, 17e1a34's sibling 9f8aa7b) is unexplained: 0 of 242 since at d9fca7d and
 the pulse head. Its mechanism would be the queue draining in < 2 s (>= 780 KB/s against 512 KB/s seen),
 most likely a reader receive buffer past 512 KiB; the next occurrence prints its rcvbuf and write bursts.
-Cause 3 (coarse_writer 13 of 48 on macos-x86_64) is unreproduced. Both are covered by the rerun rule only
-where the run is whole; a failed run still fails at once.
+Cause 3 (coarse_writer 13 of 48 on macos-x86_64) is unreproduced. A breach of the two preconditions now fails by value (f116bfa).
 
 ## Rulings I made
 
