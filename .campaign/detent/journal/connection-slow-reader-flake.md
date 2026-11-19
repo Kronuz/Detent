@@ -1,9 +1,24 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261118-221112-dc092b, 261118-221113-2e6334, 261118-221114-81f711, 261118-221115-3049dd (A1, 896 KiB forcing and --fails-without at main), CI on 9a8ebf4 (main merged). Round 7 held per the lead: 61ad72, e3cfba, cc66bd, 5d017a, CI 44464145833 green at 830f04a; ca13b5, e3cfba, cc66bd, 5d017a reused at 9a8ebf4.
+State: waiting on jobs 261118-223426-9ebaf9, 261118-223429-3998b5 (A1), 261118-223432-13d2c9, 261118-223436-ed18de, 261118-223440-f7b703 (A2), 261118-223443-6c49b0 (suite), CI 44473145978, all at 1bace1e (refuses a mark the reader can outpull, before the run).
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 8, 2e6334 (head 9a8ebf4, 896 KiB) failed 3 of 3: a real failure, not the old check refusing.
+Runs 1-2 got past the precondition and ended stuck: dialer failed, 9 of 48 frames, the queue held
+4914 ms without draining at a 994 ms pace (bursts 2:0->918810, 2004:908904->925310). Run 3's check
+printed -19126 B spare: mark 917504 over capacity 653696 leaves 250388 B above the wake level, and
+at 994 ms the reader pulls up to 278528 B a dead_after (3 frames, a half-read, a record). Defect: the
+pace formula left out the half-read frame and the record, so at a small mark it gives a case that
+cannot outlast dead_after. Fix 1bace1e: compute that bound from the pace and fail by value before
+the run when the mark leaves no room for it. Default: 606208 < 1035988, unchanged (1.71x). 896 and
+512 KiB both refused before the run (checked once by hand, then 3998b5). Why the queue showed no drain
+for 4.9 s at 994 ms is not explained; the check now refuses that case.
+Honest shape for cause 2: 3049dd (512 KiB at main fails 3 of 3) plus 3998b5 (the head refuses the
+512 KiB mark by value, 3 of 3). No forcing fails at main and passes at the head on this Mac: 1 MiB
+passes at main (2bfc30), and 896 KiB passes at main (81f711) and is refused at the head. The 896 KiB arm
+is dropped.
 
 Round 7 bookkeeping (lead's message after round 2):
 - Main merged (9a8ebf4: groups_test.cc only).
@@ -134,10 +149,10 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Cause 1: 261118-221112-dc092b (--fails-without at main 51601dd, READ_SLOWLY_BUILD_MS=400, 3 of 3), 261118-211655-ca13b5 (0 of 3 at 830f04a, reused at 9a8ebf4). Cause 2: 261118-221114-81f711 (--fails-without at 51601dd, 896 KiB), 261118-221115-3049dd (--fails-without at 51601dd, 512 KiB), 261118-221113-2e6334 (0 of 3 at 9a8ebf4, 896 KiB). Cause 3: unreproduced (A1 amended). Replaced, not cited: 4c4173, d59b1b, 55466b, 7b7c57, 2bfc30 (1 MiB passes at main), and the d9fca7d head runs 6afa43, b4fac6, e7bfa3, e4f648, f43386, f98a6a. |
-| A2 | 261118-211713-61ad72 (connection x200 at 4-way, 830f04a); 261118-211714-e3cfba (coarse_writer x120 at 4-way, 6 busy loops); mutant 261118-211716-cc66bd (--fails-without: killed on "precondition broken"). |
-| A3 | [manual] Checked by the contributor (this journal, rounds 1-7): `git -C consensus diff main...9a8ebf4 --stat` touches only test/transport/connection_test.cc; include/consensus/transport/connection.h is unchanged. Each cause (backlog built on the running dialer loop, sizing from an assumed buffer, the reader's capacity past its pin) is in the test. |
-| A4 | Suite 261118-211733-5d017a (passed at 830f04a, reused at 9a8ebf4); CI 44464145833 green at 830f04a; CI at 9a8ebf4 running. |
+| A1 | Cause 1: 261118-221112-dc092b (--fails-without at main 51601dd, READ_SLOWLY_BUILD_MS=400, 3 of 3 fail), 261118-223426-9ebaf9 (0 of 3 at 1bace1e). Cause 2: 261118-221115-3049dd (--fails-without at 51601dd, 512 KiB, 3 of 3 fail), 261118-223429-3998b5 (the head refuses a 512 KiB mark by value before the run, 3 of 3). Cause 3: unreproduced (A1 amended). Replaced, not cited: 4c4173, d59b1b, 55466b, 7b7c57, ca13b5, 2bfc30, 81f711 and 2e6334 (896 KiB, dropped), and the d9fca7d runs 6afa43, b4fac6, e7bfa3, e4f648, f43386, f98a6a. |
+| A2 | 261118-223432-13d2c9 (connection x200 at 4-way, 1bace1e); 261118-223436-ed18de (coarse_writer x120 at 4-way, 6 busy loops); mutant 261118-223440-f7b703 (--fails-without: unpaced reader stops on "precondition broken"). At 830f04a: 61ad72, e3cfba, cc66bd passed. |
+| A3 | manual (who: the contributor, connection-slow-reader-flake; checked: `git -C consensus diff origin/main...1bace1e --stat` changes only test/transport/connection_test.cc, so include/consensus/transport/connection.h and all product code are unchanged; each named cause is in the test: the backlog built on the running dialer loop, sizing from an assumed send buffer, the reader's capacity past its pin, a pace that ignored the half-read frame) |
+| A4 | Suite 261118-223443-6c49b0 at 1bace1e (5d017a passed at 830f04a); CI 44473145978 at 1bace1e (44464145833 and 9a8ebf4's CI green). |
 
 ## Result
 
