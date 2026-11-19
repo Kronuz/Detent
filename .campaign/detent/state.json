@@ -17358,11 +17358,11 @@
       ],
       "consumes": [],
       "files": [
-        "include/consensus/transport/host_transport.h",
+        "include/consensus/transport/**",
         "test/transport/**",
         "bench/transport_idle.cc",
         "docs/mechanisms/host-transport.md",
-        "docs/perf/**",
+        "docs/perf/transport-idle-cost.md",
         "CHANGELOG.md"
       ],
       "landed": [],
@@ -17376,7 +17376,7 @@
       "risk": "high",
       "status": "planned",
       "title": "consensus host transport: per-group bytes, vector FIFO, one GroupTable lookup, owe order",
-      "updated": "2026-11-19T05:56:51"
+      "updated": "2026-11-19T06:21:20"
     },
     "transport-groups": {
       "accepted": {
