@@ -6098,6 +6098,43 @@
       "title": "W2: Detent's HTTP path on task::task",
       "updated": "2026-11-08T12:45:37"
     },
+    "http-drop-user-data": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "http_message.h",
+        "http_deferred.h",
+        "test/deferred_test.cc",
+        "test/deferred_asio_test.cc",
+        "test/timeouts_test.cc",
+        "CMakeLists.txt",
+        "docs/**",
+        "CHANGELOG.md",
+        "README.md",
+        "ARCHITECTURE.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "high",
+      "status": "planned",
+      "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
+      "updated": "2026-11-19T05:59:44"
+    },
     "http-idle-cost": {
       "accepted": {
         "correctness": {
