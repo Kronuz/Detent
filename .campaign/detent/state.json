@@ -3454,6 +3454,36 @@
       "updated": "2026-11-15T23:16:26",
       "worktree": ""
     },
+    "dense-power-cut-cycles": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_local/test_local_publication_power_cut*",
+        "tests/detent_local/*power_cut*",
+        "tests/detent_local/agent_store_*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "dense-sync-stack"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Dense pages: the power-cut matrix cuts after kill, restart and republish",
+      "updated": "2026-11-18T18:11:09"
+    },
     "dense-sync-stack": {
       "accepted": {
         "durability": {
