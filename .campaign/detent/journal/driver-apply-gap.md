@@ -1,6 +1,6 @@
 # driver-apply-gap: journal
 
-State: waiting on jobs 261119-044522-91dbd6 261119-044524-300372 261119-044528-fa2a93 261119-044534-b31c95..261119-044618-dbd1d0 261119-044634-1c8de7 261119-044634-3835e7
+State: ready for review
 Quest: .campaign/detent/quests/driver-apply-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 (review `.campaign/detent/reviews/driver-apply-gap-correctness.md`, CHANGES, F1
-blocking). Code head consensus:ee03230 (main merged as consensus:5100305; pushed). Queued at
-ee03230: suite 261119-044522-91dbd6; TSan 261119-044524-300372, ASan 261119-044528-fa2a93 (seed 399
-regression and truncated_promotion); seeds 1-10000 x 3000 in 20 jobs 261119-044534-b31c95 ..
-261119-044618-dbd1d0; reruns 261119-044634-1c8de7 (A4 doc grep), 261119-044634-3835e7 (A1 trace);
-CI on the push.
+Fix round 1 done; the fix (consensus:ee03230) goes to a fresh correctness reviewer. Code head
+consensus:4b0b214 merges main through consensus-dns-threads (ae08d92: CMakeLists.txt,
+transport/resolve.h, resolve_test.cc, connection_test.cc, dns_mutants.sh, peer-dns.md); pushed.
+At ee03230 every job passed except the suite 261119-044522-91dbd6 (exit 8), whose only failure is
+consensus_transport_peers, not Driver code:
+
+    test/transport/peers_test.cc:1155: CHECK failed: busy_commits >= 1 && busy.count >= 10 && busy.timeouts == 0 && busy.slowest_ns <= round_trip_bound_ns
+      4 rounds of 4 x 8 MiB fetched in 5830 ms through 1 MiB budgets (high water 133 KiB)
+      quiet: 8 commits, slowest 44 ms; 54 round trips, slowest bucket <= 16000 us, 0 timeouts
+      fetching: 8 commits, slowest 216 ms; 204 round trips, slowest bucket <= 256000 us, 0 timeouts
+
+The failing term is the slowest round-trip bucket, 256 ms against the non-TSan bound of 64 ms
+(`round_trip_bound_ns`, peers_test.cc:1068-1071), on a loaded machine. The lead routes it
+(peers-tsan-timeout or its own quest); not fixed here.
+
+Pending at 4b0b214: suite 261119-053718-c94e51 (A5), probe rerun 261119-053719-817bdb (A1), CI on
+the push. The A1 trace 261119-044634-3835e7 is reused at 4b0b214 (only merges since). If the suite
+fails only on peers:1155 again, that is the same pre-existing timing check.
 
 What changed for the reviewer (consensus:9f7bc0c..ee03230, besides the main merge):
 1. `include/consensus/driver.h`: `witness(g, index)` reads `w.membership_at(index)`, and the
@@ -33,8 +45,9 @@ What changed for the reviewer (consensus:9f7bc0c..ee03230, besides the main merg
 
 ## Next
 
-1. When the jobs at ee03230 pass: State "ready for review"; the lead sends it to a fresh
-   correctness reviewer (the fix touches core.h, worker.h and driver.h, which the review never saw).
+1. A fresh correctness reviewer reviews ee03230's mechanism (driver.h, core.h, worker.h); fold
+   findings by id.
+2. Record the results of c94e51 and 817bdb; peers:1155 again is the lead's to route.
 
 ## Blocked on
 
@@ -46,11 +59,11 @@ fixed here; the fix goes back to a correctness reviewer once the jobs at ee03230
 
 | Criterion | Evidence |
 |---|---|
-| A1 [manual] | Seed 399: the trace (`SIM_DRIVER_TRACE=1`, first read at consensus:40eeec7, before the fix) shows no Driver path advanced apply past delivery. Node 2 led term 6 (step 2749) and placed 6:120..6:126 while node 3 was down (booted step 2999); the heal loop's "healed" placed 6:126 (heal round 1). Node 3 (founded a Witness for odd seeds, driver_simulation.cc:276) won term 7 (round 37; its vote can only be node 1's, as node 2's log is longer); node 1 won term 8 (round 44); index 120 committed with a new entry (round 46), so 6:120..6:126 were replaced. The old loop re-proposed only on an error or no placement, so it waited 4,000 rounds on 6:126. Node 3's "application 0" is the witness rule. The reviewer's probe 261118-224440-51acaf checks the Driver's own `state().applied` against delivery after every step and heal round: 78,235,641 checks over seeds 1-10000 x 3000, none past delivery (this supersedes the trace awk check, F3). The real path the quest names exists outside the simulation's fixed membership: review F1, a learner whose promotion to witness is appended (core.h note_append) acknowledges ranges below it through `witness(g)` (driver.h, newest membership) and keeps that apply index when a later term truncates the promotion; reproduced by `truncated_promotion` (A2). Rerun of the trace at the head: 261119-044634-3835e7. |
+| A1 [manual] | Seed 399: the trace (`SIM_DRIVER_TRACE=1`, first read at consensus:40eeec7, before the fix) shows no Driver path advanced apply past delivery. Node 2 led term 6 (step 2749) and placed 6:120..6:126 while node 3 was down (booted step 2999); the heal loop's "healed" placed 6:126 (heal round 1). Node 3 (founded a Witness for odd seeds, driver_simulation.cc:276) won term 7 (round 37; its vote can only be node 1's, as node 2's log is longer); node 1 won term 8 (round 44); index 120 committed with a new entry (round 46), so 6:120..6:126 were replaced. The old loop re-proposed only on an error or no placement, so it waited 4,000 rounds on 6:126. Node 3's "application 0" is the witness rule. The reviewer's probe (261118-224440-51acaf, rerun at the head as 261119-053719-817bdb) checks the Driver's own `state().applied` against delivery after every step and heal round: 78,235,641 checks over seeds 1-10000 x 3000, none past delivery (this supersedes the trace awk check, F3). The real path the quest names exists outside the simulation's fixed membership: review F1, a learner whose promotion to witness is appended (core.h note_append) acknowledges ranges below it through `witness(g)` (driver.h, newest membership) and keeps that apply index when a later term truncates the promotion; reproduced by `truncated_promotion` (A2). Rerun of the trace at the head: 261119-044634-3835e7. |
 | A2 | Seed 399: 261118-173937-ee5fda; fails without: 261118-173953-5ceffe. F1: 261119-044225-2f4e74 (truncated_promotion and all of driver_test, 132 checks, 0 failures, at ee03230); fails without: 261119-044228-4bb073 (newest-membership mutant: "applied 3, delivered 0", 2 failures) |
-| A3 | at ee03230: TSan 261119-044524-300372, ASan 261119-044528-fa2a93, seeds 1-10000 x 3000 261119-044534-b31c95 .. 261119-044618-dbd1d0 (queued) |
+| A3 | at ee03230: TSan 261119-044524-300372, ASan 261119-044528-fa2a93, seeds 1-10000 x 3000 261119-044534-b31c95 .. 261119-044618-dbd1d0, all passed |
 | A4 [artifact] | `docs/DRIVER.md`, "The apply index never passes what the application was delivered" and its witness exception (consensus:ee03230); 261119-044634-1c8de7 greps it at the head |
-| A5 | suite 261119-044522-91dbd6 (queued); CI on the push of ee03230 |
+| A5 | suite 261119-053718-c94e51 at 4b0b214 (running); at ee03230, 261119-044522-91dbd6 failed only peers_test.cc:1155 (Doing); CI on the push |
 
 Reviewer probes, read 2026-11-19:
 - 261118-224440-51acaf (exit 0): seeds 1-10000 x 3000 ok; 78,235,641 apply-index checks pass; 2,536
@@ -64,7 +77,7 @@ F2 (non-blocking, noted, not fixed): the seed 399 regression depends on its traj
 the Driver, Core or the simulation's draw order can make it pass without reaching a replaced
 placement. The trace rerun 3835e7 shows the retry fires at ee03230. The review's fix (count
 `replaced` retries per regression seed and fail on none) is small; left for the lead to order.
-F3 (non-blocking): answered in A1 by citing 51acaf. F4: none needed.
+F3 (non-blocking): answered in A1 by citing the probe. F4: none needed.
 
 ## Result
 
