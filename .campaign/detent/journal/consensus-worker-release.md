@@ -1,6 +1,6 @@
 # consensus-worker-release: journal
 
-State: waiting on jobs 261119-140158-51b1ce 261119-135117-bf02e4 261119-135119-b6b882 261119-135121-52f24d 261119-135123-4b09cc 261119-135125-1a5534 261119-135126-88fd6c 261119-135138-89cbce 261119-135140-f9a18c 261119-135142-11af82 261119-135144-860ad8 261119-135146-52f61f 261119-135147-8ca554
+State: waiting on jobs 261119-142246-121550 261119-142320-5cb4f1 261119-142322-16421c 261119-142324-be3da9 261119-142326-5f385a 261119-142330-95163b 261119-142332-eb61d7 261119-142333-05802c 261119-142336-bc2e25 261119-142337-e17ff4 261119-142339-ecefd0 261119-142342-9c0442 261119-142344-c6f533 261119-142346-b97e3c 261119-142349-842507 261119-142351-017c12 261119-142353-d367e9
 Quest: .campaign/detent/quests/consensus-worker-release.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs queued at consensus:4fe7df2 (pushed; CI runs on the branch). Local runs at 4fe7df2 all pass:
-default driver_close_test (137 checks), closed_bytes 10,000 rows, close_crash 64 seeds.
+Fix round 1 (durability review CHANGES at consensus:4fe7df2): F1 and F2 fixed at consensus:e74fccf
+(pushed; CI runs on the branch). Local at e74fccf: driver_close_test default cases 152 checks, 0
+failures; failed_close passes, and fails 4 checks with the refusal removed.
 
 ## Next
 
-1. When the jobs land: paste `campaign brief`'s table; check CI (linux-tsan is the full TSan suite).
-2. Set "ready for review" once suite, criteria and mutants pass; durability review is the lead's.
+1. When the jobs land: paste `campaign brief`'s table; check CI at e74fccf.
+2. Ask the lead to accept durability: F2=261119-142246-121550 (suite at e74fccf, which runs
+   failed_close), F1 = the resubmitted tagged jobs.
 
 ## Blocked on
 
@@ -29,12 +31,19 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A6 | gate suite 261119-140158-51b1ce (campaign verify, 40-min bound; the direct 50-min 135115-1d13cf cancelled as a duplicate) |
-| A1 | 261119-135117-bf02e4 (branch); fails at main's headers: 261119-135119-b6b882; mutants 135138-89cbce (no table close), 135142-11af82 (no settle), 135146-52f61f (watch) |
-| A2 | after 261119-135121-52f24d; before (main's headers) 261119-135123-4b09cc; mutant 135140-f9a18c |
-| A3 | 261119-135125-1a5534 (200 seeds) |
-| A5 | 261119-135126-88fd6c; mutant 135144-860ad8 |
-| A4 | TSan 261119-135147-8ca554 (close, driver, shared, worker, wave, blocking tests); CI pending |
+| A1 | 261119-142320-5cb4f1 reopen_rows; 261119-142322-16421c failed_close (F2); fails at main's headers 261119-142324-be3da9; failed_close fails at 4fe7df2's headers 261119-142326-5f385a; mutants 142330-95163b (no table close), 142332-eb61d7 (no settle), 142333-05802c (watch), 142336-bc2e25 (reopen allowed, F2), 142337-e17ff4 (failed close not fenced, F3) |
+| A2 | after 261119-142339-ecefd0; before (main's headers) 261119-142342-9c0442; mutant 142344-c6f533 |
+| A3 | 261119-142346-b97e3c (200 seeds) |
+| A5 | 261119-142349-842507; mutant 142351-017c12 |
+| A6 | gate suite 261119-142246-121550 (50 min) at e74fccf |
+| A4 | TSan 261119-142353-d367e9 (close, driver, shared, worker, wave, blocking tests); CI at e74fccf running |
+
+Review findings: F1 (malformed jobs: `'--quest ...'` as one token, zsh does not split an unquoted
+variable) resubmitted from a POSIX sh script, ~/.scratch/detent/consensus-worker-release/submit.sh;
+`campaign job list --quest` shows them tagged. F2 fixed at e74fccf (lead's ruling: refuse in
+consensus); the reviewer's probe 261119-140902-4049e0 failed at 4fe7df2 (sync 1: "the turn log
+lost this group", acknowledged `a` lost), and is now the case failed_close. F3 folded into F2
+(nofence mutant on failed_close). F4, F5 nits: unchanged.
 
 ## Result
 
@@ -55,6 +64,11 @@ consensus:4fe7df2 (local numbers; jobs pending).
   headers: job 135123-4b09cc.
 - close_crash: 64 seeds, 6,642 power cuts, 6,648 table closes and 9,147 releases, 0 failures.
 - Docs: docs/DRIVER.md close row; CHANGELOG 2026-11-19.
+- consensus:e74fccf (F2): a failed Store::close sets the Worker's close_failed(); the Driver's
+  close_step keeps that id in `in_doubt_`, and create/recover of it complete with
+  `close_in_doubt` until the host restarts (a new Driver). failed_close: commit's directory
+  sync fails after the shard replace, recover and create refused, the refused row closes, a
+  later sync and a power cut; the restarted host holds the group closed and recovers `a`.
 - Open: journal's memory disk `sync_directory` is linear in its names (test-only cost, why
   closed_bytes uses HeapIO); journal's range table keeps ~168 B per closed row until it doubles.
 
@@ -79,3 +93,11 @@ consensus:4fe7df2 (local numbers; jobs pending).
 6. A4 locally is TSan on the tests that exercise the changed code; the full TSan suite is CI's
    linux-tsan (the global rule: sanitizer matrices are CI's).
 7. Job scripts (mutant.sh, at_main.sh) live in ~/.scratch/detent/consensus-worker-release/.
+8. F2's refusal lives in the Driver (`in_doubt_`), so it lasts the Driver's life, which is the
+   Host's on its loop; a second Driver built over the same live Host would not know the id.
+   Journal keeps no per-group trace of a failed close (the lead's follow-up). Any exception from
+   Store::close marks the id in doubt, precondition failures included (close_store's frontier
+   check makes those unreachable): refusing more is safe, a restart clears it.
+9. The refusal is at create/recover (the calls that open the group's storage), not at the plain
+   `open`, so the row can still be opened and closed and the error reaches the caller as a call
+   result, as every other Driver error does.
