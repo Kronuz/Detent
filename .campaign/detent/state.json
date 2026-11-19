@@ -4721,7 +4721,9 @@
         "include/consensus/driver.h",
         "docs/DRIVER.md",
         "test/driver_simulation.cc",
-        "test/driver_test.cc"
+        "test/driver_test.cc",
+        "include/consensus/core.h",
+        "include/consensus/worker.h"
       ],
       "journal": "../Detent-wt/detent/driver-apply-gap",
       "landed": [],
@@ -4737,7 +4739,7 @@
       "risk": "high",
       "status": "review",
       "title": "consensus: a Driver voter's apply index passes entries its application never received",
-      "updated": "2026-11-18T22:39:29",
+      "updated": "2026-11-19T04:47:42",
       "worktree": "../consensus-wt/detent/driver-apply-gap"
     },
     "driver-pipeline": {
