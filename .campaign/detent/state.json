@@ -4071,8 +4071,35 @@
         "tests/detent_authority/CMakeLists.txt",
         "docs/mechanisms/format-refusal.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-18T22:34:21",
+          "commit": "18325bd61d6282b6157fa250bf54451cf1ce1ee5",
+          "criteria": {
+            "A1": "261118-092815-15d102; fails without: 261118-092816-620656",
+            "A2": "261118-092819-c7250d"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+              "commit": "10ca354490d0ba5dddfd8a7e566da2f4c0a68f5c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-092819-c7250d",
+              "level": "light",
+              "seconds": 966.1,
+              "state": "done",
+              "what": "detent-refuse-old-format check suite at 10ca354490d0"
+            }
+          ],
+          "final": true,
+          "from": "ecc176d9831e146fcf4178bee9f9c5834f08aa55",
+          "reason": "",
+          "tested": "0e8d2f8325e365f3e565b43312a589da1bd30abc"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "namespace-cleanup"
@@ -4080,9 +4107,9 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Detent: refuse an old journal format at startup with a named error",
-      "updated": "2026-11-18T09:25:45",
+      "updated": "2026-11-18T22:34:32",
       "worktree": "../Detent-wt/detent/detent-refuse-old-format"
     },
     "dns-voters": {
