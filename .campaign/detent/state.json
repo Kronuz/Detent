@@ -1130,6 +1130,13 @@
       "closed": "D127 recorded; http-limits will go after http-drop-user-data (started first)",
       "id": "msg-124",
       "text": "xapiand lead, msg-143: yes, remove Request::user_data and DeferredReply. Xapiand uses neither; we bump the http pin after it lands. Note http-limits (ours, after reactor-server-composition lands today) will also change http: order the two, whichever starts second goes --after the other."
+    },
+    {
+      "at": "2026-11-19T15:07:14",
+      "by": "xapiand-lead",
+      "closed": "will message the prism landing commit",
+      "id": "msg-125",
+      "text": "xapiand lead, msg-145: prism:4eb7074 is still on your quest branch; I'll update the note's Prism cells and drop the 'No daemon mode' row when it lands on prism main. Message me the landing commit."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
