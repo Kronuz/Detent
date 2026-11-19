@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261119-094246-5e06c6 261119-094248-7787ad 261119-094255-4f7912, CI 44580052688 (quest), probe 6 44580003789
+State: waiting on jobs 261119-095751-3b68ef 261119-095753-bf2aed 261119-095756-73a0e2 261119-095815-401d23 261119-095801-b6cc19 261119-095803-4214f8, CI 44582638852 (quest), probe 7 44582684934
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -116,24 +116,45 @@ connect() beside it (the connection_test load, a voter redialing a refused voter
 self-connect on Linux) could be handed it. The thrown bind then hung the run before the
 ~Cluster fix, so this is the hang's origin.
 
-**The fix** (consensus:abb7276, test/transport/peers_test.cc): ports come from below the
-ephemeral range the system reports (Linux ip_local_port_range, BSD net.inet.ip.portrange), where
-bind(0) and connect() never reach, each claimed for the process by a UDP socket on [::]:port
-without SO_REUSEADDR, so peers tests side by side never share one. No retry on EADDRINUSE.
+**The fix** (consensus:abb7276, then consensus:015a7ea): one picker in test/support/ports.h,
+used by peers_test and groups_test. Ports come from below the ephemeral range the system
+reports (Linux ip_local_port_range, BSD net.inet.ip.portrange), where bind(0) and connect()
+never reach, each claimed for the process by a UDP socket on [::]:port without SO_REUSEADDR,
+so tests side by side never share one. No retry on EADDRINUSE.
+- groups_test: Cluster's ports (picked by bind 0 and close, rebound on restart) and refill's
+  restarted host (its port read from a destroyed acceptor) now use free_port.
+- links_test and connection_test read ports back from listeners they keep open and never
+  rebind: left as they are.
 - Test: case `taken-ports` (ctest consensus_transport_peers_taken_ports, TIMEOUT 20; also in the
   full run): a listening contender on every picked port the system could hand out, then the
   voters start, commit, restart; each port is outside the range and unclaimable.
-- Mutant consensus:a858934 (refs/mutants/peers-tsan-timeout/old-port-picker): the fix with the old
-  picker; its ports are ephemeral, so the contender takes them and start() throws EADDRINUSE.
+- Mutants (old picker, bind 0 and close): consensus:a858934 at abb7276
+  (refs/mutants/peers-tsan-timeout/old-port-picker), consensus:621becf at 015a7ea
+  (refs/mutants/peers-tsan-timeout/old-port-picker-shared). Their ports are ephemeral, so the
+  contender takes them and start() throws EADDRINUSE.
+
+### The other rc 134: peers_test.cc:1172 (lead's message, item 2)
+
+Not this cause, and not named. Probe 5 shard 8 run 23 and shard 6 run 1 (2 of 320) failed
+fetch-alongside-consensus's round-trip bound under TSan beside the load: the quiet phase's slowest
+bucket was 16 ms as usual, but while fetching one append round trip landed in the 1 s bucket
+against 256 ms, with 0 timeouts, slowest commits 329 and 175 ms, and the fetch phase 5.8 and
+4.1 s, no slower than passing runs (whole case 7.5-8.3 s). One round trip stalled; the run as a
+whole did not slow. That is the symptom peers-busy-roundtrip-bound already files (256 ms against
+64 ms outside TSan on a loaded host, same check), whose A1 names the cause from samples and whose
+A2 derives the bound from loaded runs. The probe prints only failing runs, so no passing
+distribution exists to derive a ratio from; widening the bound now would be the blind widening
+the lead ruled out. Ruling 8.
 
 ## Next
 
-1. Read jobs 5e06c6 + 7787ad (A3 20 of 20) and 4f7912 (suite). A2 done: df6d37 passes at
-   abb7276 (1.1 s); fails-without 92ae93 at a858934 exits 8 with `taken-ports: threw: bind:
-   Address already in use` (deterministic: the old picker's ports are always ephemeral).
-2. Read probe 6 (`gh run view 44580003789 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
-   no `threw`; any rc 134 at :1172 is the round-trip bound (peers-busy-roundtrip-bound).
-3. CI 44580052688; paste `campaign brief`'s table; ready for review.
+1. Read jobs: 3b68ef (A2 taken-ports at 015a7ea), bf2aed (fails-without at 621becf: expect
+   `taken-ports: threw: bind: Address already in use`), 73a0e2 + 401d23 (A3 20 of 20 TSan),
+   b6cc19 (ASan+UBSan groups lagging x20), 4214f8 (suite). At abb7276 A2 passed (df6d37) and
+   its fails-without exited 8 with the EADDRINUSE report (92ae93).
+2. Read probe 7 (`gh run view 44582684934 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
+   no `threw`; an rc 134 at :1172 is peers-busy-roundtrip-bound's (above). Probe 6 cancelled.
+3. CI 44582638852; paste `campaign brief`'s table; ready for review.
 
 Merged main (consensus:c64b5cd) at consensus:ba66583, no conflicts. Earlier: A2 for the hang at
 e62cc77 is 3bb236, fails-without 37e35d at mutant 0a85773. A3 runs as two strict batches of 10.
@@ -141,10 +162,7 @@ Suite c0444c timed out only in consensus_mutants (1800 s) at load ~170: load, re
 
 ## Blocked on
 
-Nothing. For the lead: groups_test.cc (outside this file set) picks ports the same way
-(Cluster, :1036: bind 0, read, close; restarts rebind them), the cause of CI 44535229542's
-linux-asan-ubsan groups lagging abort. Recommendation: widen the file set to groups_test.cc and
-lift claim/free_port into one shared test header for both.
+Nothing. (File set widened by the lead; groups_test moved onto the shared picker.)
 
 ## Evidence
 
@@ -178,4 +196,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 6. The claim is a UDP socket, not the TCP port held open: holding a bound TCP socket beside
    Peers' listener needs SO_REUSEPORT on both on macOS, which Peers must not set, and a listening
    hold would accept during a restart and break the refused-connection cases.
-7. The picker lives in peers_test.cc (the file set); groups_test.cc is reported under Blocked on.
+7. The picker is header-only in test/support/ports.h, included by relative path, so no CMake
+   change; it keeps peers_test's free_port(io, address) and bindable(io, endpoint) shapes.
+8. peers_test.cc:1172's rc 134 stays peers-busy-roundtrip-bound's work: same check and symptom,
+   cause unnamed, and no passing-run distribution to derive a ratio from (see above).
