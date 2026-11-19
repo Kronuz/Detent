@@ -1,6 +1,6 @@
 # journal-host-ranges-race: journal
 
-State: waiting on jobs 261118-172110-e51757 261118-172110-fdbe99 261118-172112-0b1b26 261118-172115-84fa95 261118-172118-3b8390 261118-172120-df8396
+State: waiting on jobs 261118-185126-82265f 261118-185126-2eeb43 261118-185127-cf5001 261118-185129-a1418f 261118-185131-950d48 261118-185216-340039 261118-185140-2b12ac 261118-185141-16e1a8 261118-185153-bed12c 261118-185154-eeb612 261118-185155-60fcd2 261118-185156-edea88
 Quest: .campaign/detent/quests/journal-host-ranges-race.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Head journal:0fc8c14, pushed; GitHub CI running. journal:f3fc19e gives each loop its own table;
-journal:0fc8c14 adds the debug owner-thread check (`owned_ranges`), fixes
-bench/group_io_bench.cc to index loop 0's table, and updates docs/perf/group-io.md (msg from the
-lead: bench and perf doc added to the file set). Mutant journal:1c65ec4
-(`refs/mutants/journal-host-ranges-race/shared-table`): `owned_ranges` sends every group to
-table 0. Jobs: suite 261118-172110-e51757, tsan 261118-172110-fdbe99, A1 TSan at head
-261118-172112-0b1b26, A1 mutant TSan 261118-172115-84fa95 (--fails-without), A1 mutant debug
-assert 261118-172118-3b8390 (--fails-without), A3 exclusive 261118-172120-df8396 (base, mutex,
-per-loop; real bench at head). A3 scripts: `.scratch/detent/journal-host-ranges-race/a3-build.sh`
-and `a3-run.sh` in the home. Jobs at f3fc19e and the old mutant were cancelled.
+Head journal:0202ebc, pushed. At journal:0fc8c14: A1 passed (TSan 0b1b26; mutants 84fa95 and
+3b8390 died with 134), A3 passed (1M random: base 766 ns, mutex 695, per-loop 786), CI green, but
+suite e51757 and TSan fdbe99 failed: journal_host hit ctest's 30 s timeout on a loaded host.
+Hypothesis: loop_views' 200 create_group calls each commit a shard on PosixIO, a full flush on
+macOS (CMakeLists notes it for turn_log). journal:0202ebc cuts them to 20 per loop; both threads
+keep taking views until both finish creating, so the overlap stays.
+
+Timing (debug and TSan, whole journal_host_test x5, then loop_views x5,
+`.scratch/detent/journal-host-ranges-race/host-time.sh`): main 6a37f19 bed12c / eeb612,
+0fc8c14 60fcd2 / edea88, 0202ebc 2b12ac / 16e1a8. Moved to 0202ebc: suite 82265f, tsan 2eeb43,
+A1 TSan cf5001, A1 mutants at journal:7cf0101 a1418f (TSan) and 950d48 (debug assert), A3
+340039 (A3 df8396 "ran other code": test-only change).
 
 ## Next
 
-1. When the jobs finish: read A3's numbers (loop vs base vs mutex at 1K and 1M random ids), add
+1. When the jobs finish: check the timings show 0fc8c14's loop_views as the cost and 0202ebc's
+   journal_host under 10 s under TSan (3x headroom on 30 s); if not, shrink further. Then read A3's numbers (loop vs base vs mutex at 1K and 1M random ids), add
    them to docs/perf/group-io.md and docs/mechanisms/host-ranges.md, paste `campaign brief`'s
    table here, set State to ready for review.
 
