@@ -1,6 +1,6 @@
 # dense-sync-stack: journal
 
-State: waiting on jobs 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Merged origin/main (Detent:8c482ae); A1-A3 and gates carried over by the tool (only merges since). Perf doc written with the 100K table; 5M rows pending. Ready for review (durability); A6's 5M rows and the A4 manual row follow the 5M arms; the lead's durability review runs alongside the 5M arms. Blocked on: nothing.
+State: waiting on jobs 261118-181141-48bd7b (F5: 100K counters at the branch head), 261118-054316-9f93de 261118-070752-576dde (100K stacked r3, main r3), 5M 261118-064403-1e5071 261118-064414-eebae8 261118-064419-b6ee71 261118-064422-da3323 261118-064424-b03bdd 261118-064425-54b693 261118-064427-8657da, main 5M seed 261118-070640-2fb122 then 261118-070740-6aec23 261118-070741-38688c. Durability review approved at Detent:9f4f681; F5 and F4 fold into the 5M doc commit. Blocked on: nothing.
 Quest: .campaign/detent/quests/dense-sync-stack.md (the lead's; never edit it)
 
 ## Doing
@@ -26,6 +26,8 @@ step; then checks the grouped order.
 1. When 9f93de and 576dde finish: fill the 100K stacked r3 and main r3 rows and medians in docs/perf/dense-sync-stack.md (`python3 <scratch>/sum.py` pattern: SUMMARY lines of `campaign job log`).
 2. When the 5M arms finish: write the 5M table (median of 2 rounds per arm, A/A = aa r1 vs r2 and vs stacked), fill main's 5M fixture row in docs/measurements/dense-sync-stack-20261118/README.md (size, records, revision, seed seconds from 2fb122).
 3. Then write `| A4 | manual (lead): arms <ids> at <commits>, A/A <id> |` and add the 5M rows to the A6 table.
+4. Review F5 (msg from lead), in the same doc commit as the 5M rows: the headline and the 100K stacked row's "2 groups, 3 device flushes" are Detent:d04794d's (descriptor in the payload group). The landing code (main's agent store, table synced alone, agent_store.cc:455-466) issues 4 on macOS. Correct the headline and table to the landing code's counters, measured by 261118-181141-48bd7b (light, branch head Detent:9f4f681, 100000-main fixture, counters only, not timing); main arms d672ef/839960 at Detent:ea1fddc already show 4. Keep d04794d's 3 as the stacked-tree row, labelled as such.
+5. Review F4 in the doc's Method: on Linux "device flushes" counts fsync calls (fsync, not fdatasync); on macOS a window is one F_FULLFSYNC.
 
 ## 5M (D119)
 
