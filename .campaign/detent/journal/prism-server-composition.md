@@ -1,17 +1,18 @@
 # prism-server-composition: journal
 
-State: waiting on jobs 261119-150055-92bbee 261119-150056-8de58f 261119-150116-cb39e6
+State: blocked on lead: land now with a follow-up after http-limits, or hold (Blocked on); CI run 44633849414 queued
 Quest: .campaign/detent/quests/prism-server-composition.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs at prism:4eb7074: build gate (A3), the lifecycle test (A2), the test at a zero-grace mutant
-(A2, --fails-without). CI runs on the pushed branch quest/detent/prism-server-composition.
+Jobs at prism:4eb7074 done: build gate passed, lifecycle test passed, zero-grace mutant fails the
+test (the in-flight 4 MiB response is cut). GitHub CI run 44633849414 on the pushed branch is queued.
 
 ## Next
 
-1. Read the jobs and CI; paste `campaign brief`'s table under Evidence; then ready for review of
-   the task-side steps, with the library-side steps under Blocked on.
+1. Confirm CI run 44633849414 green (`campaign verify prism-server-composition`).
+2. On the lead's ruling: (a) ready for review as is, or (b) adopt `http::Limits`, `raise_open_files`,
+   `server_context` and the stop phases once http-limits lands.
 
 ## Blocked on
 
@@ -35,8 +36,8 @@ and Mains cells are outdated by this change; ARCHITECTURE.md has the new row.
 | Criterion | Evidence |
 |---|---|
 | A1 | `ARCHITECTURE.md` "How `main` is put together": the Mains row by step, options, deviations with reasons (prism:4eb7074) |
-| A2 | pending: 261119-150056-8de58f (test), 261119-150116-cb39e6 (zero-grace mutant, --fails-without) |
-| A3 | pending: 261119-150055-92bbee (build gate); CI on the pushed branch |
+| A2 | 261119-150056-8de58f; fails without: 261119-150116-cb39e6 (grace 0: the slow reader's response is cut, `slow.whole` fails) |
+| A3 | 261119-150055-92bbee; CI run 44633849414 pending |
 
 Local run (not evidence): `load: 14867 whole responses, 0 cut; exit 0 866 ms after SIGTERM`.
 
