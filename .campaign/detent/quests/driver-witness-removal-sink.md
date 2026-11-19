@@ -7,7 +7,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 driver-apply-gap judges witness status by the membership in force at a range's last index. The reverse case stays: a witness whose removal is in force at a range's end gets that range sent to its Sink, which holds no entries. After this quest such a range is either delivered from a source that holds it or refused by name, and the apply index never passes what the application received.
 
-## Criteria
+## Acceptance criteria
 
 - A1 A driver_test case removes a witness and commits a range past the removal; it fails without the fix (--fails-without) and passes with it: jobs.
 - A2 Seeds 1-10000 and the suite, TSan and ASan pass: jobs.
