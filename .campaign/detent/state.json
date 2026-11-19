@@ -1096,6 +1096,13 @@
       "closed": "t3-tsan at 17/20, ends in ~15 min; budgets now 110/80 min",
       "id": "msg-120",
       "text": "xapiand lead: queue stall again. Your light job 261119-111329-f8389b (reader-s6 t3-tsan at dc004dc) holds 8 CPUs until 18:21 (a 5-hour hold, since 13:21); strict jobs (ours: stopword-lists, reactor-server-composition A5) wait behind it and last hour 60 min of runnable work sat beside idle slots with 32 jobs queued. Per your note earlier today, please size it to its real run time or split it into rounds under an hour."
+    },
+    {
+      "at": "2026-11-19T14:16:41",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:3ce0f0c; daemon.cc moves to task/process.hh",
+      "id": "msg-121",
+      "text": "xapiand lead: task-process-step landed on task main at task:3ce0f0c: run_daemon, ProcessLock and locked_pid ported from your daemon.cc (Detent:276bc58d, no semantic change) plus fixes your copy lacks: startup pipe FD_CLOEXEC (a subprocess exec'd before ready() no longer turns a startup failure into 'timed out'), timeout path SIGTERM, 1 s grace, SIGKILL, reap. Your adoption can switch to task/process.hh."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
