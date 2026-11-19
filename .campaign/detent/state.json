@@ -7045,20 +7045,66 @@
         "bench/group_io_bench.cc",
         "docs/perf/group-io.md"
       ],
-      "journal": "../Detent-wt/detent/journal-host-ranges-race",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T22:31:00",
+          "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "criteria": {
+            "A1": "261118-185127-cf5001; fails without: 261118-172115-84fa95, 261118-172118-3b8390, 261118-185129-a1418f, 261118-185131-950d48",
+            "A2": "`docs/mechanisms/host-ranges.md`; the rule is also at the ranges_ declaration, the group_io comment and owned_ranges in `include/journal/host.h`",
+            "A3": "261118-185216-340039",
+            "A4": "261118-185126-82265f, 261118-185126-2eeb43"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-185126-82265f",
+              "level": "light",
+              "seconds": 317.4,
+              "state": "done",
+              "what": "journal-host-ranges-race check suite at 0202ebc059ad"
+            },
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-fsanitize=thread >/dev/null && cmake --build .scratch/tsan -j4 && ctest --test-dir .scratch/tsan --output-on-failure -j2 --stop-on-failure",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-185126-2eeb43",
+              "level": "light",
+              "seconds": 486.7,
+              "state": "done",
+              "what": "journal-host-ranges-race check tsan at 0202ebc059ad"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+          "reason": "",
+          "tested": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T22:22:33",
-      "worktree": "../journal-wt/detent/journal-host-ranges-race"
+      "updated": "2026-11-18T22:31:26",
+      "worktree": ""
     },
     "journal-reopen-closed": {
       "accepted": {
