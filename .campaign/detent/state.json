@@ -5227,6 +5227,8 @@
       "after": [
         "groups-upload-stall"
       ],
+      "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+      "branch": "quest/detent/groups-upload-3s-class",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -5245,6 +5247,7 @@
       "files": [
         "test/groups_test.cc"
       ],
+      "journal": "../Detent-wt/detent/groups-upload-3s-class",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5252,9 +5255,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: name groups_upload's unexplained 3-4 s stalls from a sampled CI failure",
-      "updated": "2026-11-18T18:23:47"
+      "updated": "2026-11-18T20:36:11",
+      "worktree": "../consensus-wt/detent/groups-upload-3s-class"
     },
     "groups-upload-stall": {
       "accepted": {},
