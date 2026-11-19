@@ -134,8 +134,7 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 830f04a (test/transport/connection_test.cc): coarse_writer is sized from the reader's measured
 capacity and fails by value when the sampled buffer exceeds it, the spare is gone, or the mark sits
-within it. Cause 2's old 4-of-60 (34479e) is consistent with this: a reader holding P + 510 KiB drains
-the queue faster than the 512 KiB the old formula assumed. Cause 3 stays unreproduced.
+within it. Cause 2's old 4-of-60 (34479e) stays unexplained: the extra 510 KiB is a candidate, not shown. Cause 3 stays unreproduced.
 
 ## Rulings I made
 
