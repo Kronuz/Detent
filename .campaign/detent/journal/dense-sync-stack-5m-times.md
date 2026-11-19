@@ -1,11 +1,11 @@
 # dense-sync-stack-5m-times: journal
 
-State: waiting on jobs 261119-144427-b7e082 261119-144433-dbf54a 261119-144436-2969e1 261119-144438-9062a6 261119-144443-94dd46 261119-144450-841140 261119-144458-1b6a72 261119-144505-d05453
+State: waiting on jobs 261119-155051-8896b4 261119-155053-88d935 261119-155055-bede28 261119-155057-fc4275 261119-155100-6a6707 261119-155102-50abde 261119-155104-b28b3c 261119-155106-5540f0
 Quest: .campaign/detent/quests/dense-sync-stack-5m-times.md (the lead's; never edit it)
 
 ## Doing
 
-Eight exclusive jobs queued 2026-11-19 14:44 by `docs/measurements/dense-sync-stack-20261118/submit-5m-times.sh ARM ROUND`: one arm per job, 10 min bound (a 5M arm took 205 to 359 s on 2026-11-18, so no `--long`). Round 1: dense b7e082, s2 dbf54a, stacked 2969e1, main 9062a6. Round 2: dense 94dd46, s2 841140, stacked 1b6a72, main d05453. Commits: dense 9852a3c, s2 35296ba, stacked d04794d, main ea1fddc (harness at ea1fddc for all; main reads `5000000-flat-main`, the rest `5000000-flat-r1`). Machine load was 11 at submit; exclusive waits for a lull or 20 min since the last drain.
+The first eight jobs (261119-1444xx) never ran: `--cwd` defaulted to the submitting directory `docs/measurements/...`, absent at the arm commits (FileNotFoundError). The script now cds to the repository root. Dry run `261119-155024-841b49` (none, sync, dense commit) showed cwd = slot root, `$JOB_REF_H` harness and the fixture present. Resubmitted 2026-11-19 15:50, exclusive, 10 min bound. Round 1: dense 8896b4, s2 88d935, stacked bede28, main fc4275. Round 2: dense 6a6707, s2 50abde, stacked b28b3c, main 5540f0. Commits: dense 9852a3c, s2 35296ba, stacked d04794d, main ea1fddc; harness ea1fddc. Old dbf54a was cancelled by me.
 
 ## Next
 
@@ -21,7 +21,7 @@ Nothing. The quest asks for a window agreed with the Xapiand lead; I have no cha
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [manual] jobs above, all `exclusive` with a 10 min bound, quest-tagged; results pending |
+| A1 | [manual] the eight resubmitted jobs above, all `exclusive` with a 10 min bound, quest-tagged; results pending |
 | A2 | [artifact] `docs/perf/dense-sync-stack.md` pending |
 
 ## Result
