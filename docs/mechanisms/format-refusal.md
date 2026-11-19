@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-18) how `detentd` refuses a directory of another storage format, read from `src/detent_authority/service.cc`.
+> Status: CURRENT (2026-11-18) how `detent-authority` refuses a directory of another storage format, read from `src/detent_authority/service.cc`.
 
 # Format refusal
 
@@ -29,13 +29,13 @@ not match it, so the collector and the peer reader never touch it).
 The error reads `authority storage format error: <directory> is in storage format 1 (no format
 stamp, and it does not read as format 2: <failure>), this build expects storage format 2; Detent
 keeps no compatibility, so start from an empty directory`. The service constructor throws it, and
-`detentd` prints it and exits 1.
+`detent-authority` prints it and exits 1.
 
 ## Startup failures settle the constructor
 
 `Service::run` settles the constructor's `ready` promise with any failure between the runtime's
 start and admission (a corrupt manifest, a failed history restore, an application replay that
-fences), so the constructor throws and `detentd` exits nonzero. After admission `ready` is already
+fences), so the constructor throws and `detent-authority` exits nonzero. After admission `ready` is already
 settled and the same handler fences the service.
 
 ## Format numbers

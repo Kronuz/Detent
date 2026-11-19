@@ -25,7 +25,7 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 
 ![The authority and relay upstream; on each host, the agent writes the store and applications read it](../diagrams/10_how_actors.png)
 
-**The authority** decides what the knobs are. It is `detentd --authority authority.json`, one process per voter: a single voter for development, or a fixed set of 3, 5 or 7 that replicate a Raft log and answer a producer once a majority has the entry on disk ([ACTORS.md](ACTORS.md)). It keeps the last 4,096 transactions, up to 16 MiB, in memory to serve deltas (`src/detent_authority/change_history.hh:8`).
+**The authority** decides what the knobs are. It is `detent-authority --authority authority.json`, one process per voter: a single voter for development, or a fixed set of 3, 5 or 7 that replicate a Raft log and answer a producer once a majority has the entry on disk ([ACTORS.md](ACTORS.md)). It keeps the last 4,096 transactions, up to 16 MiB, in memory to serve deltas (`src/detent_authority/change_history.hh:8`).
 
 **The relay** is optional fan-out. `detent-relay` takes one subscription per configured bundle from the authority and serves many agents from its own durable copy, so the authority sees one subscriber per bundle instead of one per host. Each bundle keeps 64 recent updates (64 MiB) as exact deltas (`include/detent_relay/configuration.hh:8-9`).
 

@@ -12,7 +12,7 @@ cmake -B build
 cmake --build build -j
 ```
 
-That produces `build/src/detentd`, `build/src/detent-agent`, `build/src/detent`, the static libraries, the examples, the bindings targets, and the tests.
+That produces `build/src/detent-authority`, `build/src/detent-agent`, `build/src/detent`, the static libraries, the examples, the bindings targets, and the tests.
 
 ---
 
@@ -191,7 +191,7 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 
 ## Durable authority profile
 
-`detentd --authority CONFIG` uses a durable store and a loopback transaction API. It runs in the foreground, accepts `--daemonize` and provides read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration.
+`detent-authority --authority CONFIG` uses a durable store and a loopback transaction API. It runs in the foreground, accepts `--daemonize` and provides read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration.
 
 ### Managed authority delivery
 

@@ -48,7 +48,7 @@ export const sidebar = [
 			group('Bindings', [overview('/reference/bindings'), ...pages('reference/bindings/python', 'reference/bindings/rust')]),
 			group('Command Line', [
 				overview('/reference/cli'),
-				...pages('reference/cli/detent', 'reference/cli/detent-agent', 'reference/cli/detentd'),
+				...pages('reference/cli/detent', 'reference/cli/detent-agent', 'reference/cli/detent-authority'),
 			]),
 			group('HTTP API', [
 				overview('/reference/http-api'),

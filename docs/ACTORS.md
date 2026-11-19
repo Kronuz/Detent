@@ -15,8 +15,8 @@ Each role has one name in this page, and the names match the code.
 | Term | Means | Binary |
 | --- | --- | --- |
 | Producer | A service that writes knob changes to the authority | Yours; any HTTPS client |
-| Authority | The replicated source of truth, made of voters | `detentd --authority` |
-| Voter | One member of the authority, on its own machine and disk | `detentd --authority` |
+| Authority | The replicated source of truth, made of voters | `detent-authority --authority` |
+| Voter | One member of the authority, on its own machine and disk | `detent-authority --authority` |
 | Relay | Optional fan-out between the authority and agents | `detent-relay` |
 | Agent | The per-host process that writes local generations | `detent-agent` |
 | Client | An application process reading knobs in memory | Your app, linking `detent::Client` |
@@ -30,7 +30,7 @@ A **generation** is one immutable, complete copy of the knob state on disk. An a
 | Actor | Runs on | Binary | CMake option | Configuration | Durable state | Source |
 | --- | --- | --- | --- | --- | --- | --- |
 | Producer | Anywhere that reaches the authority | Yours | None | Yours | Its unacknowledged requests | None |
-| Authority | Three machines, one voter each | `detentd` | `DETENT_BUILD_AUTHORITY=ON` (the default) | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detentd/main.cc` |
+| Authority | Three machines, one voter each | `detent-authority` | `DETENT_BUILD_AUTHORITY=ON` (the default) | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detent_authority/main.cc` |
 | Relay | Between the authority and agent hosts | `detent-relay` | `DETENT_BUILD_RELAY=ON` | `relay.json` | One directory per bundle | `src/detent_relay/` |
 | Agent | Every application host | `detent-agent` | Always built; managed delivery needs `DETENT_BUILD_MANAGED_AGENT=ON` | `agent.json` (public), `managed.json` (private) | `generation_dir` | `src/detent_agent/`, `src/detent_delivery/`, `src/detent_local/` |
 | Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | `InitOptions` in code; `agent.json` for `detent get` | None | `src/detent/`, `src/detent_local/` |
@@ -51,7 +51,7 @@ A **generation** is one immutable, complete copy of the knob state on disk. An a
 
 **What.** The authority is the source of truth. It orders transactions, assigns revisions, keeps the state durable on a majority of voters, and serves snapshots and deltas to relays and agents.
 
-**How.** One `detentd --authority authority.json` process per voter. Each voter has two listeners:
+**How.** One `detent-authority --authority authority.json` process per voter. Each voter has two listeners:
 
 1. The producer listener, on `publisher_bind` (loopback by default) and `--port` (8317 by default). It serves `/v2/open`, `/v2/close`, `/v2/transactions`, `/v2/read`, `/v2/result`, `POST /v2/distribution` (one-shot poll), `POST /v2/distribution/session/open`, `/next` and `/close` (long-poll subscription), and `GET /v1/health`.
 2. The peer listener, on this voter's `host` and `port` from the `voters` list. Voters replicate over mutually authenticated TLS (`peer_tls`), and each voter pins every peer's certificate by its SHA-256 fingerprint.
@@ -67,7 +67,7 @@ The configuration either omits `voters` (a single voter, for development) or lis
 3. Steady state: the leader commits groups of transactions; checkpoints start once the retained log reaches half its configured limits, and old journal segments go after a checkpoint is published.
 4. A voter that falls behind catches up from the leader's log, or from a snapshot when the log has been compacted.
 
-**Where.** The authority tier: one machine per voter, each with its own disk. `DETENT_BUILD_AUTHORITY` (on by default) builds `detentd`. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detentd.json`. The PID file is `detentd-<port>.pid` in the runtime directory. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
+**Where.** The authority tier: one machine per voter, each with its own disk. `DETENT_BUILD_AUTHORITY` (on by default) builds `detent-authority`. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detent-authority.json`. The PID file is `detent-authority-<port>.pid` in the runtime directory. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
 
 ## Relay
 
@@ -84,7 +84,7 @@ The configuration either omits `voters` (a single voter, for development) or lis
 3. Steady state: each upstream update becomes a new durable generation and a cache entry. A cache miss or gap produces a snapshot for the agent.
 4. Restart: the relay resumes from each bundle's last durable selection.
 
-**Where.** Between the authority and the agent hosts. Build with `-DDETENT_BUILD_RELAY=ON` (off by default; requires OpenSSL 3.0). The configuration is `relay.json` in the user configuration directory, or the system one with `--system`; unlike `agent.json` and `detentd.json`, there is no fallback from the user directory to the system directory. System bundle directories go under `/var/lib/detent-relay` (Linux) or `/var/db/detent-relay` (macOS, FreeBSD). The PID file is `relay.pid` in the runtime directory. See [the relay guide](RELAY.md).
+**Where.** Between the authority and the agent hosts. Build with `-DDETENT_BUILD_RELAY=ON` (off by default; requires OpenSSL 3.0). The configuration is `relay.json` in the user configuration directory, or the system one with `--system`; unlike `agent.json` and `detent-authority.json`, there is no fallback from the user directory to the system directory. System bundle directories go under `/var/lib/detent-relay` (Linux) or `/var/db/detent-relay` (macOS, FreeBSD). The PID file is `relay.pid` in the runtime directory. See [the relay guide](RELAY.md).
 
 ## Agent
 
@@ -166,7 +166,7 @@ Agents keep their last durable generation while anything upstream is down, and c
 
 | Option | Default | Builds |
 | --- | --- | --- |
-| `DETENT_BUILD_AUTHORITY` | `ON` | `detentd`, the durable authority daemon |
+| `DETENT_BUILD_AUTHORITY` | `ON` | `detent-authority`, the durable authority daemon |
 | `DETENT_BUILD_RELAY` | `OFF` | `detent-relay`; needs OpenSSL 3.0 |
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | `--managed` support in `detent-agent` |
 | `DETENT_BUILD_TESTS`, `DETENT_BUILD_EXAMPLES`, `DETENT_BUILD_BENCHMARKS` | `ON` | Tests, examples, benchmarks |
@@ -187,4 +187,4 @@ cmake --build build -j
 | State | `$XDG_STATE_HOME/detent`, else `~/.local/state/detent` | `~/Library/Application Support/Detent/state` | `/var/lib/detent`; macOS and FreeBSD `/var/db/detent` |
 | Runtime (PID, log) | `$XDG_RUNTIME_DIR/detent`, else `detent-<uid>` in the temporary directory | Same | `/run/detent`; macOS and FreeBSD `/var/run/detent` |
 
-`agent.json` and `detentd.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.
+`agent.json` and `detent-authority.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.

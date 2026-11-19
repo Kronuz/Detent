@@ -1,9 +1,14 @@
 # The host-local managed agent: one TLS delivery per host, published as
 # immutable generations on disk. Every local reader maps the selected
 # generation read-only instead of round-tripping to a daemon.
-direction: down
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+grid-rows: 2
+grid-columns: 3
+horizontal-gap: 180
+vertical-gap: 130
 
-authority: detentd\n(authority, remote) {
+authority: detent-authority\n(authority, remote) {
   shape: rectangle
 }
 
@@ -11,19 +16,22 @@ agent: detent-agent\n(managed delivery) {
   shape: rectangle
 }
 
-store: generation_dir\n(immutable images,\nselected descriptor) {
-  shape: cylinder
-}
+spacer: "" {style.opacity: 0}
 
 reader_a: shell script /\n`detent get` {
   shape: rectangle
+}
+
+store: generation_dir\n(immutable images,\nselected descriptor) {
+  shape: cylinder
+  style.fill: "#E8E2F0"
 }
 
 reader_b: another local\nprocess (any language) {
   shape: rectangle
 }
 
-authority -> agent: "snapshot / delta over TLS\n(one connection for\nthe whole host)"
-agent -> store: "build, validate, select\non every accepted update"
-store -> reader_a: "lease + mmap read-only\n(no daemon round-trip)"
-store -> reader_b: "lease + mmap read-only\n(no daemon round-trip)"
+authority -> agent: "snapshot / delta\nover TLS"
+agent -> store: "build, validate,\nselect"
+store -> reader_a: "lease + mmap\nread-only"
+store -> reader_b: "lease + mmap\nread-only"

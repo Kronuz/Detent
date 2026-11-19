@@ -15,7 +15,7 @@ distribution can be down for an hour.
 ```d2 alt="Producers write transactions to the authority; the optional relay subscribes to it and serves snapshots and deltas to each host's agent, which publishes immutable generations that the app process and detent get map and read"
 direction: down
 producer: Producers {shape: person}
-authority: "Authority\ndetentd --authority\n(3 voters, durable Raft)" {style.multiple: true}
+authority: "Authority\ndetent-authority --authority\n(3 voters, durable Raft)" {style.multiple: true}
 relay: "Relay (optional)\ndetent-relay"
 host: "Each host" {
   label.near: bottom-center
@@ -43,7 +43,7 @@ targets.
 | Actor | What it does | Runs on | Binary |
 | --- | --- | --- | --- |
 | Producer | Writes knob changes as namespaced transactions | Anywhere that reaches the authority | Your service, or `curl` |
-| Authority | Orders, stores and serves the source of truth | Three machines, one voter each | `detentd --authority authority.json` |
+| Authority | Orders, stores and serves the source of truth | Three machines, one voter each | `detent-authority --authority authority.json` |
 | Relay | Optional fan-out: one upstream subscription per bundle, many agents | Between the authority and agent hosts | `detent-relay` |
 | Agent | Receives snapshots and deltas, publishes immutable generations | Every application host | `detent-agent --managed managed.json` |
 | Client | Maps the selected generation and reads in memory | Every application host | Your app (`detent::Client`), `detent get` |

@@ -10,7 +10,7 @@ local disk. Readers pin a generation and evaluate against it directly.
 
 ```d2 alt="The authority delivers authenticated snapshots and deltas to the managed agent, which publishes immutable generations to a local directory; detent get and SDK clients read the selected generation"
 direction: right
-authority: "detentd --authority\n(/v2/distribution)"
+authority: "detent-authority --authority\n(/v2/distribution)"
 agent: "detent-agent --managed\n(private credential)"
 dir: "generation directory\n(selected + immutable\ngeneration images)" {shape: cylinder}
 readers: "detent get / SDK\n(public, read-only)"

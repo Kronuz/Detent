@@ -10,7 +10,7 @@ Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivi
 
 Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid file is `0644` so other users can inspect status. Any local account that can read the generation directory can read every published knob. Keep secrets out of knobs.
 
-Use `agent.json` and `detentd.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. `detentd.json` names the authority configuration:
+Use `agent.json` and `detent-authority.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. `detent-authority.json` names the authority configuration:
 
 ```json
 {"authority": "/etc/detent/authority.json"}
@@ -30,12 +30,12 @@ Create the `detent` system user and group without a login shell. Install the uni
 
 ```sh
 sudo systemctl daemon-reload
-sudo systemctl enable --now detentd detent-agent
-journalctl -u detentd -u detent-agent
+sudo systemctl enable --now detent-authority detent-agent
+journalctl -u detent-authority -u detent-agent
 /usr/local/bin/detent get search:max_results --system
 ```
 
-The units run as `detent`, restrict filesystem writes, and grant no extra capabilities. An agent can run on a host without a local `detentd`; point its config at the remote source. Config changes require a restart.
+The units run as `detent`, restrict filesystem writes, and grant no extra capabilities. An agent can run on a host without a local `detent-authority`; point its config at the remote source. Config changes require a restart.
 
 ## macOS: launchd
 
@@ -45,7 +45,7 @@ Install `packaging/launchd/org.detent.*.plist` in `/Library/LaunchDaemons/`, own
 
 ## FreeBSD: rc.d
 
-Create the `detent` service user and group. Install `packaging/rc.d/detentd` and `packaging/rc.d/detent_agent` in `/usr/local/etc/rc.d/` with mode `0755`. The scripts use `daemon(8)` as supervisor with separate supervisor pidfiles, run the programs as `detent`, and write output to `/var/log/detent`. The start hook recreates service-owned directories after reboot. Enable `detentd_enable="YES"` and `detent_agent_enable="YES"` in `/etc/rc.conf`. Manage them with `service detentd start` and `service detent_agent start`. Add `/var/log/detent/*.log` to the host's `newsyslog` policy; send HUP to the daemon supervisor to reopen output after rotation.
+Create the `detent` service user and group. Install `packaging/rc.d/detent_authority` and `packaging/rc.d/detent_agent` in `/usr/local/etc/rc.d/` with mode `0755`. The scripts use `daemon(8)` as supervisor with separate supervisor pidfiles, run the programs as `detent`, and write output to `/var/log/detent`. The start hook recreates service-owned directories after reboot. Enable `detent_authority_enable="YES"` and `detent_agent_enable="YES"` in `/etc/rc.conf`. Manage them with `service detent-authority start` and `service detent_agent start`. Add `/var/log/detent/*.log` to the host's `newsyslog` policy; send HUP to the daemon supervisor to reopen output after rotation.
 
 ## Operations and deployment limits
 
@@ -63,13 +63,13 @@ Both daemons emit timestamped, severity-marked logs to stderr. The default level
 
 ## Foreground, background, and status
 
-Both `detent-agent` and `detentd` run directly in the foreground. They accept `--daemonize` for unmanaged user operation, `--runtime-dir PATH`, and read-only `--status`. Lifecycle subcommands are removed. Detached startup reports readiness or an error to the caller; logs remain in the selected runtime directory.
+Both `detent-agent` and `detent-authority` run directly in the foreground. They accept `--daemonize` for unmanaged user operation, `--runtime-dir PATH`, and read-only `--status`. Lifecycle subcommands are removed. Detached startup reports readiness or an error to the caller; logs remain in the selected runtime directory.
 
-`detent-agent --status` reports the locked PID and, with a generation directory, the durable revision and knob count. `detentd --status` queries the configured local port's health endpoint and reports the PID when a local lock is available. Neither status operation starts a daemon. Send SIGTERM to stop an unmanaged process; service managers own supervised stop/restart. `--system --daemonize` and `--status --daemonize` fail for both binaries.
+`detent-agent --status` reports the locked PID and, with a generation directory, the durable revision and knob count. `detent-authority --status` queries the configured local port's health endpoint and reports the PID when a local lock is available. Neither status operation starts a daemon. Send SIGTERM to stop an unmanaged process; service managers own supervised stop/restart. `--system --daemonize` and `--status --daemonize` fail for both binaries.
 
 ## Durable authority
 
-`detentd --authority CONFIG` runs the authority in the foreground under the same service-manager conventions. Keep its credential configuration owned by root or the service account with mode `0600` (controlled group-readable `0640` is accepted). Provision a private state-directory parent owned by the service account and use a separate authority directory. Loopback single-voter and authenticated fixed-voter configurations are supported. [The authority guide](AUTHORITY_ARCHITECTURE.md) describes durability and retry boundaries; [authority transport](AUTHORITY_TRANSPORT.md) specifies TLS, peer identities and replicated configuration. The opt-in managed agent consumes this authenticated endpoint; see [managed delivery configuration](USAGE.md#managed-authority-delivery). The assembled managed-agent/SDK component has Architect acceptance; sustained fleet qualification remains separate.
+`detent-authority --authority CONFIG` runs the authority in the foreground under the same service-manager conventions. Keep its credential configuration owned by root or the service account with mode `0600` (controlled group-readable `0640` is accepted). Provision a private state-directory parent owned by the service account and use a separate authority directory. Loopback single-voter and authenticated fixed-voter configurations are supported. [The authority guide](AUTHORITY_ARCHITECTURE.md) describes durability and retry boundaries; [authority transport](AUTHORITY_TRANSPORT.md) specifies TLS, peer identities and replicated configuration. The opt-in managed agent consumes this authenticated endpoint; see [managed delivery configuration](USAGE.md#managed-authority-delivery). The assembled managed-agent/SDK component has Architect acceptance; sustained fleet qualification remains separate.
 
 ### Managed agent state
 

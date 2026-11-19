@@ -335,7 +335,7 @@ class MixedConfigurationTests(unittest.TestCase):
                     return_value=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
                 ):
                     authority = Authority(
-                        Path("detentd"),
+                        Path("detent-authority"),
                         directory,
                         directory,
                         Actors(evidence, 1),

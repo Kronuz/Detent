@@ -118,9 +118,9 @@ more turns.
 
 ## Where It Runs
 
-One `detentd --authority authority.json` process per voter, each on its own
+One `detent-authority --authority authority.json` process per voter, each on its own
 machine and disk. `DETENT_BUILD_AUTHORITY` (on by default) builds it. `authority.json` has no default location; pass
-it with `--authority` or name it as `authority` in `detentd.json`. Its
+it with `--authority` or name it as `authority` in `detent-authority.json`. Its
 `directory`, resolved relative to the file, holds the `manifest`, journal and
 checkpoints. Producers, relays and agents reach the producer listener on
 `publisher_bind` (loopback by default) and `--port` (8317 by default); voters
