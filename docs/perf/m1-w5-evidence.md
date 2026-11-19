@@ -21,7 +21,7 @@ Everything else is identical or inside the A/A band. Nothing was fixed on this b
 The two arms differ by more than the pins. Between them main took the W2 coroutine rewrite (`task::task`
 handlers), the authority on task and its owner loop, the retained-state envelope, the reader's S1 to S4
 (verified-page bitmap, read counters), digest-once recovery, the bound-port work and the classic removal. The A/B
-measures M1 as a whole; it does not attribute a change to a pin. The old arm's `detentd` still has the classic
+measures M1 as a whole; it does not attribute a change to a pin. The old arm's authority daemon still has the classic
 profile, which the new arm lacks, so the classic HTTP replay below compares old against `Detent:f7267d5` (the last
 main with it, same pins).
 
@@ -67,7 +67,7 @@ because both arms parse with the same strict parser from the first request it se
 
 `tools/w5/ab_rounds.py` runs A, B and A again every round with the order rotating; `ab_compare.py compare` reads
 the saved outputs. "old/new" above 1 means new is faster; a row counts only when it clears the A/A band.
-The classic detentd is deleted on main, so the daemon rows use the authority path both arms have: the
+The classic daemon is deleted on main, so the daemon rows use the authority path both arms have: the
 authority state machine and durable ack benches, the reply encoder, and three real voters over HTTPS.
 
 | Row | old | new | old/new (range) | A/A | n | Verdict |
@@ -126,9 +126,9 @@ done
 # 2. Input classes (drivers write .scratch/id/{old,new}); the reports go to docs/perf/m1-w5-evidence.
 quiet light id 40 "identity drivers" -- tools/w5/run_both.sh .scratch/build-old .scratch/build-new .scratch/id
 tools/w5/identity_report.sh .scratch/id docs/perf/m1-w5-evidence
-# 3. Classic replay: needs a detentd that still has the classic profile, one per arm (old, and Detent:f7267d5).
-python3 -I tools/w5/http_replay.py --detentd OLD/detentd --out .scratch/replay-old --port 18402
-python3 -I tools/w5/http_replay.py --detentd F7267D5/detentd --out .scratch/replay-new --port 18401
+# 3. Classic replay: needs an authority daemon that still has the classic profile, one per arm (OLD_DAEMON, and F7267D5_DAEMON built at Detent:f7267d5).
+python3 -I tools/w5/http_replay.py --daemon OLD_DAEMON --out .scratch/replay-old --port 18402
+python3 -I tools/w5/http_replay.py --daemon F7267D5_DAEMON --out .scratch/replay-new --port 18401
 python3 -I tools/w5/replay_compare.py .scratch/replay-old .scratch/replay-new
 # 4. Hot path (each under quiet exclusive, at most ten minutes).
 quiet exclusive ab-read 10 "A/B read" -- tools/w5/run_ab.sh read 6 .scratch/ab/read

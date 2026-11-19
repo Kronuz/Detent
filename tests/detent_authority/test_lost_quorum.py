@@ -1,6 +1,6 @@
 """A node without a leader or a quorum reports "ready":false within election_max plus a health interval (D41).
 
-usage: test_lost_quorum.py DETENTD TLS_FIXTURE
+usage: test_lost_quorum.py DETENT_AUTHORITY TLS_FIXTURE
 Three scenarios, each on a fresh three-voter cluster in the foreground:
   A: kill the leader and one follower; the surviving follower still names the dead leader (pre-vote
      keeps it) and must stop reporting ready.

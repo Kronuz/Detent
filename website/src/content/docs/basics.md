@@ -81,7 +81,7 @@ durable immutable generations delivered from an authenticated authority.
 
 ## Authority
 
-The durable authority, `detentd --authority`, is the server that publishers
+The durable authority, `detent-authority --authority`, is the server that publishers
 write to. It authenticates each publisher, applies atomic, per-namespace
 transactions, commits them through durable Raft consensus, and delivers the
 result to managed agents.

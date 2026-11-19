@@ -977,6 +977,58 @@
         ]
       },
       "text": "driver-apply-gap landed: unlocks frees include/consensus/worker.h, docs/** for consensus-batch-turn-room; frees include/consensus/driver.h, test/driver_test.cc, docs/DRIVER.md for driver-witness-removal-sink; frees docs/perf/delta-plan-scaling.md, tests/detent_local/test_delta_plan_scaling* for delta-plan-warm; frees docs/measurements/dense-sync-stack-20261118/** for dense-sync-stack-5m-times; voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T10:19:44",
+      "by": "xapiand-lead",
+      "closed": "t3-tsan at 19/20 repeats, ends within minutes; future soaks sized to real time",
+      "id": "msg-110",
+      "text": "xapiand lead: queue stall FYI. Your light job 261119-061952-3544a5 (reader-s6 t3-tsan, --cpus 8, --minutes 300, until 14:08) is fine by itself, but the queued exclusives (document-gate, wide-search-loop) wait for the running light holds to end, and while they wait new light holds are blocked: last hour 60 min of runnable work sat beside idle slots. Can t3-tsan be split into shorter rounds (say 4 x 75 min) so drains get a turn? I'm also proposing to the owner a campaign scheduler change: a waiting drain shouldn't block new light work when a running light hold outlasts the drain wait."
+    },
+    {
+      "at": "2026-11-19T11:20:15",
+      "by": "xapiand-lead",
+      "closed": "noted task:4b6a096; adoption waits on xapiand-lifecycle; R1/R2 must land before Detent adopts",
+      "id": "msg-111",
+      "text": "xapiand lead: task::lifecycle landed on task main at task:4b6a096 (fix round reviewed APPROVE at task:27028a0; merge with your CI-group commit). Xapiand's adoption quest (xapiand-lifecycle) gets filed next; your server-composition-adoption still waits on it. Follow-ups in task: R1 cross-thread post_call starvation, R2 skipped flush when off_loop can't start (before any daemon adopts)."
+    },
+    {
+      "at": "2026-11-19T11:43:58",
+      "by": "campaign",
+      "closed": "noted",
+      "id": "msg-112",
+      "items": {
+        "consensus-late-append-tests": "frees CMakeLists.txt for consensus-late-append-tests",
+        "groups-upload-loop-stall": "frees test/transport/groups_test.cc for groups-upload-loop-stall",
+        "peers-busy-roundtrip-bound": "frees test/transport/peers_test.cc for peers-busy-roundtrip-bound",
+        "transport-group-bytes": "frees include/consensus/transport/**, test/transport/** for transport-group-bytes",
+        "transport-receive-bound": "frees test/transport/** for transport-receive-bound"
+      },
+      "settles": {
+        "start": [
+          "consensus-late-append-tests",
+          "groups-upload-loop-stall",
+          "peers-busy-roundtrip-bound",
+          "transport-group-bytes",
+          "transport-receive-bound"
+        ]
+      },
+      "text": "peers-tsan-timeout landed: unlocks frees CMakeLists.txt for consensus-late-append-tests; frees test/transport/groups_test.cc for groups-upload-loop-stall; frees test/transport/peers_test.cc for peers-busy-roundtrip-bound; frees include/consensus/transport/**, test/transport/** for transport-group-bytes; frees test/transport/** for transport-receive-bound"
+    },
+    {
+      "at": "2026-11-19T12:38:30",
+      "by": "campaign",
+      "closed": "noted; loop-idle-waits merges main after its round-2 jobs",
+      "id": "msg-113",
+      "items": {
+        "server-composition-adoption": "frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
+      },
+      "settles": {
+        "start": [
+          "server-composition-adoption"
+        ]
+      },
+      "text": "rename-detentd landed: unlocks frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5415,7 +5467,7 @@
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 50,
           "name": "suite"
         }
       ],
@@ -5424,6 +5476,32 @@
         "include/consensus/driver.h",
         "test/driver_test.cc",
         "docs/DRIVER.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-19T11:38:39",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 50,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
       ],
       "journal": "../Detent-wt/detent/driver-witness-removal-sink",
       "landed": [],
@@ -5437,7 +5515,7 @@
       "risk": "high",
       "status": "review",
       "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
-      "updated": "2026-11-19T09:22:02",
+      "updated": "2026-11-19T11:38:39",
       "worktree": "../consensus-wt/detent/driver-witness-removal-sink"
     },
     "drivers-completion-seam": {
@@ -9270,7 +9348,7 @@
       "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T09:58:10",
+      "updated": "2026-11-19T10:31:02",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
@@ -14971,7 +15049,32 @@
       "worktree": ""
     },
     "peers-tsan-timeout": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T11:41:23",
+          "base": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "blobs": {
+            "CMakeLists.txt": "100644:81e3e0526270b4a2920d1f44615630f74a43df4e",
+            "test/support/ports.h": "100644:4dff996064ed31c6c2d74551c332a8734a4018aa",
+            "test/transport/groups_test.cc": "100644:faf597e5f65b2576e4ffad55dcfee262e83d9ee3",
+            "test/transport/peers_test.cc": "100644:28d6f1ac86fc679dfc9811339618a3fe0ba06fb3"
+          },
+          "by": "review",
+          "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "criteria": "9b03acbb1b948b97",
+          "diffs": {
+            "CMakeLists.txt": "7beda6c0cb027150",
+            "test/support/ports.h": "68fe98b8a2bcdbc3",
+            "test/transport/groups_test.cc": "0bac6efff606983f",
+            "test/transport/peers_test.cc": "785108da56d29bfb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "9b5ecc4d33396e38b9f5bf2c83a134d661f2640f",
+          "reviewed": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-close-fenced",
         "consensus-dns-threads"
@@ -15004,18 +15107,54 @@
         "test/transport/links_test.cc",
         "test/transport/connection_test.cc"
       ],
-      "journal": "../Detent-wt/detent/peers-tsan-timeout",
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T11:41:33",
+          "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+          "criteria": {
+            "A1": "The detent lead checked: the cause is the tests' pick-then-close ports. Probe 5 (CI run 44535268814) threw `bind: Address already in use` in the outage case; CI 44535229542 aborted groups_lagging under ASan with the same error; the hang itself is the harness dropping running voters without stop() (correctness review, job 6362c5 brings it back without the new ~Cluster). The mutant bf2aed fails with that bind error at a858934.",
+            "A2": "261119-095751-3b68ef; fails without: 261118-135207-6362c5, 261119-053738-37e35d, 261119-094236-92ae93, 261119-095753-bf2aed",
+            "A3": "261119-095815-401d23, 261119-095803-4214f8, 261119-095801-b6cc19"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-095803-4214f8",
+              "level": "light",
+              "seconds": 1086.1,
+              "state": "done",
+              "what": "peers-tsan-timeout check suite at 015a7ea36ec6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "015a7ea36ec69fb25d71d6065808a26995ebf376",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "reason": "",
+          "tested": "015a7ea36ec69fb25d71d6065808a26995ebf376"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: transport_peers hangs after several-addresses under TSan",
-      "updated": "2026-11-19T09:59:08",
-      "worktree": "../consensus-wt/detent/peers-tsan-timeout"
+      "updated": "2026-11-19T11:43:58",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
@@ -16134,17 +16273,46 @@
         "docs/diagrams/*.svg",
         "website/src/content/docs/reference/cli/detent-authority.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T12:38:14",
+          "commit": "aa813e12e3a9599bbdfca9b4de95df7b27bbdf28",
+          "criteria": {
+            "A1": "261119-090856-54136c; fails without: 261119-064311-8a1334",
+            "A2": "suite 261119-090858-9d369a at f1be1314",
+            "A3": "`diagrams/01_overview.svg`, `diagrams/07_agent.svg`, `diagrams/08_detent_deps.svg`, `diagrams/09_thirdparty_deps.svg`, `diagrams/10_how_actors.png`, `docs/diagrams/actors-overview.png`, `docs/diagrams/actors-where.png`: re-rendered with the d2-diagrams script, each composited on white and #0d1117 and checked: no overlap, no arrow through a box. Sizes at 1x: 918x385, 1057x430, 1200x746, 1004x807, 1094x540, 951x463, 1043x644",
+            "A4": "suite 261119-090858-9d369a at f1be1314; CI green at f1be1314"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "f1be1314f924b7aeebbaf78fe98e14fa82845bed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-090858-9d369a",
+              "level": "light",
+              "seconds": 697.8,
+              "state": "done",
+              "what": "rename-detentd check suite at f1be1314f924"
+            }
+          ],
+          "final": true,
+          "from": "1a6a2cb282071c2ac34126dc24523a111eba9b60",
+          "reason": "",
+          "tested": "03eac9c51aa8fece7a12a6c1b240b2c9625994d8"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Rename detentd to detent-authority (D123)",
-      "updated": "2026-11-19T06:47:28",
-      "worktree": "../Detent-wt/detent/rename-detentd"
+      "updated": "2026-11-19T12:38:30",
+      "worktree": ""
     },
     "resource-adoption": {
       "accepted": {},

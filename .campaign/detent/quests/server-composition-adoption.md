@@ -20,3 +20,4 @@ Filed 2026-11-19 (Xapiand lead's audit, msg-98). Waits on the note's CURRENT com
 Audit 2026-11-19 (J10): the cpp-libraries README links `docs/server-composition.md` (server-composition journal:14); a one-line cpp-libraries commit beside this quest.
 - The note is CURRENT at cpp-libraries:0579a1a (2026-11-19, msg-102). Adopt against that commit.
 - D125's secrets rule goes into cpp-libraries docs/server-composition.md's Options step for all five daemons, Xapiand included (agreed with the Xapiand lead, 2026-11-19): draft it as a follow-up commit on cpp-libraries, and the lead sends the diff to the Xapiand lead to confirm before it lands.
+- task::lifecycle landed at task:4b6a096 (2026-11-19, msg-111). Its follow-ups R1 (cross-thread post_call starvation) and R2 (flush skipped when off_loop can't start) must land before this quest adopts it; check their state at start.

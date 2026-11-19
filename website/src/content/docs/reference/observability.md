@@ -65,7 +65,7 @@ through your own metrics library.
 ## Daemon Health
 
 1. `GET /v1/health` on the [authority](/Detent/reference/http-api/health/).
-2. `detentd --status` and `detent-agent --status` from the command line.
+2. `detent-authority --status` and `detent-agent --status` from the command line.
 3. Daemon logs, described in [Logging](/Detent/operations/logging/).
 
 ## What's Never Logged

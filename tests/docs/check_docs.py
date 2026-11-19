@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(os.environ.get("DETENT_DOCS_ROOT") or Path(__file__).resolve().parents[2])
 DOCS = ROOT / "website" / "src" / "content" / "docs"
 SRC = ROOT / "src"
+DAEMON = SRC / "detent_authority" / "main.cc"
 INCLUDE = ROOT / "include"
 EXCEPTIONS = Path(__file__).with_name("docs_exceptions.txt")
 
@@ -69,7 +70,7 @@ def json_keys(text: str) -> set[str]:
 CLI_PAGES = (
     "reference/cli/detent.md",
     "reference/cli/detent-agent.md",
-    "reference/cli/detentd.md",
+    "reference/cli/detent-authority.md",
 )
 FLAG = re.compile(r"--[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 
@@ -78,7 +79,10 @@ def flags() -> tuple[set[str], set[str]]:
     docs = set(FLAG.findall(page_text(*CLI_PAGES)))
     source: set[str] = set()
     for path, text in all_source().items():
-        if path.parts[len(SRC.parts)] in ("detent_agent", "detent_cli", "detentd"):
+        if (
+            path.parts[len(SRC.parts)] in ("detent_agent", "detent_cli")
+            or path == DAEMON
+        ):
             source.update(
                 f
                 for f in re.findall(r'"(--[a-z][a-z0-9-]*)"', text)
@@ -104,7 +108,7 @@ CONFIG_PAGES = (
     "reference/configuration.md",
     "guides/managed-delivery.md",
     "operations/authority.md",
-    "reference/cli/detentd.md",
+    "reference/cli/detent-authority.md",
 )
 
 
@@ -121,7 +125,7 @@ def config_keys() -> tuple[set[str], set[str]]:
             r"\bfields\(\s*\w+\s*,\s*\{(.*?)\}\s*\)", text, re.DOTALL
         ):
             source.update(re.findall(r'"([a-z][a-z0-9_]*)"', body))
-    for rel in ("detentd/main.cc", "detent_agent/config.cc"):
+    for rel in ("detent_authority/main.cc", "detent_agent/config.cc"):
         source.update(re.findall(r'\{"([a-z_]+)",\s*\{"--', (SRC / rel).read_text()))
     return docs, source
 

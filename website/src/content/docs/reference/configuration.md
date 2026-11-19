@@ -80,12 +80,12 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 An explicitly configured defaults file must exist and be valid; an absent
 conventional `defaults.json` is skipped.
 
-## `detentd.json`
+## `detent-authority.json`
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `port` | `8317` | HTTP port |
-| `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detentd` serves |
+| `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detent-authority` serves |
 | `reactors` | `4` | Network reactor threads |
 | `runtime_dir` | runtime directory | PID and log files |
 | `log_level`, `verbosity`, `color` | | [Logging](/Detent/operations/logging/) |
@@ -152,8 +152,8 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 | `DETENT_GENERATION_DIR` | agent, `detent` | Durable generation directory |
 | `DETENT_DEFAULTS_PATH` | `detent` | Defaults file |
 | `DETENT_RUNTIME_DIR` | agent, `detent` | Runtime directory |
-| `DETENTD_PORT` | `detentd` | Port |
-| `DETENTD_REACTORS` | `detentd` | Reactor threads |
+| `DETENT_AUTHORITY_PORT` | `detent-authority` | Port |
+| `DETENT_AUTHORITY_REACTORS` | `detent-authority` | Reactor threads |
 | `NO_COLOR` | daemons | Disable automatic color |
 | `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`, `TMPDIR` | all | Base directories |
 
@@ -163,7 +163,7 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 | File | Owner | Mode |
 | --- | --- | --- |
-| `agent.json`, `detentd.json` | root | readable by the service account |
+| `agent.json`, `detent-authority.json` | root | readable by the service account |
 | `managed.json`, `authority.json` | root or service account | `0600`, or controlled `0640` |
 | Authority state | service account | `0700` |
 | System agent runtime directory | service account | `0755`, with `0644` pid and snapshot |

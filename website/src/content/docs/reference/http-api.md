@@ -2,7 +2,7 @@
 title: "HTTP API"
 ---
 
-`detentd --authority CONFIG` runs the durable authority, which speaks HTTP/1.1
+`detent-authority --authority CONFIG` runs the durable authority, which speaks HTTP/1.1
 with JSON bodies, over TLS when its configuration enables publisher TLS.
 
 | Endpoints | Authentication |

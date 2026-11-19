@@ -13,7 +13,7 @@ it from source with CMake.
 brew install Kronuz/tap/detent
 ```
 
-That installs `detentd`, `detent-agent` and `detent`, plus the launchd service
+That installs `detent-authority`, `detent-agent` and `detent`, plus the launchd service
 templates under `$(brew --prefix)/share/detent/`. To track `main` instead of the
 pinned revision, use `brew install --HEAD Kronuz/tap/detent`.
 
@@ -56,7 +56,7 @@ That produces, under `build/src/`:
 
 | Binary | What it is |
 | --- | --- |
-| `detentd` | The durable authority daemon |
+| `detent-authority` | The durable authority daemon |
 | `detent-agent` | The host-local agent daemon |
 | `detent` | The shell reader: `detent get NAME` |
 
@@ -80,7 +80,7 @@ The variable name is the dependency's `FetchContent` name in upper case, such as
 | Option | Default | Effect |
 | --- | --- | --- |
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | Build managed (authority) delivery support into `detent-agent` |
-| `DETENT_BUILD_AUTHORITY` | `ON` | Build `detentd`, the durable authority daemon, with its HTTP, reactor and consensus dependencies |
+| `DETENT_BUILD_AUTHORITY` | `ON` | Build `detent-authority`, the durable authority daemon, with its HTTP, reactor and consensus dependencies |
 | `DETENT_BUILD_TESTS` | `ON` | Build the test suite |
 | `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` |
 | `DETENT_BUILD_BENCHMARKS` | `ON` | Build the benchmarks |
@@ -114,7 +114,7 @@ the agent's command line, and the authority, delivery and local-image libraries.
 cmake --install build --prefix /usr/local
 ```
 
-This installs `detentd`, `detent-agent` and `detent` into `bin/`, and the
+This installs `detent-authority`, `detent-agent` and `detent` into `bin/`, and the
 service templates for systemd, launchd and rc.d into `share/detent/`. See
 [System Services](/Detent/operations/services/) to run them under a service
 manager.

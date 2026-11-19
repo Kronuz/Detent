@@ -22,7 +22,7 @@ Detent has three moving parts:
 
 1. **`detent::Client`**, the library your application links. It owns the
    read path, the evaluation rules and the background updater.
-2. **`detentd`**, the durable authority. Publishers open authenticated
+2. **`detent-authority`**, the durable authority. Publishers open authenticated
    sessions and submit atomic, per-namespace transactions; it commits them
    through durable Raft consensus and delivers them to managed agents.
 3. **`detent-agent`** and **`detent`**, the host-local agent and its shell
@@ -50,7 +50,7 @@ GET /v1/health
 ```
 
 For those, you can always copy the equivalent _curl_ command, aimed at a local
-`detentd` on its default port `8317`, by hovering over the snippet and clicking
+`detent-authority` on its default port `8317`, by hovering over the snippet and clicking
 the copy-to-clipboard button.
 
 ### Helpful Hints

@@ -35,7 +35,7 @@ def main() -> int:
                 "--scenario",
                 str(args.source / "tests/detent_system/presets/smoke.json"),
                 "--binary",
-                str(args.build / "src/detentd"),
+                str(args.build / "src/detent-authority"),
                 "--build",
                 str(args.build),
                 "--certificates",
