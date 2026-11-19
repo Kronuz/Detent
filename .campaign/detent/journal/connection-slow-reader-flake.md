@@ -1,9 +1,28 @@
 # connection-slow-reader-flake: journal
 
-State: waiting on jobs 261118-183926-29d81b (coarse_writer x120, 6 busy loops), 261118-183927-a2966e (x120, host as is), 261118-183928-93b72b (mutant: no pacing, --fails-without), 261118-183929-ad8107 (suite), CI 44445906462, all at f116bfa. e4ab32 and 4a286b (887dafe, the retry) cancelled. Not yet compiled locally: a build error shows in the first job.
+State: waiting on jobs 261118-202518-aa0e71 (coarse_writer x120, 6 busy loops), 261118-202519-df12a1 (mutant, no pacing), 261118-202520-521f65 (suite), all at 4050afc (main merged); CI 44458203198. The precondition fired at f116bfa on macOS: the pin was on the listener, not the accepted socket (fixed); the mutant 93b72b proved nothing while the head failed.
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 6, the precondition at f116bfa (29d81b, a2966e, CI 44445906462 macos-arm64 and macos-x86_64):
+"SO_RCVBUF 538956 pinned, 1046912 sampled at most; reader pulled 606208 B; -88448 B spare".
+- Buffer: the sampler reads the reader's own socket, so the kernel did grow it: 1046912 is ~2x the
+  readback, the macOS autotune ceiling (1 MiB). The pin was set on the listener, which the accepted
+  socket inherits as a size but not as a user-set size, so autotune ran. Fix: set SO_RCVBUF on the
+  accepted socket (4050afc's parent), readback taken after. Not seen on freebsd-x86_64: its job failed
+  in the VM's package update ("Error updating repositories", ssh exit 3), before any test ran.
+- Pace: 606208 = 9 x 65536 + 16384, the checker's worst case, not a measured 296 KB/s: 8 frames
+  fit a 2 s window at 254 ms, plus the frame the reader holds half-read, plus one 16 KiB record. The
+  reader pulls no more than that (fill reads 16 KiB until one whole frame is in the buffer, then
+  delivers each frame, sleeping 254 ms), so there is no burst to cap. With the buffer at 538956 the
+  spare is 1576012 - 538956 - 606208 - 11340 = 419508 B (about 0.6 of the queue). No pace change.
+- Suite ad8107 timed out (124): consensus_mutants (1650 s in 69ed8e, which ran 1804 s of its 30 min) was
+  the test left running, with 6 busy loops of 29d81b on the host; connection_test is 18.6 s of it (13.2
+  s before; coarse_writer 12.6 s against 6.2 s: 48 frames x 254 ms, the floor the pace sets). The
+  suite's 30 min bound is too tight for mutants whatever this quest does: the lead's.
+- Mutant 93b72b passed while the head failed (it only needed a precondition message): redone as df12a1
+  at a head that should pass.
 
 Round 5, lead's ruling on f79a8e (120 of 120, pulse off, d9fca7d):
 - What differed at 9f8aa7b (34479e, 4 of 60) from d9fca7d: connection.h unchanged; read_slowly_once's
@@ -85,9 +104,9 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 | Criterion | Evidence |
 |---|---|
 | A1 | Cause 1: 4c4173 (3 of 3 fail at main 51601dd, READ_SLOWLY_BUILD_MS=400), f52a2f -> 261118-171202-e7bfa3 (0 of 3 at head d9fca7d). Cause 2: 55466b (3 of 3 fail at 51601dd, COARSE_WRITER_SNDBUF=512 KiB), 0c344d -> 261118-171202-6afa43, 4103a5 -> 261118-171203-f98a6a (0 of 3). Shrink: 1d47a2 -> 261118-171202-b4fac6, dee9ea -> e4f648, 80c40b -> f43386 (0 of 3). The reruns of 4c4173 (d59b1b) and 55466b (7b7c57) "failed" because they ran at head, where the forcing no longer fails: the originals at 51601dd stand. Cause 3: unreproduced (A1 amended). |
-| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120 at d9fca7d: 120 of 120); at f116bfa: 261118-183926-29d81b (x120, loaded), 261118-183927-a2966e (x120), mutant 261118-183928-93b72b |
+| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120 at d9fca7d: 120 of 120); at 4050afc: 261118-202518-aa0e71 (x120, loaded), mutant 261118-202519-df12a1 (29d81b, a2966e, 93b72b at f116bfa: precondition fired on macOS, superseded) |
 | A3 | [manual] every cause is in connection_test.cc's sizing, build order and a rerun rule, none in the product (connection.h unchanged). |
-| A4 | Suite 261118-183929-ad8107 at f116bfa; CI 44445906462 at f116bfa (44435046094 green at d9fca7d). |
+| A4 | Suite 261118-202520-521f65 at 4050afc; CI 44458203198 at 4050afc (44435046094 green at d9fca7d). |
 
 ## Result
 
