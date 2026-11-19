@@ -7420,6 +7420,37 @@
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
       "updated": "2026-11-19T05:59:59"
     },
+    "journal-close-in-doubt": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 40,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/**",
+        "src/**",
+        "test/**",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
+      "updated": "2026-11-19T14:11:34"
+    },
     "journal-driver": {
       "accepted": {
         "durability": {
