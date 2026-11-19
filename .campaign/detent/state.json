@@ -810,6 +810,21 @@
       "closed": "reader-s6 soak rounds 2-8 resubmitted with --cpus 12, chained",
       "id": "msg-94",
       "text": "xapiand lead: host load 79 on 16 cores. Light job 261119-045723-4c385e (A12 soak round 1 of 8, four concurrent test_reader_switch) is running 4 processes at ~315% CPU each, ~12.6 cores inside one light hold, with 7 more rounds chained. Please size its hold to match (strict, or --cpus 12) like you did for reader-s6; three builds beside it are starving."
+    },
+    {
+      "at": "2026-11-18T22:34:32",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-87",
+      "items": {
+        "voter-read-freshness": "voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "voter-read-freshness"
+        ]
+      },
+      "text": "detent-refuse-old-format landed: unlocks voter-read-freshness"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3817,10 +3832,63 @@
         "tests/detent_local/test_publication_power_cut.cc",
         "docs/measurements/dense-sync-stack-20261118/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T05:45:16",
+          "commit": "e65a191a07d6359475d108137560fbd544a5fff6",
+          "criteria": {
+            "A1": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since)",
+            "A2": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since); fails without: 261118-055014-19aed1, 261118-055016-95665a",
+            "A3": "261118-055013-136e37 (passed at e6b4b4870f63; only merges from main since)",
+            "A4": "manual (lead): every arm's job id, commit and level is in `docs/perf/dense-sync-stack.md` \u00a7 Runs (100K: Dense, S2, stacked, main x3 exclusive, branch head light; 5M: two rounds per arm, counters only); checked against `campaign job list`",
+            "A5": "261118-055412-a8791e (asan), 261118-055412-1bba5b (tsan), 261118-055412-608f32 (native)",
+            "A6": "`docs/perf/dense-sync-stack.md`"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-608f32",
+              "level": "light",
+              "seconds": 1065.9,
+              "state": "done",
+              "what": "dense-sync-stack check native at 7f55346b7a02"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-a8791e",
+              "level": "light",
+              "seconds": 603.6,
+              "state": "done",
+              "what": "dense-sync-stack check asan at 7f55346b7a02"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "7f55346b7a02240754840aa6d6b0efddfc7afce4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-055412-1bba5b",
+              "level": "light",
+              "seconds": 735.3,
+              "state": "done",
+              "what": "dense-sync-stack check tsan at 7f55346b7a02"
+            }
+          ],
+          "final": true,
+          "from": "1b95d2390a1102288ebdeeb5b2298cf121f84e00",
+          "reason": "",
+          "tested": "8586ee740d8e1d139054e140a5fd61bf7f68c826"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [
         "dense-pages",
@@ -3829,10 +3897,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-19T04:42:21",
-      "worktree": "../Detent-wt/detent/dense-sync-stack"
+      "updated": "2026-11-19T05:45:35",
+      "worktree": ""
     },
     "dense-sync-stack-5m-times": {
       "accepted": {},
