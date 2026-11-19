@@ -1,6 +1,6 @@
 # driver-witness-removal-sink: journal
 
-State: waiting on jobs 261119-091207-dec2aa 261119-091209-95db09 261119-091211-f71e84 261119-091214-7078ef 261119-091226-aec227 261119-091227-c4741a 261119-091230-bf323c 261119-091232-713002 261119-091235-8e7ebd
+State: waiting on jobs 261119-091207-dec2aa 261119-091209-95db09 261119-091211-f71e84 261119-091214-7078ef 261119-113843-456833 261119-091227-c4741a 261119-091230-bf323c 261119-091232-713002 261119-091235-8e7ebd
 Quest: .campaign/detent/quests/driver-witness-removal-sink.md (the lead's; never edit it)
 
 ## Doing
@@ -33,7 +33,7 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | 261119-091207-dec2aa (cases + all driver_test); fails without (main's driver.h 4b0b214): 261119-091209-95db09 (witness_removal), 261119-091211-f71e84 (witness_removal_restart); rule mutants NOFLAG/NOPREV/FRONT/COMMIT all KILLED: 261119-091214-7078ef (`.scratch/detent/driver-witness-removal-sink/mutants.sh` in the home checkout) |
-| A2 | suite 261119-091226-aec227; TSan 261119-091227-c4741a; ASan 261119-091230-bf323c; seeds 1-5000 261119-091232-713002, 5001-10000 261119-091235-8e7ebd |
+| A2 | suite 261119-113843-456833; TSan 261119-091227-c4741a; ASan 261119-091230-bf323c; seeds 1-5000 261119-091232-713002, 5001-10000 261119-091235-8e7ebd |
 | A3 [artifact] | `docs/DRIVER.md`, "The witness transitions, both ways" (consensus:5f1223c) |
 
 Local run before submitting (quiet light, not evidence): driver_test 151 checks, 0 failures.
