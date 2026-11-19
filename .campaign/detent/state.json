@@ -6617,6 +6617,8 @@
     "http-affinity-death-tsan": {
       "accepted": {},
       "after": [],
+      "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+      "branch": "quest/detent/http-affinity-death-tsan",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6629,6 +6631,7 @@
       "files": [
         "test/coroutine_test.cc"
       ],
+      "journal": "../Detent-wt/detent/http-affinity-death-tsan",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6636,9 +6639,10 @@
       "provides": [],
       "repo": "../http",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "http: fix coroutine_test's affinity death test race under TSan",
-      "updated": "2026-11-19T05:59:49"
+      "updated": "2026-11-19T14:40:18",
+      "worktree": "../http-wt/detent/http-affinity-death-tsan"
     },
     "http-client-adoption": {
       "accepted": {},
