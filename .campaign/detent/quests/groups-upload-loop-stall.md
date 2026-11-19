@@ -5,27 +5,15 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+groups-upload-3s-class named the unexplained groups_upload class: host 1's connection loop did not run for about 1.3 s of a 1,525 ms gap (CI 44443844218, macos-x86_64), with both sockets empty and windows open. Its per-loop probe (consensus:84608cc) prints each loop's stamp age, CPU time, run state and stack once stuck. This quest waits for a CI failure with that probe, names runner or product from it, and fixes a product cause.
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 [manual] The probe's output from a CI failure is quoted in the journal (run id), and it says whether the loop was not scheduled (runner) or was in a handler that did not return (product).
+- A2 A product cause is fixed with a test that fails without it; a runner cause gets a bound from the measured stall that stated headroom covers, with the derivation in the journal: jobs.
+- A3 The suite passes, plus CI.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+- Start when a probed failure appears: sweep consensus CI failures of groups_upload after consensus:84608cc lands.
+- A product fix in the transport needs include/consensus/transport/* or src/transport/*: the lead grants them.

@@ -15,7 +15,7 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 job can show it.
 
 - A1 [manual] The cause is named from a sampled CI failure (run id quoted in the journal).
-- A2 A fix with a test that fails without it, or the runner shown as the cause from the samples: jobs.
+- A2 The test's per-loop probe tells a loop that never runs (blocked) from one that runs without returning (busy): jobs at the blocked-loop and busy-loop mutants. Naming which one CI hits, and fixing it, is quest groups-upload-loop-stall.
 - A3 The suite passes, plus CI.
 
 ## Contracts
