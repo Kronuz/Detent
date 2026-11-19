@@ -6984,7 +6984,34 @@
       "worktree": ""
     },
     "journal-host-ranges-race": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-18T22:22:33",
+          "base": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+          "blobs": {
+            "bench/group_io_bench.cc": "100644:d673056e8ea2e2dd316bad50849dbab4c6c89df7",
+            "docs/mechanisms/host-ranges.md": "100644:8017e78c2c1f575af86c6814083bcca9bdeefa32",
+            "docs/perf/group-io.md": "100644:074cc34567c6392c5efd0a462c5adacc32b8ce49",
+            "include/journal/host.h": "100644:6c4f7f764b5d2578ba787ba79d92d75bf221404d",
+            "test/host_test.cc": "100644:7b056fb759207c573ee0ef941e41b06a5a05c8fd"
+          },
+          "by": "review",
+          "commit": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "criteria": "956342bbd13ad5ad",
+          "diffs": {
+            "bench/group_io_bench.cc": "3c7ee6073a580814",
+            "docs/mechanisms/host-ranges.md": "b3a31a695f45bd51",
+            "docs/perf/group-io.md": "9f06c89c6181f0be",
+            "include/journal/host.h": "0cd2637b1f4c2b41",
+            "test/host_test.cc": "1624c290fb18068d"
+          },
+          "findings": {},
+          "note": "",
+          "review": "908efdfe0eecb986bc04fea37ba617579dfc25e2",
+          "reviewed": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-group-io-sweep"
       ],
@@ -7030,7 +7057,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T22:15:55",
+      "updated": "2026-11-18T22:22:33",
       "worktree": "../journal-wt/detent/journal-host-ranges-race"
     },
     "journal-reopen-closed": {
