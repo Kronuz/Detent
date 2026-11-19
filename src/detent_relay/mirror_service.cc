@@ -59,6 +59,8 @@ struct MirrorService::Impl {
 
 	void finish(MirrorJob &job) {
 		job.done.store(true, std::memory_order_release);
+		if (job.answered)
+			job.answered();
 		std::lock_guard lock(mutex);
 		state.sessions = sessions.size();
 	}
@@ -393,6 +395,8 @@ void MirrorService::submit(std::shared_ptr<MirrorJob> job) {
 	}
 	control(*job, 503, "{\"error\":\"source_behind\"}");
 	job->done.store(true, std::memory_order_release);
+	if (job->answered)
+		job->answered();
 }
 void MirrorService::close() noexcept {
 	std::lock_guard lock(impl_->mutex);

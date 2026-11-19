@@ -2,6 +2,7 @@
 #include "mirror_service.hh"
 #include "registry.hh"
 #include "service_limits.hh"
+#include <functional>
 #include <http_handler.h>
 
 namespace detent::relay {
@@ -19,12 +20,16 @@ class ServiceRuntime {
   public:
 	// `mirror`, when set, answers W5 sessions (version 2) and the history routes a downstream relay
 	// reads; version 1 stays with the bundles.
+	// `wake` runs on any thread once a request, a reply or a mirror answer gives step() work: the owner's wake.
 	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::span<const SessionBinding>,
-				   ServiceLimits = {}, std::shared_ptr<MirrorService> mirror = {});
+				   ServiceLimits = {}, std::shared_ptr<MirrorService> mirror = {}, std::function<void()> wake = {});
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;
-	bool step(Sessions::Clock::time_point);
+	// One turn's share of the requests and sessions; true when it changed anything. `rescan` starts a
+	// sweep over every occupied slot and session; swept() is true once the sweep has visited them all.
+	bool step(Sessions::Clock::time_point, bool rescan = true);
+	bool swept() const noexcept;
 	ServiceStatus status() const noexcept;
 	void health(std::shared_ptr<const distribution::OwnedBuffer>);
 	bool drained() const noexcept;

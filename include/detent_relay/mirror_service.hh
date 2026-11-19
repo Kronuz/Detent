@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <memory>
 
 // The relay's namespace service (W8; docs/status/namespace-s8.md, "The service"): one thread owns the
@@ -40,6 +41,8 @@ struct MirrorJob {
 		std::vector<std::shared_ptr<const distribution::OwnedBuffer>> chunks; // non-empty: streamed
 	} reply;
 	std::atomic<bool> done{false}, abandoned{false};
+	// Runs on the mirror thread after `done` is set: the waiting owner's wake. Set before submit().
+	std::function<void()> answered;
 };
 struct MirrorStatus {
 	bool ready = false, failed = false; // a first sync done; the mirror stopped (`error` says why)

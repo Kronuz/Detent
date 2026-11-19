@@ -37,12 +37,63 @@ struct BundleState {
 	std::filesystem::path directory;
 	std::chrono::steady_clock::time_point snapshot_retry{};
 	std::uint64_t reported_failures = 0;
+	bool cleanup_pending = true; // a publication or a fence may leave stale cache edges
 	BundleState(d::RetirementRuntime &retirement, std::shared_ptr<d::StorageLedger> pub,
 				std::shared_ptr<d::StorageLedger> cached, std::shared_ptr<d::StorageLedger> mapped,
 				std::size_t sessions)
 		: publication(std::move(pub)), cache(std::move(cached)), mapping(std::move(mapped)),
 		  publication_domain(retirement.domain(publication, 4096)),
 		  cache_domain(retirement.domain(cache, cache_owner_capacity(sessions))) {}
+};
+// The bundle as its coordinator's publication sink: every call may give the turn work (a ready bundle,
+// a snapshot to encode, parked sessions to answer, stale edges, a fence), so each one wakes it.
+class WakingSink final : public t::PublicationSink {
+  public:
+	WakingSink(std::shared_ptr<t::PublicationSink> inner, OwnerWake wake)
+		: inner_(std::move(inner)), wake_(std::move(wake)) {}
+	void authenticated() noexcept override {
+		inner_->authenticated();
+		wake_.raise();
+	}
+	void begin_stage(const t::ReceivedUpdate &update) override {
+		inner_->begin_stage(update);
+		wake_.raise();
+	}
+	bool stage_step(d::WorkBudget &budget) override {
+		const bool done = inner_->stage_step(budget);
+		wake_.raise();
+		return done;
+	}
+	void bind_candidate(const l::Descriptor &descriptor, l::DirectoryIdentity directory) noexcept override {
+		inner_->bind_candidate(descriptor, directory);
+		wake_.raise();
+	}
+	bool release_stage(d::WorkBudget &budget) noexcept override {
+		const bool done = inner_->release_stage(budget);
+		wake_.raise();
+		return done;
+	}
+	void selected(const l::RecoveredGeneration &generation) override {
+		inner_->selected(generation);
+		wake_.raise();
+	}
+	void selected_equivalent(const l::RecoveredGeneration &generation,
+							 const l::detail::StateEquivalenceProof &proof) override {
+		inner_->selected_equivalent(generation, proof);
+		wake_.raise();
+	}
+	void selected_repaired(const l::RecoveredGeneration &generation) override {
+		inner_->selected_repaired(generation);
+		wake_.raise();
+	}
+	void fence() noexcept override {
+		inner_->fence();
+		wake_.raise();
+	}
+
+  private:
+	std::shared_ptr<t::PublicationSink> inner_;
+	OwnerWake wake_;
 };
 template <class Result, class Function> Result on_worker(asio::thread_pool &worker, Function function) {
 	std::promise<Result> result;
@@ -59,7 +110,8 @@ template <class Result, class Function> Result on_worker(asio::thread_pool &work
 template <class Records>
 std::shared_ptr<const d::OwnedBuffer>
 health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedger &root,
-				const Records &records, ServiceStatus service, const MirrorService *mirror, bool ready) {
+				const Records &records, ServiceStatus service, const MirrorService *mirror, bool ready,
+				std::uint64_t turns) {
 	auto output = d::make_owned_buffer(std::move(account), 256 * 1024);
 	auto number = [&](std::uint64_t value) {
 		std::array<char, 32> bytes;
@@ -71,6 +123,7 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 		number(value);
 	};
 	output->append(ready ? "{\"ready\":true" : "{\"ready\":false");
+	field(",\"turns\":", turns);
 	field(",\"heap_used\":", root.used());
 	field(",\"heap_peak\":", root.peak());
 	field(",\"heap_limit\":", root.limit());
@@ -153,6 +206,7 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 } // namespace
 static int run_host_owned(const std::filesystem::path &configuration, bool system, const detent_cli::Ready &ready) {
 	OwnerLoop owner;
+	auto &wake = owner.wake();
 	asio::thread_pool startup(1);
 	auto options = on_worker<HostOptions>(startup, [&] { return load_host_options(configuration, system); });
 	auto root = std::make_shared<d::StorageLedger>(options.heap_bytes);
@@ -233,7 +287,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		registry_bindings.push_back({bundle_options.configured, principal, names.back()});
 		session_bindings.push_back({record.bundle, principal, bundle_options.configured});
 		configured.source.coordinator.source.scheduler = &owner.scheduler();
-		configured.source.coordinator.publication_sink = record.bundle;
+		configured.source.coordinator.publication_sink = std::make_shared<WakingSink>(record.bundle, wake);
 		configured.source.coordinator.view_limits.retirement_domain = &record.publication_domain;
 		configured.source.coordinator.view_limits.mapping_account = record.mapping;
 		configured.source.disk.recovery_limits = configured.source.coordinator.view_limits;
@@ -244,7 +298,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	names.clear();
 	auto runtime =
 		std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts, registry,
-											 session_bindings, options.service_limits, mirror);
+											 session_bindings, options.service_limits, mirror, [wake] { wake.raise(); });
 	for (std::size_t index = 0; index < records.size(); ++index) {
 		auto &record = *records[index];
 		record.coordinator = t::prepare_coordinator(std::move(options.bundles[index].source.coordinator),
@@ -309,21 +363,43 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		for (auto &record : records)
 			record->coordinator->close();
 		stop.set_value();
+		wake.raise();
 	};
 	asio::signal_set signals(owner.io(), SIGINT, SIGTERM);
 	signals.async_wait([&](const asio::error_code &error, int) {
 		if (!error)
 			shutdown();
 	});
+	// The turn runs while it changes anything or a sweep is unfinished, then sleeps on `tick` until the next
+	// health report or snapshot retry, or until a wake: a request, a reply, a mirror answer, a publication.
 	asio::steady_timer tick(owner.io());
-	std::size_t bundle_cursor = 0;
+	std::size_t bundle_cursor = 0, unvisited_bundles = 0;
+	bool rescan = true;
+	std::uint64_t turns = 0;
 	std::chrono::steady_clock::time_point health_due{};
 	std::function<void()> turn;
+	auto sleep = [&](std::chrono::steady_clock::time_point until) {
+		rescan = true;
+		wake.arm(tick, until);
+		tick.async_wait([&](const asio::error_code &error) {
+			if (!error || error == asio::error::operation_aborted)
+				turn();
+		});
+	};
 	turn = [&] {
+		++turns;
 		try {
+			if (wake.begin_turn())
+				rescan = true;
 			const auto now = std::chrono::steady_clock::now();
-			bool progress = runtime->step(now);
+			bool progress = runtime->step(now, rescan);
+			if (rescan) {
+				unvisited_bundles = records.size();
+				for (auto &record : records)
+					record->cleanup_pending = true;
+			}
 			for (std::size_t visits = 0; visits < std::min<std::size_t>(8, records.size()); ++visits) {
+				unvisited_bundles -= std::min<std::size_t>(unvisited_bundles, 1);
 				auto &record = *records[bundle_cursor++ % records.size()];
 				const auto state = record.coordinator->status();
 				if (state.failures != record.reported_failures) {
@@ -355,8 +431,10 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 						record.snapshot_retry = now + std::chrono::milliseconds(100);
 					progress |= !complete && (work.tokens != 128 || work.bytes != 8192);
 				}
-				d::WorkBudget cleanup;
-				record.bundle->cleanup_step(cleanup);
+				if (record.cleanup_pending) {
+					d::WorkBudget cleanup;
+					record.cleanup_pending = !record.bundle->cleanup_step(cleanup);
+				}
 			}
 			if (mirror && !stop_requested)
 				if (const auto state = mirror->status(); state.failed) {
@@ -368,7 +446,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 				std::all_of(records.begin(), records.end(),
 							[](const auto &record) { return record->bundle->status().ready; })) {
 				runtime->health(
-					health_snapshot(accounts.metadata, *root, records, runtime->status(), mirror.get(), true));
+					health_snapshot(accounts.metadata, *root, records, runtime->status(), mirror.get(), true, turns));
 				health_due = now + std::chrono::milliseconds(100);
 				ready();
 				announced = true;
@@ -379,7 +457,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 			if (now >= health_due) {
 				try {
 					runtime->health(health_snapshot(accounts.metadata, *root, records, runtime->status(),
-													mirror.get(), announced && !stop_requested));
+													mirror.get(), announced && !stop_requested, turns));
 				} catch (const d::StoragePressure &) {
 				}
 				health_due = now + std::chrono::milliseconds(100);
@@ -388,27 +466,28 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 				std::all_of(records.begin(), records.end(),
 							[](const auto &record) { return record->coordinator->drained(); })) {
 				signals.cancel();
+				wake.release();
 				owner.io().stop();
 				owner_done.set_value();
 				return;
 			}
-			if (progress)
+			const bool cleaning = std::any_of(records.begin(), records.end(),
+											  [](const auto &record) { return record->cleanup_pending; });
+			if (progress || !runtime->swept() || unvisited_bundles || cleaning) {
+				rescan = progress;
 				asio::post(owner.io(), turn);
-			else {
-				tick.expires_after(std::chrono::milliseconds(1));
-				tick.async_wait([&](const asio::error_code &error) {
-					if (!error)
-						turn();
-				});
+			} else {
+				auto until = health_due;
+				for (const auto &record : records)
+					if (record->snapshot_retry > now)
+						until = std::min(until, record->snapshot_retry);
+				sleep(until);
 			}
 		} catch (...) {
 			failure = std::current_exception();
 			shutdown();
-			tick.expires_after(std::chrono::milliseconds(1));
-			tick.async_wait([&](const asio::error_code &error) {
-				if (!error)
-					turn();
-			});
+			// One retry at once (shutdown raised the wake); a turn that keeps failing retries every 100 ms.
+			sleep(std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
 		}
 	};
 	// The coordinators run on the owner's scheduler, admitted from the owner thread.
@@ -422,6 +501,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 									failure = error;
 									shutdown();
 								}
+								wake.raise(); // a drained coordinator may let the owner stop
 							});
 		} catch (...) {
 			// Unadmitted run originals cannot participate in graceful drainage.
@@ -430,7 +510,10 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	});
 	stopping.get();
 	listener.stop();
-	asio::post(owner.io(), [&] { listener_stopped = true; });
+	asio::post(owner.io(), [&] {
+		listener_stopped = true;
+		wake.raise();
+	});
 	// Teardown (D15): the listener's loops are stopped; once the turn finds everything drained
 	// the owner stops (phase 1), both close their schedulers (phase 2) and destroy their roots
 	// with every io_context alive (phase 3), before anything the tasks reference is destroyed.
