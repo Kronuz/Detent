@@ -15698,6 +15698,8 @@
     "rename-detentd": {
       "accepted": {},
       "after": [],
+      "base": "967408eb2227069397808c6dc080d84a3136e9af",
+      "branch": "quest/detent/rename-detentd",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -15813,11 +15815,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: only overlap is src/CMakeLists.txt: rename changes the detentd target lines, reader-s6 its reader sources; disjoint hunks, whichever lands second merges main",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Rename detentd to detent-authority (D123)",
-      "updated": "2026-11-19T06:28:40"
+      "updated": "2026-11-19T06:29:18",
+      "worktree": "../Detent-wt/detent/rename-detentd"
     },
     "resource-adoption": {
       "accepted": {},
