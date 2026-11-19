@@ -16258,17 +16258,46 @@
         "docs/diagrams/*.svg",
         "website/src/content/docs/reference/cli/detent-authority.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T12:38:14",
+          "commit": "aa813e12e3a9599bbdfca9b4de95df7b27bbdf28",
+          "criteria": {
+            "A1": "261119-090856-54136c; fails without: 261119-064311-8a1334",
+            "A2": "suite 261119-090858-9d369a at f1be1314",
+            "A3": "`diagrams/01_overview.svg`, `diagrams/07_agent.svg`, `diagrams/08_detent_deps.svg`, `diagrams/09_thirdparty_deps.svg`, `diagrams/10_how_actors.png`, `docs/diagrams/actors-overview.png`, `docs/diagrams/actors-where.png`: re-rendered with the d2-diagrams script, each composited on white and #0d1117 and checked: no overlap, no arrow through a box. Sizes at 1x: 918x385, 1057x430, 1200x746, 1004x807, 1094x540, 951x463, 1043x644",
+            "A4": "suite 261119-090858-9d369a at f1be1314; CI green at f1be1314"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "f1be1314f924b7aeebbaf78fe98e14fa82845bed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-090858-9d369a",
+              "level": "light",
+              "seconds": 697.8,
+              "state": "done",
+              "what": "rename-detentd check suite at f1be1314f924"
+            }
+          ],
+          "final": true,
+          "from": "1a6a2cb282071c2ac34126dc24523a111eba9b60",
+          "reason": "",
+          "tested": "03eac9c51aa8fece7a12a6c1b240b2c9625994d8"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Rename detentd to detent-authority (D123)",
-      "updated": "2026-11-19T06:47:28",
-      "worktree": "../Detent-wt/detent/rename-detentd"
+      "updated": "2026-11-19T12:38:30",
+      "worktree": ""
     },
     "resource-adoption": {
       "accepted": {},
