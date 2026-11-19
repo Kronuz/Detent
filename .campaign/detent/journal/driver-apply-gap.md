@@ -33,24 +33,14 @@ What changed for the reviewer (consensus:9f7bc0c..ee03230, besides the main merg
 
 ## Next
 
-1. When the jobs pass: `campaign accept driver-apply-gap correctness --confirm F1=261119-044522-91dbd6`
-   is the lead's; State "ready for review".
-2. Lead: the file set (Blocked on).
+1. When the jobs at ee03230 pass: State "ready for review"; the lead sends it to a fresh
+   correctness reviewer (the fix touches core.h, worker.h and driver.h, which the review never saw).
 
 ## Blocked on
 
-Lead: add `include/consensus/core.h` and `include/consensus/worker.h` to the file set. The ordered
-fix needs `membership_at` from the Driver; Core kept it private and the Worker did not expose it.
-The change is one moved accessor and one forwarding line. No active quest holds either file
-(consensus-quiescence, consensus-worker-release, driver-pipeline and worker-pump-removal list them
-and are planned). Recommendation: widen the set; the alternative, tracking membership inside the
-Driver from Committed entries, has no starting value after `recover`.
-
-Open, for the lead to rule (not fixed): the reverse case of F1. A witness whose removal is in force
-at a range's last index is no longer a member there, so that range goes to its Sink, which holds no
-entries. The old rule did the same, earlier (from the removal's append). Judging "witness at the
-range's first entry or at its last" would cover it, since R16 keeps a witness from becoming a data
-member; recommendation: a follow-up quest with a driver_test case, not this round.
+Nothing. Lead (2026-11-19): `include/consensus/core.h` and `include/consensus/worker.h` are in the
+file set; the removal reverse case is filed as driver-witness-removal-sink, after this quest, not
+fixed here; the fix goes back to a correctness reviewer once the jobs at ee03230 pass.
 
 ## Evidence
 
@@ -84,7 +74,7 @@ and 8, and the heal loop never re-proposed (fix consensus:85ed0e6, seed 399 pinn
 simulation's fixed membership: the witness rule read the newest appended membership (fix
 consensus:ee03230, `membership_at` the range's end; driver_test `truncated_promotion`).
 docs/DRIVER.md states the invariant and its one exception. Trace logging (consensus:40eeec7)
-stays. Open: the removal reverse case (Blocked on) and F2.
+stays. Open: the removal reverse case (driver-witness-removal-sink) and F2.
 
 ## Rulings I made
 
