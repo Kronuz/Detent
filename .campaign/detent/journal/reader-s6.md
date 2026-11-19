@@ -1,12 +1,36 @@
 # reader-s6: journal
 
-State: waiting on jobs 261118-224057-842f21 261118-224100-0992ec 261118-224112-dd2b26 261118-224115-baceeb 261118-224118-132c68 261118-224118-65b1c1 261118-224119-b41c94 261118-224119-9c507c 261118-224119-279a47 at `Detent:518085f` (main merged at `Detent:c9eac84`). Not ready for review: msg-1 and A16 are under Blocked on. Mutants, soak and A7-A14 move once msg-1 settles (it may move the head again).
+State: waiting on jobs 261119-044036-f68cf2 261119-044037-fee608 261119-044037-891946 261119-044037-22df97 261119-044037-b4fe42 (gates) and 261119-044038-baa905 261119-044041-2d8fe1 (A16 under D121, stopped and running), at `Detent:2fb2a41` (pushed). Not ready for review: msg-1, A16 and the t3-tsan cold-fork failure are under Blocked on. Mutants, soak and A7-A14 move once msg-1 settles.
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
 - Correctness: (1) Ring and one freer: can a view be freed while a pin holds it (D5's seq_cst reload; STATS-1 58fade shows the hook now pins)? (2) Is a page's verified bit published only after `verify_page` and the first-touch walk complete, and read with acquire? (3) Q6 (a): is the empty-store reopen at most once per 200 ms under 16 concurrent readers? (4) Does the merge of main's format refusal (`Detent:c9eac84`) leave the reader refusing old formats the same way as main? (5) A16's split: does `count` plus a short exclusive `measure` still test D49's bound?
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Results recorded 2026-11-19:
+  - msg-1 bench dd2b26 (exclusive, `Detent:518085f`, no header decode in lookup), 1 thread median
+    p50: core hot 467.5 (reps 467 463 485 468), scattered 711.5 (reps 719 702 704 729); aa9860 at
+    `Detent:18adf2b` 526 and 805; before 393 and 659. The decode is 59 ns hot and 94 ns scattered.
+  - Profile baceeb (light, `Detent:b1d281c` against `Detent:18adf2b`, hot 1 thread), self time as ns
+    per call (share times p50), core: `decode_node` +42 (0 before: the old lookup walked nodes
+    inline), `decode_page_header` +28, `validate` (header and reference) +22, `verified_page_bytes`
+    hit compare +27, `lookup` self +25, `decode_external` +9 and `slot` +6, `decode_definition_header`
+    +7; offsets: `decode_reference` -22, `PageTable::State::resolve` -16 and `find` -11. Pinned
+    matches within 3 ns. So the +133 ns is: header decode and its validate about 50-59, the shared
+    out-of-line node codec (`decode_node`, `slot`, more `lookup` self) about 70, and the hit compare
+    with reference validation net about +20 against the old resolve.
+  - `Detent:09be4f1` (raw nodes end) broke native 132c68: `test_dense_reads` mutation 3 sets a
+    verified page's node-count high byte (`root[14] = 0xff`) after first touch and requires the next
+    lookup to refuse it; only `validate(PageHeader)` does. Reverted at `Detent:fa32973`.
+  - A16 under the old gate at `Detent:518085f`: count 842f21 passed (no branch failure; main refused
+    1 read in 2 cells, light, so its timings are not evidence). Breakdown 0992ec (exclusive,
+    running): 1 namespace +34 us against a 56 us floor; 1,000 namespaces +72.6 us against a 53 us
+    floor (branch medians 720-742 us, main 614-721 us), so it would fail D121 too.
+  - t3-tsan 279a47 (`Detent:518085f`) failed the third repeat at `test_reader_switch.cc:649`: the
+    cold-fork child exited nonzero with no message of its own (T3 itself held 4 of 4). t3-asan
+    9c507c and tsan b41c94 passed. `Detent:2fb2a41` prints the child's status, exit and signal.
+  - D121 (owner): `Detent:74a0913` gates each cell on the median paired difference at most the noise
+    floor and the p99 of the cell's 1,200 pooled branch reads below 1 ms; 200/200 is printed only.
 - Results recorded 2026-11-18 (resumed session):
   - Line-275 attribution, proven: the STATS-1 run symbolized (473f09) ends with descriptors 6 of 4,
     the two extra both `/dev/ptmx`, which is the pseudo-terminal TSan's macOS symbolizer runs `atos`
@@ -148,25 +172,31 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. msg-1: read dd2b26 (bench at the head) and baceeb (profile); if hot stays over 393 ns, attribute
-   the gap from the profile and fix what is avoidable, else close msg-1 with the table.
-2. A16: read 842f21 (count) and 0992ec (breakdown); the lead rules on Blocked on 2.
+1. msg-1: the lead rules on Blocked on 1; then reapply or not, and rerun aa9860's command.
+2. A16: read baa905 and 2d8fe1 (D121).
+2a. t3-tsan: read b4fe42's child status.
 3. Gates 132c68 65b1c1 b41c94 9c507c 279a47; then rerun mutants (HDR-1, STATS-1, A8, A10-A12),
    soak and A7-A14 at the settled head, and mark Evidence.
 
 ## Blocked on
 
-1. msg-1 (blocks the quest until settled). Core hot, 1 thread, exclusive median p50: 393 ns before
-   (`Detent:b1d281c`, 318fd2), 575 at `Detent:32e65d8` (63e21d), 526 at `Detent:18adf2b` (aa9860).
-   The per-page header decode is 100-120 ns of it (b9981e); `Detent:09be4f1` removes it, predicting
-   about 455 ns, still about 60 ns (+16%) over. 8 threads: 468 before, about 680 at `Detent:18adf2b`.
-   The remaining gap is unexplained until dd2b26 (bench at the head) and baceeb (profile) report.
-   Scattered is predicted back to before (about 665 against 659).
-2. A16 as written (200/200 below 1 ms for every branch run) fails for main too under an exclusive
-   hold on this machine (369849 above: main 199/200 in 3 of 6 runs per cell; branch 195-200). The
-   branch is within the noise floor of main. Options: (a) keep 200/200 and wait for a quieter
-   machine; (b) gate on the branch's paired difference against main within the noise floor plus
-   p99 below 1 ms; (c) 199/200. Recommend (b): it measures the branch, not the host. The lead's call.
+1. msg-1, core hot 1 thread: 393 ns before, 526 at `Detent:18adf2b` (+133, +34%), explained by
+   baceeb (Doing). Two parts are not mine to remove:
+   - The per-page header decode (59 ns hot, 94 scattered; dd2b26): `test_dense_reads` mutation 3
+     requires a verified page's damaged node count to be refused after first touch. Options:
+     (a) keep it; (b) relax mutation 3 to bounds safety only (every decode stays inside the page;
+     the body is never rechecked either) and reapply `Detent:09be4f1`. Recommend (b).
+   - The shared node codec (about 70 ns): lookup uses `paged::NodeAt`/`decode_node` out of line, per
+     DES-10 and dense-walkers. Options: (a) accept; (b) inline the hit-path node step in
+     `paged_layout.hh` under paged-decode-one-shape. Recommend (b) there, not in this quest.
+   With both, hot would be about 410 against 393.
+2. A16 under D121: 0992ec (running, 1,000 namespaces) is +72.6 us against a 53 us floor at
+   `Detent:518085f`; baa905 and 2d8fe1 decide it at the head. If it fails, I profile the branch's
+   open and lookup phases there.
+3. t3-tsan cold-fork child failure (279a47, 1 of 3 repeats): cause unknown until a run prints the
+   child's status (b4fe42 at `Detent:2fb2a41`).
+4. t3-asan CPU (lead's item 3): T3 runs 16 readers by A4's definition, so a 4-thread cap changes A4.
+   The check command is campaign config: give t3-asan and t3-tsan `--cpus 8` or more there.
 
 ## Evidence
 
@@ -189,8 +219,8 @@ Probe 485215 (codec, dense, lazy-page with `touched`, reader core and files) pas
 
 ## Messages
 
-- msg-1: attribution in Result and Doing; fixes `Detent:73c0b6c` (one header decode per page) and
-  `Detent:09be4f1` (none); open until dd2b26 and baceeb report (Blocked on 1).
+- msg-1: attributed (Doing, baceeb and dd2b26); fix `Detent:73c0b6c` (one header decode per page);
+  `Detent:09be4f1` reverted; open on Blocked on 1.
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -227,11 +257,11 @@ Attribution (msg-1 regression):
 
 ## Rulings I made
 
-- msg-1 raw nodes end (`Detent:09be4f1`): lookup no longer decodes a reached page's header. The
-  magic, zero bytes and `validate(PageHeader)` after first touch guarded no more than the body,
-  which is never rechecked; bounds safety comes from `decode_node`/`decode_external` refusing an end
-  or offset outside the page. HDR-2 is retired as a mutant; `touched` damages the external count's
-  high byte (an end outside the page) instead of the magic, and HDR-1 (hit compare) stays.
+- msg-1 raw nodes end (`Detent:09be4f1`) reverted at `Detent:fa32973`: `test_dense_reads`
+  mutation 3 is dense's contract, so dropping the header refusal is the lead's call (Blocked on 1).
+  HDR-2 stays a mutant.
+- A16 D121 by value: "p99" is the cell's pooled branch reads (1,200), and "within the noise floor"
+  is a median paired difference at most the floor, so a faster branch passes.
 - Deferred until msg-1 settles: the mutants, soak and A7-A14 reruns at the head, since a further
   msg-1 change moves the head again. Submitted now only the gates, the bench, the profile and A16.
 
