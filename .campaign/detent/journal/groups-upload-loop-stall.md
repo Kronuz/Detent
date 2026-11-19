@@ -1,24 +1,36 @@
 # groups-upload-loop-stall: journal
 
-State: waiting on jobs 261119-155015-0d1014 (watches probe run 44640924436, the second 40 suites)
+State: waiting on jobs 261119-155015-0d1014 (probe 2, run 44640924436), 261119-155356-0877a9 (capture probe, run 44641415023), 261119-155402-40ffd5 (suite at consensus:8c29e51); CI 44641351505
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
 
-Probe run 44640924436 (probe/groups-upload-loop-stall, consensus:bf56a07): a second 40 suites
-on macos-15-intel with spindump at upload's first stuck sample.
+The lead's ruling (Messages) is in place at consensus:8c29e51: on CI, upload's first stuck sample
+starts `sudo -n spindump` and a failure prints its matching threads in the log. Running:
+1. Probe 2, run 44640924436 (bf56a07): 40 more suites with spindump.
+2. Capture probe, run 44641415023 (probe/groups-upload-loop-stall-capture, cba94dc on 8c29e51):
+   upload with host 1's connection loop held 1.3 s (GROUPS_UPLOAD_HOLD_MS) proves the capture
+   prints on a real runner, then 20 suites.
+3. Suite 261119-155402-40ffd5 and CI 44641351505 at 8c29e51 (the prefix the lead lands).
 
 ## Next
 
-1. Read 44640924436 (logs and spindump-<shard> artifacts). A stall: name the kernel wait from
-   its kernel frames. None again: report to the lead (cause not named; options in Blocked on).
-2. Then as before: a product cause needs connection.h (ask the lead); a host cause gets the
-   bound from the measured stall, with a mutant.
-3. Suite job and CI at the final commit (A3).
+1. Read both probes. A stall: name the kernel wait from its frames. None: 8c29e51 is ready for
+   the lead's `campaign land --upto` once the capture probe shows the spindump in its log and
+   suite plus CI pass; the quest stays open with A2 unmet until a CI failure brings stacks.
 
 ## Blocked on
 
 Nothing.
+
+## Messages
+
+- Lead's ruling, if probe 2 catches nothing: option 1, refined. The quest branch captures on the
+  regular macos-x86_64 CI job (mbuf and page counters, `sudo spindump` on a stall); the lead
+  lands that prefix with `campaign land --upto` (test tooling, no product change); the quest
+  stays open with A2 unmet; no bound without a named cause. Done at 8c29e51, except the
+  artifact: the CI workflow (Kronuz/cpp-libraries cmake.yml) is outside the file set, so the
+  failure prints the spindump's matching threads to the log instead of uploading a file.
 
 ## Notes
 
