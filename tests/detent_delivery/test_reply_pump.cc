@@ -22,7 +22,9 @@ int main() {
 				auto request = std::make_shared<int>();
 				std::weak_ptr<int> retained_request = request;
 				options.reply.request_retention = request;
-				h::OwnedReplyPump::callbacks(options, pump);
+				// The owner's wake: every writable or settled change must reach it, or the owner sleeps through it.
+				std::size_t wakes = 0;
+				h::OwnedReplyPump::callbacks(options, pump, [&wakes] { ++wakes; });
 				auto exchange = std::allocate_shared<http::detail::OwnedStreamExchange>(
 					d::StorageAllocator<http::detail::OwnedStreamExchange>(account), std::move(options),
 					[] {});
@@ -37,7 +39,7 @@ int main() {
 				check(pump->control && !pump->writable.load());
 				check(exchange->complete_write(header->serial, http::ReplySettlement::Written));
 				header.reset();
-				check(pump->writable.load());
+				check(pump->writable.load() && wakes >= 1);
 				pump->pump_control();
 				check(!pump->control && !pump->settled.load() && !pump->written.load());
 				auto body = exchange->take_write();
@@ -50,7 +52,9 @@ int main() {
 				check(!exchange->complete_write(body->serial, http::ReplySettlement::Written));
 				body.reset();
 				check(retained_body.expired() && !pump->settled.load());
+				const auto before_settle = wakes;
 				check(exchange->settle() && pump->settled.load() && pump->written.load() == !cancel);
+				check(wakes == before_settle + 1);
 				check(retained_request.expired() && !exchange->settle());
 			}
 			check(account->used() == 0);

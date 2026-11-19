@@ -2,6 +2,7 @@
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
 #include <atomic>
+#include <functional>
 #include <http_handler.h>
 #include <optional>
 
@@ -14,7 +15,8 @@ class OwnedReplyPump {
 	std::shared_ptr<const distribution::OwnedBuffer> control;
 	bool started = false;
 
-	static void callbacks(http::StreamOptions &, std::weak_ptr<OwnedReplyPump>);
+	// `changed` runs on the transport's thread after writable or settled changes: the owner's wake.
+	static void callbacks(http::StreamOptions &, std::weak_ptr<OwnedReplyPump>, std::function<void()> changed);
 	void send_control(int status, std::string_view, std::shared_ptr<distribution::StorageLedger>) noexcept;
 	void pump_control() noexcept;
 	http::StreamSubmit publish(std::shared_ptr<const distribution::OwnedBuffer> &pending);
