@@ -1,9 +1,40 @@
 # reader-s6: journal
 
-State: waiting on jobs. After build-all c15d2f at `Detent:751b648`: line-275 attribution 473f09, fe4089, ab35b3, f94397; STATS-1 58fade; A16 369849 (stopped), e69c8b (running). Also queued: TSan 01ef48 (`Detent:b1d281c`), a39a36 (`Detent:32e65d8`), profile ea0609, A/B b9981e. All ids are `261118-18xxxx-<suffix>`. Next: `campaign verify` once c15d2f passes.
+State: waiting on jobs 261118-224057-842f21 261118-224100-0992ec 261118-224112-dd2b26 261118-224115-baceeb 261118-224118-132c68 261118-224118-65b1c1 261118-224119-b41c94 261118-224119-9c507c 261118-224119-279a47 at `Detent:518085f` (main merged at `Detent:c9eac84`). Not ready for review: msg-1 and A16 are under Blocked on. Mutants, soak and A7-A14 move once msg-1 settles (it may move the head again).
+Risk questions for the reviewers:
+- Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
+- Correctness: (1) Ring and one freer: can a view be freed while a pin holds it (D5's seq_cst reload; STATS-1 58fade shows the hook now pins)? (2) Is a page's verified bit published only after `verify_page` and the first-touch walk complete, and read with acquire? (3) Q6 (a): is the empty-store reopen at most once per 200 ms under 16 concurrent readers? (4) Does the merge of main's format refusal (`Detent:c9eac84`) leave the reader refusing old formats the same way as main? (5) A16's split: does `count` plus a short exclusive `measure` still test D49's bound?
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Results recorded 2026-11-18 (resumed session):
+  - Line-275 attribution, proven: the STATS-1 run symbolized (473f09) ends with descriptors 6 of 4,
+    the two extra both `/dev/ptmx`, which is the pseudo-terminal TSan's macOS symbolizer runs `atos`
+    on to symbolize the race reports. The same build with `symbolize=0` (fe4089) ends 4 of 4; head
+    under TSan (ab35b3, no race, so no symbolizer) 4 of 4; head native (f94397) 3 of 3. No leak.
+  - TSan race: `Detent:69ea114` introduced it (A14's `change_bytes` stat reads `view->change`
+    unpinned). TSan at `Detent:b1d281c` 01ef48 exit 0; at `Detent:32e65d8` a39a36 exit 8 with the
+    race at `core.cc:724` in `testing::stats`; only `Detent:69ea114` touches `change_bytes` between.
+    Fixed at `Detent:c471f2f`; STATS-1 58fade killed (exit 8, race at `core.cc:725`).
+  - msg-1 A/B b9981e (strict, 6 interleaved pairs, beside 7 light holds), HDR-2 (raw external count,
+    no header decode) against `Detent:18adf2b`, median p50 ns: core hot 759 to 658.5 (-100.5),
+    pinned hot 768 to 649 (-119), core scattered 1300 to 1075.5 (-224.5), pinned scattered 1315.5
+    to 1075 (-240.5). The decode is 13-15% of a hot lookup and 17-18% of a scattered one. Scaled to
+    aa9860's exclusive numbers (core hot 1 thread 526, scattered 805; before 393 and 659), removing
+    it predicts about 455 hot and 665 scattered: scattered recovered, hot still about 60 ns (16%)
+    over. `Detent:09be4f1` makes HDR-2 the code; dd2b26 runs aa9860's command at the head.
+  - Profile ea0609 failed because `prof.sh` returned the status of `wait` on the bench it killed
+    (143), not a missing path: the first sample (`before-core`) was written. `prof.sh` now checks the
+    sample file instead; resubmitted as baceeb. It attributes the remaining hot gap at `Detent:18adf2b`.
+  - A16 stopped 369849 (exclusive, `Detent:751b648`) failed both cells, and main misses too: branch
+    below 1 ms per run 200 195 200 198 200 199 and 200 200 200 200 199 198; main 199 200 199 199 199
+    200 and 198 200 200 200 199 200; main failed 0. Paired median difference +27 us (1 namespace) and +45 us
+    (1,000 namespaces), under the noise floors 52 and 53 us. Every slow read, either arm, slows in every
+    phase at once with faults unchanged (branch open 300 to 590-875 us and lookup 240 to 410-570 us,
+    user and system both; main attach 340 to 630-1,180 us): the process was slowed, not a code path.
+  - Lead (owner-approved): A16 split. `Detent:518085f` adds `first-read-gate.sh count` (light: fails
+    only on a branch failure, totals main's refusals): 842f21. The exclusive `measure ... running`
+    keeps the timing and slow-read breakdown (10 min): 0992ec. Submitting 0992ec superseded e69c8b.
 - Lead reorder (2026-11-18): TSan race, then A16, then msg-1.
 - TSan (3c4a1b, ea7399; both warnings are the same pair). Read of 8 bytes by T18, the test's
   stats thread (`switching`, `test_reader_switch.cc:695`), in `testing::stats` (`core.cc:724`:
@@ -117,15 +148,25 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the probe, HDR mutants and bench; put the bench table in Result and close msg-1.
-2. A16: when 797791 and 537ae0 report, put their cell lines in `first-read-gate.md` Results and
-   Evidence; if they still fail (branch runs at 198-199 of 200), profile the branch's open phase.
-3. Mark Evidence as the jobs pass. Mutants are regenerated at `Detent:18adf2b`; a code move needs
-   them again.
+1. msg-1: read dd2b26 (bench at the head) and baceeb (profile); if hot stays over 393 ns, attribute
+   the gap from the profile and fix what is avoidable, else close msg-1 with the table.
+2. A16: read 842f21 (count) and 0992ec (breakdown); the lead rules on Blocked on 2.
+3. Gates 132c68 65b1c1 b41c94 9c507c 279a47; then rerun mutants (HDR-1, STATS-1, A8, A10-A12),
+   soak and A7-A14 at the settled head, and mark Evidence.
 
 ## Blocked on
 
-(none)
+1. msg-1 (blocks the quest until settled). Core hot, 1 thread, exclusive median p50: 393 ns before
+   (`Detent:b1d281c`, 318fd2), 575 at `Detent:32e65d8` (63e21d), 526 at `Detent:18adf2b` (aa9860).
+   The per-page header decode is 100-120 ns of it (b9981e); `Detent:09be4f1` removes it, predicting
+   about 455 ns, still about 60 ns (+16%) over. 8 threads: 468 before, about 680 at `Detent:18adf2b`.
+   The remaining gap is unexplained until dd2b26 (bench at the head) and baceeb (profile) report.
+   Scattered is predicted back to before (about 665 against 659).
+2. A16 as written (200/200 below 1 ms for every branch run) fails for main too under an exclusive
+   hold on this machine (369849 above: main 199/200 in 3 of 6 runs per cell; branch 195-200). The
+   branch is within the noise floor of main. Options: (a) keep 200/200 and wait for a quieter
+   machine; (b) gate on the branch's paired difference against main within the noise floor plus
+   p99 below 1 ms; (c) 199/200. Recommend (b): it measures the branch, not the host. The lead's call.
 
 ## Evidence
 
@@ -148,7 +189,8 @@ Probe 485215 (codec, dense, lazy-page with `touched`, reader core and files) pas
 
 ## Messages
 
-- msg-1: attribution in Result; fix at `Detent:73c0b6c`, after-bench aa9860 at `Detent:18adf2b`; closes with its table.
+- msg-1: attribution in Result and Doing; fixes `Detent:73c0b6c` (one header decode per page) and
+  `Detent:09be4f1` (none); open until dd2b26 and baceeb report (Blocked on 1).
 - msg-2: applied: `minimum_page_bytes` for the pack extent, header compare before any bitmap
   answer, `layout_version` gone with main's lease, `state_commitment` replaces `root.logical`,
   DES-7 merged (`verified_page_bytes`, `Detent:4fafed3`).
@@ -184,6 +226,14 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- msg-1 raw nodes end (`Detent:09be4f1`): lookup no longer decodes a reached page's header. The
+  magic, zero bytes and `validate(PageHeader)` after first touch guarded no more than the body,
+  which is never rechecked; bounds safety comes from `decode_node`/`decode_external` refusing an end
+  or offset outside the page. HDR-2 is retired as a mutant; `touched` damages the external count's
+  high byte (an end outside the page) instead of the magic, and HDR-1 (hit compare) stays.
+- Deferred until msg-1 settles: the mutants, soak and A7-A14 reruns at the head, since a further
+  msg-1 change moves the head again. Submitted now only the gates, the bench, the profile and A16.
 
 - Job moves for the TSan and A16 step: at `Detent:751b648` (ebaa638's jobs cancelled) only build-all, STATS-1, both A16 cells and
   (after build-all) the gate checks. The mutants, soak and A7-A14 move once, after the msg-1 fix, since
