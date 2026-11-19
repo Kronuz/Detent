@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`): native 9d4b5b, asan 5f1cad, tsan 619e0a, t3-asan 416f56 and t3-tsan f8389b (`--cpus 8`; verify's own 4af87f and 5ca22f cancelled as duplicates without it); A16 stopped 9f40bf, running 5fb83e; mutants SEL-1 48b91f, SEL-2 6f99e1 (after native); reruns A16 count 7acc18, dense ASan edcde5, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921, soak round 3cdb4e; CI on GitHub. A16's 30 us is localized and removed (Doing, 2026-11-19 A16 attribution). Lead: Blocked on 1 (a file for `docs/perf/`).
+State: waiting on jobs 261119-111356-9f40bf, 261119-111356-5fb83e (A16, exclusive, queued), 261119-111305-5f1cad (asan), 261119-111306-619e0a (tsan), 261119-111329-416f56 (t3-asan), 261119-111329-f8389b (t3-tsan), 261119-111446-7acc18 (A16 count), 261119-111446-edcde5 (dense ASan), 261119-111448-3cdb4e (soak round), at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`); CI on GitHub. Passed there: native 9d4b5b, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921; SEL-1 48b91f and SEL-2 6f99e1 killed (exit 134, `selected_reads` line 92: the first lookup read `selected` again). A16's 30 us is localized and removed (Doing, A16 attribution). Lead: Blocked on 1 (a file for `docs/perf/`).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -233,22 +233,22 @@ the security reviewer (State).
 
 ## Evidence
 
-At `Detent:e77b31d` unless named; mutants regenerated there (`.scratch/move2.py`, ids in
-`.scratch/move-out-e77b31d.txt`), each after native 6e68ac. Pending until each job finishes.
+At `Detent:dc004dc` unless named. The A8, A10-A12 mutants stay at `Detent:e77b31d` (the brief does
+not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 6e68ac (pending) |
-| A4 | asan d1c0fe, tsan bb0d6a, t3-asan 6de311, t3-tsan 52f651 (pending); mutant STATS-1 676367 |
-| A7 | fe6295 |
-| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983; memory safety: ASan dense reads 817ba5 passed, BOUND-1 bf6dfc killed (ASan heap overflow) |
+| A1-A3, A5, A6, A15 | native 9d4b5b |
+| A4 | asan 5f1cad, tsan 619e0a, t3-asan 416f56, t3-tsan f8389b (pending); mutant STATS-1 676367 |
+| A7 | 3d025c |
+| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads edcde5 (pending), BOUND-1 bf6dfc killed |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation" and "Mapped bytes after verification" |
-| A10 | plain 9e9963; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
-| A11 | plain 5d7c5a; mutant SR2 0b8176 |
-| A12 | cold 263864; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak chained (D120) 4c385e de37ba 7d30e3 1291e7 1b8196 cc2e3d 5bf4f7 f15ae8 |
-| A13 | 263864 |
-| A14 | 8ef120 |
-| A16 | stopped 4a5487, running 2e857f (D121; pending) |
+| A10 | plain 6f34b7; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
+| A11 | plain a4f9cd; mutant SR2 0b8176 |
+| A12 | cold 1628b4; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak 3cdb4e (pending) |
+| A13 | 1628b4 |
+| A14 | caf921 |
+| A16 | stopped 9f40bf, running 5fb83e (pending); count 7acc18 (pending); attribution A/B db0806 |
 
 ## Messages
 
