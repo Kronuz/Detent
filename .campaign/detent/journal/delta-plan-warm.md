@@ -1,6 +1,6 @@
 # delta-plan-warm: journal
 
-State: waiting on jobs 261119-144618-cf06c9 261119-144628-7078b2 261119-144635-0b0e37 261119-144706-2f3ff1 261119-144708-b4e84e
+State: waiting on jobs 261119-145559-4878c5 261119-145602-9c34e4 261119-145604-7698f5 261119-145607-de3e64 261119-145609-293d70
 Quest: .campaign/detent/quests/delta-plan-warm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,10 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Harness committed (Detent:f02344d1): tests/detent_local/test_delta_plan_scaling_warm.{cc,sh,cmake} and
-..._subcorpus.py. It plans one delta 3 times on one recovered generation (A cold, A again, B = seed+1;
-BBA on even rounds), no publish. Chain queued: build 261119-144618-cf06c9, 500K corpus 261119-144628-7078b2,
-prepare 5M 261119-144635-0b0e37, prepare 500K 261119-144706-2f3ff1, smoke 500K 261119-144708-b4e84e (strict).
+First chain failed: the runner required CORPUS even for `build` (261119-144618-cf06c9; dependents skipped).
+Fixed in Detent:1fa84385 (CORPUS checked only where read; dry run with a cmake shim passes `build` without it).
+Resubmitted at 1fa84385: build 261119-145559-4878c5, 500K corpus 261119-145602-9c34e4, prepare 5M
+261119-145604-7698f5, prepare 500K 261119-145607-de3e64, smoke 261119-145609-293d70 (strict).
 
 ## Next
 
