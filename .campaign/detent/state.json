@@ -5314,18 +5314,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/groups-upload-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T20:55:30",
+          "ci_skipped": "D116: CI 44443844218 fails only groups_upload on macos-x86_64; every other platform green",
+          "commit": "c782db1b11cf79781698be768debca1598cc684b",
+          "criteria": {
+            "A1": "[manual] 44441165298 probe-3 iteration 17 names the cause of the sampled 1.09 s stall (Notes, Probe 3); the seven recorded CI failures all lie outside the bound (Notes, table), so the 3-4 s class is open (Result)",
+            "A2": "261118-182248-eb67f9, 261118-182249-1c6fef, 261118-182311-d7590a; fails without: 261118-182031-0eb0f5, 261118-182036-93e65a, 261118-182251-4f4a38, 261118-182252-0ca070",
+            "A3": "261118-203558-364d0b",
+            "A4": "261118-182254-e926dc, 261118-182255-c111a2; fails without: 261118-114620-92a85d, 261118-114638-5f511f"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "c782db1b11cf79781698be768debca1598cc684b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-203558-364d0b",
+              "level": "light",
+              "seconds": 1016.8,
+              "state": "done",
+              "what": "groups-upload-stall check suite at c782db1b11cf"
+            }
+          ],
+          "final": true,
+          "from": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+          "reason": "",
+          "tested": "c782db1b11cf79781698be768debca1598cc684b"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus transport: name groups_upload's 3-4 s stall on macos-x86_64 CI",
-      "updated": "2026-11-18T20:55:25",
-      "worktree": "../consensus-wt/detent/groups-upload-stall"
+      "updated": "2026-11-18T20:57:03",
+      "worktree": ""
     },
     "hash-once": {
       "accepted": {},
