@@ -1,11 +1,15 @@
 # http-drop-user-data: journal
 
-State: ready for review
+State: waiting on jobs 261119-154010-049d80
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: correctness review launched by the lead at `http:b931f28`.
+Review CHANGES at `http:b931f28` folded in at `http:0549709` (pushed): D1 (stale deferred wording
+in AGENTS.md, README.md, docs/TRANSPORT.md, coroutine-handlers.md), N2 (deadline() is the bound
+on reads and the rest of the reply, also in ARCHITECTURE.md and CHANGELOG.md), N1 (body hooks see
+max()), N3 (`std::string serialize_head(bool)` removed). Docs and one dead overload only; suite
+rerun 261119-154010-049d80 (A1, A4). G1 and N4 (optional tests) not taken.
 
 ## Next
 
