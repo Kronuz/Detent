@@ -341,26 +341,26 @@ void neighbour_corruption() {
 	std::printf("neighbour corruption: %u cases refused\n", cases);
 }
 // Flips one byte of a mapped page in place: the private mapping takes a writable copy of its page.
-void flip_mapped(std::span<const char> mapped, std::size_t at, char mask) {
+void flip_mapped(std::span<const char> mapped, std::size_t at) {
 	const auto size = static_cast<std::uintptr_t>(::getpagesize());
 	auto *byte = const_cast<char *>(mapped.data() + at);
 	auto *page = reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(byte) & ~(size - 1));
 	check(::mprotect(page, size, PROT_READ | PROT_WRITE) == 0);
-	*byte ^= mask;
+	*byte ^= 1;
 	check(::mprotect(page, size, PROT_READ) == 0);
 }
 // A page damaged after first touch is refused by the next lookup: at its logical digest by the hit
-// compare, at its external count's high byte (an end outside the page) by the node decode.
+// compare, at its magic by the lookup's header decode.
 void touched_corruption() {
 	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	const auto target = fixture->definitions[1];
 	const auto &name = fixture->definition_names[1];
-	for (const auto [at, mask] : {std::pair<std::size_t, char>{40, 1}, {12, char(0x80)}}) {
+	for (const std::size_t at : {std::size_t(40), std::size_t(0)}) {
 		Harness harness(fixture);
 		const auto state = harness.state();
 		check(state.definition("b", name).has_value());
 		const auto mapped = harness.access->resolve(target);
-		flip_mapped(mapped, at, mask);
+		flip_mapped(mapped, at);
 		bool caught = false;
 		try {
 			state.definition("b", name);
@@ -369,7 +369,7 @@ void touched_corruption() {
 		}
 		check(caught);
 	}
-	std::puts("touched corruption: digest and external count refused after first touch");
+	std::puts("touched corruption: digest and magic refused after first touch");
 }
 // A forged physical digest on a never-verified page is refused and fails the generation.
 void forged_unverified() {
