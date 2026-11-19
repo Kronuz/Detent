@@ -48,9 +48,11 @@ def private(path: Path, value: dict[str, Any]) -> Path:
 
 class Pair:
     """Starts both processes on enter, writes `transactions` to every name, waits until the relay
-    mirrors them, and stops both on exit."""
+    mirrors them, and stops both on exit. The relay syncs every `interval_ms` (its default 250)."""
 
-    def __init__(self, build: Path, transactions: int = 12) -> None:
+    def __init__(
+        self, build: Path, transactions: int = 12, interval_ms: int = 250
+    ) -> None:
         self.source = Path(__file__).resolve().parents[2]
         self.detentd = build / "src/detentd"
         self.relay = build / "src/detent-relay"
@@ -58,6 +60,7 @@ class Pair:
             if not binary.is_file():
                 raise RuntimeError(f"missing {binary}")
         self.transactions = transactions
+        self.interval_ms = interval_ms
         self.children: dict[str, subprocess.Popen[bytes]] = {}
         self.authority_port, self.relay_port = free_port(), free_port()
         scratch = self.source / ".scratch"
@@ -234,7 +237,7 @@ class Pair:
                         {"address": "127.0.0.1", "port": self.authority_port}
                     ],
                     "token": MIRROR,
-                    "interval_ms": 100,
+                    "interval_ms": self.interval_ms,
                 },
                 "credentials": [
                     {

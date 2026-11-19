@@ -3,7 +3,7 @@
 #   build (light, a job's --build): detentd and detent-relay (Release) here and, when given, at
 #         BASELINE_CHECKOUT.
 #   idle  (A1, strict): idle_loops.py, three rounds alternating head and baseline.
-#   paths (A3, strict): paths.py, three rounds alternating head and baseline.
+#   paths (A3, strict): paths.py, five rounds alternating head and baseline.
 set -eu
 mode=${1:?build, idle or paths}
 shift
@@ -23,13 +23,17 @@ build)
 		build "$1" .scratch/idle-base
 	fi
 	exit 0 ;;
-idle) run() { /usr/local/bin/python3 "$here/idle_loops.py" --build "$1" --usage .scratch/idle-usage --label "$2"; } ;;
-paths) run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2"; } ;;
+idle)
+	rounds=3
+	run() { /usr/local/bin/python3 "$here/idle_loops.py" --build "$1" --usage .scratch/idle-usage --label "$2"; } ;;
+paths)
+	rounds=5
+	run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2"; } ;;
 *)
 	echo "unknown mode $mode" >&2
 	exit 2 ;;
 esac
-for round in 1 2 3; do
+for round in $(seq 1 "$rounds"); do
 	run .scratch/idle-head "head-$round"
 	if [ $# -ge 1 ]; then
 		run .scratch/idle-base "main-$round"

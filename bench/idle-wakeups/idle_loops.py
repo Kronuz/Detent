@@ -3,9 +3,10 @@
 With no client, once both report ready and have settled, the script reads over --seconds each
 process's rusage (interrupt and package-idle wakeups, CPU) through the usage helper, the
 authority's owner turns (`owner_turn_ns.count` in /v1/health) and the relay's turns (`turns`,
-where its build reports it). It prints one JSON line.
+where its build reports it). It prints one JSON line. The relay syncs every --interval-ms, by
+default once a minute, so the counts show each loop's own deadlines rather than sync traffic.
 
-    idle_loops.py --build BUILD --usage USAGE_HELPER --label NAME [--seconds 10]
+    idle_loops.py --build BUILD --usage USAGE_HELPER --label NAME [--seconds 10] [--interval-ms N]
 """
 
 from __future__ import annotations
@@ -33,8 +34,9 @@ def main() -> None:
     parser.add_argument("--usage", type=Path, required=True)
     parser.add_argument("--label", required=True)
     parser.add_argument("--seconds", type=float, default=10)
+    parser.add_argument("--interval-ms", type=int, default=60000)
     args = parser.parse_args()
-    with Pair(args.build.resolve()) as pair:
+    with Pair(args.build.resolve(), interval_ms=args.interval_ms) as pair:
         time.sleep(2)
 
         def sample() -> dict[str, Any]:
@@ -52,7 +54,11 @@ def main() -> None:
         time.sleep(args.seconds)
         after = sample()
     seconds = after["at"] - before["at"]
-    result: dict[str, Any] = {"label": args.label, "seconds": round(seconds, 3)}
+    result: dict[str, Any] = {
+        "label": args.label,
+        "seconds": round(seconds, 3),
+        "interval_ms": args.interval_ms,
+    }
     for name in ("detentd", "relay"):
         delta = {key: after[name][key] - before[name][key] for key in after[name]}
         result[name] = {
