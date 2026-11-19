@@ -1,9 +1,34 @@
 # reader-s6: journal
 
-State: waiting on jobs 261118-184532-ea0609 (profile, light) and 261118-184707-b9981e (A/B, strict). msg-1 open: about 130 ns per hot lookup remains at `Detent:18adf2b` (bench aa9860).
+State: waiting on jobs 988de0 (build-all at `Detent:ebaa638`), then 63fdce (STATS-1), c7f32f and 28641a (A16); 01ef48 and a39a36 (TSan at `Detent:b1d281c` and `Detent:32e65d8`); ea0609 (profile) and b9981e (A/B). All ids are `261118-18xxxx-<suffix>`. Next: `campaign verify` at the head once 988de0 passes.
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Lead reorder (2026-11-18): TSan race, then A16, then msg-1.
+- TSan (3c4a1b, ea7399; both warnings are the same pair). Read of 8 bytes by T18, the test's
+  stats thread (`switching`, `test_reader_switch.cc:695`), in `testing::stats` (`core.cc:724`:
+  `view->change` through a view loaded relaxed from the ring, unpinned). Previous write by a
+  lookup thread (T5, T13) in `refresh_locked` (`core.cc:402`: `built->change = change`), under
+  `detent_get` (`core.cc:654`), in the 48-byte `View` that thread allocated at `:401`. The reader
+  introduced it: `git log -S change_bytes` names only `Detent:69ea114` (A14's stats field). It is
+  a test-hook read (`DETENT_READER_TEST_HOOKS`), but unpinned it could also read a freed view.
+  Jobs 01ef48 (`Detent:b1d281c`) and a39a36 (`Detent:32e65d8`) run the same TSan test to confirm
+  it. Fix `Detent:c471f2f`: `stats` pins the view as a lookup does (`Pin`, `acquire`). Mutant
+  STATS-1 (the unpinned relaxed read back; `.scratch/mutants-tsan.json`) is 63fdce, run
+  `--fails-without`. TSan's "invariant at line 275" (descriptors and mappings back to baseline after
+  close) failed in the same runs. I think the cause is the macOS symbolizer the reports start, but
+  the STATS-1 and head runs have to show it.
+- A16: each arm already reads a store its own code wrote. `prepare` generates `main/store-*` with
+  main's `first_read_phases` and `branch/store-*` with the branch's, and each publisher is its own
+  arm's binary, so there is no format mismatch. Main's arm exits on "invalid local generation
+  descriptor": main's `check_generation_file` (`generation_file_access.hh:17-23` at
+  `Detent:8cd932c`) requires `st_nlink == 1`, and `read_generation_record` refuses a short read, so
+  a generation file the running publisher collects under main's Client is refused. The branch
+  reads those again (`Detent:47470ea`, `checked_or_unlinked`). `Detent:ebaa638`: the gate counts
+  main's failed reads per run instead of stopping, and prints `phase_medians` (wall, CPU, faults)
+  and every read at or over 1 ms (`slow`), to attribute the branch's misses. Reruns c7f32f
+  (stopped) and 28641a (running). In b69551 and da956e the branch's medians were 551-761 us and
+  main's 531-670 us; open was 306-393 us and the first lookup 240-377 us.
 - msg-1, second round (lead, 2026-11-18): (1) profile core hot t1 at `Detent:18adf2b` and
   `Detent:b1d281c`, ns per frame; (2) why the scratch A/B overstated the gain; (3) fix what is
   avoidable on the hit path, rerun aa9860's exclusive command; inherent checks go to Blocked on.
@@ -17,9 +42,6 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
     real fix still runs one full `decode_page_header` per reached page in `lookup` (magic, zero
     bytes, four `read_integer`, a 32-byte digest copy, `validate(PageHeader)`). The A/B also ran
     strict on shared cores (pair 1 core hot: 711 head, 530 patched). b9981e measures the gap.
-  - Not mine to fix here, for the lead: tsan 3c4a1b and t3-tsan ea7399 fail on a TSan data race
-    in `test_reader_switch`; A16 b69551 and da956e fail (185-198 of 200 below 1 ms; main's arm
-    also exits 1 in da956e: "invalid local generation descriptor").
 - `Detent:3e6b09c`: `test_dense_reads.cc:282` constructs `LazyPageAccess` without the factory
   (lead granted it). Build-all 261118-144659-de07eb: 528 of 528 targets built.
 - `Detent:18adf2b`: `touched` flips the mapped byte through a writable private copy of its page
@@ -157,6 +179,11 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- Job moves for the TSan and A16 step: at `Detent:ebaa638` only build-all, STATS-1, both A16 cells and
+  (after build-all) the gate checks. The mutants, soak and A7-A14 move once, after the msg-1 fix, since
+  that moves the head again. A16 keeps BASELINE `Detent:8cd932c` so its numbers compare with b69551
+  and da956e.
 
 - msg-1 fix shape: the nodes end, not the header, is what `decode_node`/`decode_external` take;
   `decode_external` derives the external count from it and requires an exact fit, so a wrong end
