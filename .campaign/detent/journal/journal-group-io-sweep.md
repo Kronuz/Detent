@@ -34,7 +34,7 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | 261118-145236-96e656 (suite at journal:4d2eef6, includes host_test view_sweep and closed_view): queued |
-| A2 | --fails-without at the fix, each one line: never sweeps 261118-145253-7b2d4c (refs/mutants/journal-group-io-sweep/never2, view_sweep), sweeps a live range 261118-145256-9a888f (live2, view_sweep), shares the closed range 261118-145301-7efc6f (shared, closed_view): queued. Superseded: 261118-123533-1944ae, 261118-123541-c1f81b at journal:965cd55 |
+| A2 | 261118-165146-365148; fails without: 261118-123533-1944ae, 261118-123541-c1f81b, 261118-145253-7b2d4c, 261118-145256-9a888f, 261118-145301-7efc6f |
 | A3 | 261118-123558-25b19c (exclusive, before = ea397ab include/, after = journal:965cd55); rerun at the fix 261118-145320-05f3b3: queued |
 | A4 | [artifact] docs/perf/group-io.md at journal:4d38a56: present-tense mechanism, bound, before/after table at 1K/10K/100K/1M (random, ascending, resident), 1M/1K = 1.85 |
 | CI | GitHub run on quest/detent/journal-group-io-sweep at journal:4d38a56: pending push |
