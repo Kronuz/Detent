@@ -14,7 +14,6 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
 - A1 A close_group whose table commit fails after the shard replace never leaves the group appendable: a test that fails at main.
 - A2 Crash recovery after a failed close and a later sync loses no record that was acknowledged: a fault-injection sweep job.
 - A3 A mutant that restores the group to open is killed.
