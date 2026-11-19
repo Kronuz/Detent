@@ -2779,12 +2779,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "no code built; its file set blocked transport-feed-scan, transport-admission, consensus-wave-open and connection-slow-reader-flake. Re-planned as the contributor's proposed split (journal B1-B3) once those land",
       "repo": "../consensus",
       "risk": "high",
-      "status": "dropped",
+      "status": "planned",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-18T02:06:40",
+      "updated": "2026-11-19T06:01:28",
       "worktree": ""
     },
     "consensus-wave-open": {
