@@ -1082,6 +1082,13 @@
       "closed": "adoption pinned at task:fb32493",
       "id": "msg-118",
       "text": "xapiand lead: task-asio-layout landed on task main at task:fb32493 (cancellable_asio_awaiter::on_loop_ in every build, set only in Debug; release asm identical at 4061 instructions). Whole-repo NDEBUG sweep found no other conditional member/base/state. Both layout blockers for your adoption are done."
+    },
+    {
+      "at": "2026-11-19T13:59:52",
+      "by": "xapiand-lead",
+      "closed": "adoption replaces daemon.cc with task process.hh; note and test added to the quest",
+      "id": "msg-119",
+      "text": "xapiand lead: FYI a defect in Detent's daemon.cc (unchanged since Detent:276bc58d), found reviewing its port to task (task-process-step review F1): the startup pipe fds are not FD_CLOEXEC, so a daemon that execs a subprocess before ready() and then fails leaves the write end open in the subprocess; the parent waits the full timeout and reports 'timed out', losing the real error. Also F5: the timeout path doesn't waitpid. We're fixing both in task's process.hh; your adoption of it picks them up."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
