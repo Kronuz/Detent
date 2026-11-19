@@ -1,6 +1,6 @@
 # peers-tsan-timeout: journal
 
-State: waiting on jobs 261119-053751-c55045 261119-053752-19cd10 261119-053745-c0444c, CI 44535229542 (quest), probe 5 44535268814
+State: waiting on jobs 261119-094233-df6d37 261119-094236-92ae93 261119-094246-5e06c6 261119-094248-7787ad 261119-094255-4f7912, CI 44580052688 (quest), probe 6 44580003789
 Quest: .campaign/detent/quests/peers-tsan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -101,21 +101,49 @@ Budget: consensus:c81a075 sets TIMEOUT 50 for consensus_transport_peers (CMakeLi
      fetch-alongside-consensus.
 4. **refused-first alone (job 0df91a): 50 of 50 pass** on macOS TSan, max 919 ms.
 
+### What throws, named (A1)
+
+Probe 5 (run 44535268814, consensus:373b4ca, 8 full shards x 40 beside the load): shard 8 run
+17 printed `outage: threw: bind: Address already in use` before outage's first line, so a
+start() (Peers' acceptor bind, peers.h:118) found its port taken. CI 44535229542's linux-asan-ubsan
+aborted groups lagging with the same `bind: Address already in use` (groups_test.cc:1036 picks
+the same way). The other probe 5 failures (shard 8 run 23, shard 6 run 1, rc 134) are
+peers_test.cc:1172's round-trip bound in fetch-alongside-consensus: timing, not this.
+
+**The cause:** free_port bound port 0, read the port and closed the socket. The port went back
+to the ephemeral pool until the voter bound it, and again over every restart. Any bind(0) or
+connect() beside it (the connection_test load, a voter redialing a refused voter, which can
+self-connect on Linux) could be handed it. The thrown bind then hung the run before the
+~Cluster fix, so this is the hang's origin.
+
+**The fix** (consensus:abb7276, test/transport/peers_test.cc): ports come from below the
+ephemeral range the system reports (Linux ip_local_port_range, BSD net.inet.ip.portrange), where
+bind(0) and connect() never reach, each claimed for the process by a UDP socket on [::]:port
+without SO_REUSEADDR, so peers tests side by side never share one. No retry on EADDRINUSE.
+- Test: case `taken-ports` (ctest consensus_transport_peers_taken_ports, TIMEOUT 20; also in the
+  full run): a listening contender on every picked port the system could hand out, then the
+  voters start, commit, restart; each port is outside the range and unclaimable.
+- Mutant consensus:a858934 (refs/mutants/peers-tsan-timeout/old-port-picker): the fix with the old
+  picker; its ports are ephemeral, so the contender takes them and start() throws EADDRINUSE.
+
 ## Next
 
-1. Read probe 5 (`gh run view 44535268814 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
-   if a run threw, name the exception here and fix its cause with a test; else record 0 of 320.
-2. A2 at the merged head is done: 3bb236 passes, fails-without 37e35d at mutant 0a85773 hangs
-   (exit 8). Read A3 c55045 + 19cd10 and suite c0444c and CI 44535229542; paste `campaign brief`'s table; ready for review.
+1. Read jobs: df6d37 (A2 taken-ports), 92ae93 (fails-without at a858934: expect `taken-ports:
+   threw: bind: Address already in use`), 5e06c6 + 7787ad (A3 20 of 20), 4f7912 (suite).
+2. Read probe 6 (`gh run view 44580003789 -R Kronuz/consensus --log | grep -E 'probe: |threw|rc [1-9]'`):
+   no `threw`; any rc 134 at :1172 is the round-trip bound (peers-busy-roundtrip-bound).
+3. CI 44580052688; paste `campaign brief`'s table; ready for review.
 
-Merged main (consensus:ae08d92) at consensus:e62cc77, no conflicts. Mutant for fails-without:
-consensus:0a85773 (refs/mutants/peers-tsan-timeout/no-cluster-stop-merged, merged head without
-~Cluster). A3 runs as two strict batches of 10 (a strict job lasts at most 10 minutes; macOS
-batch b showed nice-19 runs fail timing checks under load).
+Merged main (consensus:c64b5cd) at consensus:ba66583, no conflicts. Earlier: A2 for the hang at
+e62cc77 is 3bb236, fails-without 37e35d at mutant 0a85773. A3 runs as two strict batches of 10.
+Suite c0444c timed out only in consensus_mutants (1800 s) at load ~170: load, rerun as 4f7912.
 
 ## Blocked on
 
-Nothing.
+Nothing. For the lead: groups_test.cc (outside this file set) picks ports the same way
+(Cluster, :1036: bind 0, read, close; restarts rebind them), the cause of CI 44535229542's
+linux-asan-ubsan groups lagging abort. Recommendation: widen the file set to groups_test.cc and
+lift claim/free_port into one shared test header for both.
 
 ## Evidence
 
@@ -144,5 +172,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    noted above.
 4. The fails-without test is tagged A2, the quest file's criterion for "a test that fails without
    the fix"; A1 is [manual] and keeps its journal row (the lead's message called it A1).
+6. The claim is a UDP socket, not the TCP port held open: holding a bound TCP socket beside
+   Peers' listener needs SO_REUSEPORT on both on macOS, which Peers must not set, and a listening
+   hold would accept during a restart and break the refused-connection cases.
+7. The picker lives in peers_test.cc (the file set); groups_test.cc is reported under Blocked on.
 5. A3's TSan runs are strict holds (2 CPUs, the test's busy threads): light runs at nice 19 fail
    peers' timing checks under host load (batch b), which would test the host, not the fix.
