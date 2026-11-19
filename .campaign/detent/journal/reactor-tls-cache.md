@@ -1,11 +1,13 @@
 # reactor-tls-cache: journal
 
-State: waiting on jobs 261119-145836-ae0fa0 261119-145839-5b1364 261119-145840-a79c07 261119-145842-13f356 261119-145853-59a461 261119-145907-555a87 261119-145909-24b3f4 261119-145911-65e42b
+State: waiting on jobs 261119-153630-49e28b 261119-153631-a8c953 261119-153633-22e918 261119-153634-6252d5 261119-153635-07f53d 261119-153636-5c01d3 261119-153637-4b4e5a
 Quest: .campaign/detent/quests/reactor-tls-cache.md (the lead's; never edit it)
 
 ## Doing
 
-Work at reactor:0b3d05d (pushed, quest/detent/reactor-tls-cache). Jobs queued for A1-A4.
+Merged reactor main (reactor:6fdd45f, reactor-server-composition) at reactor:c1c0393, pushed.
+server_context calls configure, so it shares the cache; the cache test now builds half its
+servers through it. Every job resubmitted at reactor:c1c0393 (msg from coordinator, below).
 
 ## Next
 
@@ -20,12 +22,18 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-145836-ae0fa0 (`reactor_tls_test cache`), 261119-145839-5b1364 (fails-without at mutant reactor:56489bf, no-cache) |
-| A2 | 261119-145840-a79c07 (`reactor_tls_test rotation`), 261119-145842-13f356 (fails-without at mutant reactor:0dff6af, path-only cache) |
-| A3 | 261119-145853-59a461 (strict, bf874dc vs 0b3d05d alternating, docs/perf/tls-configure/ab.sh) |
-| A4 | 261119-145907-555a87 (suite), 261119-145909-24b3f4 (ASan+UBSan), 261119-145911-65e42b (TSan, libcrypto visible) |
+| A1 | 261119-153629-4fd091 passed (`reactor_tls_test cache`), 261119-153630-49e28b (fails-without at mutant reactor:a8e6af0, no-cache) |
+| A2 | 261119-153631-a8c953 (`reactor_tls_test rotation`), 261119-153633-22e918 (fails-without at mutant reactor:4caa36e, path-only cache) |
+| A3 | 261119-153634-6252d5 (strict, main reactor:6fdd45f vs reactor:c1c0393 alternating, docs/perf/tls-configure/ab.sh) |
+| A4 | 261119-153635-07f53d (suite), 261119-153636-5c01d3 (ASan+UBSan), 261119-153637-4b4e5a (TSan, libcrypto visible) |
 
+At reactor:0b3d05d every job passed and both mutants failed; superseded by the merge.
 Mutants live on local branches mutant/reactor-tls-cache/{no-cache,path-only} (not pushed).
+
+Coordinator message (merge main, resubmit): done as above. The 0b3d05d no-cache mutant's exit 139
+came after the checks at tls_test.cc:179-181: `same(*leaves.begin(), cert)` read a leaf freed with
+its context. The test now keeps every context alive, so no freed object can be reused at the same
+address (which could also have hidden a missing cache) and the mutant fails on its checks alone.
 
 ## Result
 
