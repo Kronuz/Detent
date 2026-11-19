@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A1 of rename-detentd: `git grep -n detentd` finds only dated records. Exits 1 and prints each
+# A1 of rename-detentd: `git grep -n -i detentd` finds only dated records. Exits 1 and prints each
 # other hit. The journal (rename-detentd.md, "Rulings I made") says why each allowed path stays.
 set -u
 root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel) || exit 2
@@ -21,7 +21,6 @@ records=(
   docs/dev/docs-site-audit.md
   docs/design/http-coroutines.md
   docs/VALIDATED_ARCHITECTURE.md
-  docs/status/namespace-s1-s2.md
   tests/detent_authority/revert_ready_check.sh
   tests/detent_authority/revert_followup_check.sh
 )
@@ -51,7 +50,7 @@ while IFS= read -r line; do
   allowed "$path" "$text" && continue
   printf '%s\n' "$line"
   hits=$((hits + 1))
-done < <(git grep -n detentd)
+done < <(git grep -n -i detentd)
 
 if ((hits)); then
   echo "rename-detentd A1: $hits mention(s) outside the dated records" >&2

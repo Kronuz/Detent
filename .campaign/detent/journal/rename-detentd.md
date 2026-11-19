@@ -5,22 +5,19 @@ Quest: .campaign/detent/quests/rename-detentd.md (the lead's; never edit it)
 
 ## Doing
 
-Rename committed (Detent:ad8c73c8). Suite queued. A1 waits on the lead's file-set ruling (msg-106 to
-the lead): `docs/status/namespace-s8.md:85` is the only hit the check rejects, and it is outside the
-file set.
+msg-106 (the lead's ruling) folded in: namespace-s8.md:85 and namespace-s1-s2.md (not HISTORY)
+renamed; `DETENTD_*` in benchmarks/logging_compare.py and the usage lines of test_dns_voters.py and
+test_lost_quorum.py renamed; the A1 check is case-insensitive and allows the docs/status HISTORY
+files. Suite, A1 and its mutant queued at the head.
 
 ## Next
 
-1. On the lead's ruling: rename namespace-s8.md:85 (and logging_compare.py, test_dns_voters.py:3,
-   test_lost_quorum.py:3 if added), commit, then submit A1 and its mutant:
-   `campaign job submit --quest rename-detentd --for A1 --level light --minutes 5 -- bash .campaign/detent/journal/rename-detentd.check.sh`
-   `campaign job submit --quest rename-detentd --for A1 --fails-without --fresh --level light --minutes 5 -- bash -c 'echo detentd >> README.md && bash .campaign/detent/journal/rename-detentd.check.sh'`
-2. A4: CI at the head (push the branch; report if refused).
+1. When the jobs finish: paste `campaign brief`'s table; A4 is CI at the head (push the branch;
+   report if refused).
 
 ## Blocked on
 
-The lead: file-set ruling in msg-106 (namespace-s8.md, three uppercase-DETENTD files, renamed
-paths, and the dated-record list below).
+Nothing.
 
 ## Evidence
 
@@ -52,10 +49,9 @@ tests, tools, docs, website (`reference/cli/detent-authority`), diagrams. CHANGE
   4. `docs/dev/docs-site-audit.md`: dated audit of `Detent:5b50eb3`, line refs into that tree.
   5. `docs/design/http-coroutines.md`: the 2026-11-03 W2 design, refs into the pre-W2 tree.
   6. `docs/VALIDATED_ARCHITECTURE.md`: dated 2026-10-02 review of the removed classic code.
-  7. `docs/status/namespace-s1-s2.md`: dated ledger of a build at `Detent:7a4425a` (says CURRENT).
-  8. `tests/detent_authority/revert_{ready,followup}_check.sh`: restore BASE's `src/detentd/main.cc`;
+  7. `tests/detent_authority/revert_{ready,followup}_check.sh`: restore BASE's `src/detentd/main.cc`;
      they only work at commits before the rename.
-  9. CHANGELOG: the rename entry and two lines naming files removed under the old name.
+  8. CHANGELOG: the rename entry and two lines naming files removed under the old name.
 - `docs/perf/m1-w5-evidence.md` and `docs/DEPENDENCY_UPGRADES.md` say "the authority daemon" where
   they describe old builds, so no mention stays and nothing is falsified.
 - `tools/w5/http_replay.py --detentd` becomes `--daemon`: it replays against old builds of any name.
