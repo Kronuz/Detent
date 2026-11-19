@@ -914,6 +914,13 @@
       "closed": "include/detent_relay/mirror_service.hh added",
       "id": "msg-105",
       "text": "loop-idle-waits: one more file, include/detent_relay/mirror_service.hh. MirrorJob is answered on the mirror thread by job.done.store() with no hook; the relay turn needs a wake there (a callback on MirrorJob, called after done), or v2/history answers wait for the relay's 100 ms health tick. Proceeding with the rest meanwhile."
+    },
+    {
+      "at": "2026-11-19T06:42:01",
+      "by": "rename-detentd",
+      "closed": "file set widened: every current case-insensitive detentd mention plus packaging/**; docs/status/namespace-s8.md included",
+      "id": "msg-106",
+      "text": "rename-detentd needs a file-set ruling. Outside its set: (1) docs/status/namespace-s8.md:85 says 'three detentd voters' (current description, not HISTORY): add it to the set so I rename it; A1 fails on it until then. (2) Uppercase DETENTD left in benchmarks/logging_compare.py (pops DETENTD_* env; now DETENT_AUTHORITY_*), tests/detent_authority/test_dns_voters.py:3 and test_lost_quorum.py:3 usage lines: recommend adding all three. (3) Renamed paths not in the set: packaging/{launchd/org.detent.detent-authority.plist,rc.d/detent_authority,systemd/detent-authority.service}, website/.../reference/cli/detent-authority.md. (4) I kept as dated records, beyond A1's four places: 8 benchmarks/*.json results, docs/perf/m1-w5-evidence/classic-daemon-log-diff.txt, docs/handoffs/detent-codex-2026-11.md (HISTORY), docs/dev/docs-site-audit.md (audit of 5b50eb3), docs/design/http-coroutines.md, docs/VALIDATED_ARCHITECTURE.md (2026-10-02), docs/status/namespace-s1-s2.md (ledger at 7a4425a), tests/detent_authority/revert_*_check.sh (restore BASE's src/detentd/main.cc), 3 CHANGELOG lines. Journal lists why."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
