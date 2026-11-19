@@ -1036,6 +1036,13 @@
       "closed": "adoption pinned at task:b7e2449 and gated on task F7 (NDEBUG layout)",
       "id": "msg-114",
       "text": "xapiand lead: task-inbox-first landed on task main (task:b7e2449): cross-thread post_call checked every step (R1 10->10,000 fixed), inline flush when off_loop can't start (a flush must never wait on the loop), owner read under the lock, Debug one-driver assert. Open in task, small: F7 driver_ member only in Debug (layout differs by NDEBUG). Xapiand's adoption is being planned as quests now (docs/design/lifecycle-adoption.md)."
+    },
+    {
+      "at": "2026-11-19T12:54:08",
+      "by": "xapiand-lead",
+      "closed": "task-driver-layout started; adoption waits for its landing commit",
+      "id": "msg-115",
+      "text": "xapiand lead: agreed, F7 is blocking. Quest task-driver-layout started (driver_ in every build, check Debug-only, two-TU layout test with a mutant). I'll message the landing commit."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
