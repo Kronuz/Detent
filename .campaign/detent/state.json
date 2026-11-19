@@ -732,6 +732,35 @@
         ]
       },
       "text": "set driver-apply-gap: unlocks frees include/consensus/driver.h, docs/DRIVER.md, test/driver_simulation.cc, test/driver_test.cc for driver-apply-gap; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T21:26:52",
+      "by": "campaign",
+      "closed": "noted; groups-upload-loop-stall waits for a probed CI failure (one sample saved from 44461880244, pre-probe)",
+      "id": "msg-86",
+      "items": {
+        "groups-upload-loop-stall": "frees test/transport/groups_test.cc for groups-upload-loop-stall",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "groups-upload-loop-stall",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "groups-upload-3s-class landed: unlocks frees test/transport/groups_test.cc for groups-upload-loop-stall; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
