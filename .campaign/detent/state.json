@@ -16403,7 +16403,8 @@
     "server-composition-adoption": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "loop-idle-waits",
+        "rename-detentd"
       ],
       "checks": [
         {
@@ -16429,7 +16430,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-19T06:24:05"
+      "updated": "2026-11-19T06:28:56"
     },
     "service-shape": {
       "accepted": {
