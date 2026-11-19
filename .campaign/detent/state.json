@@ -7179,7 +7179,7 @@
       "risk": "high",
       "status": "landed",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T22:31:26",
+      "updated": "2026-11-19T04:42:59",
       "worktree": ""
     },
     "journal-reopen-closed": {
