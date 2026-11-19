@@ -1,9 +1,25 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:18adf2b` (all in `.scratch/reader-s6-moved.txt`, step 3). Probe 485215 passed; msg-1 bench aa9860 running; checks, A16, soak and the rest of the mutants queued.
+State: waiting on jobs 261118-184532-ea0609 (profile, light) and 261118-184707-b9981e (A/B, strict). msg-1 open: about 130 ns per hot lookup remains at `Detent:18adf2b` (bench aa9860).
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- msg-1, second round (lead, 2026-11-18): (1) profile core hot t1 at `Detent:18adf2b` and
+  `Detent:b1d281c`, ns per frame; (2) why the scratch A/B overstated the gain; (3) fix what is
+  avoidable on the hit path, rerun aa9860's exclusive command; inherent checks go to Blocked on.
+  - Profile 261118-184532-ea0609 (light, `sample` 8 s of hot t1, core and pinned, both arms; the
+    bench jobs' own binaries and stores, copied to `.scratch/prof2/`, run by `prof2/run.sh`).
+  - A/B 261118-184707-b9981e (strict, 6 interleaved pairs, one store): HDR-2 (lookup reads the
+    externals raw, no header decode) against `Detent:18adf2b`, `.scratch/ab2/`. It prices the
+    header decode the fix kept.
+  - (2), from the code: the scratch patch (`.scratch/exp/src`) replaced the header decode inside
+    `decode_node` and `decode_external` with one `read_integer` and decoded no header at all; the
+    real fix still runs one full `decode_page_header` per reached page in `lookup` (magic, zero
+    bytes, four `read_integer`, a 32-byte digest copy, `validate(PageHeader)`). The A/B also ran
+    strict on shared cores (pair 1 core hot: 711 head, 530 patched). b9981e measures the gap.
+  - Not mine to fix here, for the lead: tsan 3c4a1b and t3-tsan ea7399 fail on a TSan data race
+    in `test_reader_switch`; A16 b69551 and da956e fail (185-198 of 200 below 1 ms; main's arm
+    also exits 1 in da956e: "invalid local generation descriptor").
 - `Detent:3e6b09c`: `test_dense_reads.cc:282` constructs `LazyPageAccess` without the factory
   (lead granted it). Build-all 261118-144659-de07eb: 528 of 528 targets built.
 - `Detent:18adf2b`: `touched` flips the mapped byte through a writable private copy of its page
