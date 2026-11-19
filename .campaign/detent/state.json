@@ -14585,7 +14585,8 @@
         "src/detent_local/paged_node_step.hh",
         "src/detent_local/paged_read_state.cc",
         "tests/detent_local/test_foreign_generation.cc",
-        "tests/detent_local/test_dense_reads.cc"
+        "tests/detent_local/test_dense_reads.cc",
+        "docs/perf/reader-lookup.md"
       ],
       "landed": [],
       "lenses": [
@@ -14604,7 +14605,7 @@
       "risk": "high",
       "status": "active",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-18T14:46:39",
+      "updated": "2026-11-19T04:59:32",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
