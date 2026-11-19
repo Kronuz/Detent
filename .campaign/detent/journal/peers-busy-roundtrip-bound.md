@@ -1,6 +1,6 @@
 # peers-busy-roundtrip-bound: journal
 
-State: waiting on jobs 261119-150015-3024fe 261119-150018-1465fa 261119-150026-8569a4 261119-150028-62a3e2
+State: waiting on jobs 261119-155313-833fb6 261119-155314-762e16 261119-155316-53e971 261119-155317-278c71
 Quest: .campaign/detent/quests/peers-busy-roundtrip-bound.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,7 +18,10 @@ Step 1 (A1). First probes (consensus:7beb709, 6 workers x N beside 16 niced spin
 - So the executor stops for 100+ ms while fetching, the oversleeping watchdog does not see a host
   stall (a sleeper is favoured over a busy thread, so it proves little). Next probe separates
   executor work from time off the CPU with thread CPU time per pump gap (af3d2b1):
-  3024fe rel loaded x48, 1465fa TSan loaded x36, 8569a4 rel quiet x20 (strict), 62a3e2 TSan quiet x15 (strict).
+  The af3d2b1 probes (3024fe 1465fa 8569a4 62a3e2) failed to compile (my `auto` declaration
+  error, fixed in a34b8ed); rerun at a34b8ed with spinners capped at the light hold's CPUs
+  (4 workers + 4 spinners): 833fb6 rel loaded x48, 762e16 TSan loaded x32, 53e971 rel quiet x20
+  (strict), 278c71 TSan quiet x15 (strict).
 
 ## Next
 
