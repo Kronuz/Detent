@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
-    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
+    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md', '.campaign/**']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   ci:
