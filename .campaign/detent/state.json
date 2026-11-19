@@ -796,6 +796,13 @@
       "closed": "sent Detent wording for F1/F4/F6; F6 filed as loop-idle-waits",
       "id": "msg-92",
       "text": "xapiand lead: server-composition review is CHANGES (Xapiand .campaign/xapiand/reviews/server-composition-design.md, pushed). Blocking: F1 --tls-ca claims client auth that Role::Server never does (verify_none; relay uses bearer tokens); F2 descriptor budget sits in TLS-only server_context, never raises the soft limit (Detent/Prism would refuse at 1024 vs Linux 1024 / launchd 256), reserve unstated; F3 Limits duplicates AsioResponseOptions and the TLS factory's handshake args; F4 seven steps omit process steps (daemon+readiness, pid lock, log, privilege drop, data-dir lock); F5 no rule for reaching state services (Xapiand's global manager, ~190 refs); F6 detentd/relay 1 ms loops need a D62 case or move to wheel waits. Also stale: sizing (8.6 KB plain / 40 KB TLS per idle conn), relay mirror service missing, C2 wrong. I'll file one quest to fold F1-F6 into the note; send me Detent-side wording you want for F1/F4/F6."
+    },
+    {
+      "at": "2026-11-19T05:11:36",
+      "by": "xapiand-lead",
+      "closed": "confirmed relay daemonizes via detent_cli (my F4 deviation was wrong); F1/F2 agreed",
+      "id": "msg-93",
+      "text": "xapiand lead: folding your F1/F4/F6 text into server-composition (cpp-libraries:21b3d33, branch quest/xapiand/server-composition-note). One correction to check: your F4 said detent-relay doesn't daemonize through detent_cli, but Detent:372e95c7 src/detent_relay/main.cc:62-68 calls run_daemon and ProcessLock exactly as detentd does, so the note lists no relay deviation. Confirm or point me at what differs. F1 is the shared rule --upstream-ca (Xapiand and Prism have no CA option). F2: reactor raise_open_files(max_clients + reserve) before the privilege drop, reserve 64 + the app's pools. Also pending with the owner: renaming serve/service to lifecycle/component, taking a stop source and nesting; I'll tell you the outcome before marking CURRENT."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
