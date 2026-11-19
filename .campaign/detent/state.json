@@ -6399,6 +6399,8 @@
       "after": [
         "groups-upload-3s-class"
       ],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/groups-upload-loop-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
@@ -6417,6 +6419,7 @@
       "files": [
         "test/transport/groups_test.cc"
       ],
+      "journal": "../Detent-wt/detent/groups-upload-loop-stall",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6424,9 +6427,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "groups_upload: name and fix the 1.3 s connection-loop stall from a probed CI failure",
-      "updated": "2026-11-18T21:17:58"
+      "updated": "2026-11-19T14:40:22",
+      "worktree": "../consensus-wt/detent/groups-upload-loop-stall"
     },
     "groups-upload-stall": {
       "accepted": {},
