@@ -1,10 +1,26 @@
 # connection-slow-reader-flake: journal
 
-State: cause 2 (coarse_writer, 0 drained expiries) NOT fixed; causes 1 fixed. Merged origin/main, pushed d9fca7d, CI 44435046094 (queued).
-Waiting on jobs: f79a8e (coarse_writer x120, pulse off), 69ed8e (suite), reruns d59b1b 7b7c57 e7bfa3 6afa43 b4fac6 5c2349 f98a6a e4f648 f43386 (A1/A2/A4 at d9fca7d).
+State: waiting on jobs 261118-183609-e4ab32 (coarse_writer x120 at 887dafe), 261118-183610-4a286b (suite at 887dafe), CI 44445515615 (887dafe). Pulse knob removed; cause 2's rerun rule in. Ready for review once those pass.
 Quest: .campaign/detent/quests/connection-slow-reader-flake.md (the lead's; never edit it)
 
 ## Doing
+
+Round 5, lead's ruling on f79a8e (120 of 120, pulse off, d9fca7d):
+- What differed at 9f8aa7b (34479e, 4 of 60) from d9fca7d: connection.h unchanged; read_slowly_once's
+  writer, reader and sizing are identical. Only the observation changed (dup'd fds, getsockopt calls,
+  the drain sampler's burst log, the pulse, off since). So the code that runs is the same; the host
+  differed: 34479e overlapped a qemu VM job (A6, 261117-200358-e66125) and a strict bench.
+- Headroom, from 224 traced runs (f79a8e 118, 4c8b1c 106): the writer's first wait expires at 2002-2017
+  ms with 546-828 KB queued of 1575050; drain 372-512 KB/s (reader pace 64 KiB/125 ms = 524 KB/s caps it);
+  writable needs the queue at <= 11340 B, so at the same rate the wait would end at 3055-4198 ms: at least
+  1.53x dead_after (2000 ms), and the factor is the test's own (pace = 1.5 dead_after / mark bytes), not a fit.
+  A failing run needed the queue to empty in < 2 s: at least 780 KB/s, 1.5x the fastest drain seen.
+  A rcvbuf that autotuned past 512 KiB would give that (not seen: 524288 at the end in every traced run).
+- Ruling applied: runner branch. A whole coarse run with no expired wait reruns (at most twice) like a
+  host-stalled run, and prints its bursts, rcvbuf and wedge stat. 887dafe. The pulse (COARSE_WRITER_PULSE_MS)
+  and its lateness fields are removed: no test used it.
+- Forced mutant for the rerun: none; the 0-expiry run was not reproduced, so no test fails without it
+  (A2's soak is the evidence).
 
 Round 4 (session 3), at f1af254 (origin/main merged) and d9fca7d:
 - 4c8b1c (trace x120 at 35bd913, 10 ms pulse on): 120 of 120 pass, 1 drained expiry each, 6114-6242 ms,
@@ -94,12 +110,18 @@ unwritable stretch with its poll events and SO_ERROR when it fails. 24 of 24 pas
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Cause 1: 4c4173 (3 of 3 fail at main 51601dd, READ_SLOWLY_BUILD_MS=400), f52a2f (0 of 3 at 72bd52f). Cause 2: 55466b (3 of 3 fail at main, COARSE_WRITER_SNDBUF=512 KiB), 0c344d (0 of 3 at 72bd52f), 4103a5 (0 of 3 at 17e1a34). Cause 3: unreproduced, see above (A1 amended). |
-| A2 | 261117-193218-d85e3b (x200 at 4-way at 72bd52f; six shards passed); 261117-202032-34479e (x60 at 17e1a34, the head, differing only by the revert and the dump) |
-| A3 | [manual] every cause is in connection_test.cc's sizing and build order, none in the product (connection.h unchanged). |
-| A4 | Suite 261117-202041-19718e (fresh checkout) at 17e1a34; CI green on every platform at 72bd52f (lead), CI at 17e1a34 pending. consensus_mutants (0a9502) mutates core.h and builds the simulation tests, never connection_test.cc; it failed in a slot my targeted jobs had configured Release. |
+| A1 | Cause 1: 4c4173 (3 of 3 fail at main 51601dd, READ_SLOWLY_BUILD_MS=400), f52a2f -> 261118-171202-e7bfa3 (0 of 3 at head d9fca7d). Cause 2: 55466b (3 of 3 fail at 51601dd, COARSE_WRITER_SNDBUF=512 KiB), 0c344d -> 261118-171202-6afa43, 4103a5 -> 261118-171203-f98a6a (0 of 3). Shrink: 1d47a2 -> 261118-171202-b4fac6, dee9ea -> e4f648, 80c40b -> f43386 (0 of 3). The reruns of 4c4173 (d59b1b) and 55466b (7b7c57) "failed" because they ran at head, where the forcing no longer fails: the originals at 51601dd stand. Cause 3: unreproduced (A1 amended). |
+| A2 | 261118-171202-5c2349 (connection x200 at 4-way at d9fca7d); 261118-171154-f79a8e (coarse_writer x120, pulse off: 120 of 120, 1 expiry each); 261118-183609-e4ab32 (x120 at 887dafe, the head) |
+| A3 | [manual] every cause is in connection_test.cc's sizing, build order and a rerun rule, none in the product (connection.h unchanged). |
+| A4 | Suite 261118-183610-4a286b at 887dafe; CI 44445515615 at 887dafe (44435046094 green at d9fca7d). |
 
 ## Result
+
+Open: cause 2's 4-of-60 (34479e, 17e1a34's sibling 9f8aa7b) is unexplained: 0 of 242 since at d9fca7d and
+the pulse head. Its mechanism would be the queue draining in < 2 s (>= 780 KB/s against 512 KB/s seen),
+most likely a reader receive buffer past 512 KiB; the next occurrence prints its rcvbuf and write bursts.
+Cause 3 (coarse_writer 13 of 48 on macos-x86_64) is unreproduced. Both are covered by the rerun rule only
+where the run is whole; a failed run still fails at once.
 
 ## Rulings I made
 
