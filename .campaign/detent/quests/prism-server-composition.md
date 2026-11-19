@@ -5,27 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D122: every Kronuz daemon ends up with one shape in the server-composition areas. Prism (src/main.cc) is composed the way cpp-libraries' docs/server-composition.md states once it is CURRENT: --upstream-ca where it dials upstream, one limits struct, raise_open_files at start, the readiness pipe and pid lock, lifecycle/component services and stop handling, housekeeping on the loop's wheel, no fixed-interval polling. It follows Xapiand's and Detent's adoptions so the three match.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 [artifact] Prism's row in the note's Mains table matches its main step by step, deviations with reasons: `ARCHITECTURE.md`
+- A2 Prism starts, serves and stops through the shared lifecycle; a test stops it with SIGTERM under load and in-flight requests finish within the shutdown bound: jobs.
+- A3 The build and CI pass: jobs.
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 (D122). Prism has no tests today: A2's test is the first; add the CMake test wiring it needs.
