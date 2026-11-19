@@ -15052,6 +15052,8 @@
       "after": [
         "namespace-s6-v1-removal"
       ],
+      "base": "ff38ccd31af2905bb373d1cf7312b0454dd97d41",
+      "branch": "quest/detent/pack-scrub-hash-count",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -15073,9 +15075,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "PackScrub counts what it hashes",
-      "updated": "2026-11-19T06:01:02"
+      "updated": "2026-11-19T14:40:32",
+      "worktree": "../Detent-wt/detent/pack-scrub-hash-count"
     },
     "paged-decode-one-shape": {
       "accepted": {},
