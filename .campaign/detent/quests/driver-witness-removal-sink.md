@@ -5,27 +5,14 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+driver-apply-gap judges witness status by the membership in force at a range's last index. The reverse case stays: a witness whose removal is in force at a range's end gets that range sent to its Sink, which holds no entries. After this quest such a range is either delivered from a source that holds it or refused by name, and the apply index never passes what the application received.
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
+- A1 A driver_test case removes a witness and commits a range past the removal; it fails without the fix (--fails-without) and passes with it: jobs.
+- A2 Seeds 1-10000 and the suite, TSan and ASan pass: jobs.
+- A3 [artifact] DRIVER.md states the witness transitions both ways: `docs/DRIVER.md`
 
-- A1 <criterion>: <evidence>
+## Notes
 
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
-
-## May land early
-
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Filed 2026-11-19 from driver-apply-gap (fix round 1, consensus:ee03230). High risk: consensus apply safety.
