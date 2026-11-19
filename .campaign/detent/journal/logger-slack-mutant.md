@@ -1,6 +1,6 @@
 # logger-slack-mutant: journal
 
-State: waiting on jobs 261119-144619-45023b (A1), 261119-144622-6f467c (A2)
+State: waiting on jobs 261119-151549-b76537 (A1), 261119-151551-345463 (A2), 261119-151553-9aeb12 (50x loop)
 Quest: .campaign/detent/quests/logger-slack-mutant.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-logger:6b4fd39 (quest branch, pushed): `test/deferred.cc` mode `slack` (ctest `logger_deferred_slack`) holds a
-deferred line so the LOG thread sleeps to W, then logs a line due W+5 ms (inside kWakeSlackNs) and one due
-W+50 ms, counting `worker_notifies`: near >= 10 of 20 rounds, far == 0. `test/deferred_mutant.sh` gains mutant
-`slack` (`wake_for(ordered ? due : due - kWakeSlackNs)` -> `wake_for(due)`, run with `slack`).
+Round 1 (logger:6b4fd39): a notify-counting test was timing-bound; mutant killed (45023b), suite failed (6f467c: 1 of 20 near notifies under load).
+Round 2 (logger:5216469, pushed): `logger_detail::wake_deadline(ordered, due)` (logger.h/.cc) holds push_task's wake time; `test/deferred.cc slack` asserts it exactly, no threads. The slack mutant changes that function (`return due;`); `test/wake_mutant.sh`'s wake-slack-task mutant follows the call site.
 
 ## Next
 
-1. On the jobs: A1 passes iff all four mutants die; A2 is the suite (includes the new test on the fixed tree).
-2. If the near count flakes under load, loosen to >= 1 round (the mutant gives 0 always).
+1. On the jobs: A1 (mutants die), A2 (suite), 9aeb12 (slack test x50, a built loop).
 
 ## Blocked on
 
@@ -31,8 +28,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261119-144619-45023b (`sh test/deferred_mutant.sh`) |
-| A2 | job 261119-144622-6f467c (suite) |
+| A1 | job 261119-151549-b76537 (`sh test/deferred_mutant.sh`) |
+| A2 | job 261119-151551-345463 (suite) |
 
 ## Result
 
@@ -42,4 +39,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-Test lives in deferred.cc (file set), not wake.cc: bidirectional notify counts (near notifies, far never) so a too-wide slack is also caught.
+logger.h, logger.cc and test/wake_mutant.sh changed beyond the file set, on the coordinator's direction (expose the wake-deadline computation); wake_mutant.sh only follows the renamed call site. Test lives in deferred.cc, not wake.cc: bidirectional notify counts (near notifies, far never) so a too-wide slack is also caught.
