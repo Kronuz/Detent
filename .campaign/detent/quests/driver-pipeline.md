@@ -27,6 +27,8 @@ consensus GroupOptions gains flow settings; default depth stays 1 unless the num
 
 Filed by the lead 2026-11-18 at the Xapiand lead's request (T7). Starts when T7's numbers show the gap and worker.h and driver.h are free.
 
+T7 (consensus:33e0c5a, docs/perf/flow-control.md, exclusive job 9bef7d) shows the gap: pipeline 4 against 1 at 256 KiB appends is 1.12x, 1.69x and 3.70x at 0, 1 and 10 ms RTT (1.62x-4.53x with fdatasync). Pipeline 4 tops out near 55 MB/s, about 210 cmds/s, because each command costs two barriers: the proposal and a commit-index persist per one-entry ack. At 2 MiB appends, pipeline 1 is 14-36% faster. So the design names how the commit-index persist is batched across acks, and how the pipeline depth adapts to append size, with before and after numbers on T7's bench for both.
+
 ## May land early
 
 None.
