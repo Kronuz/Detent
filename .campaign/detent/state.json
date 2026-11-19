@@ -16505,6 +16505,33 @@
       "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
       "updated": "2026-11-08T15:38:27"
     },
+    "task-settle-notes": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/sync_test.cc",
+        "docs/API.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../task",
+      "risk": "low",
+      "status": "planned",
+      "title": "task: same-thread settle test and the cancel-callback wait rule",
+      "updated": "2026-11-19T06:00:12"
+    },
     "task-wheel": {
       "accepted": {
         "correctness": {
