@@ -11,7 +11,8 @@ from array import array
 
 
 def main(src: str, dst: str, limit: int) -> None:
-    data = open(src, "rb").read()
+    with open(src, "rb") as handle:
+        data = handle.read()
     assert data[:8] == b"DTCORP01"
     count, key_bytes, body_bytes = struct.unpack(">QQQ", data[8:32])
     at = 32
@@ -45,9 +46,11 @@ def main(src: str, dst: str, limit: int) -> None:
     ko.byteswap()
     bo.byteswap()
     with open(dst, "wb") as out:
-        out.write(b"DTCORP01" + struct.pack(">QQQ", len(out_kinds), len(out_keys), len(out_bodies)))
-        for part in (ko.tobytes(), out_keys, bo.tobytes(), out_bodies, out_kinds):
-            out.write(part)
+        out.write(
+            b"DTCORP01"
+            + struct.pack(">QQQ", len(out_kinds), len(out_keys), len(out_bodies))
+        )
+        out.writelines((ko.tobytes(), out_keys, bo.tobytes(), out_bodies, out_kinds))
     print(f"{dst}: {len(out_kinds)} records")
 
 
