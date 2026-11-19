@@ -7028,9 +7028,9 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "journal: group_io and another loop's publish race on Host::ranges_",
-      "updated": "2026-11-18T17:17:43",
+      "updated": "2026-11-18T22:15:55",
       "worktree": "../journal-wt/detent/journal-host-ranges-race"
     },
     "journal-reopen-closed": {
