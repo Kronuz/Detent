@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on jobs 261118-182248-eb67f9 261118-182249-1c6fef 261118-182251-4f4a38 261118-182252-0ca070 261118-182254-e926dc 261118-182255-c111a2 261118-182256-aad2e3 261118-182311-d7590a 261118-182304-992a7b, CI on consensus:c782db1
+State: waiting on jobs 261118-182248-eb67f9 261118-182249-1c6fef 261118-182251-4f4a38 261118-182252-0ca070 261118-182254-e926dc 261118-182255-c111a2 261118-203558-364d0b 261118-182311-d7590a 261118-182304-992a7b, CI on consensus:c782db1
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -137,7 +137,7 @@ Nothing.
 |---|---|
 | A1 | [manual] 44441165298 probe-3 iteration 17 names the cause of the sampled 1.09 s stall (Notes, Probe 3); the seven recorded CI failures all lie outside the bound (Notes, table), so the 3-4 s class is open (Result) |
 | A2 | <pending at c782db1: x50 261118-182248-eb67f9; TSan 261118-182249-1c6fef; fails-without: old-bound 261118-182251-4f4a38, bulk-ahead-of-control (prints the summary and samples) 261118-182252-0ca070; cost A/B 261118-182311-d7590a vs 261118-182304-992a7b> |
-| A3 | <pending at c782db1: suite 261118-182256-aad2e3; CI> |
+| A3 | <pending at c782db1: suite 261118-203558-364d0b; CI> |
 | A4 | x50 261118-115335-bbf421, TSan 261118-115336-3f84ef (at 95bca86; rerun at c782db1: 261118-182254-e926dc, 261118-182255-c111a2), CI 44398532950 green at c5bde2f; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f |
 
 ## Result
