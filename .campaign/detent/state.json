@@ -624,6 +624,35 @@
         ]
       },
       "text": "set detent-refuse-old-format: unlocks frees benchmarks/CMakeLists.txt, benchmarks/reader_bench.cc, docs/mechanisms/reader-core.md, docs/status/reader-s5-s6.md, include/detent/reader.h, include/detent/reader.hh, include/detent_local/read_counters.hh, src/CMakeLists.txt, src/detent_local/change_file.*, src/detent_local/generation_file_access.hh, src/detent_local/lazy_page_access.*, src/detent_local/prepared_reader.*, src/detent_reader/**, tests/CMakeLists.txt, tests/detent_local/test_lazy_page_access.cc, tests/detent_local/test_lazy_page_bitmap.cc, tests/detent_reader/** for reader-s6; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
+    },
+    {
+      "at": "2026-11-18T12:23:13",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-80",
+      "items": {
+        "journal-group-io-sweep": "journal-group-io-sweep",
+        "namespace-local-cursor": "frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor",
+        "namespace-s9-s10": "frees  for namespace-s9-s10",
+        "rc1-integration": "frees  for rc1-integration",
+        "rc2-client-performance": "frees  for rc2-client-performance",
+        "rc3-sustained-capacity": "frees  for rc3-sustained-capacity",
+        "rc4-restoration": "frees  for rc4-restoration",
+        "voter-read-freshness": "frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness"
+      },
+      "settles": {
+        "start": [
+          "journal-group-io-sweep",
+          "namespace-local-cursor",
+          "namespace-s9-s10",
+          "rc1-integration",
+          "rc2-client-performance",
+          "rc3-sustained-capacity",
+          "rc4-restoration",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "journal-group-io-cost landed: unlocks journal-group-io-sweep; frees src/detent_authority/**, include/detent_authority/**, tests/detent_relay/**, tests/detent_authority/**, docs/status/namespace-s8.md for voter-read-freshness; frees tests/detent_local/**, tests/detent_delivery/**, tests/detent_system/** for namespace-local-cursor; frees  for namespace-s9-s10; frees  for rc1-integration; frees  for rc2-client-performance; frees  for rc3-sustained-capacity; frees  for rc4-restoration"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6330,11 +6359,46 @@
         "docs/perf/group-io.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/journal-group-io-sweep",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-18T17:08:04",
+          "commit": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+          "criteria": {
+            "A1": "261118-165131-0f46d1, 261118-145236-96e656 (passed at 4d2eef6deead; only merges from main since)",
+            "A2": "261118-165146-365148; fails without: 261118-123533-1944ae, 261118-123541-c1f81b, 261118-145253-7b2d4c, 261118-145256-9a888f, 261118-145301-7efc6f",
+            "A3": "261118-145320-05f3b3 (passed at 4d2eef6deead; only merges from main since)",
+            "A4": "[artifact] docs/perf/group-io.md at journal:4d38a56: present-tense mechanism, bound, before/after table at 1K/10K/100K/1M (random, ascending, resident), 1M/1K = 1.85"
+          },
+          "evidence": [
+            {
+              "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+              "commit": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261118-165131-0f46d1",
+              "level": "light",
+              "seconds": 282.1,
+              "state": "done",
+              "what": "journal-group-io-sweep check suite at 6a37f197662c"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "6a37f197662ce63ce82697e44599bb03882b7a5e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "47c98b6ea52f41295af0fb09dbd9d6c9dfa1b5c0",
+          "reason": "",
+          "tested": "6a37f197662ce63ce82697e44599bb03882b7a5e"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "journal-group-io-cost"
@@ -6342,10 +6406,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "journal: group_io costs O(1) amortized, not O(live ids)",
-      "updated": "2026-11-18T16:51:15",
-      "worktree": "../journal-wt/detent/journal-group-io-sweep"
+      "updated": "2026-11-18T17:08:12",
+      "worktree": ""
     },
     "journal-host-guards": {
       "accepted": {
