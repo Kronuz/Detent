@@ -825,6 +825,13 @@
         ]
       },
       "text": "detent-refuse-old-format landed: unlocks voter-read-freshness"
+    },
+    {
+      "at": "2026-11-19T05:50:53",
+      "by": "xapiand-lead",
+      "closed": "filed server-composition-adoption",
+      "id": "msg-98",
+      "text": "xapiand lead: my audit found one Detent item: detentd and relay adoption of the server composition (task::lifecycle) appears in cpp-libraries docs/server-composition.md Notes but not in your MAP.md. Also: faultlab migration steps 5-8 are yours and tracked; I filed 2-3, 9, 10 on my side."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
