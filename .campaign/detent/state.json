@@ -8975,6 +8975,8 @@
     "loop-idle-waits": {
       "accepted": {},
       "after": [],
+      "base": "be6f4177c34750e90eb41d2d6723ff9786a5da90",
+      "branch": "quest/detent/loop-idle-waits",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -8998,9 +9000,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T06:01:40"
+      "updated": "2026-11-19T06:25:21",
+      "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
       "accepted": {},
