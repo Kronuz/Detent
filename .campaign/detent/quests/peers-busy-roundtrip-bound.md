@@ -12,3 +12,4 @@ peers_test.cc:1155 failed in driver-apply-gap's suite 261119-044522-91dbd6 (cons
 - A1 The cause is named from samples of a failing run (host stall, loop not running, or a transport wait): jobs.
 - A2 The bound is derived with stated headroom from runs on a loaded host, and the test fails at a mutant that adds a real 100 ms transport delay (--fails-without): jobs.
 - A3 The suite and CI pass: jobs.
+- From peers-tsan-timeout (2026-11-19, journal Rulings 8): probe 5 hit the peers_test.cc:1172 CHECK in 2 of 320 runs, with one fetching round trip in the 1 s bucket and a normal quiet phase. The probe printed only failing runs; record the passing distribution before deriving a bound.
