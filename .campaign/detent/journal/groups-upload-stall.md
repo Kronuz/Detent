@@ -112,8 +112,8 @@ Nothing.
   and not these. The factor stays 1.6 (ruling 2). The four under 16 MiB are a connection that
   delivered almost nothing (their rate-model ratio is 0.25-0.69, so only the floor rejects them);
   the 18 MiB and 30 MiB runs are over the model (1.69, 2.29) with data still flowing: 30 MiB with
-  53 beats had one 2.4 s hole. Their cause is open (Result). The old probes' sampler did not print
-  on these runs (before 0d8c9ee), so no sockets exist for them.
+  53 beats had one 2.4 s hole. Their cause is open (Result). These runs predate the socket
+  sampler (transport-feed-scan), so no sockets exist for them.
 - A2 fix (consensus:9b731cb, test only): `upload_gap_ok`: gap < max(1000 ms, 1.6 x window x
   elapsed / uploaded) and uploaded >= 2 windows; the recorded runs asserted as values at the top of
   `upload` (1092 ms/32 MiB and 816 ms/24 MiB pass; 3012 ms/18 MiB, 4019 ms/2 MiB and 1000 ms at a
