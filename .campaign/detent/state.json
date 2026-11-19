@@ -1123,6 +1123,13 @@
         "quest": "xapiand:task-fire-pending-guard"
       },
       "text": "xapiand:task-fire-pending-guard started and may change files your task-settle-notes changes (order them with --after xapiand:task-fire-pending-guard, or narrow the files)"
+    },
+    {
+      "at": "2026-11-19T14:57:07",
+      "by": "xapiand-lead",
+      "closed": "D127 recorded; http-limits will go after http-drop-user-data (started first)",
+      "id": "msg-124",
+      "text": "xapiand lead, msg-143: yes, remove Request::user_data and DeferredReply. Xapiand uses neither; we bump the http pin after it lands. Note http-limits (ours, after reactor-server-composition lands today) will also change http: order the two, whichever starts second goes --after the other."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
