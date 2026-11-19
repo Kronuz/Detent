@@ -39,7 +39,7 @@ Nothing. Lead re-accepts correctness once the d0f5cbf jobs pass.
 | A1 | <no evidence yet> |
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
+| A4 | 261118-193306-7979ae (suite at d0f5cbf); CI 44437166273 attempt 2 green |
 
 ## Result
 
