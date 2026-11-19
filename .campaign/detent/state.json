@@ -5382,7 +5382,30 @@
       "updated": "2026-11-18T04:03:10"
     },
     "driver-witness-removal-sink": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T09:22:02",
+          "base": "c64b5cdec913b8faaa55cd3753ab118f32ef3d01",
+          "blobs": {
+            "docs/DRIVER.md": "100644:8c61200dbf6ad376caef06ec3a58f68b94717814",
+            "include/consensus/driver.h": "100644:f08016d8db65bc0604898561e82df16b94bf125b",
+            "test/driver_test.cc": "100644:c1adaefe08ad6b185a0e36fe03d8ee0a34978c0c"
+          },
+          "by": "review",
+          "commit": "5f1223ccd5870341b9ddb620eff1c1bccf34a403",
+          "criteria": "c2a086283ad7be81",
+          "diffs": {
+            "docs/DRIVER.md": "cc2e3a90551e4c58",
+            "include/consensus/driver.h": "f0bb3850063d8fd8",
+            "test/driver_test.cc": "d70c217fc0f5f54a"
+          },
+          "findings": {},
+          "note": "",
+          "review": "028022caa71d0814534c4941fb73264fd504918b",
+          "reviewed": "5f1223ccd5870341b9ddb620eff1c1bccf34a403",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "driver-apply-gap"
       ],
@@ -5414,7 +5437,7 @@
       "risk": "high",
       "status": "review",
       "title": "consensus: a range whose end has a witness's removal in force goes to its Sink, which holds no entries",
-      "updated": "2026-11-19T09:16:22",
+      "updated": "2026-11-19T09:22:02",
       "worktree": "../consensus-wt/detent/driver-witness-removal-sink"
     },
     "drivers-completion-seam": {
