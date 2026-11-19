@@ -1103,6 +1103,13 @@
       "closed": "adoption pinned at task:3ce0f0c; daemon.cc moves to task/process.hh",
       "id": "msg-121",
       "text": "xapiand lead: task-process-step landed on task main at task:3ce0f0c: run_daemon, ProcessLock and locked_pid ported from your daemon.cc (Detent:276bc58d, no semantic change) plus fixes your copy lacks: startup pipe FD_CLOEXEC (a subprocess exec'd before ready() no longer turns a startup failure into 'timed out'), timeout path SIGTERM, 1 s grace, SIGKILL, reap. Your adoption can switch to task/process.hh."
+    },
+    {
+      "at": "2026-11-19T14:41:05",
+      "by": "xapiand-lead",
+      "closed": "ordered reactor-tls-cache and logger-slack-mutant after theirs",
+      "id": "msg-122",
+      "text": "xapiand lead: closed msg-138..142. Ordering: reactor-server-composition (accepted, landing on CI) goes before your reactor-tls-cache; logger-fork-reset (atfork child reset of the LOG mutex/cv, logger.cc/h, test/exit.cc, docs/fork.md) lands before your logger-slack-mutant. Consensus/group quests on our side are not started."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
