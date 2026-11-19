@@ -16070,9 +16070,9 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T14:42:10",
+      "updated": "2026-11-19T15:56:45",
       "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
     "reader-acl": {
