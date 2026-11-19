@@ -1,6 +1,6 @@
 # logger-slack-mutant: journal
 
-State: working
+State: waiting on jobs 261119-144619-45023b (A1), 261119-144622-6f467c (A2)
 Quest: .campaign/detent/quests/logger-slack-mutant.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+logger:6b4fd39 (quest branch, pushed): `test/deferred.cc` mode `slack` (ctest `logger_deferred_slack`) holds a
+deferred line so the LOG thread sleeps to W, then logs a line due W+5 ms (inside kWakeSlackNs) and one due
+W+50 ms, counting `worker_notifies`: near >= 10 of 20 rounds, far == 0. `test/deferred_mutant.sh` gains mutant
+`slack` (`wake_for(ordered ? due : due - kWakeSlackNs)` -> `wake_for(due)`, run with `slack`).
 
 ## Next
 
-1. <step>
+1. On the jobs: A1 passes iff all four mutants die; A2 is the suite (includes the new test on the fixed tree).
+2. If the near count flakes under load, loosen to >= 1 round (the mutant gives 0 always).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -27,7 +31,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | job 261119-144619-45023b (`sh test/deferred_mutant.sh`) |
+| A2 | job 261119-144622-6f467c (suite) |
 
 ## Result
 
@@ -37,4 +42,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+Test lives in deferred.cc (file set), not wake.cc: bidirectional notify counts (near notifies, far never) so a too-wide slack is also caught.
