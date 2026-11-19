@@ -11,11 +11,13 @@
 # $CORPUS names the DTCORP01 corpus and $CORPUS_SHA256 its digest. Stores live under $W_ROOT (default
 # .scratch/delta-plan-warm/<corpus name> in this checkout).
 set -euo pipefail
+trap 'echo "failed: line $LINENO: $BASH_COMMAND (exit $?)" >&2' ERR
 mode=$1
 shift
 here=$(cd "$(dirname "$0")" && pwd)
 build=${W_BUILD:-$PWD/.scratch/delta-plan-warm/build}
 exe=$build/delta_plan_warm
+t9=$build/namespace_measure_t9
 corpus=${CORPUS:-}
 root=${W_ROOT:-$PWD/.scratch/delta-plan-warm/$(basename "${corpus:-none}" .bin)}
 check_corpus() {
@@ -35,8 +37,8 @@ build)
 	cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PROJECT_detent_INCLUDE="$here/test_delta_plan_scaling_warm.cmake" \
 		-DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_AUTHORITY=OFF \
 		>"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
-	cmake --build "$build" --target delta_plan_warm -j4
-	file "$exe"
+	cmake --build "$build" --target namespace_measure_t9 delta_plan_warm -j4
+	file "$t9" "$exe"
 	;;
 subcorpus)
 	check_corpus
@@ -46,9 +48,9 @@ subcorpus)
 	;;
 prepare)
 	check_corpus
-	file "$exe"
+	file "$t9"
 	rm -rf "$root/prepared"
-	"$exe" full "$corpus" "$root/prepared"
+	"$t9" full "$corpus" "$root/prepared"
 	du -sk "$root/prepared"
 	;;
 round)
@@ -64,7 +66,7 @@ round)
 		rm -rf "$root/run"
 		clone "$root/prepared" "$root/run"
 		echo "round $n arm $arm plans $sequence"
-		"$exe" warm "$corpus" "$root/run" "$arm" 1009 "$sequence"
+		"$exe" "$corpus" "$root/run" "$arm" 1009 "$sequence"
 		rm -rf "$root/run"
 		echo "arm $arm took $((SECONDS - began)) s"
 	done

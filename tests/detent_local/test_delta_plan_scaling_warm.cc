@@ -2,14 +2,13 @@
 // what the first plan pays that later plans on the same mapping do not (first-touch page verification,
 // first page faults). Not a ctest; docs/perf/delta-plan-scaling.md "A warm second plan".
 //
-//   delta_plan_warm full CORPUS STORE                         T9's full copy: prepares STORE
-//   delta_plan_warm warm CORPUS STORE FRACTION SEED [PLANS]   the plans
+//   delta_plan_warm CORPUS STORE FRACTION SEED [PLANS]
 //
-// STORE is the prepared store. FRACTION is the T9 arm (0.05, c0.05, 0.5).
+// STORE is a prepared store (namespace_measure_t9 `full`). FRACTION is the T9 arm (0.05, c0.05, 0.5).
 // PLANS is a string over A and B (default AAB): A is the delta of SEED, B the same shape with SEED + 1.
 // The first letter's plan is cold; each later one runs on the mapping the earlier ones touched. Nothing is
 // published, so every plan has the same base. One JSON line per plan on stdout.
-#define main namespace_measure_t9_main
+#define main namespace_measure_t9_unused_main
 #include "../../docs/perf/namespace-measure-t9.cc"
 #undef main
 
@@ -32,15 +31,13 @@ Prepared prepare_delta(const Records &recs, const d::Cursor &cursor, double frac
 
 int main(int argc, char **argv) {
 	try {
-		if (argc > 1 && std::string_view(argv[1]) == "full")
-			return namespace_measure_t9_main(argc, argv);
-		if (argc < 6 || argc > 7 || std::string_view(argv[1]) != "warm")
-			throw std::invalid_argument("usage: full CORPUS STORE | warm CORPUS STORE FRACTION SEED [PLANS]");
-		const std::filesystem::path corpus_path = argv[2], store_path = argv[3];
-		const bool clustered = argv[4][0] == 'c';
-		const double fraction = std::stod(argv[4] + (clustered ? 1 : 0));
-		const std::uint64_t seed = std::stoull(argv[5]);
-		const std::string sequence = argc == 7 ? argv[6] : "AAB";
+		if (argc < 5 || argc > 6)
+			throw std::invalid_argument("usage: CORPUS STORE FRACTION SEED [PLANS]");
+		const std::filesystem::path corpus_path = argv[1], store_path = argv[2];
+		const bool clustered = argv[3][0] == 'c';
+		const double fraction = std::stod(argv[3] + (clustered ? 1 : 0));
+		const std::uint64_t seed = std::stoull(argv[4]);
+		const std::string sequence = argc == 6 ? argv[5] : "AAB";
 		if (!(fraction > 0 && fraction <= 1) || sequence.empty() ||
 			sequence.find_first_not_of("AB") != std::string::npos)
 			throw std::invalid_argument("fraction in (0, 1]; PLANS over A and B");
