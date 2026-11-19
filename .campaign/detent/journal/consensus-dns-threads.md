@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-063756-2fdd9f
+State: waiting on jobs 261118-172630-494843 261118-172631-775cea 261118-172631-2a69bd 261118-172632-4f2e4b 261118-172633-aed45d 261118-172633-d869e1 261118-172634-4f4d2c 261118-172648-70f3f3
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,31 +9,29 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Review fix round 1 (correctness review: CHANGES, F1 and F2) at consensus:abc01bb (on
-consensus:9fc2405, origin/main merged as the brief asked). Pushed.
+Resumed after consensus-close-fenced landed (consensus main 377e472). Merged origin/main
+into the branch: consensus:8d24f40, clean (main's 14 files touch none of mine). Pushed for CI.
 
-F1=261118-063756-2fdd9f (mutant destroyed-at-exit under ASan+UBSan, --fails-without; at
-head, asan 261118-055338-321238 is clean). It replaces c5f7dd, whose mutant did abort (UBSan
-"invalid vptr" in shared_ptr.h:475, exit 134) but whose runner only counted ASan reports as
-caught; rt.sh now also counts "runtime error:". Lead: every other round-1 job came out right
-(F2 67d3bb, mutants 38236d f6ac66 061f08, plain, TSan, ASan, probes, suite 301520). F2=261118-055341-67d3bb (mutant
-delivery-outside-lock, --fails-without, case abandon_waits).
+Gap 3 (c5f7dd "failed"): the mutant was killed, the runner miscounted. Its log shows the
+destroyed-at-exit mutant aborting with UBSan "invalid vptr" (shared_ptr.h:475, exit 134),
+but rt.sh then only counted ASan reports. rt.sh now also counts "runtime error:"; the
+replacement 261118-063756-2fdd9f at abc01bb reports "caught (exit 134)", fails-without as it
+must. Not a gap in F1's fix or test. (rerun reused it at 8d24f40: only merges since.)
 
-Jobs at abc01bb, scripts in consensus-wt/.scratch/dns-fix/rt.sh: e81e18 plain (A1,A3);
-063276 TSan (A2); 321238 ASan+UBSan (A2, F1 throw clean); mutants c5f7dd F1 (A2), 67d3bb F2
-(A3), 38236d unbounded (A1), f6ac66 queued-kept (A3), 061f08 detach-at-destruction (A2);
-a9ddbb dns_mutants shared-thread (A4); reviewer probes b43a1c `run.sh stress`, 9f9883
-`run.sh exit`; suite 055353-301520. Local plain and ASan runs: all cases pass, at-exit start
-threw operation_canceled, abandon_waits waited.
+Reruns at 8d24f40: plain 494843 (A1,A3), TSan 775cea (A2), ASan+UBSan 2a69bd (A2);
+mutants F2 4f2e4b, unbounded aed45d, queued-kept d869e1, detach-at-destruction 4f4d2c;
+suite 70f3f3 (--for A4, forced fresh: main's driver and host_transport changes).
 
-1. Read the jobs; paste `campaign brief`'s table into Evidence; `campaign accept
-   consensus-dns-threads correctness --confirm F1=<c5f7dd> F2=<67d3bb> ...` is the lead's.
-2. Once consensus-close-fenced lands and CMakeLists.txt joins my file set: register
-   resolve_test in both transport `foreach(t ...)` lists, rerun the suite.
+1. Read the jobs and CI at 8d24f40; paste `campaign brief`'s table into Evidence.
+2. Lead: re-accept correctness after main's 14 files (none in resolve.h's callers).
 ## Blocked on
 
-Nothing to decide. Waiting for consensus-close-fenced to land, after which the lead adds
-CMakeLists.txt to my file set to register resolve_test (lead ruling 3).
+Lead: CMakeLists.txt is not in my file set (`campaign get consensus-dns-threads files`), so
+resolve_test is still not registered in the suite; A4's suite covers links/peers but not
+resolve_test, which runs only through rt.sh jobs. Options: (a) add CMakeLists.txt to the file
+set and I add resolve_test to both transport `foreach(t ...)` lists (recommended, one line
+each); (b) land with resolve_test covered by the rt.sh jobs only.
+
 ## Evidence
 
 | Criterion | Evidence |
