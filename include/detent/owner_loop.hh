@@ -10,6 +10,7 @@
 #include <asio/post.hpp>
 #include <asio/steady_timer.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -55,6 +56,15 @@ private:
 	std::shared_ptr<State> state_;
 	asio::any_io_executor executor_;
 };
+
+// How long a loop was away from its work between the pass that began at `pass` and the next one at `next`:
+// the pass up to `slept`, when it began to sleep, plus any lateness past `planned`, the deadline of that
+// sleep. The planned sleep is not an absence. A pass that ended without a sleep passes `next` as both.
+inline std::chrono::steady_clock::duration owner_absence(std::chrono::steady_clock::time_point pass, std::chrono::steady_clock::time_point slept,
+														 std::chrono::steady_clock::time_point planned, std::chrono::steady_clock::time_point next) noexcept {
+	const auto late = next - std::max(planned, slept);
+	return (slept - pass) + std::max(late, std::chrono::steady_clock::duration::zero());
+}
 
 // An io_context, a task scheduler on it, the wake of the loop the owner runs on it, a work guard and one
 // thread. It is not a reactor::Reactor: owners do blocking file I/O, and reactor::inside_run() stays

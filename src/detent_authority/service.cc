@@ -2099,7 +2099,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		std::vector<std::uint8_t> parked(session_tasks.size());
 		std::size_t parked_count = 0, sweep = 0;
 		auto parked_until = Clock::time_point::max();
-		auto slept_until = Clock::time_point::min();
+		// The sleep that ended the pass before, from its start to its planned deadline; min when it ended in none.
+		auto slept_from = Clock::time_point::min(), slept_until = Clock::time_point::min();
 		auto applied_seen = node.state().applied_index();
 		bool rescan = true;
 		const std::size_t sweep_turns =
@@ -2116,11 +2117,13 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				sweep = sweep_turns;
 				rescan = false;
 			}
-			// An absence counts from the end of a planned sleep, never from the turn before it.
-			if (owner_started - std::max(last_pass, slept_until) >=
+			if (slept_from == Clock::time_point::min())
+				slept_from = slept_until = owner_started;
+			// The pass before and any lateness past its planned sleep count as an absence; the sleep does not.
+			if (detent::owner_absence(last_pass, slept_from, slept_until, owner_started) >=
 				std::chrono::milliseconds(options_.node.timing.election_min))
 				returned = owner_started;
-			slept_until = Clock::time_point::min();
+			slept_from = slept_until = Clock::time_point::min();
 			last_pass = owner_started;
 			auto cpu_started = owner_cpu_ns();
 			wake_lateness.observe(elapsed_ns(scheduled_wakeup, owner_started));
@@ -3284,9 +3287,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			}
 			until = wake_by(until);
 			scheduled_wakeup = until;
+			slept_from = Clock::now();
+			slept_until = until;
 			co_await sleep(timer, until);
 			scheduled_wakeup = std::min(scheduled_wakeup, Clock::now());
-			slept_until = scheduled_wakeup;
 			rescan = true;
 		}
 	} catch (...) {

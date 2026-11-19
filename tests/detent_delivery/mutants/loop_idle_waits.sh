@@ -8,6 +8,7 @@
 #   reply-writable   OwnedReplyPump's writable callback skips the wake        test_distribution_reply_pump
 #   coordinator-disk the disk worker never settles its event on the owner     test_delivery_coordinator
 #   coordinator-work a worker job does not hold the owner's io_context as work test_delivery_worker_lifetime
+#   absence-merged   owner_absence counts from the later of the pass and the planned deadline test_owner_absence
 set -u
 mutant=${1:?mutant}
 build=.scratch/loop-idle-waits-mutant
@@ -42,6 +43,11 @@ coordinator-work)
 		'asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked)' \
 		'options.source.scheduler->executor()'
 	target=test_delivery_worker_lifetime ;;
+absence-merged)
+	mutate include/detent/owner_loop.hh \
+		'return (slept - pass) + std::max(late, std::chrono::steady_clock::duration::zero());' \
+		'(void)late; return next - std::max(pass, std::min(planned, next));'
+	target=test_owner_absence ;;
 *)
 	echo "unknown mutant $mutant" >&2
 	exit 126 ;;
