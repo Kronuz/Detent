@@ -9348,7 +9348,10 @@
       "files": [
         "test/deferred_mutant.sh",
         "test/deferred.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "logger.h",
+        "logger.cc",
+        "test/wake_mutant.sh"
       ],
       "journal": "../Detent-wt/detent/logger-slack-mutant",
       "landed": [],
@@ -9360,7 +9363,7 @@
       "risk": "low",
       "status": "active",
       "title": "logger: a mutant for the deferred lines' 8 ms slack",
-      "updated": "2026-11-19T14:42:13",
+      "updated": "2026-11-19T15:16:13",
       "worktree": "../logger-wt/detent/logger-slack-mutant"
     },
     "logger-wheel-ab": {
