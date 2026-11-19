@@ -9033,7 +9033,8 @@
         "tests/detent_relay/**",
         "tests/detent_authority/**",
         "tests/detent_delivery/**",
-        "bench/idle-wakeups/**"
+        "bench/idle-wakeups/**",
+        "include/detent_relay/mirror_service.hh"
       ],
       "landed": [],
       "lenses": [
@@ -9046,7 +9047,7 @@
       "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T06:36:17",
+      "updated": "2026-11-19T06:38:47",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
