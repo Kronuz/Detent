@@ -15569,6 +15569,8 @@
       "after": [
         "server-composition-adoption"
       ],
+      "base": "4d3c96d16ccaceecba270a120ae25faf9a8ff138",
+      "branch": "quest/detent/prism-server-composition",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
@@ -15589,6 +15591,7 @@
         "CMakeLists.txt",
         "ARCHITECTURE.md"
       ],
+      "journal": "../Detent-wt/detent/prism-server-composition",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -15596,9 +15599,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/prism",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T06:24:29"
+      "updated": "2026-11-19T14:40:27",
+      "worktree": "../prism-wt/detent/prism-server-composition"
     },
     "quickstart-managed": {
       "accepted": {},
