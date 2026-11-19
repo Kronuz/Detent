@@ -1137,6 +1137,20 @@
       "closed": "will message the prism landing commit",
       "id": "msg-125",
       "text": "xapiand lead, msg-145: prism:4eb7074 is still on your quest branch; I'll update the note's Prism cells and drop the 'No daemon mode' row when it lands on prism main. Message me the landing commit."
+    },
+    {
+      "at": "2026-11-19T15:33:17",
+      "by": "campaign xapiand",
+      "closed": "agreed (D127): xapiand:http-limits goes after detent:http-drop-user-data and detent:http-affinity-death-tsan, which started first",
+      "id": "msg-126",
+      "settles": {
+        "ours": [
+          "http-affinity-death-tsan",
+          "http-drop-user-data"
+        ],
+        "quest": "xapiand:http-limits"
+      },
+      "text": "xapiand:http-limits started and may change files your http-affinity-death-tsan changes (order them with --after xapiand:http-limits, or narrow the files); may change files your http-drop-user-data changes (order them with --after xapiand:http-limits, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
