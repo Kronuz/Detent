@@ -65,6 +65,11 @@ int main() {
 			detent::OwnerLoop owner;
 			std::shared_ptr<t::Coordinator> coordinator;
 			std::shared_ptr<t::NativeDriver> driver;
+			// On a failure the pool is joined first, so no job posts to the owner's io_context once it is gone.
+			struct Join {
+				asio::thread_pool &pool;
+				~Join() { pool.join(); }
+			} join_worker{worker};
 			driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
 														   owner.scheduler(), queue);
 			t::CoordinatorOptions options;
