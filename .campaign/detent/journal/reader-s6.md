@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs 261119-111356-9f40bf, 261119-111356-5fb83e (A16, exclusive, queued), 261119-111305-5f1cad (asan), 261119-111306-619e0a (tsan), 261119-111329-416f56 (t3-asan), 261119-111329-f8389b (t3-tsan), 261119-111446-7acc18 (A16 count), 261119-111446-edcde5 (dense ASan), 261119-111448-3cdb4e (soak round), at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`); CI on GitHub. Passed there: native 9d4b5b, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921; SEL-1 48b91f and SEL-2 6f99e1 killed (exit 134, `selected_reads` line 92: the first lookup read `selected` again). A16's 30 us is localized and removed (Doing, A16 attribution). Lead: Blocked on 1 (a file for `docs/perf/`).
+State: waiting on jobs 261119-111356-9f40bf, 261119-111356-5fb83e (A16, exclusive, queued), 261119-111305-5f1cad (asan), 261119-111306-619e0a (tsan), 261119-111329-416f56 (t3-asan), 261119-111329-f8389b (t3-tsan), 261119-111446-7acc18 (A16 count), 261119-111446-edcde5 (dense ASan), 261119-111448-3cdb4e (soak round), at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`); CI on GitHub. Passed there: native 9d4b5b, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921; SEL-1 48b91f and SEL-2 6f99e1 killed (exit 134, `selected_reads` line 92: the first lookup read `selected` again). A16's 30 us is localized and removed (Doing, A16 attribution). Lead's answers (2026-11-19, msg below): rebench and db0806 A/B are in `docs/perf/reader-lookup.md`; c027f04's change to Decisions 1 accepted.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -214,22 +214,16 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, A16 9f40bf/5fb83e and SEL-1/SEL-2 at `Detent:dc004dc`; mark Evidence.
-2. Rebench table into `docs/perf/` once Blocked on 1 is ruled (the numbers are in Doing).
-3. t3-tsan f8389b: if the cold-fork child exits nonzero again at line 649, name it from its printed
+1. Read the gates, A16 9f40bf/5fb83e, dense ASan, count and soak at `Detent:dc004dc`; mark Evidence.
+2. t3-tsan f8389b: if the cold-fork child exits nonzero again at line 649, name it from its printed
    status, exit and signal.
-4. When 1-3 close: "ready for review" with 3-5 questions per lens; the reviewers should also check
-   SEL's first attach from the view's table (D4 rule 1 with the recorded sequence).
+3. When 1-2 close: "ready for review" with 3-5 questions per lens; the reviewers should check the
+   freshness argument under Rulings (attach from the refresh's table; first attach from the view's).
 
 ## Blocked on
 
-1. File set: step 3 of the 2026-11-19 ruling puts the rebench in `docs/perf/`, and the set holds only
-   `docs/perf/first-read-gate.{sh,md}`. Options: (a) add `docs/perf/reader-lookup.md`; (b) put the
-   table in `docs/mechanisms/reader-core.md` (in the set). Recommend (a). Until then the table goes in
-   the journal's Result only.
-
-The msg-1 ruling (option b) is applied at `Detent:e77b31d`; the in-place reading question goes to
-the security reviewer (State).
+Nothing. File set item 1 is ruled: `docs/perf/reader-lookup.md` holds the rebench and the db0806
+A/B (commits named).
 
 ## Evidence
 
@@ -251,6 +245,8 @@ not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 | A16 | stopped 9f40bf, running 5fb83e (pending); count 7acc18 (pending); attribution A/B db0806 |
 
 ## Messages
+
+- Coordinator (2026-11-19), both blockers: (1) rebench and A/B into `docs/perf/reader-lookup.md`: done at the commit after `Detent:ad86fb0`; (2) c027f04 accepted, freshness argued under Rulings.
 
 - msg-1: attributed (Doing, baceeb and dd2b26); `Detent:73c0b6c` decodes each header once per page;
   lead ruling (option b) applied at `Detent:e77b31d` (raw nodes end again, memory-safety test and
@@ -290,6 +286,21 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- Freshness of attach from the refresh's table (`Detent:c027f04`, accepted by the lead): the refresh
+  loads the store word and sequence, then reads `selected` (D4 rule 1), and attach runs next in the
+  same `refreshing` hold with no wait between. A second read there could only see a table renamed
+  in that gap of microseconds, and such a publish has not yet moved, or has just moved, the store
+  word and sequence the view records as loaded *before* the first read; so the view's `seen` is at
+  most the pre-publish value, the next lookup sees the sequence moved, and the winner refreshes
+  onto the new table. Nothing is hidden: rule 1 (record what was loaded before the read) is what
+  guarantees catch-up, not the read's age. The second read also checked nothing the first did
+  not: attach still opens the lease named by the table, takes its shared `flock`, compares the
+  held and named inodes, and re-reads `selected` on any lease gone or unlocked (a collected
+  generation), up to three times, exactly as before. Main's Client did the same: one read, then the
+  lease. The same argument covers `Detent:65afbd0`: the open's table is used only at the store word
+  it was read under, with the sequence loaded before it, so any publish since the open moves that
+  sequence and the next lookup re-reads.
 
 - A16 fix: attach from the refresh's table changes the ledger's design-vs-code line "attach re-reads
   `selected`" (Decisions 1) toward D4's text; `docs/status/reader-s5-s6.md` now says what the code
