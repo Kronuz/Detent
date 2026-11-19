@@ -1688,8 +1688,8 @@
     "consensus-dns-threads": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-18T18:31:45",
-          "base": "377e47231b8d25e80cdabd2308c76d1d80a9cae1",
+          "at": "2026-11-18T20:58:24",
+          "base": "c782db1b11cf79781698be768debca1598cc684b",
           "blobs": {
             "CMakeLists.txt": "100644:9cacdd2c9f6f56a918330d059377068be93e6241",
             "docs/mechanisms/peer-dns.md": "100644:ca74129c3f7a71f58aaebabddd83fd45f334fdd5",
@@ -1698,7 +1698,7 @@
             "test/transport/resolve_test.cc": "100644:3d61274cf49e8fb407523a2a98c05a1f927616de"
           },
           "by": "review",
-          "commit": "d0f5cbf55d152aeb12cee6b50e6769cc1776101f",
+          "commit": "e20721dd4d305d6bb0fff2e122fb4f4571a0d890",
           "criteria": "41315d8a4c52f7d1",
           "diffs": {
             "CMakeLists.txt": "e677a95f10cedc23",
@@ -1747,9 +1747,9 @@
             "paths": [
               "CMakeLists.txt"
             ],
-            "reason": "CMakeLists.txt only adds resolve to the two transport test foreach lists; no mechanism"
+            "reason": "CMakeLists registers the F1/F2 regression tests; no mechanism. Main's merge adds only groups-upload-stall's test bound and a doc line (consensus:c782db1), unrelated to the resolver"
           },
-          "note": "F1 mutant dc467b and F2 mutant 715091 killed at d0f5cbf; plain c24261, TSan 27bb27, ASan+UBSan daad3d pass",
+          "note": "",
           "review": "b00202cfcd82f5c117d60c69baab7081397c26c3",
           "reviewed": "ed241c3bdd7fd366a339e0fad17bee8bb4b5075b",
           "verdict": "CHANGES"
@@ -1794,7 +1794,7 @@
       "risk": "high",
       "status": "review",
       "title": "Consensus: DNS lookups run on bounded, owned threads",
-      "updated": "2026-11-18T18:31:45",
+      "updated": "2026-11-18T20:58:24",
       "worktree": "../consensus-wt/detent/consensus-dns-threads"
     },
     "consensus-driver": {
