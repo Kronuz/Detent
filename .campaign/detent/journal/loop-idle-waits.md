@@ -1,55 +1,43 @@
 # loop-idle-waits: journal
 
-State: blocked on lead: file set widening and the multi-voter ruling (msg-103); waiting on jobs 261119-063530-99e0ff (suite)
+State: working
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting for the lead's answer to msg-103. The coordinator step is committed (Detent:9ea25ab3);
-its suite job checks it builds and passes.
+Compile check of the relay, authority and tests in .scratch/loop-idle-waits/build (light hold), then
+the jobs: suite (A4), mutants (A2), idle counts at main and head (A1), benches (A3).
 
 ## Next
 
-1. On widening: add `OwnerWake` to include/detent/owner_loop.hh (atomic `raised` + posted cancel
-   of the loop's steady_timer; the loop clears `raised` at turn start and never sleeps while it is
-   set), and wake OwnedReplyPump's writable/settled callbacks through it.
-2. Relay: host.cc turn sleeps until min(health_due, snapshot_retry, runtime's next deadline);
-   wakes from Service::handle enqueue, mirror job done, coordinator hook, listener_stopped, shutdown.
-3. Authority (service.cc): wakes at the four enqueue sites (1010, 1074, 1133/1135, 1186), stop
-   (726, 734), storage and history driver completions (dispatch), reply pump; sleep until
-   min(health 250 ms, earliest task/poll deadline); the yield predicate gains every budgeted ring
-   (session_retirement, legacy control ring, authorize queues, expiry cursors). Recovery waits
-   (2030, 2046) and the stop drain (3317) wait on the same wake. Peers configured: per the ruling.
-4. A2 test (one per loop) + mutant dropping one wake, `--fails-without`; A1 counts with the
-   codex/idle-wakeups harness at main and head; A3 relay and authority benches under strict.
+1. Fix compile errors; run test_owner_wake, test_authority_idle_wake, test_distribution_reply_pump
+   locally once; submit `campaign verify`, the five mutants with `--fails-without --for A2`, the A1
+   idle count (head and `--ref MAIN=main`), and the A3 relay and authority benches.
+2. Merge main once rename-detentd lands (it shares tests/detent_authority and tests/detent_relay).
+3. TSan run of test_owner_wake and test_authority_idle_wake (A4).
 
-## Producer inventory
+## Design (how it works)
 
-Relay turn (host.cc:290-410): runtime->step (lane slots filled by Service::handle on HTTP threads;
-per task: settled/writable from OwnedReplyPump callbacks, mirror job->done, sessions.prepare
-Parked until a bundle publication or poll_deadline, task deadline, session expiry in collect);
-coordinator status (failures, Fenced, drained; coordinators are tasks on the same owner);
-bundle snapshot_step/cleanup_step (publications from coordinators; snapshot_retry 100 ms);
-mirror status; readiness; health_due every 100 ms (a real deadline); listener_stopped (posted);
-shutdown (signal_set, failures).
-
-Authority runtime (service.cc:2060-3190): HTTP enqueue into queue_, subscription(_close)_queue_,
-frames_queue_ under mutex_; stopping_; storage/history driver completions on the owner; peer
-frames held in Peers' connection->input until admit() (no hook at consensus a197efb); consensus
-ticks (no next_deadline at the pin); task, poll and session deadlines; health every 250 ms;
-writable/settled from OwnedReplyPump; budgeted rings that progress only per turn.
-
-Coordinator (coordinator.cc): five worker-job polls; done in Detent:9ea25ab3.
+- `OwnerWake` (include/detent/owner_loop.hh), one per `OwnerLoop`: producers `raise()` on any
+  thread after their work is visible; the loop calls `begin_turn()` before reading work and
+  `arm(timer, deadline)` when nothing can run. A raise after `begin_turn()` either makes `arm()`
+  expire at once or posts a cancel that ends the wait, so none is lost.
+- Coordinator: each worker job posts `task::event::set()` to the owner; the owner awaits it.
+- Relay host turn: runs while it changes anything or a sweep is unfinished, then sleeps until
+  min(health 100 ms, snapshot retry) or a wake. Wakes: Service::handle enqueue, reply pump
+  writable/settled, `MirrorJob::answered`, every publication-sink call (a `WakingSink` wraps the
+  bundle), a coordinator's end, the listener's stop, shutdown, `ServiceRuntime::close()`.
+  `ServiceRuntime::step(now, rescan)` sweeps every occupied slot and the session table; a task
+  counts as changed when its progress fingerprint moves. The health JSON gains `turns`.
+- Authority runtime: wakes at the four enqueues, begin_shutdown/drain, reply pump, storage and
+  history driver completions. It sleeps until min(health 250 ms, earliest parked poll or task
+  deadline, enabling retry) once nothing is in flight but parked session nexts, as found by a sweep
+  since the last change (a wake, a yield turn, or a new applied index). Work in flight keeps the
+  1 ms visit; peers configured keep it everywhere (`wake_by`, D124, quest multi-voter-idle-wake).
 
 ## Blocked on
 
-The lead (msg-103): widen files to include/detent/owner_loop.hh,
-include/detent_distribution_http/reply_pump.hh, src/detent_distribution_http/reply_pump.cc,
-src/detent_relay/service.cc, include/detent_relay/service.hh, src/detent_relay/mirror_service.cc,
-include/detent_delivery/coordinator.hh, tests/detent_relay/**, tests/detent_authority/**,
-tests/detent_delivery/**, bench/idle-wakeups/**. Ruling: multi-voter authority keeps the 1 ms
-cadence until a consensus pin bump past 0acfaff plus a Peers input wake (A, recommended), or this
-quest takes the bump and the hook (B).
+Nothing. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mirror_service.hh).
 
 ## Evidence
 
@@ -60,13 +48,31 @@ quest takes the bump and the hook (B).
 | A3 | <no evidence yet> |
 | A4 | <no evidence yet> |
 
+Messages: msg-103 (widening, ruling A) answered by the lead and done: files widened, multi-voter
+keeps 1 ms behind `wake_by` naming multi-voter-idle-wake. msg-105 (mirror_service.hh) answered and
+done: `MirrorJob::answered` runs after `done` on both answer paths.
+
+Codex's local branch codex/idle-wakeups: usage.c ported from Detent:dbb5029d; its baseline
+(docs/perf/idle-wakeups.md at Detent:be0d12b9: 952 interrupt wakeups/s, ~1,004 owner dispatches/s,
+reclaim scans ~60 completion ops/s) frames A1.
+
 ## Result
 
 <Not yet.>
 
 ## Rulings I made
 
-- R1: Worker jobs settle a per-job `task::event` posted to the owner executor, not set on the
-  worker thread: the waiting frame lives on the owner, so set() never races its destruction at
-  teardown (task::event's contract forbids set() during teardown). The pinned task (bdafa5f) has
-  no wheel `arm`, `sleep_until` or `periodic`; `task::event` is what it offers.
+- R1: Worker jobs settle a per-job `task::event` posted to the owner executor, never set on the
+  worker: the waiting frame lives on the owner, so set() cannot race its destruction at teardown.
+  The pinned task (bdafa5f) has no wheel `arm`, `sleep_until` or `periodic`.
+- R2: The wake lives on `OwnerLoop` (one per loop), and the callbacks that reach it from reply
+  pumps and mirror jobs are `std::function<void()>`, so distribution_http and the mirror take no
+  task dependency.
+- R3: Relay: coordinator failure counts, mirror readiness and mirror failure are read at the next
+  health turn (at most 100 ms later); they gate a log line, the ready announcement and a shutdown,
+  not request service. Session expiry and request deadlines are checked on every sweep, which every
+  health turn starts.
+- R4: Authority: transient in-flight work (queued commands in their 5 ms batching window, quorum
+  reads, exports, authorization, retirement, W5 frames tasks) keeps the 1 ms visit; only idle and
+  parked-only states sleep. Recovery and the stop drain wait on storage completions bounded at
+  250 ms. The absence check behind leader trust counts from the end of a planned sleep.
