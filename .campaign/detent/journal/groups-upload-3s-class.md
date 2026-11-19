@@ -10,14 +10,10 @@ Probe at consensus:84608cc (branch pushed; CI running). Jobs: suite, upload x20 
 ## Next
 
 1. Read the jobs and CI 44461388834 on 84608cc; fill the Evidence rows; mark ready to land the probe (lead's ruling, msg below).
-2. Merge main once groups-upload-stall lands (this branch already holds its c782db1, fast-forwarded).
 
 ## Blocked on
 
-Nothing of mine. For landing: the file set names test/groups_test.cc; the file is
-test/transport/groups_test.cc, and docs/mechanisms/host-transport.md comes in with
-groups-upload-stall's commits (gone from the diff once it lands and main is merged).
-`campaign status` flags both; the lead's to correct.
+Nothing.
 
 ## Messages
 
@@ -25,6 +21,10 @@ groups-upload-stall's commits (gone from the diff once it lands and main is merg
   that never returns); the probe lands once its jobs and CI pass; A2 stays open in Result. A
   blocked handler in a sampled failure is a product defect: the lead grants the transport
   files then.
+- Lead: file set fixed to test/transport/groups_test.cc; groups-upload-stall landed (main
+  c782db1). Merged main: already up to date (the branch sat on c782db1), so 84608cc is 1 commit
+  ahead and its diff is groups_test.cc alone; no code changed, no job resubmitted, the pushed
+  branch stands.
 
 ## Notes
 
