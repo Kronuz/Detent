@@ -3411,7 +3411,8 @@
         "src/detent_local/store_core.hh",
         "tests/detent_local/test_disk_store.cc",
         "tests/detent_local/test_paged_publication_artifacts.cc",
-        "tests/detent_local/test_publication_power_cut.cc"
+        "tests/detent_local/test_publication_power_cut.cc",
+        "docs/measurements/dense-sync-stack-20261118/**"
       ],
       "landed": [],
       "lenses": [
@@ -3427,7 +3428,7 @@
       "risk": "high",
       "status": "active",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T05:32:32",
+      "updated": "2026-11-18T17:14:19",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-walkers": {
