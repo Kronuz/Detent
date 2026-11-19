@@ -1,6 +1,6 @@
 # consensus-dns-threads: journal
 
-State: waiting on jobs 261118-172840-c24261 261118-172841-27bb27 261118-172841-daad3d 261118-172841-dc467b 261118-172842-715091 261118-172842-91deab 261118-172843-0977dc 261118-172843-ac3852 261118-172845-1cff2c
+State: waiting on jobs 261118-214145-4748d9
 Quest: .campaign/detent/quests/consensus-dns-threads.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,25 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Resumed after consensus-close-fenced landed (consensus main 377e472). Merged origin/main
-into the branch: consensus:8d24f40, clean (main's 14 files touch none of mine). Pushed for CI.
+Suite gate at e20721d failed (261118-212248-85299d): consensus_transport_resolve aborted
+at shutdown's entry check `os_threads() == baseline` (line 227) after 5 s, under ctest -j4.
+Investigating; one hypothesis per experiment.
 
-Gap 3 (c5f7dd "failed"): the mutant was killed, the runner miscounted. Its log shows the
-destroyed-at-exit mutant aborting with UBSan "invalid vptr" (shared_ptr.h:475, exit 134),
-but rt.sh then only counted ASan reports. rt.sh now also counts "runtime error:"; the
-replacement 261118-063756-2fdd9f at abc01bb reports "caught (exit 134)", fails-without as it
-must. Not a gap in F1's fix or test. (rerun reused it at 8d24f40: only merges since.)
+consensus:d76b788 instruments the test: `settles()` replaces the bare count waits and on a
+timeout prints the count over time and each thread's name and run state; the test names its
+threads (warm-up, lookup, abandoner, opener). No product change.
 
-msg (lead): CMakeLists.txt joined my file set. consensus:d0f5cbf registers resolve_test in
-both transport foreach lists (only those two entries; peers-tsan-timeout owns a TIMEOUT line
-after me). Pushed for CI. The 8d24f40 reruns were superseded/cancelled.
+Loop 261118-214145-4748d9 (--for A4, at d76b788): the full binary 1,600 times, 8 at once.
 
-Reruns at d0f5cbf: plain c24261 (A1,A3), TSan 27bb27 (A2), ASan+UBSan daad3d (A2); mutants
-F1 dc467b, F2 715091, unbounded 91deab, queued-kept 0977dc, detach-at-destruction ac3852;
-suite 1cff2c (--for A4, now includes consensus_transport_resolve).
-
-1. Read the jobs and CI at d0f5cbf; paste `campaign brief`'s table into Evidence.
-2. Lead: re-accept correctness after main's 14 files (none in resolve.h's callers).
+1. Read the loop's failures: which thread is surplus or missing, and how the count moved.
+2. Fix the cause; merge origin/main (84608cc, groups_test.cc); verify + loop again.
 ## Blocked on
 
 Nothing. Lead re-accepts correctness once the d0f5cbf jobs pass.
