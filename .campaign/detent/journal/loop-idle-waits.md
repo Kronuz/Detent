@@ -1,33 +1,34 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261119-101104-bee765 (suite), 261119-101125-b77320 261119-101127-d38033 261119-101129-f841a2 261119-101131-0a5215 261119-101134-5d5c49 261119-101136-147391 (A2 mutants), 261119-101138-d37b48 (A1), 261119-101145-1602c6 (A3); CI at Detent:30391330
+State: waiting on jobs 261119-103506-5b36b1 (suite), 261119-103509-644510 261119-103509-1f64d3 261119-103509-c4f26f 261119-103509-3937ff 261119-103509-5a6c35 261119-103510-241774 261119-103519-3b65cd (A2 mutants), 261119-103617-426e37 (A2 plain), 261119-103510-a7a809 261119-103520-8e4934 (A1 at 60000 and 250 ms), 261119-103510-0db86e (A3), 261119-103541-50a978 261119-103542-42bdbc 261119-103543-da90b6 261119-103544-4f2621 (test_relay_service under TSan, 4x5 runs); CI 44589259502 at Detent:cc942c46
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 1 at Detent:30391330 (merge of main at e3e2808e). Jobs queued.
+Fix round 2 (review CHANGES at Detent:30391330; the last round before a re-plan). Jobs queued at
+Detent:cc942c46.
 
-1. Suite hang (261119-072616-b3ced4: worker_lifetime, repair x5, relay_delta_shutdown_published):
-   a worker job's `task::event` wait registered no work on the owner's io_context, so a loop with
-   nothing else queued (run_phase's and test_worker's `io.run()`, at close with a scrub or recovery
-   worker in flight) ran out of work and returned under the wait; the posted set() never ran and
-   `done.get()` blocked. The 1 ms poll had kept a timer pending. Fix Detent:3983e723: each job holds
-   the owner executor with `outstanding_work.tracked` until it posts set(). Local: the six tests
-   pass (0.9-23 s). Proof: mutant coordinator-work (261119-101136-147391, test_delivery_worker_lifetime).
-2. relay-enqueue survived (261119-072637-bcfa09) because the script ran plain
-   `test_delivery_coordinator`, which never calls relay_service_fixture::qualify; not the health
-   turn. Locally, at the mutant, `--subscription-relay-http` fails at the fixture's wake check
-   (line 132). Script fixed in Detent:9e698014.
-3. A1 `relay never became ready` (261119-072950-ebd34f): harness bug, not a hang. The authority's
-   /v2/history/layouts answers 503 history_unavailable for 220-460 ms after the last write, on
-   main (224-457 ms, 4 runs) and at the head (254-356 ms, 4 runs) alike; the relay's first sync
-   failed and the next came one interval (60 s) later. Fix Detent:26919262: pair.py waits for the
-   history before starting the relay; both arms then ready in ~1 s with 0 sync failures.
+1. F7 (blocking): a multi-voter authority missed a stop that landed mid-pass. The absence check
+   measured from max(pass start, end of the 1 ms sleep planned after it), so a stalled pass never
+   counted. The local suite at Detent:30391330 failed the same way (261119-101104-bee765:
+   test_relay_service a5, "voter 2, knowing no leader, answered /v2/history/layouts 200").
+   Fix Detent:d7d4193f: `owner_absence(pass, slept, planned, next)` in owner_loop.hh sums the pass
+   (up to the sleep's start) and the lateness past the planned deadline; the planned sleep never
+   counts. test_owner_absence covers stop mid-pass, stop in the sleep, a long planned sleep, an
+   early wake, no sleep, a split stall and a deadline already past. Mutant absence-merged restores
+   the merged rule (261119-103519-3b65cd). TSan loop of test_relay_service: 4 jobs x 5 runs.
+2. F8: test_coordinator_teardown joins the worker pool in a guard declared after the owner, so a
+   failing require() cannot leave a job posting to a freed io_context (Detent:91379253).
+3. F9: A1 runs at interval_ms 60000 (stated in the Evidence row); compare.sh takes
+   IDLE_INTERVAL_MS, and 261119-103520-8e4934 adds the 250 ms default (Detent:cc942c46).
 
 ## Next
 
-1. Read the jobs; record the Evidence rows (A1: interrupt_wakeups_per_s and owner_turns_per_s, F6).
-2. Merge main again once rename-detentd lands, then `campaign job rerun` the suite and mutants.
+1. Read the jobs; record the Evidence rows (A1: interrupt_wakeups_per_s and owner_turns_per_s, F6,
+   at interval_ms 60000 and 250). Read CI 44589259502's linux-tsan test_relay_service and
+   test_authority_idle_wake (F4).
+2. rename-detentd had not landed at 3d0571cd; merge main (never rebase) once it does, then
+   `campaign job rerun` the suite and mutants.
 
 ## Design (how it works)
 
@@ -56,7 +57,7 @@ Nothing. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mir
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
+| A1 | <queued: 261119-103510-a7a809 (relay interval_ms 60000), 261119-103520-8e4934 (interval_ms 250, the default)> |
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 | A4 | <no evidence yet> |
@@ -97,4 +98,10 @@ reclaim scans ~60 completion ops/s) frames A1.
 - R4: Authority: transient in-flight work (queued commands in their 5 ms batching window, quorum
   reads, exports, authorization, retirement, W5 frames tasks) keeps the 1 ms visit; only idle and
   parked-only states sleep. Recovery and the stop drain wait on storage completions bounded at
-  250 ms. The absence check behind leader trust counts from the end of a planned sleep.
+  250 ms.
+- R6 (F7): the absence behind leader trust is the pass plus any lateness past the planned sleep's
+  deadline, summed (`owner_absence`). The review asked for either part alone at election_min; the
+  sum catches both of those and a stall split across them, and is never larger than main's rule
+  (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
+- R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
+  and only ASan would witness the freed io_context.
