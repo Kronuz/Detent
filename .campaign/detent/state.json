@@ -15907,7 +15907,9 @@
     },
     "reactor-tls-cache": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "xapiand:reactor-server-composition"
+      ],
       "base": "bf874dcfb5e6acb0eb0c36990fee9c1fee95e57e",
       "branch": "quest/detent/reactor-tls-cache",
       "checks": [
@@ -15937,7 +15939,7 @@
       "risk": "high",
       "status": "active",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T14:40:06",
+      "updated": "2026-11-19T14:42:10",
       "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
     "reader-acl": {
