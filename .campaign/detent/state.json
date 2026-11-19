@@ -15125,17 +15125,44 @@
         "src/detent_local/pack_scrub.hh",
         "tests/detent_testing/test_pack_scrub.cc"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T15:21:59",
+          "commit": "9c5f1bbf21e0592b1bb25d4a93f75cfa835392c7",
+          "criteria": {
+            "A1": "261119-144306-5c63f3; fails without: 261119-144312-8d0f2c",
+            "A2": "261119-144316-8e7e71"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "a800bbfb6e50471465a659f217cb850f551679ae",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-144316-8e7e71",
+              "level": "light",
+              "seconds": 729.3,
+              "state": "done",
+              "what": "pack-scrub-hash-count check suite at a800bbfb6e50"
+            }
+          ],
+          "final": true,
+          "from": "e443e87488acb4091636d1b124cc76c3c3d66491",
+          "reason": "",
+          "tested": "e51b91c1ae98f4fa4c60b538d34a57f7895cb91d"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "PackScrub counts what it hashes",
-      "updated": "2026-11-19T15:21:04",
-      "worktree": "../Detent-wt/detent/pack-scrub-hash-count"
+      "updated": "2026-11-19T15:22:46",
+      "worktree": ""
     },
     "paged-decode-one-shape": {
       "accepted": {},
