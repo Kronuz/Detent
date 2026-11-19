@@ -3455,7 +3455,44 @@
       "worktree": ""
     },
     "dense-sync-stack": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-18T18:10:46",
+          "base": "34ee9823766d0a32aad7ad0b25586643bdbf2922",
+          "blobs": {
+            "docs/measurements/dense-sync-stack-20261118/README.md": "100644:b1de8633e635c5efd3c7cdfe4f8f38ea622417b8",
+            "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "100755:9bd03e6043fe031f3e7536b510794d0e039e9bbe",
+            "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "100755:841ef23b8e765d7458cad3a7173389c73f15788e",
+            "docs/measurements/dense-sync-stack-20261118/seed.py": "100644:09880e141eac6fafdfc6ed9b22f2324650eb7340",
+            "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "100755:aa0b0fbeaa38c6813e667bcff31895bacb9ef7c8",
+            "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "100755:8e5bd7d21586967e0517b6abfa8d21e57fc8852c",
+            "docs/perf/dense-sync-stack.md": "100644:5128022634aed5ceefbcb462d85305b7696161ba",
+            "src/detent_local/disk_store.cc": "100644:d9027979188c909ab8be80bca2cff5f3ae861e3b",
+            "src/detent_local/store_core.hh": "100644:5e9af8398e5ae0499e8a3e4ef81326108ef2b654",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "100644:7ca32160869d66b09eb72bdaa7686a9e28736970"
+          },
+          "by": "review",
+          "commit": "9f4f681f7f2d9d76b79186ab1c524cf2fc451364",
+          "criteria": "835b70751413dfba",
+          "diffs": {
+            "docs/measurements/dense-sync-stack-20261118/README.md": "35f921c93e9a796f",
+            "docs/measurements/dense-sync-stack-20261118/probe-fixture.sh": "bb1f57f832ea3167",
+            "docs/measurements/dense-sync-stack-20261118/seed-fixture.sh": "a67330b785ad354d",
+            "docs/measurements/dense-sync-stack-20261118/seed.py": "449e583c508f6f5f",
+            "docs/measurements/dense-sync-stack-20261118/submit-5m.sh": "b22eb658be1ece49",
+            "docs/measurements/dense-sync-stack-20261118/submit-main.sh": "e90ba64c48f0d744",
+            "docs/perf/dense-sync-stack.md": "9e794784abb44a55",
+            "src/detent_local/disk_store.cc": "05ebd2546a0fc18e",
+            "src/detent_local/store_core.hh": "9fd7f04e6bf16cc3",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "1f7c6b788ff0aab0"
+          },
+          "findings": {},
+          "note": "",
+          "review": "102109fdd8270bf5c4c22bfa2119d9f21ecb14a7",
+          "reviewed": "9f4f681f7f2d9d76b79186ab1c524cf2fc451364",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "a24b3e704634ed77f8c2a648a274e41265698b19",
       "branch": "quest/detent/dense-sync-stack",
@@ -3509,7 +3546,7 @@
       "risk": "high",
       "status": "review",
       "title": "Grouped syncs for Dense pages publication",
-      "updated": "2026-11-18T17:15:01",
+      "updated": "2026-11-18T18:10:46",
       "worktree": "../Detent-wt/detent/dense-sync-stack"
     },
     "dense-walkers": {
