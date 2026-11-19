@@ -1110,6 +1110,19 @@
       "closed": "ordered reactor-tls-cache and logger-slack-mutant after theirs",
       "id": "msg-122",
       "text": "xapiand lead: closed msg-138..142. Ordering: reactor-server-composition (accepted, landing on CI) goes before your reactor-tls-cache; logger-fork-reset (atfork child reset of the LOG mutex/cv, logger.cc/h, test/exit.cc, docs/fork.md) lands before your logger-slack-mutant. Consensus/group quests on our side are not started."
+    },
+    {
+      "at": "2026-11-19T14:41:32",
+      "by": "campaign xapiand",
+      "closed": "task-settle-notes after xapiand:task-fire-pending-guard",
+      "id": "msg-123",
+      "settles": {
+        "ours": [
+          "task-settle-notes"
+        ],
+        "quest": "xapiand:task-fire-pending-guard"
+      },
+      "text": "xapiand:task-fire-pending-guard started and may change files your task-settle-notes changes (order them with --after xapiand:task-fire-pending-guard, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
