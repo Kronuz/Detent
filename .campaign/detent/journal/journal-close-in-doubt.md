@@ -1,15 +1,18 @@
 # journal-close-in-doubt: journal
 
-State: waiting on jobs 261119-145734-c35afd 261119-145740-13f24c 261119-145814-f4c7ce 261119-145750-f2f69d 261119-145754-5345d7 261119-145820-931e5c 261119-145900-52089d
+State: waiting on jobs 261119-155358-d7b542 261119-155359-aa394f 261119-155400-64866e 261119-155402-ef5a34 261119-155403-6701c3
 Quest: .campaign/detent/quests/journal-close-in-doubt.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs for A1-A4 queued at journal:6ab0fd2; CI run 44633320764 on the quest branch.
+Review fixes (F1, F2) at journal:a64c618, pushed; reruns queued: close_in_doubt d7b542 (A1), sweep
+aa394f (A2), mutant close-unfenced 64866e (A3, --fails-without), TSan ef5a34 and suite 6701c3 (A4).
+At journal:6ab0fd2 every earlier job passed (brief's table below).
 
 ## Next
 
-1. When the jobs finish: paste `campaign brief`'s table, check CI, set State to ready for review.
+1. When the reruns pass: `campaign accept journal-close-in-doubt correctness --confirm F1=261119-155400-64866e ...`
+   is the lead's; paste the brief's table at a64c618, set State to ready for review.
 
 ## Blocked on
 
@@ -57,4 +60,17 @@ failed `Store::close`, a recover or create of that id in the same Host throws
    be sound, since the disk then durably says open, but the quest asks for restart resolution and
    that is the smaller change). Possible follow-up: hold() retries the slot's commit.
 5. The gate is Host::hold (every create and recover takes one first); the failed Store is already
-   fenced (Journal::close sets owner_->failed), so it appends nothing either.
+   fenced (Journal::close sets owner_->failed), so it appends nothing either. Pinned since the
+   correctness review (F1) by close_in_doubt's same-Store append and mutant close-unfenced.
+6. CHANGELOG.md is outside the brief's file set (include/journal/**, src/**, test/**, docs/**); the
+   lead asked for its entry (review F2), so it is in this quest's commit: the lead's to widen.
+
+## Review findings (correctness, CHANGES at journal:6ab0fd2)
+
+- F1 (blocking): close_in_doubt appends through the same Store after the failed close and checks
+  it throws; mutants.py close-unfenced (journal.h's close catch without `owner_->failed = true`)
+  is killed by it.
+- F2: EIO contract in docs/mechanisms/group-lifetime.md (rule 1 and Closing), Host::hold's
+  comment, CHANGELOG.md 2026-11-19.
+- F3: kept (a close that wrote nothing also stays in doubt until restart); the lead records it.
+- F4: left, as the lead ruled.
