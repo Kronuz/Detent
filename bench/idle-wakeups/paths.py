@@ -1,8 +1,8 @@
 """Throughput and latency of the authority and relay request paths (loop-idle-waits A3).
 
-On one detentd and one relay (pair.py), --clients processes each hold one keep-alive connection
+On one detent-authority and one relay (pair.py), --clients processes each hold one keep-alive connection
 and, for --seconds per path, send requests back to back:
-  authority  POST /v2/read of one key at detentd (the owner's read path);
+  authority  POST /v2/read of one key at detent-authority (the owner's read path);
   relay      POST /v2/distribution/session/next, version 2, every name from no cursor, on one
              session per client (the relay's mirror answer path); a 409 session_busy is retried
              and counted.

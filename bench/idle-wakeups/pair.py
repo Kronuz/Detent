@@ -1,4 +1,4 @@
-"""A single-voter detentd and a detent-relay mirroring it, on fresh state under .scratch."""
+"""A single-voter detent-authority and a detent-relay mirroring it, on fresh state under .scratch."""
 
 from __future__ import annotations
 
@@ -54,9 +54,9 @@ class Pair:
         self, build: Path, transactions: int = 12, interval_ms: int = 250
     ) -> None:
         self.source = Path(__file__).resolve().parents[2]
-        self.detentd = build / "src/detentd"
+        self.authority = build / "src/detent-authority"
         self.relay = build / "src/detent-relay"
-        for binary in (self.detentd, self.relay):
+        for binary in (self.authority, self.relay):
             if not binary.is_file():
                 raise RuntimeError(f"missing {binary}")
         self.transactions = transactions
@@ -123,7 +123,7 @@ class Pair:
             child = self.children[name]
             if child.poll() is not None:
                 raise RuntimeError(f"{name} exited {child.returncode}")
-            port = self.authority_port if name == "detentd" else self.relay_port
+            port = self.authority_port if name == "authority" else self.relay_port
             health = self.health(port)
             if health and ready(health):
                 return health
@@ -205,9 +205,9 @@ class Pair:
             },
         )
         self.launch(
-            "detentd",
+            "authority",
             [
-                str(self.detentd),
+                str(self.authority),
                 "--authority",
                 str(authority),
                 "--port",
@@ -216,7 +216,7 @@ class Pair:
                 str(self.root / "authority-run"),
             ],
         )
-        self.wait("detentd", lambda health: health.get("ready"))
+        self.wait("authority", lambda health: health.get("ready"))
         self.write("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
         for step in range(self.transactions):
             self.sequence += 1

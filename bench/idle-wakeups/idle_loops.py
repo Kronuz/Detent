@@ -1,4 +1,4 @@
-"""Count an idle single-voter detentd's and an idle detent-relay's loop wakeups (loop-idle-waits A1).
+"""Count an idle single-voter detent-authority's and an idle detent-relay's loop wakeups (loop-idle-waits A1).
 
 With no client, once both report ready and have settled, the script reads over --seconds each
 process's rusage (interrupt and package-idle wakeups, CPU) through the usage helper, the
@@ -43,7 +43,7 @@ def main() -> None:
             authority = pair.health(pair.authority_port) or {}
             relay = pair.health(pair.relay_port) or {}
             return {
-                "detentd": usage(args.usage, pair.children["detentd"].pid),
+                "authority": usage(args.usage, pair.children["authority"].pid),
                 "relay": usage(args.usage, pair.children["relay"].pid),
                 "owner_turns": authority["owner_turn_ns"]["count"],
                 "relay_turns": relay.get("turns"),
@@ -59,7 +59,7 @@ def main() -> None:
         "seconds": round(seconds, 3),
         "interval_ms": args.interval_ms,
     }
-    for name in ("detentd", "relay"):
+    for name in ("authority", "relay"):
         delta = {key: after[name][key] - before[name][key] for key in after[name]}
         result[name] = {
             "interrupt_wakeups_per_s": round(delta["interrupt"] / seconds, 1),
@@ -68,7 +68,7 @@ def main() -> None:
                 100 * (delta["user_ns"] + delta["system_ns"]) / 1e9 / seconds, 3
             ),
         }
-    result["detentd"]["owner_turns_per_s"] = round(
+    result["authority"]["owner_turns_per_s"] = round(
         (after["owner_turns"] - before["owner_turns"]) / seconds, 1
     )
     if after["relay_turns"] is not None:
