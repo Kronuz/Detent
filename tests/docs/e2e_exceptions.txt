@@ -21,7 +21,7 @@ guides/shell-and-agent#6 -- needs a service-managed system agent
 guides/testing#1 -- my_app is a placeholder program
 guides/python-and-rust#1 -- builds the Python and Rust bindings, which need their toolchains
 guides/durable-authority#1 -- builds the authority
-guides/durable-authority#2 -- runs detentd in the foreground on a placeholder authority.json
+guides/durable-authority#2 -- runs detent-authority in the foreground on a placeholder authority.json
 guides/durable-authority#3 -- placeholder token and identity
 guides/durable-authority#4 -- placeholder token and identity
 guides/managed-delivery#1 -- starts a second agent over a placeholder managed.json
@@ -35,11 +35,11 @@ operations/services#3 -- reads the systemd journal
 operations/services#4 -- launchctl on a system plist
 operations/services#5 -- creates a system user on FreeBSD
 operations/services#6 -- needs a service-managed system agent
-operations/logging#1 -- starts detentd with no authority configuration
-operations/logging#2 -- starts detentd in the foreground with no authority configuration
+operations/logging#1 -- starts detent-authority with no authority configuration
+operations/logging#2 -- starts detent-authority in the foreground with no authority configuration
 operations/authority#1 -- probes an absolute /etc/detent/authority.json that is not there
 contributing#1 -- configures a Release build of the checkout
 contributing#2 -- changes into website/ for the site build the site check runs
 reference/cli/detent#1 -- shows the MissingKnob error on stdout with detail "not present in current snapshot"; the CLI prints it on stderr as "scoped lookup failed"
 reference/cli/detent-agent#1 -- the status command omits --runtime-dir, so it reports "not running" for the Quick-start agent (not "running (pid N)")
-reference/cli/detentd#1 -- probes plain HTTP but the Quick-start authority serves HTTPS, so it prints "not reachable"; needs --authority
+reference/cli/detent-authority#1 -- probes plain HTTP but the Quick-start authority serves HTTPS, so it prints "not reachable"; needs --authority

@@ -10,7 +10,7 @@ cmake --build build -j 4
 export PATH="$PWD/build/src:$PATH"
 ```
 
-This builds `detentd` (the authority), `detent-agent` (the managed agent) and `detent` (the shell reader) in `build/src`.
+This builds `detent-authority` (the authority), `detent-agent` (the managed agent) and `detent` (the shell reader) in `build/src`.
 
 ## Make development certificates and credentials
 
@@ -50,7 +50,7 @@ cat > authority.json <<EOF
 }
 EOF
 chmod 600 authority.json
-detentd --authority authority.json --runtime-dir run --daemonize
+detent-authority --authority authority.json --runtime-dir run --daemonize
 ```
 
 With no `voters`, the authority is a single voter. It listens on 127.0.0.1 port 8317 and keeps its durable store in `authority-data`. The `writer` credential may publish to the three namespaces; the `agent` credential may only read them, as principal `agent-reader`.
@@ -239,7 +239,7 @@ detent get search:max_results
 detent-agent --status --generation-dir agent-state --runtime-dir run
 # running (pid 97274)
 # durable revision=9 knob_count=3
-kill "$(cat run/agent.pid)" "$(cat run/detentd-8317.pid)"
+kill "$(cat run/agent.pid)" "$(cat run/detent-authority-8317.pid)"
 cd ../.. && rm -rf build/quickstart
 ```
 

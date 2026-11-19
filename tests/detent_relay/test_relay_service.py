@@ -1,6 +1,6 @@
 """The relay's namespace mirror over HTTP (namespace-s8, "The service").
 
-Three detentd voters; relay A reads them, relay B reads A, both as W8 readers with a credential.
+Three detent-authority voters; relay A reads them, relay B reads A, both as W8 readers with a credential.
 A1: every block, base and section, and every W5/W6 answer (none, another incarnation, R = 0 ..
 head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's and B's disks,
 also when every other W5 next answers `409 session_busy`; the answer at no cursor, read here
@@ -13,7 +13,7 @@ its `/v1/health` reports it not ready, and from its return when it was stopped i
 rule); relay D, reading it first, converges with the live quorum once one voter resumes. That D
 never adopts from it is voter-read-freshness's (D101), kept disabled in `a5_voter_read_freshness`.
 
-    test_relay_service.py DETENTD DETENT-RELAY RELAY-PROBE CERTIFICATES
+    test_relay_service.py DETENT-AUTHORITY DETENT-RELAY RELAY-PROBE CERTIFICATES
 """
 
 from __future__ import annotations
@@ -179,10 +179,10 @@ def private(path: Path, value: dict[str, Any]) -> Path:
 
 class Run:
     def __init__(
-        self, detentd: Path, relay: Path, probe: Path, certificates: Path
+        self, authority: Path, relay: Path, probe: Path, certificates: Path
     ) -> None:
-        self.detentd, self.relay, self.prober, self.certificates = (
-            detentd,
+        self.authority, self.relay, self.prober, self.certificates = (
+            authority,
             relay,
             probe,
             certificates,
@@ -279,7 +279,7 @@ class Run:
             self.start(
                 f"voter-{index}",
                 [
-                    str(self.detentd),
+                    str(self.authority),
                     "--authority",
                     str(path),
                     "--port",

@@ -72,9 +72,9 @@ Optional objects tune the limits below; each rejects unknown, duplicate and malf
 The values shown are the defaults. Each must be at least the operating limit it covers and at most the library ceiling; the envelope is not part of the replicated semantic profile, so it never changes peer admission or batch framing. The replacement pool (`journal_limits.replacement_bytes`, default 512 MiB) must fund the application image, the encoded `log_bytes`/`log_entries` suffix and 4096 bytes; the defaults need 336,931,316 bytes. A node whose pool falls short refuses to start with `authority runtime cannot fund configured limits: the replacement pool holds N bytes but the application image (A) + the encoded retained suffix (S) + the publication allowance (4096) need R, short by D bytes; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or retained_state.log_bytes and log_entries`.
 
 ```sh
-detentd --authority authority.json
-detentd --authority authority.json --daemonize
-detentd --status
+detent-authority --authority authority.json
+detent-authority --authority authority.json --daemonize
+detent-authority --status
 ```
 
 The authority binds `127.0.0.1` and defaults to port 8317. It rejects legacy multicast and legacy persistence overrides. Service managers should run it in the foreground; use the configuration and directory ownership conventions in [SERVICES.md](SERVICES.md). This profile has one voter and local disk durability, with no replicated availability. It does not serve legacy `/v1/snapshot` distribution to agents; that integration follows the authenticated transport component.

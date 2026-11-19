@@ -1,6 +1,8 @@
 # Selected targets and their direct dependencies.
 # Managed authority and generation targets are documented separately.
-direction: down
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+direction: right
 
 detent: "detent\n(core lib)" {
   tooltip: RCU client, JSON schema, hashing, overrides, file source
@@ -8,12 +10,13 @@ detent: "detent\n(core lib)" {
 delivery_config: "delivery_config" {
   tooltip: Managed delivery over TLS and local publication
 }
-detentd_exe: "detentd (exe)" {
+authority_exe: "detent-authority (exe)" {
   tooltip: Durable authority daemon
 }
 detent_agent_exe: "detent-agent (exe)"
 
-kronuz: Kronuz cpp-libraries used directly by detent {
+kronuz: "Kronuz libraries" {
+  label.near: top-left
   char_classify: char-classify {tooltip: "ASCII classification tables used by the JSON tokenizer"}
   strict_stox: strict-stox {tooltip: "Strict numeric string parsing (no silent truncation) for knob values"}
   atomic_shared_ptr: atomic-shared-ptr {tooltip: "Lock-free RCU snapshot swap -- the whole read-path fast path depends on this"}
@@ -21,7 +24,8 @@ kronuz: Kronuz cpp-libraries used directly by detent {
   sha256: sha256 {tooltip: "Rollout hashing: stable SHA-256 bucket assignment"}
 }
 
-thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
+thirdparty: "Third-party (09)" {
+  label.near: top-left
   http: "http" {tooltip: "HTTP server framework for the authority endpoints"}
 }
 
@@ -31,8 +35,8 @@ detent -> kronuz.atomic_shared_ptr
 detent -> kronuz.random
 detent -> kronuz.sha256
 
-detentd_exe -> detent
-detentd_exe -> thirdparty.http: "serves the authority endpoints"
+authority_exe -> detent
+authority_exe -> thirdparty.http: "serves endpoints"
 
 delivery_config -> detent
 detent_agent_exe -> delivery_config

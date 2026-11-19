@@ -14,7 +14,7 @@ All three run from the repository root and exit 0 when clean.
 | `python3 tests/docs/check_docs.py` | CLI flags, configuration keys, HTTP endpoints, error and status names and knob types, in both directions between the reference pages and `src/` and `include/`; gaps live in `tests/docs/docs_exceptions.txt` | 0 clean, 1 an unlisted gap or a stale exception, 2 a malformed exceptions file |
 | `python3 tests/docs/check_links.py website/dist` | Every internal link and `#anchor` of the built site (`cd website && npm ci && npm run build`) | 0 clean, 1 a broken link |
 
-`run_e2e.py --build-dir DIR` reuses the binaries of an existing build (`DIR/src/detentd`,
+`run_e2e.py --build-dir DIR` reuses the binaries of an existing build (`DIR/src/detent-authority`,
 `detent-agent`, `detent`); `--deps-from DIR` lets a fresh build take its dependency sources from
 another build; `--page SLUG` runs one page's blocks (earlier pages' state is not set up);
 `--list` prints each block with `asserted`, `excepted` or `MISSING`; `--keep` leaves the sandbox
@@ -71,7 +71,7 @@ an exit status alone is an error.
 
 Each run takes its own random free port (a lock file in `.scratch/docs-e2e/` keeps two runs from
 choosing the same one) and rewrites the literal `8317` in every block to it, so pages stay as a
-reader would type them. `DETENTD_PORT` and `DETENT_E2E_PORT` carry it too. The run uses its own
+reader would type them. `DETENT_AUTHORITY_PORT` and `DETENT_E2E_PORT` carry it too. The run uses its own
 `HOME`, `TMPDIR` and XDG directories. At the end it stops only what it started: the pid files under
 its sandbox and `lsof -ti tcp:PORT -sTCP:LISTEN` for its port. `rewrite` covers what an environment
 variable cannot: the Quick-start's `managed.json` gets `"port"` that way.

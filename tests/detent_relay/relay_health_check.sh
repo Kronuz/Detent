@@ -13,5 +13,5 @@ build=.scratch/relay-health-build
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON \
 	-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null
-cmake --build "$build" -j4 --target detent-relay detentd test_relay_probe >/dev/null
+cmake --build "$build" -j4 --target detent-relay detent-authority test_relay_probe >/dev/null
 ctest --test-dir "$build" -R '^test_relay_service$' --output-on-failure

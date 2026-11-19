@@ -82,7 +82,7 @@ At a relay, the history routes and W5 version 2 go to the mirror thread; version
 
 The authority's configuration takes the layout policy its enabling entry proposes as `application_limits.layout` (`seal_transactions`, `period`, `carry_bytes`, ...), validated as `SetLayout` validates it.
 
-`test_relay_service` runs three detentd voters, relay A reading them and relay B reading A, all over HTTPS, and reads each through `HttpUpstream`:
+`test_relay_service` runs three detent-authority voters, relay A reading them and relay B reading A, all over HTTPS, and reads each through `HttpUpstream`:
 
 1. A1: after writes before and while the relays run, every base, block and section and every W5/W6 answer (none, another incarnation, each R from 0 to h + 1, raw and zstd) has the same SHA-256 at the leader, A and B, and A's and B's disks hold each file under `m-<hash of its name>` with those bytes. The same probe through a proxy that answers every other next `409 session_busy` gets the leader's answers unchanged.
 2. A2: A and B restart, report 0 files fetched and the rest reused, and answer every cursor unchanged; after more writes, each fetches at most the files new to the layout.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# detentd reports ready only once a leader accepts /v2/open: --daemonize returns after it, and
+# detent-authority reports ready only once a leader accepts /v2/open: --daemonize returns after it, and
 # --status / /v1/health never say "ready":true before it.
 set -euo pipefail
 binary=$1
@@ -23,7 +23,7 @@ config() { # NAME: a private authority configuration with its own data directory
 # A1: the open right after --daemonize returns succeeds on its first attempt, with no retry.
 config daemon
 "$binary" --authority "$root/daemon.json" --port 0 --runtime-dir "$root/runtime" --reactors 1 --daemonize > "$root/start.txt"
-port=$(bound_port "$root/runtime/detentd-0.log" $$)
+port=$(bound_port "$root/runtime/detent-authority-0.log" $$)
 code=$(curl -sS --max-time 10 -o "$root/open.json" -w '%{http_code}' -H "Authorization: Bearer $token" \
     -H 'Content-Type: application/json' --data "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" \
     "http://127.0.0.1:$port/v2/open") || code=failed
@@ -59,4 +59,4 @@ for ((i=0;i<1000;i++)); do
     sleep 0.01
 done
 grep -Eq '"ready":true' <<< "$health" || { echo "READINESS: never ready: $health" >&2; exit 1; }
-printf 'detentd readiness waits for a leader: open after --daemonize and health passed\n'
+printf 'detent-authority readiness waits for a leader: open after --daemonize and health passed\n'
