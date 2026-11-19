@@ -720,8 +720,10 @@ Stats stats(detent_reader *handle) noexcept {
 		stats.pins[k] = handle->ring[k].sum();
 	stats.heap_bytes = handle->heap->used();
 	stats.mapped_bytes = handle->mappings->used();
-	const auto *view = handle->ring[handle->current.load(relaxed) % ring_size].view.load(relaxed);
-	if (view && view->change)
+	// Pinned as a lookup is, so the view is published to this thread and not freed under it.
+	const char frame = 0;
+	Pin pin(stripe_of(&frame));
+	if (const auto *view = pin.acquire(*handle); view && view->change)
 		stats.change_bytes = (view->change->mapping.slots() + 1) * 8;
 	return stats;
 }
