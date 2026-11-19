@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on jobs 261118-182019-a5356b 261118-182025-2f0a66 261118-182031-0eb0f5 261118-182036-93e65a 261118-182043-7972c4 261118-182050-22e5d3 261118-182057-34cc7a, CI on consensus:545b53d
+State: waiting on jobs 261118-182248-eb67f9 261118-182249-1c6fef 261118-182251-4f4a38 261118-182252-0ca070 261118-182254-e926dc 261118-182255-c111a2 261118-182256-aad2e3 261118-182311-d7590a 261118-182304-992a7b, CI on consensus:c782db1
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A4 done at consensus:c5bde2f (CI 44398532950 green); its x50 and TSan are rerun at 545b53d.
-A1-A2: probe 3 failed once with samples; the bound is rate-scaled at consensus:9b731cb, factor derivation stated at 545b53d; jobs and CI queued. Lead ruled (1.6 acceptable; check every CI failure against the bound; no factor raise; the TSan connection abort is connection-slow-reader-flake's, rerun it if it reappears).
+A4 done at consensus:c5bde2f (CI 44398532950 green). A2 at consensus:c782db1: rate-scaled bound plus the on-failure summary line. All jobs moved once to c782db1 (the lead's ruling 2 of the second message): A2 x50 and TSan, fails-without old-bound and bulk-ahead-of-control, A4 x50 and TSan, the suite, and the sampling cost A/B (strict, 20 runs each).
 
 ## Next
 
-1. Read the jobs and CI on 545b53d (rerun a connection_test TSan abort); fill A2-A4 rows; mark ready for review.
+1. Read the jobs and CI on c782db1 (rerun a connection_test TSan abort if it shows); fill A2-A4 rows and the cost table; mark ready for review.
+2. The lead files the follow-up quest for the open class (Result), blocked on the first sampled CI failure.
 
 ## Blocked on
 
@@ -114,6 +114,16 @@ Nothing.
   the 18 MiB and 30 MiB runs are over the model (1.69, 2.29) with data still flowing: 30 MiB with
   53 beats had one 2.4 s hole. Their cause is open (Result). These runs predate the socket
   sampler (transport-feed-scan), so no sockets exist for them.
+- Sampling in the real test: `upload` in groups_test.cc already carries the sampler since
+  transport-feed-scan (a thread, every 250 ms: progress, links, host 1's frames, host 2's reads, and
+  per socket unread, sndq, windows, cwnd, rto, rexmit; origin/main has it) and prints only on
+  failure, after `timed`'s "FAILED (worst stall N ms)". consensus:c782db1 adds one line before the
+  samples: window, reader rate, window/rate, bound, gap, controls. The probe branch ran this same
+  test, so main's CI captures the same samples.
+  Cost when the test passes: A/B of 20 runs each, strict, the with-sampling binary
+  (261118-182311-d7590a) against a mutant whose sampler loop never runs (68564a7, 261118-182304-992a7b);
+  the table goes here when they finish. The sampler sleeps 250 ms between samples and does ~1,000
+  failed `getsockname` calls per sample on a thread of its own, about 16 samples a case.
 - A2 fix (consensus:9b731cb, test only): `upload_gap_ok`: gap < max(1000 ms, 1.6 x window x
   elapsed / uploaded) and uploaded >= 2 windows; the recorded runs asserted as values at the top of
   `upload` (1092 ms/32 MiB and 816 ms/24 MiB pass; 3012 ms/18 MiB, 4019 ms/2 MiB and 1000 ms at a
@@ -126,21 +136,21 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | [manual] 44441165298 probe-3 iteration 17 names the cause of the sampled 1.09 s stall (Notes, Probe 3); the seven recorded CI failures all lie outside the bound (Notes, table), so the 3-4 s class is open (Result) |
-| A2 | <pending at 545b53d: x50 261118-182019-a5356b; TSan 261118-182025-2f0a66; fails-without: old-bound 261118-182031-0eb0f5, bulk-ahead-of-control 261118-182036-93e65a> |
-| A3 | <pending at 545b53d: suite 261118-182057-34cc7a; CI> |
-| A4 | x50 261118-115335-bbf421, TSan 261118-115336-3f84ef (at 95bca86; rerun at 545b53d: 261118-182043-7972c4, 261118-182050-22e5d3), CI 44398532950 green at c5bde2f; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f |
+| A2 | <pending at c782db1: x50 261118-182248-eb67f9; TSan 261118-182249-1c6fef; fails-without: old-bound 261118-182251-4f4a38, bulk-ahead-of-control (prints the summary and samples) 261118-182252-0ca070; cost A/B 261118-182311-d7590a vs 261118-182304-992a7b> |
+| A3 | <pending at c782db1: suite 261118-182256-aad2e3; CI> |
+| A4 | x50 261118-115335-bbf421, TSan 261118-115336-3f84ef (at 95bca86; rerun at c782db1: 261118-182254-e926dc, 261118-182255-c111a2), CI 44398532950 green at c5bde2f; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f |
 
 ## Result
 
-<pending jobs and CI> Decided so far: the `upload` bound scales with the reader's measured rate
+<pending jobs and CI> Decided so far (lead's ruling: land A4 and the bound; the bound stays strict): the `upload` bound scales with the reader's measured rate
 (consensus:9b731cb, 545b53d; docs/mechanisms/host-transport.md `upload` row). It covers the sampled
 class: a stall of window / rate on a loaded runner (probe 44441165298).
 
-Open: the 3-4 s class. Seven macos-x86_64 CI failures (table in Notes) stay outside the bound:
+Open, waits for the first sampled CI failure: the 3-4 s class (the lead files the follow-up quest, blocked on it). Seven macos-x86_64 CI failures (table in Notes) stay outside the bound:
 connections that delivered 0-6 MiB in 4 s, and 18 MiB at 3,012 ms (1.69 of window/rate) and 30 MiB
 at 2,442 ms (2.29) with data flowing. They fall in 11-17 16:49Z to 11-18 08:09Z; none since in 18 CI
 jobs and 216 probe runs. An 18 MiB case at 3 s may be another cause; no socket samples exist for
-any of them. The test fails them (it does not hide them); the next one with samples names it.
+any of them. The test fails them (it does not hide them); the next one prints the summary line and samples, which name it.
 
 ## Rulings I made
 
