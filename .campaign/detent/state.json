@@ -9301,7 +9301,9 @@
     },
     "logger-slack-mutant": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "xapiand:logger-fork-reset"
+      ],
       "base": "455cad0a185b2c9037bb3bb65c99a4e3736b0cc3",
       "branch": "quest/detent/logger-slack-mutant",
       "checks": [
@@ -9334,7 +9336,7 @@
       "risk": "low",
       "status": "active",
       "title": "logger: a mutant for the deferred lines' 8 ms slack",
-      "updated": "2026-11-19T14:40:34",
+      "updated": "2026-11-19T14:42:13",
       "worktree": "../logger-wt/detent/logger-slack-mutant"
     },
     "logger-wheel-ab": {
