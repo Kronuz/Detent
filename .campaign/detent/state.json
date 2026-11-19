@@ -1029,6 +1029,13 @@
         ]
       },
       "text": "rename-detentd landed: unlocks frees src/detentd/**, src/detent_cli/** for server-composition-adoption"
+    },
+    {
+      "at": "2026-11-19T12:53:22",
+      "by": "xapiand-lead",
+      "closed": "adoption pinned at task:b7e2449 and gated on task F7 (NDEBUG layout)",
+      "id": "msg-114",
+      "text": "xapiand lead: task-inbox-first landed on task main (task:b7e2449): cross-thread post_call checked every step (R1 10->10,000 fixed), inline flush when off_loop can't start (a flush must never wait on the loop), owner read under the lock, Debug one-driver assert. Open in task, small: F7 driver_ member only in Debug (layout differs by NDEBUG). Xapiand's adoption is being planned as quests now (docs/design/lifecycle-adoption.md)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
