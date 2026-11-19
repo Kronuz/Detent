@@ -1,6 +1,6 @@
 # groups-upload-stall: journal
 
-State: waiting on jobs 261118-181752-32f7ee 261118-181800-b47e0f 261118-181805-678a4d 261118-181814-16755a 261118-181819-2846ca, CI on consensus:9b731cb
+State: waiting on jobs 261118-182019-a5356b 261118-182025-2f0a66 261118-182031-0eb0f5 261118-182036-93e65a 261118-182043-7972c4 261118-182050-22e5d3 261118-182057-34cc7a, CI on consensus:545b53d
 Quest: .campaign/detent/quests/groups-upload-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A4 done at consensus:c5bde2f (CI 44398532950 green; the TSan failure of 44385126899 was `consensus_transport_connection` aborting, the connection-slow-reader-flake quest's).
-A1-A2: probe 3 (below) gave a failure with samples; the bound is rate-scaled at consensus:9b731cb (merged main 377e472 first, no rebase); its jobs and CI are queued.
+A4 done at consensus:c5bde2f (CI 44398532950 green); its x50 and TSan are rerun at 545b53d.
+A1-A2: probe 3 failed once with samples; the bound is rate-scaled at consensus:9b731cb, factor derivation stated at 545b53d; jobs and CI queued. Lead ruled (1.6 acceptable; check every CI failure against the bound; no factor raise; the TSan connection abort is connection-slow-reader-flake's, rerun it if it reappears).
 
 ## Next
 
-1. Read the five jobs and CI on 9b731cb; fill the A2/A3 rows; mark ready for review.
-2. Ask the lead to rule on A1's limit (Notes, "Probe 3"): the named cause covers the 1.09 s failure, not the 3-4 s CI failures.
+1. Read the jobs and CI on 545b53d (rerun a connection_test TSan abort); fill A2-A4 rows; mark ready for review.
 
 ## Blocked on
 
@@ -94,9 +93,27 @@ Nothing.
   Model: a control frame waits behind at most one window (8 MiB) of data, so gap ~ window / rate.
   Over the 216 runs gap/(window/rate) is 0.34-1.44 (median 0.80; corr of gap with 1/rate 0.67);
   the failure's is 1092 / (8 MiB / 8.0 MiB/s = 1000 ms) = 1.09. The failing run is the slowest
-  reader of the 216 bar one. Limit: the CI failures of 11-17/18 (gaps 3.0-4.0 s at 0-18 MiB) have no
-  samples; two of them (0-6 MiB) are a dead connection, not this model, and 44216299768 (18 MiB,
-  3012 ms, ratio 1.69) lies just outside it. Probe 3's samples do not show a 3-4 s stall.
+  reader of the 216 bar one. Probe 3's samples do not show a 3-4 s stall.
+- Every recorded macos-x86_64 CI failure against the bound (the lead's ruling 2; window 8 MiB since
+  ca70f3d; window/rate = 8 MiB x elapsed / uploaded; bound = max(1,000, 1.6 x that) ms, and a run
+  under 16 MiB is "dead"; all seven have the same host stall 78-111 ms):
+
+  | CI job (run) | MiB | beats | elapsed ms | window/rate ms | gap ms | gap / (window/rate) | bound | in the bound |
+  |---|---|---|---|---|---|---|---|---|
+  | 134258719921 (44130104547) | 0.0 | 3 | 4043 | no rate | 4044 | - | dead | no |
+  | 134499287837 (44214025598) | 6.0 | 5 | 4125 | 5500 | 3748 | 0.68 | dead | no |
+  | 134506934077 (44216299768) | 18.0 | 15 | 4008 | 1781 | 3012 | 1.69 | 2850 | no |
+  | 134594372970 (44242758901) | 30.0 | 53 | 4007 | 1069 | 2442 | 2.29 | 1710 | no |
+  | 134604960913 (44245984014) | 6.0 | 4 | 4134 | 5512 | 3776 | 0.69 | dead | no |
+  | 134655655042 (44261476872) | 4.0 | 5 | 4012 | 8024 | 3676 | 0.46 | dead | no |
+  | 134665992662 (44264616865) | 2.0 | 3 | 4020 | 16080 | 4019 | 0.25 | dead | no |
+
+  None of the seven is inside the bound: the bound explains the sampled stall (probe 3, ratio 1.09)
+  and not these. The factor stays 1.6 (ruling 2). The four under 16 MiB are a connection that
+  delivered almost nothing (their rate-model ratio is 0.25-0.69, so only the floor rejects them);
+  the 18 MiB and 30 MiB runs are over the model (1.69, 2.29) with data still flowing: 30 MiB with
+  53 beats had one 2.4 s hole. Their cause is open (Result). The old probes' sampler did not print
+  on these runs (before 0d8c9ee), so no sockets exist for them.
 - A2 fix (consensus:9b731cb, test only): `upload_gap_ok`: gap < max(1000 ms, 1.6 x window x
   elapsed / uploaded) and uploaded >= 2 windows; the recorded runs asserted as values at the top of
   `upload` (1092 ms/32 MiB and 816 ms/24 MiB pass; 3012 ms/18 MiB, 4019 ms/2 MiB and 1000 ms at a
@@ -108,14 +125,22 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [manual] 44441165298 probe-3 iteration 17 (samples and model in Notes, Probe 3); limit: the 3-4 s CI failures have no samples |
-| A2 | <pending at 9b731cb: x50 261118-181752-32f7ee; TSan 261118-181800-b47e0f; fails-without: old-bound 261118-181814-16755a, bulk-ahead-of-control 261118-181819-2846ca> |
-| A3 | <pending at 9b731cb: suite 261118-181805-678a4d; CI> |
-| A4 | x50 261118-115335-bbf421, TSan 261118-115336-3f84ef (at 95bca86; docs-only after), CI 44398532950 green at c5bde2f; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f |
+| A1 | [manual] 44441165298 probe-3 iteration 17 names the cause of the sampled 1.09 s stall (Notes, Probe 3); the seven recorded CI failures all lie outside the bound (Notes, table), so the 3-4 s class is open (Result) |
+| A2 | <pending at 545b53d: x50 261118-182019-a5356b; TSan 261118-182025-2f0a66; fails-without: old-bound 261118-182031-0eb0f5, bulk-ahead-of-control 261118-182036-93e65a> |
+| A3 | <pending at 545b53d: suite 261118-182057-34cc7a; CI> |
+| A4 | x50 261118-115335-bbf421, TSan 261118-115336-3f84ef (at 95bca86; rerun at 545b53d: 261118-182043-7972c4, 261118-182050-22e5d3), CI 44398532950 green at c5bde2f; fails-without at mutants of cad35e4 (same code): coalesce-drops-credit 261118-114620-92a85d, no-merge 261118-114638-5f511f |
 
 ## Result
 
-<pending>
+<pending jobs and CI> Decided so far: the `upload` bound scales with the reader's measured rate
+(consensus:9b731cb, 545b53d; docs/mechanisms/host-transport.md `upload` row). It covers the sampled
+class: a stall of window / rate on a loaded runner (probe 44441165298).
+
+Open: the 3-4 s class. Seven macos-x86_64 CI failures (table in Notes) stay outside the bound:
+connections that delivered 0-6 MiB in 4 s, and 18 MiB at 3,012 ms (1.69 of window/rate) and 30 MiB
+at 2,442 ms (2.29) with data flowing. They fall in 11-17 16:49Z to 11-18 08:09Z; none since in 18 CI
+jobs and 216 probe runs. An 18 MiB case at 3 s may be another cause; no socket samples exist for
+any of them. The test fails them (it does not hide them); the next one with samples names it.
 
 ## Rulings I made
 
@@ -127,4 +152,5 @@ Nothing.
 - A2: the runner branch with a rate-scaled bound, not a fixed one: the gap is window/rate and the
   rate varies 4x within one job, so a fixed 1,000 ms flakes at a reader under 8 MiB/s. A reader
   under 2 windows per run still fails. Factor 1.6 is a judgment between the two data sets.
+- A2: the factor stays 1.6 although 44216299768 (1.69) and 44242758901 (2.29) lie outside it (lead's ruling 2).
 - The lead's message said all three probes passed; run 44441165298 shard 3 did not (above).
