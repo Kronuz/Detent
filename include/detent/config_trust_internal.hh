@@ -1,10 +1,15 @@
 #pragma once
 
 #include <cerrno>
+#include <fcntl.h>
+#include <filesystem>
+#include <stdexcept>
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/acl.h>
-#include <unistd.h>
 #endif
 
 namespace detent::internal {
@@ -57,5 +62,44 @@ inline bool acceptable_acl(int fd, AclPolicy policy) {
 #endif
 }
 inline bool mode_only_acl(int fd) { return acceptable_acl(fd, AclPolicy::ModeOnly); }
+
+// Startup only: a single-link regular file owned by root or the effective user, with no group write or
+// other access and a mode-only ACL, bounded to 1 MiB. Credential files of the agent and the relay.
+inline std::string read_private_configuration(const std::filesystem::path &path) {
+	auto require = [](bool value, const char *message) {
+		if (!value)
+			throw std::invalid_argument(message);
+	};
+	struct File {
+		int descriptor;
+		~File() {
+			if (descriptor >= 0)
+				::close(descriptor);
+		}
+	} file{::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)};
+	struct stat info{};
+	require(file.descriptor >= 0 && ::fstat(file.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
+				(info.st_uid == 0 || info.st_uid == ::geteuid()) && info.st_nlink == 1 &&
+				!(info.st_mode & 0027) && mode_only_acl(file.descriptor) && info.st_size > 0 &&
+				info.st_size <= 1024 * 1024,
+			"private configuration ownership, permissions or size");
+	std::string bytes(static_cast<std::size_t>(info.st_size), '\0');
+	std::size_t offset = 0;
+	while (offset != bytes.size()) {
+		auto count = ::read(file.descriptor, bytes.data() + offset, bytes.size() - offset);
+		if (count < 0 && errno == EINTR)
+			continue;
+		require(count > 0, "short private configuration");
+		offset += count;
+	}
+	char extra;
+	ssize_t remaining;
+	do {
+		remaining = ::read(file.descriptor, &extra, 1);
+	} while (remaining < 0 && errno == EINTR);
+	require(remaining == 0, "private configuration changed while reading");
+	require(mode_only_acl(file.descriptor), "private configuration ACL changed while reading");
+	return bytes;
+}
 
 } // namespace detent::internal

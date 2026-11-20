@@ -1,6 +1,6 @@
 // Each tier hashes its own build once (namespace design D12.2, step S4), through the coordinator against a
 // scripted upstream, with the process-wide hash counters read as differences:
-//   agent, relay  a cold bootstrap of a store of `knobs` knobs publishes revision 1; the tier's page and pack
+//   agent      a cold bootstrap of a store of `knobs` knobs publishes revision 1; the tier's page and pack
 //                 hashing is exactly its build's (nothing re-validates it), and everything it hashed, frames
 //                 included, is at most 1.2 times the bytes its build hashed;
 //   delta         the delta to revision 2, over the base that tier just built, hashes only the pages it writes;
@@ -43,25 +43,24 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
 	return out.str();
 }
 // Nothing a tier built is hashed again: its page and pack hashing is its build's, and metadata is a rounding
-// error. The agent hashes each frame once on receipt, which keeps its whole total within 1.2 times its build's;
-// the relay also encodes the frames it serves (raw and zstd), so its frame bytes are reported, not bounded.
-void expect_built_once(const t::HashStats &h, bool relay) {
+// error. The agent hashes each frame once on receipt, which keeps its whole total within 1.2 times its build's.
+void expect_built_once(const t::HashStats &h) {
 	check(h.built.page_bytes > 0 && h.built.pack_bytes > 0);
 	check(h.hashed().page_bytes == h.built.page_bytes && h.hashed().pack_bytes == h.built.pack_bytes);
 	check(h.hashed().metadata_bytes * 50 <= h.built_bytes());
 	check(h.frame.bytes > 0);
-	check(relay || h.total_bytes() * 5 <= h.built_bytes() * 6);
+	check(h.total_bytes() * 5 <= h.built_bytes() * 6);
 }
 
-void bootstrap(const fs::path &certificates, const fs::path &root, bool relay) {
+void bootstrap(const fs::path &certificates, const fs::path &root) {
 	const auto store = root / "store";
 	fs::create_directories(store);
 	fs::permissions(store, fs::perms::owner_all);
 	Server server(certificates);
 	const auto before = t::hash_stats();
 	t::HashStats delta;
-	run_phase(certificates, store, server, {.scrub_rate = 0, .relay = relay, .fresh = true},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {.scrub_rate = 0, .fresh = true},
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 				  check(explain(co_await until(scheduler, 240s, [&] {
 					  const auto status = coordinator->status();
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
@@ -70,8 +69,8 @@ void bootstrap(const fs::path &certificates, const fs::path &root, bool relay) {
 			  });
 	std::size_t packs = 0;
 	const auto bytes = pack_file_bytes(store, packs);
-	std::cout << line(relay ? "relay" : "agent", delta, bytes, packs) << '\n';
-	expect_built_once(delta, relay);
+	std::cout << line("agent", delta, bytes, packs) << '\n';
+	expect_built_once(delta);
 	check(delta.built.pack_bytes == bytes);
 	Reader reader(store);
 	const auto reads = reader.read(1);
@@ -79,14 +78,14 @@ void bootstrap(const fs::path &certificates, const fs::path &root, bool relay) {
 }
 
 // The delta to revision 2 over the base the tier built in this process.
-void delta(const fs::path &certificates, const fs::path &root, bool relay) {
+void delta(const fs::path &certificates, const fs::path &root) {
 	const auto store = root / "store";
 	fs::create_directories(store);
 	fs::permissions(store, fs::perms::owner_all);
 	Server server(certificates);
 	t::HashStats base, update;
-	run_phase(certificates, store, server, {.scrub_rate = 0, .relay = relay, .fresh = true},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {.scrub_rate = 0, .fresh = true},
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 				  check(explain(co_await until(scheduler, 240s, [&] {
 					  const auto status = coordinator->status();
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
@@ -101,7 +100,7 @@ void delta(const fs::path &certificates, const fs::path &root, bool relay) {
 				  check(server.deltas == 1);
 				  std::size_t packs = 0;
 				  const auto bytes = pack_file_bytes(store, packs);
-				  std::cout << line(relay ? "relay-delta" : "agent-delta", update, bytes, packs) << std::endl;
+				  std::cout << line("agent-delta", update, bytes, packs) << std::endl;
 				  // The delta writes pages and packs and hashes nothing else of the base it reads.
 				  check(update.built.page_bytes > 0 && update.built.pack_bytes > 0);
 				  check(update.hashed().page_bytes == update.built.page_bytes &&
@@ -121,7 +120,7 @@ void restart(const fs::path &certificates, const fs::path &root) {
 	{
 		Server server(certificates);
 		run_phase(certificates, store, server, {.scrub_rate = 0, .fresh = true},
-				  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+				  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 					  check(explain(co_await until(scheduler, 240s, [&] {
 						  const auto status = coordinator->status();
 						  return status.acknowledged == cursor() && status.recoverable == cursor();
@@ -132,7 +131,7 @@ void restart(const fs::path &certificates, const fs::path &root) {
 	const auto before = t::hash_stats();
 	t::HashStats started;
 	run_phase(certificates, store, server, {.scrub_rate = 0},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 				  check(explain(co_await until(scheduler, 240s, [&] {
 					  const auto status = coordinator->status();
 					  return status.prepared_ready || status.recoverable == cursor();
@@ -154,7 +153,7 @@ void damage(const fs::path &certificates, const fs::path &root) {
 	std::set<fs::path> damaged;
 	t::CoordinatorStatus final_status;
 	run_phase(certificates, store, server, {.scrub_rate = 1'000'000'000, .fresh = true},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 				  check(explain(co_await until(scheduler, 240s, [&] {
 					  const auto status = coordinator->status();
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
@@ -210,13 +209,9 @@ int main(int argc, char **argv) {
 			~Cleanup() { fs::remove_all(path); }
 		} cleanup{root};
 		if (mode == "agent")
-			bootstrap(certificates, root, false);
-		else if (mode == "relay")
-			bootstrap(certificates, root, true);
+			bootstrap(certificates, root);
 		else if (mode == "agent-delta")
-			delta(certificates, root, false);
-		else if (mode == "relay-delta")
-			delta(certificates, root, true);
+			delta(certificates, root);
 		else if (mode == "restart")
 			restart(certificates, root);
 		else if (mode == "damage")

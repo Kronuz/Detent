@@ -136,23 +136,6 @@ index e5691a89..c050c031 100644
  }
  namespace {
  Digest hash_buffer(std::span<const char> bytes, HashKind kind) {
-diff --git b/src/detent_relay/host.cc a/src/detent_relay/host.cc
-index e0e3c3a5..f8c7db21 100644
---- b/src/detent_relay/host.cc
-+++ a/src/detent_relay/host.cc
-@@ -120,9 +120,9 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
- 		field(",\"publication_groups\":", delivery.sync.publication.groups);
- 		field(",\"publication_directory_syncs\":", delivery.sync.publication.directory_syncs);
- 		field(",\"publication_device_flushes\":", delivery.sync.publication.device_flushes);
--		field(",\"hash_page_bytes\":", delivery.hash.hashed().page_bytes);
--		field(",\"hash_pack_bytes\":", delivery.hash.hashed().pack_bytes);
--		field(",\"hash_metadata_bytes\":", delivery.hash.hashed().metadata_bytes);
-+		field(",\"hash_page_bytes\":", delivery.hash.hashed.page_bytes);
-+		field(",\"hash_pack_bytes\":", delivery.hash.hashed.pack_bytes);
-+		field(",\"hash_metadata_bytes\":", delivery.hash.hashed.metadata_bytes);
- 		field(",\"hash_frame_bytes\":", delivery.hash.frame.bytes);
- 		field(",\"hash_built_bytes\":", delivery.hash.built_bytes());
- 		field(",\"hash_checked_bytes\":", delivery.hash.checked_bytes());
 diff --git b/tests/detent_delivery/test_hash_once.cc a/tests/detent_delivery/test_hash_once.cc
 index 70d89b83..a95517c2 100644
 --- b/tests/detent_delivery/test_hash_once.cc
@@ -168,19 +151,19 @@ index 70d89b83..a95517c2 100644
  		<< " checked_bytes=" << h.checked_bytes() << " total_bytes=" << h.total_bytes() << " total_over_built="
  		<< (built ? double(h.total_bytes()) / double(built) : 0.0) << " total_over_pack_bytes="
  		<< (packs_bytes ? double(h.total_bytes()) / double(packs_bytes) : 0.0);
-@@ -47,8 +47,8 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
- // the relay also encodes the frames it serves (raw and zstd), so its frame bytes are reported, not bounded.
- void expect_built_once(const t::HashStats &h, bool relay) {
+@@ -46,8 +46,8 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
+ // error. The agent hashes each frame once on receipt, which keeps its whole total within 1.2 times its build's.
+ void expect_built_once(const t::HashStats &h) {
  	check(h.built.page_bytes > 0 && h.built.pack_bytes > 0);
 -	check(h.hashed().page_bytes == h.built.page_bytes && h.hashed().pack_bytes == h.built.pack_bytes);
 -	check(h.hashed().metadata_bytes * 50 <= h.built_bytes());
 +	check(h.hashed.page_bytes == h.built.page_bytes && h.hashed.pack_bytes == h.built.pack_bytes);
 +	check(h.hashed.metadata_bytes * 50 <= h.built_bytes());
  	check(h.frame.bytes > 0);
- 	check(relay || h.total_bytes() * 5 <= h.built_bytes() * 6);
+ 	check(h.total_bytes() * 5 <= h.built_bytes() * 6);
  }
-@@ -104,9 +104,9 @@ void delta(const fs::path &certificates, const fs::path &root, bool relay) {
- 				  std::cout << line(relay ? "relay-delta" : "agent-delta", update, bytes, packs) << std::endl;
+@@ -104,9 +104,9 @@ void delta(const fs::path &certificates, const fs::path &root) {
+ 				  std::cout << line("agent-delta", update, bytes, packs) << std::endl;
  				  // The delta writes pages and packs and hashes nothing else of the base it reads.
  				  check(update.built.page_bytes > 0 && update.built.pack_bytes > 0);
 -				  check(update.hashed().page_bytes == update.built.page_bytes &&

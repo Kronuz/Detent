@@ -4,8 +4,6 @@
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_local/paged_layout.hh"
-#include "detent_relay/bundle.hh"
-#include "detent_relay/sessions.hh"
 #include "peer_close.hh"
 #include "task_support.hh"
 #include "trusted_records.hh"
@@ -35,10 +33,6 @@ void check(bool value, std::source_location location = std::source_location::cur
 	if (!value)
 		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
 }
-#ifdef DETENT_TEST_RELAY_HTTP
-#include "relay_network_fixture.hh"
-#include "relay_service_fixture.hh"
-#endif
 class RecordingSink final : public t::PublicationSink {
   public:
 	void authenticated() noexcept override { ++authentications; }
@@ -454,81 +448,6 @@ task::task<void> exercise(task::asio_scheduler &scheduler, std::shared_ptr<t::Co
 														feedback_received, options.source.timeout,
 														transitions ? 3 : 1));
 }
-void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
-							d::RetirementHandle<d::EncodedUpdate> expected,
-							std::shared_ptr<d::StorageLedger> control_account,
-							std::shared_ptr<d::StorageLedger> cache_account) {
-	namespace r = detent::relay;
-	r::SessionAuthorization authorization;
-	authorization.principal.identity.fill('p');
-	authorization.principal.policy_epoch = 1;
-	authorization.grants.fill('g');
-	authorization.bundles[0] = 1;
-	const std::array bindings{r::SessionBinding{bundle, authorization.principal, cursor()}};
-	r::Sessions sessions(control_account, bindings, {500, 500});
-	auto now = r::Sessions::Clock::now();
-	auto id = [](unsigned number) {
-		d::Identity identity;
-		identity.fill('w');
-		identity[14] = static_cast<char>(number >> 8);
-		identity[15] = static_cast<char>(number);
-		return identity;
-	};
-	auto forbidden = authorization;
-	forbidden.bundles[0] = 0;
-	check(sessions.open(id(500), forbidden, 0, {}, false, false, now) == d::SubscriptionResult::Forbidden);
-	auto ahead = cursor();
-	++ahead.revision;
-	check(sessions.open(id(500), authorization, 0, ahead, false, false, now) ==
-		  d::SubscriptionResult::SourceBehind);
-	const auto cache_before = cache_account->used();
-	const auto staged_before = bundle->status().staged;
-	std::vector<r::PreparedOffer, d::StorageAllocator<r::PreparedOffer>> held{
-		d::StorageAllocator<r::PreparedOffer>(control_account)};
-	held.reserve(500);
-	for (unsigned i = 0; i < 500; ++i) {
-		check(sessions.open(id(i), authorization, 0, {}, true, bool(i % 2), now) ==
-			  d::SubscriptionResult::Accepted);
-		check(sessions.metadata(id(i), now)->compression == bool(i % 2));
-		auto request = sessions.next(id(i), authorization, 0, {}, now);
-		check(request.token.has_value());
-		auto prepared = sessions.prepare(*request.token, now);
-		check(prepared.result == d::SubscriptionResult::SnapshotReady && prepared.token &&
-			  prepared.update.get() == expected.get());
-		held.push_back(std::move(prepared));
-	}
-	const auto plan_bytes = sizeof(r::BootstrapPlan) + d::StorageAllocator<r::BootstrapPlan>::allocation_overhead();
-	check(sessions.size() == 500 && cache_account->used() <= cache_before + 500 * plan_bytes &&
-		  bundle->status().staged == staged_before);
-	check(sessions.open(id(500), authorization, 0, {}, true, false, now) == d::SubscriptionResult::Full);
-	check(sessions.next(id(1), forbidden, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
-	auto other = authorization;
-	other.principal.identity.fill('x');
-	check(sessions.next(id(1), other, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
-	other = authorization;
-	++other.principal.policy_epoch;
-	check(sessions.next(id(1), other, 1, cursor(), now).result == d::SubscriptionResult::IdentityChanged);
-	auto early = sessions.next(id(0), authorization, 1, cursor(), now);
-	check(early.token.has_value());
-	check(sessions.prepare(*early.token, now).result == d::SubscriptionResult::AwaitSettlement);
-	auto original_frame = expected->frame(0, false);
-	bundle->fence();
-	check(sessions.prepare(*early.token, now).result == d::SubscriptionResult::Forbidden);
-	check(sessions.next(id(1), authorization, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
-	check(!original_frame->empty() && held.back().update->frame(0, false).get() == original_frame.get());
-	sessions.release(*early.token);
-	check(sessions.close(id(1), authorization, now) == d::SubscriptionResult::Accepted);
-	sessions.close_all();
-	d::WorkBudget budget{8192, 500};
-	sessions.collect(budget, now);
-	check(sessions.size() == 500);
-	for (auto &offered : held)
-		sessions.settle(*offered.token, true);
-	budget = {8192, 500};
-	sessions.collect(budget, now);
-	check(sessions.drained());
-	std::cout << "500 relay offers share one encoded object; fencing retains offered frames\n";
-}
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
@@ -545,17 +464,6 @@ int main(int argc, char **argv) {
 			from_flat && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
 		const auto original_maintenance_failure =
 			std::make_exception_ptr(std::runtime_error("original maintenance recovery failure"));
-		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
-		const bool relay_sessions =
-			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
-#ifdef DETENT_TEST_RELAY_HTTP
-		const bool relay_http = relay && std::string_view(argv[2]).find("http") != std::string_view::npos;
-		const bool relay_network =
-			relay && std::string_view(argv[2]).find("network") != std::string_view::npos;
-		const bool network_failures =
-			relay_network && std::string_view(argv[2]).find("failures") != std::string_view::npos;
-#endif
-		const bool relay_pressure = relay && std::string_view(argv[2]).ends_with("pressure");
 		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
 		const bool cancel_selected = argc == 3 && (std::string_view(argv[2]) == "--cancel-selected" ||
 												   std::string_view(argv[2]) == "--sink-cancel-selected");
@@ -679,10 +587,6 @@ int main(int argc, char **argv) {
 			options.source.timeout = std::chrono::seconds(240);
 		else if (count >= 500000)
 			options.source.timeout = std::chrono::seconds(120);
-#ifdef DETENT_TEST_RELAY_HTTP
-		if (relay_network)
-			options.source.timeout = std::chrono::seconds(240);
-#endif
 		if (count)
 			options.source.namespaces = {"app"};
 		options.view_limits.mapping_account = mapping;
@@ -691,29 +595,6 @@ int main(int argc, char **argv) {
 		if (sink) {
 			recording = std::allocate_shared<RecordingSink>(d::StorageAllocator<RecordingSink>(account));
 			options.publication_sink = recording;
-		}
-		auto cache_account = std::make_shared<d::StorageLedger>(root, 64 * 1024 * 1024);
-		auto control_account = std::make_shared<d::StorageLedger>(root,
-#ifdef DETENT_TEST_RELAY_HTTP
-																  (relay_network ? 64 : 16) * 1024 * 1024
-#else
-																  16 * 1024 * 1024
-#endif
-		);
-		std::optional<d::RetirementDomain> cache_domain;
-		std::shared_ptr<detent::relay::Bundle> relay_bundle;
-		d::StorageLedger::Ticket cache_pressure;
-		if (relay) {
-			cache_domain.emplace(runtime.domain(cache_account, 64 + 500));
-			detent::relay::BundleOptions bundle_options;
-			bundle_options.configured = cursor();
-			bundle_options.namespaces = count ? 1 : 0;
-			bundle_options.incarnation.fill('r');
-			relay_bundle = detent::relay::make_bundle(bundle_options, *cache_domain);
-			check(!relay_bundle->status().ready);
-			options.publication_sink = relay_bundle;
-			if (relay_pressure)
-				cache_pressure = cache_account->admit(cache_account->limit() - cache_account->used());
 		}
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
 		{
@@ -890,88 +771,6 @@ int main(int argc, char **argv) {
 									if (pinned_flat)
 										valid = valid && pinned_flat->cursor() == cursor() &&
 												pinned_flat->size() == count;
-									if (relay_bundle) {
-										valid = valid && relay_bundle->status().ready;
-										if (relay_pressure) {
-											valid = valid && relay_bundle->status().refusals > 0 &&
-													relay_bundle->status().gaps > 0;
-											cache_pressure.reset();
-											unsigned turns = 0;
-											for (;;) {
-												d::WorkBudget budget;
-												if (relay_bundle->snapshot_step(budget))
-													break;
-												if (++turns == 1000) {
-													valid = false;
-													break;
-												}
-											}
-										}
-										auto offer = relay_bundle->offer({}, true);
-										valid = valid && offer.decision == d::CacheDecision::Update &&
-												offer.update && offer.update->target() == cursor();
-										if (valid) {
-											for (bool compressed : {false, true}) {
-												d::FragmentDecoder fragments(d::UpdateKind::Snapshot,
-																			 offer.update->logical_bytes(),
-																			 compressed);
-												std::string payload;
-												for (std::size_t ordinal = 0;
-													 ordinal < offer.update->fragments(); ++ordinal) {
-													auto frame = offer.update->frame(ordinal, compressed);
-													auto bytes =
-														std::span(frame->view().data(), frame->size());
-													while (!bytes.empty()) {
-														d::WorkBudget budget;
-														fragments.feed(bytes, budget);
-														if (auto piece = fragments.take())
-															payload.append(piece->bytes());
-													}
-												}
-												fragments.finish();
-												d::SnapshotDecoder decoder(
-													cursor(), count ? std::vector<std::string>{"app"}
-																	: std::vector<std::string>{});
-												auto bytes =
-													std::span<const char>(payload.data(), payload.size());
-												while (!bytes.empty()) {
-													d::WorkBudget budget;
-													decoder.feed(bytes, budget);
-												}
-												valid = valid && decoder.finish().records().size() == count;
-											}
-										}
-									}
-#ifdef DETENT_TEST_RELAY_HTTP
-									if (valid && relay_network) {
-										auto offer = relay_bundle->offer({}, true);
-										task::spawn(
-											task::scheduler_ref::of(scheduler),
-											relay_network_fixture::qualify(
-												scheduler, relay_bundle, std::move(offer.update),
-												control_account, server_tls, client_tls, worker, count,
-												network_failures ? relay_network_fixture::FailurePoint::Suite
-																 : relay_network_fixture::FailurePoint::None),
-											[&recovered](std::exception_ptr error) {
-												if (error)
-													recovered.set_exception(error);
-												else
-													recovered.set_value(true);
-											});
-										return;
-									}
-									if (valid && relay_http) {
-										auto offer = relay_bundle->offer({}, true);
-										relay_service_fixture::qualify(relay_bundle, std::move(offer.update),
-																	   control_account, count != 0);
-									}
-#endif
-									if (valid && relay_sessions) {
-										auto offer = relay_bundle->offer({}, true);
-										qualify_relay_sessions(relay_bundle, std::move(offer.update),
-															   control_account, cache_account);
-									}
-
 									recovered.set_value(valid);
 								} catch (...) {
 									recovered.set_exception(std::current_exception());
@@ -1169,8 +968,6 @@ int main(int argc, char **argv) {
 		check(!t::detail::CoordinatorAccess::retains_paged_candidate(*coordinator));
 		if (worker_cancel)
 			check(t::detail::CoordinatorAccess::cancelled_construction_settled(*coordinator));
-		if (relay_bundle)
-			check(relay_bundle->status().fenced && !relay_bundle->status().ready);
 		if (recording) {
 			check(recording->fenced && recording->stages > 0 && recording->commits > 0);
 			check(recording->last_selected == store->selection().descriptor);
@@ -1286,11 +1083,6 @@ int main(int argc, char **argv) {
 		worker.join();
 		coordinator.reset();
 		options.publication_sink.reset();
-		relay_bundle.reset();
-		if (cache_domain) {
-			cache_domain->close().wait();
-			cache_domain.reset();
-		}
 
 		driver.reset();
 		queue.reset();
@@ -1300,7 +1092,6 @@ int main(int argc, char **argv) {
 		domain.close().wait();
 		checkpoint("domain-drained");
 		runtime.shutdown();
-		check(cache_account->used() == 0);
 		if (!cancel_open && !worker_cancel) {
 			auto recovered = l::recover_generation(directory);
 			check(recovered.descriptor().cursor == final_cursor);
@@ -1328,8 +1119,6 @@ int main(int argc, char **argv) {
 		}
 		check(mapping->used() == 0);
 		std::cout << "{\"records\":" << count << ",\"managed_heap_peak\":" << account->peak()
-				  << ",\"cache_heap_peak\":" << cache_account->peak()
-				  << ",\"control_heap_peak\":" << control_account->peak()
 				  << ",\"combined_heap_peak\":" << root->peak() << ",\"mapped_peak\":" << mapping->peak()
 				  << ",\"disk_peak\":" << disk_peak << ",\"timer_turns\":" << timing.turns
 				  << ",\"maximum_timer_lateness_us\":" << timing.maximum_lateness_us << ",\"wall_ms\":"

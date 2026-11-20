@@ -1,27 +1,21 @@
 #pragma once
-#include "sessions.hh"
+#include "detent_distribution/grants.hh"
+#include "detent_distribution/session_table.hh"
 
 namespace detent::relay {
-struct RegistryBundle {
-	distribution::Cursor identity;
-	distribution::SubscriptionPrincipal principal;
-	std::span<const std::string_view> namespaces;
-};
+// A downstream credential: its token's SHA-256, the principal that owns its sessions and the W13
+// namespace patterns it grants.
 struct ConfiguredCredential {
 	std::array<unsigned char, 32> token_hash{};
-	SessionAuthorization authorization;
-	// The patterns `authorization.namespaces` points into; the registry keeps a copy alive.
+	distribution::SubscriptionPrincipal principal;
 	std::shared_ptr<const distribution::NamespaceGrants> namespaces;
 };
 // Immutable after startup; the host retains this registry through intake drain.
 class Registry {
   public:
-	Registry(std::shared_ptr<distribution::StorageLedger>, std::span<const RegistryBundle>,
-			 std::span<const ConfiguredCredential>);
+	Registry(std::shared_ptr<distribution::StorageLedger>, std::span<const ConfiguredCredential>);
 	~Registry();
-	const SessionAuthorization *authenticate(std::string_view bearer) const noexcept;
-	std::optional<std::size_t> resolve(const SessionAuthorization &, const distribution::Cursor &,
-									   std::span<const std::string_view>) const noexcept;
+	const ConfiguredCredential *authenticate(std::string_view bearer) const noexcept;
 
   private:
 	struct Impl;

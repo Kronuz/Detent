@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 		const auto directory = runtime ? *runtime : detent_cli::default_runtime_dir(system);
 		const auto pid = directory / "relay.pid";
 		if (status) {
-			const auto options = detent::relay::load_host_options(config, system);
+			const auto options = detent::relay::load_host_options(config);
 			auto endpoint = options.endpoint;
 			if (endpoint.address().is_unspecified())
 				endpoint.address(endpoint.address().is_v4()
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 				return 0;
 			}
 			detent_logging::Session session(logging);
-			return detent::relay::run_host(config, system, ready);
+			return detent::relay::run_host(config, ready);
 		});
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "detent-relay: %s\n", error.what());

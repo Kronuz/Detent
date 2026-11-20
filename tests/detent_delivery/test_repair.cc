@@ -4,7 +4,6 @@
 //              the damaged generation keeps serving what it could read and never reads a wrong value;
 //   delta      a delta whose path crosses a damaged page asks for a Replace and heals, scrub disabled;
 //   unchanged  a repair at an unchanged cursor publishes; an ordinary same-cursor snapshot still does not;
-//   relay      the same unchanged repair under a relay bundle, which keeps its cache;
 //   scrub-worker  the scrub's worker hand-off at a repair and at shutdown, and a delta that lands mid-pass
 //              (scrub-carry) leaves the progress over the packs it shares.
 #include "../../src/detent_delivery/coordinator_internal.hh"
@@ -12,7 +11,6 @@
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_local/paged_layout.hh"
-#include "detent_relay/bundle.hh"
 #include "prepared_reader.hh"
 #include "scripted_upstream.hh"
 #include "leased_paged_root.hh"
@@ -147,7 +145,7 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 	check(watcher.failed_first > 0 && watcher.ok_first > 0);
 	Server server(certificates);
 	t::CoordinatorStatus final_status;
-	run_phase(certificates, store, server, {}, [&](task::asio_scheduler &scheduler, auto coordinator, auto disk, auto, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {}, [&](task::asio_scheduler &scheduler, auto coordinator, auto disk) -> task::task<void> {
 		check(explain(co_await until(scheduler, 90s, [&] { return coordinator->status().repair.completed >= 1; }), coordinator, server));
 		auto status = coordinator->status();
 		check(settled(status) && status.repair.requested >= 1 && !status.repair.pending);
@@ -223,7 +221,7 @@ void delta(const fs::path &certificates, const fs::path &root) {
 	Server server(certificates);
 	server.resume = Server::Resume::Delta;
 	t::CoordinatorStatus final_status;
-	run_phase(certificates, store, server, {.scrub_rate = 0}, [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {.scrub_rate = 0}, [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		check(explain(co_await until(scheduler, 90s, [&] { return coordinator->status().repair.completed >= 1; }), coordinator, server));
 		check(co_await until(scheduler, 30s, [&] {
 			const auto status = coordinator->status();
@@ -243,22 +241,19 @@ void delta(const fs::path &certificates, const fs::path &root) {
 }
 
 // A repair at an unchanged cursor publishes; an ordinary same-cursor snapshot does not.
-void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
+void unchanged(const fs::path &certificates, const fs::path &root) {
 	const auto store = root / "store";
 	seed(certificates, store);
 	const auto old_packs = packs_in(store);
 	const auto before = l::read_generation_selection(store).descriptor;
 	Server server(certificates);
 	server.resume = Server::Resume::Snapshot;
-	run_phase(certificates, store, server, {.scrub_rate = 0, .relay = relay},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto bundle, auto counting) -> task::task<void> {
+	run_phase(certificates, store, server, {.scrub_rate = 0},
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		// The ordinary same-cursor snapshot is checked against the state and dropped: nothing is published.
 		check(explain(co_await until(scheduler, 60s, [&] { return server.snapshots >= 1 && coordinator->status().acknowledged == cursor(); }), coordinator, server));
 		auto status = coordinator->status();
 		check(status.selected.descriptor == before && status.repair.requested == 0);
-		if (bundle)
-			check(bundle->status().ready);
-		const auto stages = counting ? counting->stages : 0;
 		// A repair request publishes the same content as a fresh generation at the same cursor.
 		t::detail::CoordinatorAccess::request_repair(*coordinator);
 		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 1; }), coordinator, server));
@@ -266,20 +261,12 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 		check(settled(status) && !status.repair.pending);
 		check(status.selected.descriptor && status.selected.descriptor->cursor == before.cursor &&
 			  status.selected.descriptor->generation != before.generation);
-		if (bundle) {
-			const auto relay_status = bundle->status();
-			check(relay_status.ready && !relay_status.fenced);
-			auto offer = bundle->offer({}, true);
-			check(offer.decision == d::CacheDecision::Update || offer.decision == d::CacheDecision::Busy);
-			// The repair at the selected cursor reached the sink as a repair and its update was not staged.
-			check(counting->repairs == 1 && counting->stages == stages);
-		}
 	});
 	Reader reader(store);
 	const auto reads = reader.read(1);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
 	check(l::read_generation_selection(store).descriptor.generation != before.generation);
-	std::cout << "unchanged" << (relay ? " (relay bundle)" : "") << ": the same-cursor snapshot published nothing; the repair published generation "
+	std::cout << "unchanged: the same-cursor snapshot published nothing; the repair published generation "
 			  << "different from the first at cursor " << before.cursor.revision << ", " << reads.ok << " reads ok\n";
 }
 void repair_reset(const fs::path &certificates, const fs::path &root) {
@@ -289,7 +276,7 @@ void repair_reset(const fs::path &certificates, const fs::path &root) {
 	fixture_epoch = 'f';
 	Server server(certificates);
 	run_phase(certificates, store, server, {.scrub_rate = 0, .reset_from = prior},
-		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		t::detail::CoordinatorAccess::request_repair(*coordinator);
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().recoverable == cursor(); }));
 		const auto status = coordinator->status();
@@ -307,7 +294,7 @@ void scrub_worker(const fs::path &certificates, const fs::path &root) {
 	Server server(certificates);
 	server.head = 2;
 	run_phase(certificates, store, server, {.workers = 2},
-		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
 		for (bool closing : {false, true}) {
 			auto pause = std::make_shared<t::detail::CoordinatorAccess::PreparedProbePause>();
@@ -372,7 +359,7 @@ void delta_clears(const fs::path &certificates, const fs::path &root) {
 	bool fired = false;
 	t::CoordinatorPhase phase_at_request{};
 	run_phase(certificates, store, server, {.scrub_rate = 0, .sink = sink},
-		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
 		auto *raw = coordinator.get();
 		sink->on_bind = [&, raw](const l::Descriptor &candidate) {
@@ -424,7 +411,7 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 	t::CoordinatorStatus first, final_status;
 	bool fired = false, fenced = true;
 	run_phase(certificates, store, server, {.scrub_rate = 0, .sink = sink},
-		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
 		auto *raw = coordinator.get();
 		t::detail::CoordinatorAccess::request_repair(*raw);
@@ -473,7 +460,7 @@ void scrub_carry(const fs::path &certificates, const fs::path &root) {
 	std::uint64_t at_swap = 0, at_end = 0, fresh_bytes = 0;
 	// A pass over the packs takes about twelve seconds; the delta lands once the first pack is done, whichever it is.
 	run_phase(certificates, store, server, {.scrub_rate = old_bytes / 12},
-		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
 		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.bytes_hashed >= largest + 65536; }),
 					  coordinator, server));
@@ -522,9 +509,7 @@ int main(int argc, char **argv) {
 		else if (mode == "delta")
 			delta(certificates, root);
 		else if (mode == "unchanged")
-			unchanged(certificates, root, false);
-		else if (mode == "relay")
-			unchanged(certificates, root, true);
+			unchanged(certificates, root);
 		else if (mode == "scrub-worker") {
 			scrub_worker(certificates, root);
 			scrub_carry(certificates, root / "carry");

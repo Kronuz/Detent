@@ -1,16 +1,10 @@
 #pragma once
-#include "detent_delivery/configuration.hh"
 #include "http_upstream.hh"
 #include "mirror_service.hh"
 #include "registry.hh"
 #include "service_limits.hh"
 
 namespace detent::relay {
-struct ConfiguredBundle {
-	delivery::ManagedOptions source;
-	std::size_t cache_bytes = 64 * 1024 * 1024;
-	std::size_t retained_edges = 64;
-};
 // W8: the namespaces this relay mirrors, its upstream, and the bytes its answers may hold.
 struct ConfiguredMirror {
 	MirrorServiceOptions service;
@@ -21,8 +15,7 @@ struct HostOptions {
 	asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), 8318};
 	std::shared_ptr<asio::ssl::context> tls_context;
 	std::string certificate_authority, hostname = "localhost";
-	std::vector<ConfiguredBundle> bundles; // version 1; none when only the mirror serves
-	std::optional<ConfiguredMirror> mirror;
+	ConfiguredMirror mirror;
 	std::vector<ConfiguredCredential> credentials;
 	std::size_t control_bytes = 64 * 1024 * 1024;
 	std::size_t baseline_bytes = 16 * 1024 * 1024;
@@ -30,6 +23,6 @@ struct HostOptions {
 	std::size_t connections = 1024;
 	ServiceLimits service_limits;
 };
-// Startup worker only; each source configuration has private credentials.
-HostOptions load_host_options(const std::filesystem::path &, bool system);
+// Startup worker only; the configuration file holds private credentials.
+HostOptions load_host_options(const std::filesystem::path &);
 } // namespace detent::relay

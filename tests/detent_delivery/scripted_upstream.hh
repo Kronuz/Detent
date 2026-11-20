@@ -6,7 +6,6 @@
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
-#include "detent_relay/bundle.hh"
 #include "leased_paged_root.hh"
 #include "prepared_reader.hh"
 #include "recovery_context.hh"
@@ -336,39 +335,8 @@ inline void check(bool value, std::source_location location = std::source_locati
 		throw std::runtime_error("scripted invariant at line " + std::to_string(location.line()));
 }
 
-// The relay bundle behind a count of what the coordinator hands the sink.
-class CountingSink final : public t::PublicationSink {
-  public:
-	explicit CountingSink(std::shared_ptr<detent::relay::Bundle> value) : bundle(std::move(value)) {}
-	void authenticated() noexcept override { bundle->authenticated(); }
-	void begin_stage(const t::ReceivedUpdate &update) override {
-		++stages;
-		bundle->begin_stage(update);
-	}
-	bool stage_step(d::WorkBudget &budget) override { return bundle->stage_step(budget); }
-	void bind_candidate(const l::Descriptor &descriptor, l::DirectoryIdentity identity) noexcept override {
-		bundle->bind_candidate(descriptor, identity);
-	}
-	bool release_stage(d::WorkBudget &budget) noexcept override { return bundle->release_stage(budget); }
-	void selected(const l::RecoveredGeneration &generation) override {
-		++selects;
-		bundle->selected(generation);
-	}
-	void selected_equivalent(const l::RecoveredGeneration &generation, const x::StateEquivalenceProof &proof) override {
-		bundle->selected_equivalent(generation, proof);
-	}
-	void selected_repaired(const l::RecoveredGeneration &generation) override {
-		++repairs;
-		bundle->selected_repaired(generation);
-	}
-	void fence() noexcept override { bundle->fence(); }
-	std::shared_ptr<detent::relay::Bundle> bundle;
-	unsigned stages = 0, selects = 0, repairs = 0;
-};
-
 struct Options {
 	std::uint64_t scrub_rate = 1'000'000'000;
-	bool relay = false;
 	bool fresh = false;
 	unsigned workers = 1;
 	std::optional<d::Cursor> reset_from;
@@ -428,20 +396,6 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	config.view_limits.mapping_account = mapping;
 	config.view_limits.retirement_domain = &domain;
 	config.scrub_bytes_per_second = options.scrub_rate;
-	auto cache_account = std::make_shared<d::StorageLedger>(root, 64ull * 1024 * 1024);
-	std::optional<d::RetirementDomain> cache_domain;
-	std::shared_ptr<detent::relay::Bundle> bundle;
-	std::shared_ptr<CountingSink> counting;
-	if (options.relay) {
-		cache_domain.emplace(runtime.domain(cache_account, 64 + 500));
-		detent::relay::BundleOptions bundle_options;
-		bundle_options.configured = cursor();
-		bundle_options.namespaces = namespaces;
-		bundle_options.incarnation.fill('r');
-		bundle = detent::relay::make_bundle(bundle_options, *cache_domain);
-		counting = std::make_shared<CountingSink>(bundle);
-		config.publication_sink = counting;
-	}
 	if (options.sink)
 		config.publication_sink = options.sink;
 	auto coordinator = t::make_coordinator(config, store, driver, domain, worker);
@@ -449,7 +403,7 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	auto observing = [&]() -> task::task<void> {
 		co_await task::when_all(coordinator->run(), [&]() -> task::task<void> {
 			try {
-				co_await observe(scheduler, coordinator, store, bundle, counting);
+				co_await observe(scheduler, coordinator, store);
 			} catch (...) {
 				coordinator->close();
 				throw;
@@ -463,12 +417,7 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	worker.join();
 	check(!server.failed);
 	check(coordinator->drained() && store->drained());
-	// The bundle's cached delta pins the cache domain until the coordinator and the sink release the bundle.
 	coordinator.reset();
-	counting.reset();
-	bundle.reset();
-	if (cache_domain)
-		cache_domain->close().wait();
 	domain.close().wait();
 }
 
