@@ -208,11 +208,14 @@ class Authority:
         producer: int,
         endpoint_port: int | None,
     ) -> tuple[int, dict[str, Any]]:
+        port = endpoint_port or self.ports[index + 3]
         connection = http.client.HTTPSConnection(
-            "localhost",
-            endpoint_port or self.ports[index + 3],
-            context=self.context,
-            timeout=5,
+            "localhost", port, context=self.context, timeout=5
+        )
+        # Dials the bound address and verifies the name: resolving localhost tries ::1 first,
+        # where a connect to a free port can reach its own socket (test_localhost_dial.py).
+        connection._create_connection = lambda _, *rest: socket.create_connection(
+            (self.address, port), *rest
         )
         try:
             headers = {"Connection": "close"}
