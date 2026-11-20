@@ -1,6 +1,6 @@
 # journal-double-damage: journal
 
-State: working
+State: waiting on jobs 261120-094322-5b34a1 261120-094325-3140b2 261120-094327-db2bf3 261120-094329-72ecca 261120-094331-af0f45
 Quest: .campaign/detent/quests/journal-double-damage.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix written in the code worktree (include/journal/turn_log.h, recovery scan only); tests committed
-first at journal:920a4f5 (on 1222e3b, fail without the fix). Running the local suite.
+Tests at journal:920a4f5 (on 1222e3b), fix at journal:cca2427 (turn_log.h recovery scan,
+CHANGELOG). Branch pushed. Locally with the fix: turn_log 60 checks, 0 failures; turn_log_power
+312 corrupted blocks, 295 doubly damaged boundaries, 2040 crash points, 0 failures.
 
 ## Next
 
-1. Commit the fix; jobs: A1 `--fails-without` at journal:920a4f5, A1/A2 at the fix head, suite.
-2. Push the branch; CI green; "ready for review".
+1. Read jobs: 5b34a1 (A1 fails without), 3140b2 (A2 fails without), db2bf3 (A1), 72ecca (A2),
+   af0f45 (suite, A3); check CI on quest/detent/journal-double-damage; then "ready for review".
 
 ## Blocked on
 
