@@ -1182,6 +1182,23 @@
         ]
       },
       "text": "reactor-tls-cache landed: unlocks frees CHANGELOG.md for reactor-abortlist-thread; frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md, CHANGELOG.md for reactor-tls-cache-bound"
+    },
+    {
+      "at": "2026-11-19T16:50:37",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-130",
+      "items": {
+        "journal-blocking-wake": "frees include/journal/turn_driver.h, test/**, CHANGELOG.md for journal-blocking-wake",
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+      },
+      "settles": {
+        "start": [
+          "journal-blocking-wake",
+          "journal-hop-on-task"
+        ]
+      },
+      "text": "journal-close-in-doubt landed: unlocks frees include/journal/turn_driver.h, test/**, CHANGELOG.md for journal-blocking-wake; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -2110,8 +2127,7 @@
       "files": [
         "include/consensus/transport/resolve.h",
         "test/transport/resolve_test.cc",
-        "docs/mechanisms/peer-dns.md",
-        "CHANGELOG.md"
+        "docs/mechanisms/peer-dns.md"
       ],
       "landed": [],
       "lenses": [],
@@ -2122,7 +2138,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "consensus resolve: emplace inside the try, exit-wait CHANGELOG, fork note",
-      "updated": "2026-11-19T05:59:13"
+      "updated": "2026-11-19T16:51:10"
     },
     "consensus-dns-peers": {
       "accepted": {
