@@ -4357,17 +4357,30 @@
         "src/CMakeLists.txt",
         "tests/detent_local/CMakeLists.txt"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T04:49:39",
+          "reason": "D135 (owner): reviews never block a landing; the review runs after it lands",
+          "risk": [
+            "normal",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk normal -> low"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: owner priority (D133, finish dense distribution within a day): overlap is only CMakeLists.txt target additions; DD2's sources are new files",
       "repo": ".",
-      "risk": "normal",
+      "risk": "low",
       "status": "active",
       "title": "Dense distribution DD2: seal-order relocation into the canonical copy",
-      "updated": "2026-11-20T04:39:28",
+      "updated": "2026-11-20T04:49:39",
       "worktree": "../Detent-wt/detent/dd2-canonical-copy"
     },
     "dd3-full-copy-pages": {
