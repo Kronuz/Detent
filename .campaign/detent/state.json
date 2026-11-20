@@ -16152,6 +16152,39 @@
       "updated": "2026-11-19T15:56:45",
       "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
+    "reactor-tls-cache-bound": {
+      "accepted": {},
+      "after": [
+        "reactor-tls-cache"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "reactor_tls.h",
+        "test/tls_test.cc",
+        "docs/mechanisms/tls-certificate-cache.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/reactor",
+      "risk": "high",
+      "status": "planned",
+      "title": "reactor: the TLS parse cache releases entries no context uses",
+      "updated": "2026-11-19T16:03:56"
+    },
     "reader-acl": {
       "accepted": {},
       "after": [],
