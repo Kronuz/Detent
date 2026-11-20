@@ -3491,8 +3491,8 @@
     "consensus-worker-release": {
       "accepted": {
         "durability": {
-          "at": "2026-11-19T21:46:45",
-          "base": "42e7bab561507d4e8f6da2501d741ab287b586ae",
+          "at": "2026-11-19T22:17:55",
+          "base": "db86af666b4cc51a65f585070aa926b2d6d0d681",
           "blobs": {
             "CHANGELOG.md": "100644:e4f3947747748def02ae1ebdcfef78ffa54fde61",
             "CMakeLists.txt": "100644:cb0175c2fe29a9dd05ab68c93b544bf616337b66",
@@ -3502,7 +3502,7 @@
             "test/driver_close_test.cc": "100644:510098d67541e2cbfefc9fdf1cd4c7343ca4bff4"
           },
           "by": "review",
-          "commit": "adf7a283c499b2e81928629f7f7d464eb0114f86",
+          "commit": "adb918fc119be1f8303912778763419fe9a2c107",
           "criteria": "64b7ba2ce8fd59c8",
           "diffs": {
             "CHANGELOG.md": "cfc5b49745c8ef1e",
@@ -3603,7 +3603,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-19T21:46:45",
+      "updated": "2026-11-19T22:17:55",
       "worktree": "../consensus-wt/detent/consensus-worker-release"
     },
     "container-selection": {
