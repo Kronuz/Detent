@@ -12,6 +12,7 @@ then each ARM boots one fresh agent, one at a time, after the relay goes quiet. 
 when its selected table reaches every namespace's position at the authority. Per agent: wall time
 to ready, socket bytes in (nettop), bytes hashed and page transfers (its log), CPU, disk bytes
 written and lifetime peak physical footprint (proc_pid_rusage), and the relay's CPU and bytes out.
+With DD_PROFILE_S=N, one more agent per arm boots under `sample` (N s, 1 ms) into its sample.txt.
 Prints one "AGENT {json}" line per agent; exits nonzero when an arm did not boot as its arm.
 """
 
@@ -20,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import ctypes
 import json
+import os
 import re
 import subprocess
 import sys
@@ -40,6 +42,8 @@ from mixed import MixedWriters
 from runtime import Actors, Evidence
 
 QUIET_LIMIT = 5.0
+# Seconds of `sample` (1 ms) over one extra agent per arm after the measured ones; 0 for none.
+PROFILE_S = int(os.environ.get("DD_PROFILE_S", "0"))
 HASHED = re.compile(r"hashed (\d+) bytes since start: (\d+) to build, (\d+) to check, (\d+) in frames")
 TRANSFERS = re.compile(r"page transfers (\d+) received \((\d+) bytes\), (\d+) refused")
 SYNCED = re.compile(r"publication synced (\d+) files")
@@ -304,6 +308,8 @@ async def run() -> list[dict[str, Any]]:
                 flush=True,
             )
             sequence = [("prime", "pages"), ("prime", "records")] + [("measured", arm) for arm in ARMS]
+            if PROFILE_S:
+                sequence += [("profiled", "pages"), ("profiled", "records")]
             for number, (role, arm) in enumerate(sequence, 1):
                 settled, settle_s = await quiet(relay)
                 label = f"{number:02d}-{arm}-"
@@ -328,6 +334,22 @@ async def run() -> list[dict[str, Any]]:
                 _, before = await bounded("relay health", authority.request(0, "/v1/health", endpoint_port=port), 10)
                 relay_before = rusage(relay)
                 relay_wire_before = nettop(relay)
+                sampler = None
+                if role == "profiled":
+                    # -wait attaches as the arm's binary launches, so the profile covers the boot.
+                    sampler = await asyncio.create_subprocess_exec(
+                        "sample",
+                        agents[arm].name,
+                        str(PROFILE_S),
+                        "1",
+                        "-wait",
+                        "-mayDie",
+                        "-file",
+                        str(directory / "sample.txt"),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await asyncio.sleep(1)
                 start_wall = time.time()
                 start = time.monotonic()
                 await bounded(f"agent {label}agent-0 to start", cohort.start(), 60)
@@ -339,6 +361,8 @@ async def run() -> list[dict[str, Any]]:
                     selection + 10,
                 )
                 ready_s = time.monotonic() - start
+                if sampler is not None:
+                    await bounded(f"sample of {label}agent-0 (pid {agent})", sampler.wait(), PROFILE_S + 60)
                 usage = rusage(agent)
                 relay_after = rusage(relay)
                 agent_wire = nettop(agent)
@@ -356,6 +380,7 @@ async def run() -> list[dict[str, Any]]:
                     "arm": arm,
                     "records": records,
                     "ready_s": ready_s,
+                    "log": [[round(t - start_wall, 3), line] for t, line in lines[:60]],
                     "published_s": synced[0] - start_wall if synced else None,
                     "relay_quiet": settled,
                     "relay_quiet_wait_s": settle_s,

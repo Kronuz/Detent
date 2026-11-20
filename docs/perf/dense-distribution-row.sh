@@ -23,3 +23,8 @@ OPENSSL_CONF=$t/tests/detent_authority/tls_ambient.cnf cmake -DOUTPUT="$f/tls-fi
 test "${PIPESTATUS[0]}" = 0
 grep -c . "$JOB_OUT/agents.jsonl"
 cat "$JOB_OUT/agents.jsonl"
+shopt -s nullglob
+samples=("$run"/*/sample.txt)
+if [ ${#samples[@]} -gt 0 ]; then
+  "$py" "$t/docs/perf/dense-distribution-profile.py" "${samples[@]}" | tee "$JOB_OUT/profile.jsonl"
+fi
