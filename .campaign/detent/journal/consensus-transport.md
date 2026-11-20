@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: working
+State: waiting on jobs 261120-104122-60d46f 261120-102517-d9c5e8 and the strict A/B jobs (095040-68a827..095143-778a7a, 100645-55c3f1..100652-5c2a3c); then A5
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,6 +14,14 @@ onto lane fetch, SIGSTOP inside a drain with a never-drain mutant, `timing` labe
 x86_64 CI runs), then transport-admission, then groups-upload-stall-cause; when the strict jobs
 finish, write group-bytes' and receive-bound's before/after rows into docs/perf/transport-idle-cost.md;
 re-run every evidence job at the final head before review.
+
+Results in: suite 261120-102515-dc5d23 at 975c51d exit 0 (every consensus_transport_ entry);
+fails-without done: hold-ignored -102022-16b298 (exit 1), rpc-no-drain -102028-2bc70b (exit 1),
+no-credit-on-refuse -100643-062f07, data-unbounded -100637-57c2d3, control-unbounded
+-100640-082b18 (134); coverage -103119-56d7ac: rule 7.6 1, pool waits reached (ticket 6, granted
+5). lane-via-other-loop -102035-9cd55a exited 139 (a dangling Link in the mutant, not the latency
+the case asserts): the mutant now hands frames to the peer's current link
+(consensus:f-commit after 06b9a76), rerun 261120-104122-60d46f.
 
 A4 at consensus:975c51d: `fetch(node, name, done)` is method 1; `RpcOptions::reader` serves it
 (D8 table). Local: rpc_host fetch: 16 MiB exact in 1.1 s beside 131 MiB of group uploads on the
