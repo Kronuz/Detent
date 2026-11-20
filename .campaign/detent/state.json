@@ -4460,19 +4460,37 @@
         "tests/detent_relay/test_page_window.cc",
         "tests/detent_delivery/test_delta_transfer.cc"
       ],
-      "landed": [],
-      "lenses": [
-        "correctness"
+      "history": [
+        {
+          "at": "2026-11-20T04:49:27",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "D135 (owner): reviews never block a landing; this quest lands on its tests, mutants, sanitizers, suite and CI, and its review runs after it lands",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens correctness removed"
+          ]
+        }
       ],
+      "landed": [],
+      "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: owner priority (D133): DD4 adds only new files; the overlap is loop-idle-waits' tests/detent_relay/** and tests/detent_delivery/** globs",
       "repo": ".",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "Dense distribution DD4: delta transfers and the pages-or-records rule",
-      "updated": "2026-11-20T04:39:35",
+      "updated": "2026-11-20T04:49:27",
       "worktree": "../Detent-wt/detent/dd4-delta-transfers"
     },
     "delta-plan-fixed-cost": {
