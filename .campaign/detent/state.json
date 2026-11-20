@@ -1321,6 +1321,25 @@
         ]
       },
       "text": "groups-upload-loop-stall landed: unlocks frees test/transport/groups_test.cc for groups-upload-stall-cause"
+    },
+    {
+      "at": "2026-11-19T22:58:17",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-139",
+      "items": {
+        "consensus-blocking-hold-loop": "consensus-blocking-hold-loop",
+        "driver-pipeline": "frees include/consensus/worker.h, include/consensus/driver.h, include/consensus/options.h, CMakeLists.txt, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "groups-upload-stall-cause": "frees test/transport/groups_test.cc for groups-upload-stall-cause"
+      },
+      "settles": {
+        "start": [
+          "consensus-blocking-hold-loop",
+          "driver-pipeline",
+          "groups-upload-stall-cause"
+        ]
+      },
+      "text": "consensus-worker-release landed: unlocks consensus-blocking-hold-loop; frees include/consensus/worker.h, include/consensus/driver.h, include/consensus/options.h, CMakeLists.txt, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -2310,18 +2329,46 @@
         "docs/mechanisms/peer-dns.md",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-dns-notes",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T23:27:01",
+          "commit": "a8e867bb01b6767b3180d3751469bb600212ed90",
+          "criteria": {
+            "A1": "261119-185923-ea9df4 (passed at 452d3b0b39be; only merges from main since); fails without: 261119-165312-91a81d, 261119-185934-15dd4a",
+            "A2": "[artifact] `docs/mechanisms/peer-dns.md` (exit wait: \"A stuck getaddrinfo delays exit...\", and the new fork paragraph, b3576ab); CHANGELOG.md (2026-11-19: a Fixed line for the start fix, a Changed line for exit-wait and fork; a8e867b)",
+            "A3": "261119-185944-c665b8 (passed at 452d3b0b39be; only merges from main since), 261119-185946-1b0e41 (passed at 452d3b0b39be; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "452d3b0b39be4f7a188f055f1ec9c1f017dbabda",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-185944-c665b8",
+              "level": "light",
+              "seconds": 343.1,
+              "state": "done",
+              "what": "consensus-dns-notes check suite at 452d3b0b39be"
+            }
+          ],
+          "final": true,
+          "from": "adb918fc119be1f8303912778763419fe9a2c107",
+          "reason": "",
+          "tested": "a8e867bb01b6767b3180d3751469bb600212ed90"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus resolve: emplace inside the try, exit-wait CHANGELOG, fork note",
-      "updated": "2026-11-19T22:58:44",
-      "worktree": "../consensus-wt/detent/consensus-dns-notes"
+      "updated": "2026-11-19T23:27:20",
+      "worktree": ""
     },
     "consensus-dns-peers": {
       "accepted": {
