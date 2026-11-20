@@ -21511,11 +21511,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into consensus-transport as a task (one feature per quest, owner msg-145/147)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "dropped",
       "title": "consensus host transport: bound a receiver's per-loop batches",
-      "updated": "2026-11-19T05:59:10"
+      "updated": "2026-11-20T06:55:48"
     },
     "turn-seal-forget-flake": {
       "accepted": {},
