@@ -3813,7 +3813,7 @@
         "xapiand:consensus-hello-limits",
         "groups-upload-loop-stall"
       ],
-      "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
+      "base": "e1f249d8d9ff64410f87042ba90f4c218d9ec336",
       "branch": "quest/detent/consensus-transport",
       "checks": [
         {
@@ -3845,7 +3845,7 @@
         "include/consensus/transport/host_transport.h",
         "test/transport/groups_test.cc"
       ],
-      "journal": "",
+      "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
         "security",
@@ -3860,12 +3860,13 @@
       "provides": [
         "consensus:transport"
       ],
+      "reason": "started by force: Xapiand blocks on both; consensus-quiescence works in Core first (A1, A3, A5, A6) and adds its per-pair detector on the transport after this lands; both merge main",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-20T06:55:44",
-      "worktree": ""
+      "updated": "2026-11-20T09:02:51",
+      "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-wave-open": {
       "accepted": {
