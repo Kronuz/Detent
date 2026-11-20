@@ -1,6 +1,6 @@
 # journal-idle-groups: journal
 
-State: waiting on jobs 261120-090240-a27b5a 261120-090241-b0ccee 261120-090244-85f26d 261120-090247-44cc33 261120-090249-51170f 261120-090252-5f0ac1 261120-090255-807b5e
+State: waiting on jobs 261120-090241-b0ccee 261120-090255-807b5e
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -11,7 +11,9 @@ mutants A3). The same set passed at journal:b55e34d except the suite, whose thre
 
 ## Next
 
-1. Paste the jobs into Evidence; push CI; set State to ready for review (one review, D135).
+1. When A2 (1M) and park-keeps-log finish: confirm, check CI on quest/detent/journal-idle-groups, set State to ready for review (one review, D135).
+
+Done at 7b64376: suite 261120-090240-a27b5a passed; A3 261120-090244-85f26d passed; mutants parked-as-open, wake-skips-commit, create-with-block killed.
 
 ## Blocked on
 
