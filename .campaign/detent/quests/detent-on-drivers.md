@@ -10,7 +10,7 @@ Detent's authority runs on the drivers, per `docs/design/async-drivers.md` (Dete
 ## Acceptance criteria
 
 - A1 The owner-loop table and `AuthorityPeers` run on the drivers and the host transport, and the authority has no 1 ms timer: the native suite, a grep job and an idle-CPU job
-- A2 CPU per request and p99 stay within the November 2 item 7 gate: before/after exclusive jobs at named commits
+- A2 CPU per request and p99 stay within the November 2 item 7 gate: before/after strict jobs at named commits (D135: strict, not exclusive)
 - A3 The pins check passes with journal and consensus at their driver commits: the pins check
 
 ## Contracts

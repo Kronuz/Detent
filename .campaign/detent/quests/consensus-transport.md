@@ -31,3 +31,11 @@ Tests; the transport is additive beside Peers.
 ## Notes
 
 Re-planned 2026-11-19 from the untracked-commitment audit (U1): dropped 2026-11-17 (Detent:7487ddec) to re-plan once its split quests landed, and they have. On consensus main `rpc.h` is included by no production header and `host_transport.h` has no lane. A6's N2 is verified open: `rpc.h:386` `send` accepts bytes past a known total. consensus-fetch-macos's F13, F16 and F19 fold in here (D102). consensus-quiescence and detent-on-drivers wait on it, and Xapiand's consensus-rpc-lane orders after `detent:consensus-transport`.
+
+## Folded tasks (one feature, owner msg-145/147)
+
+This quest is one feature; each former quest below is a task, its file kept as the task's spec and its criteria folded into this quest's:
+- `transport-admission`: .campaign/detent/quests/transport-admission.md
+- `transport-group-bytes`: .campaign/detent/quests/transport-group-bytes.md
+- `transport-receive-bound`: .campaign/detent/quests/transport-receive-bound.md
+- `groups-upload-stall-cause`: .campaign/detent/quests/groups-upload-stall-cause.md

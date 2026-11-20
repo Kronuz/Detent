@@ -9,7 +9,7 @@ dense-sync-stack lands on 100K exclusive times and 5M counts measured under ligh
 
 ## Acceptance criteria
 
-- A1 [manual] Each 5M arm ran `exclusive` at its named commit; the lead checks the ids against `campaign job list`.
+- A1 [manual] Each 5M arm ran `strict` at its named commit; the lead checks the ids against `campaign job list`. (D135: strict, not exclusive)
 - A2 [artifact] The 5M times beside the 100K table: `docs/perf/dense-sync-stack.md`
 
 ## Notes
