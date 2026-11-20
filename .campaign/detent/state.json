@@ -9143,6 +9143,8 @@
     "journal-double-damage": {
       "accepted": {},
       "after": [],
+      "base": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+      "branch": "quest/detent/journal-double-damage",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -9158,6 +9160,7 @@
         "test/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-double-damage",
       "landed": [],
       "lenses": [
         "correctness"
@@ -9165,11 +9168,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: a pre-existing silent-loss fix on journal main that lands alone and first; journal-idle-groups touches tables and parking, this touches the block scan, and idle-groups merges main after it",
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Recovery reports, never drops: a damaged block followed by a damaged header loses acknowledged records silently",
-      "updated": "2026-11-20T09:10:12"
+      "updated": "2026-11-20T09:10:33",
+      "worktree": "../journal-wt/detent/journal-double-damage"
     },
     "journal-driver": {
       "accepted": {
