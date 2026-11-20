@@ -2097,13 +2097,15 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-worker-release"
+      ],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
       "status": "planned",
       "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
-      "updated": "2026-11-19T18:04:31"
+      "updated": "2026-11-19T18:08:09"
     },
     "consensus-close-fenced": {
       "accepted": {
