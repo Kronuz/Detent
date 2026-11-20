@@ -1233,6 +1233,25 @@
         ]
       },
       "text": "set consensus-late-append-tests: unlocks frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T16:56:53",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-133",
+      "items": {
+        "consensus-late-append-tests": "frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests",
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task",
+        "reactor-tls-cache-bound": "frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md for reactor-tls-cache-bound"
+      },
+      "settles": {
+        "start": [
+          "consensus-late-append-tests",
+          "journal-hop-on-task",
+          "reactor-tls-cache-bound"
+        ]
+      },
+      "text": "set reactor-tls-cache-bound: unlocks frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md for reactor-tls-cache-bound; frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -16098,20 +16117,54 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/prism-server-composition",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T17:15:05",
+          "commit": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+          "criteria": {
+            "A1": "`ARCHITECTURE.md` \"How `main` is put together\" at prism:cf3b651, deviations naming prism-server-composition-limits",
+            "A2": "261119-155135-0d9393 (passed at cf3b65174cfd; only merges from main since); fails without: 261119-150116-cb39e6, 261119-155137-da8de7, 261119-155139-d94e2b",
+            "A3": "261119-155134-1b2ec6 (passed at cf3b65174cfd; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
+              "commit": "cf3b65174cfd55a5d1be441f2df526c902183f4c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-155134-1b2ec6",
+              "level": "light",
+              "seconds": 36.4,
+              "state": "done",
+              "what": "prism-server-composition check build at cf3b65174cfd"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "468729bfd88f6b212fa638aa4e5de6ca0d562b5c",
+          "reason": "",
+          "tested": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/prism",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T17:14:35",
-      "worktree": "../prism-wt/detent/prism-server-composition"
+      "updated": "2026-11-19T17:15:14",
+      "worktree": ""
     },
     "prism-server-composition-limits": {
       "accepted": {},
