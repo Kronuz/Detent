@@ -4442,11 +4442,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Dense distribution DD3: the full copy ships as pages",
-      "updated": "2026-11-20T04:49:25",
+      "updated": "2026-11-20T04:57:32",
       "worktree": "../Detent-wt/detent/dd3-full-copy-pages"
     },
     "dd4-delta-transfers": {
