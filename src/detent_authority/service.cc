@@ -2753,9 +2753,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 				}
 				// The cutover's enabling entry, proposed by the leader as it leads: every consumer is a W5
-				// session, which a follower answers only once positions are enabled.
-				if (node.worker().role() == kronuz::consensus::Role::Leader &&
-					!node.state().positions_enabled() && now >= enabling_at) {
+				// session, which a follower answers only once positions are enabled. A durable leader waits
+				// for its history, which cuts the entry's seal 0.
+				if (node.worker().role() == kronuz::consensus::Role::Leader && (!node.history() ||
+					node.history()->ready()) && !node.state().positions_enabled() && now >= enabling_at) {
 					enabling_at = now + std::chrono::seconds(1);
 					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
 												 {}, {}};

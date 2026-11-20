@@ -182,48 +182,9 @@ int main(int argc, char **argv) {
 				}
 				check(elected);
 			}
-			for (bool compressed : {false, true}) {
-				const auto response =
-					request(endpoint, cert, "/v2/distribution",
-							"{" + common + "\"coding\":\"" + (compressed ? "zstd" : "raw") + "\"}", token);
-				auto bytes = decoded(response, d::UpdateKind::Snapshot, compressed);
-				cursor.revision = std::stoull(response.headers.at("X-Detent-Revision"));
-				d::SnapshotDecoder decoder(cursor, {"ns"});
-				auto input = std::span<const char>(bytes.data(), bytes.size());
-				while (!input.empty()) {
-					d::WorkBudget work;
-					decoder.feed(input, work);
-				}
-				auto snapshot = decoder.finish();
-				check(snapshot.records().size() == 1);
-			}
-			auto response = request(endpoint, cert, "/v2/distribution",
-									"{" + common + base(0) + "\"coding\":\"raw\"}", token);
-			// The ring is refilled by replay, so a restart loses no cursor (D6).
-			decoded(response, d::UpdateKind::Delta, false);
-			if (!run) {
-				check(call("/v2/transactions",
-						   "\"generation\":1,\"sequence\":2,\"namespace\":\"secret\",\"operations\":[{"
-						   "\"key\":\"secret:a\",\"value\":{\"default\":99}}]")
-						  .status == 200);
-				response = request(endpoint, cert, "/v2/distribution",
-								   "{" + common + base(1) + "\"coding\":\"raw\"}", token);
-				auto bytes = decoded(response, d::UpdateKind::Progress, false);
-				d::DeltaDecoder decoder(cursor, {"ns"}, {}, d::UpdateKind::Progress);
-				auto input = std::span<const char>(bytes.data(), bytes.size());
-				while (!input.empty()) {
-					d::WorkBudget work;
-					decoder.feed(input, work);
-				}
-				check(decoder.finish().target().revision == 2);
-			}
-			response = request(endpoint, cert, "/v2/distribution",
-							   "{" + common + base(2) + "\"coding\":\"raw\"}", token);
-			decoded(response, d::UpdateKind::Snapshot, false);
-			check(request(endpoint, cert, "/v2/distribution",
-						  "{" + common + "\"coding\":\"raw\",\"profile\":1}", token)
-					  .status == 400);
 #ifdef DETENT_TEST_MANAGED_DELIVERY
+			// W5 first: its next answers once the leader enabled positions, so the v1 requests below
+			// never race the enabling entry.
 			auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 			reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
 											 reactor::tls::Role::Client);
@@ -287,6 +248,43 @@ int main(int argc, char **argv) {
 				check(account->used() == 0);
 			}
 #endif
+			for (bool compressed : {false, true}) {
+				const auto response =
+					request(endpoint, cert, "/v2/distribution",
+							"{" + common + "\"coding\":\"" + (compressed ? "zstd" : "raw") + "\"}", token);
+				auto bytes = decoded(response, d::UpdateKind::Snapshot, compressed);
+				cursor.revision = std::stoull(response.headers.at("X-Detent-Revision"));
+				d::SnapshotDecoder decoder(cursor, {"ns"});
+				auto input = std::span<const char>(bytes.data(), bytes.size());
+				while (!input.empty()) {
+					d::WorkBudget work;
+					decoder.feed(input, work);
+				}
+				auto snapshot = decoder.finish();
+				check(snapshot.records().size() == 1);
+			}
+			auto response = request(endpoint, cert, "/v2/distribution",
+									"{" + common + base(0) + "\"coding\":\"raw\"}", token);
+			// Past the enabling entry, replay refills no v1 ring: a restart answers a v1 base with a
+			// snapshot. W5 sessions carry their cursors across restarts instead.
+			decoded(response, run ? d::UpdateKind::Snapshot : d::UpdateKind::Delta, false);
+			if (!run) {
+				check(call("/v2/transactions",
+						   "\"generation\":1,\"sequence\":2,\"namespace\":\"secret\",\"operations\":[{"
+						   "\"key\":\"secret:a\",\"value\":{\"default\":99}}]")
+						  .status == 200);
+				// Positions are enabled (the W5 check above): a v1 base before the enabling entry is
+				// answered with a snapshot.
+				response = request(endpoint, cert, "/v2/distribution",
+								   "{" + common + base(1) + "\"coding\":\"raw\"}", token);
+				decoded(response, d::UpdateKind::Snapshot, false);
+			}
+			response = request(endpoint, cert, "/v2/distribution",
+							   "{" + common + base(2) + "\"coding\":\"raw\"}", token);
+			decoded(response, d::UpdateKind::Snapshot, false);
+			check(request(endpoint, cert, "/v2/distribution",
+						  "{" + common + "\"coding\":\"raw\",\"profile\":1}", token)
+					  .status == 400);
 			server.stop();
 		}
 		std::filesystem::remove_all(directory);
