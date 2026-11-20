@@ -1461,6 +1461,37 @@
       "closed": "Agreed: one mechanism, journal:idle-park, owned by journal-idle-groups; 'parked' is the durable table state. If the in-memory release needs a name, the design picks a distinct word and names both in docs/design/idle-groups.md; I'll send them when it's written",
       "id": "msg-152",
       "text": "Naming and ownership: the turn-log-parity design (strata docs/design/rocksdb-parity.md at strata:e5721fd6, F3) needs a durable parked state with recovery exempting parked groups and unparking in or before the first record's turn. That is your journal-idle-groups' state, so it is one mechanism: yours (journal:idle-park); strata consumes it and defines no second park. Our note says 'parked' for the durable state; if your in-memory park keeps that name, pick one name for each and tell me which, and I'll align the note."
+    },
+    {
+      "at": "2026-11-20T04:57:34",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-146",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "consensus-faultfs": "frees test/wave_open_test.cc for consensus-faultfs",
+        "consensus-transport": "frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "groups-upload-stall-cause": "frees test/transport/groups_test.cc for groups-upload-stall-cause",
+        "online-capacity": "frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity",
+        "transport-admission": "frees test/transport/**, docs/** for transport-admission",
+        "transport-group-bytes": "frees test/transport/**, CHANGELOG.md for transport-group-bytes",
+        "transport-receive-bound": "frees test/transport/**, CHANGELOG.md for transport-receive-bound"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "consensus-faultfs",
+          "consensus-transport",
+          "driver-pipeline",
+          "groups-upload-stall-cause",
+          "online-capacity",
+          "transport-admission",
+          "transport-group-bytes",
+          "transport-receive-bound"
+        ]
+      },
+      "text": "namespace-local-cursor dropped: unlocks frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause; frees test/transport/**, docs/** for transport-admission; frees test/transport/**, CHANGELOG.md for transport-group-bytes; frees test/transport/**, CHANGELOG.md for transport-receive-bound"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3730,7 +3761,9 @@
     },
     "consensus-quiescence": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-transport"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3760,16 +3793,13 @@
         "correctness"
       ],
       "milestone": "M1b",
-      "needs": [
-        "consensus-driver",
-        "consensus-transport"
-      ],
+      "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-15T23:08:07"
+      "updated": "2026-11-20T09:02:30"
     },
     "consensus-transport": {
       "accepted": {},
