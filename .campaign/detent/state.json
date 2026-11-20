@@ -16222,19 +16222,38 @@
         "test/session_test.cc",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T17:03:53",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "the premise does not hold: task's final_awaiter already returns a cross-loop session home, so untrack runs on the owning loop (100 of 100 instrumented). The quest now adds only a regression test with a task-side mutant and a comment, no product change",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens correctness removed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/reactor-abortlist-thread",
       "landed": [],
-      "lenses": [
-        "correctness"
-      ],
+      "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "reactor: a session ending on another loop untracks on the owning loop",
-      "updated": "2026-11-19T16:39:35",
+      "updated": "2026-11-19T17:03:53",
       "worktree": "../reactor-wt/detent/reactor-abortlist-thread"
     },
     "reactor-on-wheel": {
