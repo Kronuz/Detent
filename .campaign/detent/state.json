@@ -5030,6 +5030,8 @@
     "dense-distribution-build": {
       "accepted": {},
       "after": [],
+      "base": "7173c37c31f4427c636308338c86816b7c329c42",
+      "branch": "quest/detent/dense-distribution-build",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5055,11 +5057,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: owner msg-145: one whole-feature quest built today; overlaps are broad globs where other active quests edit other regions, and each merges main",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T04:57:28"
+      "updated": "2026-11-20T04:57:40",
+      "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
       "accepted": {},
