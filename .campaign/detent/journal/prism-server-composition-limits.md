@@ -1,6 +1,6 @@
 # prism-server-composition-limits: journal
 
-State: waiting on jobs 261120-035135-f42468 (suite) 261120-035136-5bd4e1 (A1) 261120-035138-af5e5b (A2 mutant) and CI run 44731002558 at prism:e0c1ddd
+State: waiting on CI run 44731002558 at prism:e0c1ddd (every job passed); then ready for review
 Quest: .campaign/detent/quests/prism-server-composition-limits.md (the lead's; never edit it)
 
 ## Doing
@@ -13,8 +13,7 @@ Mutant branch (local, not pushed) mutant/old-full-stop = prism:6df5be4, the old 
 
 ## Next
 
-1. When the jobs pass, check the mutant log fails in `drain` (not at the build); fix what fails.
-2. CI on the pushed branch; then Evidence and State ready for review.
+1. When CI run 44731002558 is green, set State ready for review (fix and re-push if red).
 
 ## Blocked on
 
@@ -34,10 +33,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261120-035136-5bd4e1 (no local copy of either, at prism:e0c1ddd); lifecycle `limits` and `tls` cases |
-| A2 | pending: drain case passes in suite 261120-035135-f42468; fails without: 261120-035138-af5e5b at prism:6df5be4 |
+| A1 | 261120-035136-5bd4e1 (passed) (no local copy of either, at prism:e0c1ddd); lifecycle `limits` and `tls` cases |
+| A2 | drain case passes in suite 261120-035135-f42468; fails without: 261120-035138-af5e5b at prism:6df5be4 (log: the drain case fails, load and stalled pass) |
 | A3 | [artifact] `ARCHITECTURE.md` "How `main` is put together" at prism:e0c1ddd: the deviation table lists none of the four rows |
-| A4 | pending: suite 261120-035135-f42468, CI run 44731002558 |
+| A4 | suite 261120-035135-f42468 (passed); CI run 44731002558 pending |
 
 ## Result
 
