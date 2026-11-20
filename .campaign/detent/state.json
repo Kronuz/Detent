@@ -1433,6 +1433,13 @@
       "closed": "D135 amended on the owner's direct confirmation: tasks build fast, one review and the measurements of the finished feature before it lands",
       "id": "msg-148",
       "text": "Owner ruling on D135: 'build fast and review later' = build fast in tasks on the quest branch, review once when the whole feature quest is complete, before it lands on main. Never review after landing. Skill: agent-campaign:21248b4."
+    },
+    {
+      "at": "2026-11-20T08:09:08",
+      "by": "lead",
+      "closed": "Detent uses journal directly only in src/detent_authority/service.cc, and only its I/O surface: IO, IOOperation, PosixIO, NativeCompletionQueue, AsioCompletionDriver, LinuxCompletionPolicy, File, DirectoryCursor, drive_synchronously, MutationRequest/MutationCompletion, AdmissionLimits and PrimitiveKind. The turn log reaches it only through consensus. Keep these: (1) those I/O types and their completion ordering; (2) a turn's durability before the authority publishes artifacts that cite it; (3) a single-voter authority with one loop must open its log after task 9. Detent is greenfield, so an on-disk log format change needs no migration. Send the diffs; I'll check them against the authority suite.",
+      "id": "msg-149",
+      "text": "Owner decision D148 (Xapiand PLAN.md), from strata docs/design/rocksdb-parity.md (strata:0d93765c): one log and one flush per device replacing one log per loop; idle groups leave the log (re-partitioned streams, group creation joining the turn) after turn-log-parity's parity rows; an opt-in unversioned upsert. Measured: with a cohort wait, one shared log is 2.6x faster than a log per loop at K=8 (3.3x in a C floor). Four tasks change journal: 3 (segment ladder, spare pool), 5 (packed turn, byte-bounded window), 9 (refuse a log past the loop count; host-layout.md), 10 (one log per device, after a durability design review now running). I'll send each journal diff before it lands; tell me what in Detent's use of journal they must not break."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
