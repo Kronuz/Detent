@@ -8549,7 +8549,36 @@
       "worktree": ""
     },
     "journal-hop-on-task": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T19:06:44",
+          "base": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+          "blobs": {
+            "CHANGELOG.md": "100644:5d404492c4cd0bee0fec6b8d4065893006c3c939",
+            "docs/mechanisms/turn-seal.md": "100644:6a6dee329479d73994c9e7b47fe037a661cae991",
+            "include/journal/turn_driver.h": "100644:877334dfd686593fc5b700b06929e81a9ee70198",
+            "test/driver_test.cc": "100644:37c6ba1e1518333d3262ac21e2cd173f8af02d9f",
+            "test/mutants.py": "100644:c1154ecbde0e51342127d7fe1ed06052d9493898",
+            "test/turn_seal_mutants.sh": "100644:3dbb7e8f57a6b9e5fb5b1b381e417b0be0ac5c70"
+          },
+          "by": "review",
+          "commit": "485cd23dfc960661d522d9be15b11eac80221a05",
+          "criteria": "e1b2fe3076238983",
+          "diffs": {
+            "CHANGELOG.md": "12aaa41772318000",
+            "docs/mechanisms/turn-seal.md": "ce6ecdefbb28cf2b",
+            "include/journal/turn_driver.h": "fa1af81854a6b218",
+            "test/driver_test.cc": "f0112f80282a5eb8",
+            "test/mutants.py": "4f791ae12da5d6bb",
+            "test/turn_seal_mutants.sh": "65baf5a7c037cff4"
+          },
+          "findings": {},
+          "note": "",
+          "review": "bd115a32117a95c4c743384a5a6c5edf7ca27df0",
+          "reviewed": "485cd23dfc960661d522d9be15b11eac80221a05",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-blocking-wake"
       ],
@@ -8588,7 +8617,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal turn driver: fallback hop on a task primitive",
-      "updated": "2026-11-19T18:07:45",
+      "updated": "2026-11-19T19:06:44",
       "worktree": "../journal-wt/detent/journal-hop-on-task"
     },
     "journal-host-guards": {
