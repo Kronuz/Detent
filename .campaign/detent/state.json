@@ -6997,8 +6997,8 @@
     "http-drop-user-data": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T15:58:03",
-          "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+          "at": "2026-11-19T18:31:18",
+          "base": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc",
           "blobs": {
             "AGENTS.md": "100644:ddaa305d2d466b473dd18eddb07ed217728fe2e5",
             "ARCHITECTURE.md": "100644:c29b11a401ccf0cb301034e98d2749f2901f8560",
@@ -7016,14 +7016,14 @@
             "http_message.h": "100644:8b5eba250b9b239772fa2495faccac27ee21334b",
             "http_request_parser.h": "100644:70f518cb455eb7a8d46bc9160b07b19647f38b3f",
             "test/asio_test.cc": "100644:aba74cfde8262af2a4c17a4ee366abc1a17254b6",
-            "test/coroutine_test.cc": "100644:be37ae827872c2ab3c739d91afe7b4429c03fb37",
+            "test/coroutine_test.cc": "100644:d94bc69330ed17dfcbf8b9877d002497abd362f3",
             "test/deferred_asio_test.cc": "deleted",
             "test/deferred_test.cc": "100644:86ec882338d16c610342fc1012166a505a0c65c3",
             "test/readahead_test.cc": "100644:7ec20e28081ea001e498ee6b4764d27bde357d31",
             "test/timeouts_test.cc": "100644:67cb0146d37b520bcd5e21e3e6d29bae04c435d9"
           },
           "by": "review",
-          "commit": "054970910c65dec41f6788df960290d2df46514d",
+          "commit": "35116b04deca7c35072e8b87922e496870fc280f",
           "criteria": "587f1f7d123c6781",
           "diffs": {
             "AGENTS.md": "a358312d4dbdcacd",
@@ -7053,14 +7053,14 @@
               "jobs": [
                 {
                   "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
-                  "commit": "054970910c65dec41f6788df960290d2df46514d",
+                  "commit": "35116b04deca7c35072e8b87922e496870fc280f",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261119-154010-049d80",
+                  "job": "261119-171647-04581a",
                   "level": "light",
-                  "seconds": 166.9,
+                  "seconds": 74.5,
                   "state": "done",
-                  "what": "http-drop-user-data check suite at 054970910c65"
+                  "what": "http-drop-user-data check suite at 35116b04deca"
                 }
               ],
               "kind": "defect",
@@ -7119,7 +7119,7 @@
       "risk": "high",
       "status": "review",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T15:58:03",
+      "updated": "2026-11-19T18:31:18",
       "worktree": "../http-wt/detent/http-drop-user-data"
     },
     "http-idle-cost": {
