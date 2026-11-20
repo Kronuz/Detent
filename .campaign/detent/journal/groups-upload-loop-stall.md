@@ -95,7 +95,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [manual] Probe 4, run 44671627878 (consensus:596df12 = d7b49a1 plus the forced 1.3 s hold; never lands), macos-15-intel. Header line: `upload: kernel build 24G830 uuid F6A1B3D4-1EBB-3628-A1C5-89506C51DDEC base 0xffffff80002e8000 slide 0xe8000 unslid __TEXT 0xffffff8000200000`; kernel frames raw (`*298 kernel + 0x1300a0 [0xffffff80004180a0]`, `kernel + 0x81db6`); user frames symbolicated (`__semwait_signal`, `sleep_for`, `Connection::flush`) |
+| A1 | [manual] Probe 4, run 44671627878 (consensus:596df12 = d7b49a1 plus the forced 1.3 s hold; never lands), macos-15-intel. Header line: `upload: kernel build 24G830 uuid F6A1B3D4-1EBB-3628-A1C5-89506C51DDEC base 0xffffff80002e8000 slide 0xe8000 unslid __TEXT 0xffffff8000200000`; kernel frames raw (`*298 kernel + 0x1300a0 [0xffffff80004180a0]`, `kernel + 0x81db6`); user frames symbolicated in the run's artifact report (`298  __semwait_signal + 10 (libsystem_kernel.dylib + 13762) [0x7ff8183f15c2]`) |
 | A3 | suite 261119-200137-1dd882; CI run 44671575494 at d7b49a1 (green) |
 
 ## Result
