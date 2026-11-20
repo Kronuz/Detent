@@ -7775,11 +7775,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into consensus-transport as a task (one feature per quest, owner msg-145/147)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "dropped",
       "title": "groups_upload loop stall on macos-x86_64: name the cause from a captured CI failure, then fix or bound it",
-      "updated": "2026-11-20T00:19:37"
+      "updated": "2026-11-20T06:55:50"
     },
     "hash-once": {
       "accepted": {},
