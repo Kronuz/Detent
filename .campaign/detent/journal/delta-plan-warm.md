@@ -1,6 +1,6 @@
 # delta-plan-warm: journal
 
-State: waiting on jobs 261119-153419-124e73 261119-153422-107aa3 261119-153424-6e0a4a 261119-153426-bc9994
+State: ready for review
 Quest: .campaign/detent/quests/delta-plan-warm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Chain at Detent:39155f00 passed (build 021ba5, prepare 500K fa3505, 5M eb759c, smoke acabbc). Smoke, 500K f 0.05
-uniform, one process: plan A cold 2.012 s (CPU 1.724), A again on the same mapping 1.405 s (1.396), B (seed 1010)
-1.547 s (1.512): warm same 30% less, other delta 23% less. Exclusive rounds submitted `--for A1` (10 min each):
-500K rounds 1-5 (arms 0.05 c0.05 0.5) 261119-153419-124e73; 5M rounds 1, 2, 3 (same arms) 261119-153422-107aa3,
-261119-153424-6e0a4a, 261119-153426-bc9994. Odd rounds plan AAB, even BBA.
+Done: results in docs/perf/delta-plan-scaling.md "A warm second plan on one mapping".
 
 ## Next
 
-1. Read the rounds (median per role per arm, ranges), write "A warm second plan" into
-   docs/perf/delta-plan-scaling.md at the named commit, fill the Evidence rows, ready for review.
+1. Review.
 
 ## Blocked on
 
@@ -26,20 +21,26 @@ uniform, one process: plan A cold 2.012 s (CPU 1.724), A again on the same mappi
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | Exclusive `--for A1` rounds at Detent:f6145feb (harness Detent:39155f00): 500K 261119-153419-124e73 (5 rounds), 5M 261119-153422-107aa3, 261119-153424-6e0a4a, 261119-153426-bc9994. Warm same delta over cold, wall: 500K 0.667/0.804/0.781 (uniform 0.05, 0.5, clustered 0.05), 5M 0.660/0.760/0.790. Smoke 261119-152539-acabbc. |
+| A2 | `docs/perf/delta-plan-scaling.md`, "A warm second plan on one mapping". |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+A second delta plan on a mapping the first plan touched takes 0.66 of the cold wall time at 0.05 uniform (5M:
+12.10 s to 8.14 s, CPU 10.11 s to 8.14 s; 500K: 1.110 s to 0.735 s), 0.76-0.80 at 0.5 (5M 24.73 s to 19.45 s)
+and 0.78-0.79 clustered, at both sizes, with non-overlapping ranges. The 5M cold plan spends about 2.1 s of
+wall time outside the CPU (faults), which the warm plan does not. A different uniform delta on the warm
+mapping plans like the same one. Open: a first plan after a reboot (cold OS cache) is not measured; the
+bitmap cannot be separated from the process's warm state. No source changed; the harness is tests only.
 
 ## Rulings I made
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
+- The harness lives under the file set's `tests/detent_local/test_delta_plan_scaling_warm.*` and includes
+  docs/perf/namespace-measure-t9.cc as a unit (main renamed), instead of editing the T9 harness; it is not
+  registered with ctest.
+- 500K corpus derived from the 5M one (local number below 500,000), as the 1M one was.
+- Rounds: 5 at 500K, 3 at 5M (10-minute cap per exclusive job); exclusive jobs ran alone (no `ran beside` line).
+- The clustered "different delta" is omitted from the table: A and B rewrite different bytes (12 and 6 MB).
