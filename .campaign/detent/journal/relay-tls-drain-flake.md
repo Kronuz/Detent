@@ -15,7 +15,10 @@ Waiting on the reproduction and fix jobs, the suite (`campaign verify`) and CI.
 
 ## Blocked on
 
-Nothing. For the lead (outside this file set, same mechanism, not changed): HTTPSConnection("localhost", port)
+The lead: the file set is tests/system/**, which does not exist; `campaign status` flags the
+changes in tests/detent_system/** as outside it. Widen it to tests/detent_system/** (recommended).
+
+For the lead (outside this file set, same mechanism, not changed): HTTPSConnection("localhost", port)
 to 127.0.0.1-only daemons in tests/detent_authority/test_lost_quorum.py:39,
 tests/detent_authority/test_multivoter.py:72 and :297, tests/detent_relay/test_relay_service.py:112 and :345;
 tests/docs/run_e2e.py:385 (urllib to https://localhost). Each can fail the same way, about 1 call in 16k
