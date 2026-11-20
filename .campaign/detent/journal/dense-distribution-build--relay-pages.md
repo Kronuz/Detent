@@ -1,6 +1,6 @@
 # dense-distribution-build--relay-pages: journal
 
-State: working
+State: waiting on jobs 261120-100907-db593b
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 The relay's half of DD3: it builds from the records it mirrors and answers W5 sessions that ask
@@ -8,11 +8,12 @@ for pages with pages frames (full copies, and D6 deltas over its page window).
 
 ## Doing
 
-Building and running tests/detent_relay/test_relay_pages.cc (local build in .scratch/build).
+Job 261120-100907-db593b: the relay, page window, session frames and transfer tests at
+Detent:59350f3e. Local run of test_relay_pages passed (output below).
 
 ## Next
 
-1. Green test_relay_pages and the relay suite as jobs; push.
+1. When the job is green: State "ready for review" (the lead merges into the quest branch).
 
 ## Open-field contract (for agent-pages and the lead)
 
@@ -68,7 +69,20 @@ sets them.
 
 ## Result
 
-<none yet>
+Relay side of DD3 at Detent:59350f3e (src/detent_relay/page_copy.{hh,cc}, namespace_relay.cc,
+mirror_service.cc; tests/detent_relay/test_relay_pages.cc). Local run, 3,000-key namespace:
+
+- Full copy: 30 pages, 1 pack, 73,616 transfer bytes; DD1's receiver reproduces the relay's build
+  root and pack byte for byte under the agent's derived ids; a second cold reader reuses the one
+  build; records answers are byte-identical to a relay that never built.
+- D6: 5 scattered keys go as records (pages 16,346 B raw against 191 B records: rule 1); a
+  rewrite of all 3,000 keys goes as pages (20,531 B against 21,951 B as sent). A base outside the
+  window keeps records.
+- The mirror refuses an upstream pages frame without a retry.
+
+Open: builds run on the mirror thread, so a large namespace's build (seconds at 5M) stalls that
+relay's other answers while it runs; building off-thread is a follow-up. The open fields need the
+parser change under Blocked on before any HTTP session asks for pages.
 
 ## Rulings I made
 
