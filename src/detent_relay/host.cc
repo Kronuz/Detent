@@ -64,6 +64,8 @@ std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::Storage
 	field(",\"sessions\":", state.sessions);
 	field(",\"failed_namespaces\":", state.failed_namespaces);
 	field(",\"pages\":{\"builds\":", state.pages.builds);
+	field(",\"incremental\":", state.pages.incremental);
+	field(",\"relocations\":", state.pages.relocations);
 	field(",\"build_failures\":", state.pages.build_failures);
 	field(",\"full_copies\":", state.pages.full_copies);
 	field(",\"deltas\":", state.pages.deltas);

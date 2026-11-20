@@ -63,28 +63,35 @@ static void hermetic() {
 				  << diff.base_pages << '\n';
 	}
 
-	// The window: deltas from every held position, the retained pages, and both bounds.
+	// The window: deltas from every held position, the segments it retains, and both bounds. These
+	// generations are separate builds, so they share no segment.
 	std::vector<std::unique_ptr<Built>> generations;
 	generations.push_back(std::make_unique<Built>(rows, 'b'));
 	for (std::size_t i = 1; i <= 4; ++i)
 		generations.push_back(std::make_unique<Built>(changed(*rows, 100 * i, 37, 10 * i), char('0' + i)));
-	r::PageWindow window(3);
 	auto held = [&](std::size_t i) {
 		const auto &g = *generations[i];
-		return r::WindowGeneration{10 + i, g.root(), g.pages(), nullptr, 0};
+		r::WindowGeneration out{10 + i, g.root(), g.pages(), nullptr, {}};
+		for (const auto &segment : g.image().segments())
+			out.segments.emplace_back(segment.ownership.segment, segment.ownership.length);
+		return out;
 	};
+	auto physical = [&](std::size_t i) {
+		std::uint64_t total = 0;
+		for (const auto &segment : generations[i]->image().segments())
+			total += segment.ownership.length;
+		return total;
+	};
+	constexpr std::uint64_t unbounded = UINT64_MAX;
+	r::PageWindow window(3);
 	require(!window.head() && !window.delta(10));
 	for (std::size_t i = 0; i < generations.size(); ++i) {
-		window.advance(held(i), generations[i]->page_bytes());
-		require(window.head()->position == 10 + i && window.head()->retained == 0);
-		if (i) {
-			const auto superseded =
-				check_diff(*generations[i], *generations[i - 1]); // the previous head's pages the head lacks
-			require(window.at(10 + i - 1)->retained == superseded.bytes);
-		}
+		window.advance(held(i), unbounded);
+		require(window.head()->position == 10 + i);
 	}
 	require(window.size() == 3 && !window.at(10) && !window.at(11) && window.at(12));
-	require(window.retained_bytes() == window.at(12)->retained + window.at(13)->retained);
+	require(window.retained_bytes() == physical(2) + physical(3) &&
+			window.held_bytes() == physical(2) + physical(3) + physical(4));
 	for (std::uint64_t position = 12; position <= 14; ++position) {
 		const auto delta = window.delta(position);
 		require(delta && pages_of(*delta) == occurrence_writes(*generations[position - 10], *generations[4]));
@@ -92,21 +99,33 @@ static void hermetic() {
 	require(window.delta(14)->pages.empty() && !window.delta(11));
 	bool refused = false;
 	try {
-		window.advance(held(4), generations[4]->page_bytes());
+		window.advance(held(4), unbounded);
 	} catch (const std::invalid_argument &) {
 		refused = true;
 	}
 	require(refused);
-	// A head smaller than what the window retains drops the oldest until it fits.
-	r::PageWindow tight(64);
-	tight.advance(held(0), generations[0]->page_bytes());
-	tight.advance(held(1), generations[1]->page_bytes());
-	const auto kept = check_diff(*generations[2], *generations[1]).bytes;
-	require(tight.retained_bytes() > 0 && kept > 0);
-	tight.advance(held(2), kept);
-	require(tight.size() == 2 && !tight.at(10) && tight.retained_bytes() == kept);
-	tight.clear();
-	require(!tight.head() && tight.retained_bytes() == 0);
+	// A segment that several generations reach counts once, and only while the head lacks it; a head
+	// smaller than what the window retains drops the oldest until it fits.
+	auto made = [&](std::uint64_t position, std::initializer_list<std::pair<char, std::uint64_t>> segments) {
+		r::WindowGeneration out{position, generations[0]->root(), generations[0]->pages(), nullptr, {}};
+		for (const auto &[name, length] : segments) {
+			l::SegmentId id{};
+			id[0] = name;
+			out.segments.emplace_back(id, length);
+		}
+		return out;
+	};
+	r::PageWindow shared(64);
+	shared.advance(made(10, {{'a', 100}, {'b', 100}}), unbounded);
+	shared.advance(made(11, {{'b', 100}, {'c', 50}}), unbounded);
+	require(shared.retained_bytes() == 100 && shared.held_bytes() == 250);
+	shared.advance(made(12, {{'b', 100}, {'c', 50}, {'d', 10}}), 90);
+	require(shared.size() == 2 && !shared.at(10) && shared.retained_bytes() == 0 && shared.held_bytes() == 160);
+	// The head's relocation replaces it: what only the old head reached is retained, within the bound.
+	shared.rebase(made(12, {{'e', 140}}));
+	require(shared.size() == 1 && shared.at(12) && shared.retained_bytes() == 0 && shared.held_bytes() == 140);
+	shared.clear();
+	require(!shared.head() && shared.retained_bytes() == 0 && shared.held_bytes() == 0);
 	std::cout << "page window: ok\n";
 }
 

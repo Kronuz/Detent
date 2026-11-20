@@ -12,8 +12,14 @@ namespace d = distribution;
 namespace h = authority::history;
 namespace {
 constexpr std::size_t sync_attempts = 3;
-// Full builds the page window keeps per namespace: each holds its own pages (D7.3).
-constexpr std::size_t window_generations = 4;
+// A pages answer from the reader's prefix when it is the transfer the reader holds (D8).
+void resume(d::PagesAnswer &answer, const std::optional<Resume> &held) {
+	if (held && held->root == answer.root && held->after == answer.after && held->offset <= answer.bytes.size() &&
+		held->offset % d::transfer_chunk_bytes == 0)
+		answer.offset = held->offset;
+}
+// Generations the page window keeps per namespace, as the record ring's positions (D7.3).
+constexpr std::size_t window_positions = 64;
 
 struct Entry {
 	std::string key;
@@ -99,11 +105,15 @@ struct NamespaceRelay::Impl final : Tiers {
 	d::Identity cluster;
 	Upstream &upstream;
 	std::map<std::string, Ring, std::less<>> rings;
-	// D7: per namespace, the newest full build, the page window of builds, the build in flight,
-	// and the target whose build failed (records until the head moves past it).
+	// D7: per namespace, the newest generation and the page window it heads, the canonical full copy
+	// at s, the D6 answers from window bases to the head (D2: a transfer, or null for records), the
+	// build in flight, and the target whose build failed (records until the head moves past it).
 	struct Pages {
-		std::shared_ptr<const BuiltCopy> head;
-		PageWindow window{window_generations};
+		std::shared_ptr<const Generation> head;
+		PageWindow window{window_positions};
+		std::shared_ptr<const CanonicalCopy> copy;
+		std::map<std::uint64_t, std::shared_ptr<const std::vector<char>>> answers;
+		std::uint64_t answer_bytes = 0;
 		std::optional<d::NamespaceCursor> building, failed;
 	};
 	std::map<std::string, Pages, std::less<>> pages;
@@ -113,7 +123,9 @@ struct NamespaceRelay::Impl final : Tiers {
 		struct Build {
 			std::string name;
 			d::NamespaceCursor at;
-			std::shared_ptr<const BuiltCopy> copy; // null: the build failed
+			std::shared_ptr<const Generation> head; // null: the build failed
+			std::shared_ptr<const CanonicalCopy> copy; // a new full copy, or null
+			bool incremental = false, relocated = false;
 		};
 		std::mutex mutex;
 		std::vector<Build> builds;
@@ -141,10 +153,15 @@ struct NamespaceRelay::Impl final : Tiers {
 	}
 	SyncStats attempt(std::span<const std::string> names);
 	std::optional<std::string> answer(std::span<const Position>, bool changed_only);
-	const BuiltCopy *copy(const std::string &name, const d::NamespaceHistory &, bool &wait);
-	std::optional<std::vector<char>> delta(const std::string &name, const d::NamespaceHistory &,
-										   const d::NamespaceCursor &base, bool &wait);
-	void build(const std::string &name, const d::NamespaceHistory &, Pages &);
+	std::shared_ptr<const CanonicalCopy> copy(const std::string &name, const d::NamespaceHistory &, bool &wait);
+	// A pages delta to the head: its transfer, and the head it names.
+	struct Delta {
+		std::shared_ptr<const std::vector<char>> transfer;
+		std::shared_ptr<const Generation> head;
+	};
+	std::optional<Delta> delta(const std::string &name, const d::NamespaceHistory &, const d::NamespaceCursor &base,
+							   bool &wait);
+	void build(const std::string &name, const d::NamespaceHistory &, Pages &, bool relocate = false);
 	bool collect();
 };
 
@@ -354,7 +371,9 @@ std::optional<std::string> NamespaceRelay::changes(std::span<const Position> pos
 std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position> positions, bool changed_only) {
 	std::vector<std::unique_ptr<MirrorHistory>> histories;
 	std::deque<d::PagesAnswer> transfers;
-	std::deque<std::vector<char>> deltas;
+	// Every copy, transfer and generation a pages frame names stays alive until the body is encoded,
+	// whatever a build that lands during this answer does to the window.
+	std::vector<std::shared_ptr<const void>> owned;
 	std::vector<d::NamespaceRequest> requests;
 	for (const auto &position : positions) {
 		const auto *layout = store.table().find(position.name);
@@ -367,21 +386,29 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
 			const auto chosen = d::select_answer(history, position.cursor);
 			bool wait = false;
 			if (chosen.kind == d::AnswerKind::FullCopy) {
-				if (const auto *built = copy(position.name, history, wait)) {
-					request.pages = &transfers.emplace_back(d::PagesAnswer{built->root(), 0, built->at(), built->transfer()});
+				if (auto full = copy(position.name, history, wait)) {
+					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
+					resume(sent, position.resume);
+					request.pages = &sent;
+					owned.push_back(std::move(full));
 					++pages_stats.full_copies;
 				}
 			} else if (chosen.kind == d::AnswerKind::Entries || chosen.kind == d::AnswerKind::Blocks) {
-				if (auto transfer = delta(position.name, history, *position.cursor, wait)) {
-					const auto &head = *pages.at(position.name).head;
-					const auto &bytes = deltas.emplace_back(std::move(*transfer));
-					request.pages = &transfers.emplace_back(
-						d::PagesAnswer{head.root(), position.cursor->position, head.at(), bytes});
+				if (auto moved = delta(position.name, history, *position.cursor, wait)) {
+					auto &sent = transfers.emplace_back(d::PagesAnswer{
+						moved->head->root(), position.cursor->position, moved->head->at(), *moved->transfer});
+					resume(sent, position.resume);
+					request.pages = &sent;
+					owned.push_back(std::move(moved->transfer));
+					owned.push_back(std::move(moved->head));
 				}
 			}
 			if (wait)
 				continue; // no frame until the build lands, as for a Current answer
 		}
+		if (const auto held = pages.find(position.name);
+			!request.pages && held != pages.end() && held->second.head && held->second.head->at() == history.head())
+			request.root = held->second.head->root();
 		requests.push_back(request);
 	}
 	d::SessionFramesEncoder encoder(std::nullopt, requests);
@@ -395,14 +422,35 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
 	return body;
 }
 
-// Starts the build at the namespace's head (D7.2, D7.4) from its records full copy, unless one is
-// in flight or failed at this head; nothing at position 0, which no pages frame can name. The files
-// the full copy reads are read here, on the relay's thread, with the layout and ring as they are
-// now; decoding, the records and the build run on the runner's.
-void NamespaceRelay::Impl::build(const std::string &name, const d::NamespaceHistory &history, Pages &held) {
+// Starts the build at the namespace's head (D7.2): over the window's head when the records after it
+// reach it (dense-pages D7), else in full from the records full copy. Nothing while a build is in
+// flight or failed at this head, and nothing at position 0, which no pages frame can name. A new
+// head becomes a new canonical copy (D7.4), relocated into seal order, when the delta from the
+// copy's position stops being smaller than a fresh copy, when that position left the window
+// (`relocate`), or when its segments hold more dead bytes than live ones. With `relocate`, a head
+// already built is relocated alone. The files the records read are read here, on the relay's
+// thread, with the layout and ring as they are now; decoding, the records and the build run on the
+// runner's.
+void NamespaceRelay::Impl::build(const std::string &name, const d::NamespaceHistory &history, Pages &held,
+								 bool relocate) {
 	const auto head = history.head();
-	if (!head.position || held.building || held.failed == head || (held.head && held.head->at() == head))
+	if (!head.position || held.building || held.failed == head)
 		return;
+	const bool current = held.head && held.head->at() == head;
+	if (current && !relocate)
+		return;
+	std::shared_ptr<const Generation> base;
+	if (current)
+		base = held.head;
+	else if (held.head && held.head->at().same_identity(head) && held.head->at().position < head.position) {
+		const auto kind = d::select_answer(history, held.head->at()).kind;
+		if (kind == d::AnswerKind::Entries || kind == d::AnswerKind::Blocks)
+			base = held.head;
+	}
+	std::shared_ptr<const Generation> at_copy;
+	if (held.copy && base && held.copy->at.same_identity(head))
+		if (const auto *entry = held.window.at(held.copy->at.position))
+			at_copy = std::static_pointer_cast<const Generation>(entry->owner);
 	struct Input {
 		NamespaceLayout layout;
 		Ring ring;
@@ -410,15 +458,44 @@ void NamespaceRelay::Impl::build(const std::string &name, const d::NamespaceHist
 	};
 	auto input = std::make_shared<Input>(Input{*store.table().find(name), rings.at(name), {}});
 	const auto &files = input->layout.files;
-	const bool cached = !files.empty() && files.back().kind == MirrorFile::Kind::Copy;
-	for (auto file = cached ? files.end() - 1 : files.begin(); file != files.end(); ++file)
-		input->tiers.bytes.emplace(file->name, store.read(*file, fetcher()));
-	auto task = [landed = landed, cluster = cluster, name, head, input] {
-		Landed::Build out{name, head, nullptr};
+	if (base && !current) {
+		for (const auto &file : files)
+			if ((file.kind == MirrorFile::Kind::Block || file.kind == MirrorFile::Kind::Section) &&
+				file.last > base->at().position)
+				input->tiers.bytes.emplace(file.name, store.read(file, fetcher()));
+	} else if (!base) {
+		const bool cached = !files.empty() && files.back().kind == MirrorFile::Kind::Copy;
+		for (auto file = cached ? files.end() - 1 : files.begin(); file != files.end(); ++file)
+			input->tiers.bytes.emplace(file->name, store.read(*file, fetcher()));
+	}
+	auto task = [landed = landed, cluster = cluster, name, head, input, base, at_copy, copy = held.copy, current,
+				 relocate] {
+		Landed::Build out{name, head, nullptr, nullptr};
 		try {
-			const MirrorHistory history(input->tiers, cluster, input->layout, input->ring);
-			const d::NamespaceRequest request{name, &history, std::nullopt};
-			out.copy = build_copy(d::encode_session_frames(std::nullopt, {&request, 1}), &landed->cancelled);
+			auto built = base;
+			if (!current) {
+				const MirrorHistory history(input->tiers, cluster, input->layout, input->ring);
+				const d::NamespaceRequest request{name, &history, base ? std::optional(base->at()) : std::nullopt};
+				built = build_generation(d::encode_session_frames(std::nullopt, {&request, 1}), base,
+										 &landed->cancelled);
+				out.incremental = base != nullptr;
+			}
+			// A cold build's files are canonical: it is its own full copy.
+			bool fresh = !base;
+			if (base) {
+				fresh = relocate || !copy || !at_copy || 2 * built->page_bytes() < built->physical_bytes();
+				if (!fresh && at_copy != built)
+					fresh = merkle_diff(built->tree(), built->pages(), at_copy->tree(), at_copy->pages(),
+										built->limits())
+								.bytes >= built->page_bytes();
+				if (fresh) {
+					built = relay::relocate(*built, &landed->cancelled);
+					out.relocated = true;
+				}
+			}
+			if (fresh)
+				out.copy = full_copy(*built);
+			out.head = std::move(built);
 		} catch (const std::exception &) {
 		}
 		std::lock_guard lock(landed->mutex);
@@ -445,7 +522,7 @@ bool NamespaceRelay::Impl::collect() {
 		auto &held = found->second;
 		if (held.building == each.at)
 			held.building.reset();
-		if (!each.copy || each.copy->at() != each.at) {
+		if (!each.head || each.head->at() != each.at) {
 			held.failed = each.at;
 			++pages_stats.build_failures;
 			continue;
@@ -453,39 +530,54 @@ bool NamespaceRelay::Impl::collect() {
 		const auto ring = rings.find(each.name);
 		if (ring == rings.end() || ring->second.incarnation != each.at.incarnation)
 			continue;
-		if (held.head && held.head->at().incarnation == each.at.incarnation &&
-			held.head->at().position >= each.at.position)
-			continue;
-		if (held.head && held.head->at().incarnation != each.at.incarnation)
+		if (held.head && held.head->at().incarnation != each.at.incarnation) {
 			held.window.clear();
-		const auto &built = *each.copy;
-		held.window.advance({each.at.position, built.tree(), built.pages(), each.copy, 0}, built.page_bytes());
-		held.head = std::move(each.copy);
-		++pages_stats.builds;
+			held.head.reset();
+			held.copy.reset();
+		}
+		if (held.head && held.head->at().position > each.at.position)
+			continue;
+		if (held.head && held.head->at() == each.at) {
+			if (!each.relocated)
+				continue;
+			held.window.rebase(window_entry(each.head));
+		} else {
+			held.window.advance(window_entry(each.head), each.head->page_bytes());
+			held.answers.clear();
+			held.answer_bytes = 0;
+			++pages_stats.builds;
+			pages_stats.incremental += each.incremental;
+		}
+		held.head = std::move(each.head);
+		if (each.copy)
+			held.copy = std::move(each.copy);
+		pages_stats.relocations += each.relocated;
 	}
 	return !builds.empty();
 }
 
-// The full copy as pages: the newest build that the history can still answer a delta from, with
-// the build at the head started when this one is older. Nothing while no such build has landed:
-// `wait` when one is in flight, records when the build failed.
-const BuiltCopy *NamespaceRelay::Impl::copy(const std::string &name, const d::NamespaceHistory &history, bool &wait) {
+// The full copy as pages: the canonical copy at s, while the history still answers a delta from s.
+// The build at the head starts when s is older, relocating a copy whose position left the window.
+// Nothing while no copy has landed: `wait` when a build is in flight, records when it failed.
+std::shared_ptr<const CanonicalCopy> NamespaceRelay::Impl::copy(const std::string &name,
+																const d::NamespaceHistory &history, bool &wait) {
 	auto &held = pages[name];
-	build(name, history, held);
+	build(name, history, held, held.copy && held.head && !held.window.at(held.copy->at.position));
 	const auto head = history.head();
-	if (held.head && held.head->at().incarnation == head.incarnation && held.head->at().position <= head.position &&
-		d::select_answer(history, held.head->at()).kind != d::AnswerKind::FullCopy)
-		return held.head.get();
+	if (held.copy && held.copy->at.incarnation == head.incarnation && held.copy->at.position <= head.position &&
+		d::select_answer(history, held.copy->at).kind != d::AnswerKind::FullCopy)
+		return held.copy;
 	wait = held.building.has_value();
 	return nullptr;
 }
 
-// D6 for a base the page window holds: the transfer to the newest build when it is smaller as sent
-// than the records answer from that base. Below the head, the delta waits (`wait`) for the build at
-// the head unless D6 rule 1 already picks records against a lower bound of the pages: every delta
-// carries a root page, estimated by the newest build's.
-std::optional<std::vector<char>> NamespaceRelay::Impl::delta(const std::string &name, const d::NamespaceHistory &history,
-															 const d::NamespaceCursor &base, bool &wait) {
+// D6 for a base the page window holds: the transfer to the head when it is smaller as sent than the
+// records answer from that base, decided once per base and head (D2). Below the head, the delta waits
+// (`wait`) for the build at the head unless D6 rule 1 already picks records against a lower bound of
+// the pages: every delta carries a root page, estimated by the newest build's.
+std::optional<NamespaceRelay::Impl::Delta> NamespaceRelay::Impl::delta(const std::string &name,
+																	   const d::NamespaceHistory &history,
+																	   const d::NamespaceCursor &base, bool &wait) {
 	const auto found = pages.find(name);
 	if (found == pages.end() || !found->second.head)
 		return std::nullopt;
@@ -493,8 +585,8 @@ std::optional<std::vector<char>> NamespaceRelay::Impl::delta(const std::string &
 	if (held.head->at().incarnation != base.incarnation || !held.window.at(base.position))
 		return std::nullopt;
 	const d::NamespaceRequest request{name, &history, base};
-	const auto records = d::encode_session_frames(std::nullopt, {&request, 1});
 	if (held.head->at() != history.head()) {
+		const auto records = d::encode_session_frames(std::nullopt, {&request, 1});
 		const bool may_win = held.head->tree().length <= delivery::shortcut_ratio * records.size();
 		if (may_win)
 			build(name, history, held);
@@ -505,19 +597,32 @@ std::optional<std::vector<char>> NamespaceRelay::Impl::delta(const std::string &
 			return std::nullopt;
 		}
 	}
-	const auto &head = *held.head;
-	if (base.position >= head.at().position)
+	auto head = held.head;
+	if (base.position >= head->at().position)
 		return std::nullopt;
-	const auto diff = held.window.delta(base.position);
-	if (!diff)
-		return std::nullopt;
-	auto transfer = delta_transfer(*diff, head);
-	if (delivery::choose_encoding(transfer, records).encoding != delivery::Encoding::Pages) {
+	auto known = held.answers.find(base.position);
+	if (known == held.answers.end()) {
+		const auto diff = held.window.delta(base.position);
+		if (!diff)
+			return std::nullopt;
+		auto transfer = std::make_shared<const std::vector<char>>(delta_transfer(*diff, *head));
+		const auto records = d::encode_session_frames(std::nullopt, {&request, 1});
+		if (delivery::choose_encoding(*transfer, records).encoding != delivery::Encoding::Pages)
+			transfer.reset();
+		const auto size = transfer ? transfer->size() : 0;
+		if (held.answer_bytes + size > head->page_bytes()) {
+			held.answers.clear();
+			held.answer_bytes = 0;
+		}
+		held.answer_bytes += size;
+		known = held.answers.emplace(base.position, std::move(transfer)).first;
+	}
+	if (!known->second) {
 		++pages_stats.delta_records;
 		return std::nullopt;
 	}
 	++pages_stats.deltas;
-	return transfer;
+	return Delta{known->second, std::move(head)};
 }
 bool NamespaceRelay::collect() { return impl_->collect(); }
 const PagesStats &NamespaceRelay::pages() const noexcept { return impl_->pages_stats; }

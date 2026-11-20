@@ -7,14 +7,15 @@ if(TARGET hashes::hashes)
   add_library(detent::relay_layout ALIAS detent_relay_layout)
 endif()
 # The relay's mirror of blocks, base and sections, and its W5/W6 reading and answers (namespace
-# delivery D7, W8), with the full builds it answers pages from (dense distribution D6, D7). It decodes
-# the authority's history files and links no consensus: a reader, never a member.
+# delivery D7, W8), with the generations it builds and answers pages from (dense distribution D6, D7):
+# full and incremental builds and their canonical relocation. It decodes the authority's history
+# files and links no consensus: a reader, never a member.
 if(TARGET completion::completion AND TARGET hashes::hashes AND TARGET detent::delivery_delta_transfer)
   add_library(detent_relay_mirror STATIC mirror.cc namespace_relay.cc page_copy.cc)
   target_include_directories(detent_relay_mirror PUBLIC "${PROJECT_SOURCE_DIR}/include")
   target_link_libraries(detent_relay_mirror PUBLIC detent::detent detent::distribution detent::relay_layout
     completion::completion PRIVATE detent::authority hashes::hashes detent::relay_page_window
-    detent::local_fullbuild detent::delivery_delta_transfer)
+    detent::local_builder detent::local_canonical_copy detent::delivery_delta_transfer)
   target_compile_features(detent_relay_mirror PUBLIC cxx_std_20)
   add_library(detent::relay_mirror ALIAS detent_relay_mirror)
 endif()
