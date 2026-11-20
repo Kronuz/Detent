@@ -1507,27 +1507,36 @@ def check_main(D: Any, corpus: Any) -> None:
         "page structure: nodes do not fill",
         "parse",
     )
-    largest_encoder = D.Encoder(memory=True, compress=False)
-    largest = D.pack_dense(corpus, CAPACITY, "largest", largest_encoder)
-    largest_root = D.state_commitment(largest)
-    assert largest_root != root
-    everything = list(range(len(largest.pages)))
-    shape = receive_stream(
-        D,
-        make_transfer(D, largest, largest_encoder, everything, "wire").stream,
-        None,
-        largest_root,
-        one,
-        frozenset({"order", "canonical"}),
-    )
-    forged_tree = make_transfer(D, largest, largest_encoder, shape.order, "wire")
-    case(
-        f"the tree packed largest-first ({len(largest.pages):,} pages against {len(chosen):,}), in"
-        " the order its pages imply, under its own root",
-        stream_run(forged_tree.stream, largest_root),
-        "not packed by D5",
-        "canonical",
-    )
+    # A tree packed by another rule; on a corpus where largest-first packs as D5 does, the
+    # fewest-keys-per-byte rule.
+    forged = None
+    for rule, label in (("largest", "largest-first"), ("density", "densest-first")):
+        largest_encoder = D.Encoder(memory=True, compress=False)
+        largest = D.pack_dense(corpus, CAPACITY, rule, largest_encoder)
+        largest_root = D.state_commitment(largest)
+        if largest_root != root:
+            forged = label
+            break
+    if forged is None:
+        print("check: every other rule packs this corpus as D5 does; case skipped")
+    else:
+        everything = list(range(len(largest.pages)))
+        shape = receive_stream(
+            D,
+            make_transfer(D, largest, largest_encoder, everything, "wire").stream,
+            None,
+            largest_root,
+            one,
+            frozenset({"order", "canonical"}),
+        )
+        forged_tree = make_transfer(D, largest, largest_encoder, shape.order, "wire")
+        case(
+            f"the tree packed {forged} ({len(largest.pages):,} pages against {len(chosen):,}), in"
+            " the order its pages imply, under its own root",
+            stream_run(forged_tree.stream, largest_root),
+            "not packed by D5",
+            "canonical",
+        )
 
     # DD-7: zero-page transfers.
     index = base_index(D, packing, encoder)
