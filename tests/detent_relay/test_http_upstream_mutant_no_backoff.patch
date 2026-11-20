@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror_service.cc b/src/detent_relay/mirror_service.cc
+index e825cfd0..bb77b611 100644
+--- a/src/detent_relay/mirror_service.cc
++++ b/src/detent_relay/mirror_service.cc
+@@ -377,7 +377,7 @@ struct MirrorService::Impl {
+ 			}
+ 			const bool synced = now >= next_sync;
+ 			if (synced) {
+-				failing = sync() ? 0 : std::min(failing + 1, 16u);
++				failing = sync() ? 0 : 0;
+ 				now = Clock::now();
+ 				next_sync = now + std::min(options.interval * (1u << failing),
+ 										   options.reconnect_maximum);
