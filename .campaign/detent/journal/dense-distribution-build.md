@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-071229-c25fa5 (A1 suite) and CI (A2) at Detent:2bc66eb4
+State: waiting on jobs 261120-071916-86ee24 (A1 suite) and CI (A2) at Detent:1fadf5c5
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -9,7 +9,7 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 6: suite and CI on v2 at Detent:2bc66eb4.
+Step 6: suite and CI on v2 at Detent:1fadf5c5 (managed docs on W5; GCC include).
 
 ## Done
 
