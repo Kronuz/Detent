@@ -5,27 +5,22 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The `reactor` runtime test (test/test.cc) never aborts on `bind: Address already in use` in the shared-accept retirement case. Seen on CI macos-arm64 at reactor:fbad85f (run 44650606033): an uncaught `std::system_error` from bind ended the process after ten "shared accept destination reached before retirement" checks. The cause is named (port reuse between iterations, TIME_WAIT, an ephemeral-port race, or a real retirement defect) before any fix.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause is named from a reproduction (a loop of the case under load, locally or on a macOS runner), with the failing iteration's bound port and socket state: jobs.
+- A2 The fix makes the case pass 200 iterations under load on macOS, and a mutant restoring the old binding reproduces the abort (--fails-without): jobs.
+- A3 The suite and CI pass: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None, if the cause is in the test. If it is a reactor defect, stop and report: the quest's risk and file set change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+No retry or catch that hides the error: the lead.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Everything.
