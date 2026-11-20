@@ -4357,6 +4357,8 @@
         "dd1-transfer-receiver",
         "dd2-canonical-copy"
       ],
+      "base": "9d34a5f95a01311499be856439d30e4d77a90ecc",
+      "branch": "quest/detent/dd3-full-copy-pages",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4386,11 +4388,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: owner priority (D133): loop-idle-waits edits host.cc and coordinator.cc's idle waits, DD3 the full-copy path; relay-tls-drain-flake owns tests/detent_system/** but DD3 adds only new test_full_copy_pages* files; DD3 merges both before landing",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Dense distribution DD3: the full copy ships as pages",
-      "updated": "2026-11-20T04:38:57"
+      "updated": "2026-11-20T04:39:32",
+      "worktree": "../Detent-wt/detent/dd3-full-copy-pages"
     },
     "dd4-delta-transfers": {
       "accepted": {},
