@@ -2,7 +2,7 @@
 #include "detent/identity.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent/json_schema_internal.hh"
-#include "detent/scope.hh"
+#include "detent_distribution/grants.hh"
 #include "source_selection.hh"
 #include <algorithm>
 #include <cerrno>
@@ -100,10 +100,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 																						 bytes.size());
 	require(!object.HasParseError(), "invalid managed configuration JSON");
 	fields(object, {"cluster",
-					"group",
-					"epoch",
-					"principal",
-					"policy_epoch",
 					"namespaces",
 					"token",
 					"address",
@@ -118,26 +114,16 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"disk_bytes",
 					"disk_entries",
 					"disk_generations",
-					"poll_interval_ms",
+					"retry_interval_ms",
 					"reconnect_maximum_ms",
-					"delivery_mode",
 					"image_format",
 					"compaction_interval_ms",
 					"scrub_bytes_per_second",
 					"timeout_ms",
 					"compression",
-					"reset_from",
 					"image_limits"});
 	ManagedOptions result;
 	result.coordinator.directory = directory;
-	if (object.HasMember("delivery_mode")) {
-		result.delivery_mode_explicit = true;
-		const auto mode = text(object["delivery_mode"], 16);
-		require(mode == "poll" || mode == "subscription", "invalid managed delivery mode");
-		result.coordinator.delivery_mode = mode == "subscription"
-											   ? detent::delivery::DeliveryMode::Subscription
-											   : detent::delivery::DeliveryMode::Poll;
-	}
 	if (object.HasMember("image_format")) {
 		const auto format = text(object["image_format"], 16);
 		require(format == "flat-v1" || format == "paged-v2", "invalid managed image format");
@@ -152,23 +138,21 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	result.coordinator.scrub_bytes_per_second = number(
 		object, "scrub_bytes_per_second", result.coordinator.scrub_bytes_per_second, 0, 1024ull * 1024 * 1024);
 	auto &source = result.coordinator.source;
-	source.configured.cluster = identity<16>(field(object, "cluster"));
-	source.configured.group = identity<16>(field(object, "group"));
-	source.configured.restore_epoch = identity<16>(field(object, "epoch"));
-	result.principal = text(field(object, "principal"), 128);
-	result.policy_epoch = number(object, "policy_epoch", 1, 1, UINT64_MAX);
-	const auto &names = field(object, "namespaces");
-	require(names.IsArray() && names.Size() <= 4096, "managed namespace count");
-	for (const auto &name : names.GetArray())
-		source.namespaces.push_back(text(name, 198));
-	std::sort(source.namespaces.begin(), source.namespaces.end());
-	source.namespaces.erase(std::unique(source.namespaces.begin(), source.namespaces.end()),
-							source.namespaces.end());
-	std::vector<std::string_view> canonical;
-	for (const auto &name : source.namespaces)
-		canonical.push_back(name);
-	source.configured.scope =
-		detent::distribution::canonical_scope_identity(result.principal, result.policy_epoch, canonical);
+	result.coordinator.cluster = identity<16>(field(object, "cluster"));
+	// W13: the followed names; without them, every name the credential grants.
+	if (object.HasMember("namespaces")) {
+		const auto &names = object["namespaces"];
+		require(names.IsArray() && names.Size() <= 4096, "managed namespace count");
+		auto &followed = result.coordinator.namespaces;
+		for (const auto &name : names.GetArray()) {
+			followed.push_back(text(name, 198));
+			require(detent::distribution::valid_namespace_name(followed.back()), "invalid managed namespace name");
+		}
+		std::sort(followed.begin(), followed.end());
+		followed.erase(std::unique(followed.begin(), followed.end()), followed.end());
+		require(!followed.empty(), "managed namespaces must name at least one namespace");
+	} else
+		result.coordinator.all = true;
 	source.token = text(field(object, "token"), 128);
 	require(source.token.size() >= 32 && std::all_of(source.token.begin(), source.token.end(),
 													 [](unsigned char c) { return c >= 32 && c != 127; }),
@@ -204,12 +188,12 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 	reactor::tls::configure(*source.tls_context, {"", "", ca.string()}, reactor::tls::Role::Client);
 	source.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 60000, 1, 86400000));
-	result.coordinator.poll_interval =
-		std::chrono::milliseconds(number(object, "poll_interval_ms", 200, 1, 86400000));
+	result.coordinator.retry_interval =
+		std::chrono::milliseconds(number(object, "retry_interval_ms", 200, 1, 86400000));
 	result.coordinator.reconnect_maximum = std::chrono::milliseconds(
 		number(object, "reconnect_maximum_ms",
-			   std::max<std::int64_t>(30000, result.coordinator.poll_interval.count()),
-			   result.coordinator.poll_interval.count(), 86400000));
+			   std::max<std::int64_t>(30000, result.coordinator.retry_interval.count()),
+			   result.coordinator.retry_interval.count(), 86400000));
 	require(RAND_bytes(reinterpret_cast<unsigned char *>(&result.coordinator.reconnect_seed),
 					   sizeof(result.coordinator.reconnect_seed)) == 1,
 			"managed reconnect entropy unavailable");

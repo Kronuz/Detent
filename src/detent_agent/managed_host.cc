@@ -16,23 +16,18 @@ namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace l = detent::local;
 namespace detail {
-bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared) noexcept {
-	if (!state.initialized || state.phase == t::CoordinatorPhase::Fenced ||
-		state.phase == t::CoordinatorPhase::Closing || state.phase == t::CoordinatorPhase::Closed)
-		return false;
-	if (state.selected.knowledge == l::SelectionKnowledge::Absent)
-		return !state.selected.descriptor;
-	return state.selected.knowledge == l::SelectionKnowledge::Known && state.selected.descriptor &&
-		(!require_prepared || state.prepared_ready);
+// Ready when every followed namespace is published or the source has answered for it (C4).
+bool may_announce_ready(const t::CoordinatorStatus &state) noexcept {
+	return state.initialized && state.ready && state.phase != t::CoordinatorPhase::Fenced &&
+		   state.phase != t::CoordinatorPhase::Closing && state.phase != t::CoordinatorPhase::Closed;
 }
 task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
-						 detent_cli::Ready ready, bool require_prepared,
-						 std::chrono::milliseconds preparation_timeout) {
+						 detent_cli::Ready ready, std::chrono::milliseconds preparation_timeout) {
 	asio::steady_timer timer(scheduler.executor());
 	bool announced = false;
 	bool timed_out = false;
 	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
-	std::optional<d::Cursor> reported;
+	std::uint64_t reported = 0;
 	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0, damaged_packs = 0;
 	l::SyncCounters published_sync;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
@@ -42,12 +37,9 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 			timed_out = true;
 			coordinator->close();
 		}
-		if (!announced && !timed_out && may_announce_ready(state, require_prepared)) {
-			if (state.selected.descriptor)
-				L_INFO("detent-agent: managed local store ready, selected generation {}",
-					   state.selected.descriptor->cursor.revision);
-			else
-				L_INFO("detent-agent: managed delivery running, awaiting its first generation");
+		if (!announced && !timed_out && may_announce_ready(state)) {
+			L_INFO("detent-agent: managed local store ready, {} namespaces selected",
+				   state.selected.namespaces.size());
 			try {
 				ready();
 			} catch (...) {
@@ -56,10 +48,10 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 			}
 			announced = true;
 		}
-		if (state.acknowledged != reported) {
-			L_DEBUG("detent-agent: managed publication acknowledged at revision {}",
-					state.acknowledged ? state.acknowledged->revision : 0);
-			reported = state.acknowledged;
+		if (state.responses != reported) {
+			L_DEBUG("detent-agent: managed publication of response {}, {} namespaces selected", state.responses,
+					state.selected.namespaces.size());
+			reported = state.responses;
 		}
 		if (state.source_rotations != rotations) {
 			L_INFO("detent-agent: managed source endpoint {} after {} rotations", state.source_endpoint_index,
@@ -126,9 +118,9 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 } // namespace detail
 namespace {
 task::task<void> supervise(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
-						   detent_cli::Ready ready, bool require_prepared) {
+						   detent_cli::Ready ready) {
 	co_await task::when_all(coordinator->run(), detail::monitor(scheduler, coordinator, std::move(ready),
-																require_prepared, managed_startup_timeout));
+																managed_startup_timeout));
 }
 } // namespace
 static int run_managed_owned(const std::filesystem::path &configuration, const std::filesystem::path &directory,
@@ -159,7 +151,6 @@ static int run_managed_owned(const std::filesystem::path &configuration, const s
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
 														scheduler, queue, true);
-	const bool require_prepared = options.coordinator.image_format == t::LocalImageFormat::PagedV2;
 	options.coordinator.source.scheduler = &scheduler;
 	auto coordinator = t::prepare_coordinator(std::move(options.coordinator), driver, domain, worker);
 	std::promise<std::shared_ptr<l::DiskStore>> opened;
@@ -190,7 +181,7 @@ static int run_managed_owned(const std::filesystem::path &configuration, const s
 	});
 	std::exception_ptr failure;
 	bool supervised = false;
-	task::spawn(task::scheduler_ref::of(scheduler), supervise(scheduler, coordinator, ready, require_prepared),
+	task::spawn(task::scheduler_ref::of(scheduler), supervise(scheduler, coordinator, ready),
 				[&](std::exception_ptr error) {
 					failure = error;
 					supervised = true;

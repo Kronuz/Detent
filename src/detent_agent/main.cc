@@ -129,12 +129,15 @@ int cmd_status(const std::vector<std::string> &args) {
 		try {
 			const bool prepared = prepared_reader(args);
 			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
-			detent::local::GenerationReader reader(*g_generation_dir, capacity.limits(), g_generation_identity,
-				prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt);
-			reader.refresh();
-			auto view = reader.read_view();
-			std::printf("durable revision=%llu knob_count=%u\n", (unsigned long long)view.cursor().revision,
-						view.size());
+			for (const auto &[name, descriptor] : detent::local::read_generation_selections(*g_generation_dir)) {
+				detent::local::GenerationReader reader(*g_generation_dir, capacity.limits(), g_generation_identity,
+					prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt,
+					name);
+				reader.refresh();
+				auto view = reader.read_view();
+				std::printf("durable revision=%llu knob_count=%u namespace=%s\n",
+							(unsigned long long)view.cursor().revision, view.size(), name.c_str());
+			}
 		} catch (const std::exception &error) {
 			std::printf("local generation unavailable: %s\n", error.what());
 		}
@@ -230,6 +233,9 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 	local.limits = capacity.limits();
 	local.auto_refresh = false;
 	local.identity = g_generation_identity;
+	// The reader attaches to the knob's namespace entry (C3).
+	if (const auto colon = args[0].find(':'); colon != std::string::npos)
+		local.name_space = args[0].substr(0, colon);
 	if (prepared)
 		local.prepared_publisher = detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system);
 	std::shared_ptr<detent::local::LocalReadSource> source;

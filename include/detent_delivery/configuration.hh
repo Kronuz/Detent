@@ -3,9 +3,6 @@
 
 namespace detent::delivery {
 struct ManagedOptions {
-	std::string principal;
-	std::uint64_t policy_epoch = 1;
-	bool delivery_mode_explicit = false;
 	detent::delivery::CoordinatorOptions coordinator;
 	detent::local::DiskStoreOptions disk;
 	std::size_t heap_bytes = 256 * 1024 * 1024;

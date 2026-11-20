@@ -246,7 +246,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected,
-									   const RecoveredGeneration *prior) {
+									   const RecoveredGeneration *prior, std::string_view name) {
 	auto &domain = resources::domain(limits);
 	detail::RecoveryContext context{domain.factory(),
 									domain.storage_account(),
@@ -255,6 +255,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 									prior ? prior->paged_
 										  : distribution::RetirementHandle<detail::LeasedPagedRoot>{},
 									{}};
+	context.name = name;
 	return detail::RecoveryEngine::recover(directory, std::move(context), expected);
 }
 RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path &directory,

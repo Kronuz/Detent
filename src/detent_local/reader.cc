@@ -7,9 +7,9 @@
 namespace detent::local {
 GenerationReader::GenerationReader(std::filesystem::path directory, ViewLimits limits,
                                    std::optional<distribution::Cursor> identity,
-                                   std::optional<std::uint32_t> prepared_publisher)
+                                   std::optional<std::uint32_t> prepared_publisher, std::string name)
     : directory_(std::move(directory)), limits_(std::move(limits)), identity_(identity),
-      prepared_publisher_(prepared_publisher) {}
+      prepared_publisher_(prepared_publisher), name_(std::move(name)) {}
 
 bool GenerationReader::refresh() {
 	// Serialize refreshes so an older recovery cannot overwrite a newer install.
@@ -23,8 +23,8 @@ bool GenerationReader::refresh() {
     }
     if (!prepared_publisher_ || installed) {
         const auto selection = prepared_publisher_
-            ? detail::PreparedReader::selection(directory_, *prepared_publisher_)
-            : read_generation_selection(directory_);
+            ? detail::PreparedReader::selection(directory_, *prepared_publisher_, name_)
+            : read_generation_selection(directory_, name_);
         std::lock_guard install_lock(installed_mutex_);
         if (directory_identity_ && *directory_identity_ != selection.directory_identity)
             throw std::invalid_argument("local generation directory was replaced");
@@ -34,9 +34,9 @@ bool GenerationReader::refresh() {
 	std::optional<RecoveredGeneration> recovered;
 	std::optional<detail::PreparedGeneration> prepared;
 	if (prepared_publisher_)
-		prepared.emplace(detail::PreparedReader::open(directory_, *prepared_publisher_, limits_, identity_));
+		prepared.emplace(detail::PreparedReader::open(directory_, *prepared_publisher_, limits_, identity_, name_));
 	else
-		recovered.emplace(recover_generation(directory_, limits_, {}, recovered_ ? &*recovered_ : nullptr));
+		recovered.emplace(recover_generation(directory_, limits_, {}, recovered_ ? &*recovered_ : nullptr, name_));
 	const auto &next = prepared ? prepared->descriptor : recovered->descriptor();
 	const auto directory_identity = prepared ? prepared->directory_identity : recovered->directory_identity();
 	if (identity_ && !identity_->same_identity(next.cursor))

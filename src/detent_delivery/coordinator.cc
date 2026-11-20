@@ -343,6 +343,8 @@ struct Coordinator::Impl {
 		auto limits = options.view_limits;
 		limits.retirement_domain = nullptr;
 		const bool repair = followed[name].repair;
+		if (options.cluster != d::Identity{} && target.cluster != options.cluster)
+			throw SourceTrustError("namespace frame of another cluster");
 		if (input.kind() == d::FrameKind::FullCopy) {
 			std::optional<l::RecoveredGeneration> actual;
 			if (at && at->same_identity(target))

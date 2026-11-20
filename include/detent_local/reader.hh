@@ -9,7 +9,7 @@ class GenerationReader {
   public:
 	GenerationReader(std::filesystem::path directory, ViewLimits limits = {},
 	                 std::optional<distribution::Cursor> identity = {},
-	                 std::optional<std::uint32_t> prepared_publisher = {});
+	                 std::optional<std::uint32_t> prepared_publisher = {}, std::string name = {});
 	// A prepared publisher enables leased, checked-path attachment; otherwise
 	// refresh fully validates. Exceptions preserve the previous view.
 	// Returns false when the selected descriptor is already installed.
@@ -22,6 +22,8 @@ class GenerationReader {
 	ViewLimits limits_;
 	std::optional<distribution::Cursor> identity_;
 	std::optional<std::uint32_t> prepared_publisher_;
+	// The table entry read (D8); empty: the table's only entry.
+	std::string name_;
 	std::optional<std::array<char, 32>> state_commitment_;
 	std::mutex refresh_mutex_;
 	mutable std::mutex installed_mutex_;

@@ -77,7 +77,7 @@ struct LocalReadSource::Impl {
 	Impl(ClientSourceOptions config, std::shared_ptr<const Snapshot> baked,
 	     std::shared_ptr<const OverrideTable> cli)
 	    : options(std::move(config)),
-	      reader(options.directory, options.limits, options.identity, options.prepared_publisher),
+	      reader(options.directory, options.limits, options.identity, options.prepared_publisher, options.name_space),
 	      defaults(std::move(baked)), overrides(std::move(cli)), domain(resources::domain(options.limits)) {
 		if (!options.prepared_publisher)
 			install({});

@@ -50,12 +50,12 @@ paged::Digest checksum(std::span<const char> bytes) {
 	return result;
 }
 } // namespace
-GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher) {
+GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher, std::string_view name) {
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};
     require(::fstat(directory.fd, &info) == 0);
     for (unsigned attempt = 0; attempt != 3; ++attempt)
-        if (const auto selected = read_selected(directory.fd, publisher))
+        if (const auto selected = read_selected(directory.fd, publisher, name))
             return {selected->descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
     throw GenerationUnavailable("selected generation changed while reading it");
 }
@@ -92,7 +92,7 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     return true;
 }
 PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
-                                        std::optional<d::Cursor> expected) {
+                                        std::optional<d::Cursor> expected, std::string_view name) {
 	auto &domain = resources::domain(limits);
 	auto factory = domain.factory();
 	auto heap = domain.storage_account();
@@ -103,7 +103,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		require(::fstat(files->directory.fd, &directory) == 0);
 		const DirectoryIdentity directory_identity{std::uint64_t(directory.st_dev),
 		                                           std::uint64_t(directory.st_ino)};
-		const auto selected = read_selected(files->directory.fd, publisher);
+		const auto selected = read_selected(files->directory.fd, publisher, name);
 		if (!selected)
 			continue;
 		if (!selected->paged)

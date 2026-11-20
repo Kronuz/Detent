@@ -20,6 +20,8 @@ enum class LocalImageFormat { FlatV1, PagedV2 };
 // each response's frames built into one generation per namespace and published in one store cycle.
 struct CoordinatorOptions {
 	ClientOptions source;
+	// The authority's cluster: every frame's cursor carries it.
+	distribution::Identity cluster{};
 	// The followed namespaces, strictly increasing; with `all`, every granted name as the directory
 	// reaches it, beside these.
 	std::vector<std::string> namespaces;

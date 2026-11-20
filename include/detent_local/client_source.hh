@@ -11,6 +11,8 @@ struct ClientSourceOptions {
 	bool auto_refresh = true;
     // Explicit publisher trust enables synchronous, checked-path attachment.
     std::optional<std::uint32_t> prepared_publisher;
+	// The namespace whose table entry the source reads (D8); empty: the table's only entry.
+	std::string name_space;
 };
 // Each Client receives its own source with immutable defaults/CLI overlays.
 // Automatic refresh runs on one configuration worker. Manual refresh belongs
