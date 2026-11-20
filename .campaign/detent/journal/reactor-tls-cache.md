@@ -1,17 +1,27 @@
 # reactor-tls-cache: journal
 
-State: ready for review
+State: waiting on jobs 261119-160723-6a8eaa 261119-160724-3d6c3e 261119-160725-a36699 261119-160727-e1c9ad 261119-160728-d08851 261119-160729-ff811c 261119-160730-f04f47 261119-160732-d23c52 261119-160733-baa48c 261119-160734-96e25b 261119-160735-2f6e65
 Quest: .campaign/detent/quests/reactor-tls-cache.md (the lead's; never edit it)
 
 ## Doing
 
-Head reactor:afd82b5 (pushed): reactor:c1c0393 (main merged) plus the docs-only perf record.
-All jobs at c1c0393 passed as intended; CI run 44641725379 at afd82b5 is running. The c1c0393 CI
-run (44639061341) was cancelled by that push (the workflow's cancel-in-progress); same code.
+Fix round on correctness review (APPROVE at reactor:afd82b5): fixed at reactor:1dd5f32, pushed.
+
+- F4 (fixed): a key entry records whether its parse asked for a password and the password's
+  SHA-256 digest (memory only); a hit on an encrypted key asks the context's callback (outside the
+  lock) and reuses the entry only on a matching digest. Test part `password`; mutant
+  reactor:564a83b (no-password) must fail it: 261119-160728-d08851, 261119-160729-ff811c.
+- F1 (adopted): test part `race` (4 configuring threads, 40-generation rotation by rename, half-
+  rotated window); runs in 261119-160725-a36699 and the suite, ASan and TSan.
+- F2 (adopted): test part `combined`; mutant reactor:b97973d (no-use: key drops Use) must fail it:
+  261119-160730-f04f47, 261119-160732-d23c52.
+- F3 (not fixed, lead's follow-up quest): listed under Limits in docs/mechanisms/tls-certificate-cache.md.
+- F5, F6 (taken): read refuses files over 16 MiB (EFBIG) and reserves the file's size first.
+- A3 not rerun: the hit path for unencrypted files only adds one flag test.
 
 ## Next
 
-1. Correctness review; confirm CI run 44641725379 green.
+1. Read the jobs; fill Evidence; ready for review.
 
 ## Blocked on
 
@@ -21,10 +31,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-153629-4fd091 (passed at c1c03935d8e4; ignores docs-only docs/perf/tls-configure.md); fails without: 261119-145839-5b1364, 261119-153630-49e28b (mutant reactor:a8e6af0, no-cache) |
-| A2 | 261119-153631-a8c953 (passed at c1c03935d8e4; ignores docs-only docs/perf/tls-configure.md); fails without: 261119-145842-13f356, 261119-153633-22e918 (mutant reactor:4caa36e, path-only) |
-| A3 | 261119-153634-6252d5 (passed at c1c03935d8e4; strict, main reactor:6fdd45f vs reactor:c1c0393, beside 10 light holds; docs/perf/tls-configure.md) |
-| A4 | 261119-153635-07f53d suite, 261119-153636-5c01d3 ASan+UBSan, 261119-153637-4b4e5a TSan (all passed at c1c03935d8e4; ignore docs-only docs/perf/tls-configure.md) |
+| A1 | 261119-160723-6a8eaa (cache at reactor:1dd5f32); fails without: 261119-160724-3d6c3e (mutant reactor:f0cb1b7, no-cache) |
+| A2 | 261119-160725-a36699 (rotation + race at reactor:1dd5f32); fails without: 261119-160727-e1c9ad (mutant reactor:58dee1e, path-only) |
+| A3 | 261119-153634-6252d5 (strict, main reactor:6fdd45f vs reactor:c1c0393, beside 10 light holds; docs/perf/tls-configure.md) |
+| A4 | 261119-160733-baa48c suite, 261119-160734-96e25b ASan+UBSan, 261119-160735-2f6e65 TSan; F4 261119-160728-d08851 / mutant 261119-160729-ff811c; F2 261119-160730-f04f47 / mutant 261119-160732-d23c52 |
 
 At reactor:0b3d05d every job passed and both mutants failed; superseded by the merge.
 Mutants live on local branches mutant/reactor-tls-cache/{no-cache,path-only} (not pushed).
@@ -52,8 +62,8 @@ holds): server-ec 176 -> 44 us (4.0x), server-rsa 158 -> 41 us, client-ca 85 -> 
 3. Parsing mirrors OpenSSL's file loaders from a memory BIO (chain: X509_AUX leaf then X509s, EOF
    by PEM_R_NO_START_LINE; key with the context's password callback; authority: X509_INFO certs +
    CRLs, none found = error). Errors stay std::system_error (asio's type), with the asio call names.
-4. Encrypted keys: decrypted with the first parsing context's password callback; later contexts
-   reuse it. Documented under Limits.
+4. Encrypted keys (superseded by review F4, lead's ruling): an entry is reused only for a
+   context supplying the same password (SHA-256 digest compare).
 5. system_roots stays out of scope: SSL_CTX_set_default_verify_paths reparses the system bundle
    (~13 ms per call in the smoke run, ~100x a file configure), but replicating its env and
    per-version lookup setup is riskier, and no consumer (Xapiand, consensus) sets system_roots.
