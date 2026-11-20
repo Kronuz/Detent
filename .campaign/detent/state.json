@@ -17126,6 +17126,8 @@
         "xapiand:http-limits",
         "xapiand:reactor-server-composition"
       ],
+      "base": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+      "branch": "quest/detent/prism-server-composition-limits",
       "checks": [
         {
           "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
@@ -17141,6 +17143,7 @@
         "README.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/prism-server-composition-limits",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -17148,9 +17151,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/prism",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Prism: the composition steps that wait on http::Limits, reactor's server TLS and Http::stop_accepting",
-      "updated": "2026-11-19T15:06:30"
+      "updated": "2026-11-20T03:07:14",
+      "worktree": "../prism-wt/detent/prism-server-composition-limits"
     },
     "quickstart-managed": {
       "accepted": {},
