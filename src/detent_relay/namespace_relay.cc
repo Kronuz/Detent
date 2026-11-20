@@ -12,6 +12,12 @@ namespace d = distribution;
 namespace h = authority::history;
 namespace {
 constexpr std::size_t sync_attempts = 3;
+// A pages answer from the reader's prefix when it is the transfer the reader holds (D8).
+void resume(d::PagesAnswer &answer, const std::optional<Resume> &held) {
+	if (held && held->root == answer.root && held->after == answer.after && held->offset <= answer.bytes.size() &&
+		held->offset % d::transfer_chunk_bytes == 0)
+		answer.offset = held->offset;
+}
 // Generations the page window keeps per namespace, as the record ring's positions (D7.3).
 constexpr std::size_t window_positions = 64;
 
@@ -381,14 +387,18 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
 			bool wait = false;
 			if (chosen.kind == d::AnswerKind::FullCopy) {
 				if (auto full = copy(position.name, history, wait)) {
-					request.pages = &transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
+					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
+					resume(sent, position.resume);
+					request.pages = &sent;
 					owned.push_back(std::move(full));
 					++pages_stats.full_copies;
 				}
 			} else if (chosen.kind == d::AnswerKind::Entries || chosen.kind == d::AnswerKind::Blocks) {
 				if (auto moved = delta(position.name, history, *position.cursor, wait)) {
-					request.pages = &transfers.emplace_back(d::PagesAnswer{
+					auto &sent = transfers.emplace_back(d::PagesAnswer{
 						moved->head->root(), position.cursor->position, moved->head->at(), *moved->transfer});
+					resume(sent, position.resume);
+					request.pages = &sent;
 					owned.push_back(std::move(moved->transfer));
 					owned.push_back(std::move(moved->head));
 				}
@@ -396,6 +406,9 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
 			if (wait)
 				continue; // no frame until the build lands, as for a Current answer
 		}
+		if (const auto held = pages.find(position.name);
+			!request.pages && held != pages.end() && held->second.head && held->second.head->at() == history.head())
+			request.root = held->second.head->root();
 		requests.push_back(request);
 	}
 	d::SessionFramesEncoder encoder(std::nullopt, requests);

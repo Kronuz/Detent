@@ -10,12 +10,21 @@
 // positions with W6 frames from its own disk and ring, so a downstream relay reads it as it reads
 // the authority.
 namespace detent::relay {
+// A page transfer a reader holds a prefix of (dense distribution D8): its root digest and `after`
+// name it, and `offset`, a whole number of chunks, is where the reader's prefix ends.
+struct Resume {
+	distribution::RootDigest root{};
+	std::uint64_t after = 0, offset = 0;
+};
 // A W5 position: a followed namespace and, when the reader holds a store of it, where that store is.
-// `pages`: the reader takes this namespace's full copy, and a delta D6 picks, as a page transfer.
+// `pages`: the reader takes this namespace's full copy, and a delta D6 picks, as a page transfer;
+// `resume`: the transfer it holds a prefix of, which the answer sends from that offset when it is
+// the same transfer.
 struct Position {
 	std::string name;
 	std::optional<distribution::NamespaceCursor> cursor;
 	bool pages = false;
+	std::optional<Resume> resume;
 };
 // What a relay reads from.
 class Upstream {
@@ -86,7 +95,8 @@ class NamespaceRelay final : public Upstream {
 	// waits for a build in flight, and gets no frame meanwhile: a full copy with no copy yet, or a
 	// delta whose pages could be smaller once the build at the head lands. A full copy or such a
 	// delta below the head starts the build at the head, one per namespace at a time. A pages frame
-	// owns what it sends until the body is encoded.
+	// owns what it sends until the body is encoded. A records frame names the head's root digest when
+	// the relay holds a generation at the head (D1), and none otherwise.
 	std::optional<std::string> changes(std::span<const Position>);
 	// Takes the builds that finished since the last call; true when one did, so a waiting answer
 	// may now go.

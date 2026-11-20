@@ -136,6 +136,7 @@ struct Frame {
 	d::NamespaceCursor to;
 	d::RootDigest root{};
 	std::string transfer;
+	std::uint64_t offset = 0;
 };
 struct Collect final : d::FrameSink {
 	std::vector<Frame> frames;
@@ -145,6 +146,7 @@ struct Collect final : d::FrameSink {
 	void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
 	void record(std::string_view, std::uint64_t, const detent::KnobDef *) override { ++frames.back().records; }
 	void root(const d::RootDigest &root) override { frames.back().root = root; }
+	void pages(std::uint64_t offset) override { frames.back().offset = offset; }
 	void chunk(std::string_view bytes) override { frames.back().transfer.append(bytes); }
 };
 std::vector<Frame> decode(std::string_view body) {
@@ -244,10 +246,14 @@ void full_copy(const std::filesystem::path &scratch) {
 	for (const auto &segment : got->transfer.segments)
 		check(packs.at(segment.ownership.segment) == segment.bytes->view());
 
-	// Another cold reader at the same head reuses the build; records readers see no change.
+	// Another cold reader at the same head reuses the build; records readers get the same records,
+	// which name the build's root (D1) where the relay holds one at the head.
 	check(answer(relay, {{"app", std::nullopt, true}}) == answer(relay, {{"app", std::nullopt, true}}));
 	check(relay.pages().builds == 1 && relay.pages().full_copies == 3);
-	check(answer(relay, records) == before && answer(plain, records) == before);
+	check(answer(plain, records) == before);
+	const auto unnamed = decode(before), named = decode(answer(relay, records));
+	check(named.size() == 2 && named[0].root == built->root() && named[0].records == unnamed[0].records &&
+		  named[1].root == d::RootDigest{} && unnamed[0].root == d::RootDigest{});
 	check(plain.pages().builds == 0);
 	std::fprintf(stderr, "full copy: %zu pages, %zu packs, %zu transfer bytes, root equal, packs byte for byte\n",
 				 std::size_t(got->transfer.pages), packs.size(), frames[0].transfer.size());
@@ -446,6 +452,49 @@ void answer_owns(const std::filesystem::path &scratch) {
 	std::fprintf(stderr, "answer owns: the copy a frame names outlives its replacement within the answer\n");
 }
 
+// D8: a reader that holds a prefix of the transfer the relay answers with gets the rest from its
+// offset; any other prefix gets the whole transfer. D1: a records frame names the head's root when
+// the relay holds a generation at the head, and none otherwise.
+void resume_and_roots(const std::filesystem::path &scratch) {
+	prepare(scratch / "resume");
+	prepare(scratch / "resume-plain");
+	Upstream up;
+	up.create("app", 3000);
+	const std::vector<std::string> names{"app"};
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "resume", 0644), cluster, up);
+	r::NamespaceRelay plain(std::make_shared<c::PosixIO>(scratch / "resume-plain", 0644), cluster, up);
+	relay.sync(names);
+	plain.sync(names);
+	const auto whole = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(whole.size() == 1 && whole[0].kind == d::FrameKind::Pages && whole[0].offset == 0);
+	const auto &full = whole[0].transfer;
+	check(full.size() > d::transfer_chunk_bytes);
+	r::Position resumed{"app", std::nullopt, true, r::Resume{whole[0].root, 0, d::transfer_chunk_bytes}};
+	const auto rest = decode(answer(relay, {resumed}));
+	check(rest.size() == 1 && rest[0].kind == d::FrameKind::Pages && rest[0].offset == d::transfer_chunk_bytes &&
+		  rest[0].root == whole[0].root && rest[0].transfer == full.substr(d::transfer_chunk_bytes));
+	auto other = resumed;
+	other.resume->root[0] ^= 1;
+	auto misaligned = resumed;
+	misaligned.resume->offset = 1000;
+	for (const auto &position : {other, misaligned}) {
+		const auto again = decode(answer(relay, {position}));
+		check(again.size() == 1 && again[0].offset == 0 && again[0].transfer == full);
+	}
+	// Records name the root of the relay's generation at the head, and nothing once the head moved
+	// past it or from a relay that holds none.
+	const auto named = decode(answer(relay, {{"app", std::nullopt, false}}));
+	check(named.size() == 1 && named[0].kind == d::FrameKind::FullCopy && named[0].root == whole[0].root);
+	const auto unnamed = decode(answer(plain, {{"app", std::nullopt, false}}));
+	check(unnamed.size() == 1 && unnamed[0].root == d::RootDigest{});
+	up.write("app", {1, 2, 3}, 50);
+	relay.sync(names);
+	const auto moved = decode(answer(relay, {{"app", std::nullopt, false}}));
+	check(moved.size() == 1 && moved[0].root == d::RootDigest{});
+	std::fprintf(stderr, "resume: the rest of a %zu-byte transfer from %zu; records name the head's root\n",
+				 full.size(), std::size_t(d::transfer_chunk_bytes));
+}
+
 // The mirror reads records only: a pages frame from its upstream fails the sync, unretried.
 void mirror_refuses(const std::filesystem::path &scratch) {
 	prepare(scratch / "refuses");
@@ -569,6 +618,7 @@ int main(int argc, char **argv) {
 		deltas(scratch);
 		incremental(scratch);
 		answer_owns(scratch);
+		resume_and_roots(scratch);
 		mirror_refuses(scratch);
 		service_builds_aside(scratch, 100000);
 	} catch (const std::exception &error) {

@@ -343,8 +343,12 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 				   : command.kind == h::RequestKind::Next ? MirrorJob::Kind::Next
 														  : MirrorJob::Kind::Close;
 		job.session = command.session;
-		for (const auto &position : command.positions)
+		for (const auto &position : command.positions) {
 			job.positions.push_back({std::string(position.name), position.cursor});
+			if (command.resume && command.resume->name == position.name)
+				job.positions.back().resume =
+					Resume{command.resume->root, command.resume->after, command.resume->offset};
+		}
 		job.all = command.all.has_value();
 		job.compressed = command.compressed;
 		job.pages = command.pages;
