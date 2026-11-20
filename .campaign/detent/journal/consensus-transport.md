@@ -9,7 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 1, A6: rpc.h review notes N1-N4 (rpc-lane-codec-security.md) with A3's per-connection queue cap.
+Step 2, transport-group-bytes. Step 1 (A3 + A6) is at consensus:3284055 (+ consensus:84e199c, the
+coverage script); its jobs are queued: suite of the lane 261120-092624-0a0f0c, ASan
+-092627-ede104, fuzz+coverage -092745-250bdc; fails-without rpc-no-queue-cap -092630-5203e3
+(queue-cap) and -092632-f32f32 (stalled-peer), refusals-unbounded -092635-b70222,
+send-past-total -092638-42250f, close-reenters under ASan -092641-3aaf61, id-at-call (case
+rewritten by room) -092649-8e73c6.
 
 ## Next
 
@@ -51,4 +56,17 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- R1 (A6 N1, A3) Every frame a call table queues is charged to `rpc_outgoing_bytes`, header
+  included. Call and Body frames wait for room (`LaneOptions::queue_bytes`, 4 frames) and then
+  for the pool; small frames (Credit, Cancel, Error, Drain) answer the peer and cannot wait, so
+  they take the charge at once past the limit (`ByteBudget::charge`; `take` gives nothing while
+  `used >= limit`, `renew` keeps its own bytes first). Their bound: one per live call except
+  refusals, and more than `serving` refusals unsent is a ProtocolError (the reviewer's option a).
+- R2 (A3) The per-connection cap is the table's queue, not the connection's: the connection already
+  takes one 64 KiB feed only once its own queue is out, so a stalled peer holds at most
+  `queue_bytes` + the frame in hand of the host pool. The host refuses `outgoing_bytes` below one
+  frame (65,584), since every frame is now charged whole.
+- R3 (A6 N3) Deferred close (option 2): a `Busy` depth guard on every entry point; `close()` inside a
+  callback runs when the outermost returns. `finish` also returns on an unknown handle.
+- R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
+  charged, an empty request no longer skips the pool's FIFO.
