@@ -41,7 +41,7 @@ endif()
 
 if(Python3_FOUND AND TARGET detent::local_client)
   add_executable(detent_system_local_oracle local_oracle.cc)
-  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_client)
+  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_client detent::distribution)
   add_executable(detent_system_mixed_oracle mixed_oracle.cc)
   target_link_libraries(detent_system_mixed_oracle PRIVATE detent::local_client)
   add_executable(detent_system_prepared_client_probe prepared_client_probe.cc)

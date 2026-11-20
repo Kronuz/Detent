@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 		ReaderBenchmark benchmark(argc, argv);
 		if (argc != 7 && argc != 16)
 			throw std::invalid_argument("mixed oracle requires directory, recipes and four identity components");
-		OracleCapacity capacity(argc, argv);
+		OracleCapacity capacity(argc, argv, 7);
 		std::ifstream expected(argv[2], std::ios::binary);
 		std::array<char, 8> magic{};
 		expected.read(magic.data(), magic.size());

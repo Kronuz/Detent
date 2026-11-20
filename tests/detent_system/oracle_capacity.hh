@@ -13,14 +13,15 @@ struct OracleCapacity {
 	std::unique_ptr<detent::distribution::RetirementRuntime> runtime;
 	std::optional<detent::distribution::RetirementDomain> domain;
 
-	OracleCapacity(int argc, char** argv) {
-		if (argc == 7)
+	// `fixed` leading arguments, then none or nine capacity integers.
+	OracleCapacity(int argc, char** argv, int fixed) {
+		if (argc == fixed)
 			return;
-		if (argc != 16)
+		if (argc != fixed + 9)
 			throw std::invalid_argument("oracle requires nine optional capacity integers");
 		std::array<std::uint64_t, 9> values{};
 		for (unsigned index = 0; index != values.size(); ++index) {
-			const std::string_view text(argv[index + 7]);
+			const std::string_view text(argv[index + fixed]);
 			const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), values[index]);
 			if (error != std::errc{} || end != text.data() + text.size())
 				throw std::invalid_argument("invalid oracle capacity integer");
