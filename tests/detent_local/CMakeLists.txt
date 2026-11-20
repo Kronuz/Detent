@@ -351,3 +351,8 @@ add_executable(test_local_paged_canonical_copy test_paged_canonical_copy.cc)
 target_include_directories(test_local_paged_canonical_copy PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_canonical_copy PRIVATE detent::local_canonical_copy detent::local_builder)
 add_test(NAME test_local_paged_canonical_copy COMMAND test_local_paged_canonical_copy)
+
+add_executable(test_local_paged_transfer test_paged_transfer.cc)
+target_include_directories(test_local_paged_transfer PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_transfer PRIVATE detent::local_transfer detent::local_packer)
+add_test(NAME test_local_paged_transfer COMMAND test_local_paged_transfer)

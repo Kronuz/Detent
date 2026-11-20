@@ -33,7 +33,7 @@ EncodingChoice choose_encoding(std::span<const char> pages, std::span<const char
 }
 
 DeltaReceipt receive_delta(std::shared_ptr<d::StorageLedger> account, std::span<const char> stream,
-						   const x::TransferBase &base, const local::paged::Digest &target,
+						   const x::TransferBase &base, const x::TransferTarget &target,
 						   const x::TransferSegmentId &segment_id, local::paged::Limits limits,
 						   unsigned refused_sources) {
 	try {

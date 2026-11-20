@@ -65,22 +65,22 @@ static void receiver() {
 		return segment;
 	};
 	const x::TransferBase held{base.root(), base.pages()};
-	auto receipt = v::receive_delta(account, stream, held, target.root().digest, id, target.limits());
+	auto receipt = v::receive_delta(account, stream, held, target.target(), id, target.limits());
 	require(receipt.outcome == v::DeltaOutcome::Published && receipt.received &&
 			receipt.received->tree.digest == target.root().digest && !receipt.refusal);
 	// A refusal asks one other source, then takes records; nothing is published either way.
-	auto wrong = target.root().digest;
-	wrong[0] ^= 1;
+	auto wrong = target.target();
+	wrong.root[0] ^= 1;
 	receipt = v::receive_delta(account, stream, held, wrong, id, target.limits());
 	require(receipt.outcome == v::DeltaOutcome::OtherSource && !receipt.received &&
 			receipt.refusal == x::TransferRefusal::RootDigest);
 	receipt = v::receive_delta(account, stream, held, wrong, id, target.limits(), 1);
 	require(receipt.outcome == v::DeltaOutcome::Records && !receipt.received);
 	// A damaged base takes the full copy: a base page failing first touch, or a base lacking a page.
-	receipt = v::receive_delta(account, stream, {base.root(), failing(base.pages(), 0)}, target.root().digest, id,
+	receipt = v::receive_delta(account, stream, {base.root(), failing(base.pages(), 0)}, target.target(), id,
 							   target.limits());
 	require(receipt.outcome == v::DeltaOutcome::FullCopy && !receipt.received && !receipt.refusal);
-	receipt = v::receive_delta(account, stream, {other.root(), other.pages()}, target.root().digest, id,
+	receipt = v::receive_delta(account, stream, {other.root(), other.pages()}, target.target(), id,
 							   target.limits(), 1);
 	require(!receipt.received && receipt.refusal &&
 			(receipt.outcome == v::DeltaOutcome::FullCopy) == (receipt.refusal == x::TransferRefusal::BaseLacks));

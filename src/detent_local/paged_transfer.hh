@@ -50,6 +50,7 @@ enum class TransferRefusal {
 	ContentSummary, // a content entry's keys, length or height differ from the child's
 	PageDigest,		// a stated header digest differs from the page's
 	Page,			// dense-pages' page checks: structure, labels, keys, height, D5 packing
+	Leaf,			// a leaf body disagrees with the frame's position (dense-pages D4.4)
 	RootDigest,		// the last page's digest is not the target's
 };
 class TransferRefused : public std::invalid_argument {
@@ -77,11 +78,17 @@ struct ReceivedTransfer {
 };
 using TransferSegmentId = std::function<SegmentId(std::uint32_t number)>;
 
-// D4: verifies `stream`, a transfer over `base` (null for the empty base), against `target`, the
-// root digest the frame names, and returns the segments to write. It parses and walks every page,
-// reruns D5 through dense-pages' page validator, hashes each page once bottom-up and each segment
-// once for its pack checksum, and builds nothing. Throws TransferRefused.
+// What the frame names: the target's root digest and its position, whose revision bounds every leaf.
+struct TransferTarget {
+	paged::Digest root{};
+	std::uint64_t revision = 0;
+	std::uint32_t maximum_overrides = 256;
+};
+// D4: verifies `stream`, a transfer over `base` (null for the empty base), against `target`, and
+// returns the segments to write. It parses and walks every page, reruns D5 through dense-pages'
+// page validator, checks each new leaf as a first touch does, hashes each page once bottom-up and
+// each segment once for its pack checksum, and builds nothing. Throws TransferRefused.
 ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
-								  const TransferBase *base, const paged::Digest &target,
+								  const TransferBase *base, const TransferTarget &target,
 								  const TransferSegmentId &segment_id, paged::Limits);
 } // namespace detent::local::detail

@@ -42,7 +42,7 @@ struct DeltaReceipt {
 // (`refused_sources` counts the sources this transfer's name was already refused from), then
 // records. Nothing is published unless the outcome is Published.
 DeltaReceipt receive_delta(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
-						   const local::detail::TransferBase &base, const local::paged::Digest &target,
+						   const local::detail::TransferBase &base, const local::detail::TransferTarget &target,
 						   const local::detail::TransferSegmentId &, local::paged::Limits,
 						   unsigned refused_sources = 0);
 } // namespace detent::delivery

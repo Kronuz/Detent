@@ -159,6 +159,7 @@ class Built {
 	}
 	Built(const Built &) = delete;
 	const p::Reference &root() const { return image_->root().tree; }
+	x::TransferTarget target() const { return {image_->root().tree.digest, image_->root().cursor.revision}; }
 	std::uint64_t page_bytes() const { return image_->root().bytes; }
 	const p::Limits &limits() const { return limits_; }
 	const x::PagedImage &image() const { return *image_; }
