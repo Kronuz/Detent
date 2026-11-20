@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261120-104122-60d46f 261120-102517-d9c5e8 and the strict A/B jobs (095040-68a827..095143-778a7a, 100645-55c3f1..100652-5c2a3c); then A5
+State: working (transport-admission N9); A5 jobs 261120-145542-e0e075 -145546-4eda6b -145554-7f0524, hop A/B -144831-38a455 queued
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,27 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Session 2 (2026-11-20 afternoon). Head consensus:50c79f2 (pushed). Merged consensus main 8801b99
+(e4f386c, clean). Linux CI red at 50f0a48 (run 44795129569: rpc_host_fetch SIGPIPE on asan-ubsan,
+tsan, arm64-gcc): fixed at 34aa229 + 0ce2c1f (consensus-quiescence's 82cefee ported: ignore in
+main, fetch raises first, mutant sigpipe-default); CI at 0ce2c1f/50c79f2 pending.
+
+A5 at 50c79f2: groups_test `fetch-alongside-consensus` (3 nodes x 2 loops, a group's Drivers over
+the transport; 4 rounds of four 8 MiB lane fetches both ways through 1 MiB budgets beside a commit
+every 50 ms; each exact, each commit within 2 s, leader's term kept) passes locally. rpc_host
+`stop-drain` (F18): host 2 in a posix_spawn'd child raises SIGSTOP in its reader; host 1's fetch
+ends timed_out; after SIGCONT the late reply arrives and is dropped (rule 9), links stay 1, the next
+fetch is exact. It found a defect: a fetch past its deadline after the Call left ended io_error
+(lane Outcome::cancel + deadline_exceeded); fetch now maps it to timed_out (mutant
+fetch-deadline-io-error). Never-drain mutant: forget-is-violation. Jobs: mutants
+261120-145542-e0e075, -145546-4eda6b; 10 runs each -145554-7f0524. Still needed: 3 macOS x86_64 CI
+runs in a row with the port (no skip); the timing label (Blocked on).
+
+Group-bytes A3 rows written in docs/perf/transport-idle-cost.md (idle 180.2 -> 88.4 B, in flight
+4,746.1 -> 594.7 B). Hop CPU: the separate strict jobs disagree with themselves (receive-bound's
+"bound" control same 1,384 ns vs main 676, with hop below same), so they are load, not a verdict;
+one-job A/B main 8801b99 vs branch, base/branch/branch/base: 261120-144831-38a455.
 
 Head consensus:06b9a76 (pushed). Steps 1-4 and A4 coded. Next: A5 (port fetch-alongside-consensus
 onto lane fetch, SIGSTOP inside a drain with a never-drain mutant, `timing` label, three macOS
@@ -65,7 +86,7 @@ running. Re-run the evidence at the final head before review.
 Pre-existing (main): mutants no-extension, uncapped, twice in test/transport/mutant_commit.py no
 longer apply to deadline.h (changed by consensus:e7d615c on main); for the lead.
 
-Interface change (consensus-quiescence merges this branch): `HostTransportOptions::open_of`
+Interface change (consensus-quiescence merges this branch): a fetch whose deadline passes after its Call left now ends `timed_out` (was `io_error`); groups_test's `Node`/`Cluster` take `HostTransportOptions` (`Cluster::options_of`). Earlier: `HostTransportOptions::open_of`
 (`std::function<GroupOpen(GroupId)>`) is required beside `member_of`; `store(group, incarnation)`
 drops its open argument; new options `closes` (4096), `arriving` (256) and stats `owed`,
 `unanswered`, `overrun`, `flooded`. Frames on a link its lane replaced are refused in arrived().
@@ -94,7 +115,14 @@ quest/detent/consensus-transport). Local build: `.scratch/build` there (Ninja, R
 
 ## Blocked on
 
-Nothing.
+- A5's `timing` label (D100): no `timing` label or CONSENSUS_TIMING_TESTS exists on consensus main
+  (it lived on the dropped consensus-fetch-macos branch, d322889), and cpp-libraries' cmake.yml
+  takes no ctest args, so keeping timing cases off CI needs `cmake_args: -DCONSENSUS_TIMING_TESTS=OFF`
+  in `.github/workflows/ci.yml`, outside this quest's file set, and it removes tests from the CI
+  gate. Options: (a) lead grants ci.yml and I label rpc_host group-full, call-full, stream, reader
+  (latency bounds) `timing` and configure them out on CI; (b) label them `timing` only (ctest -LE
+  timing skips them locally) and keep CI running them; (c) nothing is labeled until one fails on CI.
+  Recommend (b) now, (a) when one of them flakes on CI. The two A5 cases are not timing: CI runs them.
 
 ## Evidence
 
