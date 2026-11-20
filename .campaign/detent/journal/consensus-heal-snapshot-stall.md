@@ -1,11 +1,11 @@
 # consensus-heal-snapshot-stall: journal
 
-State: waiting on jobs 261119-231939-d37063 261119-231700-6abdcf 261119-231702-89d08c 261119-231733-1977b1 261119-231908-20c482 261119-231909-77e47d 261119-231722-0ef072 261119-231724-f68f28
+State: waiting on jobs 261119-232059-0f5a1b 261119-232059-943668 261119-232100-da5cee 261119-232100-90a070 261119-232100-9d53be 261119-232101-ed03fd 261119-231700-6abdcf 261119-231702-89d08c
 Quest: .campaign/detent/quests/consensus-heal-snapshot-stall.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs queued for A1-A3 (ids in State); CI run 44693792407 on the pushed branch (linux-tsan, ASan/UBSan, matrix).
+Jobs queued for A1-A3 at head consensus:70ddd54 (ids in State); CI on the pushed branch (linux-tsan, ASan/UBSan, matrix).
 
 ## Next
 
@@ -13,7 +13,11 @@ Jobs queued for A1-A3 (ids in State); CI run 44693792407 on the pushed branch (l
 
 ## Blocked on
 
-Nothing. The 60 s is not a design bound for this case: snapshot_timeout bounds an install whose source never progresses (ARCHITECTURE.md, Sender flights); here no install was needed. Fixed in the Core, no wire change.
+CHANGELOG.md, held by consensus-dns-notes (the lead adds it to this file set when that lands). Entry to commit then:
+
+> The leader starts an install only after a peer refuses an append at or below its base. A next index there for any other reason, a flight timeout or the leader's own checkpoint, first appends at the base, so a peer that already holds the entries catches up within rpc_timeout of a heal instead of waiting out snapshot_timeout (60 s).
+
+Otherwise nothing. The 60 s is not a design bound for this case: snapshot_timeout bounds an install whose source never progresses (ARCHITECTURE.md, Sender flights); here no install was needed. Fixed in the Core, no wire change.
 
 ## Cause (A1)
 
@@ -32,11 +36,11 @@ Core reproduction: `heal_after_checkpoint_past_stale_match` in test/consensus_te
 
 ## Fix (A2)
 
-consensus:95e15f3, include/consensus/core.h: `Peer::lacks_base`, set by a refusal that puts next at or below the base, cleared by any append sent and by an image installed or released with a probe. `replicate` starts an install only when it is set; otherwise it appends at the base, and a refusal there starts the install one round trip later. After the heal the peer catches up within rpc_timeout (its outstanding flight's timeout): 2 heartbeats in the compact and simulation profiles (20/40). Under the library default (100/500) the bound is rpc_timeout, the same as for any lost flight.
+consensus:95e15f3, include/consensus/core.h: `Peer::lacks_base`, set by a refusal that puts next at or below the base, cleared by any append sent and by an image installed or released with a probe. `replicate` starts an install only when it is set; otherwise it appends at the base, and a refusal there starts the install one round trip later. Bound: after the heal the peer catches up within rpc_timeout (its outstanding flight's timeout), which is 2 heartbeats at the simulation's timing (20/40) and 5 at the library default (100/500); the same bound as for any lost flight. The A2 test asserts 2 heartbeats at the compact timing.
 
 ## Evidence
 
-Jobs: A1 261119-231939-d37063 (head, builds 98298fb: expect-stall), 261119-231700-6abdcf (fails-without at c08afe7: seed 4270 fails the 4,000-round heal), 261119-231702-89d08c (fails-without at 910925a); supporting, ran 98298fb itself: 261119-231659-1c3890 passed (1 SnapshotNeeded each; heal rounds 14,881 / 13,154 / 10,498). A2 261119-231702-89d08c, 261119-231733-1977b1 (test passes at head), 261119-231908-20c482 (head's core.h in 98298fb's sim: expect-heal); supporting 261119-231718-ff0cc8 passed (0 SnapshotNeeded; heal rounds 7 / 40 / 40). A3 261119-231909-77e47d (head's core.h in c08afe7's sim, 4,000-round heal: 10,000 seeds x 1,000 steps, 2,000 x 3,000), 261119-231722-0ef072 (main's sim: 1,000 Core seeds x 10,000, 100 Driver seeds x 3,000), 261119-231724-f68f28 (suite); CI 44693792407 (TSan). Script: /Users/kronuz/.scratch/detent/consensus-heal-snapshot-stall/jobs/heal-seeds.sh.
+Jobs at head 70ddd54 (rerun of the 95e15f3 ones): A1 261119-232059-0f5a1b (head, builds 98298fb: expect-stall), 261119-231700-6abdcf (fails-without at c08afe7: seed 4270 fails the 4,000-round heal), 261119-231702-89d08c (fails-without at 910925a); supporting, ran 98298fb itself: 261119-231659-1c3890 passed (1 SnapshotNeeded each; heal rounds 14,881 / 13,154 / 10,498). A2 261119-231702-89d08c, 261119-232059-943668 (test passes at head), 261119-232100-da5cee (head's core.h in 98298fb's sim: expect-heal); supporting 261119-231718-ff0cc8 passed (0 SnapshotNeeded; heal rounds 7 / 40 / 40). A3 261119-232100-90a070 (head's core.h in c08afe7's sim, 4,000-round heal: 10,000 seeds x 1,000 steps, 2,000 x 3,000), 261119-232100-9d53be (main's sim: 1,000 Core seeds x 10,000, 100 Driver seeds x 3,000), 261119-232101-ed03fd (suite); CI on 70ddd54 (TSan). Script: /Users/kronuz/.scratch/detent/consensus-heal-snapshot-stall/jobs/heal-seeds.sh.
 
 | Criterion | Evidence |
 |---|---|
@@ -46,7 +50,7 @@ Jobs: A1 261119-231939-d37063 (head, builds 98298fb: expect-stall), 261119-23170
 
 ## Result
 
-Pending the jobs. Open for the lead: ARCHITECTURE.md (Sender flights: "A leader needing unavailable history emits SnapshotNeeded") and CHANGELOG.md are outside the file set; suggested sentence: "An install starts only after the peer refuses an append at or below the leader's base; a next index there for any other reason (a flight timeout, the leader's own checkpoint) first appends at the base." Xapiand's 98298fb (heal outlasting 2 x snapshot_timeout) can return to 4,000 rounds once this lands.
+Pending the jobs. ARCHITECTURE.md (Snapshots, compacted follower paragraph) states the install rule: consensus:70ddd54. CHANGELOG.md waits (Blocked on). Xapiand's 98298fb (heal outlasting 2 x snapshot_timeout) can return to 4,000 rounds once this lands.
 
 ## Rulings I made
 
