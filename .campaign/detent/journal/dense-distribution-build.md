@@ -1,8 +1,8 @@
 # dense-distribution-build: journal
 
-State: integration round (lead: e2e on the real relay, off-thread builds, gate). Both DD3 halves merged
-(relay Detent:68b9665d, agent Detent:c88fd1d5, parser Detent:9175920e, service copy Detent:3d6e70b2).
-Off-thread builds at Detent:251c6cc4; the system test test_system_relay_pages is being built locally.
+State: waiting on jobs 261120-113956-1e73f5 (suite), 261120-114005-1bacdc (forced root mismatch),
+261120-114010-d77302 (build-on-mirror-thread mutant) and CI at Detent:427bdd30. Integration
+round built: off-thread builds (Detent:251c6cc4), the real-relay system test (Detent:22374016).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -12,15 +12,20 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 ## Doing
 
 Integration round:
-1. Off-thread builds (done, Detent:251c6cc4): MirrorService runs builds on a builder thread;
-   test_relay_pages' service case (records answer 3 ms while a 100K build runs; pages at 250 ms);
-   mutant tests/detent_relay/mutants/build-on-mirror-thread.patch (job 261120-111716-653937).
-2. System test test_system_relay_pages (run_relay_pages.py): authority + relay + two agents (one
-   direct, records; one relayed, pages); cold 100K boot with 0 bytes hashed to build, roots equal;
-   a clustered rewrite while the relay is SIGSTOPped reaches the warm agent as one pages delta.
-   Forced root mismatch: tests/detent_system/forcing/relay-root-forced.patch +
-   forcing/relay_pages_forced.sh (agent refuses, boots from records, same root).
-3. Gate: suite + CI at the head; then "ready for review".
+1. Off-thread builds (Detent:251c6cc4): MirrorService runs builds on a builder thread; the mirror
+   thread only reads the full copy's files and copies layout and ring. test_relay_pages' service
+   case: at 100K a records answer goes in 3 ms while the build runs (pages answer at 250 ms; 60 ms
+   when the records encode still ran on the mirror thread). Mutant
+   tests/detent_relay/mutants/build-on-mirror-thread.patch (job 261120-114010-d77302).
+2. test_system_relay_pages (Detent:22374016, run_relay_pages.py): 3 voters, a relay, a records agent
+   on the authority and a pages agent on the relay. Local run: cold 100K boot in 1.83 s, one
+   transfer of 2,168,898 B, 0 bytes hashed to build (records agent: 4,290,964 B), roots equal; a
+   55,555-key clustered rewrite while the relay is SIGSTOPped arrives as one pages delta
+   (1,205,282 B; relay deltas 0 -> 1). Forced root mismatch (forcing/relay-root-forced.patch +
+   relay_pages_forced.sh; local run: refusal half passed, then the delta check was split for records sessions):
+   refused 1, built 4,290,964 B from records, same root; the session's delta goes as records.
+   Job 261120-114005-1bacdc.
+3. Gate: suite 261120-113956-1e73f5 and CI at the head; then "ready for review".
 
 ## Done
 
@@ -161,6 +166,22 @@ removal of test_local_view, which no longer exists.
 - Lead message (namespace-local-cursor done, merge it with DD1 and DD4): merged at Detent:e52e8d31;
   DD1 (Detent:5b46a601) and DD4 (Detent:14b29e24) were already in. Its pause note holds: the
   coordinator's pause ends only on close, a new cancellation, or wake().
+- Relay builds (integration round): a cold pages reader gets the newest build a delta still follows
+  (same incarnation, not below the cut), not only the build at the head, and starts the build at
+  the head in the background; without one it waits while a build is in flight (no frame, as
+  Current). D7.4 sends the copy at s then the delta, and waiting for the head under writes starves.
+- A pages delta below the newest build waits for the build at the head only when the records
+  answer is at least a third of the newest build's root page (D6 rule 1 against a lower bound:
+  every delta carries a root page), and only while that build targets the current head. Small
+  deltas never wait; a head that moved during the build answers records (no starvation).
+- A failed relay build answers records until the head moves; builds run one at a time, relay-wide.
+- test_system_relay_pages widens the voters (4096 mutations a transaction; layout alpha 1, cap 4):
+  at 128 a transaction seeding 100K took over 300 s, and the default cap (2 alpha = 1/4 copy) moves
+  the cut past the agent's base for a 55% rewrite, which D10 then answers as a full copy.
+- The forced root mismatch is a forcing patch job, not a suite test: the relay has no fault hook,
+  and a frame's root comes from its own build.
+- test_delivery_worker_lifetime moves under `if(TARGET detent::distribution_http)`: the agent-only
+  configuration (mirror_mutant.sh) failed to configure on this branch (Detent:514349e0).
 - The agent's v1 generation identity flags go rather than map through D88: a W5 generation's
   incarnation is the authority's, so a D88-derived identity never matches (greenfield).
 - A worker build failure is a retried candidate failure, recorded in status, not a stop: the
