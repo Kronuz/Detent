@@ -3,38 +3,43 @@
 State: working
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1 of the design's first buildable steps: TurnDriver::before_turn, deferred create_group and
+reopen_group, one batched slot commit before each turn with transitions.
 
 ## Next
 
-1. <step>
+1. before_turn hook + deferred create/reopen (D5); fix host_test failed_reopen to fail-stop
+2. TurnLog::peek, Host::park(loop) via the close path; host_test park_count (A2)
+3. Streaming re-partition (D6)
+4. host_test idle_crash and idle_damage with mutants (A3)
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | journal docs/design/idle-groups.md at journal:177814e |
+| A2 | <no evidence yet> |
+| A3 | <no evidence yet> |
+| A4 | <no evidence yet> |
+
+Coordinator's design inputs (review F2, F3, F5 of Xapiand turn-log-parity-design.md): answered in
+idle-groups.md D1 (F3: parked is closed, a durable state recovery already exempts), D5 (F3:
+unpark committed before the turn), D7 (F2), D8 (F5).
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- R1. Parked is the existing closed state (D1), not a new table state: same bytes, same exemption.
+- R2. turn-log-parity's one-log-per-device shape is not on journal main: designed against its quest
+  file; assumptions in idle-groups.md "Assumptions about turn-log-parity".
+- R3. CMakeLists.txt is outside the file set: new cases go in host_test.cc (registered whole);
+  the 1M scale comes from JOURNAL_PARKED_GROUPS in the job, a smaller default in ctest.
