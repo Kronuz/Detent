@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs and CI at Detent:3a6d38fe (main merged) and on the arm64 bisect runs (bisect/liw-head, -authority, -relay, -coordinator); see "Contributor 5".
+State: waiting on jobs 261120-144912-403ec3 (suite, forced), -144900-942521 -144901-a60d82 (A1), -144901-8f1b46 (A3), -144914-cf70b6 (F10 fails-without at d7de180b), -144945-3bf17d -144952-b6c0a3 (managed_relay x10, head and main) at Detent:bd01e34f; CI 44831971293 (push); arm64 bisect runs 44831905533 (head), 44831905586 (authority), 44831904570 (relay), 44831905323 (coordinator).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -126,6 +126,12 @@ reclaim scans ~60 completion ops/s) frames A1.
   bisect/liw-head (control), -authority (src/detent_authority/service.cc as on main; its two wake tests dropped),
   -relay (host.cc, relay service and mirror as on main), -coordinator (coordinator.cc as on main). The reply pump's
   `changed` gets a default there so main's callers compile. Branches deleted once read.
+- Reruns at the merged head Detent:bd01e34f: suite forced (261120-144912-403ec3; `verify` had reused b61395), A1
+  -144900-942521 -144901-a60d82, A3 -144901-8f1b46; A2/A4 jobs reused (their inputs unchanged by the merge).
+  F10 fails-without: 261120-144914-cf70b6, the bench build at Detent:d7de180b (before the fix).
+- managed_relay locally, x10 each: head 261120-144945-3bf17d, main 6ae09eeb 261120-144952-b6c0a3.
+- Next: read the jobs; read each bisect run's statuses (`gh api repos/Kronuz/Detent/commits/<sha>/statuses`),
+  name the component, fix it with a test; delete bisect/liw-*.
 
 ## Result
 
