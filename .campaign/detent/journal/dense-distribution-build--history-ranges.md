@@ -1,6 +1,6 @@
 # dense-distribution-build--history-ranges: journal
 
-State: working
+State: waiting on jobs 261120-140658-c98aab 261120-140659-cc116c 261120-140701-e20960 261120-140702-b2e24c 261120-140704-29b54e 261120-140706-39dc89 261120-140716-764a97 261120-140717-ac69d9 261120-140718-121ba1 261120-140720-77337a
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
