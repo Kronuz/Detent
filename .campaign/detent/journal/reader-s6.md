@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs 261120-144153-5ca7ff (native), 261120-144153-bfddeb (tsan), 261120-144153-5d52af (t3-tsan), reruns 2e6af6 8f6d12 1da5b2 71acaf cf7692 20f2a2 882aab dfa9b5 33ebe5, A16 strict 921c21 (stopped) and 9c14ff (running), count e021a9, all at `Detent:1920bd0` (main merged, pushed; CI running). A16's p99 bound fails on main too (Blocked on).
+State: waiting on jobs at `Detent:d0bdc01`: gates native 5054f8, tsan 2c8619, t3-tsan f5e222, asan e0f54b, t3-asan 952dba; DROP-1 plain d5b8ee and mutant acc366; reruns fbc572 6cf066 630328 d86533 67abda 0e51eb 69ff23; A16 strict 29d977 and 481c35, count bc7996. CI run 44834111994 queued on the head (pushed).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,24 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Lead's message (2026-11-20, D140): main merged at `Detent:13f15b7` (campaign files only).
+  `Detent:f3f76e4` gates A16 on D140: per cell, the paired difference at most the noise floor and the
+  branch's pooled p99 at most main's plus the floor; 1 ms is reported only. The gate runs at strict
+  (script header and `docs/perf/first-read-gate.md` say so).
+- Linux gcc CI failure, found while getting CI onto the head: CI at `Detent:dc004dc` failed T3 on
+  both gcc arches (and arm64 gcc at `Detent:ae09997`): readers' `detent_get` returned non-OK
+  (`test_reader_switch` lines 93 and 245). Clang Linux and macOS passed; at `Detent:2dae6ab` and
+  `Detent:e77b31d` it passed, so it is intermittent. Diff 2dae6ab..dc004dc has nothing in the reader.
+  - Cause (from the code): `refresh_locked` swallowed `GenerationUnavailable` from `selected()` (three
+    reads a publish storm can outrun) and built a view with no table and no entry, dropping an
+    attached namespace; every lookup then answered `DETENT_UNAVAILABLE` until a read succeeded,
+    against D4's stale answer. Pre-existing on the branch since `Detent:8f6da7f`.
+  - `Detent:0717b9b` prints a refused lookup's status in T3; `Detent:d0bdc01` rethrows when an
+    entry is attached, so the refresh fails at its store word and lookups answer stale.
+  - Guard: `test_reader_core unreadable_table` (attached, publish, `selected` renamed away: lookup
+    and revision answer 1, refresh unavailable, then 2 after it returns). Mutant DROP-1
+    (`refs/mutants/reader-s6/DROP-1`, `Detent:1136d31`) removes the rethrow: acc366.
+  - Linux gcc confirmation is CI's at `Detent:d0bdc01` (the failure was 3 of 6 gcc runs before).
 - Close-out (2026-11-20): merged main at `Detent:1920bd0` (clean; main's src changes are the
   detentd rename, PackScrub counts and test fixtures, none in the read path). The W1 cursor work from
   dense-distribution-build has not landed yet; merge again if it does.
@@ -227,20 +245,15 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, reruns and A16 921c21/9c14ff/e021a9 at `Detent:1920bd0`; mark Evidence.
+1. Read the gates, DROP-1, reruns and A16 29d977/481c35/bc7996 at `Detent:d0bdc01`; CI 44834111994
+   (both gcc arches green); mark Evidence.
 2. Merge main again if dense-distribution-build's W1 cursor lands; rerun the gates.
 3. When 1-2 close and CI is green: "ready for review" with 3-5 questions per lens; the reviewers should check the
    freshness argument under Rulings (attach from the refresh's table; first attach from the view's).
 
 ## Blocked on
 
-- A16's absolute p99 below 1 ms (D121) fails on main as well as the branch on this host: exclusive
-  9f40bf/5fb83e, main's pooled p99 1.18-1.32 ms in 3 of 4 cells, the branch's 1.03-1.15 ms and
-  never above main's. The paired difference passes everywhere. Options: (a) gate the tail relative
-  to main (branch pooled p99 at most main's plus the cell's noise floor), keeping 1 ms as a target
-  like 200/200; (b) keep the absolute bound and measure it on a quieter host or the Linux VM;
-  (c) accept as is with these numbers. Recommendation: (a); it is D121's own reasoning for 200/200
-  (main misses it here). D121 is the owner's, so this is the lead's call.
+Nothing. A16's absolute p99 is ruled: D140 (option a), applied at `Detent:f3f76e4`.
 
 ## Evidence
 
@@ -259,9 +272,12 @@ not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 | A12 | cold 1628b4; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak 3cdb4e (pending) |
 | A13 | 1628b4 |
 | A14 | caf921 |
-| A16 | strict 921c21 (stopped), 9c14ff (running), count e021a9 (pending, at `Detent:1920bd0`); exclusive 9f40bf/5fb83e at `Detent:dc004dc`: paired difference passes, p99 fails on both arms (Blocked on); attribution A/B db0806 |
+| A16 | D140: strict 29d977, 481c35, count bc7996 (pending, at `Detent:d0bdc01`); exclusive 9f40bf/5fb83e at `Detent:dc004dc` pass D140 on these numbers (branch pooled p99 below main's in every cell); attribution A/B db0806 |
 
 ## Messages
+
+- Lead (2026-11-20), D140: merged main (`Detent:13f15b7`), gate on D140 (`Detent:f3f76e4`), gates
+  requeued; CI dispatched, and on the Linux gcc T3 failure it exposed, fixed at `Detent:d0bdc01`.
 
 - Coordinator (2026-11-19), both blockers: (1) rebench and A/B into `docs/perf/reader-lookup.md`: done at the commit after `Detent:ad86fb0`; (2) c027f04 accepted, freshness argued under Rulings.
 
@@ -304,6 +320,9 @@ Attribution (msg-1 regression):
 
 ## Rulings I made
 
+- A table read that fails while a namespace is attached fails the refresh (`Detent:d0bdc01`) rather
+  than install a view without it: D4 answers stale and never drops an answer it had. Without an entry
+  (first attach, empty store) the view still records no table, as before.
 - Freshness of attach from the refresh's table (`Detent:c027f04`, accepted by the lead): the refresh
   loads the store word and sequence, then reads `selected` (D4 rule 1), and attach runs next in the
   same `refreshing` hold with no wait between. A second read there could only see a table renamed
