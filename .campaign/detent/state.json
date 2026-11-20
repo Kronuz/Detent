@@ -2123,6 +2123,8 @@
     "consensus-batch-turn-room": {
       "accepted": {},
       "after": [],
+      "base": "a8e867bb01b6767b3180d3751469bb600212ed90",
+      "branch": "quest/detent/consensus-batch-turn-room",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -2137,6 +2139,7 @@
         "test/worker_test.cc",
         "docs/DRIVER.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-batch-turn-room",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -2144,9 +2147,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus worker: validate a batch against the host's turn room",
-      "updated": "2026-11-19T23:27:52"
+      "updated": "2026-11-19T23:27:54",
+      "worktree": "../consensus-wt/detent/consensus-batch-turn-room"
     },
     "consensus-blocking-hold-loop": {
       "accepted": {},
