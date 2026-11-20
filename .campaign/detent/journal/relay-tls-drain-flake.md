@@ -1,6 +1,6 @@
 # relay-tls-drain-flake: journal
 
-State: waiting on jobs 261120-031721-a8d3ef 261120-031723-0c5b78 261120-031724-7d3e1c 261120-031733-0d3927 261120-031734-bed4b1 261120-031802-0c7ca0 (all queued behind an exclusive hold at 03:28), CI
+State: waiting on jobs 261120-043323-963268 (A1 pass at head) and 261120-043325-0ce5e8 (suite at head), CI
 Quest: .campaign/detent/quests/relay-tls-drain-flake.md (the lead's; never edit it)
 
 ## Doing
@@ -49,9 +49,16 @@ on macOS. Recommend a follow-up quest applying the same dial.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-031721-a8d3ef (100k natural calls, pre-fix, fails-without), 261120-031733-0d3927 (fleet_raw with [::1] echo, pre-fix, fails-without) |
+| A1 | fails-without (submitted with --fails-without at 76465578, pre-fix; exit 1 = failed as it must): 261120-031721-a8d3ef (100k natural calls: 2 UNEXPECTED_MESSAGE of 100000), 261120-031733-0d3927 (fleet_raw with [::1] echo: UNEXPECTED_MESSAGE in both runs); 261120-043323-963268 (test_localhost_dial at head, passes) |
 | A2 | 261120-031724-7d3e1c (test_localhost_dial fails without fix), 261120-031723-0c5b78 (100k natural calls, fixed, 0 errors), 261120-031734-bed4b1 (fleet_raw with [::1] echo, fixed, 50 runs 4 at once) |
 | A3 | pending: suite and CI |
+
+## Suite 261120-031802-0c7ca0 (exit 8)
+
+Only test_agent_store_crash failed, by the 900 s ctest timeout (an exhaustive crash model, in the log
+"catch-up 898.4 s"); every other test passed. Not this quest (no change under tests/detent_agent or the
+store): the same test passes in 38-760 s across earlier jobs and scales with load (-j4 plus other holds).
+Rerun at head: 261120-043325-0ce5e8.
 
 ## Result
 
