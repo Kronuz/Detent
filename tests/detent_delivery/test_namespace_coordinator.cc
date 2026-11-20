@@ -1,7 +1,9 @@
 // The agent coordinator on W5/W6 (D8): it follows its namespaces on one session and publishes each
 // response's frames as one store cycle with an entry per namespace. A reader of each entry sees the
-// server's state at the server's head through full copies, entries, blocks, a drop and a W7
-// re-creation, and a restarted agent resumes from its entries.
+// server's state at the server's head through full copies, entries, blocks, a drop, a W7
+// re-creation and a repair (D10), and a restarted agent is ready from its entries with the source
+// down, then resumes from them.
+#include "../../src/detent_delivery/coordinator_internal.hh"
 #include "namespace_server_fixture.hh"
 #include "detent/owner_loop.hh"
 #include "detent_delivery/coordinator.hh"
@@ -36,6 +38,14 @@ struct Agent {
 		options.source.scheduler = &owner.scheduler();
 		coordinator = t::make_coordinator(std::move(options), store, driver, domain, worker);
 		asio::post(owner.io(), [this] { task::spawn(task::scheduler_ref::of(owner.scheduler()), coordinator->run()); });
+	}
+	void repair(std::string_view name) {
+		std::promise<void> done;
+		asio::post(owner.io(), [&] {
+			t::detail::CoordinatorAccess::request_repair(*coordinator, name);
+			done.set_value();
+		});
+		done.get_future().get();
 	}
 	t::CoordinatorStatus status() {
 		std::promise<t::CoordinatorStatus> out;
@@ -198,6 +208,14 @@ int main(int argc, char **argv) {
 			agent.until([&](const auto &s) { return at_heads(server, s, followed); }, "re-created app");
 			matches(server, root, limits, "app");
 
+			// A repair refetches app as a full copy at its head (D10); web keeps its generation.
+			const auto web_before = state.selected.find("web")->generation;
+			agent.repair("app");
+			state = agent.until([](const auto &s) { return s.repair.completed == 1 && !s.repair.pending; }, "repair");
+			check(state.repair.requested == 1 && state.selected.find("web")->generation == web_before);
+			matches(server, root, limits, "app");
+			matches(server, root, limits, "web");
+
 			// web is dropped: its entry leaves the table, app keeps serving.
 			{
 				std::lock_guard lock(server.mutex);
@@ -209,8 +227,22 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "app");
 		}
 		{
+			// With the source down, a restart is ready from its entries as they stand (C4).
+			std::lock_guard lock(server.mutex);
+			server.behind = true;
+		}
+		{
+			options.namespaces = {"app"};
+			Agent agent(root, l::StoreOpenMode::ExistingManaged, options, account, domain, queue);
+			const auto state = agent.until([](const auto &s) { return s.ready && s.failures; }, "offline ready");
+			check(state.selected.find("app") && !state.selected.find("web"));
+			matches(server, root, limits, "app");
+			options.namespaces = {"app", "web"};
+		}
+		{
 			// A restart resumes from its entries: app's next answer is current, so no frame is sent.
 			std::lock_guard lock(server.mutex);
+			server.behind = false;
 			server.find("web").dropped.reset();
 			server.answered = 0;
 		}

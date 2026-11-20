@@ -11,20 +11,17 @@ struct ServiceAccounts {
 };
 struct ServiceStatus {
 	std::array<std::size_t, 3> requests{};
-	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
-	std::size_t sessions = 0;
 	bool closing = false;
 };
 class ServiceRuntime {
   public:
-	// `mirror`, when set, answers W5 sessions (version 2) and the history routes a downstream relay
-	// reads; version 1 stays with the bundles.
-	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::span<const SessionBinding>,
-				   ServiceLimits = {}, std::shared_ptr<MirrorService> mirror = {});
+	// `mirror` answers W5 sessions (version 2) and the history routes a downstream relay reads.
+	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::shared_ptr<MirrorService>,
+				   ServiceLimits = {});
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;
-	bool step(Sessions::Clock::time_point);
+	bool step(std::chrono::steady_clock::time_point);
 	ServiceStatus status() const noexcept;
 	void health(std::shared_ptr<const distribution::OwnedBuffer>);
 	bool drained() const noexcept;

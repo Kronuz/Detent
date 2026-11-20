@@ -10,6 +10,19 @@ if(TARGET detent::relay_mirror)
   set_tests_properties(test_relay_mirror_crash PROPERTIES TIMEOUT 900)
 endif()
 
+# The relay's credentials and configuration: a mirror, W13 namespace grants, admission lanes and TLS.
+if(TARGET detent::relay_config AND TARGET detent::relay_http)
+  add_executable(test_relay_registry test_relay_registry.cc)
+  target_link_libraries(test_relay_registry PRIVATE detent::relay_http hashes::hashes)
+  add_test(NAME test_relay_registry COMMAND test_relay_registry)
+  set_tests_properties(test_relay_registry PROPERTIES TIMEOUT 30)
+
+  add_executable(test_relay_config test_relay_config.cc)
+  target_link_libraries(test_relay_config PRIVATE detent::relay_config)
+  add_test(NAME test_relay_config COMMAND test_relay_config ${PROJECT_BINARY_DIR}/tests/detent_delivery/tls-fixture)
+  set_tests_properties(test_relay_config PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 30)
+endif()
+
 # A1 and A5 over real voters: the relay chain reads S5.2's history through its layout and W6, and
 # checks each voter's own layouts export against it.
 if(TARGET detent::relay_mirror AND TARGET detent_authority_service)

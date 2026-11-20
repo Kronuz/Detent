@@ -1,10 +1,9 @@
 #pragma once
-#include "detent_distribution/session_table.hh"
+#include <cstddef>
 
 namespace detent::relay {
+// Admission lanes: requests in flight per route kind (history routes ride the opens lane).
 struct ServiceLimits {
 	std::size_t opens = 16, polls = 640, closes = 16;
-	std::size_t bootstrap_transfers = 512, catchup_transfers = 128;
-	distribution::SubscriptionLimits sessions{1024, 1024};
 };
 } // namespace detent::relay

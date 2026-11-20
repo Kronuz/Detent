@@ -5,14 +5,13 @@
 #include "detent_distribution_http/reply_pump.hh"
 #include "detent_distribution_http/session_request.hh"
 #include <mutex>
-#include <openssl/rand.h>
 #include <rapidjson/document.h>
 
 namespace detent::relay {
 namespace d = distribution;
 namespace h = distribution_http;
 namespace {
-using Clock = Sessions::Clock;
+using Clock = std::chrono::steady_clock;
 std::size_t ordinal(h::RequestKind kind) {
 	switch (kind) {
 	case h::RequestKind::Open:
@@ -24,16 +23,6 @@ std::size_t ordinal(h::RequestKind kind) {
 	default:
 		throw std::invalid_argument("relay requires subscription routes");
 	}
-}
-std::string hex(const d::Identity &identity) {
-	constexpr char digits[] = "0123456789abcdef";
-	std::string result(32, '0');
-	for (std::size_t index = 0; index < identity.size(); ++index) {
-		const auto byte = static_cast<unsigned char>(identity[index]);
-		result[2 * index] = digits[byte >> 4];
-		result[2 * index + 1] = digits[byte & 15];
-	}
-	return result;
 }
 [[noreturn]] void reject(int status, const char *body) {
 	throw http::RequestRejected(status, body, http::RejectionContent::Json);
@@ -72,25 +61,19 @@ void parse_history(std::string_view path, std::string_view body, MirrorJob &job)
 } // namespace
 struct ServiceRuntime::Impl {
 	struct Admission {
-		SessionAuthorization authorization;
+		const ConfiguredCredential *credential = nullptr; // the registry's, retained by the runtime
 		h::RequestKind kind;
 		std::shared_ptr<d::SubscriptionRequests::Lease> lease;
 		bool history = false; // a history route, admitted on the opens lane
 	};
+	// Every request is a mirror job: the task waits for its answer and streams it.
 	struct Task : h::OwnedReplyPump {
 		std::shared_ptr<Admission> admission;
-		std::optional<d::Cursor> base, published;
-		d::Identity session{};
-		std::size_t binding = 0, frame = 0;
-		std::uint64_t after = 0;
-		bool force_snapshot = false, compression = false, initialized = false, completed = false;
-		bool open_created = false, transfer = false, bootstrap = false;
-		Clock::time_point deadline, poll_deadline;
-		std::optional<d::SubscriptionRequestToken> request;
-		std::optional<d::SubscriptionOfferToken> offer;
-		d::RetirementHandle<d::EncodedUpdate> update;
+		std::shared_ptr<MirrorJob> job;
+		std::size_t frame = 0;
+		bool completed = false;
+		Clock::time_point deadline;
 		std::shared_ptr<const d::OwnedBuffer> pending;
-		std::shared_ptr<MirrorJob> job; // version 2 and history routes: the mirror answers
 	};
 	struct Lane {
 		d::SubscriptionRequests admission;
@@ -111,25 +94,16 @@ struct ServiceRuntime::Impl {
 	};
 	ServiceAccounts accounts;
 	std::shared_ptr<const Registry> registry;
-	ServiceLimits limits;
 	std::shared_ptr<MirrorService> mirror;
-	Sessions sessions;
-	std::vector<SessionBinding, d::StorageAllocator<SessionBinding>> bindings;
 	std::array<d::StorageOwner<Lane>, 3> lanes;
 	mutable std::mutex mutex;
 	std::atomic<bool> closing{false};
 	std::shared_ptr<const d::OwnedBuffer> health;
-	bool closed_sessions = false;
-	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
 	Impl(ServiceAccounts storage, std::shared_ptr<const Registry> authorization,
-		 std::span<const SessionBinding> configured, ServiceLimits bounds, std::shared_ptr<MirrorService> namespaces)
-		: accounts(std::move(storage)), registry(std::move(authorization)), limits(bounds), mirror(std::move(namespaces)),
-		  sessions(accounts.metadata, configured, limits.sessions),
-		  bindings(d::StorageAllocator<SessionBinding>(accounts.metadata)) {
-		if (!registry || !limits.bootstrap_transfers || !limits.catchup_transfers ||
-			limits.bootstrap_transfers > limits.polls || limits.catchup_transfers > limits.polls)
-			throw std::invalid_argument("relay service transfer limits");
-		bindings.assign(configured.begin(), configured.end());
+		 std::shared_ptr<MirrorService> namespaces, ServiceLimits limits)
+		: accounts(std::move(storage)), registry(std::move(authorization)), mirror(std::move(namespaces)) {
+		if (!registry || !mirror)
+			throw std::invalid_argument("relay service registry and mirror");
 		const std::array<std::size_t, 3> capacities{limits.opens, limits.polls, limits.closes};
 		for (std::size_t index = 0; index < 3; ++index) {
 			if (!accounts.requests[index] || !capacities[index] || capacities[index] > 65536)
@@ -139,23 +113,23 @@ struct ServiceRuntime::Impl {
 		}
 	}
 	std::shared_ptr<Admission> admit(const http::Request &request) {
-		const bool history = mirror && history_route(request.path);
+		const bool history = history_route(request.path);
 		const auto kind = history ? std::optional(h::RequestKind::Open) : h::classify_session_route(request.path);
 		if (request.method != "POST" || !kind || *kind == h::RequestKind::Distribution)
 			reject(404, "{\"error\":\"not_found\"}");
-		const auto *authorization = registry->authenticate(request.header("Authorization"));
-		if (!authorization)
+		const auto *credential = registry->authenticate(request.header("Authorization"));
+		if (!credential)
 			reject(403, "{\"error\":\"scope_forbidden\"}");
 		const auto index = ordinal(*kind);
 		if (closing.load())
 			reject(503, "{\"error\":\"admission_full\"}");
-		auto lease = lanes[index]->admission.admit(authorization->principal.identity,
+		auto lease = lanes[index]->admission.admit(credential->principal.identity,
 												   static_cast<d::SubscriptionRequestKind>(index));
 		if (!lease)
 			reject(503, "{\"error\":\"admission_full\"}");
 		auto result =
 			std::allocate_shared<Admission>(d::StorageAllocator<Admission>(accounts.requests[index]));
-		result->authorization = *authorization;
+		result->credential = credential;
 		result->kind = *kind;
 		result->lease = std::move(lease);
 		result->history = history;
@@ -164,40 +138,6 @@ struct ServiceRuntime::Impl {
 	void control(Task &task, int status, std::string_view body) noexcept {
 		task.send_control(status, body, accounts.requests[ordinal(task.admission->kind)]);
 		task.completed = true;
-	}
-	void error(Task &task, d::SubscriptionResult result) {
-		int status = 409;
-		const char *body = "{\"error\":\"session_out_of_sync\"}";
-		switch (result) {
-		case d::SubscriptionResult::Expired:
-			status = 410;
-			body = "{\"error\":\"session_expired\"}";
-			break;
-		case d::SubscriptionResult::Forbidden:
-			status = 403;
-			body = "{\"error\":\"scope_forbidden\"}";
-			break;
-		case d::SubscriptionResult::IdentityChanged:
-			body = "{\"error\":\"identity_changed\"}";
-			break;
-		case d::SubscriptionResult::SnapshotRequired:
-			body = "{\"error\":\"snapshot_required\"}";
-			break;
-		case d::SubscriptionResult::SourceBehind:
-			status = 503;
-			body = "{\"error\":\"source_behind\"}";
-			break;
-		case d::SubscriptionResult::Full:
-			status = 503;
-			body = "{\"error\":\"admission_full\"}";
-			break;
-		case d::SubscriptionResult::Busy:
-			body = "{\"error\":\"session_busy\"}";
-			break;
-		default:
-			break;
-		}
-		control(task, status, body);
 	}
 	// A mirror's answer: a control reply, or its chunks streamed in order.
 	void stream_job(Task &task) {
@@ -232,17 +172,8 @@ struct ServiceRuntime::Impl {
 		}
 	}
 	bool advance(Task &task, Clock::time_point now) {
-		if (task.job && task.settled.load())
-			task.job->abandoned.store(true);
 		if (task.settled.load()) {
-			if (task.offer)
-				sessions.settle(*task.offer, task.written.load());
-			if (task.request)
-				sessions.release(*task.request);
-			if (task.open_created && !task.written.load())
-				sessions.close(task.session, task.admission->authorization, now);
-			if (task.transfer)
-				--(task.bootstrap ? bootstrap : catchup);
+			task.job->abandoned.store(true);
 			return true;
 		}
 		if (closing.load() || now >= task.deadline) {
@@ -253,107 +184,17 @@ struct ServiceRuntime::Impl {
 			task.pump_control();
 			return false;
 		}
-		if (task.job) {
-			if (task.job->done.load(std::memory_order_acquire))
-				stream_job(task);
-			return false;
-		}
-		const auto &authorization = task.admission->authorization;
-		if (!task.initialized) {
-			task.initialized = true;
-			if (task.admission->kind == h::RequestKind::Close) {
-				const auto result = sessions.close(task.session, authorization, now);
-				if (result == d::SubscriptionResult::Accepted)
-					control(task, 204, {});
-				else
-					error(task, result);
-				return false;
-			}
-			if (task.admission->kind == h::RequestKind::Open) {
-				const auto result = sessions.open(task.session, authorization, task.binding, task.base,
-												  task.force_snapshot, task.compression, now);
-				if (result != d::SubscriptionResult::Accepted) {
-					error(task, result);
-					return false;
-				}
-				const auto *admitted = sessions.metadata(task.session, now);
-				if (!admitted) throw std::logic_error("relay admitted session unavailable");
-				const bool resume = !admitted->scope.snapshot;
-				task.open_created = true;
-				control(task, 200,
-						"{\"version\":1,\"session\":\"" + hex(task.session) + "\",\"window\":0,\"mode\":\"" +
-							(resume ? "resume" : "snapshot") + "\",\"wait_ms\":30000}");
-				return false;
-			}
-			const auto admitted = sessions.next(task.session, authorization, task.after, task.published, now);
-			if (!admitted.token) {
-				error(task, admitted.result);
-				return false;
-			}
-			task.request = admitted.token;
-			const auto *metadata = sessions.metadata(task.session, now);
-			if (!metadata) {
-				error(task, d::SubscriptionResult::Expired);
-				return false;
-			}
-			task.compression = metadata->compression;
-		}
-		if (!sessions.metadata(task.session, now)) {
-			task.reply->abandon();
-			task.completed = true;
-			return false;
-		}
-		if (!task.update) {
-			task.bootstrap = task.after == 0;
-			auto &count = task.bootstrap ? bootstrap : catchup;
-			if (count == (task.bootstrap ? limits.bootstrap_transfers : limits.catchup_transfers))
-				return false;
-			auto prepared = sessions.prepare(*task.request, now);
-			if (!prepared.update) {
-				if (prepared.result == d::SubscriptionResult::Parked) {
-					if (now >= task.poll_deadline)
-						control(task, 204, {});
-				} else if (prepared.result != d::SubscriptionResult::Busy &&
-						   prepared.result != d::SubscriptionResult::AwaitSettlement)
-					error(task, prepared.result);
-				return false;
-			}
-			++count;
-			task.transfer = true;
-			peak_transfers = std::max(peak_transfers, bootstrap + catchup);
-			task.update = std::move(prepared.update);
-			task.offer = prepared.token;
-			const auto metadata =
-				h::update_headers(task.update->kind(), task.update->target(), task.compression,
-								  h::SessionHeaders{task.session, task.offer->window});
-			if (task.reply->start_chunked(metadata, true) != http::StreamSubmit::Accepted)
-				throw std::runtime_error("relay stream closed");
-			task.started = true;
-		}
-		if (!task.pending && task.frame < task.update->fragments() && task.writable.load())
-			task.pending = task.update->frame(task.frame, task.compression);
-		if (task.pending) {
-			const auto result = task.publish(task.pending);
-			if (result == http::StreamSubmit::Accepted)
-				++task.frame;
-			else if (result != http::StreamSubmit::Busy)
-				throw std::runtime_error("relay stream refused frame");
-		}
-		if (task.frame == task.update->fragments() && !task.pending) {
-			if (task.reply->finish() != http::StreamSubmit::Accepted)
-				throw std::runtime_error("relay stream refused finish");
-			task.completed = true;
-		}
+		if (task.job->done.load(std::memory_order_acquire))
+			stream_job(task);
 		return false;
 	}
 };
 ServiceRuntime::ServiceRuntime(ServiceAccounts accounts, std::shared_ptr<const Registry> registry,
-							   std::span<const SessionBinding> bindings, ServiceLimits limits,
-							   std::shared_ptr<MirrorService> mirror) {
+							   std::shared_ptr<MirrorService> mirror, ServiceLimits limits) {
 	if (!accounts.metadata)
 		throw std::invalid_argument("relay service metadata account");
-	impl_ = d::make_storage_owner<Impl>(accounts.metadata, std::malloc, std::free, accounts,
-										std::move(registry), bindings, limits, std::move(mirror));
+	impl_ = d::make_storage_owner<Impl>(accounts.metadata, std::malloc, std::free, accounts, std::move(registry),
+										std::move(mirror), limits);
 }
 ServiceRuntime::~ServiceRuntime() = default;
 void ServiceRuntime::close() noexcept {
@@ -363,10 +204,6 @@ void ServiceRuntime::close() noexcept {
 }
 bool ServiceRuntime::step(Clock::time_point now) {
 	auto &p = *impl_;
-	if (p.closing.load() && !p.closed_sessions) {
-		p.sessions.close_all();
-		p.closed_sessions = true;
-	}
 	bool progress = false;
 	for (auto index : {std::size_t{2}, std::size_t{0}, std::size_t{1}}) {
 		auto &lane = *p.lanes[index];
@@ -394,17 +231,11 @@ bool ServiceRuntime::step(Clock::time_point now) {
 			progress |= task->frame != frame;
 		}
 	}
-	d::WorkBudget budget{4096, 64};
-	p.sessions.collect(budget, now);
 	return progress;
 }
 ServiceStatus ServiceRuntime::status() const noexcept {
 	const auto &p = *impl_;
 	ServiceStatus result;
-	result.bootstrap = p.bootstrap;
-	result.catchup = p.catchup;
-	result.peak_transfers = p.peak_transfers;
-	result.sessions = p.sessions.size();
 	result.closing = p.closing.load();
 	std::lock_guard lock(p.mutex);
 	for (std::size_t index = 0; index < 3; ++index)
@@ -413,7 +244,7 @@ ServiceStatus ServiceRuntime::status() const noexcept {
 }
 bool ServiceRuntime::drained() const noexcept {
 	const auto state = status();
-	return state.closing && state.requests == std::array<std::size_t, 3>{} && impl_->sessions.drained() &&
+	return state.closing && state.requests == std::array<std::size_t, 3>{} &&
 		   std::all_of(impl_->lanes.begin(), impl_->lanes.end(),
 					   [](const auto &lane) { return lane->admission.drained(); });
 }
@@ -497,51 +328,29 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	auto task = std::allocate_shared<ServiceRuntime::Impl::Task>(
 		d::StorageAllocator<ServiceRuntime::Impl::Task>(account));
 	task->deadline = Clock::now() + std::chrono::seconds(60);
-	if (admission->history) {
-		task->job = std::make_shared<MirrorJob>();
-		parse_history(request.path, admission->lease->body().view(), *task->job);
-	} else {
+	task->job = std::make_shared<MirrorJob>();
+	auto &job = *task->job;
+	if (admission->history)
+		parse_history(request.path, admission->lease->body().view(), job);
+	else {
 		auto parsed = h::parse_session_request(
 			account, admission->kind, admission->lease->body().view(),
 			{p.lanes[index]->admission.body_limit(static_cast<d::SubscriptionRequestKind>(index)), 4096, 30000});
 		const auto &command = parsed->request();
-		if (command.version == 2) {
-			// W5 from the mirror; version 1 stays with the bundles.
-			if (!p.mirror)
-				reject(404, "{\"error\":\"not_found\"}");
-			auto job = std::make_shared<MirrorJob>();
-			job->kind = command.kind == h::RequestKind::Open	? MirrorJob::Kind::Open
-						: command.kind == h::RequestKind::Next ? MirrorJob::Kind::Next
-															   : MirrorJob::Kind::Close;
-			job->session = command.session;
-			for (const auto &position : command.positions)
-				job->positions.push_back({std::string(position.name), position.cursor});
-			job->all = command.all.has_value();
-			job->compressed = command.compressed;
-			job->wait_ms = command.wait_ms;
-			task->job = std::move(job);
-		} else {
-			task->session = command.session;
-			task->base = command.base;
-			task->published = command.published;
-			task->after = command.after;
-			task->force_snapshot = command.force_snapshot;
-			task->compression = command.compressed;
-			task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
-			if (command.kind == h::RequestKind::Open) {
-				const auto binding = p.registry->resolve(admission->authorization, command.identity, command.namespaces);
-				if (!binding)
-					reject(403, "{\"error\":\"scope_forbidden\"}");
-				task->binding = *binding;
-				if (RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) != 1)
-					throw std::runtime_error("relay session entropy");
-			}
-		}
+		if (command.version != 2)
+			reject(400, "{\"error\":\"invalid_request\"}");
+		job.kind = command.kind == h::RequestKind::Open	  ? MirrorJob::Kind::Open
+				   : command.kind == h::RequestKind::Next ? MirrorJob::Kind::Next
+														  : MirrorJob::Kind::Close;
+		job.session = command.session;
+		for (const auto &position : command.positions)
+			job.positions.push_back({std::string(position.name), position.cursor});
+		job.all = command.all.has_value();
+		job.compressed = command.compressed;
+		job.wait_ms = command.wait_ms;
 	}
-	if (task->job) {
-		task->job->principal = admission->authorization.principal;
-		task->job->grants = admission->authorization.namespaces;
-	}
+	job.principal = admission->credential->principal;
+	job.grants = admission->credential->namespaces.get();
 	task->admission = std::move(admission);
 	http::StreamOptions stream;
 	stream.resource = p.lanes[index]->resource;
@@ -558,8 +367,7 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	if (!p.closing.load() && !lane.free.empty()) {
 		const auto slot = lane.free.back();
 		lane.free.pop_back();
-		if (auto job = task->job)
-			p.mirror->submit(std::move(job));
+		p.mirror->submit(task->job);
 		lane.slots[slot] = std::move(task);
 		co_return;
 	}

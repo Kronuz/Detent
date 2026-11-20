@@ -49,7 +49,7 @@ jobs:
           drivers=()
           for ((driver=1; driver<=PARALLEL_RUNS; driver++)); do
             ctest --test-dir build --verbose --output-on-failure --no-tests=error \
-              -R '^test_delivery_coordinator_subscription-relay-http-500000$' -FA delivery_tls \
+              -R '^test_delivery_coordinator_subscription-500000$' -FA delivery_tls \
               --repeat "until-fail:$REPETITIONS" > "coordinator-$driver.log" 2>&1 &
             drivers+=("$!")
           done

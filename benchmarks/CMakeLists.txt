@@ -82,7 +82,3 @@ if(TARGET detent::testing_store)
   target_link_libraries(detent_paged_collection_bench PRIVATE detent::testing_store)
 endif()
 
-if(TARGET detent::delivery_config)
-  add_executable(detent_fleet_load detent_fleet_load.cc fleet_load.cc)
-  target_link_libraries(detent_fleet_load PRIVATE detent::delivery_config)
-endif()
