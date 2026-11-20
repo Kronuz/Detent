@@ -1,6 +1,6 @@
 # dense-power-cut-cycles: journal
 
-State: waiting on jobs 261119-055252-757710 261119-055255-9815e2 261119-055304-fe7712 261119-055306-ca033c 261119-055308-4179ea
+State: waiting on jobs 261120-144301-f4d92d (A1) 261120-144325-afd912 261120-144328-4ae8e4 (A2), then CI
 Quest: .campaign/detent/quests/dense-power-cut-cycles.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -20,9 +20,7 @@ Kill cycles and deferred counter checks are written in
 
 ## Next
 
-1. Read the A1 timing job (after) against the base job (before); split gate/deferred if the cost is
-   out of budget.
-2. Fill Evidence from `campaign brief`; Result; ready for review.
+1. Main merged (624b3851). The earlier A2 mutant jobs carried no --for tag, so brief showed A2 empty; resubmitted with --for A2 --fails-without. When the three jobs and CI are green, fill Evidence from `campaign brief` and write ready to land.
 
 ## Blocked on
 
