@@ -405,6 +405,9 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 			try {
 				table = x::PreparedReader::selected(handle.directory, handle.publisher);
 			} catch (const l::GenerationUnavailable &) {
+				// An attached namespace keeps answering, stale, rather than drop with the table (D4).
+				if (had)
+					throw;
 			}
 		built = new View;
 		built->change = change;

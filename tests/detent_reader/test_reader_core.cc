@@ -99,6 +99,23 @@ void selected_reads(const std::filesystem::path &root) {
 	reads = 0;
 	CHECK(get(late.handle, "t:rev", DETENT_OK) == 3 && reads == 1);
 }
+// A switch that cannot read the table, as when a publish storm outruns `selected`'s retries, keeps
+// the attached generation answering, stale (D4), until a read succeeds.
+void unreadable_table(const std::filesystem::path &root) {
+	const auto store = root / "unreadable-table";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	std::filesystem::rename(store / "selected", store / "held-selected");
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 1);
+	CHECK(detent_refresh(r.handle) == DETENT_UNAVAILABLE && get(r.handle, "t:rev", DETENT_OK) == 1);
+	std::filesystem::rename(store / "held-selected", store / "selected");
+	CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 2);
+}
 void replaced_change(const std::filesystem::path &root) {
 	const auto store = root / "replaced-change";
 	{
@@ -364,6 +381,7 @@ int main() {
 	} cleanup{root};
 	replaced_selected(root);
 	selected_reads(root);
+	unreadable_table(root);
 	replaced_change(root);
 	values(root);
 	wrapper(root);
