@@ -5,16 +5,12 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Test clients in tests/detent_authority, tests/detent_relay and tests/docs dial the address the daemon is bound to (127.0.0.1), and check the certificate as localhost. A client that dials "localhost" resolves ::1 first on macOS, where daemons do not listen, and about 1 in 16k such connects lands on its own ephemeral socket (TCP self-connect, which macOS refuses only for IPv4); the TLS client then reads its own ClientHello and fails with UNEXPECTED_MESSAGE. relay-tls-drain-flake proved this and fixed tests/detent_system (Detent:5bff29c7); its journal lists the remaining sites.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] No test client in tests/detent_authority, tests/detent_relay or tests/docs dials "localhost" for a daemon bound to 127.0.0.1: the journal names each site changed, and a grep over those trees is quoted in the journal with no remaining hits.
+- A2 The suite passes at head (the gate check).
 
 ## Contracts
 
