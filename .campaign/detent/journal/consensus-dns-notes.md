@@ -44,7 +44,7 @@ CHANGELOG.md (held by consensus-worker-release): lead, add it to my file set whe
 |---|---|
 | A1 | jobs 261119-165312-91a81d (fails-without, test at 0bd4c17 with the emplace outside the try), 261119-165313-11543e (passes at c411e50) |
 | A2 | [artifact] `docs/mechanisms/peer-dns.md` (exit wait: "A stuck getaddrinfo delays exit...", and the new fork paragraph, b3576ab); CHANGELOG.md entry text above, pending file-set |
-| A3 | suite 261119-181142-7032e8 (404d98 hit the :855 one-off above), TSan 261119-165558-071155 |
+| A3 | suite 261119-185944-c665b8 (404d98 hit the :855 one-off above), TSan 261119-185946-1b0e41 |
 
 ## Result
 
