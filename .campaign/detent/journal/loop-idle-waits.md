@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261120-021117-dbb0cb (suite), 261120-021141-a035ba (TSan), 261120-021137-93563d (restart x10), 261120-021138-336caf (mutant), 261120-021140-5bd6e2 / 261120-021148-508f39 (spin probes), 261120-020714-457e01 261120-020720-721815 261120-020724-d6d007 (agent_store_crash at head) and 261120-020717-5beac9 261120-020722-19d599 261120-020726-63b2cd (at main); CI 44717173788 / 44717173136 at Detent:f9f570b5.
+State: waiting on CI 44728587634 (lead's dispatch at Detent:53a2fa93, 50-min Test cap, artifact failure-macos-arm64) and push CI at Detent:d055a988; jobs 261120-033554-85da95 / 261120-033556-ef43b9 (strict spin probes), 261120-033558-317f17 -826f8b (A1), -dbffd7 (A3), 261120-033928-7be37f / 261120-033929-590a92 (suite sample, head / main).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -178,3 +178,24 @@ reclaim scans ~60 completion ops/s) frames A1.
 3. tests/detent_delivery/hang_watchdog.py + CMake entry (Detent:7c630f07, Detent:b692cdd9, Detent:f9f570b5):
    macOS CI diagnostic only.
 4. bench/idle-wakeups/spin_probe.sh (Detent:5f8b0ba1): probe only.
+
+## Contributor 3, round 2 (msg from the lead: arm64 hang, probe, reruns)
+
+- At Detent:f9f570b5: suite 261120-021117-dbb0cb, TSan 261120-021141-a035ba, restart x10 261120-021137-93563d
+  and bounded probe 261120-021140-5bd6e2 passed; mutant 261120-021138-336caf failed as intended.
+- The unbounded probe 261120-021148-508f39 passed (CPU 2.53 s vs 1.79 bounded over 8 s wedged): under a
+  light hold the machine's load starved the spinning loop, so CPU time measured the load. Detent:e777d983
+  builds under light and runs the measurement in a strict hold: 261120-033554-85da95 (bounded, must pass),
+  261120-033556-ef43b9 (bound lifted, must fail).
+- A1/A3 reruns at Detent:e777d983: 261120-033558-317f17, -826f8b (A1), -dbffd7 (A3).
+- arm64 hang: every arm64 hang (44614222390, 44638635880, 44717173788) is GitHub's "The hosted runner lost
+  communication with the server" (starved CPU or memory, a killed runner, or blocked network), not a test
+  past its timeout; the Test step never completed, so no step timeout or artifact ran. 44682975400's x86_64
+  was the 60-min job cap instead. Hypotheses to measure: a process spinning a core (3-core runner), suite
+  memory (7 GB), ephemeral-port exhaustion from faster request loops (TIME_WAIT holds ports 30 s on macOS).
+  bench/idle-wakeups/suite_sample.py (Detent:d055a988) samples TCP states, per-process CPU share and suite
+  RSS while the suite runs: 261120-033928-7be37f (head) vs 261120-033929-590a92 (main fcb07845).
+- Next: read 44728587634's artifact (LastTest.log: tests started, not finished; watchdog.log) and the two
+  samples; name the mechanism, fix it with a test that fails without it. If arm64 passes, dispatch twice more.
+- Changed after Detent:edff2eb0, added this round: bench/idle-wakeups/spin_probe.sh split (Detent:e777d983),
+  bench/idle-wakeups/suite_sample.py (Detent:d055a988). Probes only; no product code.
