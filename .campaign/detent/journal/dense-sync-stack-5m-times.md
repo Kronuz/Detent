@@ -1,6 +1,6 @@
 # dense-sync-stack-5m-times: journal
 
-State: waiting on jobs 261119-235318-59de0c (check suite), then CI on the pushed head
+State: blocked on the lead: A1's arm jobs cannot be rerun at the head (see Blocked on); main merged, CI pending
 Quest: .campaign/detent/quests/dense-sync-stack-5m-times.md (the lead's; never edit it)
 
 ## Doing
@@ -13,7 +13,9 @@ All eight exclusive jobs finished exit 0 and are written into `docs/perf/dense-s
 
 ## Blocked on
 
-Nothing. The quest asks for a window agreed with the Xapiand lead; I have no channel to it and did not open `campaign window` (it holds other campaigns' light work). The lead may open one to start the queue.
+The lead: A1's eight jobs run each arm at its own commit (dense 9852a3c4, s2, stacked, main; harness via --ref), so no twin exists at the quest head and brief says "ran other code" by design. `campaign job rerun` at the head would run the same code in every arm (refused for 9852a3c4: only on wip/laptop/head-dense-cb); `--commit ARM` reruns the arm but is still other code than the head. Options: 1. accept A1 as [manual] on the existing ids (it is [manual]: the lead checks ids against `campaign job list`; recommended, the arms are the experiment). 2. Resubmit with the head as the job commit and each arm's commit as a --ref the command builds from: new submit script and about 2 h of exclusive time; not done.
+
+CI at aa8a5c04 (run 44698269834): failed only test_system_managed_relay_ipv6 on macos-x86_64 ("managed agent 0 did not converge", 275 of 276 passed). This branch changes docs only, so it is not this branch's; main since gained 5bff29c7 (dial the bound address, not localhost; the macOS ::1 self-connect fault), merged here at b2b451e0, and CI is rerun on that head. The quest asks for a window agreed with the Xapiand lead; I have no channel to it and did not open `campaign window` (it holds other campaigns' light work). The lead may open one to start the queue.
 
 ## Evidence
 
