@@ -1,40 +1,44 @@
 # prism-server-composition-limits: journal
 
-State: working
+State: waiting on jobs 261120-034115-0f8431 (suite) 261120-034119-e90fc9 (A1) 261120-034135-ffc330 (A2 mutant), then CI
 Quest: .campaign/detent/quests/prism-server-composition-limits.md (the lead's; never edit it)
-
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Implemented at prism:c1e3ff0 (pushed): http aed0314 and reactor 6cd8f73 pinned; one `http::Limits`;
+`reactor::tls::server_context` as `http::Tls`; `reactor::raise_open_files(max_clients + 64)`;
+`Http::stop()` = `stop_accepting()`, drain = `wait_requests(b.cancel)` on its own thread, then
+`cancel_requests()` and http's `stop()`. Tests added to prism_lifecycle: drain, limits, tls.
+Mutant branch (local, not pushed) mutant/old-full-stop = prism:829072f, the old full stop.
 
 ## Next
 
-1. <step>
+1. When the jobs pass, check the mutant log fails in `drain` (not at the build); fix what fails.
+2. CI on the pushed branch; then Evidence and State ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
-
-## Evidence
-
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
-| Criterion | Evidence |
-|---|---|
-| <A1> | <from `campaign brief`> |
-
-## Result
-
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Nothing.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The wait runs on a thread, not the loop: wait_requests blocks, and the wheel timer that fires
+  `b.cancel` runs on the loop, so a blocked loop would never cancel at bound - grace.
+- Descriptor reserve 64 and the explicit/default rule follow the note (C5); `max_clients_set`
+  records whether the value was given.
+- Certificate within 14 days of expiry warns from Prism (reactor leaves the warning to the app).
+- Timeouts other than idle keep http's defaults (header 30 s, inactivity 60 s): Prism's options
+  table has no flags for them.
+
+## Evidence
+
+| Criterion | Evidence |
+|---|---|
+| A1 | pending: 261120-034119-e90fc9 (no local copy of either, at prism:c1e3ff0); lifecycle `limits` and `tls` cases |
+| A2 | pending: drain case passes in suite 261120-034115-0f8431; fails without: 261120-034135-ffc330 at prism:829072f |
+| A3 | [artifact] `ARCHITECTURE.md` "How `main` is put together" at prism:c1e3ff0: the deviation table lists none of the four rows |
+| A4 | pending: suite 261120-034115-0f8431, CI |
+
+## Result
+
+pending
