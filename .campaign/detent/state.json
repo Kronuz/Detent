@@ -8865,6 +8865,8 @@
     "journal-hold-loop-required": {
       "accepted": {},
       "after": [],
+      "base": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
+      "branch": "quest/detent/journal-hold-loop-required",
       "checks": [
         {
           "cmd": "true",
@@ -8882,6 +8884,7 @@
         "CHANGELOG.md",
         "docs/mechanisms/turn-seal.md"
       ],
+      "journal": "../Detent-wt/detent/journal-hold-loop-required",
       "landed": [],
       "lenses": [
         "correctness"
@@ -8891,9 +8894,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "journal Hold takes its loop as required and refuses an empty one (D131)",
-      "updated": "2026-11-19T23:04:33"
+      "updated": "2026-11-19T23:04:55",
+      "worktree": "../journal-wt/detent/journal-hold-loop-required"
     },
     "journal-hop-on-task": {
       "accepted": {
