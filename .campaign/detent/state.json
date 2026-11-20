@@ -1306,6 +1306,21 @@
         ]
       },
       "text": "peers-busy-roundtrip-bound landed: unlocks frees test/transport/peers_test.cc for consensus-peers-attempts-bound"
+    },
+    {
+      "at": "2026-11-19T22:13:19",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-138",
+      "items": {
+        "groups-upload-stall-cause": "frees test/transport/groups_test.cc for groups-upload-stall-cause"
+      },
+      "settles": {
+        "start": [
+          "groups-upload-stall-cause"
+        ]
+      },
+      "text": "groups-upload-loop-stall landed: unlocks frees test/transport/groups_test.cc for groups-upload-stall-cause"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3587,11 +3602,49 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-worker-release",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T22:57:50",
+          "commit": "adb918fc119be1f8303912778763419fe9a2c107",
+          "criteria": {
+            "A1": "261119-191100-549567 (passed at 08cdf68db12a; only merges from main since), 261119-191103-5a8902 (passed at 08cdf68db12a; only merges from main since); fails without: 261119-142324-be3da9, 261119-142326-5f385a, 261119-142330-95163b, 261119-142332-eb61d7, 261119-142333-05802c, 261119-142336-bc2e25, 261119-142337-e17ff4, 261119-170646-a56176, 261119-191106-27f3ae, 261119-191108-fcbabe, 261119-191111-411633, 261119-191113-2b1775, 261119-191116-d053b8",
+            "A2": "261119-191127-8e0f0f (passed at 08cdf68db12a; only merges from main since); fails without: 261119-142330-95163b, 261119-142332-eb61d7, 261119-142342-9c0442, 261119-142344-c6f533, 261119-191108-fcbabe, 261119-191111-411633, 261119-191129-3f9672, 261119-191132-a7d1f4",
+            "A3": "261119-191135-0d8700 (passed at 08cdf68db12a; only merges from main since); fails without: 261119-170649-5a5b1e, 261119-191137-b98c7e, 261119-191140-4fdf57",
+            "A4": "261119-203855-8c3501 (passed at 18f55c69946e; only merges from main since), 261119-191150-03bd0f (passed at 08cdf68db12a; only merges from main since)",
+            "A5": "261119-191143-2db797 (passed at 08cdf68db12a; only merges from main since); fails without: 261119-142351-017c12, 261119-191145-91f9c5",
+            "A6": "261119-191152-8abf98 (passed at 08cdf68db12a; only merges from main since)",
+            "A7": "261119-191119-509297 (passed at 08cdf68db12a; only merges from main since); fails without: 261119-191116-d053b8, 261119-191121-9e2d59, 261119-191124-9c1a6d"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+              "commit": "08cdf68db12a27f3fe8ae3bc2441bde1a2bb2cc4",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-191152-8abf98",
+              "level": "light",
+              "seconds": 1841.4,
+              "state": "done",
+              "what": "consensus-worker-release check suite at 08cdf68db12a"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "adb918fc119be1f8303912778763419fe9a2c107",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "db86af666b4cc51a65f585070aa926b2d6d0d681",
+          "reason": "",
+          "tested": "adb918fc119be1f8303912778763419fe9a2c107"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "journal-reopen-closed",
@@ -3601,10 +3654,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-19T22:17:55",
-      "worktree": "../consensus-wt/detent/consensus-worker-release"
+      "updated": "2026-11-19T22:58:17",
+      "worktree": ""
     },
     "container-selection": {
       "accepted": {},
