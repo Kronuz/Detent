@@ -18724,12 +18724,24 @@
           "weakened": [
             "risk normal -> low"
           ]
+        },
+        {
+          "at": "2026-11-20T04:44:56",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "test-harness-only change, now low risk: the lead reads the diff instead of a correctness review",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
         }
       ],
       "landed": [],
-      "lenses": [
-        "correctness"
-      ],
+      "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -18737,7 +18749,7 @@
       "risk": "low",
       "status": "active",
       "title": "relay tests fail together on SSL UNEXPECTED_MESSAGE and an undrained fleet under heavy load",
-      "updated": "2026-11-20T04:44:39",
+      "updated": "2026-11-20T04:44:56",
       "worktree": "../Detent-wt/detent/relay-tls-drain-flake"
     },
     "rename-detentd": {
