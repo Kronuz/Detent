@@ -18,7 +18,6 @@ namespace l = detent::local;
 namespace p = l::paged;
 using l::detail::TransferRefusal;
 using dense_graph_test::check;
-using Fixture = dense_graph_test::Fixture;
 
 std::shared_ptr<d::StorageLedger> ledger() { return std::make_shared<d::StorageLedger>(std::size_t(8) << 30); }
 l::SegmentId own_id(std::uint32_t number) {
@@ -49,6 +48,70 @@ std::vector<char> definition(std::size_t i, std::size_t overrides) {
 	p::encode_definition(body, value, 8);
 	return body;
 }
+// A packer-built generation in 1 MiB segments, pages in emission (seal) order.
+struct Fixture {
+	std::shared_ptr<d::StorageLedger> account = ledger();
+	std::vector<dense_graph_test::Row> rows;
+	std::vector<dense_graph_test::Page> pages;
+	std::map<l::SegmentId, std::vector<char>> segments;
+	p::Root root;
+};
+std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> f) {
+	std::sort(f->rows.begin(), f->rows.end(), [](const auto &a, const auto &b) { return a.key < b.key; });
+	auto read = [](const void *input, std::uint64_t ordinal, std::span<char> out) {
+		const auto &row = static_cast<const Fixture *>(input)->rows.at(ordinal);
+		std::copy(row.key.begin(), row.key.end(), out.begin());
+		return row.key.size();
+	};
+	l::detail::TrieCursor cursor(f->account, f, read, f->rows.size());
+	l::detail::PagedPacker packer(f->account);
+	l::SegmentId segment{};
+	std::vector<char> *bytes = nullptr;
+	bool finishing = false;
+	for (std::size_t steps = 0; !packer.done(); ++steps) {
+		check(steps < 100000000);
+		l::ValidationBudget budget;
+		packer.step(budget);
+		if (packer.ready()) {
+			const auto page = packer.page();
+			const auto start = bytes ? (bytes->size() + 7) & ~std::size_t(7) : p::segment_bytes;
+			if (start + page.bytes->size() > p::segment_bytes) {
+				segment = {'s'};
+				l::write_integer(segment, 12, f->segments.size() + 1, 4);
+				bytes = &f->segments[segment];
+			}
+			bytes->resize((bytes->size() + 7) & ~std::size_t(7));
+			auto reference = page.summary;
+			reference.segment = segment;
+			reference.offset = bytes->size();
+			bytes->insert(bytes->end(), page.bytes->data(), page.bytes->data() + page.bytes->size());
+			f->pages.push_back({reference, std::vector<char>(page.bytes->data(), page.bytes->data() + page.bytes->size()),
+								std::string(page.path)});
+			for (unsigned retries = 0; !packer.commit(reference, budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
+			continue;
+		}
+		if (!packer.accepted())
+			continue;
+		if (cursor.ready())
+			for (unsigned retries = 0; !cursor.commit(budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
+		cursor.step(budget);
+		if (cursor.ready()) {
+			const auto event = cursor.event();
+			packer.push(event, event.kind == p::PageKind::Branch ? std::span<const char>{} : f->rows[event.ordinal].body);
+		} else if (cursor.done() && !finishing) {
+			packer.finish();
+			finishing = true;
+		}
+	}
+	f->root.tree = packer.root();
+	return f;
+}
 // `count` definitions; every 5,000th has 120 overrides, a page alone. `changed` gets another value.
 std::shared_ptr<Fixture> generation(std::size_t count, std::size_t changed = SIZE_MAX) {
 	auto result = std::make_shared<Fixture>();
@@ -62,10 +125,12 @@ std::shared_ptr<Fixture> generation(std::size_t count, std::size_t changed = SIZ
 	std::vector<char> watermark(8);
 	l::write_integer(watermark, 0, 9, 8);
 	result->rows.push_back({std::string(key.data(), length), std::move(watermark)});
-	return dense_graph_test::seal(std::move(result), count, 1);
+	return seal(std::move(result));
 }
 l::detail::TransferPages reader(const Fixture &f) {
-	return [&f](const p::Reference &r) { return std::span<const char>(f.bytes).subspan(r.offset, r.length); };
+	return [&f](const p::Reference &r) {
+		return std::span<const char>(f.segments.at(r.segment)).subspan(r.offset, r.length);
+	};
 }
 std::vector<p::Reference> seal_order(const Fixture &f) {
 	std::vector<p::Reference> out;
@@ -216,32 +281,55 @@ void refusals(const Fixture &f) {
 		}
 		check(receive(digests.bytes, nullptr, root).tree.digest == root);
 	}
-	// Damage: a leaf body byte (the last node byte of a page whose last node is a leaf).
-	std::size_t leafy = SIZE_MAX;
+	// Damage: a byte of a leaf's key suffix, which no check but the digests reads. A damaged leaf
+	// body is refused earlier, by the leaf check (`Leaf` below).
+	std::size_t leafy = SIZE_MAX, damaged = 0;
 	for (std::size_t i = wire.starts.size() / 2; i < wire.starts.size() && leafy == SIZE_MAX; ++i) {
 		const auto &bytes = f.pages[i].bytes;
 		const auto end = bytes.size() - p::child_bytes * l::read_integer(bytes, 12, 2);
-		for (p::NodeAt at; at.offset() < end;) {
+		for (p::NodeAt at; at.offset() < end && leafy == SIZE_MAX;) {
 			const auto node = at.decode(bytes, limits());
-			at = p::NodeAt::after(node);
-			if (at.offset() == end && node.kind != p::PageKind::Branch)
+			if (node.kind != p::PageKind::Branch && !node.prefix.empty()) {
 				leafy = i;
+				damaged = at.offset() + 4;
+			}
+			at = p::NodeAt::after(node);
 		}
 	}
 	check(leafy != SIZE_MAX);
-	for (auto *form : {&wire, &digests}) {
+	for (const Stream *form : {&wire, static_cast<const Stream *>(&digests)}) {
 		auto flipped = *form;
-		const auto at = flipped.content(leafy, 0) - 1;
-		flipped.page(leafy)[at] ^= 1;
+		flipped.page(leafy)[damaged] ^= 1;
 		refused(form == &wire ? TransferRefusal::RootDigest : TransferRefusal::PageDigest,
 				[&] { receive(flipped.bytes, nullptr, root); });
 	}
 	// Reuse: the root's first placement redirected to the first page; to itself; its second to its first.
 	const auto rootless = wire.root();
 	{
+		// A root slot redirected to a page below its child: that child's subtree is never reached.
 		auto s = wire;
-		check(s.placed(rootless, 0) != l::detail::TransferPlace{1, 0});
-		s.place(rootless, 0, {1, 0});
+		const auto places = l::detail::transfer_layout(lengths_of(s));
+		const auto index_of = [&](l::detail::TransferPlace at) {
+			return std::size_t(std::find(places.begin(), places.end(), at) - places.begin());
+		};
+		std::vector<std::size_t> parent(places.size(), SIZE_MAX);
+		for (std::size_t i = 0; i < places.size(); ++i)
+			for (std::size_t j = 0; j < s.externals(i); ++j)
+				parent[index_of(s.placed(i, j))] = i;
+		bool redirected = false;
+		for (std::size_t j = 0; j < s.externals(rootless) && !redirected; ++j) {
+			const auto child = index_of(s.placed(rootless, j));
+			for (std::size_t t = 0; t < child && !redirected; ++t) {
+				auto up = parent[t];
+				while (up != SIZE_MAX && up != child)
+					up = parent[up];
+				if (up == child) {
+					s.place(rootless, j, places[t]);
+					redirected = true;
+				}
+			}
+		}
+		check(redirected);
 		refused(TransferRefusal::Unreferenced, [&] { receive(s.bytes, nullptr, root); });
 		s = wire;
 		const auto self = l::detail::transfer_layout(lengths_of(s)).back();
@@ -572,13 +660,15 @@ void model_cases(const std::string &dir, const std::string &only) {
 			expect += (w > 5 ? " " : "") + line[w];
 		const auto stream = load(dir + "/case-" + line[1] + ".transfer");
 		const auto reason = expected_reason(expect);
+		// The model checks no leaf (its Limit 9): a flipped body byte can fail D4.2's leaf check first.
+		const bool body = line[1].starts_with("flipped-leaf-body-byte-wire");
 		try {
-			refused(reason, [&] {
-				l::detail::receive_transfer(ledger(), stream, nullptr, {from_hex<p::Digest>(line[2]), std::stoull(line[3])},
-											[](std::uint32_t n) { return model_id(n - 1); }, limits());
-			});
-		} catch (const std::exception &error) {
-			throw std::runtime_error("model case " + line[1] + ": " + error.what());
+			l::detail::receive_transfer(ledger(), stream, nullptr, {from_hex<p::Digest>(line[2]), std::stoull(line[3])},
+										[](std::uint32_t n) { return model_id(n - 1); }, limits());
+			throw std::runtime_error("model case " + line[1] + ": transfer accepted");
+		} catch (const l::detail::TransferRefused &error) {
+			if (error.reason() != reason && !(body && error.reason() == TransferRefusal::Leaf))
+				throw std::runtime_error("model case " + line[1] + ": refused for another reason (" + error.what() + ")");
 		}
 		std::cout << "model case " << line[1] << ": refused (" << expect << "), check " << line[4] << "\n";
 		++ran;
@@ -601,7 +691,7 @@ int main(int argc, char **argv) {
 				model_cases(args[1], only);
 			return 0;
 		}
-		constexpr std::size_t count = 20000;
+		constexpr std::size_t count = 50000;
 		const auto f = generation(count);
 		round_trip(*f);
 		refusals(*f);
