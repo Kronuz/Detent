@@ -7,8 +7,9 @@
 #   tests/ctest_mutant.sh PATCH TARGET
 set -uo pipefail
 
-patch=${1:?mutant patch}
-target=${2:?test target}
+test $# -eq 2 || { echo "NO VERDICT: usage: $0 PATCH TARGET"; exit 126; }
+patch=$1
+target=$2
 build=${CTEST_MUTANT_BUILD:-.scratch/build-ctest-mutant}
 no_verdict() {
     echo "NO VERDICT: $patch: $1"
