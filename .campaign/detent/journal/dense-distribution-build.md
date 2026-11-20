@@ -1,11 +1,11 @@
 # dense-distribution-build: journal
 
-State: review-fix round (D137). F1, F3/F5 agent side, F7, F11 build done (Detent:39652e64); waiting
-on jobs 261120-130720-4e5da1 .. 261120-130731-c646f9 (mutants, --fails-without), 261120-131414-94ce66
-(F11 fuzz hour) and the relay fork (F2, F4, relay halves of F3/F5, then F8).
-F1 probe rerun passed: 261120-125854-e45912 ("REFUSED: the foreign namespace's transfer fell back
-to records"). Mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2 are void: zsh passed patch and
-target as one argument, and the runner's usage exit 1 read as killed (runner now exits 126).
+State: waiting on jobs 261120-134027-875c2b (suite), 261120-134028-c017c6 / 261120-134029-66794b
+(F2 ASan pair), 261120-134038-4ee64d (F4 5M strict), 261120-130720-4e5da1 .. 261120-130731-c646f9
+(mutants), 261120-131414-94ce66 (F11 fuzz hour), and CI at Detent:820c6a8e. All findings fixed or
+ruled; F10 is the owner's call (Blocked on).
+F1 probe rerun passed: 261120-125854-e45912. Mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2
+are void (zsh passed patch and target as one argument; the runner's usage exit read as killed).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -30,13 +30,21 @@ Review-fix round (owner priority):
   half (fill root at head): fork.
 - F7: "tree packed against D5" case in test_paged_transfer (unpacked()); the review's canonical
   mutant is tests/detent_local/mutants/f7-d5-packing-unchecked.patch.
-- F2, F4: fork (relay window from DD2's canonical copy; 5M strict before/after).
+- F2, F4, relay halves of F3/F5 (merged at Detent:b66d073b from
+  quest/detent/dense-distribution-build--relay-window): the relay builds each head over the
+  previous one (D7.2), serves the copy at s from DD2's canonical_copy, and its page window counts
+  each segment once, bounded by the head's page bytes and 64 positions. A pages answer owns what it
+  sends until encoded (F2; test_relay_pages answer_owns, mutant answer-borrows.patch under ASan:
+  the review's probe uses the removed BuiltCopy, so the test is its port). Resume from offset and
+  records root at head on the relay. 5M (10 x 500K, local quiet strict, docs/perf/relay-window.md):
+  head-move CPU 63-912 ms against 1.2-1.5 s full builds (8 moves 2.7 s vs 11.2 s), live heap after
+  8 moves 740 MB vs 787 MB, peak RSS 1,522 MB vs 1,640 MB; cold peak RSS 1,380 vs 1,263 MB (+9% at
+  equal live heap, unattributed). Job 261120-134038-4ee64d reruns the after arm.
 - F11 (Detent:39652e64): cause, CMake kept zlib's SDK/usr/include (MacOSX26.2.sdk via xcrun's link)
   as -isystem ahead of libc++ because brew clang's implicit SDK is MacOSX15.sdk; transfer_fuzz.sh
   configures with the compiler's own sysroot. Local 34 s smoke: 3,173 runs, 0 crashes. Hour: job
   261120-131414-94ce66. The target receives bound to "ns".
-- F9: not changed (ruling). F10: Blocked on (owner's call). F8: after the fork merges (its
-  relay answer path is being rewritten there).
+- F8, F9: not changed (rulings). F10: Blocked on (owner's call).
 
 Integration round:
 1. Off-thread builds (Detent:251c6cc4): MirrorService runs builds on a builder thread; the mirror
@@ -183,6 +191,9 @@ removal of test_local_view, which no longer exists.
 
 ## Rulings I made
 
+- (F8) The delta's wait for the build at the head stays on D6 rule 1's root-page bound: that
+  build is now incremental over the previous head (63-912 ms at 5M, against 1.2-1.5 s for the full
+  build the review priced), and the wait still ends when the head moves.
 - (F9) damaged() stays broad: recovery reports damage as plain runtime_error, system_error (a
   missing or short file) and GenerationUnavailable alike, so narrowing it can leave a damaged entry
   failing forever (the stuck state F1 forbids), while a transient error misread as damage costs one
