@@ -1,6 +1,6 @@
 # journal-double-damage: journal
 
-State: waiting on jobs CI (GitHub Actions on quest/detent/journal-double-damage at journal:cca2427)
+State: waiting on jobs 261120-103833-515d78 261120-103834-355174 261120-103836-0bd8e4 261120-103837-8062a8 261120-103839-e6f93e 261120-103840-a4ab03 261120-103840-0765f6
 Quest: .campaign/detent/quests/journal-double-damage.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Tests at journal:920a4f5 (on 1222e3b), fix at journal:cca2427 (turn_log.h recovery scan,
-CHANGELOG). Branch pushed. Locally with the fix: turn_log 60 checks, 0 failures; turn_log_power
-312 corrupted blocks, 295 doubly damaged boundaries, 2040 crash points, 0 failures.
+Durability review CHANGES (journal:cca2427) folded in at journal:178030b: F1, F2, F4, F5 fixed,
+F3 recorded (R8). Mutant journal:27ecb12 = 178030b's tests with cca2427's turn_log.h.
 
 ## Next
 
-1. CI green on journal:cca2427, then State "ready for review". All campaign jobs passed.
+1. Read jobs: 515d78 (A1 fails at mutant), 355174 (A2 fails at mutant), 0bd8e4 (A1), 8062a8
+   (A2), e6f93e (suite), a4ab03 and 0765f6 (reviewer probes at 178030b); CI; "ready for review".
 
 ## Blocked on
 
@@ -25,9 +25,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-094327-db2bf3; fails without: 261120-094322-5b34a1 (at journal:920a4f5 = 1222e3b + tests) |
-| A2 | 261120-094329-72ecca; fails without: 261120-094325-3140b2 |
-| A3 | suite 261120-094331-af0f45 (passed); CI running at journal:cca2427 |
+| A1 | at journal:178030b: 261120-103836-0bd8e4; fails without: 261120-103833-515d78 (mutant journal:27ecb12); at journal:cca2427: 261120-094327-db2bf3, fails at 920a4f5 (1222e3b + tests): 261120-094322-5b34a1 |
+| A2 | at journal:178030b: 261120-103837-8062a8; fails without: 261120-103834-355174; earlier 261120-094329-72ecca, 261120-094325-3140b2 |
+| A3 | suite 261120-103839-e6f93e at journal:178030b; CI on the branch |
+| review | durability F1-F5: probes rerun at 178030b: 261120-103840-a4ab03, 261120-103840-0765f6 |
 
 ## Result
 
@@ -39,6 +40,22 @@ boundaries over 8 seeds, each reported and no kept group missing a record, along
 existing 2040 crash points with no false damage. Leaves open: R2's multi-sector header limit,
 and R3's broader cost (a copy flag in the format would narrow it). ARCHITECTURE.md and
 docs/mechanisms are outside the file set; their text is still accurate.
+
+## Review findings (durability, journal:cca2427)
+
+- F1 fixed: damage past the last kept turn also costs every group with a record in the turns
+  dropped there (turn_log.h, recover). Tests: turn_log_test `damaged_header_last_turn`;
+  turn_log_power_test `Damage::header` at every boundary. Reviewer probe, local at 178030b:
+  "lost while reported" 0 at 512/4096/2048/768/256 (was 8, 0, 1, 2, 41); 1 at 1000 (F3).
+- F2 fixed where the sector holds evidence: a failed header scans its whole sector for a fragment
+  of its segment. Silent at 512 and 2048: 0 (was 21, 9); 4096: 3 (was 5); 256: 6 (was 61);
+  768: 4 (was 12). The rest: the first fragment is the sector's only one (R7).
+- F3 recorded, not fixed: R8.
+- F4 fixed for fragments a sector holds whole: `damaged_fragment`. Last-block payload byte silent
+  at 512: 1 of 8 (was 6), 2048: 4 (was 7), 256: 3 (was 5); 4096, 768, 1000 unchanged (R7).
+  turn_log_power_test `Damage::last` asserts it for whole-sector fragments.
+- F5 fixed: turn_log_power_test runs crash points at 512, 4096, 2048, 1000, 768, 256 (9624
+  points, 0 failures locally) and damage patterns at the sector-aligned four.
 
 ## Rulings I made
 
@@ -61,3 +78,16 @@ docs/mechanisms are outside the file set; their text is still accurate.
   format would let recovery keep groups with a later original write: the lead's call if wanted.
 - R4. The power-loss test passes `TurnLogGroups::open` for the double-damage pass, per the
   TurnRecovery contract (a damaged log's open groups it holds nothing of are lost).
+- R5. torn_tail cut 20 bytes inside a sector, which the declared crash model (framing.h: a sector
+  persists old or new) never leaves; it now loses the turn's last sector whole. A byte-granular
+  cut reads as damage now: reported, never silent.
+- R6. Condition 10 (recycling and forwarding) is checked at the 512-byte geometry only: 60 turns
+  do not fill the larger geometries' segments.
+- R7. Limit: a failed fragment or header whose sector holds no bytes bound to its segment (its
+  only fragment there damaged in its segment or epoch fields, or a fragment crossing a sector)
+  reads as a tear. Telling more needs per-sector checksums: a format change.
+- R8 (F3). Limit: with block_bytes not a multiple or divisor of 512, a header shares its sector
+  with the block before and the rule sees few headers (1000: 5 silent of 170 double damages).
+  Options for the owner: require block_bytes to be a multiple or divisor of 512 (valid_block_bytes,
+  a public contract change), or keep the documented limit. Recommendation: require it; every
+  geometry in use (32 KiB default, 512 in tests) already is.
