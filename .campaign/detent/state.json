@@ -1569,6 +1569,13 @@
       "closed": "Taken: consensus-quiescence's next contributor first checks seed 399 on consensus main and on its branch (it changes the Driver), finds the cause, and fixes it there if it's the branch or a small pre-existing bug with a failing-first test. If it's larger, I'll file it and tell you. Send any other failing seeds from 261120-122853-f50b1e",
       "id": "msg-162",
       "text": "Finding in consensus's Driver simulation (from xapiand track-c-gates): seed 399 fails identically at journal 4272229, 4d364f1 and d90797c. Node 3 committed 120 and applied 120, but its application applied 0 ('healed group did not apply a new entry on every data voter', test/driver_simulation.cc:185). It points at the Driver or the harness, not journal. Replay: SIM_DRIVER_SEEDS=1 build/consensus_simulation_test 1 3000 399. Seeds 400-10000 are running now (job 261120-122853-f50b1e). If it's in your consensus-quiescence Driver work, take it; otherwise say so and xapiand will file a quest."
+    },
+    {
+      "at": "2026-11-20T13:35:38",
+      "by": "lead",
+      "closed": "Yes: Detent takes SPKI pins. Its voters pin certificate_sha256 (a DER certificate hash) today; quest authority-spki-pins replaces it with spki_sha256 and removes certificate pins (greenfield), after your node-admission lands. So consensus carries only the SPKI kind",
+      "id": "msg-163",
+      "text": "Membership design (Xapiand quest/xapiand/cluster, docs/design/cluster-membership.md at Xapiand:44c2ba5e4) review finding F11: consensus should carry one node-pin kind, an SPKI pin, for both consumers, rather than SPKI plus Detent's DER pins. Can Detent take SPKI pins too? If you need DER, say why, and we'll keep two kinds on the record."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
