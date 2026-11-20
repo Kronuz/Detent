@@ -17595,7 +17595,36 @@
       "worktree": ""
     },
     "reactor-tls-cache-bound": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-20T02:29:37",
+          "base": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b",
+          "blobs": {
+            "CHANGELOG.md": "100644:76ebe500a046954b1b8086a0b6d0f1f18fb316af",
+            "docs/mechanisms/tls-certificate-cache.md": "100644:fef22a3cfaf79ebfaf46616802877f1b388f440f",
+            "docs/perf/tls-configure.md": "100644:7ffa0046457a8d5f0e5aefff65154742050c35a8",
+            "docs/perf/tls-configure/bench.cc": "100644:32b928b5a6bdd09a1894dfc9038c1fe891a1826d",
+            "reactor_tls.h": "100644:70d96f90cc6e5caac6a5d1ecdd6d6cf92a01a0fe",
+            "test/tls_test.cc": "100644:5591dd11e843b62491f8946119a9c9f274228271"
+          },
+          "by": "review",
+          "commit": "6cd8f73145efaf8d77937131a2825799e396c82c",
+          "criteria": "adffbb0069827bb7",
+          "diffs": {
+            "CHANGELOG.md": "f7a0002e287c29c7",
+            "docs/mechanisms/tls-certificate-cache.md": "cca1b226f9248991",
+            "docs/perf/tls-configure.md": "59b86b7e4cd23f4d",
+            "docs/perf/tls-configure/bench.cc": "9778bbc517f0e1b3",
+            "reactor_tls.h": "46425d73dffcd162",
+            "test/tls_test.cc": "ea138cce6a4adb8d"
+          },
+          "findings": {},
+          "note": "",
+          "review": "132bac2c96a7ddbc3fb92e25e605d523b5df97de",
+          "reviewed": "6cd8f73145efaf8d77937131a2825799e396c82c",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "reactor-tls-cache"
       ],
@@ -17630,7 +17659,7 @@
       "risk": "high",
       "status": "active",
       "title": "reactor: the TLS parse cache releases entries no context uses",
-      "updated": "2026-11-19T18:24:03",
+      "updated": "2026-11-20T02:29:37",
       "worktree": "../reactor-wt/detent/reactor-tls-cache-bound"
     },
     "reader-acl": {
