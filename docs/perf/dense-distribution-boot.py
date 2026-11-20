@@ -162,6 +162,15 @@ def last(pattern: re.Pattern[str], lines: list[tuple[float, str]]) -> list[int] 
     return [int(value) for value in matches[-1].groups()] if matches else None
 
 
+T0 = time.monotonic()
+
+
+def phase(what: str, **fields: Any) -> None:
+    """A timestamped progress line, so a run cut off by its deadline still shows where the time went."""
+    stamp = datetime.now().astimezone().strftime("%H:%M:%S")
+    print(f"PHASE {stamp} +{time.monotonic() - T0:.1f}s {what} {json.dumps(fields) if fields else ''}", flush=True)
+
+
 async def bounded(what: str, awaitable: Any, seconds: float) -> Any:
     """`awaitable`, or a TimeoutError naming what it waited for."""
     try:
@@ -217,6 +226,7 @@ async def run() -> list[dict[str, Any]]:
         raise RuntimeError(f"not x86_64 binaries: {configuration['binary_file']}")
     print(json.dumps({"effective_configuration": configuration}), flush=True)
     output.mkdir(mode=0o700)
+    phase("cloning the fixture")
     for index in range(3):
         copy = await asyncio.create_subprocess_exec(
             "cp", "-cR", str(fixture / f"state-{index}"), str(output / f"state-{index}")
@@ -227,6 +237,7 @@ async def run() -> list[dict[str, Any]]:
     evidence = Evidence(events, 256 * 1024 * 1024)
     results: list[dict[str, Any]] = []
     t0 = time.monotonic()
+    phase("starting the authority")
     try:
         async with Actors(evidence, 60) as actors:
             authority = Authority(
@@ -247,6 +258,7 @@ async def run() -> list[dict[str, Any]]:
                             raise TimeoutError("timed out after 300 s waiting for an authority leader") from None
                         await asyncio.sleep(0.5)
             authority_ready = time.monotonic() - t0
+            phase("authority ready", seconds=round(authority_ready, 1))
             writers = MixedWriters(authority, records, 4, 17, maximum_records=records)
             positions: dict[str, int] = {}
             for producer in range(4):
@@ -280,10 +292,16 @@ async def run() -> list[dict[str, Any]]:
                 capacity=capacity,
             )
             relay_start = time.monotonic()
+            phase("starting the relay", positions=positions)
             await bounded("the relay to start", relays.start(), 60)
             relay = relays.relays[0].process.pid
             port = relays.relay_ports[0]
+            reported = time.monotonic()
+            health = {}
             while True:
+                if time.monotonic() - reported >= 30:
+                    reported = time.monotonic()
+                    phase("waiting for the relay's mirror", mirror=health.get("mirror"))
                 if relays.relays[0].process.returncode is not None:
                     raise RuntimeError("relay exited before its mirror was ready")
                 try:
@@ -298,6 +316,7 @@ async def run() -> list[dict[str, Any]]:
                     raise TimeoutError(f"timed out after {selection:.0f} s waiting for the relay's mirror ready")
                 await asyncio.sleep(0.1)
             mirror_ready = time.monotonic() - relay_start
+            phase("relay mirror ready", seconds=round(mirror_ready, 1))
             print(
                 json.dumps(
                     {
@@ -314,7 +333,9 @@ async def run() -> list[dict[str, Any]]:
             if PROFILE_S:
                 sequence += [("profiled", "pages"), ("profiled", "records")]
             for number, (role, arm) in enumerate(sequence, 1):
+                phase(f"agent {number} ({role} {arm}) waits for a quiet relay")
                 settled, settle_s = await quiet(relay)
+                phase(f"agent {number} ({role} {arm}) starts")
                 label = f"{number:02d}-{arm}-"
                 directory = output / label.rstrip("-")
                 directory.mkdir(mode=0o700)
@@ -370,6 +391,7 @@ async def run() -> list[dict[str, Any]]:
                     selection + 10,
                 )
                 ready_s = time.monotonic() - start
+                phase(f"agent {number} ({role} {arm}) ready", seconds=round(ready_s, 2))
                 if sampler is not None:
                     await bounded(f"sample of {label}agent-0 (pid {agent})", sampler.wait(), PROFILE_S + 60)
                 usage = rusage(agent)

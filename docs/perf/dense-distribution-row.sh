@@ -19,10 +19,10 @@ OPENSSL_CONF=$t/tests/detent_authority/tls_ambient.cnf cmake -DOUTPUT="$f/tls-fi
   -DOPENSSL=/usr/local/bin/openssl -P "$t/tests/detent_authority/tls_certificates.cmake"
 /usr/local/bin/openssl x509 -in "$f/tls-fixture/one.pem" -noout -checkend 7200
 "$py" "$t/docs/perf/dense-distribution-boot.py" "$tr/$fixture" "$run" "$b/dd" "$t" "$@" | tee "$JOB_OUT/boot.log" |
-  grep -E '^AGENT ' | sed 's/^AGENT //' >"$JOB_OUT/agents.jsonl"
-test "${PIPESTATUS[0]}" = 0
-grep -c . "$JOB_OUT/agents.jsonl"
-cat "$JOB_OUT/agents.jsonl"
+  grep --line-buffered -E '^(PHASE|AGENT|BOOT FAILED)' | cut -c1-400
+status=${PIPESTATUS[0]}
+grep -E '^AGENT ' "$JOB_OUT/boot.log" | sed 's/^AGENT //' >"$JOB_OUT/agents.jsonl" || true
+test "$status" = 0
 shopt -s nullglob
 samples=("$run"/*/sample.txt)
 if [ ${#samples[@]} -gt 0 ]; then
