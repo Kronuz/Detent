@@ -4390,7 +4390,9 @@
     },
     "dd4-delta-transfers": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "dd3-full-copy-pages"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4399,25 +4401,29 @@
           "name": "suite"
         }
       ],
-      "consumes": [],
+      "consumes": [
+        "paged-transfer"
+      ],
       "files": [
-        "src/detent_relay/**",
-        "src/detent_delivery/**"
+        "src/detent_relay/page_window.hh",
+        "src/detent_relay/page_window.cc",
+        "src/detent_delivery/delta_transfer.hh",
+        "src/detent_delivery/delta_transfer.cc",
+        "tests/detent_relay/test_page_window.cc",
+        "tests/detent_delivery/test_delta_transfer.cc"
       ],
       "landed": [],
       "lenses": [
         "correctness"
       ],
       "milestone": "",
-      "needs": [
-        "dd3-full-copy-pages"
-      ],
+      "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Dense distribution DD4: delta transfers and the pages-or-records rule",
-      "updated": "2026-11-20T04:29:16"
+      "updated": "2026-11-20T04:39:00"
     },
     "delta-plan-fixed-cost": {
       "accepted": {
