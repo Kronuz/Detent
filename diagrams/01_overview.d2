@@ -1,13 +1,19 @@
 # The top-level flow, deliberately minimal: four actors, no internals.
 # See 04_read_path.d2, 05_update_path.d2 and 07_agent.d2 for what's inside
 # each box.
-direction: down
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+grid-rows: 2
+grid-columns: 3
+horizontal-gap: 190
+vertical-gap: 150
 
 publisher: Publisher {
-  shape: person
+  shape: rectangle
+  style.fill: "#F4F1EA"
 }
 
-authority: Authority\n(detentd) {
+authority: Authority\n(detent-authority) {
   shape: rectangle
 }
 
@@ -15,15 +21,18 @@ agent: Host agent\n(detent-agent) {
   shape: rectangle
 }
 
+spacer: "" {style.opacity: 0}
+
+defaults: Baked defaults\n(defaults.json) {
+  shape: page
+  style.fill: "#F4F1EA"
+}
+
 reader: App process or\n`detent get` {
   shape: rectangle
 }
 
-defaults: Baked defaults\n(defaults.json) {
-  shape: page
-}
-
-publisher -> authority: "POST /v2/transactions\n(atomic, per-namespace)"
-authority -> agent: "managed delivery\n(snapshot or delta over TLS)"
-agent -> reader: "immutable local\ngenerations"
-defaults -> reader: "baked fallback\nfor missing knobs"
+publisher -> authority: "POST\n/v2/transactions"
+authority -> agent: "snapshot or\ndelta, TLS"
+agent -> reader: "immutable\ngenerations"
+defaults -> reader: "fallback"

@@ -1,12 +1,12 @@
-// detentd: the durable authority daemon. Wires detent::authority::Service into
+// detent-authority: the durable authority daemon. Wires detent::authority::Service into
 // http::HttpAsioService and runs until stopped.
 //
 // Usage:
-//   detentd --authority CONFIG [--daemonize] [--port N] [--reactors N]
-//           [--runtime-dir PATH] [--system] [--config PATH]
-//   detentd --status [--authority CONFIG] [--port N]
-#include "../detent_authority/service.hh"
-#include "../detent_authority/transport/https_client.hh"
+//   detent-authority --authority CONFIG [--daemonize] [--port N] [--reactors N]
+//                    [--runtime-dir PATH] [--system] [--config PATH]
+//   detent-authority --status [--authority CONFIG] [--port N]
+#include "service.hh"
+#include "transport/https_client.hh"
 #include "../detent_cli/config.hh"
 #include "../detent_cli/daemon.hh"
 #include "../detent_cli/logging.hh"
@@ -36,19 +36,19 @@ void handle_signal(int) { g_stop.store(true); }
 
 const char* kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never|truecolor|256|16\n"
-	"usage: detentd --authority CONFIG [--daemonize] [--runtime-dir PATH] [--config PATH]\n"
-	"               [--port N] [--reactors N] [--system]\n"
-	"       detentd --status [--authority CONFIG] [--runtime-dir PATH] [--port N]\n"
+	"usage: detent-authority --authority CONFIG [--daemonize] [--runtime-dir PATH] [--config PATH]\n"
+	"                        [--port N] [--reactors N] [--system]\n"
+	"       detent-authority --status [--authority CONFIG] [--runtime-dir PATH] [--port N]\n"
 	"\n"
-	"detentd: the durable authority daemon. It serves the authority configured in\n"
+	"detent-authority: the durable authority daemon. It serves the authority configured in\n"
 	"CONFIG (bounded namespace transactions, producer sessions, snapshot and delta\n"
 	"delivery) and replicates through Raft when CONFIG lists peers.\n"
 	"\n"
 	"With no --port: port 8317 (0 binds a free port and logs it).\n"
 	"--system selects the system config and runtime directories.\n"
-	"Config: detentd.json in the same platform directories as agent.json.\n"
+	"Config: detent-authority.json in the same platform directories as agent.json.\n"
 	"Fields: authority, port, reactors, runtime_dir, log_level, verbosity, color. Paths are config-relative.\n"
-	"Flags override DETENTD_PORT, DETENTD_REACTORS, DETENTD_RUNTIME_DIR, which override config.\n"
+	"Flags override DETENT_AUTHORITY_PORT, DETENT_AUTHORITY_REACTORS, DETENT_AUTHORITY_RUNTIME_DIR, which override config.\n"
 	"\n"
 	"--status probes the local instance over plain HTTP, or over HTTPS with CA and name\n"
 	"verification when CONFIG's publisher uses TLS, and prints its pid and health.\n";
@@ -86,9 +86,9 @@ std::string probe_health(const std::optional<detent::authority::ServiceOptions>&
 
 int run(const std::vector<std::string>& input_args) {
 	auto args = input_args;
-	detent_cli::reject_removed_options("detentd", args);
+	detent_cli::reject_removed_options("detent-authority", args);
 	using enum detent_cli::FieldKind;
-	auto file = detent_cli::load_config(args, "detentd.json", {
+	auto file = detent_cli::load_config(args, "detent-authority.json", {
 		{"log_level", {"--log-level", String}},
 		{"verbosity", {"--verbosity", NonnegativeInt}},
 		{"color", {"--color", String}},
@@ -100,9 +100,9 @@ int run(const std::vector<std::string>& input_args) {
 	auto settings = std::move(file.values);
 	auto logging_settings = detent_logging::parse(args, settings);
 	for (const auto& [flag, env] : {
-		std::pair{"--runtime-dir", "DETENTD_RUNTIME_DIR"},
-		std::pair{"--port", "DETENTD_PORT"},
-		std::pair{"--reactors", "DETENTD_REACTORS"},
+		std::pair{"--runtime-dir", "DETENT_AUTHORITY_RUNTIME_DIR"},
+		std::pair{"--port", "DETENT_AUTHORITY_PORT"},
+		std::pair{"--reactors", "DETENT_AUTHORITY_REACTORS"},
 	}) {
 		if (const char* value = std::getenv(env); value && *value) settings[flag] = value;
 	}
@@ -135,7 +135,7 @@ int run(const std::vector<std::string>& input_args) {
 	if (status && detach) throw std::runtime_error("--status and --daemonize are mutually exclusive");
 	if (!status && !settings.contains("--authority")) throw std::runtime_error("--authority CONFIG is required");
 	auto runtime = settings.contains("--runtime-dir") ? std::filesystem::path(settings.at("--runtime-dir")) : detent_cli::default_runtime_dir(system);
-	auto pid_path = runtime / ("detentd-" + std::to_string(port) + ".pid");
+	auto pid_path = runtime / ("detent-authority-" + std::to_string(port) + ".pid");
 	std::optional<detent::authority::ServiceOptions> authority_configuration;
 	if (settings.contains("--authority")) {
 		authority_configuration = detent::authority::load_service_options(settings.at("--authority"));
@@ -151,9 +151,9 @@ int run(const std::vector<std::string>& input_args) {
 			return 1;
 		}
 	}
-	return detent_cli::run_daemon(detach, runtime / ("detentd-" + std::to_string(port) + ".log"), [&](const detent_cli::Ready& ready) {
+	return detent_cli::run_daemon(detach, runtime / ("detent-authority-" + std::to_string(port) + ".log"), [&](const detent_cli::Ready& ready) {
 		detent_cli::ProcessLock process_lock(pid_path, system);
-		if (!process_lock.acquired()) { std::printf("detentd: already running\n"); return 0; }
+		if (!process_lock.acquired()) { std::printf("detent-authority: already running\n"); return 0; }
 
 		detent_logging::Session logging(logging_settings);
 		try {
@@ -189,7 +189,7 @@ int run(const std::vector<std::string>& input_args) {
 			bind.address = authority_bind;
 			service.set_bind_options(bind);
 			service.start(port);
-			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
+			L_INFO("detent-authority: durable {} authority listening with {} on {}:{}", authority_mode,
 				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
 			// A node that alone is a quorum (no other voter) waits for its own leader; with other voters
 			// it returns at once, and /v1/health reports ready only when a leader is known. A stop or a
@@ -211,7 +211,7 @@ int run(const std::vector<std::string>& input_args) {
 
 			// Teardown (D15): end the owner waits, stop the loops, then close and destroy the roots
 			// of every scheduler with every io_context alive; destruction follows in reverse.
-			L_NOTICE("detentd: shutting down");
+			L_NOTICE("detent-authority: shutting down");
 			authority.begin_shutdown();
 			service.stop();
 			authority.drain();
@@ -223,7 +223,7 @@ int run(const std::vector<std::string>& input_args) {
 			if (!startup_failure.empty()) throw std::runtime_error(startup_failure);
 			return 0;
 		} catch (const std::exception& e) {
-			L_ERR("detentd: {}", e.what());
+			L_ERR("detent-authority: {}", e.what());
 			throw;
 		}
 	});
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 	try {
 		return run(args);
 	} catch (const std::exception& e) {
-		std::fprintf(stderr, "detentd: %s\n", e.what());
+		std::fprintf(stderr, "detent-authority: %s\n", e.what());
 		return 1;
 	}
 }

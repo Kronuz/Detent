@@ -1,6 +1,6 @@
 """Authority voters named by host name (D60): three daemon processes configured with DNS names.
 
-usage: test_dns_voters.py DETENTD TLS_FIXTURE (names | unresolvable)
+usage: test_dns_voters.py DETENT_AUTHORITY TLS_FIXTURE (names | unresolvable)
   names:        all three voters are "localhost" on distinct ports; the cluster elects a leader and
                 serves a write over the names consensus resolves. Each named voter also
                 accepts a connection over 127.0.0.1 and, on a host with IPv6, ::1.

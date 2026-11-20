@@ -24,9 +24,9 @@ start() {
     "$binary" --authority "$root/$1.json" --port 0 --runtime-dir "$root/$1-runtime" --reactors 1 --daemonize \
         > "$root/$1.out" 2> "$root/$1.err" &
     parent=$!
-    until [[ -e "$root/$1-runtime/detentd-0.log" ]]; do kill -0 "$parent" 2>/dev/null || break; sleep 0.02; done
-    bound_port "$root/$1-runtime/detentd-0.log" "$parent" > /dev/null
-    daemon=$(cat "$root/$1-runtime/detentd-0.pid")
+    until [[ -e "$root/$1-runtime/detent-authority-0.log" ]]; do kill -0 "$parent" 2>/dev/null || break; sleep 0.02; done
+    bound_port "$root/$1-runtime/detent-authority-0.log" "$parent" > /dev/null
+    daemon=$(cat "$root/$1-runtime/detent-authority-0.pid")
 }
 # finish NAME: the parent's exit status, which must come well before the 30 s startup timeout.
 finish() {
@@ -58,4 +58,4 @@ if [[ "$status" == 0 ]] || ! grep -q 'authority stopped before a leader was elec
     echo "STARTUP: a runtime failure did not reach the parent (status $status): $(cat "$root/failure.err")" >&2
     exit 1
 fi
-printf 'detentd --daemonize: SIGTERM and a runtime failure during the leader wait are reported, not ready\n'
+printf 'detent-authority --daemonize: SIGTERM and a runtime failure during the leader wait are reported, not ready\n'

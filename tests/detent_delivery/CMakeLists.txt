@@ -140,32 +140,32 @@ set_tests_properties(test_relay_registry PROPERTIES TIMEOUT 30)
 if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME test_managed_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-    $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+    $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_managed_delivery_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
   add_test(NAME test_managed_subscription_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-    $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+    $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription)
   set_tests_properties(test_managed_subscription_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
   foreach(format IN ITEMS paged-v2 paged-to-flat)
     add_test(NAME test_managed_${format}_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+      $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription "" "" ${format})
     set_tests_properties(test_managed_${format}_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
   endforeach()
   if(DETENT_BUILD_RELAY)
     foreach(isolation IN ITEMS shared isolated)
       add_test(NAME test_relay_paged_${isolation}_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-        $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+        $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay> ${isolation} paged-v2)
       set_tests_properties(test_relay_paged_${isolation}_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
     endforeach()
     add_test(NAME test_relay_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+      $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_relay_delivery_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
     add_test(NAME test_relay_isolated_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+      $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay> isolated)
     set_tests_properties(test_relay_isolated_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
   endif()

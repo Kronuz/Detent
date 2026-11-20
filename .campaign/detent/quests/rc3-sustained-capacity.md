@@ -10,11 +10,11 @@ Detent publishes an operating envelope measured on the actual topology and host,
 
 ## Acceptance criteria
 
-- A1 Ingestion calibration of the 500k-key producer, SC-4's waits attributed (RC-3; `docs/handoffs/ingestion-waits.md`): exclusive jobs
-- A2 The raw and zstd 500, 2k and 10k-session ladder (RC-3): exclusive jobs
+- A1 Ingestion calibration of the 500k-key producer, SC-4's waits attributed (RC-3; `docs/handoffs/ingestion-waits.md`): strict jobs (D135: strict, not exclusive)
+- A2 The raw and zstd 500, 2k and 10k-session ladder (RC-3): strict jobs (D135: strict, not exclusive)
 - A3 Per-hop traffic and retry amplification (RC-3): jobs
 - A4 A mixed-pressure soak at the supported operating point (RC-3): a soak job
-- A5 Sustained 5M qualification (RC-3): exclusive jobs
+- A5 Sustained 5M qualification (RC-3): strict jobs (D135: strict, not exclusive)
 - A6 The exploratory 10M trial if resources permit; refusals and interrupted runs kept as results; it does not raise the supported ceiling (RC-3): jobs
 - A7 SC-2 and SC-3 segment storage and compaction costs resolved at release scale (`docs/handoffs/segment-storage.md`, `docs/reviews/scaling-2026-10-23.md`): jobs
 - A8 SC-1: the relay snapshot lifecycle's sustained capacity envelope (`relay-snapshot-lifecycle` left it open): jobs

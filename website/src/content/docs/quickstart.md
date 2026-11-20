@@ -21,7 +21,7 @@ cmake --build build -j 4
 export PATH="$PWD/build/src:$PATH"
 ```
 
-This builds the three programs the guide uses, in `build/src`: `detentd`, the
+This builds the three programs the guide uses, in `build/src`: `detent-authority`, the
 authority; `detent-agent`, the managed agent; and `detent`, the shell reader.
 The [Installation](/Detent/installation/) section covers compiler requirements,
 build options and platform notes.
@@ -87,12 +87,12 @@ cat > authority.json <<EOF
 }
 EOF
 chmod 600 authority.json
-detentd --authority authority.json --runtime-dir run --daemonize
+detent-authority --authority authority.json --runtime-dir run --daemonize
 ```
 
 <!-- e2e:begin
 stdout:
-run: test -s run/detentd-8317.pid
+run: test -s run/detent-authority-8317.pid
 e2e:end -->
 
 With no `voters`, the authority is a single voter. It listens on 127.0.0.1

@@ -1,4 +1,4 @@
-> Status: measured at 100K, 1M and 5M (2026-11-12; the fixed part 2026-11-17).
+> Status: measured at 100K, 1M and 5M (2026-11-12; the fixed part 2026-11-17); the warm second plan at 500K and 5M (2026-11-19).
 
 # A delta's plan, linear in the keys it changes
 
@@ -154,6 +154,72 @@ this quest's reach:
 
 D110 restates A2 on these numbers. It requires the clustered delta's 30% cut and its 2x bound at every size.
 For the uniform delta, it requires the measured cut, stated with where the CPU goes: 4.1% at 1M, as above.
+
+## A warm second plan on one mapping
+
+Every plan above is the first plan on a freshly opened store: its pages are verified on first touch and read
+from the mapping for the first time. A store that has planned once keeps the mapping and its verified-page
+bitmap (`VerifiedPages`, `checked_page_bytes`), so a second plan on it finds those pages verified and faulted in. The harness plans
+one delta three times on one recovered generation without publishing, so every plan has the same base:
+A (seed 1009) cold, A again (warm, same delta), then B (seed 1010, the same shape, a different delta).
+Odd rounds run A, A, B and even rounds B, B, A, so the cold plan is each delta in turn.
+
+Plan wall time, median [min, max] over the rounds (5 at 500K, 3 at 5M), and the paired ratio of the warm plan
+to the cold plan of the same round. Commit Detent:f6145feb (the harness at Detent:39155f00, plus the journal),
+exclusive jobs, no other load on the host (a strict smoke ran beside light holds; no round did). Host as in
+Method.
+
+| Corpus | Arm | Keys | Cold | Warm, same delta | Warm / cold (wall) | Warm / cold (CPU) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 500K | uniform 0.05 | 25,070 | 1.110 s [1.082, 1.136] | 0.735 s [0.709, 0.759] | 0.667 [0.624, 0.701] | 0.798 |
+| 500K | uniform 0.5 | 249,922 | 2.218 s [2.162, 2.838] | 1.772 s [1.742, 1.839] | 0.804 [0.621, 0.829] | 0.873 |
+| 500K | clustered 0.05 | 25,000 | 0.155 s [0.132, 0.159] | 0.120 s [0.107, 0.130] | 0.781 [0.756, 0.821] | 0.860 |
+| 5M | uniform 0.05 | 250,986 | 12.101 s [11.687, 13.209] | 8.141 s [7.713, 8.294] | 0.660 [0.628, 0.673] | 0.804 |
+| 5M | uniform 0.5 | 2,499,245 | 24.729 s [24.499, 27.528] | 19.445 s [18.648, 20.924] | 0.760 [0.754, 0.794] | 0.881 |
+| 5M | clustered 0.05 | 250,000 | 1.730 s [1.522, 1.733] | 1.341 s [1.306, 1.369] | 0.790 [0.755, 0.881] | 0.869 |
+
+A uniform delta's second delta (B after A) plans in the same time as A again: 0.730 s against 0.735 s (500K,
+0.05), 7.672 s against 8.141 s (5M, 0.05), 19.756 s against 19.445 s (5M, 0.5). A and B rewrite the same bytes
+there (197 MB at 5M, 0.05), and a uniform delta touches nearly every page, so the second delta finds the
+first one's pages already verified. For a clustered delta A and B are different runs of adjacent keys that
+rewrite different bytes (12 and 6 MB at 5M), so the "different delta" plans of that arm are not a like-for-like
+comparison and are left out of the table; the same-delta ratio is its measure.
+
+Reading:
+
+1. The warm win holds at the full size and is the same size at both: a second plan on the mapping takes
+   0.66 of the cold wall time at 0.05 uniform (500K and 5M), 0.76-0.80 at 0.5 and 0.78-0.79 for the
+   clustered delta. The wall-time ranges of the cold and warm plans do not overlap in any arm. The 500K 0.5 ratio's low end,
+   0.621, is its first round, whose cold plan took 2.838 s against 2.162-2.241 s in the other four; the median
+   is not moved by it.
+2. For the uniform deltas, half of the wall time saved is CPU and half is waiting. At 5M, 0.05 uniform, the cold plan spends
+   10.1 s of CPU in 12.1 s of wall time and the warm one 8.1 s in 8.1 s: the first-touch work costs 2.0 s of CPU
+   (20%) and about 2.1 s of wall time outside the CPU (page faults on the mapped base segments), which a warm
+   plan does not wait for. The warm wall time equals the warm CPU time in every arm; the clustered delta's cold plan has almost no
+   wait (0.013 s at 500K, 0.152 s at 5M), so its 0.78-0.79 ratio is CPU.
+3. The saving grows with the pages touched, not with the keys: 4.0 s at 5M, 0.05 uniform (250,986 keys), 6.1 s at
+   0.5 (2,499,245 keys), 0.36 s clustered. The 0.5 delta's relative win is smaller, consistent with
+   its packing and validation (not measured here) growing against the same first-touch cost.
+4. This host's SHA-256 is the portable kernel (see "Where a uniform delta's plan goes now"), so the first-touch
+   CPU, which includes the portable SHA-256 of old pages, is an upper bound for hosts with SHA-NI or ARMv8 kernels; the
+   wall-time share (faults) is not.
+5. What a warm plan is: the second plan on a mapping whose pages the first plan verified, in one process.
+   The numbers cannot separate the verified-page bitmap from the process's warm page cache and heap; both
+   are what a second plan on an open store gets. A cold OS file cache (a first plan after a reboot) is not
+   measured: the harness clones the prepared store with `cp -c` and the files were read by the prepare
+   step before. The cold plan here is therefore the first plan on a store whose files are in the OS cache,
+   and a first plan after a reboot would cost more.
+
+Jobs: 500K corpus 261119-145602-9c34e4 (`corpus-500000.bin`, SHA-256 ae28985f...d629: the 5M corpus's
+definitions with local number below 500,000, every namespace record, 500,000 definitions and 4 namespaces),
+prepares 261119-152534-fa3505 (500K) and 261119-152536-eb759c (5M), smoke 261119-152539-acabbc (500K 0.05: cold
+2.012 s, same 1.405 s, other 1.547 s, under 5 light holds), rounds: 500K rounds 1-5 261119-153419-124e73,
+5M rounds 1, 2, 3 261119-153422-107aa3, 261119-153424-6e0a4a, 261119-153426-bc9994. The 5M cold plans agree
+with the fixed part's measurement (uniform 0.05: 10.1 s of CPU against 10.35 s).
+
+Harness: `tests/detent_local/test_delta_plan_scaling_warm.{cc,sh,cmake}` and
+`test_delta_plan_scaling_subcorpus.py`. `test_delta_plan_scaling_warm.sh build`, `prepare` and `round N ARM ...`
+build it, prepare the store and run one process per arm.
 
 ## Method
 

@@ -113,10 +113,10 @@ install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Authority application semantics remain independent of transport and consensus.
 add_subdirectory(detent_authority)
 
-# detentd: the durable authority daemon (detentd/main.cc; its lifecycle is detent_cli's).
+# detent-authority: the durable authority daemon (detent_authority/main.cc; its lifecycle is detent_cli's).
 if(DETENT_BUILD_AUTHORITY)
-  add_executable(detentd detentd/main.cc)
-  target_compile_definitions(detentd PRIVATE REACTOR_TRACE_HEADER="logger.h")
-  target_link_libraries(detentd PRIVATE detent_authority_service detent_cli detent_logging http::http reactor::tls logger::logger task::asio)
-  install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  add_executable(detent-authority detent_authority/main.cc)
+  target_compile_definitions(detent-authority PRIVATE REACTOR_TRACE_HEADER="logger.h")
+  target_link_libraries(detent-authority PRIVATE detent_authority_service detent_cli detent_logging http::http reactor::tls logger::logger task::asio)
+  install(TARGETS detent-authority RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

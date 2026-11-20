@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
-    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
+    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md', '.campaign/**']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   ci:
@@ -71,8 +71,8 @@ jobs:
             echo '::error::the offload, deferred-reply or user_data path is back'
             exit 1
           fi
-          if git grep -nE -- '--workers|DETENTD_WORKERS' -- src/detentd website docs/USAGE.md; then
-            echo '::error::the removed detentd worker option is documented or parsed again'
+          if git grep -nE -- '--workers|DETENT_AUTHORITY_WORKERS' -- src/detent_authority website docs/USAGE.md; then
+            echo '::error::the removed detent-authority worker option is documented or parsed again'
             exit 1
           fi
   # M1: a shared dependency is pinned in the manifest as in each library it pins.

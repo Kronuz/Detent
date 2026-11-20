@@ -4,11 +4,11 @@
 // model.hh) -- the wire format that lets a caller send or receive only the
 // knobs that changed instead of a full snapshot. Two independent uses of
 // the exact same shape:
-//   - Write side: detentd's PATCH /v1/snapshot accepts a SnapshotPatch and
+//   - Write side: detent-authority's PATCH /v1/snapshot accepts a SnapshotPatch and
 //     apply_patch()es it onto the current snapshot server-side, instead of
 //     requiring a publisher to resend every unrelated knob just to flip
 //     one kill switch.
-//   - Read side: detentd caches diff_snapshots(previous, current) once per
+//   - Read side: detent-authority caches diff_snapshots(previous, current) once per
 //     accepted update (the same "compute once, not once per request"
 //     principle current_etag_ already applies) and serves it to a poller
 //     whose last-known version is exactly that previous one, instead of

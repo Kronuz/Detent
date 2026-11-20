@@ -5,7 +5,7 @@ set -u
 here=$(dirname "$0")
 build=$1 runs=$2 par=$3 name=$4
 rm -rf .scratch/stage6
-python3 "$here/soak.py" "$build" detentd,detent-agent,detent_system_local_oracle,detent-relay "$runs" "$par" "$name"
+python3 "$here/soak.py" "$build" detent-authority,detent-agent,detent_system_local_oracle,detent-relay "$runs" "$par" "$name"
 code=$?
 for d in $(command ls -d .scratch/stage6/*/ 2>/dev/null </dev/null); do
   echo "=== kept run $d"

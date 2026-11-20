@@ -20,12 +20,12 @@ namespace internal {
 // nesting level with NO depth limit, *before* any of this file's own
 // bounded-size validators (max_knobs, name-length caps) ever run. A ~1 MiB
 // body of a few hundred thousand nested `[`s -- far under the 16 MiB PUT
-// cap enforced upstream in detentd -- reliably overruns the thread stack
+// cap enforced upstream in detent-authority -- reliably overruns the thread stack
 // and crashes the whole process (reproduced: SIGBUS on macOS, would be
 // SIGSEGV on Linux). The same parser is also the *client's* snapshot-
 // ingest path (parse_source_snapshot, fed by the file source or a custom
 // poll function), so an unbounded-depth payload can crash every consuming application
-// process too, not just detentd. A cheap linear pre-scan for max bracket
+// process too, not just detent-authority. A cheap linear pre-scan for max bracket
 // nesting, rejecting before rapidjson ever sees the bytes, is the primary
 // defense (bounds memory/CPU, not just the stack); Parse<kParseIterativeFlag>
 // below is defense-in-depth in case some other caller of this file's
@@ -199,7 +199,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
                          std::size_t max_bytes, bool is_source) {
 	// Every caller of parse_common (parse_defaults, parse_source_snapshot)
 	// used to rely on the *caller* enforcing a byte cap -- true for
-	// detentd's own PUT ingest (CappedBodySink) and the file source's own
+	// detent-authority's own PUT ingest (CappedBodySink) and the file source's own
 	// read, but not for an arbitrary InitOptions::source_poll
 	// implementation, so an untrusted source could still drive unbounded
 	// parsing/allocation through that path. Enforce it here,

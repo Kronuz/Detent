@@ -9,7 +9,7 @@ The agent and every relay consume namespace-s6's v2 sessions, together in one la
 
 ## Acceptance criteria
 
-- A1 First task, before freezing limits: at 1, 1,000 and 4,096 namespaces (100 knobs each, plus the 5M namespace in one arm), jobs measure agent descriptors and mappings when ready and during a cycle that republishes every namespace, startup to ready against the 0.3 s restart gate, table encode/decode and SHA-256 per cycle and per reader re-read (against reader T2's 1 ms first-read gate), and RSS and ledger use per idle and per active namespace; the journal states the bounds they set, descriptors O(1) plus attached namespaces among them (design F3, F11): strict or exclusive jobs and a results doc
+- A1 First task, before freezing limits: at 1, 1,000 and 4,096 namespaces (100 knobs each, plus the 5M namespace in one arm), jobs measure agent descriptors and mappings when ready and during a cycle that republishes every namespace, startup to ready against the 0.3 s restart gate, table encode/decode and SHA-256 per cycle and per reader re-read (against reader T2's 1 ms first-read gate), and RSS and ledger use per idle and per active namespace; the journal states the bounds they set, descriptors O(1) plus attached namespaces among them (design F3, F11): strict or strict jobs and a results doc (D135: strict, not exclusive)
 - A2 Through authority, relay, relay, agent, every followed namespace's cursor and state commitment at the agent equals the authority's at that W1 cursor, including a W7 re-creation and a drop through the chain (design F8): the system suites
 - A3 The read path finds its namespace's entry by name; a reader of B keeps its generation and lease through 1,000 publications of A and moves only when B moves; collection waits for held leases (design F4): tests
 - A4 The agent is ready when every followed namespace is published or known absent (with `all`: the directory reached and every live granted name published); a namespace failing verification is refetched as a full copy while the others serve (D10); only a refused table fences the store (design F5): tests
@@ -27,3 +27,7 @@ D93, D94 (lead, from the design review `reviews/namespace-s6-v1-removal-design.m
 ## May land early
 
 Nothing: it switches every consumer's wire.
+
+## Notes
+
+Audit 2026-11-19 (J11): the relay's `SessionFramesEncoder(std::nullopt, requests)` (`src/detent_relay/namespace_relay.cc:314`) uses the encoder's private default ledger, not the shared one (namespace-s6-hardening journal:55); moving the relay onto v2 passes the shared ledger, with a test that fails on the private one.

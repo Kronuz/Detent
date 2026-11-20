@@ -17,7 +17,7 @@ CTest registers the same lifecycle checks when Python 3.12 or later is available
 ```sh
 /usr/local/bin/python3 tests/detent_system/run_writers.py \
   --scenario tests/detent_system/presets/smoke.json \
-  --binary build/src/detentd --build build \
+  --binary build/src/detent-authority --build build \
   --certificates build/tests/detent_authority/tls-fixture \
   --output .scratch/stage6/writers-17 --seed 17 --duration 60
 ```

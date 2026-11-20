@@ -19,7 +19,7 @@ cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON \
     -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_TESTS=ON > /dev/null ||
     no_verdict "configure failed"
-cmake --build "$build" -j4 --target detentd detent-relay test_relay_probe > /dev/null || no_verdict "mutant does not build"
+cmake --build "$build" -j4 --target detent-authority detent-relay test_relay_probe > /dev/null || no_verdict "mutant does not build"
 (cd "$build" && ctest -R '^(authority_tls_certificates|test_relay_service)$' --output-on-failure)
 status=$?
 git apply -R "$patch"

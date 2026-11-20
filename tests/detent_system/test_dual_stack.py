@@ -1,6 +1,6 @@
 """A relay and an authority voter bound to :: serve an IPv4 client and an IPv6 client.
 
-usage: test_dual_stack.py DETENTD DETENT_RELAY TLS_FIXTURE
+usage: test_dual_stack.py DETENT_AUTHORITY DETENT_RELAY TLS_FIXTURE
 
 Each daemon listens on "::" (the `[::]` wildcard); the test sends HTTPS /v1/health to it over
 127.0.0.1 and over ::1 and says which families ran. Exit 77 (skip) where the host has no ::1.
@@ -148,7 +148,7 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
 
 
 def main() -> int:
-    detentd, relay, certificates = (Path(argument).resolve() for argument in sys.argv[1:4])
+    authority, relay, certificates = (Path(argument).resolve() for argument in sys.argv[1:4])
     if not has_ipv6():
         print("skip: no ::1 on this host")
         return 77
@@ -160,7 +160,7 @@ def main() -> int:
     ports = [free_port() for _ in range(5)]
     commands = {
         "authority": [
-            str(detentd),
+            str(authority),
             "--authority",
             str(authority_configuration(certificates, directory, ports[:3])),
             "--port",
