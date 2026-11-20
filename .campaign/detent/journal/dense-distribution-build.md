@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-071916-86ee24 (A1 suite) and CI (A2) at Detent:1fadf5c5
+State: waiting on jobs 261120-080129-538d87 (A1 suite) and CI (A2) at Detent:410242d4
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -9,7 +9,7 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 6: suite and CI on v2 at Detent:1fadf5c5 (managed docs on W5; GCC include).
+Step 6: suite and CI on v2 with namespace-local-cursor merged (Detent:410242d4).
 
 ## Done
 
@@ -25,13 +25,23 @@ Step 6: suite and CI on v2 at Detent:1fadf5c5 (managed docs on W5; GCC include).
   leads; GenerationUnavailable is fatal; a pooled malformed close fails closed (Detent:ac278e50).
   test_delivery_worker_lifetime holds the first full copy's build on the worker (Detent:514349e0).
   Local runs: 67/68 system and authority (relay_ipv6 then passed alone), worker and coordinator.
+- Managed docs on W5 sessions, GCC `<vector>` include (Detent:1fadf5c5).
+- Merged namespace-local-cursor at Detent:296228c3 (Detent:e52e8d31): the coordinator's v1 bridge
+  goes, FrameInput sets a full copy's W1 target, single-plan `begin` publishes `disk_store_entry`
+  (Detent:b8c2cf69). The v1 export seam (`detent::local_export`) and the agent's v1
+  --generation-* identity flags go (Detent:410242d4). Local suite after the merge: 201/206, the
+  five failures fixed and passing on rerun (startup and foreign-generation tests now expect C2's
+  failed entry, not a fence; writers.py dropped a field the fakes lack).
 
 ## Next
 
 1. Port to the W5 fixture what the retired v1 tests covered: hash-once (D12.2), scrub damage to
    repair, prepared startup; a W5 fleet load for the measurement arms.
-2. `distribution::UpdateCache` is unused; ACTORS.md and RELAY_ARCHITECTURE.md describe bundles.
-3. Step 7 (former DD3): full copy as a page transfer through DD1's receiver; a 100K cold agent
+2. A selected entry whose bytes are damaged (startup checks presence only, C2) refuses recovery
+   on each round: base_of fails, and a full copy at the same incarnation also asks base_of. The
+   store should fail the entry (as startup does for a missing file) so a fresh copy replaces it.
+3. `distribution::UpdateCache` is unused; ACTORS.md and RELAY_ARCHITECTURE.md describe bundles.
+4. Step 7 (former DD3): full copy as a page transfer through DD1's receiver; a 100K cold agent
    runs no packer.
 
 ## Messages
@@ -53,7 +63,9 @@ builders taking a W1 target is all this branch needs from it. DiskStore's multi-
 Nothing. For the lead: .github/workflows/tls-fixture-diagnostics.yml (outside this file set) is
 left at main's version, which names `test_delivery_coordinator_subscription-relay-http-500000`,
 a test this branch retires. Options: retarget it to test_namespace_coordinator (recommended), or
-delete the workflow.
+delete the workflow. README.md (outside the set) still lists `detent::local_export`, which
+this branch removes. .github/workflows/ci.yml carries namespace-local-cursor's removal of
+test_local_view from the reader job; it stays, since the test no longer exists.
 
 ## Evidence
 
@@ -80,5 +92,10 @@ delete the workflow.
   `detent::internal::read_private_configuration`; left for the lead (the helper's edit was denied).
 - The authority leader proposes EnablePositions as soon as it leads (no longer on demand): a
   follower answers W5 only once positions are enabled, so on-demand enabling left followers idle.
+- Lead message (namespace-local-cursor done, merge it with DD1 and DD4): merged at Detent:e52e8d31;
+  DD1 (Detent:5b46a601) and DD4 (Detent:14b29e24) were already in. Its pause note holds: the
+  coordinator's pause ends only on close, a new cancellation, or wake().
+- The agent's v1 generation identity flags go rather than map through D88: a W5 generation's
+  incarnation is the authority's, so a D88-derived identity never matches (greenfield).
 - A worker build failure is a retried candidate failure, recorded in status, not a stop: the
   worker lifetime test's settled case closes after observing it.
