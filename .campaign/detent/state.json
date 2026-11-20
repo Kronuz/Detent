@@ -17446,6 +17446,8 @@
     "reactor-shared-accept-bind-flake": {
       "accepted": {},
       "after": [],
+      "base": "6cd8f73145efaf8d77937131a2825799e396c82c",
+      "branch": "quest/detent/reactor-shared-accept-bind-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -17486,6 +17488,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/reactor-shared-accept-bind-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -17493,9 +17496,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "reactor runtime test: shared-accept retirement bind hits EADDRINUSE on macos-arm64",
-      "updated": "2026-11-20T00:19:39"
+      "updated": "2026-11-20T03:07:15",
+      "worktree": "../reactor-wt/detent/reactor-shared-accept-bind-flake"
     },
     "reactor-task-sessions": {
       "accepted": {},
