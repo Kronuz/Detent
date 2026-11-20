@@ -19244,11 +19244,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into old-flakes-disposition as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "test that recovery is refused below the stored history's bytes",
-      "updated": "2026-11-19T06:01:00"
+      "updated": "2026-11-20T06:55:57"
     },
     "retained-state": {
       "accepted": {},
