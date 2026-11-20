@@ -4303,13 +4303,14 @@
       ],
       "milestone": "",
       "needs": [],
-      "provides": [],
-      "reason": "started by force: overlap is only src/CMakeLists.txt and tests/detent_local/CMakeLists.txt, where DD1 adds new targets; reader-s6 and dense-power-cut-cycles edit other lines, so merges are mechanical",
+      "provides": [
+        "paged-transfer"
+      ],
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Dense distribution DD1: transfer codec and verifying receiver",
-      "updated": "2026-11-20T04:30:01",
+      "updated": "2026-11-20T04:38:54",
       "worktree": "../Detent-wt/detent/dd1-transfer-receiver"
     },
     "dd2-canonical-copy": {
