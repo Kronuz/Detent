@@ -11709,22 +11709,40 @@
         "website/src/content/docs/**",
         "tests/detent_system/**"
       ],
-      "landed": [],
-      "lenses": [
-        "correctness"
+      "history": [
+        {
+          "at": "2026-11-20T04:49:28",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "D135 (owner): reviews never block a landing; this quest lands on its tests, mutants, sanitizers, suite and CI, and its review runs after it lands",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens correctness removed"
+          ]
+        }
       ],
+      "landed": [],
+      "lenses": [],
       "milestone": "N1",
       "needs": [
         "dense-sync-stack",
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "started by force: owner priority D134: the v2 foundation for dense distribution starts now; overlaps are broad globs (src/detent_local/**, tests/**, docs/**) where the other quests add new files or edit other regions, and each merges main before landing",
       "repo": ".",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "Local layer on the one W1 cursor, store layout 2 and root format 4 (P3)",
-      "updated": "2026-11-20T04:47:01",
+      "updated": "2026-11-20T04:49:28",
       "worktree": "../Detent-wt/detent/namespace-local-cursor"
     },
     "namespace-measure": {
