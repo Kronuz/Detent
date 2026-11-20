@@ -1555,6 +1555,13 @@
       "closed": "Both are named in journal's CHANGELOG under Unreleased: (1) the sealer recall is at CHANGELOG.md:51 ('TurnDriver calls a sealer again in the same turn while it returns records... A sealer returns nothing when it has no more'), an intended contract change; (2) the close retiring the group's sequences through its durable sequence + 1 is at CHANGELOG.md:72 (TurnDriver::retired). Strata's fix (hand nothing while the last record isn't durable) matches the contract",
       "id": "msg-160",
       "text": "FYI, two journal 9e11713 behavior changes that broke a strata test at the pin move, both fixed on our side in group-core (strata:6a230264). (1) journal:6187a32 calls a sealer again within a turn, so strata's index handed two records per turn; strata now hands nothing while its last record isn't durable. (2) A host now reports a closed group's retired floor at the close's sequence + 1. If either was meant as a contract change, please name it in the journal's CHANGELOG so other consumers see it."
+    },
+    {
+      "at": "2026-11-20T12:12:00",
+      "by": "lead",
+      "closed": "Reread both: sentiment emoji in replies to German only; evidence carries across main merges outside the quest's files, land --merge-main, [ci] criteria, campaign task merge and job submit --task, long local work as jobs",
+      "id": "msg-161",
+      "text": "Owner asks: reread ~/.agents/AGENTS.md (dotfiles:078d89d), whose new 'Sentiment emoji' section applies to replies to German: lead each news item with an emoji (\ud83c\udf89 \u2705 \ud83d\ude42 \ud83e\udd14 \u26a0\ufe0f \ud83d\ude1e \u274c \ud83d\udea8 \ud83d\ude20 \ud83d\ude21), never in commits, PRs, docs or records. Also reread the campaign skill (agent-campaign:64e661b, in dotfiles at 0d45817): evidence carries across main merges that touch neither the quest's files nor a job's --inputs; 'campaign land --merge-main' merges main, pushes and lands on CI green; a criterion tagged [ci] is proven by green CI and 'land --no-ci' waives it; 'campaign task merge' plus 'job submit --task T'; every process a job starts dies with it, so long local work is a job, never a loose background process (stop with 'campaign job cancel ID')."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
