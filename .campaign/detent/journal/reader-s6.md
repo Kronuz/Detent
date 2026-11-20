@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:d0bdc01`: gates native 5054f8, tsan 2c8619, t3-tsan f5e222, asan e0f54b, t3-asan 952dba; DROP-1 plain d5b8ee and mutant acc366; reruns fbc572 6cf066 630328 d86533 67abda 0e51eb 69ff23; A16 strict 29d977 and 481c35, count bc7996. CI run 44834111994 queued on the head (pushed).
+State: waiting on jobs at `Detent:d0bdc01`: gates native 5054f8, tsan 2c8619, t3-tsan f5e222, asan e0f54b, t3-asan 952dba; reruns fbc572 6cf066 630328 d86533 67abda 0e51eb 69ff23; A16 strict 29d977 and 481c35, count bc7996. CI run 44834111994 queued on the head (pushed).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -24,7 +24,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
     entry is attached, so the refresh fails at its store word and lookups answer stale.
   - Guard: `test_reader_core unreadable_table` (attached, publish, `selected` renamed away: lookup
     and revision answer 1, refresh unavailable, then 2 after it returns). Mutant DROP-1
-    (`refs/mutants/reader-s6/DROP-1`, `Detent:1136d31`) removes the rethrow: acc366.
+    (`refs/mutants/reader-s6/DROP-1`, `Detent:1136d31`) removes the rethrow: killed, acc366 (exit
+    134); plain d5b8ee passed.
   - Linux gcc confirmation is CI's at `Detent:d0bdc01` (the failure was 3 of 6 gcc runs before).
 - Close-out (2026-11-20): merged main at `Detent:1920bd0` (clean; main's src changes are the
   detentd rename, PackScrub counts and test fixtures, none in the read path). The W1 cursor work from
@@ -263,7 +264,7 @@ not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 | Criterion | Evidence |
 |---|---|
 | A1-A3, A5, A6, A15 | native 9d4b5b |
-| A4 | asan 5f1cad, tsan 619e0a, t3-asan 416f56, t3-tsan f8389b (pending); mutant STATS-1 676367 |
+| A4 | gates at `Detent:d0bdc01` pending (see State); at `Detent:dc004dc` t3-tsan f8389b passed; mutant STATS-1 676367; Linux gcc T3 fix: `unreadable_table` d5b8ee, mutant DROP-1 acc366 killed |
 | A7 | 3d025c |
 | A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads edcde5 (pending), BOUND-1 bf6dfc killed |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation" and "Mapped bytes after verification" |
