@@ -9140,6 +9140,37 @@
       "updated": "2026-11-19T16:50:37",
       "worktree": ""
     },
+    "journal-double-damage": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "include/**",
+        "test/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Recovery reports, never drops: a damaged block followed by a damaged header loses acknowledged records silently",
+      "updated": "2026-11-20T09:10:12"
+    },
     "journal-driver": {
       "accepted": {
         "durability": {
