@@ -4297,20 +4297,39 @@
         "tests/detent_testing/CMakeLists.txt",
         "docs/mechanisms/paged-transfer.md"
       ],
-      "landed": [],
-      "lenses": [
-        "security"
+      "history": [
+        {
+          "at": "2026-11-20T04:49:23",
+          "lenses": [
+            [
+              "security"
+            ],
+            []
+          ],
+          "reason": "D135 (owner): reviews never block a landing; this quest lands on its tests, mutants, sanitizers, suite and CI, and its review runs after it lands",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens security removed"
+          ]
+        }
       ],
+      "landed": [],
+      "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [
         "paged-transfer"
       ],
       "repo": ".",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "Dense distribution DD1: transfer codec and verifying receiver",
-      "updated": "2026-11-20T04:38:54",
+      "updated": "2026-11-20T04:49:23",
       "worktree": "../Detent-wt/detent/dd1-transfer-receiver"
     },
     "dd2-canonical-copy": {
