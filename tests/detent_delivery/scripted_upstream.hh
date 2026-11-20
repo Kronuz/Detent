@@ -444,7 +444,7 @@ inline void seed(const fs::path &certificates, const fs::path &store) {
 	fs::permissions(store, fs::perms::owner_all);
 	Server server(certificates);
 	run_phase(certificates, store, server, {.scrub_rate = 0, .fresh = true},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto) -> task::task<void> {
 				  check(co_await until(scheduler, 60s, [&] {
 					  const auto status = coordinator->status();
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
