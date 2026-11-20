@@ -1,6 +1,6 @@
 # reactor-abortlist-thread: journal
 
-State: waiting on jobs 261119-171143-723158 261119-171145-ddad3b
+State: ready to land (CI on the branch: the lead watches it)
 Quest: .campaign/detent/quests/reactor-abortlist-thread.md (the lead's; never edit it)
 
 ## Doing
@@ -18,7 +18,7 @@ instead of a job id; fc93ed replaced it. Suite check: 261119-171145-ddad3b (`cam
 
 ## Next
 
-1. When 723158, ddad3b and CI are green: confirm 723158 exits 66 on the same race, State ready to land.
+1. Land once CI is green (the lead's).
 
 ## Blocked on
 
@@ -36,8 +36,10 @@ untracks on the owning loop, 50 plain and 50 throwing sessions ending on server 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-170249-dacc88 TSan `[A]` passed; 261119-171143-723158 `--fails-without`, the same command at the task go-home mutant (TSan exitcode 66 on the race) |
-| A2 | 261119-170254-5ab021 Release suite passed; 261119-170306-fc93ed TSan suite passed; 261119-171145-ddad3b suite check; CI on `quest/detent/reactor-abortlist-thread` |
+| A1 | 261119-170249-dacc88 TSan `[A]` passed; fails without it: 261119-171143-723158 (task go-home mutant, TSan race at `reactor.h:467` `run_session`, exit 66) |
+| A2 | 261119-170254-5ab021 Release suite, 261119-170306-fc93ed TSan suite, 261119-171145-ddad3b suite check; CI on `quest/detent/reactor-abortlist-thread` |
+
+- 261119-170251-fa0eb2: superseded by 261119-171143-723158; its wrapper inverted the result.
 
 ## Result
 
