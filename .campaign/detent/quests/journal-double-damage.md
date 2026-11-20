@@ -5,16 +5,13 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+On journal main (1222e3b), when a damaged block is followed by a block whose header is also damaged, recovery reports no damage and drops acknowledged records (found by journal-idle-groups; probe at journal-wt/detent/journal-idle-groups/.scratch/probe/probe.cc). Recovery must report that damage and never silently lose an acknowledged record.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A test reproducing the probe fails at 1222e3b and passes with the fix (a job at each)
+- A2 The crash model, extended with double damage at every block boundary, reports damage and loses no acknowledged record: a job
+- A3 The suite and CI pass
 
 ## Contracts
 
