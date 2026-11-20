@@ -1,19 +1,27 @@
 # reactor-tls-cache-bound: journal
 
-State: waiting on jobs 261119-170319-db4214 261119-170321-faabcc 261119-170324-9cfdf1 261119-170326-388a57 261119-170329-84676b 261119-170332-6dcc8d 261119-170343-3f5263 261119-170344-6ff1a8 261119-170347-1c4e01
+State: waiting on jobs 261119-170321-faabcc 261119-170558-97b11f 261119-170326-388a57 261119-170600-875ac8 261119-170332-6dcc8d 261119-170544-6cb23b 261119-170545-daa85c 261119-170547-7f622f 261119-170530-61aafd
 Quest: .campaign/detent/quests/reactor-tls-cache-bound.md (the lead's; never edit it)
 
 ## Doing
 
-Fix at reactor:388e161 (pushed). Jobs queued for every criterion; nothing compiled locally (an
-exclusive hold held the machine), so the first job results are also the compile check.
+Fix at reactor:388e161; bench and mechanism doc at reactor:1310405 (pushed, head). msg from the
+lead: fix the bench in this quest (file set now has docs/perf/tls-configure/**,
+docs/perf/tls-configure.md). The bench keeps one configured context alive per held case and adds
+server-ec-unheld and peer-ec-unheld (each context freed first). Strict A/B 261119-170530-61aafd:
+before reactor:1dd5f32 (unbounded cache), after head. release passed at 388e161
+(261119-170319-db4214), so the code compiles.
 
 ## Next
 
 1. Read the jobs: `campaign status reactor-tls-cache-bound`. A failing build or test: fix, commit,
    rebuild the two mutants on top (refs/mutants/reactor-tls-cache-bound/{pin,digest} in the reactor
    repo, one-line edits named in their messages), resubmit.
-2. All green: paste `campaign brief`'s table below, set State to ready for review.
+2. From the A/B (261119-170530-61aafd, round 5 medians), rewrite docs/perf/tls-configure.md:
+   before = reactor:1dd5f32, after = head; held cases should match, unheld after = full parse
+   (compare the no-cache numbers of job 261119-153634-6252d5, labeled as that job's). Say plainly
+   when the cache hits (live holder) and when it misses. Commit, push.
+3. All green: paste `campaign brief`'s table below, set State to ready for review.
 
 ## Blocked on
 
@@ -27,20 +35,17 @@ Nothing for this quest. For the lead:
      decrypted key once every context using it is gone. Configuring a context after freeing the
      last one using a file parses that file again. Password digests are cleansed when freed.
    ```
-2. docs/perf/tls-configure/bench.cc (outside this file set) frees each context before the next
-   configure, so under this change it measures a parse on every call (the "before" numbers, about
-   176 us for server-ec). The cached figure in docs/perf/tls-configure.md now holds only while a
-   context using the files lives. Recommendation: a follow-up has the bench keep one configured
-   context alive per case (a server rebuilding on rotation) and reruns the A/B.
+2. (Resolved by the lead: the bench is fixed in this quest; see Doing.) The CHANGELOG entry
+   waits for reactor-abortlist-thread to land; the lead then adds the file and I commit it.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | release 261119-170319-db4214; at pin mutant (fails-without) 261119-170321-faabcc |
-| A2 | bounded 261119-170324-9cfdf1; at pin mutant (fails-without) 261119-170326-388a57 |
-| A4 | digest 261119-170329-84676b; at no-cleanse mutant (fails-without) 261119-170332-6dcc8d |
-| A3 | suite 261119-170343-3f5263, ASan+UBSan 261119-170344-6ff1a8, TSan 261119-170347-1c4e01 |
+| A1 | release 261119-170319-db4214 (passed; reused at head); at pin mutant (fails-without) 261119-170321-faabcc |
+| A2 | bounded 261119-170558-97b11f; at pin mutant (fails-without) 261119-170326-388a57 |
+| A4 | digest 261119-170600-875ac8; at no-cleanse mutant (fails-without) 261119-170332-6dcc8d |
+| A3 | suite 261119-170544-6cb23b, ASan+UBSan 261119-170545-daa85c, TSan 261119-170547-7f622f (at reactor:1310405) |
 
 Mutants (reactor repo, kept by refs/mutants/reactor-tls-cache-bound/*): pin reactor:b0f85ab (the
 cache also keeps a strong reference to every parse, as before F3); digest reactor:5cced28
