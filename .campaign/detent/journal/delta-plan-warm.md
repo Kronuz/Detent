@@ -1,6 +1,6 @@
 # delta-plan-warm: journal
 
-State: ready for review
+State: waiting on jobs 261119-210756-abd858 (suite at bf3a4793; then ready for review)
 Quest: .campaign/detent/quests/delta-plan-warm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
