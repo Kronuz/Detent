@@ -3198,27 +3198,29 @@
     "consensus-heal-snapshot-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-20T03:04:10",
-          "base": "a8e867bb01b6767b3180d3751469bb600212ed90",
+          "at": "2026-11-20T03:05:04",
+          "base": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d",
           "blobs": {
             "ARCHITECTURE.md": "100644:5a31397214f8a1bcd34ff26924c44c5ec812eacf",
             "CHANGELOG.md": "100644:3739e9e86a6186331a4e59c55da395e67b684210",
             "include/consensus/core.h": "100644:15fec599ca65d88c56afa444faa1b4a119de4c06",
-            "test/consensus_test.cc": "100644:fc6bc3b8bbb71333c98d3c736045460df5b83b11"
+            "test/consensus_test.cc": "100644:fc6bc3b8bbb71333c98d3c736045460df5b83b11",
+            "test/worker_test.cc": "100644:3fa04a77a8cbbd1bd28485d3b4a7e6f9e5e2959e"
           },
           "by": "review",
-          "commit": "5a8685cdcb23cbf206ebfc36a0b1aba88c8d2577",
+          "commit": "5c4ff7e65ed672e7d90dd7a0f20ec584d871d10e",
           "criteria": "53e04529a8741e41",
           "diffs": {
             "ARCHITECTURE.md": "b2b9683b0837d39a",
             "CHANGELOG.md": "1e1691ca29978971",
             "include/consensus/core.h": "c969bb7a79bd4961",
-            "test/consensus_test.cc": "707ef27f88d26969"
+            "test/consensus_test.cc": "707ef27f88d26969",
+            "test/worker_test.cc": "aba872750e955152"
           },
           "findings": {},
           "note": "",
-          "review": "f5d685773edb45396e662b519c1b2c96c73d0669",
-          "reviewed": "5a8685cdcb23cbf206ebfc36a0b1aba88c8d2577",
+          "review": "6d7749af5d6e7c9386acb8907f8a96b941b0b895",
+          "reviewed": "47e7005051013f0ee4f99edceabf612f06992788",
           "verdict": "APPROVE"
         }
       },
@@ -3281,7 +3283,7 @@
       "risk": "high",
       "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-20T03:04:10",
+      "updated": "2026-11-20T03:05:04",
       "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
