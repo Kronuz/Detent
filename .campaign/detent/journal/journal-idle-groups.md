@@ -1,6 +1,6 @@
 # journal-idle-groups: journal
 
-State: waiting on journal-double-damage (journal:cca2427, in review) to land on journal main
+State: waiting on job 261120-113445-21c05a (forward scan at 1M, strict) and on journal-double-damage landing
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -10,6 +10,7 @@ a336c58 (261120-100217-9e45a1). Coordinator item 2 waits on journal-double-damag
 
 ## Next
 
+0. Read 261120-113445-21c05a: the per-turn scan at 1M must be at most 2 (the check); put its number in idle-groups.md D8.
 1. When journal-double-damage lands on journal main: merge main (CHANGELOG.md conflicts; nothing else), move `idle_unmanifested` from the pending list into the cases list, run `campaign verify` (suite) and the A3 job, push, check CI.
 2. Then State: ready for review (durability review after that merge).
 
@@ -28,6 +29,7 @@ the whole host_test passes, 62,989 checks (261120-101948-872c09).
 | Q1 before/after (strict, 1M) | before 261120-092423-3fc8cc (7129c53), 261120-095112-ec7b19 (a0944ca, APFS); after 261120-092916-3cb2bf (48df21b), 261120-095115-033c33 (893fd77, APFS): 15,192 -> 3,143 table B per transition; APFS 59.6 -> 61.7 ms per transition (sync-bound, same within noise) |
 | A3 | 261120-100219-c9e590 at a336c58 (idle_crash, split_crash, split_stale_node, table_damage, park_mid_turn, idle_damage); mutants killed: parked-as-open 261120-090247-44cc33, wake-skips-commit 261120-090249-51170f, create-with-block 261120-090252-5f0ac1, park-keeps-log 261120-090255-807b5e, damaged-shard-fails-open 261120-092920-ea237b, split-removes-early 261120-092924-a5abc0, split-keeps-parent 261120-095118-0e43df (survived on split_crash 261120-092922-489113; retargeted to split_stale_node) |
 | Open time (coordinator item 1) | APFS warm, 1M parked, three opens: before 3.65/3.32/2.96 s over 4,096 files (261120-100752-65e1de at journal:61d2a42), after 1.92/1.88/1.72 s over 20,958 files (261120-100755-5948a1 at journal:0c56d21); cold cache unmeasured |
+| Forward scan (coordinator, from consensus-quiescence) | park_count: forward_slice visits 0.01 live records per turn over 20,000 parked groups (local, journal:09c6fa2); control mutant park-keeps-log 193 per turn, killed (261120-113449-d2ae31); 1M strict job 261120-113445-21c05a pending |
 | A4 | 261120-100217-9e45a1 (suite at a336c58, passed 57/57); 261120-092926-4d25e2 passed at 48df21b (57/57); CI on push |
 
 Coordinator's design inputs (review F2, F3, F5 of Xapiand turn-log-parity-design.md): answered in
@@ -92,3 +94,7 @@ durable table state (Host::park, Host::close_group; on disk the `closed` entry s
   no park-ignores-flight mutant: opened_ already excludes a released group with records in flight.
 - R12. Took over the stopped second contributor's park_count edit (sample skipped group 1);
   redone in journal:7129c53 counting only transitions made.
+- R13. Forward scan: parked groups are forgotten, so forward_slice's walk (index_ and evicted_)
+  never sees them; no fix needed. TurnLogStats::forward_scanned added as the counter. Held and
+  evicted-but-unparked groups still cost the walk each forwarding turn (pre-existing; a
+  per-segment index would fix it, outside this quest).
