@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261119-103506-5b36b1 (suite), 261119-103509-644510 261119-103509-1f64d3 261119-103509-c4f26f 261119-103509-3937ff 261119-103509-5a6c35 261119-103510-241774 261119-103519-3b65cd (A2 mutants), 261119-103617-426e37 (A2 plain), 261119-153343-7b0799 261119-153345-8528aa (A1 at 60000 and 250 ms), 261119-103510-0db86e (A3), 261119-103541-50a978 261119-103542-42bdbc 261119-103543-da90b6 261119-103544-4f2621 (test_relay_service under TSan, 4x5 runs); CI 44589259502 at Detent:cc942c46
+State: macOS CI hang hunt (contributor 2). Diagnostic watchdog pushed; waiting on CI.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -105,6 +105,18 @@ reclaim scans ~60 completion ops/s) frames A1.
   (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
+
+## macOS hang hunt (contributor 2)
+
+- Hangs at quest heads: 44614222390 arm64 (8d56b21a), 44638635880 arm64 (0faf6474), 44682975400 x86_64
+  attempt 1 and arm64 attempt 2 (edff2eb0); the other macOS jobs passed in 7 to 14 min. Main: no macOS
+  hang in its last 20 CI runs (one x86_64 failure, test_authority_frames_service).
+- Every test touching the quest's code has a TIMEOUT, yet the step ran 50 min: ctest waits for a test's
+  output pipe to close, so a daemon that outlives its killed harness hangs the run unnamed.
+- tests/detent_delivery/hang_watchdog.py (test hang_watchdog, macOS only): a detached monitor samples
+  (`sample`, `lsof`) and SIGKILLs any suite process alive past 300 s, so ctest reports the hung test; its
+  log is build/tests/detent_delivery/.scratch/hang-watchdog/watchdog.log, a failure artifact. Diagnostic
+  only: removed once the hang is fixed.
 
 ## Lead: macOS hang hunt
 
