@@ -353,6 +353,26 @@ void request_bodies() {
 	check(request.positions.size() == 3 && request.positions[0].cursor == d::NamespaceCursor{cluster, incarnation, 5} &&
 		  !request.positions[1].cursor && !request.positions[2].cursor &&
 		  request.all == d::DirectoryCursor{cluster, 3} && request.wait_ms == 250);
+	// DD3: open asks for page transfers, and for a refused namespace as records; next carries neither.
+	following.pages = true;
+	following.records = {"b", "c"};
+	const auto open = t::namespace_session_body(t::SessionResponsePurpose::Open, following, false);
+	check(open.ends_with(",\"all\":3,\"pages\":true,\"records\":[\"b\",\"c\"]}"));
+	auto reopened = h::parse_session_request(account, h::RequestKind::Open, open);
+	check(reopened->request().pages && reopened->request().records.size() == 2 &&
+		  reopened->request().records[1] == "c");
+	const auto next = t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms);
+	check(next.ends_with(",\"wait_ms\":250}"));
+	auto renext = h::parse_session_request(account, h::RequestKind::Next, next);
+	check(!renext->request().pages && renext->request().records.empty());
+	following.records = {"c", "b"};
+	bool unordered = false;
+	try {
+		t::namespace_session_body(t::SessionResponsePurpose::Open, following, false);
+	} catch (const std::invalid_argument &) {
+		unordered = true;
+	}
+	check(unordered);
 	for (auto bad : {t::Following{{{"b", {}}, {"a", {}}}, {}}, t::Following{{{"a b", {}}}, {}}, t::Following{}}) {
 		bool refused = false;
 		try {

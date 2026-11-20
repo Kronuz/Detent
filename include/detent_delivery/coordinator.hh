@@ -61,6 +61,11 @@ struct RepairStatus {
 	std::uint64_t requested = 0, completed = 0;
 	bool pending = false;
 };
+// Full copies sent as page transfers (dense distribution DD3): verified and refused ones, and the
+// verified ones' page bytes. A refused namespace is asked as records next (D9).
+struct TransferStatus {
+	std::uint64_t received = 0, refused = 0, bytes = 0;
+};
 struct NamespaceStatus {
 	std::string name;
 	std::optional<distribution::NamespaceCursor> cursor; // none: no generation of it
@@ -85,6 +90,7 @@ struct CoordinatorStatus {
 	std::chrono::steady_clock::time_point recovery_started_at{};
 	ScrubStatus scrub;
 	RepairStatus repair;
+	TransferStatus transfers;
 	local::SyncStats sync;
 	// Everything this process (the tier) has hashed.
 	HashStats hash;

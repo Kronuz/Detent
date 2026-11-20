@@ -2,6 +2,7 @@
 #include "detent_distribution/buffer.hh"
 #include "detent_local/ownership.hh"
 #include "detent_local/paged_layout.hh"
+#include "paged_snapshot_builder.hh"
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -73,8 +74,9 @@ struct ReceivedTransfer {
 	// The target's root page: in `segments`, the base's root for an empty transfer over a base at
 	// the target, or Reference{} for the empty state.
 	paged::Reference tree;
-	// Pages written and their bytes without padding; base children resolved, base pages walked.
-	std::uint64_t pages = 0, bytes = 0, base_children = 0, base_pages_walked = 0;
+	// Pages written and their bytes without padding; base children resolved, base pages walked;
+	// namespace leaves in the pages written (a full copy's every namespace).
+	std::uint64_t pages = 0, bytes = 0, base_children = 0, base_pages_walked = 0, namespaces = 0;
 };
 using TransferSegmentId = std::function<SegmentId(std::uint32_t number)>;
 
@@ -91,4 +93,11 @@ struct TransferTarget {
 ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
 								  const TransferBase *base, const TransferTarget &target,
 								  const TransferSegmentId &segment_id, paged::Limits);
+// DD3: a full copy received as generation `name` at `target`. D4 over the empty base, with the
+// generation's derived segment ids from ordinal 0, so the image is the one a build of the same state
+// writes, and no packer runs. Throws TransferRefused.
+PagedImage receive_image(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
+						 const paged::Digest &root, const distribution::NamespaceCursor &target,
+						 const distribution::Profile &, const DerivedGeneration &name, paged::Limits,
+						 std::uint32_t maximum_overrides);
 } // namespace detent::local::detail

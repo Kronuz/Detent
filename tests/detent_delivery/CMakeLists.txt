@@ -18,6 +18,13 @@ if(TARGET detent::distribution_http AND TARGET detent::owner_loop)
   target_link_libraries(test_namespace_coordinator PRIVATE detent::delivery_coordinator detent::owner_loop detent::distribution_http)
   add_test(NAME test_namespace_coordinator COMMAND test_namespace_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_namespace_coordinator PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
+  # Dense distribution DD3: a 100K cold agent from pages with no build; a refused transfer goes to records.
+  add_executable(test_pages_coordinator test_pages_coordinator.cc)
+  target_include_directories(test_pages_coordinator PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(test_pages_coordinator PRIVATE detent::delivery_coordinator detent::owner_loop
+    detent::distribution_http detent::local_transfer)
+  add_test(NAME test_pages_coordinator COMMAND test_pages_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
+  set_tests_properties(test_pages_coordinator PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 300)
 endif()
 add_executable(test_delivery_peer_close test_peer_close.cc)
 target_link_libraries(test_delivery_peer_close PRIVATE detent::delivery_transport)

@@ -1,7 +1,7 @@
 #pragma once
 // A W5/W6 test server: it parses W5 bodies with the session request parser, filters by grants (W13),
 // answers from a test history source per namespace, and sends every frame in one fragment-framed
-// response.
+// response. A pages session gets a namespace's installed page transfer when it has no store of it.
 #include "../detent_distribution/history_fixture.hh"
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/grants.hh"
@@ -57,9 +57,18 @@ inline std::vector<Transaction> writes(const std::string &name, int count, int s
 	return out;
 }
 
+// A full copy as a page transfer (dense distribution DD3), answered at `answer.to` only.
+struct Transfer {
+	std::vector<char> bytes;
+	d::PagesAnswer answer;
+};
 struct Server {
 	std::mutex mutex;
 	std::vector<Served> served; // by name
+	std::map<std::string, Transfer, std::less<>> transfers;
+	bool pages_session = false;
+	std::vector<std::vector<std::string>> records_asked; // each open's records names
+	std::vector<std::string> session_records;
 	d::NamespaceGrants grants;
 	bool open_session = false, corrupt = false, behind = false;
 	std::atomic<unsigned> answered{0}, idle{0};
@@ -117,6 +126,9 @@ struct Server {
 		check(request.version == 2);
 		if (kind == h::RequestKind::Open) {
 			open_session = true;
+			pages_session = request.pages;
+			session_records.assign(request.records.begin(), request.records.end());
+			records_asked.push_back(session_records);
 			return reply("200 OK", "Content-Type: application/json\r\n",
 						 "{\"version\":2,\"session\":\"" + session_hex + "\",\"wait_ms\":1000}");
 		}
@@ -160,7 +172,13 @@ struct Server {
 				continue;
 			}
 			histories.push_back(each.history());
-			requests.push_back({name, &histories.back(), cursor});
+			const auto transfer = transfers.find(name);
+			if (pages_session && !cursor && transfer != transfers.end() &&
+				transfer->second.answer.to == histories.back().head() &&
+				!std::binary_search(session_records.begin(), session_records.end(), name))
+				requests.push_back({name, &histories.back(), cursor, std::nullopt, &transfer->second.answer});
+			else
+				requests.push_back({name, &histories.back(), cursor});
 		}
 		d::SessionFramesEncoder encoder(directory, requests);
 		const bool frames = std::any_of(encoder.answers().begin(), encoder.answers().end(), [](const d::Answer &a) {

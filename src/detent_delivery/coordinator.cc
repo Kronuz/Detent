@@ -10,6 +10,7 @@
 #include "paged_compaction_plan.hh"
 #include "paged_delta_plan.hh"
 #include "paged_snapshot_plan.hh"
+#include "paged_transfer.hh"
 #include "scrub_source.hh"
 #include "source_selection.hh"
 #include "state_equivalence.hh"
@@ -143,6 +144,8 @@ struct Coordinator::Impl {
 		bool repair = false;
 	};
 	std::map<std::string, Followed, std::less<>> followed;
+	// Namespaces whose page transfer was refused: asked as records until records publish them (D9).
+	std::set<std::string, std::less<>> records_only;
 	bool retains_candidate = false;
 	bool compaction_requested = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
@@ -378,6 +381,36 @@ struct Coordinator::Impl {
 		const bool repair = followed[name].repair;
 		if (options.cluster != d::Identity{} && target.cluster != options.cluster)
 			throw SourceTrustError("namespace frame of another cluster");
+		if (input.kind() == d::FrameKind::Pages) {
+			if (input.after())
+				throw l::detail::TransferRefused(l::detail::TransferRefusal::BaseLacks,
+												 "a pages delta is not taken: asked as records");
+			std::optional<l::RecoveredGeneration> actual;
+			if (at && at->same_identity(target))
+				actual = *co_await base_of(name);
+			const auto directory = store->directory_identity();
+			l::paged::Digest root;
+			std::copy(input.root().begin(), input.root().end(), root.begin());
+			co_return co_await build([transfer = input.transfer(), root, target, actual = std::move(actual), directory,
+									  factory, heap, limits, repair](BuildResult &result) mutable {
+				const auto generation = l::next_generation(actual ? std::optional(actual->descriptor()) : std::nullopt,
+														   target, d::Profile{}, true);
+				result.control.step();
+				auto image = l::detail::receive_image(heap, transfer, root, target, d::Profile{}, generation,
+													  l::detail::paged_limits(limits, l::paged::root_bytes),
+													  limits.overrides);
+				l::detail::PagedSnapshotPlanBuilder candidate(std::move(image), std::move(actual), directory, factory,
+															  heap, limits, repair);
+				drive(candidate, result.control);
+				if (candidate.unchanged()) {
+					candidate.take_unchanged_proof();
+					result.unchanged = true;
+				} else {
+					result.plan.emplace(candidate.take());
+					result.repair = result.plan->intent() == l::detail::PagedPlanIntent::Repair;
+				}
+			});
+		}
 		if (input.kind() == d::FrameKind::FullCopy) {
 			std::optional<l::RecoveredGeneration> actual;
 			if (at && at->same_identity(target))
@@ -476,6 +509,8 @@ struct Coordinator::Impl {
 		}
 		if (options.all)
 			out.all = selection.directory;
+		out.pages = true;
+		out.records.assign(records_only.begin(), records_only.end());
 		return out;
 	}
 	void refresh_status() {
@@ -507,11 +542,13 @@ struct Coordinator::Impl {
 	task::task<void> apply(Response &response) {
 		diagnostic.phase = CoordinatorPhase::Building;
 		std::vector<l::NamespacePublication> cycle;
-		std::vector<std::string> repaired;
+		std::vector<std::string> repaired, as_records;
+		std::uint64_t transferred = 0, transferred_bytes = 0;
 		for (auto &input : response.frames) {
 			if (cancelled())
 				throw asio::system_error(asio::error::operation_aborted);
 			const auto name = input->name();
+			const bool pages = input->kind() == d::FrameKind::Pages;
 			d::RetirementHandle<BuildResult> built;
 			try {
 				built = co_await build_frame(*input);
@@ -519,7 +556,17 @@ struct Coordinator::Impl {
 				// A page of the base failed first touch: the namespace is asked as a full copy.
 				request_repair(name, false);
 				throw;
+			} catch (const l::detail::TransferRefused &) {
+				// The sender's transfer is wrong: the namespace is asked as records (D9).
+				records_only.insert(name);
+				++diagnostic.transfers.refused;
+				throw;
 			}
+			if (pages) {
+				++transferred;
+				transferred_bytes += input->transfer().size();
+			} else if (records_only.contains(name))
+				as_records.push_back(name);
 			input.reset();
 			if (built->unchanged)
 				continue;
@@ -544,8 +591,14 @@ struct Coordinator::Impl {
 		if (cycle.empty() && dropped.empty() && !directory)
 			co_return;
 		if (co_await publish(std::move(cycle), dropped, directory)) {
-			for (const auto &name : dropped)
+			diagnostic.transfers.received += transferred;
+			diagnostic.transfers.bytes += transferred_bytes;
+			for (const auto &name : as_records)
+				records_only.erase(name);
+			for (const auto &name : dropped) {
 				followed.erase(name);
+				records_only.erase(name);
+			}
 			for (const auto &name : repaired) {
 				followed[name].repair = false;
 				++diagnostic.repair.completed;

@@ -1,5 +1,7 @@
 #include "paged_transfer.hh"
+#include "detent_local/derived_ids.hh"
 #include "detent_local/layout.hh"
+#include "paged_image_state.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_node_step.hh"
 #include "paged_page_validator.hh"
@@ -21,7 +23,10 @@ std::size_t placement_at(std::size_t length, std::size_t externals, std::size_t 
 	return length - p::placement_bytes * externals + p::placement_bytes * j;
 }
 // dense-pages D4.4: a definition's header against the revision, a watermark at most the revision.
-void check_leaves(std::span<const char> page, const p::PageHeader &header, const TransferTarget &target, p::Limits limits) {
+// Returns the page's namespace leaves.
+std::uint64_t check_leaves(std::span<const char> page, const p::PageHeader &header, const TransferTarget &target,
+						   p::Limits limits) {
+	std::uint64_t namespaces = 0;
 	const auto end = page.size() - p::child_bytes * header.externals;
 	for (p::NodeAt at; at.offset() < end;) {
 		const auto node = at.decode(page, limits);
@@ -30,6 +35,7 @@ void check_leaves(std::span<const char> page, const p::PageHeader &header, const
 				p::validate_definition(node.body, target.revision, target.maximum_overrides);
 			else if (node.kind == p::PageKind::Namespace && read_integer(node.body, 0, 8) > target.revision)
 				refuse(TransferRefusal::Leaf, "watermark past the frame's revision");
+			namespaces += node.kind == p::PageKind::Namespace;
 		} catch (const TransferRefused &) {
 			throw;
 		} catch (const std::invalid_argument &) {
@@ -37,6 +43,7 @@ void check_leaves(std::span<const char> page, const p::PageHeader &header, const
 		}
 		at = p::NodeAt::after(node);
 	}
+	return namespaces;
 }
 constexpr bool before(const TransferPlace &a, const TransferPlace &b) {
 	return a.segment < b.segment || (a.segment == b.segment && a.offset < b.offset);
@@ -354,7 +361,7 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
 				ValidationBudget budget{std::size_t(1) << 20, std::size_t(1) << 16};
 				validator.step(budget);
 			}
-			check_leaves(page, header, target, limits);
+			out.namespaces += check_leaves(page, header, target, limits);
 		}
 		// D4.5: the root.
 		if (references.back().digest != target.root)
@@ -378,5 +385,40 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
 	out.base_children = r.base_children;
 	out.base_pages_walked = r.base_walked;
 	return out;
+}
+
+PagedImage receive_image(std::shared_ptr<distribution::StorageLedger> account, std::span<const char> stream,
+						 const p::Digest &root, const distribution::NamespaceCursor &target,
+						 const distribution::Profile &profile, const DerivedGeneration &name, p::Limits limits,
+						 std::uint32_t maximum_overrides) {
+	const auto segment_id = [&name](std::uint32_t number) {
+		p::count_hash(p::HashKind::Metadata, 1, segment_derivation_bytes);
+		return derive_segment(name.id, number - 1);
+	};
+	auto received = receive_transfer(account, stream, nullptr, {root, target.position, maximum_overrides},
+									 segment_id, limits);
+	if (received.tree.keys < received.namespaces || received.tree.keys - received.namespaces > limits.records ||
+		received.namespaces > limits.namespaces)
+		throw TransferRefused(TransferRefusal::Limits, "transfer over the record or namespace limit");
+	PagedImage image(account, received.segments.size());
+	auto &out = *image.impl_;
+	out.root.cursor = target;
+	out.root.profile = profile;
+	out.root.bytes = received.bytes;
+	out.root.pages = received.pages;
+	out.root.segments = received.segments.size();
+	out.root.namespaces = std::uint32_t(received.namespaces);
+	out.root.records = std::uint32_t(received.tree.keys - received.namespaces);
+	out.root.tree = received.tree;
+	for (auto &segment : received.segments)
+		out.segments.push_back({segment.ownership, std::move(segment.bytes)});
+	const auto encoded = p::encode_root(out.root, limits);
+	auto bytes = distribution::make_owned_buffer(account, encoded.size());
+	bytes->append({encoded.data(), encoded.size()});
+	bytes->seal();
+	out.descriptor = {name.id, p::root_bytes, p::metadata_commitment(encoded), target, profile, name.ordinal};
+	out.bytes = std::move(bytes);
+	out.sealed = true;
+	return image;
 }
 } // namespace detent::local::detail

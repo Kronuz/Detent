@@ -89,6 +89,21 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 				std::to_string(following.all->cluster == cluster ? following.all->position : std::uint64_t{0});
 	if (purpose == SessionResponsePurpose::Next)
 		body += ",\"wait_ms\":" + std::to_string(wait.count());
+	else if (following.pages)
+		body += ",\"pages\":true";
+	if (purpose == SessionResponsePurpose::Open && !following.records.empty()) {
+		body += ",\"records\":[";
+		previous = {};
+		for (const auto &name : following.records) {
+			require(d::valid_namespace_name(name) && (previous.empty() || previous < name),
+					"records namespaces are not valid names in order");
+			if (!previous.empty())
+				body += ',';
+			previous = name;
+			body += '"' + name + '"';
+		}
+		body += ']';
+	}
 	return body + '}';
 }
 

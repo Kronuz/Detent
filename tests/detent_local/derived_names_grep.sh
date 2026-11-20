@@ -19,8 +19,9 @@ grep -n "random" src/detent_testing/generation_writer.cc src/detent_delivery/coo
     fail "a generation name from randomness"
 derivers=$(grep -rlE "derive_generation|derive_segment" src include | sort | tr '\n' ' ')
 # The agent store verifies its namespace cursors' names with the same primitive.
-test "$derivers" = "include/detent_local/derived_ids.hh src/detent_local/agent_store.cc src/detent_local/derived_ids.cc src/detent_local/paged_segment_builder.cc " ||
-    fail "names derived outside derived_ids, the segment builder and the agent store: $derivers"
+# A received full copy (DD3) names its segments as the segment builder would.
+test "$derivers" = "include/detent_local/derived_ids.hh src/detent_local/agent_store.cc src/detent_local/derived_ids.cc src/detent_local/paged_segment_builder.cc src/detent_local/paged_transfer.cc " ||
+    fail "names derived outside derived_ids, the segment builder, the transfer receiver and the agent store: $derivers"
 for header in include/detent_local/builder.hh src/detent_local/paged_snapshot_plan.hh \
     src/detent_local/paged_maintenance_plan.hh src/detent_local/paged_delta_plan.hh \
     src/detent_local/paged_compaction_plan.hh src/detent_local/paged_reuse.hh; do

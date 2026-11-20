@@ -13,6 +13,10 @@ struct FollowedNamespace {
 struct Following {
 	std::vector<FollowedNamespace> namespaces; // strictly increasing names
 	std::optional<distribution::DirectoryCursor> all;
+	// Open asks for full copies as page transfers (dense distribution DD3), and for the `records`
+	// names, strictly increasing, as records after their transfer was refused (D9).
+	bool pages = false;
+	std::vector<std::string> records;
 };
 // A W5 body (version 2). The request's cluster is the directory cursor's, else the first store
 // cursor's; a cursor of another cluster is sent as no store, which earns the same full copy.
