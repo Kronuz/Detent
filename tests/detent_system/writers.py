@@ -47,8 +47,6 @@ class Writers:
         self.values = array("q", [0]) * records
         self.sequences = [0] * producers
         self.receipts: list[dict[str, Any] | None] = [None] * producers
-        # The revision of each producer's last applied transaction in its namespace.
-        self.revisions = [0] * producers
         # Each producer's namespace position (D3): one per transaction that changed a key.
         self.positions = [0] * producers
         self.counts: Counter[str] = Counter()
@@ -130,7 +128,6 @@ class Writers:
         self.sequences[producer] = sequence
         self.receipts[producer] = receipt
         if receipt["status"] == "applied":
-            self.revisions[producer] = int(receipt["revision"])
             self.positions[producer] += 1
         applied = receipt["status"] != "capacity"
         self.counts["acknowledged" if applied else "terminal_capacity_rejections"] += 1

@@ -116,7 +116,8 @@ struct GenerationWriter::Impl {
 		cursor.scope.fill('s');
 		disk = l::make_disk_store(domain, store, std::make_shared<int>(1), options);
 		drive();
-		if (disk->status() != l::StoreStatus::Ready)
+		// The writer continues only an intact generation: a failed entry is the agent's to repair.
+		if (disk->status() != l::StoreStatus::Ready || !disk->failed().empty())
 			throw std::runtime_error("test store did not open: " + store.string());
 		if (auto selected = disk->selection().descriptor)
 			cursor.revision = selected->cursor.position;

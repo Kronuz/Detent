@@ -90,6 +90,7 @@ std::shared_ptr<ValidatedSnapshot> FrameInput::snapshot() {
 		throw std::logic_error("frame input holds no full copy");
 	auto &storage = *snapshot_->storage_;
 	snapshot_->cursor_ = frame_cursor(name_, to_);
+	snapshot_->namespace_cursor_ = to_;
 	snapshot_->profile_ = profile_;
 	storage.namespaces.push_back({store_text(storage.arena, name_), to_.position});
 	for (const auto index : winners()) {

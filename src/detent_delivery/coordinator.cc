@@ -127,6 +127,7 @@ struct Coordinator::Impl {
 	std::exception_ptr injected_worker_failure, injected_maintenance_failure;
 	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
+	std::uint64_t wakes = 0;
 	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause, scrub_pause;
 	// Per followed namespace (C1): its recovered base, and whether a full copy is asked for it (D10).
 	struct Followed {
@@ -378,8 +379,8 @@ struct Coordinator::Impl {
 										(at ? std::to_string(at->position) + (at->same_identity(target) ? "" : " of another incarnation")
 											: std::string("(none)")));
 		const auto *base = co_await base_of(name);
-		if (!base || !l::detail::StateCursor::state_commitment(*base))
-			throw std::invalid_argument("namespace delta requires a paged base");
+		if (!base)
+			throw std::invalid_argument("namespace delta requires a base");
 		const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
 		co_return co_await build([base = *base, delta = std::shared_ptr<const d::ValidatedDelta>(input.delta()),
 								  factory, heap, bounds](BuildResult &result) mutable {
@@ -552,7 +553,7 @@ struct Coordinator::Impl {
 		d::RetirementHandle<BuildResult> built;
 		try {
 			const auto *base = co_await base_of(name);
-			if (!base || !l::detail::StateCursor::state_commitment(*base))
+			if (!base)
 				co_return;
 			auto factory = domain.factory();
 			auto heap = domain.storage_account();

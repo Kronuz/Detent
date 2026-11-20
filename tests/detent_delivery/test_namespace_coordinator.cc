@@ -131,7 +131,7 @@ void matches(Server &server, const std::filesystem::path &root, const l::ViewLim
 	l::GenerationReader reader(root, limits, {}, {}, name);
 	reader.refresh();
 	const auto view = reader.read_view();
-	check(view.cursor().revision == head);
+	check(view.cursor().position == head);
 	std::uint32_t live = 0;
 	for (const auto &[key, held] : expected) {
 		const auto bare = std::string_view(key).substr(name.size() + 1);

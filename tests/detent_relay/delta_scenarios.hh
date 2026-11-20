@@ -58,8 +58,11 @@ inline std::shared_ptr<Rows> patched(const Rows &base, const std::string &path) 
 class CorpusSource final : public d::SnapshotSource {
   public:
 	CorpusSource(std::shared_ptr<Rows> rows, std::shared_ptr<d::StorageLedger> account)
-		: rows_(std::move(rows)), account_(std::move(account)), cursor_(empty_root().cursor) {
-		cursor_.revision = 0;
+		: rows_(std::move(rows)), account_(std::move(account)) {
+		cursor_.cluster.fill('c');
+		cursor_.group.fill('g');
+		cursor_.restore_epoch.fill('e');
+		cursor_.scope.fill('s');
 		for (const auto &row : *rows_)
 			if (row.key.front() == 'W') {
 				const auto key = p::decode_key(row.key);
@@ -159,7 +162,7 @@ class Built {
 	}
 	Built(const Built &) = delete;
 	const p::Reference &root() const { return image_->root().tree; }
-	x::TransferTarget target() const { return {image_->root().tree.digest, image_->root().cursor.revision}; }
+	x::TransferTarget target() const { return {image_->root().tree.digest, image_->root().cursor.position}; }
 	std::uint64_t page_bytes() const { return image_->root().bytes; }
 	const p::Limits &limits() const { return limits_; }
 	const x::PagedImage &image() const { return *image_; }

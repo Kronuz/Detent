@@ -29,7 +29,7 @@ int main() {
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	// Startup reads the table and checks each entry's files against it; a damaged reached file fences.
+	// Startup reads the table and checks each entry's files are present; recovery verifies their bytes.
 	for (unsigned changed = 0; changed < 6; ++changed) {
 		const auto root = directory / std::to_string(changed);
 		install(root, image);
@@ -79,7 +79,19 @@ int main() {
 			}
 			require(store->stats().used == observed);
 		} else {
-			require(store->status() == l::StoreStatus::Fenced && bool(store->error()));
+			// Startup reads the table and roots (C2): a missing file or a written lease fails the entry
+			// (D10), and damaged bytes refuse its first recovery.
+			const bool missing = changed >= 3;
+			require(store->status() == l::StoreStatus::Ready &&
+					store->selection().namespaces.size() == (missing ? 0u : 1u) &&
+					store->failed().size() == (missing ? 1u : 0u));
+			bool refused = false;
+			try {
+				l::recover_generation(root, options.recovery_limits);
+			} catch (const std::exception &) {
+				refused = true;
+			}
+			require(refused);
 		}
 		const auto before_close = store->sync_stats();
 		store->close();

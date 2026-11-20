@@ -190,11 +190,12 @@ void embedded(const std::filesystem::path &directory) {
 		}
 		check(refused && !pages->available() && pages->page_verifications() == 0);
 	}
-	// A page cannot name its format: another framing is damage, fenced at startup, its files kept.
+	// A page cannot name its format: another framing is damage. The store opens with the entry failed
+	// for a full copy (D10), its files kept.
 	auto store = runtime.open(directory);
 	drive(store);
-	check(store->status() == l::StoreStatus::Fenced &&
-		  l::read_generation_selection(directory).descriptor == descriptor);
+	check(store->status() == l::StoreStatus::Ready && store->selection().namespaces.empty() &&
+		  store->failed().size() == 1 && l::read_generation_selection(directory).descriptor == descriptor);
 	close(store);
 }
 int main() {
