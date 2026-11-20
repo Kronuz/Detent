@@ -7667,6 +7667,37 @@
       "updated": "2026-11-18T10:19:21",
       "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
+    "first-read-1ms": {
+      "accepted": {},
+      "after": [
+        "reader-s6"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "benchmarks/**",
+        "docs/perf/first-read*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
+      "updated": "2026-11-20T14:57:56"
+    },
     "fixture-500k": {
       "accepted": {},
       "after": [],
