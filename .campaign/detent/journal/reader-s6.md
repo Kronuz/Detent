@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs 261119-111356-9f40bf, 261119-111356-5fb83e (A16, exclusive, queued), 261119-111305-5f1cad (asan), 261119-111306-619e0a (tsan), 261119-111329-416f56 (t3-asan), 261119-111329-f8389b (t3-tsan), 261119-111446-7acc18 (A16 count), 261119-111446-edcde5 (dense ASan), 261119-111448-3cdb4e (soak round), at `Detent:dc004dc` (pushed; main merged at `Detent:10020fa`); CI on GitHub. Passed there: native 9d4b5b, A7 3d025c, A10 6f34b7, A11 a4f9cd, A12/A13 1628b4, A14 caf921; SEL-1 48b91f and SEL-2 6f99e1 killed (exit 134, `selected_reads` line 92: the first lookup read `selected` again). A16's 30 us is localized and removed (Doing, A16 attribution). Lead's answers (2026-11-19, msg below): rebench and db0806 A/B are in `docs/perf/reader-lookup.md`; c027f04's change to Decisions 1 accepted.
+State: waiting on jobs 261120-144153-5ca7ff (native), 261120-144153-bfddeb (tsan), 261120-144153-5d52af (t3-tsan), reruns 2e6af6 8f6d12 1da5b2 71acaf cf7692 20f2a2 882aab dfa9b5 33ebe5, A16 strict 921c21 (stopped) and 9c14ff (running), count e021a9, all at `Detent:1920bd0` (main merged, pushed; CI running). A16's p99 bound fails on main too (Blocked on).
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,19 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Close-out (2026-11-20): merged main at `Detent:1920bd0` (clean; main's src changes are the
+  detentd rename, PackScrub counts and test fixtures, none in the read path). The W1 cursor work from
+  dense-distribution-build has not landed yet; merge again if it does.
+  - At `Detent:dc004dc`: t3-tsan f8389b passed (20 repeats; the line-649 child failure did not
+    recur), count 7acc18, dense ASan edcde5 and soak 3cdb4e passed.
+  - A16 exclusive 9f40bf (stopped) and 5fb83e (running), BASELINE `Detent:8cd932c`, exited 1. The
+    paired difference passes in all 4 cells (median -51.5, -12.3, -16.0, -31.5 us against floors
+    67-80 us); the pooled p99 below 1 ms fails in 3 cells for both arms: branch / main pooled p99
+    1 ns stopped 0.823 / 0.811 ms, 1,000 ns stopped 1.032 / 1.175, 1 ns running 1.151 / 1.319,
+    1,000 ns running 1.137 / 1.212 ms. Main fails the same bound by more, so it is this host's
+    tail, not the branch.
+  - Requeued A16 at strict (lead, D135) against current main `Detent:6ae09ee`: 921c21, 9c14ff;
+    count e021a9 (light).
 - A16 attribution (2026-11-19, lead's step 1-4):
   - Phase: the first `detent_get`, not `detent_open`. In 4a5487/2e857f the branch's lookup phase is
     306-311 us (stopped) and 352-383 us (running) with 180-235 us system time, against main's lookup
@@ -214,16 +227,20 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, A16 9f40bf/5fb83e, dense ASan, count and soak at `Detent:dc004dc`; mark Evidence.
-2. t3-tsan f8389b: if the cold-fork child exits nonzero again at line 649, name it from its printed
-   status, exit and signal.
-3. When 1-2 close: "ready for review" with 3-5 questions per lens; the reviewers should check the
+1. Read the gates, reruns and A16 921c21/9c14ff/e021a9 at `Detent:1920bd0`; mark Evidence.
+2. Merge main again if dense-distribution-build's W1 cursor lands; rerun the gates.
+3. When 1-2 close and CI is green: "ready for review" with 3-5 questions per lens; the reviewers should check the
    freshness argument under Rulings (attach from the refresh's table; first attach from the view's).
 
 ## Blocked on
 
-Nothing. File set item 1 is ruled: `docs/perf/reader-lookup.md` holds the rebench and the db0806
-A/B (commits named).
+- A16's absolute p99 below 1 ms (D121) fails on main as well as the branch on this host: exclusive
+  9f40bf/5fb83e, main's pooled p99 1.18-1.32 ms in 3 of 4 cells, the branch's 1.03-1.15 ms and
+  never above main's. The paired difference passes everywhere. Options: (a) gate the tail relative
+  to main (branch pooled p99 at most main's plus the cell's noise floor), keeping 1 ms as a target
+  like 200/200; (b) keep the absolute bound and measure it on a quieter host or the Linux VM;
+  (c) accept as is with these numbers. Recommendation: (a); it is D121's own reasoning for 200/200
+  (main misses it here). D121 is the owner's, so this is the lead's call.
 
 ## Evidence
 
@@ -242,7 +259,7 @@ not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 | A12 | cold 1628b4; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak 3cdb4e (pending) |
 | A13 | 1628b4 |
 | A14 | caf921 |
-| A16 | stopped 9f40bf, running 5fb83e (pending); count 7acc18 (pending); attribution A/B db0806 |
+| A16 | strict 921c21 (stopped), 9c14ff (running), count e021a9 (pending, at `Detent:1920bd0`); exclusive 9f40bf/5fb83e at `Detent:dc004dc`: paired difference passes, p99 fails on both arms (Blocked on); attribution A/B db0806 |
 
 ## Messages
 
