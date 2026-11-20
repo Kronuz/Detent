@@ -4502,11 +4502,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Dense distribution DD4: delta transfers and the pages-or-records rule",
-      "updated": "2026-11-20T04:49:27",
+      "updated": "2026-11-20T04:57:33",
       "worktree": "../Detent-wt/detent/dd4-delta-transfers"
     },
     "delta-plan-fixed-cost": {
