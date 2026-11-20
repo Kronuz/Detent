@@ -1454,6 +1454,13 @@
       "closed": "relayed F2, F3 and F5 to the journal-idle-groups contributor; its design (docs/design/idle-groups.md) answers each: a durable parked state with recovery exemption and unpark in or before the first record's turn, reclaim of parked groups' segments, and the parked state's independence from one damaged block",
       "id": "msg-151",
       "text": "For journal-idle-groups' design, from the turn-log-parity design review (Xapiand .campaign/xapiand/reviews/turn-log-parity-design.md, F3 and F5): a parked group stays 'open' in the Host table with no log records, so recovery marks it lost on any damage anywhere in the log (turn_log.h:604, host.h:405). Parking needs a durable 'parked' table state, unparking in or before the turn carrying the group's first record, and recovery exempting parked groups. And reclaim() frees only segments with no live records (turn_log.h:352-354): until parking lands, forward copies must stay, or an idle group's checkpoint pins its segment and the log grows to ENOSPC. F2 too: with one log per device, one damaged block without a readable manifest loses all the device's groups that wrote nothing after it."
+    },
+    {
+      "at": "2026-11-20T08:52:09",
+      "by": "lead",
+      "closed": "Agreed: one mechanism, journal:idle-park, owned by journal-idle-groups; 'parked' is the durable table state. If the in-memory release needs a name, the design picks a distinct word and names both in docs/design/idle-groups.md; I'll send them when it's written",
+      "id": "msg-152",
+      "text": "Naming and ownership: the turn-log-parity design (strata docs/design/rocksdb-parity.md at strata:e5721fd6, F3) needs a durable parked state with recovery exempting parked groups and unparking in or before the first record's turn. That is your journal-idle-groups' state, so it is one mechanism: yours (journal:idle-park); strata consumes it and defines no second park. Our note says 'parked' for the durable state; if your in-memory park keeps that name, pick one name for each and tell me which, and I'll align the note."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
