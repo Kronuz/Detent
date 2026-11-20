@@ -1,8 +1,9 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-113956-1e73f5 (suite), 261120-114005-1bacdc (forced root mismatch),
-261120-114010-d77302 (build-on-mirror-thread mutant) and CI at Detent:427bdd30. Integration
-round built: off-thread builds (Detent:251c6cc4), the real-relay system test (Detent:22374016).
+State: review-fix round (correctness review .campaign/detent/reviews/dense-distribution-build-correctness.md,
+D137). F1, F3 (agent side), F5 (agent side), F7 done at Detent:a7dfd19a; waiting on jobs
+261120-125854-e45912 (F1 probe), 261120-125856-673c7a .. 261120-125908-7185f2 (mutants). F2/F4 and
+the relay halves of F3/F5 on the fork branch quest/detent/dense-distribution-build--relay-window.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -10,6 +11,26 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Review-fix round (owner priority):
+- F1 (Detent:7c82da19, Detent:dec05c43): TransferTarget names its namespace; every leaf is 'K' ns 0
+  local 0 or 'W' ns 0; a full copy holds one watermark, a delta keeps one. Refused as Leaf ->
+  records. Coordinator binds both pages paths; a delta failing with invalid_argument requests a
+  repair (full copy). Tests: test_paged_transfer namespaces(), test_delta_transfer, the probe's
+  foreign full copy and a foreign delta in test_pages_coordinator, an injected build failure in
+  test_namespace_coordinator. Probe rerun 261120-125854-e45912.
+- F3 (agent): pages frame [name, 5, after, cursor, root, offset, chunks]; a cut response keeps
+  whole chunks, W5 next sends "resume": [name, root, after, offset], a frame at that offset
+  continues the held prefix. test_pages_coordinator cuts the cold boot halfway (resumes from
+  1,376,256 of 2,888,084 B). Relay half: fork.
+- F5 (agent): records frames carry root | nil; a records build off that root counts
+  transfers.diverged, leaves records_only and repairs. Tested in test_pages_coordinator. Relay
+  half (fill root at head): fork.
+- F7: "tree packed against D5" case in test_paged_transfer (unpacked()); the review's canonical
+  mutant is tests/detent_local/mutants/f7-d5-packing-unchecked.patch.
+- F2, F4: fork (relay window from DD2's canonical copy; 5M strict before/after).
+- F11: libFuzzer build fails in compressors-src with brew LLVM (libc++ header order); in progress.
+- F8-F10: not started.
 
 Integration round:
 1. Off-thread builds (Detent:251c6cc4): MirrorService runs builds on a builder thread; the mirror
@@ -146,6 +167,15 @@ removal of test_local_view, which no longer exists.
 <none yet>
 
 ## Rulings I made
+
+- (F1) An empty TransferTarget::name_space binds none: DD1's model corpora hold many namespaces in
+  one tree. Every coordinator path names its namespace.
+- (F1) A delta that fails to build against the namespace's base (invalid_argument) asks a full copy
+  (D10.3) rather than retrying the same delta forever.
+- (F3) Only W5 next carries "resume" (open starts a session, so nothing is held across it); the held
+  prefix drops when any other frame of that namespace arrives.
+- (F5) A records frame's root is nil unless the sender holds a build at that frame's head; the agent
+  checks it only when present.
 
 - Poll mode, `delivery_mode`, and the v1 identity fields (`group`, `epoch`, `principal`,
   `policy_epoch`, `reset_from`) leave managed.json: W5 sessions carry cursors, and a new
