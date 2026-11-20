@@ -2115,6 +2115,8 @@
     "consensus-dns-notes": {
       "accepted": {},
       "after": [],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/consensus-dns-notes",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -2129,6 +2131,7 @@
         "test/transport/resolve_test.cc",
         "docs/mechanisms/peer-dns.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-dns-notes",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -2136,9 +2139,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus resolve: emplace inside the try, exit-wait CHANGELOG, fork note",
-      "updated": "2026-11-19T16:51:10"
+      "updated": "2026-11-19T16:51:12",
+      "worktree": "../consensus-wt/detent/consensus-dns-notes"
     },
     "consensus-dns-peers": {
       "accepted": {
