@@ -1,6 +1,6 @@
 # reactor-tls-cache-bound: journal
 
-State: waiting on jobs 261119-170321-faabcc 261119-170558-97b11f 261119-170326-388a57 261119-170600-875ac8 261119-170332-6dcc8d 261119-170544-6cb23b 261119-170545-daa85c 261119-170547-7f622f 261119-170530-61aafd
+State: waiting on jobs 261119-174122-8e50d9 261119-174128-f8387d
 Quest: .campaign/detent/quests/reactor-tls-cache-bound.md (the lead's; never edit it)
 
 ## Doing
@@ -17,11 +17,17 @@ before reactor:1dd5f32 (unbounded cache), after head. release passed at 388e161
 1. Read the jobs: `campaign status reactor-tls-cache-bound`. A failing build or test: fix, commit,
    rebuild the two mutants on top (refs/mutants/reactor-tls-cache-bound/{pin,digest} in the reactor
    repo, one-line edits named in their messages), resubmit.
-2. From the A/B (261119-170530-61aafd, round 5 medians), rewrite docs/perf/tls-configure.md:
+2. TSan 261119-170547-7f622f failed in reactor_lag only (median wake within the 1,024 us edge,
+   load ~22); rerun 261119-174122-8e50d9. If reactor_lag fails again, give the lead the counts
+   (they file it as a load flake). Strict A/B 61aafd unusable (6 light holds, load 22;
+   system-roots 19.5 ms vs 8.6); exclusive rerun 261119-174128-f8387d. If held cases are still
+   slower after than at 1dd5f32, find why (suspects: hold()'s Held allocation and ex_data set,
+   weak_ptr lock) before the perf doc.
+3. From the A/B (261119-174128-f8387d, round 5 medians), rewrite docs/perf/tls-configure.md:
    before = reactor:1dd5f32, after = head; held cases should match, unheld after = full parse
    (compare the no-cache numbers of job 261119-153634-6252d5, labeled as that job's). Say plainly
    when the cache hits (live holder) and when it misses. Commit, push.
-3. All green: paste `campaign brief`'s table below, set State to ready for review.
+4. All green: paste `campaign brief`'s table below, set State to ready for review.
 
 ## Blocked on
 
@@ -42,10 +48,10 @@ Nothing for this quest. For the lead:
 
 | Criterion | Evidence |
 |---|---|
-| A1 | release 261119-170319-db4214 (passed; reused at head); at pin mutant (fails-without) 261119-170321-faabcc |
+| A1 | release 261119-170319-db4214 (passed; reused at head); mutants for A1, A2, A4 killed as intended; at pin mutant (fails-without) 261119-170321-faabcc |
 | A2 | bounded 261119-170558-97b11f; at pin mutant (fails-without) 261119-170326-388a57 |
 | A4 | digest 261119-170600-875ac8; at no-cleanse mutant (fails-without) 261119-170332-6dcc8d |
-| A3 | suite 261119-170544-6cb23b, ASan+UBSan 261119-170545-daa85c, TSan 261119-170547-7f622f (at reactor:1310405) |
+| A3 | suite 261119-170544-6cb23b, ASan+UBSan 261119-170545-daa85c passed; TSan 261119-170547-7f622f failed in reactor_lag (load), rerun 261119-174122-8e50d9 (at reactor:1310405) |
 
 Mutants (reactor repo, kept by refs/mutants/reactor-tls-cache-bound/*): pin reactor:b0f85ab (the
 cache also keeps a strong reference to every parse, as before F3); digest reactor:5cced28
