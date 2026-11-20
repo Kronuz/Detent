@@ -1,15 +1,20 @@
 # journal-hop-on-task: journal
 
-State: ready for review
+State: ready to land
 Quest: .campaign/detent/quests/journal-hop-on-task.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. CI run 44659451731 at journal:485cd23 is still queued on GitHub.
+Nothing. Review approved at journal:485cd23. Its doc nits are folded into journal:bb114f1:
+F1 (the CHANGELOG says any suspending `durable()` throws, whatever its token) and F3
+(turn-seal.md names the caller's scheduler and lists `durable()` as loop-confined). F2 is left,
+per the lead. Reviewer probe 261119-190503-01756b passed. The suite (6b48ee) still counts:
+the commit is docs-only.
 
 ## Next
 
-1. Correctness review; confirm CI 44659451731 green.
+1. Lead: land once CI run 44665530904 at journal:bb114f1 is green. It is queued; run
+   44659451731 at 485cd23 was cancelled, superseded.
 
 ## Blocked on
 
