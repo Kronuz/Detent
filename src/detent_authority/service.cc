@@ -1533,8 +1533,11 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	auto wake_by = [&](Clock::time_point deadline) {
 		return peers ? std::min(deadline, Clock::now() + std::chrono::milliseconds(1)) : deadline;
 	};
-	// A start or stop step waits on storage completions, which wake the owner; 250 ms bounds one missed.
+	// A start or stop step visits the node again at once: each visit advances budgeted work that no wake
+	// announces. Only while storage or history I/O is in flight does it sleep, until that completion's
+	// wake (250 ms bounds one missed); peers keep 1 ms (wake_by).
 	constexpr auto storage_wait = std::chrono::milliseconds(250);
+	auto in_flight = [&] { return active || history_active || peers; };
 	std::shared_ptr<PeerHistory> peer_history;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
@@ -2059,7 +2062,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				if (node.worker().fenced()) {
 					throw std::runtime_error("authority storage initialization fenced");
 				}
-				co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+				if (in_flight())
+					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+				else
+					co_await task::yield();
 			}
 			// Seed the first deadline before Start. Later Tick samples affect future
 			// resets and cannot randomize a deadline that is already in force.
@@ -2073,10 +2079,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				node.service({0, election_delay()});
 				dispatch(owned_node);
 				check(!node.worker().fenced(), "authority recovery application fenced");
-				if (node.state().reclamation_pending() || node.state().applied_index() != applied) {
-					co_await task::yield();
-				} else {
+				if (in_flight() && !node.state().reclamation_pending() && node.state().applied_index() == applied) {
 					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+				} else {
+					co_await task::yield();
 				}
 			}
 			check(!node.worker().fenced(), "authority committed application/profile mismatch");
@@ -3421,11 +3427,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (owned_node && !owned_node->drained() && !active && !history_active) {
-			co_await task::yield();
-		} else {
+		if (in_flight())
 			co_await sleep(timer, wake_by(Clock::now() + storage_wait));
-		}
+		else
+			co_await task::yield();
 	}
 
 	while (!pending.empty()) {
