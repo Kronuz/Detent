@@ -4226,6 +4226,42 @@
       "updated": "2026-11-11T00:01:57",
       "worktree": ""
     },
+    "dd1-transfer-receiver": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_transfer.hh",
+        "src/detent_local/paged_transfer.cc",
+        "tests/detent_local/test_paged_transfer.cc",
+        "tests/detent_testing/paged_transfer_fuzz.cc",
+        "docs/design/dense-distribution-model.py",
+        "src/CMakeLists.txt",
+        "tests/detent_local/CMakeLists.txt",
+        "tests/detent_testing/CMakeLists.txt",
+        "docs/mechanisms/paged-transfer.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Dense distribution DD1: transfer codec and verifying receiver",
+      "updated": "2026-11-20T04:29:09"
+    },
     "delta-plan-fixed-cost": {
       "accepted": {
         "correctness": {
