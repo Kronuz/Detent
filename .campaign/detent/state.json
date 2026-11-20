@@ -10627,11 +10627,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into old-flakes-disposition as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "test clients dial the daemon's bound address, not localhost, in authority, relay and docs tests",
-      "updated": "2026-11-20T03:29:00"
+      "updated": "2026-11-20T06:55:59"
     },
     "logger-burst-cost": {
       "accepted": {
