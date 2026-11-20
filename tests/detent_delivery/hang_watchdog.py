@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 
-THRESHOLD_S = 90
+THRESHOLD_S = 300
 POLL_S = 15
 LIFETIME_S = 3600
 
