@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: blocked on the macOS arm64 hang (Blocked on); waiting on CI 44749550410 (push) and 44749551625 (dispatch) at Detent:2d3aa978 (code = Detent:9b27cb95), and jobs at Detent:9b27cb95: 261120-054330-7de7d0 -054343-67cb93 -054345-f92c9a -054347-5f3f0d (A4 TSan relay), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Done: -051929-b61395 suite, -051928-9f1a5d A2. Code changed after Detent:edff2eb0: src/detent_authority/service.cc only, Detent:39e5ab7e (the bound of 5f8b0ba1 removed by 9b27cb95); tests: test_restart_wake + mutant start-stop-sleep; diagnostics: hang_watchdog.py, bench suite_sample.py.
+State: waiting on jobs and CI at Detent:3a6d38fe (main merged) and on the arm64 bisect runs (bisect/liw-head, -authority, -relay, -coordinator); see "Contributor 5".
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -105,6 +105,27 @@ reclaim scans ~60 completion ops/s) frames A1.
   to gain (test_relay_network_500000 34.6 vs 26.2 s, test_delivery_coordinator_subscription-relay-http-500000 20.5 vs
   14.9, test_system_authority_writer_failover 19.7 vs 14.1). One sample each.
 - Suite at Detent:9b27cb95: 261120-051929-b61395 passed 288/288. A2 wake/absence x20: 261120-051928-9f1a5d passed.
+
+## Contributor 5 (review confirm, F7 TSan job, arm64 bisect, main merge)
+
+- 261120-051926-bbdf55 (and -051927-1a5ee5, -051927-57ec95, -051928-7486af), test_relay_service a5 under TSan at
+  Detent:9b27cb95, exit 2: not a race. The build step named target `detentd`, which the rename removed ("No rule to
+  make target 'detentd'"); no test ran. Their resubmits with target detent-authority at Detent:d0bb6f18 (code =
+  9b27cb95): 261120-054330-7de7d0, -054343-67cb93, -054345-f92c9a, -054347-5f3f0d, 20 of 20 runs passed.
+- F10 (the only blocking finding of the round-3 review) is fixed by Detent:8d56b21a (bench names detent-authority).
+- Merged origin/main (Detent:6ae09eeb) at Detent:3a6d38fe; no src or include change came with it.
+- CI 44749551625 (dispatch, Detent:2d3aa978): macos-arm64 lost again (Test from 14:26, no log); macos-x86_64 failed
+  test_system_managed_relay and _ipv6, "managed agent 0 did not converge": both relays failed delivery from 14:42:18
+  (before the leader kill), alternating "delivery network deadline" and "not_leader" against the three voters for
+  44 s. Passed 17 to 30 s in every other macOS run read (quest and main). Its watchdog.log shows the new leader
+  authority at 45 to 73% CPU through the test, and free memory at 4,016 pages while
+  test_authority_distribution_idle_500000 held 1.7 GiB (macOS runners have no swap).
+- arm64 bisect: four throwaway branches at Detent:3a6d38fe, each a CI of macos-15 arm64 x3 whose Test step posts
+  progress every 20 s as a commit status (context liw/<branch>/<rep>: minutes, tests done, load, memorystatus_level,
+  top RSS and CPU process, running tests), so a lost runner still leaves its last state:
+  bisect/liw-head (control), -authority (src/detent_authority/service.cc as on main; its two wake tests dropped),
+  -relay (host.cc, relay service and mirror as on main), -coordinator (coordinator.cc as on main). The reply pump's
+  `changed` gets a default there so main's callers compile. Branches deleted once read.
 
 ## Result
 
