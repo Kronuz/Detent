@@ -16966,7 +16966,8 @@
       "accepted": {},
       "after": [
         "reader-s6",
-        "paged-decode-one-shape"
+        "delta-plan-warm",
+        "detent-faultlab"
       ],
       "checks": [
         {
@@ -16982,18 +16983,39 @@
         "src/detent_local/paged_*.cc",
         "src/detent_local/paged_*.hh",
         "tests/detent_local/test_lazy_page_access.cc",
-        "tests/detent_local/*paged*"
+        "tests/detent_local/*paged*",
+        "include/detent_local/paged_layout.hh",
+        "src/detent_local/paged_layout.cc",
+        "tests/detent_local/test_dense_*.cc",
+        "tests/detent_local/test_delta_plan_moved_definitions.cc",
+        "tests/detent_local/test_lazy_page_bitmap.cc",
+        "tests/detent_local/prepared_reader_fixture.hh",
+        "tests/detent_local/mutants/a10-overlay-default-limits.patch",
+        "tests/detent_system/run_partition.py",
+        "include/detent_transport/await_io.hh",
+        "include/detent_transport/https_client.hh",
+        "src/detent_delivery/client.cc",
+        "src/detent_delivery/namespace_session.cc",
+        "tests/detent_delivery/task_support.hh",
+        "tests/detent_delivery/relay_network_fixture.hh",
+        "docs/perf/delta-plan-scaling.md",
+        "src/detent_authority/history.cc",
+        "src/detent_relay/mirror.cc",
+        "tests/detent_authority/test_change_history.cc",
+        "tests/detent_relay/test_relay_mirror.cc"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "reader-s6"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "paged reads: one first-touch page check",
-      "updated": "2026-11-19T06:00:31"
+      "updated": "2026-11-20T06:56:01"
     },
     "peers-busy-roundtrip-bound": {
       "accepted": {},
