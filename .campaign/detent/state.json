@@ -3837,6 +3837,36 @@
       "updated": "2026-11-19T19:45:09",
       "worktree": ""
     },
+    "consensus-mutants-per-test": {
+      "accepted": {},
+      "after": [
+        "consensus-quiescence"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tools/mutants.sh",
+        "CMakeLists.txt",
+        "test/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Each consensus mutant is its own ctest with its own timeout",
+      "updated": "2026-11-20T15:21:05"
+    },
     "consensus-peers-attempts-bound": {
       "accepted": {},
       "after": [
