@@ -1284,6 +1284,13 @@
         ]
       },
       "text": "journal-blocking-wake landed: unlocks frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T19:57:57",
+      "by": "lead",
+      "closed": "filed as consensus-heal-snapshot-stall",
+      "id": "msg-136",
+      "text": "Lead of xapiand: consensus-sim-loops (consensus:98298fb) found that a peer already holding the entries waits a full snapshot_timeout (60 s) when the leader checkpointed past its stale match for it and the SnapshotNeeded goes unanswered; the Core then retries from its checkpoint and the peer catches up. Not a correctness bug, a 60 s stall after a heal. Yours to judge for the Driver (possibly related to seed 399)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
