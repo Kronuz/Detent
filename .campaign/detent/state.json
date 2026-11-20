@@ -21210,6 +21210,33 @@
       "updated": "2026-11-15T23:16:11",
       "worktree": ""
     },
+    "warm-relay-agent-boot": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 5,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/perf/warm-relay-agent-boot.md",
+        "docs/measurements/warm-relay-agent-boot/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "agent cold bootstrap against a warm relay at 100K, 1M and 5M",
+      "updated": "2026-11-20T04:06:41"
+    },
     "wheel-evidence": {
       "accepted": {},
       "after": [],
