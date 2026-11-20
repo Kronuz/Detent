@@ -35,6 +35,9 @@ class FramePreparer {
 		virtual ~Prepared() = default;
 		virtual void piece(distribution::PieceKind, std::uint64_t first, std::uint64_t last) = 0;
 		virtual void record(std::string_view key, std::uint64_t revision, const KnobDef *value) = 0;
+		// A pages frame: its root digest, then its transfer's chunks.
+		virtual void pages(const distribution::RootDigest &) {}
+		virtual void chunk(std::string_view) {}
 		// The memory it holds: admitted to the ledger as it grows.
 		virtual std::size_t bytes() const noexcept = 0;
 		// The response is complete: make it visible.

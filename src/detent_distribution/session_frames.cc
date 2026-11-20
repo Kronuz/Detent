@@ -146,7 +146,12 @@ struct FramePlan {
 	FrameKind kind = FrameKind::Entries;
 	std::vector<PiecePlan> pieces; // before the ring's entries
 	std::uint64_t ring_after = 0;  // the ring's entries (ring_after, head] follow the pieces
-	std::uint64_t piece_count() const noexcept { return pieces.size() + (head.position - ring_after); }
+	const PagesAnswer *pages = nullptr;
+	std::uint64_t piece_count() const noexcept {
+		if (pages)
+			return (pages->bytes.size() + transfer_chunk_bytes - 1) / transfer_chunk_bytes;
+		return pieces.size() + (head.position - ring_after);
+	}
 };
 FramePlan plan(const NamespaceRequest &request, const Answer &answer) {
 	const auto &history = *request.history;
@@ -186,6 +191,12 @@ FramePlan plan(const NamespaceRequest &request, const Answer &answer) {
 	}
 	return frame;
 }
+FramePlan plan_pages(const NamespaceRequest &request) {
+	FramePlan frame{request.name, nullptr, {AnswerKind::FullCopy, request.pages->after}, request.pages->to};
+	frame.kind = FrameKind::Pages;
+	frame.pages = request.pages;
+	return frame;
+}
 FramePlan plan_dropped(const NamespaceRequest &request) {
 	FramePlan frame{request.name, nullptr, {AnswerKind::Dropped}, *request.dropped};
 	frame.kind = FrameKind::Dropped;
@@ -206,7 +217,7 @@ std::size_t readers_bytes(std::size_t inputs) {
 } // namespace
 
 struct SessionFramesEncoder::Impl {
-	enum class Phase { Header, Frame, Piece, Records, Ring, Done };
+	enum class Phase { Header, Frame, Piece, Records, Ring, Chunks, Done };
 	StorageLedger::Ticket plan_charge, reader_charge; // The plan and the open piece's readers.
 	std::shared_ptr<StorageLedger> account;
 	std::optional<DirectoryUpdate> directory;
@@ -240,14 +251,27 @@ struct SessionFramesEncoder::Impl {
 	}
 	void open_frame(std::string &out) {
 		const auto &current = frames[frame];
-		m::array(out, 5);
+		m::array(out, current.pages ? 6 : 5);
 		m::string(out, current.name);
 		m::unsigned_integer(out, static_cast<std::uint8_t>(current.kind));
 		m::unsigned_integer(out, current.answer.after);
 		put_cursor(out, current.head);
+		if (current.pages)
+			m::string(out, {current.pages->root.data(), current.pages->root.size()}, true);
 		m::unsigned_integer(out, current.piece_count());
 		piece = 0;
-		phase = Phase::Piece;
+		phase = current.pages ? Phase::Chunks : Phase::Piece;
+	}
+	void chunks(std::string &out, std::size_t bytes) {
+		const auto transfer = frames[frame].pages->bytes;
+		while (out.size() < bytes) {
+			const auto at = piece * transfer_chunk_bytes;
+			if (at >= transfer.size())
+				return next_frame();
+			const auto size = std::min(transfer_chunk_bytes, transfer.size() - at);
+			m::string(out, {transfer.data() + at, size}, true);
+			++piece;
+		}
 	}
 	void open_piece(std::string &out) {
 		auto &current = frames[frame];
@@ -358,6 +382,17 @@ SessionFramesEncoder::SessionFramesEncoder(std::optional<DirectoryUpdate> direct
 	impl_->directory = std::move(directory);
 	std::string_view previous;
 	for (const auto &request : requests) {
+		if (request.pages) {
+			const auto &pages = *request.pages;
+			if (request.dropped || !valid_namespace_name(request.name) || (!previous.empty() && request.name <= previous) ||
+				pages.to.cluster == Identity{} || pages.to.incarnation == Identity{} || pages.after >= pages.to.position ||
+				pages.root == RootDigest{})
+				throw std::invalid_argument("session frames need a valid pages answer");
+			previous = request.name;
+			impl_->answers.push_back({AnswerKind::FullCopy, pages.after});
+			impl_->frames.push_back(plan_pages(request));
+			continue;
+		}
 		if (!request.history == !request.dropped || !valid_namespace_name(request.name) ||
 			(!previous.empty() && request.name <= previous) ||
 			(request.dropped && (request.dropped->cluster == Identity{} || request.dropped->incarnation == Identity{})))
@@ -394,6 +429,9 @@ bool SessionFramesEncoder::step(std::string &out, std::size_t bytes) {
 			break;
 		case Impl::Phase::Ring:
 			p.ring(out, bytes);
+			break;
+		case Impl::Phase::Chunks:
+			p.chunks(out, bytes);
 			break;
 		case Impl::Phase::Done:
 			break;
@@ -439,7 +477,9 @@ struct SessionFramesDecoder::Impl {
 		CursorCluster,
 		CursorIncarnation,
 		CursorPosition,
+		Root,
 		PieceCount,
+		Chunk,
 		Piece,
 		PieceKindField,
 		PieceFirst,
@@ -470,7 +510,8 @@ struct SessionFramesDecoder::Impl {
 	std::string name, previous_name;
 	FrameKind kind = FrameKind::Entries;
 	NamespaceCursor to;
-	std::uint64_t after = 0, pieces = 0, at = 0;
+	std::uint64_t after = 0, pieces = 0, at = 0, arity = 0, transfer = 0;
+	RootDigest root{};
 	bool copy_seen = false, spans_seen = false, entries_seen = false;
 	// The open piece and record.
 	PieceKind piece_kind = PieceKind::Entry;
@@ -512,9 +553,9 @@ struct SessionFramesDecoder::Impl {
 		state = S::FrameCount;
 	}
 	void frame_header_done() {
-		const bool forward = kind == FrameKind::Entries || kind == FrameKind::Blocks;
+		const bool forward = kind == FrameKind::Entries || kind == FrameKind::Blocks || kind == FrameKind::Pages;
 		wire(forward ? after < to.position : after == 0, "session frame after its target");
-		at = forward ? after : kind == FrameKind::Dropped ? to.position : 0;
+		at = kind == FrameKind::Pages || kind == FrameKind::Dropped ? to.position : forward ? after : 0;
 		copy_seen = spans_seen = entries_seen = false;
 		sink.frame(name, kind, after, to);
 	}
@@ -552,6 +593,10 @@ struct SessionFramesDecoder::Impl {
 		wire(piece_kind != PieceKind::Entry || piece_records, "session entry without records");
 		at = last;
 		state = pieces ? S::Piece : end_frame();
+	}
+	S end_pages() {
+		tokens.binary_limit(32);
+		return end_frame();
 	}
 	S end_frame() {
 		wire(at == to.position, "session frame ends short");
@@ -648,7 +693,8 @@ struct SessionFramesDecoder::Impl {
 			state = frames ? S::Frame : S::Done;
 			break;
 		case S::Frame:
-			array(token, 5);
+			wire(token.kind == m::Kind::Array && (token.number == 5 || token.number == 6), "session frames tuple arity");
+			arity = token.number;
 			--frames;
 			state = S::FrameName;
 			break;
@@ -661,8 +707,9 @@ struct SessionFramesDecoder::Impl {
 			break;
 		case S::FrameKindField: {
 			const auto value = unsigned_value(token);
-			wire(value >= 1 && value <= 4, "unknown session frame kind");
+			wire(value >= 1 && value <= 5, "unknown session frame kind");
 			kind = static_cast<FrameKind>(value);
+			wire(arity == (kind == FrameKind::Pages ? 6 : 5), "session frames tuple arity");
 			state = S::FrameAfter;
 			break;
 		}
@@ -684,11 +731,26 @@ struct SessionFramesDecoder::Impl {
 			break;
 		case S::CursorPosition:
 			to.position = unsigned_value(token);
+			state = kind == FrameKind::Pages ? S::Root : S::PieceCount;
+			break;
+		case S::Root:
+			wire(token.kind == m::Kind::Binary && token.bytes.size() == root.size(), "session pages root digest");
+			std::copy(token.bytes.begin(), token.bytes.end(), root.begin());
+			wire(root != RootDigest{}, "session pages zero root digest");
 			state = S::PieceCount;
 			break;
 		case S::PieceCount:
 			pieces = unsigned_value(token);
 			frame_header_done();
+			if (kind == FrameKind::Pages) {
+				// The transfer's own bound (D4's Limits row): its bytes within the body's.
+				wire(pieces <= limits.bytes / transfer_chunk_bytes + 1, "session pages chunk bound");
+				transfer = 0;
+				sink.pages(root);
+				tokens.binary_limit(transfer_chunk_bytes);
+				state = pieces ? S::Chunk : end_pages();
+				break;
+			}
 			if (kind == FrameKind::Dropped) {
 				wire(pieces == 0, "a dropped frame holds pieces");
 				state = end_frame();
@@ -696,6 +758,15 @@ struct SessionFramesDecoder::Impl {
 			}
 			wire(pieces != 0, "session frame without pieces");
 			state = S::Piece;
+			break;
+		case S::Chunk:
+			wire(token.kind == m::Kind::Binary && !token.bytes.empty() &&
+					 (pieces == 1 || token.bytes.size() == transfer_chunk_bytes),
+				 "session pages chunk"); // every chunk but the last is whole
+			transfer += token.bytes.size();
+			wire(transfer <= limits.bytes, "session pages transfer bound");
+			sink.chunk(token.bytes);
+			state = --pieces ? S::Chunk : end_pages();
 			break;
 		case S::Piece:
 			array(token, 3);

@@ -34,8 +34,11 @@ Cursor frame_cursor(std::string_view name, const NamespaceCursor &cursor) {
 FrameInput::FrameInput(std::string_view name, FrameKind kind, std::uint64_t after, const NamespaceCursor &to,
 					   Profile profile, const Limits &limits)
 	: name_(name), kind_(kind), after_(after), to_(to), profile_(profile), limits_(detail::admitted_limits(limits)) {
-	require(kind == FrameKind::FullCopy || kind == FrameKind::Entries || kind == FrameKind::Blocks,
-			"frame input takes a full copy, entries or blocks");
+	require(kind == FrameKind::FullCopy || kind == FrameKind::Entries || kind == FrameKind::Blocks ||
+				kind == FrameKind::Pages,
+			"frame input takes a full copy, entries, blocks or pages");
+	if (kind == FrameKind::Pages)
+		return;
 	if (kind == FrameKind::FullCopy) {
 		snapshot_.reset(new ValidatedSnapshot(limits_));
 		rows_ = std::make_unique<StableRows<Row>>(snapshot_->storage_->arena);
@@ -47,6 +50,20 @@ FrameInput::FrameInput(std::string_view name, FrameKind kind, std::uint64_t afte
 FrameInput::~FrameInput() = default;
 
 void FrameInput::piece(PieceKind, std::uint64_t, std::uint64_t) {}
+void FrameInput::pages(const RootDigest &root) {
+	require(kind_ == FrameKind::Pages, "a root digest outside a pages frame");
+	root_ = root;
+}
+void FrameInput::chunk(std::string_view bytes) {
+	require(kind_ == FrameKind::Pages, "a transfer chunk outside a pages frame");
+	const auto needed = transfer_.size() + bytes.size();
+	if (needed > transfer_.capacity()) {
+		const auto capacity = std::max(needed, 2 * transfer_.capacity());
+		transfer_charge_.absorb(limits_.storage_account->admit(capacity - transfer_.capacity()));
+		transfer_.reserve(capacity);
+	}
+	transfer_.insert(transfer_.end(), bytes.begin(), bytes.end());
+}
 
 template <class Storage>
 void FrameInput::add(Storage &storage, std::string_view key, std::uint64_t revision, const KnobDef *value) {
@@ -67,7 +84,7 @@ void FrameInput::record(std::string_view key, std::uint64_t revision, const Knob
 		add(*delta_->storage_, key, revision, value);
 }
 std::size_t FrameInput::bytes() const noexcept {
-	return snapshot_ ? snapshot_->storage_capacity() : delta_ ? delta_->storage_capacity() : 0;
+	return snapshot_ ? snapshot_->storage_capacity() : delta_ ? delta_->storage_capacity() : transfer_.capacity();
 }
 
 std::vector<std::uint64_t> FrameInput::winners() const {

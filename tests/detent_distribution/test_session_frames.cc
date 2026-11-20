@@ -49,6 +49,14 @@ struct Collect final : d::FrameSink {
 			std::string(key), Held{revision, value ? std::optional<KnobDef>(*value) : std::nullopt});
 	}
 	void end_frame() override { frames.back().ended = true; }
+	void pages(const d::RootDigest &value) override { root = value; }
+	void chunk(std::string_view bytes) override {
+		transfer.append(bytes);
+		++chunks;
+	}
+	d::RootDigest root{};
+	std::string transfer;
+	std::size_t chunks = 0;
 };
 Collect decode(std::string_view body, std::size_t chunk = 1 << 20) {
 	Collect sink;
@@ -536,8 +544,73 @@ void ledger_bound() {
 }
 } // namespace
 
+// A pages frame carries a transfer of any size in whole 64 KiB chunks, beside record frames.
+void pages_frames() {
+	d::NamespaceCursor to{};
+	to.cluster.fill('\x01');
+	to.incarnation.fill('\x02');
+	to.position = 9;
+	std::string transfer(2 * d::transfer_chunk_bytes + 77, '\0');
+	for (std::size_t i = 0; i < transfer.size(); ++i)
+		transfer[i] = static_cast<char>(i * 31);
+	d::PagesAnswer answer{{}, 0, to, {transfer.data(), transfer.size()}};
+	answer.root.fill('\x07');
+	const std::vector<d::NamespaceRequest> requests{{"app", nullptr, {}, {}, &answer}};
+	const auto body = d::encode_session_frames(std::nullopt, requests);
+	for (const std::size_t chunk : {std::size_t{1}, std::size_t{4096}, std::size_t{1} << 20}) {
+		const auto got = decode(body, chunk);
+		require(got.frames.size() == 1 && got.frames[0].kind == d::FrameKind::Pages && got.frames[0].after == 0 &&
+					got.frames[0].to == to && got.frames[0].ended && got.frames[0].pieces.empty(),
+				"pages frame header");
+		require(got.root == answer.root && got.transfer == transfer && got.chunks == 3, "pages frame transfer");
+	}
+	// A delta's pages follow the receiver's position; refusals: a zero root, a short inner chunk,
+	// a pages frame with records' arity, and a transfer above the body's bound.
+	answer.after = 4;
+	require(decode(d::encode_session_frames(std::nullopt, requests)).frames[0].after == 4, "pages delta");
+	answer.after = 0;
+	auto zero = body;
+	const auto root_at = zero.find(std::string(32, '\x07'));
+	require(root_at != std::string::npos, "root on the wire");
+	std::fill(zero.begin() + root_at, zero.begin() + root_at + 32, '\0');
+	require(rejected(zero), "a zero root digest is refused");
+	std::string short_body = body;
+	const auto length = root_at + 32 + 2; // after the chunk count and the bin32 marker
+	short_body[length + 1] = '\x00';	   // 0x00010000 becomes 0x0000ff00
+	short_body[length + 2] = '\xff';
+	require(rejected(short_body), "an inner chunk short of 64 KiB is refused");
+	auto arity = body;
+	const auto frame_at = arity.find('\x96');
+	require(frame_at != std::string::npos, "frame arity on the wire");
+	arity[frame_at] = '\x95';
+	require(rejected(arity), "a pages frame with five fields is refused");
+	Collect sink;
+	d::Limits small;
+	small.bytes = d::transfer_chunk_bytes;
+	d::SessionFramesDecoder bounded(sink, small);
+	bool refused = false;
+	try {
+		auto input = std::span<const char>(body.data(), body.size());
+		std::size_t budget = body.size();
+		bounded.feed(input, budget);
+		bounded.finish();
+	} catch (const std::exception &) {
+		refused = true;
+	}
+	require(refused, "a transfer above the body bound is refused");
+	bool invalid = false;
+	try {
+		answer.root = {};
+		d::encode_session_frames(std::nullopt, requests);
+	} catch (const std::invalid_argument &) {
+		invalid = true;
+	}
+	require(invalid, "the encoder refuses a zero root");
+}
+
 int main() {
 	try {
+		pages_frames();
 		golden();
 		tiers();
 		other_incarnation();

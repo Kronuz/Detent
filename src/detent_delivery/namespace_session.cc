@@ -403,6 +403,11 @@ class StagedFrames final : public d::FrameSink {
 		frames_.back()->record(key, revision, value);
 		charge();
 	}
+	void pages(const d::RootDigest &root) override { frames_.back()->pages(root); }
+	void chunk(std::string_view bytes) override {
+		frames_.back()->chunk(bytes);
+		charge();
+	}
 	void publish() {
 		if (directory_)
 			preparer_.directory(*directory_);

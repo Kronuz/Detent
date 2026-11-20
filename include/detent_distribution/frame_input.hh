@@ -2,6 +2,9 @@
 #include "detent/model.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution/session_frames.hh"
+#include "detent_distribution/storage.hh"
+#include <span>
+#include <vector>
 
 // One namespace's W6 frame as the paged builders read it (namespace-delivery W6, D8 "Catch-up
 // input"): a full copy, with the ring's entries after it, becomes a one-namespace ValidatedSnapshot
@@ -33,6 +36,11 @@ class FrameInput {
 	// frame's delta from `after` under the target's incarnation.
 	std::shared_ptr<ValidatedSnapshot> snapshot();
 	std::shared_ptr<ValidatedDelta> delta();
+	// A Pages frame: the root digest it commits to, then its transfer's chunks, admitted as they arrive.
+	void pages(const RootDigest &);
+	void chunk(std::string_view);
+	const RootDigest &root() const noexcept { return root_; }
+	std::span<const char> transfer() const noexcept { return transfer_; }
 
   private:
 	struct Row {
@@ -54,5 +62,8 @@ class FrameInput {
 	std::shared_ptr<ValidatedDelta> delta_;
 	std::unique_ptr<StableRows<Row>> rows_;
 	bool ordered_ = true; // every row's key above the previous one's and no tombstone
+	RootDigest root_{};
+	std::vector<char> transfer_;
+	StorageLedger::Ticket transfer_charge_;
 };
 } // namespace detent::distribution

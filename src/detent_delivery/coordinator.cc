@@ -79,6 +79,14 @@ class Response final : public FramePreparer {
 			if (input_)
 				input_->record(key, revision, value);
 		}
+		void pages(const d::RootDigest &root) override {
+			if (input_)
+				input_->pages(root);
+		}
+		void chunk(std::string_view bytes) override {
+			if (input_)
+				input_->chunk(bytes);
+		}
 		// The input's storage admits its bytes to the heap as it grows: nothing to charge twice.
 		std::size_t bytes() const noexcept override { return 0; }
 		void publish() override {

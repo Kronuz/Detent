@@ -199,6 +199,8 @@ template <class Bytes> class BasicDecoder {
 		}
 	}
 	std::uint64_t consumed() const noexcept { return total_; }
+	// The bound on the next binary payloads; the schema owner sets it between tokens.
+	void binary_limit(std::uint32_t bytes) noexcept { limits_.binary_bytes = bytes; }
 
   private:
 	bool begin_payload() {

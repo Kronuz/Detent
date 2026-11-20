@@ -2,7 +2,9 @@
 #include "allocator.hh"
 #include "history.hh"
 #include "protocol.hh"
+#include <array>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -15,12 +17,16 @@
 //   per piece:  [piece kind, first, last]  then records  then nil
 //   record:     [key, revision, definition | nil]          nil definition: a tombstone
 //   directory:  [cluster, from, to, [[name, incarnation, live], ...]]
+//   a pages frame (kind 5): [name, 5, after, cursor, root digest, chunk count], then the transfer's
+//               bytes as that many bin values of 1 to 64 KiB (dense distribution D2, D8)
 //
 // Frames come in name order. A piece's records come in key order, each key once.
 namespace detent::distribution {
 // Dropped: the namespace was dropped; the cursor is its last incarnation's, at the drop. It is sent
 // to a session that follows the namespace with a store of it and no longer has a live namespace.
-enum class FrameKind : std::uint8_t { Entries = 1, Blocks = 2, FullCopy = 3, Dropped = 4 };
+// Pages: a transfer to the cursor over the receiver's generation at `after` (0: the empty state),
+// committed to by the target's root digest (dense distribution D1-D4).
+enum class FrameKind : std::uint8_t { Entries = 1, Blocks = 2, FullCopy = 3, Dropped = 4, Pages = 5 };
 // Entry: one ring position [p, p]. Block: a named span sent whole. Span: a trimmed or merged
 // span, not a stored object. FullCopy: the state at `last`, first 0, no tombstones.
 enum class PieceKind : std::uint8_t { Entry = 1, Block = 2, Span = 3, FullCopy = 4 };
@@ -38,6 +44,15 @@ struct DirectoryUpdate {
 	std::vector<DirectoryEntry> entries;
 	bool operator==(const DirectoryUpdate &) const = default;
 };
+using RootDigest = std::array<char, 32>;
+inline constexpr std::size_t transfer_chunk_bytes = 64 * 1024;
+// A transfer a sender answers with in place of records; its bytes are borrowed until the encoder ends.
+struct PagesAnswer {
+	RootDigest root{};
+	std::uint64_t after = 0;
+	NamespaceCursor to;
+	std::span<const char> bytes;
+};
 // A requested namespace: its history (borrowed until the encoder ends) and the store's cursor, or,
 // for a namespace dropped for good, the cursor of its dropped incarnation and no history.
 struct NamespaceRequest {
@@ -45,6 +60,7 @@ struct NamespaceRequest {
 	const NamespaceHistory *history = nullptr;
 	std::optional<NamespaceCursor> store;
 	std::optional<NamespaceCursor> dropped;
+	const PagesAnswer *pages = nullptr; // a pages frame instead of the history's answer
 };
 // Selects every namespace's answer at construction, then emits the body in bounded steps. A
 // Current or Ahead answer gets no frame. Names must be valid and strictly increasing. Its own
@@ -77,13 +93,17 @@ class FrameSink {
 	virtual void frame(std::string_view name, FrameKind, std::uint64_t after, const NamespaceCursor &to) = 0;
 	virtual void piece(PieceKind, std::uint64_t first, std::uint64_t last) = 0;
 	virtual void record(std::string_view key, std::uint64_t revision, const KnobDef *value) = 0;
+	// A pages frame: its root digest after frame(), then each chunk of its transfer in order.
+	virtual void pages(const RootDigest &) {}
+	virtual void chunk(std::string_view) {}
 	virtual void end_frame() {}
 };
 // Its memory (working strings and the directory) is admitted by `limits.storage_account`, which
 // throws StoragePressure at its bound.
 // Checks the grammar and every frame's positions (contiguous from after + 1 to the target, each
 // record inside its piece and above `after`, keys of the frame's namespace in order, no
-// tombstone in a full copy) before the sink sees the value that completes them. A sink must
+// tombstone in a full copy; a pages frame's chunks within `limits.bytes`) before the sink sees the
+// value that completes them. A sink must
 // still treat a frame as provisional until finish() returns.
 class SessionFramesDecoder {
   public:
