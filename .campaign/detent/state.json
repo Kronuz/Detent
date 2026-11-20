@@ -10487,6 +10487,37 @@
       "updated": "2026-11-20T08:14:21",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
+    "journal-loop-handoff": {
+      "accepted": {},
+      "after": [
+        "journal-idle-groups"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/host_test.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "A loop's range table moves to another thread by an explicit owner handoff",
+      "updated": "2026-11-20T14:50:46"
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
