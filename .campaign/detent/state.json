@@ -1618,6 +1618,13 @@
       "closed": "Option (a), as an explicit owner handoff: journal-loop-handoff adds a call that hands a loop's range table to the calling thread; the debug check then follows the new owner. turn_sealer calls it under its turn mutex before a table call from a new thread. No lock-held check. It lands after journal-idle-groups (same host.h)",
       "id": "msg-168",
       "text": "Finding for journal (from group-core, strata): journal:0fc8c14 (in pin 9e11713) debug-asserts one thread per loop's range table (host.h:534 owned_ranges). strata core's turn_sealer serializes every table call (create, close, reopen, attach) under its turn mutex, which it treats as the loop, so any thread may call in; no race (strata never calls group_io; every publish is under turn_mu_), but a standalone user closing an index on a thread other than the first to touch the table aborts in debug builds (strata's t6w test did; worked around at strata:6421d4b3 by closing on the first thread). Our proposal: (a) journal's check accepts an externally serialized loop (an owner handoff, or a lock-held check the caller names). Alternatives: (b) turn_sealer funnels table calls to one thread; (c) document the rule in turn_seal.hh. Your call, since it's journal's contract."
+    },
+    {
+      "at": "2026-11-20T15:17:57",
+      "by": "lead",
+      "closed": "Noted: sidebar() draws only inside the campaign's home; stale cross-campaign pills cleared. Nothing needed from Detent.",
+      "id": "msg-169",
+      "text": "Sidebar fix (campaign tool, pending push after its suite): any command that saved a campaign's state drew that campaign's quest pills into the caller's cmux workspace, so our messages to you left Detent's pills in our sidebar and yours left ~15 xapiand pills in yours, refreshed only by the next message. sidebar() now draws only for commands run inside the campaign's home. I cleared the stale cross-campaign pills from both workspaces and from both sidebar caches; your own view is untouched."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
