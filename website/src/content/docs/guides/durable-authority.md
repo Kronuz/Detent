@@ -2,7 +2,7 @@
 title: "Durable Authority"
 ---
 
-The **durable authority** is what `detentd` runs. Publishers open
+The **durable authority** is what `detent-authority` runs. Publishers open
 authenticated sessions and submit atomic, per-namespace **transactions** with
 compare-and-set preconditions; the authority assigns revisions and commits them
 through durable Raft consensus to local storage. The preconditions keep
@@ -63,12 +63,12 @@ with mode `0600` (or a controlled group-readable `0640`):
 
 ```sh
 chmod 600 authority.json
-detentd --authority authority.json
+detent-authority --authority authority.json
 ```
 
 It listens on `127.0.0.1:8317` by default; `--port` changes the port.
 `--daemonize` runs it in the background and `--status` queries it; see
-[`detentd`](/Detent/reference/cli/detentd/).
+[`detent-authority`](/Detent/reference/cli/detent-authority/).
 
 ---
 

@@ -39,7 +39,7 @@ vertical-gap: 80
 upstream: "Upstream" {
   label.near: top-left
   direction: left
-  authority: "Authority\ndetentd, Raft voters" {style.multiple: true}
+  authority: "Authority\ndetent-authority, Raft voters" {style.multiple: true}
   relay: "Relay\ndetent-relay"
   authority -> relay: "subscribe"
 }
@@ -56,7 +56,7 @@ host: "One host" {
 upstream.relay -> host.agent
 ```
 
-**The authority** decides what the knobs are. It is `detentd --authority
+**The authority** decides what the knobs are. It is `detent-authority --authority
 authority.json`, one process per voter: a single voter for development, or a
 fixed set of 3, 5 or 7 that replicate a Raft log and answer a producer once a
 majority has the entry on disk

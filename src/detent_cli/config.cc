@@ -110,7 +110,7 @@ std::filesystem::path config_path(const std::vector<std::string>& args, const st
 namespace {
 struct RemovedOption { std::string_view program, flag, field, env, reason; };
 constexpr RemovedOption kRemoved[] = {
-	{"detentd", "--workers", "workers", "DETENTD_WORKERS", "requests run on the reactor loops (--reactors sets their count)"},
+	{"detent-authority", "--workers", "workers", "DETENT_AUTHORITY_WORKERS", "requests run on the reactor loops (--reactors sets their count)"},
 };
 } // namespace
 

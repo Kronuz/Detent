@@ -33,3 +33,11 @@ D43, D44, D46, D52. The owner reads each area before it lands (D52).
 
 None: the owner reads the whole area first.
 - From docs-e2e: the splash home renders no `#_top` (`website/src/components/PageTitle.astro`), which is listed in `tests/docs/link_exceptions.txt`; fix it and drop the exception.
+
+## Folded tasks (one feature, owner msg-145/147)
+
+This quest is one feature; each former quest below is a task, its file kept as the task's spec and its criteria folded into this quest's:
+- `docs-site-architecture`: .campaign/detent/quests/docs-site-architecture.md
+- `docs-site-config`: .campaign/detent/quests/docs-site-config.md
+- `docs-site-reference`: .campaign/detent/quests/docs-site-reference.md
+- `docs-site-usage`: .campaign/detent/quests/docs-site-usage.md

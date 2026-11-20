@@ -16,3 +16,4 @@ D122: every Kronuz daemon ends up with one shape in the server-composition areas
 ## Notes
 
 Filed 2026-11-19 (D122). Prism has no tests today: A2's test is the first; add the CMake test wiring it needs.
+- On landing, message the Xapiand lead the prism landing commit: they update the server composition note's Prism cells and drop its 'No daemon mode' row (msg-125).

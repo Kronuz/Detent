@@ -1,7 +1,7 @@
 """A fixed three-voter node started alone: --daemonize returns promptly, --status reports not ready.
 
 A one-member voter set is refused at load, so no configured node is a lone quorum with peers;
-if that changes, the lone-quorum wait in detentd needs its own test here.
+if that changes, the lone-quorum wait in detent-authority needs its own test here.
 """
 
 from __future__ import annotations

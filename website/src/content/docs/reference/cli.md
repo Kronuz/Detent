@@ -8,7 +8,7 @@ Detent installs three programs.
 | --- | --- |
 | [`detent`](/Detent/reference/cli/detent/) | Read a knob from the shell, auto-starting the user agent when needed |
 | [`detent-agent`](/Detent/reference/cli/detent-agent/) | The host-local agent daemon |
-| [`detentd`](/Detent/reference/cli/detentd/) | The durable authority daemon |
+| [`detent-authority`](/Detent/reference/cli/detent-authority/) | The durable authority daemon |
 
 ---
 
@@ -16,7 +16,7 @@ Detent installs three programs.
 
 1. **Precedence.** Command-line flags override environment variables, which
    override configuration-file values, which override built-in defaults.
-2. **Configuration files.** `agent.json` and `detentd.json` live in the
+2. **Configuration files.** `agent.json` and `detent-authority.json` live in the
    platform's Detent config directory; `--config PATH` selects one explicitly.
    Relative paths inside a config file are resolved against the file's
    directory. See [Configuration](/Detent/reference/configuration/).

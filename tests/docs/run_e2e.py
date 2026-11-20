@@ -39,7 +39,7 @@ DEFAULT_ROOT = HERE.parents[1]
 DEFAULT_PORT = "8317"
 RUNNABLE = ("sh", "rest")
 BLOCK_TIMEOUT = 120.0
-BINARIES = ("detentd", "detent-agent", "detent")
+BINARIES = ("detent-authority", "detent-agent", "detent")
 
 FENCE = re.compile(
     r"^```(\w*)[^\n]*\n(.*?)^```[ \t]*(?:\n|\Z)(?:[ \t]*\n)*(<!-- e2e:begin\n(.*?)e2e:end -->)?",
@@ -246,7 +246,7 @@ def build(root: Path, build_dir: Path, deps_from: Path | None) -> None:
                 f"-DFETCHCONTENT_SOURCE_DIR_{src.name[: -len('-src')].upper()}={src}"
             )
     subprocess.run(configure, check=True)
-    targets = ["detentd", "detent-agent", "detent-reader"]
+    targets = ["detent-authority", "detent-agent", "detent-reader"]
     subprocess.run(
         ["cmake", "--build", str(build_dir), "-j", "4", "--target", *targets],
         check=True,
@@ -562,7 +562,7 @@ def execute(
         "XDG_CONFIG_HOME": str(sandbox / "home" / "config"),
         "XDG_STATE_HOME": str(sandbox / "home" / "state"),
         "XDG_RUNTIME_DIR": str(sandbox / "home" / "run"),
-        "DETENTD_PORT": port,
+        "DETENT_AUTHORITY_PORT": port,
         "DETENT_E2E_PORT": port,
         "NO_COLOR": "1",
         "LANG": "C",

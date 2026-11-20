@@ -1,11 +1,11 @@
 ---
-title: "detentd"
+title: "detent-authority"
 ---
 
 ```text
-detentd --authority CONFIG [--daemonize | --status] [--runtime-dir PATH] [--config PATH]
-        [--port N] [--reactors N] [--system]
-detentd --status [--port N]
+detent-authority --authority CONFIG [--daemonize | --status] [--runtime-dir PATH] [--config PATH]
+                 [--port N] [--reactors N] [--system]
+detent-authority --status [--port N]
 ```
 
 The [durable authority](/Detent/guides/durable-authority/) daemon. It reads the
@@ -21,7 +21,7 @@ authority configuration at `CONFIG` and listens on port `8317` unless
 | `--authority CONFIG` | required | The authority configuration file |
 | `--port N` | `8317` | HTTP port |
 | `--reactors N` | `4` | Network reactor threads |
-| `--config PATH` | platform config dir | Use this `detentd.json` |
+| `--config PATH` | platform config dir | Use this `detent-authority.json` |
 | `--runtime-dir PATH` | platform runtime dir | Where pid and log files go |
 | `--system` | | System config and runtime directories |
 | `--daemonize` | | Run in the background |
@@ -36,15 +36,15 @@ runtime directory.
 
 | Variable | Overrides |
 | --- | --- |
-| `DETENTD_PORT` | `port` |
-| `DETENTD_REACTORS` | `reactors` |
-| `DETENTD_RUNTIME_DIR` | `runtime_dir` |
+| `DETENT_AUTHORITY_PORT` | `port` |
+| `DETENT_AUTHORITY_REACTORS` | `reactors` |
+| `DETENT_AUTHORITY_RUNTIME_DIR` | `runtime_dir` |
 
 ---
 
 ## Configuration
 
-`detentd.json` lives in the same directories as `agent.json`:
+`detent-authority.json` lives in the same directories as `agent.json`:
 
 ```json
 {
@@ -66,7 +66,7 @@ name a configuration to serve. Paths are relative to the file.
 ## Status
 
 ```sh
-detentd --status --port 8317
+detent-authority --status --port 8317
 ```
 
 Without `--authority`, `--status` probes `127.0.0.1` over plain HTTP. With

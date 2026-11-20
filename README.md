@@ -1,6 +1,6 @@
 # Detent (C++)
 
-A detent is the click-stop that holds a knob at its setting. Detent is a C++ runtime-configuration client for namespaced 64-bit integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). Its model (knobs, namespaces, groups, overrides, rollout and evaluation) is specified in [`docs/design/knob-model.md`](docs/design/knob-model.md); around it Detent adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
+A detent is the click-stop that holds a knob at its setting. Detent is a C++ runtime-configuration client for namespaced 64-bit integer knobs, plus a durable authority daemon (`detent-authority`) and a host-local managed agent (`detent-agent`). Its model (knobs, namespaces, groups, overrides, rollout and evaluation) is specified in [`docs/design/knob-model.md`](docs/design/knob-model.md); around it Detent adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network distribution, configuration, and library examples.
 
@@ -10,7 +10,7 @@ A detent is the click-stop that holds a knob at its setting. Detent is a C++ run
 - One background updater thread consumes a file source or a custom poll function, validates off the read path, merges over baked defaults, and atomically publishes a new immutable snapshot.
 - Every knob holds one `int64` value; a feature flag is a knob whose values are 0 and 1. Any knob supports exact-match group overrides and a stable SHA-256 percentage rollout to a `rollout_value`.
 - Missing knobs are errors. CLI overrides (`name=value`) shadow both baked defaults and live data.
-- `detentd` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
+- `detent-authority` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
 - `detent-agent` receives authenticated deliveries from the authority and publishes immutable local generations, which `detent get` maps read-only for shell scripts and other non-C++ callers.
 
 ## How Detent fits together
@@ -20,7 +20,7 @@ A detent is the click-stop that holds a knob at its setting. Detent is a C++ run
 A knob change moves through five actors:
 
 - **Producer**: your service, writing changes as namespaced transactions with `POST /v2/transactions` over HTTPS.
-- **Authority**: `detentd --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
+- **Authority**: `detent-authority --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
 - **Relay** (optional): `detent-relay`, subscribed to the authority, keeps a durable copy per bundle and serves snapshots and deltas to many agents.
 - **Agent**: `detent-agent`, one per host. It receives snapshots and deltas and publishes immutable local generations on disk.
 - **Client**: your application, through `detent::Client`, mapping the agent's selected generation and reading in memory. `detent get` is the command-line client.
@@ -104,7 +104,7 @@ opts.poll_interval = std::chrono::milliseconds{200};
 
 ### 5. Run the authority
 
-Start a voter with `detentd --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](website/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
+Start a voter with `detent-authority --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](website/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
 
 ### 6. CLI overrides and testing
 
@@ -130,7 +130,7 @@ auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 The client implements the [knob model](docs/design/knob-model.md), and a distribution layer carries it to hosts:
 
 - `detent`: core client, schema validation, rollout hashing, overrides, publication, health.
-- `detentd`: the durable authority daemon.
+- `detent-authority`: the durable authority daemon.
 - `detent-agent`: host-local managed agent that publishes immutable generations for non-C++ readers.
 - Python and Rust bindings that wrap the same C++ core.
 
@@ -151,7 +151,7 @@ detent-agent (exe)
   `-- detent
 ```
 
-`detent` has no networking dependencies. `detentd` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent` links the managed delivery libraries; `detent get` links only the local reader.
+`detent` has no networking dependencies. `detent-authority` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent` links the managed delivery libraries; `detent get` links only the local reader.
 
 ## Dependencies
 
@@ -166,8 +166,8 @@ All dependencies are fetched with CMake `FetchContent`.
 | [`random`](https://github.com/Kronuz/random) | Full-jitter reconnect backoff |
 | [`compressors`](https://github.com/Kronuz/compressors) | zstd/gzip: distribution frame codecs |
 | [RapidJSON](https://github.com/Tencent/rapidjson) | Strict JSON parsing |
-| [`http`](https://github.com/Kronuz/http) (+ `reactor`, `http-parser`, `radix-router`) | `detentd`'s HTTP service |
-| [`consensus`](https://github.com/Kronuz/consensus) | `detentd`'s durable Raft, with journal and completion I/O |
+| [`http`](https://github.com/Kronuz/http) (+ `reactor`, `http-parser`, `radix-router`) | `detent-authority`'s HTTP service |
+| [`consensus`](https://github.com/Kronuz/consensus) | `detent-authority`'s durable Raft, with journal and completion I/O |
 | standalone Asio | Pulled transitively by `http` and `consensus` |
 
 RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are rejected rather than partially applied. It is pinned to upstream commit `24b5e7a8b27f42fa16b96fc70aade9106cf7102f`; the older 1.1.0 release contains a `GenericStringRef` assignment operator that fails to compile with Clang 23.
@@ -186,9 +186,8 @@ include/
 
 src/
   detent/              Core implementation
-  detentd/             Authority daemon host
   detent_agent/        Agent host and managed configuration
-  detent_authority/    Durable authority, transactions and distribution
+  detent_authority/    Durable authority, transactions, distribution and its daemon
   detent_distribution/ Protocol and session implementation
   detent_distribution_http/ Shared server parsing and reply pumping
   detent_relay/        Durable relay core
@@ -229,7 +228,7 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Binary | Built from | Links | What it is |
 |---|---|---|---|
 | `detent_demo` | `examples/demo.cc` | `detent` | Baked-defaults-only example |
-| `detentd` | `src/detentd/main.cc` | `detent_authority_service` -> authority, `http::http`, `consensus::consensus` | Durable authority daemon |
+| `detent-authority` | `src/detent_authority/main.cc` | `detent_authority_service` -> authority, `http::http`, `consensus::consensus` | Durable authority daemon |
 | `detent-relay` | `src/detent_relay/main.cc` | Relay host, private configuration and bounded TLS distribution | Optional durable fan-out daemon; Stage 5B qualification |
 | `detent-agent` | `src/detent_agent/main.cc` | CLI and managed delivery libraries | Host-local managed agent |
 | `detent` | `src/detent_agent/main.cc` | CLI and local reader libraries | Host-local `get` reader |
@@ -248,7 +247,7 @@ ctest --test-dir build --output-on-failure
 ./build/examples/detent_demo
 ```
 
-`DETENT_BUILD_AUTHORITY` defaults to `ON`. Set `-DDETENT_BUILD_AUTHORITY=OFF` to skip `detentd` and its HTTP and consensus dependency chain. `DETENT_BUILD_PYTHON` and `DETENT_BUILD_RUST` default to `OFF`.
+`DETENT_BUILD_AUTHORITY` defaults to `ON`. Set `-DDETENT_BUILD_AUTHORITY=OFF` to skip `detent-authority` and its HTTP and consensus dependency chain. `DETENT_BUILD_PYTHON` and `DETENT_BUILD_RUST` default to `OFF`.
 
 ### Binary size
 
@@ -262,13 +261,13 @@ Measured on macOS/arm64 for `detent-agent`:
 
 Most of the difference comes from RapidJSON and ordinary C++ runtime support.
 
-### Running detentd
+### Running detent-authority
 
 ```sh
-./build/src/detentd --authority authority.json
+./build/src/detent-authority --authority authority.json
 ```
 
-`detentd` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detentd.json`). `detentd.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENTD_*` environment variables, which override config. `detentd --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detentd` reference](website/src/content/docs/reference/cli/detentd.md).
+`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](website/src/content/docs/reference/cli/detent-authority.md).
 
 ### Running detent-agent
 
@@ -353,7 +352,7 @@ Benchmarks in `benchmarks/` build by default. Measured output on one 14-core arm
 
 ### Security boundary
 
-`detentd` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](website/src/content/docs/operations/security.md). Host-local reads trust the host.
+`detent-authority` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](website/src/content/docs/operations/security.md). Host-local reads trust the host.
 
 ### Consistency model
 

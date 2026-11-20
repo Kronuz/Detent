@@ -42,7 +42,7 @@ option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
 option(DETENT_BUILD_RELAY "Build the optional durable relay daemon" OFF)
 option(DETENT_BUILD_MANAGED_AGENT "Build managed binary authority delivery support" ON)
-option(DETENT_BUILD_AUTHORITY "Build detentd, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
+option(DETENT_BUILD_AUTHORITY "Build detent-authority, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
 option(DETENT_BUILD_PYTHON "Build the Python binding (pybind11, requires Python3 dev headers)" OFF)
 option(DETENT_BUILD_RUST "Build the Rust binding (cxx, requires cargo/rustc)" OFF)
@@ -52,7 +52,7 @@ if(DETENT_READ_COUNTERS)
   add_compile_definitions(DETENT_READ_COUNTERS=1)
 endif()
 
-# Must precede any add_subdirectory() that calls add_test() (detentd/,
+# Must precede any add_subdirectory() that calls add_test() (src/,
 # tests/): CMake only wires a subdirectory's CTestTestfile.cmake into the
 # root aggregate for subdirectories added AFTER enable_testing() runs.
 if(DETENT_BUILD_TESTS)

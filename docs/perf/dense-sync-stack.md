@@ -6,7 +6,7 @@ Dense pages and grouped syncs stack. At 100K records the stacked tree (`Detent:d
 
 ## Method
 
-Each run is one job: it builds the arm's tree in its own slot, smoke-tests it at 10K, then runs `docs/measurements/sync-groups-20261107/coldboot.py` with `--stage=confirm` on a fixed fixture and summarizes it with `docs/measurements/sync-groups-20261108/summarize.py`. The harness is `main`'s at `Detent:ea1fddc` for every arm; each arm builds only its own `detentd`, `detent-agent` and `detent-relay`. The fixture is restored by `cp -cR`, never written.
+Each run is one job: it builds the arm's tree in its own slot, smoke-tests it at 10K, then runs `docs/measurements/sync-groups-20261107/coldboot.py` with `--stage=confirm` on a fixed fixture and summarizes it with `docs/measurements/sync-groups-20261108/summarize.py`. The harness is `main`'s at `Detent:ea1fddc` for every arm; each arm builds only its own `detent-authority`, `detent-agent` and `detent-relay`. The fixture is restored by `cp -cR`, never written.
 
 - **Cold bootstrap**: seconds from starting the relay and agent until the agent selects the generation holding the fixture's revision (`agent_selected`).
 - **Restart**: the median of three restarts of `detent-agent` on its existing store, each until `store ready`.

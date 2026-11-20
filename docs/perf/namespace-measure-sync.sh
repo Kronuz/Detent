@@ -15,7 +15,7 @@
 # by importance.
 #
 # Needs $JOB_REF_COMPLETION (a checkout of completion:560c288). The VM is reached by $VM_SSH_KEY,
-# $VM_PORT and $VM_USER (defaults: strata's VM, port 18772).
+# $VM_PORT and $VM_USER (defaults: the shared Linux VM, ~/.scratch/vm-document-gate/linux, port 18782).
 set -euo pipefail
 mode=$1
 shift
@@ -90,9 +90,9 @@ apfs)
 	done
 	;;
 vm)
-	key=${VM_SSH_KEY:-$HOME/code/Kronuz/strata/.scratch/linux-vm/ssh_key}
+	key=${VM_SSH_KEY:-$HOME/.scratch/vm-document-gate/linux/ssh_key}
 	known=$(dirname "$key")/known_hosts
-	ssh_=(ssh -i "$key" -o UserKnownHostsFile="$known" -o BatchMode=yes -p "${VM_PORT:-18772}"
+	ssh_=(ssh -i "$key" -o UserKnownHostsFile="$known" -o BatchMode=yes -p "${VM_PORT:-18782}"
 		"${VM_USER:-strata}@127.0.0.1")
 	stage=$PWD/.scratch/namespace-measure-sync/vm-src
 	rm -rf "$stage" && mkdir -p "$stage/inc"
