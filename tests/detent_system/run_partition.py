@@ -58,28 +58,23 @@ async def run(arguments: argparse.Namespace) -> None:
                     scenario.producers,
                 )
                 await cohort.start()
-                revision = max(
-                    int(receipt["revision"])
-                    for receipt in writers.receipts
-                    if receipt is not None
-                )
-                await cohort.wait_selected(revision)
+                await cohort.wait_selected(cohort.positions(writers))
                 old = await authority.leader()
                 deadline = time.monotonic() + 10
                 while True:
-                    code, health = await authority.request(old, "/v1/health")
-                    if (
-                        code == 200
-                        and health.get("subscription_idle_responses", 0)
-                        >= scenario.durable_agents
-                    ):
+                    # A W5 session parks on whichever voter it opened at.
+                    idle_before = 0
+                    for index in range(3):
+                        code, health = await authority.request(index, "/v1/health")
+                        if code == 200:
+                            idle_before += int(health.get("frames_idle", 0))
+                    if idle_before >= scenario.durable_agents:
                         break
                     if time.monotonic() >= deadline:
                         raise RuntimeError(
-                            "managed subscriptions did not reach idle before partition"
+                            "managed sessions did not reach idle before partition"
                         )
                     await asyncio.sleep(0.05)
-                idle_before = int(health["subscription_idle_responses"])
                 evidence.record(
                     "partition_requested", old_leader=old, idle_before=idle_before
                 )
@@ -121,7 +116,7 @@ async def run(arguments: argparse.Namespace) -> None:
                     )
                 evidence.record(
                     "partition_verified",
-                    old_idle_responses=old_health["subscription_idle_responses"],
+                    old_idle_responses=old_health["frames_idle"],
                     old_role_after_verification=old_health["role"],
                     counts=dict(writers.counts),
                 )

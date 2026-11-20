@@ -34,9 +34,9 @@ A native macOS 60-second development run with 16 producers and 1,000 records rec
 
 ## Managed failover checks
 
-CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, polling failover, relay fanout and terminal trust rejection. Each managed cohort uses an independent C++ SDK reader to compare every expected integer against the durable local generation. Unavailable cases also compare the selected-generation record before and after the outage. Cohorts stop before the publisher connection-drain assertion.
+CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, relay fanout and terminal trust rejection. Agents follow each producer's namespace on W5/W6 sessions, from the voters or from two relays mirroring them. The cohort waits until every agent's table entry for each namespace reaches the writers' last revision there; an independent C++ SDK reader then opens each namespace's entry by name and compares every expected integer. Unavailable cases also compare the selected table before and after the outage. Cohorts stop before the publisher connection-drain assertion.
 
-The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, invalid Next profile, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
+The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, malformed Next frames, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
 
 ## Flake forcings
 

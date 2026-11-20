@@ -58,7 +58,7 @@ if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET 
 endif()
 
 if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
-  foreach(mode IN ITEMS partition all-down no-quorum poll trust)
+  foreach(mode IN ITEMS partition all-down no-quorum trust)
     add_test(NAME test_system_managed_${mode}
       COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_case.sh ${mode}
         ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
