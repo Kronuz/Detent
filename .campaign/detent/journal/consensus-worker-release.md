@@ -1,6 +1,6 @@
 # consensus-worker-release: journal
 
-State: waiting on jobs 261119-142246-121550 261119-142320-5cb4f1 261119-142322-16421c 261119-142324-be3da9 261119-142326-5f385a 261119-142330-95163b 261119-142332-eb61d7 261119-142333-05802c 261119-142336-bc2e25 261119-142337-e17ff4 261119-142339-ecefd0 261119-142342-9c0442 261119-142344-c6f533 261119-142346-b97e3c 261119-142349-842507 261119-142351-017c12 261119-142353-d367e9
+State: waiting on jobs 261119-170644-cac82f 261119-170646-a56176 261119-170647-c66dad 261119-170649-5a5b1e 261119-170650-eb7f80 261119-170651-ca2fc5
 Quest: .campaign/detent/quests/consensus-worker-release.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 (durability review CHANGES at consensus:4fe7df2): F1 and F2 fixed at consensus:e74fccf
-(pushed; CI runs on the branch). Local at e74fccf: driver_close_test default cases 152 checks, 0
-failures; failed_close passes, and fails 4 checks with the refusal removed.
+Round 2 at consensus:5de6c78 (pushed, CI running): CI 44627924741 at e74fccf failed
+linux-asan-ubsan, a LeakSanitizer indirect leak in consensus_driver_close_crash. Fixed in the
+Driver (ruling 10). Round-1 jobs at e74fccf: all passed; the ten that exited 1 are
+--fails-without runs (at-main/at-4fe7df2 headers and mutants), where 1 is the pass.
 
 ## Next
 
-1. When the jobs land: paste `campaign brief`'s table; check CI at e74fccf.
-2. Ask the lead to accept durability: F2=261119-142246-121550 (suite at e74fccf, which runs
-   failed_close), F1 = the resubmitted tagged jobs.
+1. When the jobs land: paste `campaign brief`'s table; check CI linux-asan-ubsan at 5de6c78.
+2. Ask the lead to accept durability: F2=261119-170651-ca2fc5 (suite at 5de6c78).
 
 ## Blocked on
 
@@ -31,12 +31,12 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-142320-5cb4f1 reopen_rows; 261119-142322-16421c failed_close (F2); fails at main's headers 261119-142324-be3da9; failed_close fails at 4fe7df2's headers 261119-142326-5f385a; mutants 142330-95163b (no table close), 142332-eb61d7 (no settle), 142333-05802c (watch), 142336-bc2e25 (reopen allowed, F2), 142337-e17ff4 (failed close not fenced, F3) |
-| A2 | after 261119-142339-ecefd0; before (main's headers) 261119-142342-9c0442; mutant 142344-c6f533 |
-| A3 | 261119-142346-b97e3c (200 seeds) |
-| A5 | 261119-142349-842507; mutant 142351-017c12 |
-| A6 | gate suite 261119-142246-121550 (50 min) at e74fccf |
-| A4 | TSan 261119-142353-d367e9 (close, driver, shared, worker, wave, blocking tests); CI at e74fccf running |
+| A1 | at e74fccf: 261119-142320-5cb4f1, 142322-16421c; fails without: 142324-be3da9, 142326-5f385a, 142330-95163b, 142332-eb61d7, 142333-05802c, 142336-bc2e25, 142337-e17ff4. At 5de6c78: failed_close 170644-cac82f, mutant 170646-a56176 |
+| A2 | at e74fccf: 261119-142339-ecefd0; fails without: 142342-9c0442, 142344-c6f533, 142330-95163b, 142332-eb61d7 |
+| A3 | at e74fccf: 261119-142346-b97e3c. At 5de6c78: 170647-c66dad (200 seeds); loop-throw mutant 170649-5a5b1e |
+| A5 | at e74fccf: 261119-142349-842507; fails without: 142351-017c12 |
+| A6 | suite at e74fccf 261119-142246-121550; at 5de6c78 261119-170651-ca2fc5 |
+| A4 | TSan at e74fccf 261119-142353-d367e9; ASan+UBSan close tests at 5de6c78 170650-eb7f80 (no LSan on macOS); CI linux-asan-ubsan at 5de6c78 running |
 
 Review findings: F1 (malformed jobs: `'--quest ...'` as one token, zsh does not split an unquoted
 variable) resubmitted from a POSIX sh script, ~/.scratch/detent/consensus-worker-release/submit.sh;
@@ -101,3 +101,10 @@ consensus:4fe7df2 (local numbers; jobs pending).
 9. The refusal is at create/recover (the calls that open the group's storage), not at the plain
    `open`, so the row can still be opened and closed and the error reaches the caller as a call
    result, as every other Driver error does.
+10. The CI leak (66 checkpoint call frames) is the crash model meeting a Driver gap. close_crash's
+    cut throws PowerLoss, which is not a std::exception: it passes step()'s catch (probe: all 66
+    escapes from step on an open, not closing, group; none from close or host settle) and ends
+    Driver::run. The loop then left its callers suspended forever. A Driver defect, not a test
+    one: DRIVER.md promises every call completes. loop() now runs shutdown() on a throw, then
+    rethrows. close_crash checks every call it started completes; without the catch it fails at
+    seed 1 cut 53 (local), mutant job 170649-5a5b1e.
