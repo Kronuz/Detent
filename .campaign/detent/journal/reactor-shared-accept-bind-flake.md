@@ -1,6 +1,6 @@
 # reactor-shared-accept-bind-flake: journal
 
-State: waiting on jobs 261120-032337-0144b3 261120-032338-5d9280 261120-032344-c78468 (all queued behind an exclusive hold)
+State: waiting on jobs 261120-034310-06eb15 261120-034311-85033d 261120-034312-934506 (fix under the churner, 80+82+84 runs, A2)
 Quest: .campaign/detent/quests/reactor-shared-accept-bind-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,9 +25,8 @@ a DYLD interposer printing the failing bind's port, errno and netstat/lsof state
 
 ## Next
 
-1. Read mutant job 261120-032337-0144b3 (base commit, expected to fail with BIND FAILED output): A1 and A2 mutant.
-2. Read 261120-032338-5d9280 (fix, 200 runs, expected 0 failures): A2. If the mutant does not fail, raise the sweeper ring (arg of sweep) or iterations.
-3. Suite 261120-032344-c78468 (A3); CI on the pushed branch (A3).
+1. Read the three fix jobs (expect 0 failures each, 246 runs total, same churner as the mutant); A2.
+2. Set State to ready for review when green.
 
 ## Blocked on
 
@@ -41,7 +40,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261120-032337-0144b3: old test (base 6cd8f73) under the port churner fails: `BIND FAILED: 0.0.0.0:63280 errno=48`, 80 runs; cause is the free_port reserve/release window |
+| A2 | mutant 261120-032337-0144b3 (fails without); fix runs 261120-034310-06eb15, 261120-034311-85033d, 261120-034312-934506 (5d9280 timed out, invalid) |
+| A3 | suite 261120-032344-c78468 passed; CI run 44727258672 success on reactor:c8930ed |
 
 ## Result
 
