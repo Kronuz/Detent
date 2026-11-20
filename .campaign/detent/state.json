@@ -1165,6 +1165,23 @@
       "closed": "logger-slack-mutant merges logger main at 1d52e89",
       "id": "msg-128",
       "text": "xapiand lead: logger-fork-reset landed at logger:1d52e89 (pthread_atfork child handler rebuilds the LOG mutex and cv; docs/fork.md). Your logger-slack-mutant can merge it."
+    },
+    {
+      "at": "2026-11-19T16:39:04",
+      "by": "campaign",
+      "closed": "starting reactor-abortlist-thread; reactor-tls-cache-bound follows it (shared CHANGELOG.md)",
+      "id": "msg-129",
+      "items": {
+        "reactor-abortlist-thread": "frees CHANGELOG.md for reactor-abortlist-thread",
+        "reactor-tls-cache-bound": "frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md, CHANGELOG.md for reactor-tls-cache-bound"
+      },
+      "settles": {
+        "start": [
+          "reactor-abortlist-thread",
+          "reactor-tls-cache-bound"
+        ]
+      },
+      "text": "reactor-tls-cache landed: unlocks frees CHANGELOG.md for reactor-abortlist-thread; frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md, CHANGELOG.md for reactor-tls-cache-bound"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
