@@ -32,6 +32,10 @@ struct SessionRequest {
 	// namespace too, with the client's directory cursor.
 	std::span<const NamespacePosition> positions;
 	std::optional<distribution::DirectoryCursor> all;
+	// Dense distribution DD3, open only: `"pages":true` lets a full copy come as a page transfer;
+	// `"records"` names, strictly increasing, are answered with records regardless.
+	bool pages = false;
+	std::span<const std::string_view> records;
 };
 // The admitted parser arena owns every returned view until worker retirement.
 class ParsedSessionRequest final : public distribution::RetirementNode {

@@ -111,14 +111,19 @@ struct ParsedSessionRequest::Impl {
 					limits.namespaces <= 4096 && limits.maximum_wait_ms <= 60000,
 				"invalid session parser admission");
 	}
-	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?};
+	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?, pages?, records?};
 	// next {version, session, cluster?, namespaces, all?, wait_ms?}; close {version, session}.
 	// A namespace is [name] or [name, incarnation, position].
 	void parse_positions() {
 		switch (result.kind) {
 		case RequestKind::Open:
-			fields(document, {"version", "profile", "coding", "cluster", "namespaces", "all", "wait_ms"});
+			fields(document,
+				   {"version", "profile", "coding", "cluster", "namespaces", "all", "wait_ms", "pages", "records"});
 			require(number(field(document, "profile")) == 1, "unsupported session profile");
+			if (document.HasMember("pages")) {
+				require(field(document, "pages").IsTrue(), "session pages is true or absent");
+				result.pages = true;
+			}
 			{
 				auto coding = text(field(document, "coding"), 4);
 				require(coding == "raw" || coding == "zstd", "unsupported session coding");
@@ -164,6 +169,20 @@ struct ParsedSessionRequest::Impl {
 		}
 		result.positions = {positions, size};
 		require(size || result.all, "a session follows at least one namespace or all");
+		if (document.HasMember("records")) {
+			const auto &listed = field(document, "records");
+			require(listed.IsArray() && listed.Size() && listed.Size() <= limits.namespaces, "session records bound");
+			auto records = static_cast<std::string_view *>(arena.allocate(listed.Size() * sizeof(std::string_view)));
+			std::size_t count = 0;
+			for (const auto &value : listed.GetArray()) {
+				auto name = text(value, 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+							(!count || records[count - 1] < name),
+						"session records are not valid names in order");
+				std::construct_at(records + count++, name);
+			}
+			result.records = {records, count};
+		}
 	}
 	void parse(std::string_view bytes) {
 		require(!parsed && !retiring, "session parser already consumed");
