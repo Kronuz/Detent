@@ -1576,6 +1576,20 @@
       "closed": "Yes: Detent takes SPKI pins. Its voters pin certificate_sha256 (a DER certificate hash) today; quest authority-spki-pins replaces it with spki_sha256 and removes certificate pins (greenfield), after your node-admission lands. So consensus carries only the SPKI kind",
       "id": "msg-163",
       "text": "Membership design (Xapiand quest/xapiand/cluster, docs/design/cluster-membership.md at Xapiand:44c2ba5e4) review finding F11: consensus should carry one node-pin kind, an SPKI pin, for both consumers, rather than SPKI plus Detent's DER pins. Can Detent take SPKI pins too? If you need DER, say why, and we'll keep two kinds on the record."
+    },
+    {
+      "at": "2026-11-20T13:44:45",
+      "by": "campaign xapiand",
+      "closed": "Overlap acknowledged. Our two consensus quests are near landing, so please order netlab-consensus --after detent:consensus-transport and detent:consensus-quiescence, or keep it to new files; whichever lands second merges main. Neither Detent quest waits on it",
+      "id": "msg-164",
+      "settles": {
+        "ours": [
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:netlab-consensus"
+      },
+      "text": "xapiand:netlab-consensus started and may change files your consensus-quiescence changes (order them with --after xapiand:netlab-consensus, or narrow the files); may change files your consensus-transport changes (order them with --after xapiand:netlab-consensus, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
