@@ -5,27 +5,22 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus `driver.h:1011` builds its journal `Hold` with no loop, so its blocking entry stays deaf to a cross-thread `wake()` (journal-blocking-wake review N1). It passes its scheduler, as journal's `blocking.h` does after journal-blocking-wake, and a wake from another thread ends the entry's sleep at once.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A cross-thread wake ends the driver's blocking sleep within 50 ms; the test fails without the fix (--fails-without): jobs.
+- A2 TSan passes the driver's threaded cases, and the suite and CI pass: jobs.
+- A3 [decision] Whether journal makes `Hold`'s loop required, so no caller can build a deaf one, is recorded in PLAN.md.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes journal `Hold(…, scheduler_ref)` from journal-blocking-wake.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Open: make the loop required in journal (the lead, A3).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+The test alone.
