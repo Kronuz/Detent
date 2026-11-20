@@ -30,7 +30,8 @@ Review-fix round (owner priority):
   mutant is tests/detent_local/mutants/f7-d5-packing-unchecked.patch.
 - F2, F4: fork (relay window from DD2's canonical copy; 5M strict before/after).
 - F11: libFuzzer build fails in compressors-src with brew LLVM (libc++ header order); in progress.
-- F8-F10: not started.
+- F9: not changed (ruling). F10: Blocked on (owner's call). F8: after the fork merges (its
+  relay answer path is being rewritten there).
 
 Integration round:
 1. Off-thread builds (Detent:251c6cc4): MirrorService runs builds on a builder thread; the mirror
@@ -140,6 +141,15 @@ builders taking a W1 target is all this branch needs from it. DiskStore's multi-
 
 ## Blocked on
 
+- F10 (owner's call, review nit): a repaired or D136-failed entry refills from the relay's newest
+  build, which may sit below the position the agent had published; a repair over the base is
+  refused until a build at or above it lands, and a failed (unselected) entry publishes the older
+  position for a while. Options:
+  1. Accept: the position moves back only for a failed entry, and the next frames bring it to the
+     head; nothing is lost (recommended: no wire change, converges within one relay build).
+  2. The repair request names the agent's last published position and the relay answers it only
+     from a build at or above it (waits otherwise): no step back, a new request field and a wait.
+
 Nothing. (Resolved by D136, kept for the record:) Lead ruling, relays and sealed history (the cause of test_system_managed_relay[_ipv6] failing
 under load: 2 of 5 under `-j4`, 0 of 3 alone). The leader now enables positions as it leads, so
 seal 0 is cut before the harness seeds; seals fire only every 2048 transactions (or 1/8 of the
@@ -168,6 +178,10 @@ removal of test_local_view, which no longer exists.
 
 ## Rulings I made
 
+- (F9) damaged() stays broad: recovery reports damage as plain runtime_error, system_error (a
+  missing or short file) and GenerationUnavailable alike, so narrowing it can leave a damaged entry
+  failing forever (the stuck state F1 forbids), while a transient error misread as damage costs one
+  full copy.
 - (F1) An empty TransferTarget::name_space binds none: DD1's model corpora hold many namespaces in
   one tree. Every coordinator path names its namespace.
 - (F1) A delta that fails to build against the namespace's base (invalid_argument) asks a full copy
