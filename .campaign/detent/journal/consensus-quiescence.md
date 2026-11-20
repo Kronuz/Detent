@@ -1,23 +1,27 @@
 # consensus-quiescence: journal
 
-State: A1, A3 met; A6 done at consensus:95eed40 + ebd8632 (doc); A2 Core rest in progress (uncommitted)
+State: A1, A2, A3, A5, A6 done; A4 waiting on strict jobs 261120-111949-10693b (rest, 1M),
+261120-111953-68e61c (heartbeat baseline, 1M); then the results doc and a final rerun at HEAD
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
 
-A2 Core: Timing::quiesce; leader rests when every replica acked the log and commit (Peer::told),
-follower rests on an append whose commit covers its log; Wake, LeaderGone{node} in types.h;
-Driver::wake(id), Driver::leader_gone(node) via a per-row notices queue (PeerLimits, Wake,
-LeaderGone); simulation: half the seeds quiesce with a node-pair detector oracle; quiescence
-cases (at_rest, leader_gone, restarts); driver_test leader_gone. Debugging: leader never rests.
+A4 at 1M groups (driver_close_test idle_cpu, consensus:8611768); docs/perf/quiescence-idle-cpu.md
+once the jobs land.
 
 ## Next
 
-1. A2 transport: merge quest/detent/consensus-transport, HostTransport::on_node_gone(loop, fn)
-   on a Control link's end, wired to Driver::leader_gone in groups_test; e2e case: leader node
-   stops, every group it led elects within its timeout; mutant leader_gone skipping one group.
-2. A4: idle CPU per group at 1M groups (quiesce vs per-group heartbeats), strict job, doc.
-3. Crash at every step of close and reopen through the Driver (A5's last test).
+1. A4 results doc; rerun the evidence jobs at the final HEAD (suite, TSan, mutants, A6 pair).
+2. "ready for review" once suite and CI are green at HEAD.
+
+## Messages
+
+- Coordinator (consensus:50f0a48 interface, deadline mutants): merged consensus-transport at
+  consensus:7cdcc0e (open_of required, store(group, incarnation); groups_test already on it).
+  test/transport/mutant_commit.py no-extension, uncapped, twice now match deadline.h's
+  late_extension(): killed at their mutants, jobs 261120-105254-0b5e84, 261120-105255-26b670,
+  261120-105257-405bde (deadline_test asserts). (The mutants live in mutant_commit.py, not
+  tools/mutants.sh.)
 
 ## Blocked on
 
@@ -28,11 +32,11 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | Core: consensus:b4314e4, simulation_test `closing` cases (lone voter 2 barriers vs 5 without the record; three voters no election; stale record elects; bytes). Driver: consensus:b8de3b8, driver_close_test `reopen_barriers` (a request issued with the reopening recover: 2 turn barriers = an open group's; without the record 5; damaged bytes Corruption), job 261120-095401-ec64ca; mutant without the admission fix (journal refuses the batch) 261120-095359-890b19 --fails-without; suite 261120-095339-49e5f9 |
-| A2 | <no evidence yet> |
-| A3 | TSan job 261120-095452-8e93e6 at b8de3b8: simulation 300 seeds x 10,000 steps (31,198 closes at rest, 16,401 resumed terms, 315 stale refusals) and the Driver simulation, oracles clean; reopen_barriers. To rerun once quiescent seeds land |
-| A4 | <no evidence yet> |
-| A5 | `docs/mechanisms/quiescence.md` (consensus:4c0ad67, revised in b4314e4): RFTCLOS1 bytes, refusals, close and reopen rules; tests in simulation_test `record_bytes`, `lone_voter`, `three_voters` |
-| A6 | docs/perf/idle-bytes.md (consensus:ebd8632): idle row 5,703 B (before 6,807 B; Xapiand 6,984 B), jobs 261120-101900-6202e7 (after), 261120-101850-c631af (before probe 7c14f40), owners 261120-101825-a635c0 |
+| A2 | Core and Driver consensus:1e40220, detector consensus:d291fac. simulation_test: 300 seeds x 10,000 steps, 150 quiescent under a node-pair detector oracle (14,768 LeaderGone, 20,375 node-steps at rest), quiescence cases (rest, LeaderGone at one or both followers, restarts); driver_test leader_gone (8 groups); groups_test driver quiescent part: both groups led from one node rest 3 s, node stops, both elect 1.6 s later. Suite 261120-110212-6dc33a (d291fac). Mutants --fails-without: leader-gone-skips-one 261120-105231-8e1e83 (7 of 8), leader-gone-ignored 261120-105233-efd55f, node-gone-unreported 261120-110213-1b3000 (no election in 10 s) |
+| A3 | TSan 261120-105234-101b27 at 1e40220: simulation 300 seeds x 10,000 steps (150 quiescent), reopen_barriers, leader_gone, oracles clean. Rerun at final HEAD |
+| A4 | driver_close_test idle_cpu (consensus:8611768); strict jobs 261120-111949-10693b (rest), 261120-111953-68e61c (heartbeat); local 100k: rest 0 wakes/s, 0 timers; heartbeat 1,000 wakes/s, 146 us CPU per group per s |
+| A5 | `docs/mechanisms/quiescence.md` (consensus:4c0ad67, b4314e4): RFTCLOS1 bytes, refusals, close and reopen rules; simulation_test `record_bytes`, `lone_voter`, `three_voters`; crash sweep driver_close_test close_crash (consensus:f6a4288): 8 seeds, 926 power cuts, reopens with the closed state resume the term in the live host; after a cut 162 resumed, 462 stale, never a term back; job at final HEAD pending |
+| A6 | docs/perf/idle-bytes.md (consensus:ebd8632, 8611768): lone voter idle row 5,703 B (before 6,807 B; Xapiand 6,984 B), jobs 261120-101900-6202e7, 261120-101850-c631af (probe 7c14f40), owners 261120-101825-a635c0; three-voter leader flights deque to vector, 8.4 KB less per leader: 261120-111929-1f3e62 (probe 03e3b99, 2,143 MB at 100k) vs 261120-111932-71ec5b (1,306 MB) |
 
 ## Result
 
@@ -73,5 +77,20 @@ Nothing.
 - R11 A2: quiescence is opt-in (Timing::quiesce): a host without a detector keeps its timers.
   A follower at rest holds its leader current (refuses pre-votes) except to that leader itself;
   a leader at rest wakes on any frame, so a restarted member's pre-vote wakes it.
+- R12 A2: a removed or stepping-down leader sends nothing, so (1) a follower never rests under a
+  committed membership where its leader is leaving or not voting, and (2) a follower at rest
+  wakes on another member's (pre-)vote (still refusing it) and re-acknowledges its durable log to
+  its leader (an AppendResponse with a fresh token), which wakes a leader that still leads; a
+  leader that no longer leads ignores it and the follower elects at its timeout. Found by seeds
+  2 and 110 (healed group without a leader). A woken leader rests again only after every replica
+  acknowledges a fresh round (told reset).
+- R13 A2 detector: the Control connection's end is the node-pair report (HostTransport::
+  on_node_gone, every loop); no new keepalive. A transient reconnect costs a pre-vote round.
+  The groups_test case runs inside `driver` (CMakeLists is outside the file set).
+- R14 A4: measured on the manual clock (1 ms steps), leader side with the peers' answers
+  synthesized; the peers' own Driver cost is not counted. Setup uses 256 MiB turn-log segments:
+  journal's TurnLog::forward_slice scans every live group per turn once past retain_segments,
+  quadratic setup at 20k groups with 16 KiB segments (journal's, reported, not fixed here).
+- R15 A6: Peer::flights deque to vector (libc++ deque keeps a 4 KiB block per idle peer).
 - R6 Term record: the first storage batch after a reopen carries the hard state (Core::persist),
   so the reopen adds no barrier. Mutant without it fails `lone_voter` (local).
