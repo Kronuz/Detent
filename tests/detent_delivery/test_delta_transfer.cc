@@ -206,7 +206,7 @@ static void scenarios(const std::string &corpus_path, const std::string &dir, st
 	const Built base(rows, 'b');
 	std::cout << "spec, pages, pages raw, records raw, raw ratio, pages sent, records sent, sent ratio, choice\n";
 	for (const std::string spec : specs) {
-		const auto after = apply(*rows, dir + "/" + spec + ".patch");
+		const auto after = patched(*rows, dir + "/" + spec + ".patch");
 		const Built target(after, 't');
 		const auto diff = r::merkle_diff(target.root(), target.pages(), base.root(), base.pages(), target.limits());
 		const auto pages = x::make_transfer(diff.pages, target.pages(), target.limits());

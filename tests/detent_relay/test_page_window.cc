@@ -67,7 +67,7 @@ static void hermetic() {
 	std::vector<std::unique_ptr<Built>> generations;
 	generations.push_back(std::make_unique<Built>(rows, 'b'));
 	for (std::size_t i = 1; i <= 4; ++i)
-		generations.push_back(std::make_unique<Built>(changed(*rows, 100 * i, 37, 200 * i), char('0' + i)));
+		generations.push_back(std::make_unique<Built>(changed(*rows, 100 * i, 37, 10 * i), char('0' + i)));
 	r::PageWindow window(3);
 	auto held = [&](std::size_t i) {
 		const auto &g = *generations[i];
@@ -123,7 +123,7 @@ static void scenarios(const std::string &corpus_path, const std::string &dir, st
 	for (const std::string arg : specs) {
 		started = std::chrono::steady_clock::now();
 		const auto spec = arg.substr(0, arg.find('='));
-		const Built target(apply(*rows, dir + "/" + spec + ".patch"), 't');
+		const Built target(patched(*rows, dir + "/" + spec + ".patch"), 't');
 		const auto built = seconds(started);
 		started = std::chrono::steady_clock::now();
 		const auto diff = r::merkle_diff(target.root(), target.pages(), base.root(), base.pages(), target.limits());
