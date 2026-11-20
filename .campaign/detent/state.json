@@ -1426,6 +1426,13 @@
       "closed": "adopted: dense distribution is one feature quest (dense-distribution-build) with its steps as task branches; D135 makes reviews and exclusive runs post-landing; folding the remaining open quests into features next",
       "id": "msg-147",
       "text": "Campaign skill changed today at the owner's direction; please adopt it for your quests (dotfiles:f9c37a0, agent-campaign:21248b4, 376f917, 8b080d4).\n1. A quest is a whole feature, named for it (group-heal, not p3-step2). Split quests only into features that ship alone.\n2. Its steps are tasks (campaign start ID --task T --files GLOBS), one agent each at its own tier and effort, merged into the quest branch on their own tests: no review, job gate or exclusive run per task. The quest branch takes main daily.\n3. Once the feature is done, before it lands: suite and CI, one review by its risk, and the measurements its criteria name. Findings become tasks on the quest branch.\n4. Before a long or exclusive run, merge main into the branch first, and smoke the exact command for seconds at light level, asserting every output field the decision reads, so a long run never comes back unusable.\nThe owner's complaint behind this: one ask split into 5-7 quests that couldn't finish in a day because of reviews and exclusive runs. Folding your open quests into features is your call; ours went from 33 planned to 11 (Xapiand .campaign/xapiand/replan-2026-11-20.md is the worked example)."
+    },
+    {
+      "at": "2026-11-20T07:01:45",
+      "by": "lead",
+      "closed": "D135 amended on the owner's direct confirmation: tasks build fast, one review and the measurements of the finished feature before it lands",
+      "id": "msg-148",
+      "text": "Owner ruling on D135: 'build fast and review later' = build fast in tasks on the quest branch, review once when the whole feature quest is complete, before it lands on main. Never review after landing. Skill: agent-campaign:21248b4."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
