@@ -165,6 +165,7 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 			::posix_fadvise(file_, static_cast<off_t>(offset_), static_cast<off_t>(count), POSIX_FADV_DONTNEED);
 #endif
 			hash_.add(buffer_.data(), count);
+			paged::count_hash(paged::HashKind::Pack, 0, count);
 			offset_ += count;
 			credit_ -= double(count);
 			done += count;
@@ -174,6 +175,7 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 			continue;
 		unsigned char digest[32];
 		hash_.getHash(digest);
+		paged::count_hash(paged::HashKind::Pack, 1, 0);
 		if (std::memcmp(digest, pack.ownership.checksum.data(), 32) != 0)
 			damaged();
 		else
