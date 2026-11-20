@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: working (transport-admission N9); A5 jobs 261120-145542-e0e075 -145546-4eda6b -145554-7f0524, hop A/B -144831-38a455 queued
+State: waiting on jobs 261120-144831-38a455 261120-150427-2132c5 261120-150436-28bd0c 261120-150439-44833e and CI at consensus:6462c1e
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,34 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
+- N9 (A1): `Links::admit` never lets an address no route names evict a pending handshake from a
+  peer's address (literal, or a name's cached answer); an unknown newcomer to a pool full of peers'
+  is refused. links_test `churn` (node 1 at ::1, flood from 127.0.0.1 with its per-source cap
+  lifted): the pending ::1 handshake outlives 16 arrivals; dials link under ~5,600 connects/s.
+  Mutant no-peer-priority killed: 261120-145942-200902 (exit 134, "the pending one from ::1 EVICTED").
+- N10, N11, N12: written in docs/mechanisms/host-connection.md, Before authentication (rate = pool
+  size per handshake time, WAN tens/s; IPv6 /64 leaves the pool as the only bound; hello phase
+  only for authenticated nodes, each within `handshake`). Kept, not changed: N11's /64 keying and
+  N12's per-node hello count are the review's optional options.
+- N13: fd_reuse_reader asserts 1 handler call; mutant deliver-after-end 261120-150436-28bd0c.
+- N14 (A3): connection_test `dead_extends` stalls only the dialer's loop (rehomed to its own
+  thread) 1 s against its 300 ms dead_after; open after. Mutant dead-no-extend 261120-150439-44833e.
+- N5: links_test `resolver_outlives` (resolver gated until Links and its loop are gone); ASan job
+  261120-150427-2132c5 runs it with churn and N13/N14.
+- N6 dropped: `NodePins::authenticate` refuses a missing or unverified leaf, so the context's
+  policy bypasses nothing (the review's own "nothing is bypassed today"); asserting the context's
+  flags would reject callers' contexts for no gain. N7 dropped: two pin matchers until
+  worker-pump-removal deletes Peers (D106), the review's own disposition.
+
+groups-upload-stall-cause: no CI failure with a capture yet (macos-x86_64 passed groups_upload in
+run 44795129569); it waits for the lead's capture.
+
+A5 results: mutants killed for the stated reason (forget-is-violation "links 1 then 2";
+fetch-deadline-io-error "Input/output error"); 10 of 10 runs each (7f0524): fetch-alongside 16 of
+16 exact in ~2 s, commits slowest 428-445 ms against a quiet baseline of ~370 ms (6462c1e prints
+it). CI: three macOS x86_64 runs in a row still to collect, at the final head.
 
 Session 2 (2026-11-20 afternoon). Head consensus:50c79f2 (pushed). Merged consensus main 8801b99
 (e4f386c, clean). Linux CI red at 50f0a48 (run 44795129569: rpc_host_fetch SIGPIPE on asan-ubsan,
