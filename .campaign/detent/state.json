@@ -4314,7 +4314,9 @@
     },
     "dd2-canonical-copy": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "dd1-transfer-receiver"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4323,7 +4325,9 @@
           "name": "suite"
         }
       ],
-      "consumes": [],
+      "consumes": [
+        "paged-transfer"
+      ],
       "files": [
         "src/detent_local/paged_canonical_copy.hh",
         "src/detent_local/paged_canonical_copy.cc",
@@ -4334,15 +4338,13 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [
-        "dd1-transfer-receiver"
-      ],
+      "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Dense distribution DD2: seal-order relocation into the canonical copy",
-      "updated": "2026-11-20T04:29:11"
+      "updated": "2026-11-20T04:38:51"
     },
     "dd3-full-copy-pages": {
       "accepted": {},
