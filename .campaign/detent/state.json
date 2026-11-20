@@ -9412,20 +9412,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-double-damage",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T14:40:18",
+          "commit": "178030b38f5617337486407e6cc35d70881a0841",
+          "criteria": {
+            "A1": "261120-103836-0bd8e4; fails without: 261120-094322-5b34a1, 261120-103833-515d78",
+            "A2": "261120-103837-8062a8; fails without: 261120-094325-3140b2, 261120-103834-355174",
+            "A3": "261120-103839-e6f93e"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "178030b38f5617337486407e6cc35d70881a0841",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-103839-e6f93e",
+              "level": "light",
+              "seconds": 172.9,
+              "state": "done",
+              "what": "journal-double-damage check suite at 178030b38f56"
+            }
+          ],
+          "final": true,
+          "from": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+          "reason": "",
+          "tested": "178030b38f5617337486407e6cc35d70881a0841"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Recovery reports, never drops: a damaged block followed by a damaged header loses acknowledged records silently",
-      "updated": "2026-11-20T10:56:48",
-      "worktree": "../journal-wt/detent/journal-double-damage"
+      "updated": "2026-11-20T14:40:21",
+      "worktree": ""
     },
     "journal-driver": {
       "accepted": {
