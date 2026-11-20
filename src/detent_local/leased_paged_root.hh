@@ -83,6 +83,6 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 																 std::optional<distribution::Cursor>);
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
 																 std::optional<distribution::Cursor>,
-																 const RecoveredGeneration *);
+																 const RecoveredGeneration *, std::string_view);
 };
 } // namespace detent::local::detail

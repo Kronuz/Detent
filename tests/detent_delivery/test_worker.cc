@@ -94,10 +94,8 @@ void exercise(bool injected, bool settled = false) {
 	options.source.endpoint = {asio::ip::address_v4::loopback(), 8317};
 	options.source.hostname = "localhost";
 	options.source.token = "0123456789abcdef0123456789abcdef";
-	options.source.configured.cluster.fill('c');
-	options.source.configured.group.fill('g');
-	options.source.configured.restore_epoch.fill('e');
-	options.source.configured.scope.fill('s');
+	options.namespaces = {"app"};
+	options.cluster.fill('c');
 	options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
 	options.source.tls_context->set_verify_mode(asio::ssl::verify_peer);
 	auto coordinator = t::make_coordinator(options, store, driver, domain, worker);

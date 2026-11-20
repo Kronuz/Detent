@@ -1,5 +1,5 @@
 #include "../../src/detent_agent/managed_config.hh"
-#include "detent/scope.hh"
+#include "detent/identity.hh"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -40,8 +40,7 @@ int main(int argc, char **argv) {
 		const auto configuration = directory / "managed.json";
 		rapidjson::Document object;
 		object.Parse(R"({"cluster":"63636363636363636363636363636363",
-"group":"67676767676767676767676767676767","epoch":"65656565656565656565656565656565",
-"principal":"reader","namespaces":["z","app","app"],"token":"0123456789abcdef0123456789abcdef"})");
+"namespaces":["z","app","app"],"token":"0123456789abcdef0123456789abcdef"})");
 		auto ca = (std::filesystem::path(argv[1]) / "ca.pem").string();
 		object.AddMember("ca", rapidjson::Value(ca.data(), ca.size(), object.GetAllocator()),
 						 object.GetAllocator());
@@ -62,10 +61,8 @@ int main(int argc, char **argv) {
 													  detent::local::StoreOpenMode::ExistingManaged, false);
 		};
 		auto options = load();
-		check(options.coordinator.source.namespaces == std::vector<std::string>({"app", "z"}));
-		const std::array<std::string_view, 2> names{"app", "z"};
-		check(options.coordinator.source.configured.scope ==
-			  detent::distribution::canonical_scope_identity("reader", 1, names));
+		check(options.coordinator.namespaces == std::vector<std::string>({"app", "z"}) && !options.coordinator.all);
+		check(options.coordinator.cluster == detent::distribution::parse_identity_hex<16>("63636363636363636363636363636363"));
 		check(options.disk.mode == detent::local::StoreOpenMode::ExistingManaged &&
 			  options.disk.artifact_mode == 0600);
 		auto fresh = detent_agent::load_managed_options(configuration, directory / "state",
@@ -87,7 +84,7 @@ int main(int argc, char **argv) {
 		check(::stat(configuration.c_str(), &acl_file) == 0 && (acl_file.st_mode & 0777) == 0600);
 		rejected();
 		chmod_acl(configuration, "-N");
-		check(load().principal == "reader");
+		check(load().coordinator.namespaces.size() == 2);
 #endif
 		{
 			rapidjson::Document capacity;
@@ -185,16 +182,31 @@ int main(int argc, char **argv) {
 		object.RemoveMember("image_format");
 		object.RemoveMember("compaction_interval_ms");
 		write();
-		check(options.coordinator.delivery_mode == detent::delivery::DeliveryMode::Poll);
-		check(options.principal == "reader" && options.policy_epoch == 1 && !options.delivery_mode_explicit);
-		object.AddMember("delivery_mode", "subscription", object.GetAllocator());
+		// The v1 identity and poll fields are refused: W5 sessions carry per-namespace cursors.
+		for (const char *retired : {"group", "epoch", "principal", "policy_epoch", "delivery_mode", "poll_interval_ms",
+									"reset_from"}) {
+			object.AddMember(rapidjson::StringRef(retired), "x", object.GetAllocator());
+			write();
+			rejected();
+			object.RemoveMember(retired);
+		}
+		// Without `namespaces`, the agent follows every granted name; an empty list or a bad name is refused.
+		rapidjson::Value names(rapidjson::kArrayType);
+		names.CopyFrom(object["namespaces"], object.GetAllocator());
+		object.RemoveMember("namespaces");
 		write();
-		check(load().coordinator.delivery_mode == detent::delivery::DeliveryMode::Subscription);
-		check(load().delivery_mode_explicit);
-		object["delivery_mode"].SetString("unknown");
+		check(load().coordinator.all && load().coordinator.namespaces.empty());
+		object.AddMember("namespaces", rapidjson::Value(rapidjson::kArrayType), object.GetAllocator());
 		write();
 		rejected();
-		object.RemoveMember("delivery_mode");
+		object["namespaces"].PushBack("bad name", object.GetAllocator());
+		write();
+		rejected();
+		object["namespaces"] = names;
+		object.AddMember("retry_interval_ms", 50, object.GetAllocator());
+		write();
+		check(load().coordinator.retry_interval == std::chrono::milliseconds(50));
+		object.RemoveMember("retry_interval_ms");
 		write();
 		std::filesystem::permissions(configuration, std::filesystem::perms::others_read,
 									 std::filesystem::perm_options::add);
@@ -228,11 +240,8 @@ int main(int argc, char **argv) {
 		write();
 		check(load().disk.artifact_mode == 0640);
 		object.RemoveMember("artifact_mode");
-		object.AddMember("principal", "duplicate", object.GetAllocator());
-		write();
-		rejected();
 		std::filesystem::remove_all(directory);
-		std::cout << "private managed configuration, canonical scope and strict rejection passed\n";
+		std::cout << "private managed configuration, followed namespaces and strict rejection passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;
