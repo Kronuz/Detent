@@ -100,9 +100,9 @@ For many processes on one host, prefer one [agent](/Detent/guides/shell-and-agen
 per host over one poller per process.
 
 :::hint[Polling, not long-polling]{.info}
-File sources poll on a fixed interval. A managed agent can instead
-hold a long-poll subscription to the durable authority; see
-[Subscription Delivery](/Detent/guides/managed-delivery/#subscription-delivery).
+File sources poll on a fixed interval. A managed agent instead
+holds a W5 session to the authority or a relay; see
+[Session Delivery](/Detent/guides/managed-delivery/#session-delivery).
 :::
 
 ---
