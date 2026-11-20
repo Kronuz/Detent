@@ -1,6 +1,6 @@
 # relay-tls-drain-flake: journal
 
-State: waiting on jobs 261120-031721-a8d3ef 261120-031723-0c5b78 261120-031724-7d3e1c 261120-031733-0d3927 261120-031734-bed4b1
+State: waiting on jobs 261120-031721-a8d3ef 261120-031723-0c5b78 261120-031724-7d3e1c 261120-031733-0d3927 261120-031734-bed4b1 261120-031802-0c7ca0 (all queued behind an exclusive hold at 03:28), CI
 Quest: .campaign/detent/quests/relay-tls-drain-flake.md (the lead's; never edit it)
 
 ## Doing
