@@ -10073,6 +10073,8 @@
       "after": [
         "xapiand:turn-log-parity"
       ],
+      "base": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+      "branch": "quest/detent/journal-idle-groups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -10089,6 +10091,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-idle-groups",
       "landed": [],
       "lenses": [
         "correctness"
@@ -10100,9 +10103,10 @@
       ],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T08:14:07"
+      "updated": "2026-11-20T08:14:21",
+      "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-reopen-closed": {
       "accepted": {
