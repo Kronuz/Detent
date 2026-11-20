@@ -2146,7 +2146,8 @@
         "test/worker_test.cc",
         "docs/DRIVER.md",
         "test/wave_open_test.cc",
-        "test/transport/groups_test.cc"
+        "test/transport/groups_test.cc",
+        "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/consensus-batch-turn-room",
       "landed": [],
@@ -2158,7 +2159,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus worker: validate a batch against the host's turn room",
-      "updated": "2026-11-20T00:08:22",
+      "updated": "2026-11-20T04:10:39",
       "worktree": "../consensus-wt/detent/consensus-batch-turn-room"
     },
     "consensus-blocking-hold-loop": {
