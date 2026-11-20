@@ -30,7 +30,6 @@ evaluates locally; it doesn't send a request to the agent. With neither
 | `--system` | Attach to the system agent; never start one |
 | `--generation-dir PATH` | Read a managed agent's durable generation directory |
 | `--managed PRIVATE_CONFIG` | Managed credential file for a newly started managed agent |
-| `--generation-cluster`, `--generation-group`, `--generation-epoch`, `--generation-scope` | Expected managed identity; all four or none |
 
 ---
 

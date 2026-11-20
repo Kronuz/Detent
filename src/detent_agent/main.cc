@@ -56,7 +56,6 @@ detent_logging::Settings g_logging_settings;
 std::optional<std::string> g_runtime_dir;
 std::optional<std::string> g_managed_config;
 std::optional<std::string> g_generation_dir;
-std::optional<detent::distribution::NamespaceCursor> g_generation_identity;
 bool g_system = false;
 std::string g_executable;
 
@@ -130,7 +129,7 @@ int cmd_status(const std::vector<std::string> &args) {
 			const bool prepared = prepared_reader(args);
 			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
 			for (const auto &[name, descriptor] : detent::local::read_generation_selections(*g_generation_dir)) {
-				detent::local::GenerationReader reader(*g_generation_dir, capacity.limits(), g_generation_identity,
+				detent::local::GenerationReader reader(*g_generation_dir, capacity.limits(), std::nullopt,
 					prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt,
 					name);
 				reader.refresh();
@@ -160,11 +159,7 @@ void validate_get_args(const std::vector<std::string> &args) {
 										"--managed",
 										"--generation-dir",
 										"--publisher-user",
-										"--reader-validation",
-										"--generation-cluster",
-										"--generation-group",
-										"--generation-epoch",
-										"--generation-scope"};
+										"--reader-validation"};
 	for (std::size_t i = 1; i < args.size(); ++i) {
 		const auto &arg = args[i];
 		if (arg == "--system")
@@ -232,7 +227,6 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 	local.directory = *g_generation_dir;
 	local.limits = capacity.limits();
 	local.auto_refresh = false;
-	local.identity = g_generation_identity;
 	// The reader attaches to the knob's namespace entry (C3).
 	if (const auto colon = args[0].find(':'); colon != std::string::npos)
 		local.name_space = args[0].substr(0, colon);
@@ -341,8 +335,6 @@ const char *kUsage =
 	"JSON fields:\n"
 	"defaults_path, runtime_dir, managed_path, generation_dir, publisher_user.\n"
 	"managed_path and generation_dir select durable authority delivery.\n"
-	"--generation-cluster/--generation-group/--generation-epoch/--generation-scope\n"
-	"bind reader identity; supply all four as lowercase hexadecimal values.\n"
 	"Paths in config are relative to the config file. defaults.json beside agent.json\n"
 	"is discovered automatically by detent get.\n"
 	"Flags override environment variables, which override config settings.\n"
@@ -393,9 +385,7 @@ int main(int argc, char** argv) {
 				continue;
 			if (detent_agent::is_reader_option(arg) || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
-				arg == "--publisher-user" || arg == "--reader-validation" ||
-				arg == "--generation-cluster" || arg == "--generation-group" || arg == "--generation-epoch" ||
-				arg == "--generation-scope") {
+				arg == "--publisher-user" || arg == "--reader-validation") {
 				if (++i == args.size() || args[i].starts_with('-')) throw std::runtime_error(arg + " requires a value");
 				continue;
 			}
@@ -407,29 +397,6 @@ int main(int argc, char** argv) {
 		g_generation_dir = setting(args, "--generation-dir", "DETENT_GENERATION_DIR");
 		if (g_managed_config && !g_generation_dir)
 			g_generation_dir = detent_cli::default_agent_state_dir(g_system).string();
-		std::array<std::optional<std::string>, 4> identity;
-		const std::array<const char *, 4> identity_flags{"--generation-cluster", "--generation-group",
-														 "--generation-epoch", "--generation-scope"};
-		for (std::size_t i = 0; i < identity.size(); ++i) {
-			identity[i] = arg_value(args, identity_flags[i]);
-			if (!identity[i]) {
-				if (auto it = g_config.find(identity_flags[i]); it != g_config.end())
-					identity[i] = it->second;
-			}
-		}
-		if (std::any_of(identity.begin(), identity.end(),
-						[](const auto &part) { return part.has_value(); })) {
-			if (!g_generation_dir || !std::all_of(identity.begin(), identity.end(),
-												  [](const auto &part) { return part.has_value(); }))
-				throw std::runtime_error(
-					"generation identity requires directory, cluster, group, epoch and scope");
-			detent::distribution::Cursor expected;
-			expected.cluster = detent::distribution::parse_identity_hex<16>(*identity[0]);
-			expected.group = detent::distribution::parse_identity_hex<16>(*identity[1]);
-			expected.restore_epoch = detent::distribution::parse_identity_hex<16>(*identity[2]);
-			expected.scope = detent::distribution::parse_identity_hex<32>(*identity[3]);
-			g_generation_identity = detent::distribution::namespace_cursor(expected);
-		}
 #ifndef DETENT_READER
 		if (has_flag(args, "--status")) {
 			if (has_flag(args, "--daemonize")) throw std::runtime_error("--status and --daemonize are mutually exclusive");

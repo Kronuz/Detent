@@ -74,7 +74,6 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 | `runtime_dir` | Runtime directory |
 | `managed_path` | Private managed credential file |
 | `generation_dir` | Managed generation directory |
-| `generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope` | Expected managed identity; all four or none |
 | `log_level`, `verbosity`, `color` | [Logging](/Detent/operations/logging/) |
 
 An explicitly configured defaults file must exist and be valid; an absent

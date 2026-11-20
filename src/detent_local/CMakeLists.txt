@@ -24,10 +24,6 @@ add_library(detent_local_builder paged_snapshot_plan.cc sparse_plan_finalizer.cc
 target_link_libraries(detent_local_builder PUBLIC detent::local_fullbuild)
 target_compile_features(detent_local_builder PUBLIC cxx_std_20)
 add_library(detent::local_builder ALIAS detent_local_builder)
-add_library(detent_local_export snapshot_source.cc paged_snapshot_source.cc)
-target_link_libraries(detent_local_export PUBLIC detent::local_view detent::distribution)
-target_include_directories(detent_local_export PUBLIC "${PROJECT_SOURCE_DIR}/src/detent_local")
-add_library(detent::local_export ALIAS detent_local_export)
 # Publication is enabled only with the reviewed standalone completion module.
 # Reader and codec consumers do not inherit this dependency.
 if(TARGET completion::completion)

@@ -111,11 +111,6 @@ target_include_directories(test_local_paged_cursor PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(test_local_paged_cursor PRIVATE detent::local_builder)
 add_test(NAME test_local_paged_cursor COMMAND test_local_paged_cursor)
 
-add_executable(test_local_paged_export test_paged_export.cc)
-target_include_directories(test_local_paged_export PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(test_local_paged_export PRIVATE detent::local_builder detent::local_export)
-add_test(NAME test_local_paged_export COMMAND test_local_paged_export)
-
 add_executable(test_local_paged_hash_once test_paged_hash_once.cc)
 target_include_directories(test_local_paged_hash_once PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_hash_once PRIVATE detent::local_builder)

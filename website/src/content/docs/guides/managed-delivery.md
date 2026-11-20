@@ -84,22 +84,7 @@ Reads work even while the agent is stopped: they read the selected durable
 generation. Readers only need the public generation directory; they never open
 the private credential file.
 
-To make sure shell reads are bound to the intended authority scope, set all
-four public identity fields in `agent.json`, or pass them as flags:
-
-```json title="agent.json"
-{
-  "managed_path": "managed.json",
-  "generation_dir": "agent-state",
-  "generation_cluster": "63636363636363636363636363636363",
-  "generation_group": "67676767676767676767676767676767",
-  "generation_epoch": "65656565656565656565656565656565",
-  "generation_scope": "<64 lowercase hex digits>"
-}
-```
-
-A partial identity is rejected. Distribute this public identity separately from
-the private token.
+A shell read attaches to its knob's namespace entry (`ns` for `ns:feature`).
 
 ---
 

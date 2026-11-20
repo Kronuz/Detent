@@ -221,7 +221,7 @@ Initialize an empty directory explicitly once. Missing directory components are 
 
 Later starts omit `--initialize-managed` and require an existing managed store. A start never silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
 
-A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). The SDK source accepts the corresponding expected cursor identity. Distribute this public identity separately from the private token.
+A public `agent.json` can select `managed_path` and `generation_dir`. A shell read attaches to its knob's namespace entry.
 
 `detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
 
