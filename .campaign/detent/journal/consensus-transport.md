@@ -9,8 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Head consensus:ceb1db9 (pushed). Steps 1-3 coded; step 4 (A1/A2 lane handover, hold/release,
-graceful close) next.
+Head consensus:895b3c6 (pushed). Steps 1-4 coded; next step 5 (A4/A5 fetch as lane method 1).
+
+Step 4, A1/A2, at consensus:895b3c6: `hold(node)`/`release(node)` (T3), lane_idle on a Bulk
+connection that carried no group frame (`RpcOptions::idle`, 60 s, D7), Drain then graceful close
+from the feed once the table drained (T8; `drain_deadline` 5 s aborts), calls on a drained lane
+wait for the next connection, `drain()`/`lanes_drained()` for shutdown. Local: rpc_host hold
+(closed 302 ms after release), idle-race (5 of 5 not_processed, 0 aborted, next call ok), shutdown
+(4 MiB echo ok, later call not_processed), reader (T5, slowest 0 ms) pass. Jobs: suite
+261120-102012-185754 (--for A1,A2; supersedes -100634-06fa3e); TSan -102043-e1cc69 (supersedes
+-100655-f3cd32); fails-without hold-ignored -102022-16b298, rpc-no-drain -102028-2bc70b,
+lane-via-other-loop -102035-9cd55a. T7 evidence: rpc_test late-deadline (in the suite).
 
 Step 3, transport-receive-bound, at consensus:1d24b8a: Lane::arriving per group; data past the
 window ends the connection (overrun), control past `arriving` (256) refused (flooded). Local:
@@ -39,6 +48,8 @@ Interface change (consensus-quiescence merges this branch): `HostTransportOption
 (`std::function<GroupOpen(GroupId)>`) is required beside `member_of`; `store(group, incarnation)`
 drops its open argument; new options `closes` (4096), `arriving` (256) and stats `owed`,
 `unanswered`, `overrun`, `flooded`. Frames on a link its lane replaced are refused in arrived().
+Step 4 adds `hold`, `release`, `linked`, `drain`, `lanes_drained`, `RpcOptions::idle` and
+`drain_deadline`, `LaneStats::drains`/`retired`, and `rpc::Lane::draining()`.
 
 ## Next
 
@@ -102,5 +113,12 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   find in pop, then one in settle), and a receive finds the opened group once.
 - R7 (identity N1) Past `closes` owed closed answers a refusal goes unanswered (`unanswered`); the
   record's credit is kept, and the peer's next frame is refused and answered again.
+- R8 (A1, D7) lane_idle closes only a Bulk connection that has carried no group frame either way
+  (`Lane::grouped`): one that carried a group stays until `stop()`, as Control does, so D108's
+  steady state (both lanes per peer) is unchanged.
+- R9 (A2, T8) Shutdown is `drain()` then `stop()`; `stop()` still aborts. A call made while the
+  loop drains ends `not_processed` (safe to retry elsewhere).
+- R10 (A2, T5) T5's mutant hands lane frames through another loop (`lane-via-other-loop`); the
+  `reader` case holds that loop and fails it.
 - R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
   charged, an empty request no longer skips the pool's FIFO.
