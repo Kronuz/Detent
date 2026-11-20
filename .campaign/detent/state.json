@@ -6796,18 +6796,45 @@
       "files": [
         "test/coroutine_test.cc"
       ],
-      "journal": "../Detent-wt/detent/http-affinity-death-tsan",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T17:15:56",
+          "commit": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc",
+          "criteria": {
+            "A1": "261119-155706-bbc5d5 (passed at 9b1ccdc272b6; only merges from main since)",
+            "A2": "261119-153143-556c30 (passed at 9b1ccdc272b6; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "9b1ccdc272b68d17e65f1e5f8ec24c52ef718e5b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-153146-efd6a1",
+              "level": "light",
+              "seconds": 197.5,
+              "state": "done",
+              "what": "http-affinity-death-tsan check suite at 9b1ccdc272b6"
+            }
+          ],
+          "final": true,
+          "from": "58d4188f78b769286005fc744485a54a22a4e243",
+          "reason": "",
+          "tested": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "http: fix coroutine_test's affinity death test race under TSan",
-      "updated": "2026-11-19T14:40:18",
-      "worktree": "../http-wt/detent/http-affinity-death-tsan"
+      "updated": "2026-11-19T17:15:59",
+      "worktree": ""
     },
     "http-client-adoption": {
       "accepted": {},
