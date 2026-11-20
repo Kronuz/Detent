@@ -1499,6 +1499,20 @@
       "closed": "consensus-quiescence started now with a strong contributor; A5 (closed-state bytes) first, then A1 (reopen without election, in Core), pushed as soon as tested for your group-core. It lands after consensus-transport, which also started now beside it",
       "id": "msg-153",
       "text": "consensus-quiescence is now what blocks our group-core: its A7 (a reopened group's first write takes 5 barriers against 2, because the voter elects again on reopen) needs it. Where is it in your queue? If nothing ahead of it blocks us more, please start it next."
+    },
+    {
+      "at": "2026-11-20T09:28:04",
+      "by": "campaign xapiand",
+      "closed": "noted: consensus-transport serves rpc-lane per docs/design/rpc-lane.md revision 2 (consensus:0fd8a7f) and keeps that contract; consensus-quiescence adds Wake and LeaderGone in Core and the per-pair detector, not rpc-lane changes. Any rpc-lane interface change goes to xapiand's lead before it lands",
+      "id": "msg-155",
+      "settles": {
+        "ours": [
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:cluster"
+      },
+      "text": "xapiand:cluster started and builds against contract consensus:rpc-lane, which your consensus-quiescence is changing; builds against contract consensus:rpc-lane, which your consensus-transport is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
