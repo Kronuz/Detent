@@ -9212,7 +9212,50 @@
       "worktree": ""
     },
     "journal-double-damage": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-20T10:46:05",
+          "base": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+          "blobs": {
+            "CHANGELOG.md": "100644:913ab16cefd0208580e96cb89bf558991dd2f97a",
+            "include/journal/turn_log.h": "100644:1bfbca5c8fc0b56ff40fdaa6aeebebbbd84f3e69",
+            "test/turn_log_power_test.cc": "100644:dc0b1da21dd11975de6d3f525423f0dae601cf73",
+            "test/turn_log_test.cc": "100644:42a488edf921f8edf10737ea8e7e65c3848ac447"
+          },
+          "by": "review",
+          "commit": "178030b38f5617337486407e6cc35d70881a0841",
+          "criteria": "2162a001c5052514",
+          "diffs": {
+            "CHANGELOG.md": "8ed82b1ba00383f0",
+            "include/journal/turn_log.h": "ac84b7b08440fce4",
+            "test/turn_log_power_test.cc": "b7ad9222d2fbeb78",
+            "test/turn_log_test.cc": "1c8a16f626545f1a"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "bash /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-journal-double-damage-durability/run.sh 8",
+                  "commit": "178030b38f5617337486407e6cc35d70881a0841",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-103840-a4ab03",
+                  "level": "light",
+                  "seconds": 24.8,
+                  "state": "done",
+                  "what": "review durability: crash + damage-pattern probe at fix at 178030b38f56"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "e799be204282770f4dce0292ad05c3a2fd8a736c",
+          "reviewed": "cca242714125a1edd5a94fed75d23c389a8e72e6",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
       "branch": "quest/detent/journal-double-damage",
@@ -9234,7 +9277,8 @@
       "journal": "../Detent-wt/detent/journal-double-damage",
       "landed": [],
       "lenses": [
-        "correctness"
+        "correctness",
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -9243,7 +9287,7 @@
       "risk": "high",
       "status": "review",
       "title": "Recovery reports, never drops: a damaged block followed by a damaged header loses acknowledged records silently",
-      "updated": "2026-11-20T09:55:17",
+      "updated": "2026-11-20T10:46:05",
       "worktree": "../journal-wt/detent/journal-double-damage"
     },
     "journal-driver": {
