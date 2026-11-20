@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261120-151658-9b66f3 261120-151648-8b372d 261120-151648-f83d74 261120-151648-3bafb4 261120-151649-90f30f 261120-151649-71c006 261120-151650-f76654 261120-151650-a7e706 261120-151650-11c8e1 261120-144831-38a455 and CI at consensus:bab6b4d
+State: waiting on jobs 261120-152645-fd04fb 261120-152645-b3af0b 261120-152645-dbdf2b 261120-152646-223e9f 261120-152646-9f3363 261120-152646-ed8449 261120-152647-2fd1e3 261120-152647-b2a548 261120-152647-e654bb 261120-144831-38a455 and CI at consensus:cdf5016 (3 macOS x86_64 runs in a row)
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -33,8 +33,14 @@ transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
   flags would reject callers' contexts for no gain. N7 dropped: two pin matchers until
   worker-pump-removal deletes Peers (D106), the review's own disposition.
 
-groups-upload-stall-cause: no CI failure with a capture yet (macos-x86_64 passed groups_upload in
-run 44795129569); it waits for the lead's capture.
+groups-upload-stall-cause: the capture hook is in place (groups-upload-loop-stall's spindump in
+groups_test upload; ci.yml's header names it). No CI failure has carried a capture (macos-x86_64
+passed groups_upload in run 44795129569). A1-A3 wait on a failure; the lead decides (lead's
+message, 2026-11-20).
+
+Lead's ruling on the timing label: option (b). consensus:cdf5016 labels rpc_host group-full,
+call-full, stream and reader `timing` (`ctest -LE timing` skips them); CI runs them, ci.yml is
+unchanged, and rpc-lane.md says so. The two A5 cases carry no label: CI runs them.
 
 A5 results: mutants killed for the stated reason (forget-is-violation "links 1 then 2";
 fetch-deadline-io-error "Input/output error"); 10 of 10 runs each (7f0524): fetch-alongside 16 of
@@ -129,7 +135,7 @@ Step 4 adds `hold`, `release`, `linked`, `drain`, `lanes_drained`, `RpcOptions::
 
 ## Next
 
-0. Session 2 head consensus:bab6b4d: read the reruns in State; collect three macOS x86_64 CI runs
+0. Session 2 head consensus:cdf5016: read the reruns in State; collect three macOS x86_64 CI runs
    in a row at the final head (A5; `gh run rerun` for the second and third); then "ready for
    review". groups-upload-stall-cause waits for a CI capture. The timing label is Blocked on.
 
@@ -151,14 +157,7 @@ quest/detent/consensus-transport). Local build: `.scratch/build` there (Ninja, R
 
 ## Blocked on
 
-- A5's `timing` label (D100): no `timing` label or CONSENSUS_TIMING_TESTS exists on consensus main
-  (it lived on the dropped consensus-fetch-macos branch, d322889), and cpp-libraries' cmake.yml
-  takes no ctest args, so keeping timing cases off CI needs `cmake_args: -DCONSENSUS_TIMING_TESTS=OFF`
-  in `.github/workflows/ci.yml`, outside this quest's file set, and it removes tests from the CI
-  gate. Options: (a) lead grants ci.yml and I label rpc_host group-full, call-full, stream, reader
-  (latency bounds) `timing` and configure them out on CI; (b) label them `timing` only (ctest -LE
-  timing skips them locally) and keep CI running them; (c) nothing is labeled until one fails on CI.
-  Recommend (b) now, (a) when one of them flakes on CI. The two A5 cases are not timing: CI runs them.
+Nothing. The timing label is decided (lead, option (b)): done at consensus:cdf5016.
 
 ## Evidence
 
