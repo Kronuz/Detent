@@ -1,9 +1,11 @@
 // The relay's pages tier at scale (dense distribution D7): memory and build time for a cold build,
 // head moves, and the page window they leave, through NamespaceRelay's public API over a scripted
 // upstream that serves real history files.
-//   detent_relay_window_bench DIR KEYS MOVE...   MOVE: s<N> N scattered keys, c<N> N clustered keys
-// Each move writes one seal and asks a cold pages reader, which builds the head; the relay builds
-// within the answer. Prints per step: build wall and CPU ms, live heap, resident and peak MB.
+//   detent_relay_window_bench DIR NAMESPACES KEYS MOVE...   KEYS per namespace (history files
+//   hold at most 500,000 changes); MOVE: s<N> N scattered keys, c<N> N clustered keys
+// A cold pages reader of every namespace builds them all; each move writes one seal to the first
+// namespace and asks a cold pages reader of it, which builds its head within the answer. Prints
+// per step: build wall and CPU ms, live heap, resident and peak MB.
 #include "detent_relay/namespace_relay.hh"
 #include "history_format.hh"
 #include <algorithm>
@@ -112,28 +114,37 @@ double cpu_ms() {
 } // namespace
 
 int main(int argc, char **argv) {
-	if (argc < 3) {
-		std::fprintf(stderr, "usage: detent_relay_window_bench DIR KEYS MOVE...\n");
+	if (argc < 4) {
+		std::fprintf(stderr, "usage: detent_relay_window_bench DIR NAMESPACES KEYS MOVE...\n");
 		return 2;
 	}
 	try {
 		const std::filesystem::path dir = argv[1];
-		const std::size_t keys = std::stoull(argv[2]);
+		const std::size_t spaces = std::stoull(argv[2]), keys = std::stoull(argv[3]);
 		std::filesystem::remove_all(dir);
 		std::filesystem::create_directories(dir);
 		::chmod(dir.c_str(), 0700);
 		Upstream up;
-		up.create("app", keys);
-		const std::vector<std::string> names{"app"};
+		std::vector<std::string> names;
+		for (std::size_t i = 0; i < spaces; ++i) {
+			char name[16];
+			std::snprintf(name, sizeof name, "app%03zu", i);
+			names.emplace_back(name);
+			up.create(names.back(), keys);
+		}
+		std::vector<r::Position> every;
+		for (const auto &name : names)
+			every.push_back({name, std::nullopt, true});
+		const std::vector<r::Position> first{every.front()};
 		r::NamespaceRelay relay(std::make_shared<c::PosixIO>(dir, 0644), cluster, up);
 		relay.sync(names);
-		std::printf("keys %zu; start: heap %.0f MB, resident %.0f MB, peak %.0f MB\n", keys, heap_mb(), resident_mb(),
+		std::printf("%zu namespaces of %zu keys; start: heap %.0f MB, resident %.0f MB, peak %.0f MB\n", spaces, keys, heap_mb(), resident_mb(),
 					peak_mb());
 		std::uint64_t sent = 0;
-		auto step = [&](const char *what) {
+		auto step = [&](const char *what, const std::vector<r::Position> &asked) {
 			const auto wall = std::chrono::steady_clock::now();
 			const auto cpu = cpu_ms();
-			const auto body = relay.frames(std::vector<r::Position>{{"app", std::nullopt, true}});
+			const auto body = relay.frames(asked);
 			const auto ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - wall).count();
 			sent = body.size();
 			std::printf("%-8s build %7.0f ms wall %7.0f ms cpu; heap %6.0f MB, resident %6.0f MB, peak %6.0f MB; "
@@ -142,8 +153,8 @@ int main(int argc, char **argv) {
 						static_cast<unsigned long long>(relay.pages().builds), static_cast<unsigned long long>(sent));
 			std::fflush(stdout);
 		};
-		step("cold");
-		for (int i = 3; i < argc; ++i) {
+		step("cold", every);
+		for (int i = 4; i < argc; ++i) {
 			const std::string move = argv[i];
 			const auto count = std::stoull(move.substr(1));
 			std::vector<std::size_t> changed;
@@ -155,9 +166,9 @@ int main(int argc, char **argv) {
 				for (std::size_t k = 0; k < count; ++k)
 					changed.push_back((k * (keys / count) + i) % keys);
 			std::sort(changed.begin(), changed.end());
-			up.write("app", changed, 1000 * i);
+			up.write(names.front(), changed, 1000 * i);
 			relay.sync(names);
-			step(move.c_str());
+			step(move.c_str(), first);
 		}
 		std::filesystem::remove_all(dir);
 	} catch (const std::exception &error) {
