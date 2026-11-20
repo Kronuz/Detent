@@ -8862,6 +8862,39 @@
       "updated": "2026-11-18T17:08:12",
       "worktree": ""
     },
+    "journal-hold-loop-required": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/blocking.h",
+        "include/journal/turn_driver.h",
+        "include/journal/hold.h",
+        "test/**",
+        "CHANGELOG.md",
+        "docs/mechanisms/turn-seal.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "journal Hold takes its loop as required and refuses an empty one (D131)",
+      "updated": "2026-11-19T23:04:33"
+    },
     "journal-hop-on-task": {
       "accepted": {
         "correctness": {
