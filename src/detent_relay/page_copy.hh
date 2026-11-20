@@ -2,6 +2,7 @@
 #include "detent_distribution/session_frames.hh"
 #include "page_window.hh"
 #include "paged_snapshot_builder.hh"
+#include <atomic>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -39,11 +40,12 @@ class BuiltCopy {
 	distribution::RootDigest root_{};
 	std::uint64_t page_bytes_ = 0;
 	std::vector<char> transfer_;
-	friend std::shared_ptr<const BuiltCopy> build_copy(std::string_view body);
+	friend std::shared_ptr<const BuiltCopy> build_copy(std::string_view body, const std::atomic<bool> *cancel);
 };
 // Builds the namespace that `body`, a W6 body holding one records full copy, carries: the state at
-// its target. Throws std::invalid_argument on any other body.
-std::shared_ptr<const BuiltCopy> build_copy(std::string_view body);
+// its target. Throws std::invalid_argument on any other body, and std::runtime_error once `cancel`
+// is set.
+std::shared_ptr<const BuiltCopy> build_copy(std::string_view body, const std::atomic<bool> *cancel = nullptr);
 // The delta transfer of `diff`'s pages, read from `target`.
 std::vector<char> delta_transfer(const MerkleDiff &diff, const BuiltCopy &target);
 } // namespace detent::relay

@@ -72,7 +72,7 @@ x::TransferPages BuiltCopy::pages() const {
 }
 p::Limits BuiltCopy::limits() const noexcept { return page_limits(); }
 
-std::shared_ptr<const BuiltCopy> build_copy(std::string_view body) {
+std::shared_ptr<const BuiltCopy> build_copy(std::string_view body, const std::atomic<bool> *cancel) {
 	const auto limits = input_limits();
 	CopyInput sink(limits);
 	d::SessionFramesDecoder decoder(sink, limits);
@@ -89,6 +89,8 @@ std::shared_ptr<const BuiltCopy> build_copy(std::string_view body) {
 	x::PagedSnapshotBuilder builder(std::move(snapshot), local::next_generation(std::nullopt, at, d::Profile{}, true),
 									bounds);
 	while (!builder.done()) {
+		if (cancel && cancel->load(std::memory_order_relaxed))
+			throw std::runtime_error("relay pages: the build was cancelled");
 		local::ValidationBudget step{std::size_t{1} << 20, 4096};
 		builder.step(step);
 	}

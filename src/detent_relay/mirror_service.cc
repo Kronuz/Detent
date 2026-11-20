@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <condition_variable>
 #include <deque>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <openssl/rand.h>
@@ -56,7 +57,11 @@ struct MirrorService::Impl {
 		Clock::time_point deadline;
 	};
 	std::vector<Parked> parked;
-	std::thread thread;
+	// The builder thread's tasks, under `mutex`; `built` tells the mirror thread one finished.
+	std::deque<std::function<void()>> builds;
+	std::condition_variable build_wake;
+	bool built = false;
+	std::thread thread, builder;
 
 	void finish(MirrorJob &job) {
 		job.done.store(true, std::memory_order_release);
@@ -309,10 +314,33 @@ struct MirrorService::Impl {
 			parked.pop_back();
 		}
 	}
+	void build_loop() {
+		for (;;) {
+			std::function<void()> task;
+			{
+				std::unique_lock lock(mutex);
+				build_wake.wait(lock, [&] { return stopping || !builds.empty(); });
+				if (stopping)
+					return;
+				task = std::move(builds.front());
+				builds.pop_front();
+			}
+			task();
+			std::lock_guard lock(mutex);
+			built = true;
+			wake.notify_one();
+		}
+	}
 	void run() {
+		builder = std::thread([this] { build_loop(); });
 		try {
 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
-			relay.emplace(std::move(io), options.cluster, *upstream);
+			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
+						  [this](std::function<void()> task) {
+							  std::lock_guard lock(mutex);
+							  builds.push_back(std::move(task));
+							  build_wake.notify_one();
+						  });
 		} catch (const std::exception &error) {
 			std::lock_guard lock(mutex);
 			state.failed = true;
@@ -327,11 +355,12 @@ struct MirrorService::Impl {
 				auto until = next_sync;
 				for (const auto &each : parked)
 					until = std::min(until, each.deadline);
-				wake.wait_until(lock, until, [&] { return stopping || !incoming.empty() || state.failed; });
+				wake.wait_until(lock, until, [&] { return stopping || !incoming.empty() || state.failed || built; });
 				if (stopping || state.failed)
 					break;
 				jobs.swap(incoming);
 			}
+			const bool landed = take_built() && relay->collect();
 			auto now = Clock::now();
 			for (auto &job : jobs) {
 				try {
@@ -356,7 +385,9 @@ struct MirrorService::Impl {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});
 			}
-			revisit(now, synced);
+			revisit(now, synced || landed);
+			std::lock_guard lock(mutex);
+			state.pages = relay->pages();
 		}
 		// Stopping, or the mirror failed: every waiting request is answered.
 		std::deque<std::shared_ptr<MirrorJob>> left;
@@ -372,7 +403,18 @@ struct MirrorService::Impl {
 			control(*job, 503, "{\"error\":\"source_behind\"}");
 			finish(*job);
 		}
-		relay.reset();
+		relay.reset(); // cancels a build in flight
+		{
+			std::lock_guard lock(mutex);
+			stopping = true;
+			builds.clear();
+			build_wake.notify_one();
+		}
+		builder.join();
+	}
+	bool take_built() {
+		std::lock_guard lock(mutex);
+		return std::exchange(built, false);
 	}
 };
 

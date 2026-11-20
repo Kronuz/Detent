@@ -3,17 +3,21 @@
 // rebuilds from it the relay's build: every pack byte for byte under the agent's derived ids, and its
 // root. The relay builds once per head. A base its page window holds gets D6's smaller encoding. A
 // position that keeps records gets the same bytes as from a relay that never built. The mirror
-// refuses a pages frame from its upstream.
+// refuses a pages frame from its upstream. In the service, a build runs off the mirror thread: a
+// records answer goes while a cold pages reader waits for the build.
 #include "delta_transfer.hh"
 #include "detent_local/derived_ids.hh"
+#include "detent_relay/mirror_service.hh"
 #include "detent_relay/namespace_relay.hh"
 #include "history_format.hh"
 #include "page_copy.hh"
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <map>
 #include <source_location>
 #include <sys/stat.h>
+#include <thread>
 
 namespace d = detent::distribution;
 namespace r = detent::relay;
@@ -310,6 +314,95 @@ void mirror_refuses(const std::filesystem::path &scratch) {
 	check(refused && up.frame_calls == calls + 1 && *relay.head("app") == head);
 	std::fprintf(stderr, "mirror: a pages frame from the upstream is refused\n");
 }
+// The upstream a MirrorService owns: the test's, which the mirror thread alone reads while it runs.
+class Forward final : public r::Upstream {
+  public:
+	explicit Forward(Upstream &to) : to_(to) {}
+	r::MirrorTable layouts(std::span<const std::string> names) override { return to_.layouts(names); }
+	std::string fetch(std::string_view name_space, const r::MirrorFile &file) override {
+		return to_.fetch(name_space, file);
+	}
+	std::string frames(std::span<const r::Position> positions) override { return to_.frames(positions); }
+
+  private:
+	Upstream &to_;
+};
+using Clock = std::chrono::steady_clock;
+template <class Done> void until(Done done, const char *what) {
+	for (const auto limit = Clock::now() + std::chrono::seconds(60); !done();
+		 std::this_thread::sleep_for(std::chrono::milliseconds(1)))
+		if (Clock::now() > limit)
+			throw std::runtime_error(std::string("timed out waiting for ") + what);
+}
+d::Identity session_of(const r::MirrorJob &job) {
+	const auto at = job.reply.body.find("\"session\":\"");
+	check(job.reply.status == 200 && at != std::string::npos);
+	d::Identity out{};
+	for (std::size_t i = 0; i < out.size(); ++i)
+		out[i] = char(std::stoi(job.reply.body.substr(at + 11 + 2 * i, 2), nullptr, 16));
+	return out;
+}
+
+// The service builds on its own thread: while a cold pages reader of a large namespace waits for the
+// build, a records reader of another is answered. A session that lists the namespace in "records"
+// gets records (D9's fallback), and no build or pages answer.
+void service_builds_aside(const std::filesystem::path &scratch, std::size_t keys) {
+	prepare(scratch / "service");
+	Upstream up;
+	up.create("big", keys);
+	up.create("small", 40);
+	r::MirrorServiceOptions options;
+	options.directory = scratch / "service";
+	options.cluster = cluster;
+	options.namespaces = {"big", "small"};
+	options.interval = std::chrono::milliseconds(10);
+	r::MirrorService service(options, std::make_unique<Forward>(up), std::make_shared<d::StorageLedger>(std::size_t{1} << 32));
+	until([&] { return service.status().ready; }, "the first sync");
+	const std::string_view patterns[]{"big", "small"};
+	const d::NamespaceGrants grants(patterns);
+	auto submit = [&](r::MirrorJob::Kind kind, d::Identity session, std::vector<r::Position> positions, bool pages,
+					  std::vector<std::string> records) {
+		auto job = std::make_shared<r::MirrorJob>();
+		job->kind = kind;
+		job->grants = &grants;
+		job->session = session;
+		job->positions = std::move(positions);
+		job->pages = pages;
+		job->records = std::move(records);
+		job->wait_ms = 30000;
+		service.submit(job);
+		return job;
+	};
+	auto open = [&](bool pages, std::vector<std::string> records = {}) {
+		auto job = submit(r::MirrorJob::Kind::Open, {}, {}, pages, std::move(records));
+		until([&] { return job->done.load(); }, "an open");
+		return session_of(*job);
+	};
+	const auto paged = open(true), plain = open(false);
+	const auto started = Clock::now();
+	auto cold = submit(r::MirrorJob::Kind::Next, paged, {{"big", std::nullopt, false}}, false, {});
+	auto quick = submit(r::MirrorJob::Kind::Next, plain, {{"small", std::nullopt, false}}, false, {});
+	until([&] { return quick->done.load(); }, "the records answer");
+	const auto answered = Clock::now();
+	const bool building = !cold->done.load();
+	until([&] { return cold->done.load(); }, "the pages answer");
+	const auto built = Clock::now();
+	check(building && quick->reply.status == 200 && cold->reply.status == 200);
+	until([&] { return service.status().pages.full_copies == 1; }, "the pages count");
+	check(service.status().pages.builds == 1);
+
+	const auto fallback = open(true, {"big"});
+	auto records = submit(r::MirrorJob::Kind::Next, fallback, {{"big", std::nullopt, false}}, false, {});
+	until([&] { return records->done.load(); }, "the fallback");
+	check(records->reply.status == 200);
+	const auto state = service.status();
+	check(state.pages.builds == 1 && state.pages.full_copies == 1 && state.pages.build_failures == 0);
+	using std::chrono::duration_cast;
+	using std::chrono::milliseconds;
+	std::fprintf(stderr, "service: %zu keys; records answer in %lld ms while the build ran, pages answer in %lld ms\n",
+				 keys, static_cast<long long>(duration_cast<milliseconds>(answered - started).count()),
+				 static_cast<long long>(duration_cast<milliseconds>(built - started).count()));
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -321,6 +414,7 @@ int main(int argc, char **argv) {
 		full_copy(scratch);
 		deltas(scratch);
 		mirror_refuses(scratch);
+		service_builds_aside(scratch, 100000);
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_relay_pages: %s\n", error.what());
 		return 1;

@@ -63,7 +63,12 @@ std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::Storage
 	field(",\"idle\":", state.idle);
 	field(",\"sessions\":", state.sessions);
 	field(",\"failed_namespaces\":", state.failed_namespaces);
-	output->append("}}");
+	field(",\"pages\":{\"builds\":", state.pages.builds);
+	field(",\"build_failures\":", state.pages.build_failures);
+	field(",\"full_copies\":", state.pages.full_copies);
+	field(",\"deltas\":", state.pages.deltas);
+	field(",\"delta_records\":", state.pages.delta_records);
+	output->append("}}}");
 	output->seal_prefix();
 	return output;
 }

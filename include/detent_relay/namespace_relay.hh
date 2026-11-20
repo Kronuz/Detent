@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/session_frames.hh"
 #include "detent_relay/mirror.hh"
+#include <functional>
 #include <map>
 
 // W8 (docs/design/namespace-delivery.md D7; docs/status/namespace-s8.md): a relay reads its
@@ -50,14 +51,17 @@ struct SyncStats {
 };
 // Dense distribution D6, D7 on the relay: full builds, and the answers sent as pages or kept as records.
 struct PagesStats {
-	std::uint64_t builds = 0, full_copies = 0, deltas = 0, delta_records = 0;
+	std::uint64_t builds = 0, build_failures = 0, full_copies = 0, deltas = 0, delta_records = 0;
 };
+// Runs one full build: the task may run later on another thread, and is called once. Empty: the
+// build runs within the answer that asked for it.
+using BuildRunner = std::function<void(std::function<void()>)>;
 
 class NamespaceRelay final : public Upstream {
   public:
 	// Opens the mirror (MirrorStore's startup). Every ring starts empty at its layout's s.
 	NamespaceRelay(std::shared_ptr<kronuz::io::completion::PosixIO> mirror, distribution::Identity cluster,
-				   Upstream &upstream, MirrorStore::Options = {});
+				   Upstream &upstream, MirrorStore::Options = {}, BuildRunner = {});
 	~NamespaceRelay();
 	NamespaceRelay(const NamespaceRelay &) = delete;
 	NamespaceRelay &operator=(const NamespaceRelay &) = delete;
@@ -75,9 +79,15 @@ class NamespaceRelay final : public Upstream {
 	std::string frames(std::span<const Position>) override;
 	// The W6 body for a session's next, or nothing while every answer is Current or Ahead (the
 	// session waits, as the authority's does). A position that takes pages gets a pages frame for a
-	// full copy (dense distribution D7.4: the relay's build at its head, built once per position),
-	// or for a delta from a base the page window holds when D6 finds the pages smaller.
+	// full copy (dense distribution D7.4: the relay's newest build that a delta still follows),
+	// or for a delta from a base the page window holds when D6 finds the pages smaller. A position
+	// waits for a build in flight, and gets no frame meanwhile: a full copy with no such build, or a
+	// delta whose pages could be smaller once the build at the head lands. A full copy or such a
+	// delta below the head starts the build at the head, one per namespace at a time.
 	std::optional<std::string> changes(std::span<const Position>);
+	// Takes the builds that finished since the last call; true when one did, so a waiting answer
+	// may now go.
+	bool collect();
 	const PagesStats &pages() const noexcept;
 
   private:

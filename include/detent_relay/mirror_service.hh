@@ -11,7 +11,8 @@
 // The relay's namespace service (W8; docs/status/namespace-s8.md, "The service"): one thread owns the
 // NamespaceRelay, so its single-thread rule holds by construction. It syncs the configured names from
 // the upstream every interval and answers the relay's HTTP routes from the mirror: W5 sessions with
-// W6 frames, and the layouts and files a downstream relay reads.
+// W6 frames, and the layouts and files a downstream relay reads. Full builds (dense distribution D7)
+// run on a second thread, one at a time, so answers keep flowing while one runs.
 namespace detent::relay {
 struct MirrorServiceOptions {
 	std::filesystem::path directory;  // the mirror's own, mode 0700
@@ -53,6 +54,7 @@ struct MirrorStatus {
 	std::uint64_t fetched_files = 0, fetched_bytes = 0, reused_files = 0, collected_files = 0;
 	std::uint64_t answers = 0, idle = 0;
 	std::size_t sessions = 0, failed_namespaces = 0;
+	PagesStats pages;
 	std::string error;
 };
 class MirrorService {

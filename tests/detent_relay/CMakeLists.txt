@@ -4,13 +4,16 @@ if(TARGET detent::relay_mirror)
   add_test(NAME test_relay_mirror COMMAND test_relay_mirror ${CMAKE_CURRENT_BINARY_DIR}/relay-mirror)
   set_tests_properties(test_relay_mirror PROPERTIES TIMEOUT 120)
 
-  # Dense distribution DD3: the relay answers pages from its own builds; its mirror takes records only.
-  add_executable(test_relay_pages test_relay_pages.cc)
-  target_include_directories(test_relay_pages PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_relay")
-  target_link_libraries(test_relay_pages PRIVATE detent::relay_mirror detent::relay_page_window
-    detent::local_fullbuild detent::delivery_delta_transfer detent::authority)
-  add_test(NAME test_relay_pages COMMAND test_relay_pages ${CMAKE_CURRENT_BINARY_DIR}/relay-pages)
-  set_tests_properties(test_relay_pages PROPERTIES TIMEOUT 120)
+  # Dense distribution DD3: the relay answers pages from its own builds, built off the mirror thread;
+  # its mirror takes records only.
+  if(TARGET detent::relay_mirror_service)
+    add_executable(test_relay_pages test_relay_pages.cc)
+    target_include_directories(test_relay_pages PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_relay")
+    target_link_libraries(test_relay_pages PRIVATE detent::relay_mirror_service detent::relay_page_window
+      detent::local_fullbuild detent::delivery_delta_transfer detent::authority)
+    add_test(NAME test_relay_pages COMMAND test_relay_pages ${CMAKE_CURRENT_BINARY_DIR}/relay-pages)
+    set_tests_properties(test_relay_pages PROPERTIES TIMEOUT 180)
+  endif()
 
   add_executable(test_relay_mirror_crash test_relay_mirror_crash.cc)
   target_link_libraries(test_relay_mirror_crash PRIVATE detent::relay_mirror hashes::hashes)
