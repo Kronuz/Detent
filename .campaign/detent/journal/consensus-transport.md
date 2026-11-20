@@ -9,22 +9,36 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 2, transport-group-bytes, at consensus:0a65af1 (pushed). Local: the transport suite (29 ctest
-entries incl. owe-order) passes; inflight 10K: 594.7 B per group in flight (4,746.1 at c2b0133);
-idle group stored 36.0 B, its frames 52.4 (one 2 1 10000). Jobs queued:
-suite 261120-095037-3f558a; fails-without owed-before-control -095127-6b5847 (owe-order),
-owing-keeps-prefix -095130-ab25d2, closes-unbounded -095133-f42ea5; strict before (c2b0133) /
-after (0a65af1): inflight -095136-7a0672 / -095040-68a827, hop control -095138-5864ca /
--095043-dc00e8, hop data -095141-7fd45f / -095046-6fe0ef, idle bytes -095143-778a7a /
--095049-c97307. Still to do in step 2: TSan run, perf doc rows, feed-scan N1/N4 dispositions.
+Head consensus:ceb1db9 (pushed). Steps 1-3 coded; step 4 (A1/A2 lane handover, hold/release,
+graceful close) next.
 
-Step 1 (A3 + A6) at consensus:3284055 + 84e199c: done 0a0f0c (lane suite), ede104 (ASan), and
-fails-without 5203e3, f32f32, b70222, 42250f, 8e73c6 all exit nonzero; 3aaf61 (close-reenters
-ASan) running, 250bdc (fuzz+coverage) queued. Re-run the evidence at the head before review.
+Step 3, transport-receive-bound, at consensus:1d24b8a: Lane::arriving per group; data past the
+window ends the connection (overrun), control past `arriving` (256) refused (flooded). Local:
+receive-bound passes (4 of 8 data delivered, 1 overrun; 256 of 1,000 control, 744 flooded), all
+45 consensus_transport_ ctest entries pass. Jobs: suite 261120-100634-06fa3e (head; covers steps
+2-3); TSan -100655-f3cd32; fails-without data-unbounded -100637-57c2d3, control-unbounded
+-100640-082b18, no-credit-on-refuse (moved) -100643-062f07; hop strict main e1f249d control
+-100645-55c3f1 / data -100647-f05401, head control -100649-2aa87f / data -100652-5c2a3c.
+
+Step 2, transport-group-bytes, at consensus:0a65af1. Local: inflight 10K 594.7 B per group in
+flight (4,746.1 at c2b0133); idle group stored 36.0 B, its frames 52.4. Done: fails-without
+owed-before-control 261120-095127-6b5847, owing-keeps-prefix -095130-ab25d2, closes-unbounded
+-095133-f42ea5 (all exit 134). Queued strict before (c2b0133) / after (0a65af1): inflight
+-095136-7a0672 / -095040-68a827, hop control -095138-5864ca / -095043-dc00e8, hop data
+-095141-7fd45f / -095046-6fe0ef, idle bytes -095143-778a7a / -095049-c97307. Feed-scan N1, N4:
+dispositions written in docs/perf/transport-idle-cost.md (A2: hop CPU).
+
+Step 1 (A3 + A6) at consensus:3284055 + 84e199c: done 0a0f0c (lane suite), ede104 (ASan); fails-
+without 5203e3, f32f32, b70222, 42250f, 8e73c6, 3aaf61 all exit 134/8; 250bdc (fuzz+coverage)
+running. Re-run the evidence at the final head before review.
+
+Pre-existing (main): mutants no-extension, uncapped, twice in test/transport/mutant_commit.py no
+longer apply to deadline.h (changed by consensus:e7d615c on main); for the lead.
 
 Interface change (consensus-quiescence merges this branch): `HostTransportOptions::open_of`
 (`std::function<GroupOpen(GroupId)>`) is required beside `member_of`; `store(group, incarnation)`
-drops its open argument; new options `closes` (4096) and stats `owed`, `unanswered`.
+drops its open argument; new options `closes` (4096), `arriving` (256) and stats `owed`,
+`unanswered`, `overrun`, `flooded`. Frames on a link its lane replaced are refused in arrived().
 
 ## Next
 
