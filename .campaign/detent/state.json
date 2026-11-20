@@ -3233,8 +3233,8 @@
     "consensus-heal-snapshot-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-20T03:05:04",
-          "base": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d",
+          "at": "2026-11-20T04:10:06",
+          "base": "8bdbd750a7b683753ea16f79fa9161b63550273a",
           "blobs": {
             "ARCHITECTURE.md": "100644:5a31397214f8a1bcd34ff26924c44c5ec812eacf",
             "CHANGELOG.md": "100644:3739e9e86a6186331a4e59c55da395e67b684210",
@@ -3243,7 +3243,7 @@
             "test/worker_test.cc": "100644:3fa04a77a8cbbd1bd28485d3b4a7e6f9e5e2959e"
           },
           "by": "review",
-          "commit": "5c4ff7e65ed672e7d90dd7a0f20ec584d871d10e",
+          "commit": "39d9f1df09b1e545050758a57c5a95fc3de99395",
           "criteria": "53e04529a8741e41",
           "diffs": {
             "ARCHITECTURE.md": "b2b9683b0837d39a",
@@ -3318,7 +3318,7 @@
       "risk": "high",
       "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-20T03:05:04",
+      "updated": "2026-11-20T04:10:06",
       "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
