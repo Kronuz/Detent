@@ -5187,8 +5187,20 @@
       "repo": ".",
       "risk": "high",
       "status": "active",
+      "tasks": {
+        "relay-pages": {
+          "base": "237779e855fb254ba9f76267e04d4dc00ded4c34",
+          "branch": "quest/detent/dense-distribution-build--relay-pages",
+          "files": [
+            "src/detent_relay/**",
+            "include/detent_relay/**",
+            "tests/detent_relay/**"
+          ],
+          "worktree": "../Detent-wt/detent/dense-distribution-build--relay-pages"
+        }
+      },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T09:00:20",
+      "updated": "2026-11-20T09:42:59",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
