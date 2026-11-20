@@ -1,6 +1,6 @@
 # prism-server-composition-limits: journal
 
-State: waiting on CI run 44731002558 at prism:e0c1ddd (every job passed); then ready for review
+State: waiting on jobs 261120-040331-771e99 (suite) 261120-040332-52f4bf (A1) 261120-040334-0bfcc8 (A2 mutant) 261120-040344-128d37 (F2 mutant) and CI run 44732611068 at prism:5487d43
 Quest: .campaign/detent/quests/prism-server-composition-limits.md (the lead's; never edit it)
 
 ## Doing
@@ -11,9 +11,23 @@ Implemented at prism:c1e3ff0, tests fixed at prism:e0c1ddd (pushed; the first su
 `cancel_requests()` and http's `stop()`. Tests added to prism_lifecycle: drain, limits, tls.
 Mutant branch (local, not pushed) mutant/old-full-stop = prism:6df5be4, the old full stop.
 
+## Review (correctness, prism:e0c1ddd: CHANGES)
+
+- F1 (blocking): fixed at prism:5487d43. `free_port()` is gone; every instance starts on `--port 0`
+  and the test reads the bound port from the banner in its log (`start()`, `banner_port()`).
+  Confirming: suite 261120-040331-771e99.
+- F2: fixed at prism:5487d43 (the ruling: exit 78). `check_descriptors` and `make_tls` run in
+  `main` before the fork (no thread exists; the raised limit and the context are inherited); their
+  warnings log after the log opens. Tests check EX_CONFIG for `--daemonize` in `limits` and `tls`.
+  Confirming: suite 261120-040331-771e99; fails without: 261120-040344-128d37 at the checks-after-fork
+  mutant prism:2be9909.
+- F5: fixed at prism:5487d43: the tls case asserts the 14-day warning. F3, F4, F6: not taken (F3 is
+  a follow-up in task).
+- A2 fails-without rerun at the new head: 261120-040334-0bfcc8 (mutant prism:1e646ea).
+
 ## Next
 
-1. When CI run 44731002558 is green, set State ready for review (fix and re-push if red).
+1. When CI run 44732611068 is green, set State ready for review (fix and re-push if red).
 
 ## Blocked on
 
@@ -33,10 +47,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-035136-5bd4e1 (passed) (no local copy of either, at prism:e0c1ddd); lifecycle `limits` and `tls` cases |
-| A2 | drain case passes in suite 261120-035135-f42468; fails without: 261120-035138-af5e5b at prism:6df5be4 (log: the drain case fails, load and stalled pass) |
-| A3 | [artifact] `ARCHITECTURE.md` "How `main` is put together" at prism:e0c1ddd: the deviation table lists none of the four rows |
-| A4 | suite 261120-035135-f42468 (passed); CI run 44731002558 pending |
+| A1 | 261120-040332-52f4bf (no local copy, at prism:5487d43); `limits` and `tls` cases in suite 261120-040331-771e99 |
+| A2 | drain case in suite 261120-040331-771e99; fails without: 261120-040334-0bfcc8 at prism:1e646ea |
+| A3 | [artifact] `ARCHITECTURE.md` "How `main` is put together" at prism:5487d43: the deviation table lists none of the four rows |
+| A4 | suite 261120-040331-771e99; CI run 44732611068 pending |
 
 ## Result
 
