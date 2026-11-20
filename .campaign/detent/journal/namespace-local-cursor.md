@@ -7,6 +7,20 @@ Keep this current and commit it with the work, so a fresh contributor can contin
 status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
+## Direction (lead, mid-quest)
+
+Folded into dense-distribution-build: only its suite and CI gate landing; mutants, the crash-model
+job and review run on the finished feature. That quest's contributor merges this branch. Push often;
+report when the local layer builds and its tests pass.
+
+Coordinator changes on this branch (src/detent_delivery/coordinator.cc, coordinator.hh,
+configuration.cc), for the dense-distribution-build contributor to merge around:
+- Flat removal: `builder` (ImageBuilder), `paged_writer`, `compare_candidate` (flat comparison),
+  every `!paged_writer` branch, `LocalImageFormat`/`image_format`, the flat begin/begin_reset calls.
+- One cursor: the coordinator maps v1<->W1 at its boundary (`namespace_cursor` moves from
+  derived_ids into the coordinator); local builders take the W1 target from it; comparisons with
+  `options.source.configured`/`reset_from` go through the mapping.
+
 ## Doing
 
 Step 1, flat-v1 removal: ImageBuilder, ImageValidator, flat header (DTIMAGE1), CandidateFlatValidator,
