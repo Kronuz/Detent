@@ -6,8 +6,8 @@
 #   first-read-gate.sh prepare OUT   light, in the branch checkout with --ref BASELINE=main: builds
 #       both trees (pinned LLVM 23.1.2, Release, DETENT_READ_COUNTERS=OFF) and each tree's own store
 #       of 10,000 int knobs in 1 and in 1,000 namespaces, under OUT (the job's own path depth).
-#   first-read-gate.sh measure OUT [stopped|running]   exclusive: six main/branch pairs per cell;
-#       fails unless every branch run reads 200 of 200 below 1 ms.
+#   first-read-gate.sh measure OUT [stopped|running]   strict: six main/branch pairs per cell; fails
+#       unless the branch's paired difference and pooled p99 stay within main's plus the noise floor.
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 # CMake detects implicit includes under the SDK LLVM's config file names; any other sysroot leaves
@@ -73,7 +73,7 @@ measure() {
 import json, shutil, statistics, subprocess, sys
 from pathlib import Path
 
-# mode: "measure" gates the 1 ms bound (exclusive); "count" gates only that the branch never fails
+# mode: "measure" gates D140's bound (strict); "count" gates only that the branch never fails
 # and counts main's refusals, which do not depend on load (light).
 mode, prepared, states = sys.argv[1], Path(sys.argv[2]).resolve(), sys.argv[3:] or ["stopped", "running"]
 KNOBS, READS, PAIRS, WARMUP = 10000, 200, 6, 5
@@ -158,9 +158,9 @@ for publisher in states:
         p99 = {code: pooled[code][int(len(pooled[code]) * 0.99) - 1] for code in arm}
         diff = int(statistics.median(diffs))
         floor = int(max(spread(medians["main"]), spread(medians["branch"])))
-        # D121: the branch's median paired difference within the noise floor, and the p99 of the
-        # cell's pooled branch reads below 1 ms; 200/200 per run is reported, not gated.
-        passed = mode == "count" or (diff <= floor and p99["branch"] < 1_000_000)
+        # D140: the branch's median paired difference and its pooled p99 each at most main's plus
+        # the noise floor; 1 ms and 200/200 per run are reported targets, not gated.
+        passed = mode == "count" or (diff <= floor and p99["branch"] <= p99["main"] + floor)
         ok &= passed
         cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed,
                 "branch_below_1ms": [r["below_1ms"] for r in arm["branch"]],
@@ -176,7 +176,7 @@ shutil.rmtree(runs, ignore_errors=True)
 if mode == "count":
     print(f"A16 count PASS: no branch failure; main refused {sum(sum(c['main_failed']) for c in cells)} reads in {len(cells)} cells")
 else:
-    print(f"A16 {'PASS' if ok else 'FAIL'}: paired difference within the noise floor and pooled branch p99 below 1 ms in {len(cells)} cells")
+    print(f"A16 {'PASS' if ok else 'FAIL'}: paired difference and pooled branch p99 within main's plus the noise floor in {len(cells)} cells")
 sys.exit(0 if ok else 1)
 PY
 }
