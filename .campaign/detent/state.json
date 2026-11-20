@@ -17400,7 +17400,69 @@
       "worktree": ""
     },
     "prism-server-composition-limits": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-20T04:31:43",
+          "base": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:69d436de1838ca043175e1bfab0797e38a8992d0",
+            "CMakeLists.txt": "100644:1b66366008f1a943a07d8d5f9f1ed7dbfc37801c",
+            "README.md": "100644:0ba642c31fe22d978b892ee141a330f92f28cbd5",
+            "src/main.cc": "100644:1eaa77848aa6005764b255d3cd0781539ccb5b8a",
+            "src/test/lifecycle_test.cc": "100644:88b9667ce334906f2067860f45526dbbed0fa297"
+          },
+          "by": "review",
+          "commit": "5487d430c99d791f8a2cab1e4b9ec23e3f7777dd",
+          "criteria": "8088240f44be720c",
+          "diffs": {
+            "ARCHITECTURE.md": "0c2d965805a22542",
+            "CMakeLists.txt": "13d7ea6b9ffc876a",
+            "README.md": "d86f2cb84ff606ae",
+            "src/main.cc": "0575ad6cb4066aac",
+            "src/test/lifecycle_test.cc": "3f7abe6b4bb2e4c1"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+                  "commit": "5487d430c99d791f8a2cab1e4b9ec23e3f7777dd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-040331-771e99",
+                  "level": "light",
+                  "seconds": 62.0,
+                  "state": "done",
+                  "what": "prism-server-composition-limits check suite at 5487d430c99d"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+                  "commit": "5487d430c99d791f8a2cab1e4b9ec23e3f7777dd",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-040331-771e99",
+                  "level": "light",
+                  "seconds": 62.0,
+                  "state": "done",
+                  "what": "prism-server-composition-limits check suite at 5487d430c99d"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "e414b42266664c1a02fe749c5c1c3893523b22e1",
+          "reviewed": "e0c1ddda87e34077fdc771134ac1ea18506be0a7",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "prism-server-composition",
         "xapiand:http-limits",
@@ -17425,7 +17487,9 @@
       ],
       "journal": "../Detent-wt/detent/prism-server-composition-limits",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -17433,7 +17497,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Prism: the composition steps that wait on http::Limits, reactor's server TLS and Http::stop_accepting",
-      "updated": "2026-11-20T03:07:14",
+      "updated": "2026-11-20T04:31:43",
       "worktree": "../prism-wt/detent/prism-server-composition-limits"
     },
     "quickstart-managed": {
