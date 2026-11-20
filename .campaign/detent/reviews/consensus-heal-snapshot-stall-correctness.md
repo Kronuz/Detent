@@ -1,6 +1,6 @@
 # consensus-heal-snapshot-stall review: correctness
 
-Commit: consensus:5a8685cdcb23cbf206ebfc36a0b1aba88c8d2577
+Commit: consensus:47e7005051013f0ee4f99edceabf612f06992788 (code reviewed at 5a8685c; 47e7005 changes only test/worker_test.cc:1830)
 Verdict: APPROVE
 Date: 2026-11-20
 
@@ -87,6 +87,7 @@ Results, both passed:
 | N3 | no | nit | CHANGELOG says the peer "catches up within rpc_timeout of a heal instead of waiting out snapshot_timeout (60 s)". The 60 s holds only for a host that leaves SnapshotNeeded unanswered; with the snapshot channel the old cost was an unneeded image capture and transfer ending in CaughtUp (snapshot_channel.h:273). The bound is rpc_timeout plus a round trip when a reply was lost at the heal. | CHANGELOG.md:22; core.h:1121 | Optional wording: "without an install, within about rpc_timeout of a heal". |
 | N4 | no | nit | Any refusal of an append at the base installs, including a follower's capacity or limits refusal of a peer that holds the base (hint `replace_from > base`, core.h:929-952, then `min(hint, previous) = base`, core.h:1016). Pre-existing (the old code installed there too) and the docs' wording is literally true; such an install compacts the follower, so it is not harmful. | core.h:1016-1018 | None; a refusal whose hint exceeds `previous` proves the prefix and could advance instead, outside this quest. |
 | N5 | no | nit | A refusal that arrives after its flight timed out is ignored as stale (core.h:989-993), so if a peer's round trip always exceeds rpc_timeout it never gets an install. Divergence repair already has the same assumption; the fix extends it to the install trigger. | core.h:989-993, 1121 | None. |
+| N6 | no | nit | 47e7005 relaxes binary_transfer_integration's loop exit to `applied >= 2` on all three nodes. It hides no node stuck behind: each must still reach 2, and the exact check that follows pins every application to `image + "/tail"`, which only Command entries build (worker_test.cc drain), so a re-elected leader's no-op at 3 changes nothing. A tail placed above 2 would fail that check, not pass it. Suite passes at 47e7005. | 261120-011552-f33105; 261120-003741-f752f3, 261120-003747-00aef3 | None. |
 
 ## Not run
 
