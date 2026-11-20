@@ -346,3 +346,8 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_derived_names PRIVATE detent::local_publication)
   add_test(NAME test_local_derived_names COMMAND test_local_derived_names)
 endif()
+
+add_executable(test_local_paged_canonical_copy test_paged_canonical_copy.cc)
+target_include_directories(test_local_paged_canonical_copy PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_canonical_copy PRIVATE detent::local_canonical_copy detent::local_builder)
+add_test(NAME test_local_paged_canonical_copy COMMAND test_local_paged_canonical_copy)
