@@ -51,7 +51,8 @@ the agent. Identities are 32 hexadecimal characters; tokens are at least 32
 characters:
 
 ```sh
-IDENTITY="\"cluster\":\"$(openssl rand -hex 16)\",\"group\":\"$(openssl rand -hex 16)\",\"epoch\":\"$(openssl rand -hex 16)\""
+CLUSTER=$(openssl rand -hex 16)
+IDENTITY="\"cluster\":\"$CLUSTER\",\"group\":\"$(openssl rand -hex 16)\",\"epoch\":\"$(openssl rand -hex 16)\""
 WRITER_TOKEN=$(openssl rand -hex 24)
 READER_TOKEN=$(openssl rand -hex 24)
 ```
@@ -151,8 +152,7 @@ e2e:end -->
 ```sh
 cat > managed.json <<EOF
 {
-  $IDENTITY,
-  "principal": "agent-reader",
+  "cluster": "$CLUSTER",
   "namespaces": ["search", "checkout", "payments"],
   "token": "$READER_TOKEN",
   "ca": "certs/ca.pem"

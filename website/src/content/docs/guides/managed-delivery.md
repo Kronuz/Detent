@@ -39,9 +39,6 @@ principal, its policy epoch (default `1`) and the sorted namespaces.
 ```json title="managed.json"
 {
   "cluster": "63636363636363636363636363636363",
-  "group": "67676767676767676767676767676767",
-  "epoch": "65656565656565656565656565656565",
-  "principal": "agent-reader",
   "namespaces": ["payments"],
   "token": "replace-with-the-authority-reader-token",
   "ca": "ca.pem"
