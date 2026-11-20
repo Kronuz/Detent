@@ -16085,7 +16085,9 @@
     "old-flakes-disposition": {
       "accepted": {},
       "after": [
-        "detent-faultlab"
+        "detent-faultlab",
+        "loop-idle-waits",
+        "relay-tls-drain-flake"
       ],
       "checks": [
         {
@@ -16102,7 +16104,28 @@
         "tests/detent_local/test_paged_publication_artifacts.cc",
         "tests/detent_delivery/test_managed_process.sh",
         "docs/status/http-coroutines.md",
-        "docs/DEPENDENCY_UPGRADES.md"
+        "docs/DEPENDENCY_UPGRADES.md",
+        "tests/detent_authority/test_authority_frames_service*",
+        "src/detent_authority/service.cc",
+        "tests/detent_system/authority.py",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_relay/test_relay_service.py",
+        "tests/detent_authority/test_node.cc",
+        "tests/detent_authority/**",
+        "tests/detent_relay/**",
+        "tests/docs/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T06:55:51",
+          "reason": "",
+          "risk": [
+            "low",
+            "normal"
+          ],
+          "voided": [],
+          "weakened": []
+        }
       ],
       "landed": [],
       "lenses": [],
@@ -16110,10 +16133,10 @@
       "needs": [],
       "provides": [],
       "repo": ".",
-      "risk": "low",
+      "risk": "normal",
       "status": "planned",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-19T06:00:43"
+      "updated": "2026-11-20T06:55:51"
     },
     "one-knob-type": {
       "accepted": {
