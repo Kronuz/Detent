@@ -22,7 +22,7 @@ refusal. Its evidence: `cancel_bare_home` (journal:8a79661, test only, on main) 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | D129; probe 261119-181300-c03364 at journal:8a79661 (failed, as F6 predicts) |
+| A1 | D129 (its probe is named there; a failing probe cannot be cited as passing evidence) |
 | A2 | 261119-181456-c79217; fails without: 261119-181502-b6d697 (bare-home mutant) |
 | A3 | 261119-181505-2fa91c (TSan), 261119-181508-6b48ee (suite) |
 
