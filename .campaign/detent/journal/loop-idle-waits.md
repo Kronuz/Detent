@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261120-013517-2f7d3e (suite at Detent:cf6d9442), 261120-013518-340c44 (A2 mutant start-stop-sleep, --fails-without); CI 44709359840 macos-x86_64 at Detent:b692cdd9 (unfixed, watchdog on). Fix commits not pushed yet: pushing cancels that x86 job.
+State: waiting on jobs 261120-021117-dbb0cb (suite), 261120-021141-a035ba (TSan), 261120-021137-93563d (restart x10), 261120-021138-336caf (mutant), 261120-021140-5bd6e2 / 261120-021148-508f39 (spin probes), 261120-020714-457e01 261120-020720-721815 261120-020724-d6d007 (agent_store_crash at head) and 261120-020717-5beac9 261120-020722-19d599 261120-020726-63b2cd (at main); CI 44717173788 / 44717173136 at Detent:f9f570b5.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -105,6 +105,13 @@ reclaim scans ~60 completion ops/s) frames A1.
   (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
+- R9 (spin bound): every 64th start, replay or stop visit in a row with nothing to wait on sleeps 1 ms
+  (main's poll period). A step that stops advancing then costs 64 cheap visits per ms, not a core; one
+  that advances loses at most 1 ms per 64 visits. No reachable state wedges these loops, so the proof is
+  a probe (bench/idle-wakeups/spin_probe.sh wedges the stop loop 2 s per stop), not a test.
+- R10 (watchdog): hang_watchdog registers only under GitHub Actions and kills past 300 s. At 90 s it killed
+  test_agent_store_crash in the local suite (5 to 14 min there; 31 to 69 s on macOS CI) and sat 1 s above
+  test_relay_network_500000 on macOS x86_64 CI (89 s).
 - R8 (macOS hang): start, replay and stop visit the node again at once unless storage or history I/O
   is in flight: R4's 250 ms storage_wait now bounds only a missed completion wake. A loop with no I/O
   and no progress spins rather than polls at 1 ms; on single-voter start and stop nothing external can
@@ -146,3 +153,27 @@ reclaim scans ~60 completion ops/s) frames A1.
 - CI macos-arm64 at 0faf6474 hung in Test for 50 min (run 44638635880, log lost); its rerun passed in 6.5 min.
 - 261119-181942-21336c (full suite, until-fail:8, this Mac under load avg ~60) failed one iteration: test_relay_mirror_crash timed out at 900 s, with test_relay_isolated_process and test_system_fleet_raw, all on `SSL: UNEXPECTED_MESSAGE` and "fleet admitted resources did not drain to retained slots". Superseded as evidence; not reproduced:
 - 261119-203637-1a23ab (head) and 261119-203639-28eb72 (main afb5f449): the three tests x12 each, 0 of 12 failures at both. Filed as relay-tls-drain-flake.
+
+## Contributor 3: agent_store_crash kill and the spin bound
+
+- Suite 261120-013517-2f7d3e at Detent:cf6d9442 failed test_agent_store_crash "Subprocess killed 95.84 sec":
+  the hang watchdog's 90 s kill (polls every 15 s), not the fix. The test links only detent::agent_store
+  (no authority code); every earlier local suite ran it 300 to 835 s (two 900 s timeouts); CI 44709359840
+  macOS ran it 69 s (x86_64) and 31 s (arm64). Reruns alone (no watchdog), head vs main fcb07845:
+  head 261120-020714-457e01 261120-020720-721815 261120-020724-d6d007, main 261120-020717-5beac9
+  261120-020722-19d599 261120-020726-63b2cd. Fix: R10, Detent:f9f570b5.
+- The yield path could spin a core: with nothing in flight and nothing advancing, each loop yielded
+  forever. Bounded by R9, Detent:5f8b0ba1. Probes: 261120-021140-5bd6e2 (bounded, must pass: CPU < 4 s
+  over 8 s wedged), 261120-021148-508f39 (bound lifted, expected to fail).
+- Pushed Detent:f9f570b5; CI 44717173788 / 44717173136.
+
+### Changed after Detent:edff2eb0 (the reviewed commit), for the re-review
+
+1. src/detent_authority/service.cc: Detent:39e5ab7e (start, replay and stop yield unless storage or
+   history I/O is in flight) and Detent:5f8b0ba1 (`step_wait`: every 64th yield in a row sleeps 1 ms).
+   The only product code changed.
+2. tests/detent_authority/test_restart_wake.cc + CMake entry (Detent:39e5ab7e); mutant start-stop-sleep
+   (Detent:cf6d9442).
+3. tests/detent_delivery/hang_watchdog.py + CMake entry (Detent:7c630f07, Detent:b692cdd9, Detent:f9f570b5):
+   macOS CI diagnostic only.
+4. bench/idle-wakeups/spin_probe.sh (Detent:5f8b0ba1): probe only.
