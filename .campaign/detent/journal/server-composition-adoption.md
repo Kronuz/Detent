@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261120-034130-d7a901 (and blocked on the lead for the pin wave and the file set, below)
+State: waiting on jobs 261120-035209-31475d (d7a901 was cancelled; blocked on the lead for the pin wave and file set)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
