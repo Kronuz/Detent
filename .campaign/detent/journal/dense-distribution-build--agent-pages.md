@@ -22,23 +22,18 @@ parser and src/detent_relay/service.cc (copy both into MirrorJob): take Detent:9
   page digest (`receive_transfer`'s TransferTarget.root), chunks = DD1's `make_transfer` of every
   page in seal order (the generation's canonical copy). The agent names the generation as a full
   copy over its base (`next_generation(..., true)`), segment n as `derive_segment(id, n - 1)`.
-- A Pages frame with `after` > 0 (a delta transfer) is Next 2 here; until it lands the agent
-  refuses it and asks records.
+- A Pages frame with `after` > 0 is a delta over the store's generation at `after` (same
+  incarnation); the agent receives it through `receive_delta` (Detent:c88fd1d5).
 
 ## Doing
 
-Steps 1-3 built (Detent:8adf04ea), quest branch merged (Detent:0a8960b1, relay-pages at
-Detent:68b9665d). Local run: test_pages_coordinator, test_namespace_coordinator, the parser and
-body tests pass; 100K keys: 2,888,084 transfer bytes, 3 packs, built hashes 0+0, checked page
-hashes 1,006 (2,835,792 B) and pack hashes 3 (2,893,328 B): each page and pack hashed once; 674 ms
-from agent start to ready.
+All four steps built. Steps 1-3 at Detent:8adf04ea; quest branch merged at Detent:0a8960b1
+(relay-pages at Detent:68b9665d); step 4 (pages deltas) at Detent:c88fd1d5.
 
 ## Next
 
-1. Step 4: a Pages frame with `after` > 0 over the base through `receive_delta` into a plan over
-   the base: SparsePlanFinalizer starting from a received image instead of a TrieOverlay (skip
-   Assemble; its removal cross-check needs the base's unreached pages from the walk). Until then
-   the agent refuses a pages delta and asks records (correct, costs the update's records size).
+1. Job 261120-104134-35f3e1 at Detent:c88fd1d5 (touched tests, relay pages included). When green:
+   State "ready for review"; the lead merges.
 2. End to end against the real relay once the integration round wires service.cc.
 
 ## Blocked on
@@ -47,13 +42,26 @@ Nothing.
 
 ## Evidence
 
-| Criterion | Evidence |
-|---|---|
-| A1 | <from `campaign brief`> |
+Task jobs (no criterion of their own; the quest's A1/A2 run on the quest branch):
+
+| What | Job | Result |
+|---|---|---|
+| Steps 1-3, touched tests + relay pages, at Detent:06b9b3c4 | 261120-102303-2536af | 10/10 passed; 100K pages boot: 2,888,084 B, built hashes 0+0, 1,347 ms |
+| Steps 1-4 at Detent:c88fd1d5 | 261120-104134-35f3e1 | pending |
 
 ## Result
 
-<none yet>
+A cold agent builds nothing: it opens with `"pages":true`, verifies a pages full copy through
+DD1's receiver (`receive_image`) and publishes it through PagedSnapshotPlanBuilder with a received
+image in place of the records encoder. At 100K keys (local run): 2,888,084 transfer bytes, 3 packs,
+0 build hashes, 1,006 page hashes (2,835,792 B) and 3 pack hashes (2,893,328 B), each page and pack
+hashed once; descriptor and packs equal to the server's records build. A 10,000-key clustered
+delta comes as a 250,970 B transfer (full copy 2,837,825 B) and publishes over the base with 0
+build hashes and 104 page hashes (PagedTransferPlanBuilder, SparsePlanFinalizer from a received
+image). A wrong root, full copy or delta, falls back to records through the next open's
+`"records"`. Docs: docs/mechanisms/paged-transfer.md ("The agent's plans"),
+docs/status/namespace-s6.md (W5 fields). Open: D9's "one other source" before records is not
+built (records directly); the real relay end to end waits on the integration round.
 
 ## Rulings I made
 
@@ -65,3 +73,10 @@ Nothing.
   records as before.
 - A refusal sends the namespace to records until a records frame publishes it; it does not first
   ask one other source (the lead's step 3), so D9's "one other source" is not built.
+- `records` is open-only, as relay-pages' MirrorJob reads it: a refusal fails the response, so the
+  next request is an open anyway.
+- A pages delta's plan is the warm (sparse) path, not a full relocation: the new tree reuses the
+  base's packs, so a delta writes only its own pages. The removal the finalizer's warm validator
+  computes must equal the base walk's, so a wrong walk cannot publish.
+- derived_names_grep.sh allows src/detent_local/paged_transfer.cc (transfer_segment_ids), the one
+  place a transfer's segments are named.
