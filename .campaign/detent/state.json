@@ -7655,7 +7655,9 @@
       "files": [
         "include/journal/turn_driver.h",
         "test/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "include/journal/blocking.h",
+        "docs/mechanisms/turn-seal.md"
       ],
       "journal": "../Detent-wt/detent/journal-blocking-wake",
       "landed": [],
@@ -7669,7 +7671,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
-      "updated": "2026-11-19T16:51:09",
+      "updated": "2026-11-19T16:58:19",
       "worktree": "../journal-wt/detent/journal-blocking-wake"
     },
     "journal-close-in-doubt": {
