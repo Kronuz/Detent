@@ -3082,6 +3082,8 @@
     "consensus-heal-snapshot-stall": {
       "accepted": {},
       "after": [],
+      "base": "adb918fc119be1f8303912778763419fe9a2c107",
+      "branch": "quest/detent/consensus-heal-snapshot-stall",
       "checks": [
         {
           "cmd": "true",
@@ -3095,6 +3097,7 @@
         "include/consensus/core.h",
         "test/consensus_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-heal-snapshot-stall",
       "landed": [],
       "lenses": [
         "correctness"
@@ -3104,9 +3107,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-19T19:58:14"
+      "updated": "2026-11-19T22:58:48",
+      "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
       "accepted": {
