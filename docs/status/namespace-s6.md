@@ -89,8 +89,13 @@ open  {"version":2, "profile":1, "coding":"raw"|"zstd", "cluster"?, "namespaces"
 next  {"version":2, "session", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?,
        "resume"?: [name, root hex, after, offset]}
 close {"version":2, "session"}
-namespace: [name] (no store) or [name, incarnation, position]
+namespace: [name] (no store), [name, incarnation, position], or [name, incarnation, position, true]
 ```
+
+The four-element form is a repair (D10.3, D136): the client has no usable store and names the
+position it last published. A source answers it with a full copy at or above that position, and
+with nothing while its head is below it (D139), so an agent never publishes a position older than
+one it published; the agent also skips any frame below it.
 
 Names are valid and strictly increasing; a cursor or a nonzero `all` needs `cluster`; a session
 follows at least one namespace or `all`. The cluster is the request's, once: a store of another
