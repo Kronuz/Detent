@@ -1,15 +1,24 @@
 # reactor-abortlist-thread: journal
 
-State: waiting on jobs 261119-170249-dacc88 261119-170251-fa0eb2 261119-170254-5ab021 261119-170306-fc93ed
+State: waiting on jobs 261119-171143-723158 261119-171145-ddad3b
 Quest: .campaign/detent/quests/reactor-abortlist-thread.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs at reactor:fbad85f queued; CI on the pushed branch. Check the mutant job's log names an `AbortList::` race (not a build or fetch error).
+At reactor:fbad85f: dacc88, 5ab021, fc93ed passed. The first mutant run (fa0eb2) failed as evidence:
+its wrapper grepped for `AbortList::`, but at -O1 `remove` and `each` are inlined, so the race
+TSan reported did not name the class. Its report: a read of 8 bytes at Reactor+8 (`aborts_` is
+Reactor's first member, so `AbortList::cursor_`) in `run_session` (.resume) `reactor.h:467`, the
+frame's end where `~SessionControl` untracks, on b's thread T1 (resumed by
+`asio_park::drop`), racing the previous write by a's thread T2 in `abort_all()`'s walk lambda
+(`on_loop_sync`). That is the untrack racing the walk. Resubmitted as the plain A1 command at
+the mutant with `TSAN_OPTIONS=halt_on_error=1:exitcode=66`: 261119-171143-723158. c578c1 was
+skipped because its `--after` held a captured message line ("kept 261119-165221-4a441a: ...")
+instead of a job id; fc93ed replaced it. Suite check: 261119-171145-ddad3b (`campaign verify`).
 
 ## Next
 
-1. When the four jobs and CI are green: confirm the mutant log, fill Evidence, State ready to land.
+1. When 723158, ddad3b and CI are green: confirm 723158 exits 66 on the same race, State ready to land.
 
 ## Blocked on
 
@@ -18,7 +27,7 @@ the quest to low risk with a recorded `--weaken`.
 
 Dependency: the property rests on task's `final_awaiter` going home (`task.hh:612` at
 task:18eb516: a continuation awaited from another scheduler is posted back to it). A task pin
-that drops that breaks it; [A] under TSan catches it (261119-170251-fa0eb2).
+that drops that breaks it; [A] under TSan catches it (261119-171143-723158).
 
 Measured before the ruling: an instrumented copy (counter in `~SessionControl`) shows 100 of 100
 untracks on the owning loop, 50 plain and 50 throwing sessions ending on server b's loop.
@@ -27,8 +36,8 @@ untracks on the owning loop, 50 plain and 50 throwing sessions ending on server 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-170249-dacc88 TSan `[A]`; 261119-170251-fa0eb2 `--fails-without` at the task go-home mutant (passes when TSan reports a race naming `AbortList::`) |
-| A2 | 261119-170254-5ab021 Release suite; 261119-170306-fc93ed TSan suite; CI on `quest/detent/reactor-abortlist-thread` |
+| A1 | 261119-170249-dacc88 TSan `[A]` passed; 261119-171143-723158 `--fails-without`, the same command at the task go-home mutant (TSan exitcode 66 on the race) |
+| A2 | 261119-170254-5ab021 Release suite passed; 261119-170306-fc93ed TSan suite passed; 261119-171145-ddad3b suite check; CI on `quest/detent/reactor-abortlist-thread` |
 
 ## Result
 
