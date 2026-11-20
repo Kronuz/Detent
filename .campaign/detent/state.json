@@ -18740,17 +18740,45 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-20T04:45:02",
+          "commit": "421dc946336174f4140ca425e002ee4e99345b01",
+          "criteria": {
+            "A1": "261120-043323-963268; fails without: 261120-031721-a8d3ef, 261120-031733-0d3927",
+            "A2": "261120-031723-0c5b78, 261120-031734-bed4b1; fails without: 261120-031724-7d3e1c",
+            "A3": "261120-043325-0ce5e8"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "776c7f2499cc8ac01bdfcd1409b3f198006367f6",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-043325-0ce5e8",
+              "level": "light",
+              "seconds": 588.5,
+              "state": "done",
+              "what": "relay-tls-drain-flake check suite at 776c7f2499cc"
+            }
+          ],
+          "final": true,
+          "from": "b55299bf195dc658d0252f378d9d43f90fb1566a",
+          "reason": "",
+          "tested": "9688ab30983233f032a0a190c52cabcf9b077f62"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "relay tests fail together on SSL UNEXPECTED_MESSAGE and an undrained fleet under heavy load",
-      "updated": "2026-11-20T04:44:56",
-      "worktree": "../Detent-wt/detent/relay-tls-drain-flake"
+      "updated": "2026-11-20T04:45:05",
+      "worktree": ""
     },
     "rename-detentd": {
       "accepted": {},
