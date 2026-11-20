@@ -11615,6 +11615,8 @@
       "after": [
         "deps-workpool-repin"
       ],
+      "base": "0213ec66d71c8c60d82dbfbf2331a4b020a3383e",
+      "branch": "quest/detent/namespace-local-cursor",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -11661,11 +11663,13 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
+      "reason": "started by force: owner priority D134: the v2 foundation for dense distribution starts now; overlaps are broad globs (src/detent_local/**, tests/**, docs/**) where the other quests add new files or edit other regions, and each merges main before landing",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Local layer on the one W1 cursor, store layout 2 and root format 4 (P3)",
-      "updated": "2026-11-18T09:14:59"
+      "updated": "2026-11-20T04:47:01",
+      "worktree": "../Detent-wt/detent/namespace-local-cursor"
     },
     "namespace-measure": {
       "accepted": {},
