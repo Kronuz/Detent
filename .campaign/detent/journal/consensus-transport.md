@@ -9,12 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 2, transport-group-bytes. Step 1 (A3 + A6) is at consensus:3284055 (+ consensus:84e199c, the
-coverage script); its jobs are queued: suite of the lane 261120-092624-0a0f0c, ASan
--092627-ede104, fuzz+coverage -092745-250bdc; fails-without rpc-no-queue-cap -092630-5203e3
-(queue-cap) and -092632-f32f32 (stalled-peer), refusals-unbounded -092635-b70222,
-send-past-total -092638-42250f, close-reenters under ASan -092641-3aaf61, id-at-call (case
-rewritten by room) -092649-8e73c6.
+Step 2, transport-group-bytes, at consensus:0a65af1 (pushed). Local: the transport suite (29 ctest
+entries incl. owe-order) passes; inflight 10K: 594.7 B per group in flight (4,746.1 at c2b0133);
+idle group stored 36.0 B, its frames 52.4 (one 2 1 10000). Jobs queued:
+suite 261120-095037-3f558a; fails-without owed-before-control -095127-6b5847 (owe-order),
+owing-keeps-prefix -095130-ab25d2, closes-unbounded -095133-f42ea5; strict before (c2b0133) /
+after (0a65af1): inflight -095136-7a0672 / -095040-68a827, hop control -095138-5864ca /
+-095043-dc00e8, hop data -095141-7fd45f / -095046-6fe0ef, idle bytes -095143-778a7a /
+-095049-c97307. Still to do in step 2: TSan run, perf doc rows, feed-scan N1/N4 dispositions.
+
+Step 1 (A3 + A6) at consensus:3284055 + 84e199c: done 0a0f0c (lane suite), ede104 (ASan), and
+fails-without 5203e3, f32f32, b70222, 42250f, 8e73c6 all exit nonzero; 3aaf61 (close-reenters
+ASan) running, 250bdc (fuzz+coverage) queued. Re-run the evidence at the head before review.
+
+Interface change (consensus-quiescence merges this branch): `HostTransportOptions::open_of`
+(`std::function<GroupOpen(GroupId)>`) is required beside `member_of`; `store(group, incarnation)`
+drops its open argument; new options `closes` (4096) and stats `owed`, `unanswered`.
 
 ## Next
 
@@ -68,5 +78,15 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   frame (65,584), since every frame is now charged whole.
 - R3 (A6 N3) Deferred close (option 2): a `Busy` depth guard on every entry point; `close()` inside a
   callback runs when the outermost returns. `finish` also returns on an unknown handle.
+- R5 (group-bytes A2) D108's 64 B is the stored part, as D112 splits it (fixed + per-peer): an
+  idle group is stored as id, incarnation, serial (24 B minimum, 36.0 measured); per peer it keeps
+  32 B minimum (16 B on the group loop with the last reported source, 16 B on the connection's).
+  The idle bench now fails stored > 64 and a group over `44 + 64P` (was `164 + 52P`).
+- R6 (group-bytes A1-A2) The folded tasks' criteria have no ids in the tool; their jobs carry
+  `--for A1` (the feed criterion) and name the task criterion in `--what`; the Evidence rows below
+  map them. "One lookup per control frame": the feed's pop hands the frame its Active (was a
+  find in pop, then one in settle), and a receive finds the opened group once.
+- R7 (identity N1) Past `closes` owed closed answers a refusal goes unanswered (`unanswered`); the
+  record's credit is kept, and the peer's next frame is refused and answered again.
 - R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
   charged, an empty request no longer skips the pool's FIFO.
