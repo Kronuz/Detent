@@ -7475,11 +7475,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into old-flakes-disposition as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "dropped",
       "title": "test_authority_frames_service gets 409 session_busy on macOS CI",
-      "updated": "2026-11-19T08:20:03"
+      "updated": "2026-11-20T06:55:53"
     },
     "groups-upload-3s-class": {
       "accepted": {},
