@@ -2131,21 +2131,40 @@
         "include/consensus/driver.h",
         "test/driver_test.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-19T23:04:32",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "the fix landed in consensus-worker-release (consensus:08cdf68, driver.h:1031), reviewed there under durability; this quest now adds only the regression test entry_wake_threads",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens correctness removed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-blocking-hold-loop",
       "landed": [],
-      "lenses": [
-        "correctness"
-      ],
+      "lenses": [],
       "milestone": "",
       "needs": [
         "consensus-worker-release"
       ],
       "provides": [],
       "repo": "../consensus",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
-      "updated": "2026-11-19T22:58:46",
+      "updated": "2026-11-19T23:04:32",
       "worktree": "../consensus-wt/detent/consensus-blocking-hold-loop"
     },
     "consensus-close-fenced": {
