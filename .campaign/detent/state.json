@@ -7578,6 +7578,8 @@
     "journal-blocking-wake": {
       "accepted": {},
       "after": [],
+      "base": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
+      "branch": "quest/detent/journal-blocking-wake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -7598,6 +7600,7 @@
         "test/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-blocking-wake",
       "landed": [],
       "lenses": [
         "correctness"
@@ -7607,9 +7610,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
-      "updated": "2026-11-19T05:59:59"
+      "updated": "2026-11-19T16:51:09",
+      "worktree": "../journal-wt/detent/journal-blocking-wake"
     },
     "journal-close-in-doubt": {
       "accepted": {
