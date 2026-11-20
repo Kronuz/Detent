@@ -7696,7 +7696,34 @@
       "worktree": ""
     },
     "journal-blocking-wake": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T18:04:00",
+          "base": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
+          "blobs": {
+            "CHANGELOG.md": "100644:933183bb785301d79371f2b8d196ac6087af1348",
+            "docs/mechanisms/turn-seal.md": "100644:e1ef2df4f29478c16d78fc9eb9b89ba54adb4124",
+            "include/journal/blocking.h": "100644:01efb310fa16e6694ed2ae261122c47d820aa748",
+            "include/journal/turn_driver.h": "100644:1c047dc4e694c04c48b783ca00ff6053cd5656ef",
+            "test/driver_test.cc": "100644:e564152e00b6a2738172183b946e2a7f2357b436"
+          },
+          "by": "review",
+          "commit": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+          "criteria": "7f7e50f0044ee0b2",
+          "diffs": {
+            "CHANGELOG.md": "959fa63700e603ae",
+            "docs/mechanisms/turn-seal.md": "60cca9d7fc9a7253",
+            "include/journal/blocking.h": "97f3e184a15c7ad6",
+            "include/journal/turn_driver.h": "692128d7aba8eeef",
+            "test/driver_test.cc": "04edbb2919f4813c"
+          },
+          "findings": {},
+          "note": "",
+          "review": "61bddd296c1bf2445550879e337953937d6edd64",
+          "reviewed": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
       "branch": "quest/detent/journal-blocking-wake",
@@ -7734,7 +7761,7 @@
       "risk": "high",
       "status": "active",
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
-      "updated": "2026-11-19T16:58:19",
+      "updated": "2026-11-19T18:04:00",
       "worktree": "../journal-wt/detent/journal-blocking-wake"
     },
     "journal-close-in-doubt": {
