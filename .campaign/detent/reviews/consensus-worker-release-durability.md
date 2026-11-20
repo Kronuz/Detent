@@ -1,6 +1,6 @@
 # consensus-worker-release review: durability
 
-Commit: consensus:4fe7df25c02a53beac80b50feb1903e74ac3524f
+Commit: consensus:5de6c78011b8a805de530a645261ed8de495eb2a
 Verdict: CHANGES
 Date: 2026-11-19
 
@@ -8,63 +8,89 @@ APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: 
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+This replaces the review at consensus:4fe7df2 (CHANGES, F1 and F2). Its F1 (malformed jobs) is
+answered: the jobs below are tagged, ran at 5de6c78 and reached their tests. Its F2 is fixed for one
+Driver's life. It is not fixed for the Host's life, which D128 and DRIVER.md promise; that is F1 below.
+
 ## Evidence I relied on
 
-None finished. The gate suite 261119-140158-51b1ce (A6) is well formed and still queued. The twelve
-criterion jobs the journal lists (135117-bf02e4 through 135147-8ca554) are malformed (F1): they
-prove nothing even when they run. I read the code at consensus:4fe7df2 and at journal:be8222c
-(include/journal/host.h, journal.h, store.h, turn_driver.h, turn_log.h) and completion:d8b538c (io.h).
+All at consensus:5de6c78. I read each job's log.
+
+- 261119-170644-cac82f: failed_close passed, 15 checks.
+- 261119-170646-a56176: the reopen mutant removes the `in_doubt_` refusal (driver.h:419). It
+  reached the test and failed 4 checks. The live recover is not refused. The restarted host loses
+  the group ("the turn log lost this group"). Acknowledged `a` and `x` are both lost. The test fails
+  without the fix.
+- 261119-170647-c66dad: close_crash ran 200 seeds, 19,512 power cuts, 17,322 table closes and
+  30,519 releases, with 0 failures. It includes the new every-call-completes check.
+- 261119-170649-5a5b1e: the loop-throw mutant removes `shutdown()` from `catch (...)`
+  (driver.h:519). It reached the test and failed exactly one check, "every call completes once the
+  loop ends: seed 1 cut 53" (1 of 366). The check fails without the loop fix.
+- 261119-170650-eb7f80: ASan+UBSan on the driver_close tests passed. This is macOS, so there is no
+  LSan. The 66-frame leak is checked only by CI's linux-asan-ubsan.
+- 261119-170651-ca2fc5: the suite passed.
 
 ## What I checked myself
 
-Scripts are in `.scratch/detent/review-consensus-worker-release-durability/` in the Detent home.
-Both jobs were still queued when I wrote this:
+I read `git diff 4fe7df2..5de6c78` and the whole throw path: `loop()` (driver.h:502-520), `step()`'s
+catch (driver.h:672), `shutdown()` (driver.h:979), `consensus::run` (driver.h:1021-1064) and
+journal's `entry_root` (journal blocking.h:73-79). I also compared the journal pin (be8222c) with
+journal-close-in-doubt (journal:8c92ed9, landed; be8222c is its parent).
 
-- 261119-140902-4049e0 `failed_close_probe.sh`: a close whose table commit fails at the 1st, 2nd or
-  3rd `sync_directory` after the shard file was replaced, then a live recover of the same id, an
-  acknowledged record `x`, a later directory sync and a power cut. It checks that recovery keeps `x`
-  (F2).
-- 261119-140904-e57aba `proof.sh` (Q6) runs these:
-  - reopen_rows, pool_bound and close_crash (32 seeds) at the branch.
-  - reopen_rows under main's worker.h/driver.h (5935efa).
-  - Mutants: table (no Store::close), settle, watch, nofence (failed close not fenced), nocover
-    (no frontier pre-check; under reopen_rows and close_crash), and pool.
+Probes live in `.scratch/detent/review-consensus-worker-release-durability/` in the Detent home.
+Both were still queued when I wrote this.
 
-What reading established:
+- 261119-184141-7487c2 `second_driver.sh`, at the branch's journal pin. It patches in a
+  `second_driver` case (`second_driver.py`). A close's table commit fails. The first Driver's run
+  ends with no row left. A second Driver is built over the same live Host and recovers the id,
+  acknowledges `x`, syncs the directory and cuts power. The case asserts the refusal and that every
+  acknowledged record survives. By reading, it fails (F1).
+- 261119-184142-2f5a77: the same probe with journal repinned to 8c92ed9. By reading, the Host's
+  `hold` refuses with EIO (journal host.h `hold`, `GroupEntry::in_doubt`), so it passes.
 
-- Q1: "Covering every batch" is checked three times: `close_store` (worker.h:653), `Journal::close`
-  (journal.h:359, plus a durability check) and `Host::close_group` (host.h:414, sequence >= the
-  log's last). These checks do not take it on trust.
-- Q1: Draining, `forget` and `settle` do no IO. The table commit's replace and sync are IO operations,
-  so close_crash's cut-at-every-operation loop reaches each of them on a table close (action 2).
-  `prefix(state, attempted)` catches a replayed covered record.
-- Q1: The sweep cannot reach one class of failure. Its `jt::Disk` cut is permanent (memory_io.h:57),
-  so a close that fails while the process lives on never happens there (F2).
-- Q4: `watch()` agrees with journal's numbering. A reopened group stages from
-  `max(base, retired)` (journal.h:605), and `TurnDriver::retired` is "the last sequence an earlier
-  incarnation could hand out". The forget fails waiters with group_closed and marks the row ready,
-  so no wake is lost.
-- Q5: The repin changes no contract that consensus relies on. Consensus implements no production IO.
-  The test IOs (worker_test.cc:45 FaultIO, driver_close_test.cc HeapIO) inherit completion's
-  `sync_files` and `sync_data_files` defaults, which sync each file (io.h:276-283).
+Answers to the lead's four questions:
+
+1. **Waiting calls on a throw.** A caller completed with `cancelled` can have a durable record. Its
+   record may have been staged into the turn before the throw, or already be durable while its watch
+   completion was not yet handled. `cancelled` claims nothing either way. `shutdown()` only claims
+   waiters as cancelled (driver.h:979-992), and the claim protocol has one winner, so no caller is
+   told "placed" for a record that is not durable. A blind retry can therefore duplicate the
+   record. That is the documented stop contract, which this change extends to a throw. Consensus
+   has no request deduplication. It is not a durability loss. DRIVER.md's wording overstates it (N2).
+2. **After the throw.** The fix writes nothing. `shutdown()` cancels the shutdown token and posts
+   waiters. close_crash's 200 seeds recover every cut with every acknowledged record and nothing
+   unattempted, so no on-disk state the throw leaves is misread at a restart, and no table close
+   replays covered records. In memory, `in_doubt_` lives in the Driver and dies with it. A reopen
+   through another Driver over the same live Host misreads the table (F1). `stopping_` stays set
+   after a throw, so a reactor `run()` started again on the same Driver cancels every call. Only
+   `consensus::run` rearms (N3).
+3. **F2.** It is fixed while the Driver that saw the failed close lives (cac82f, and mutant a56176
+   kills the fix). It is not fixed per D128, which says "until the Host reopens" (F1).
+4. **The leak.** 5a5b1e fails only the every-call-completes check. That check tracks the propose,
+   checkpoint and close calls of close_crash's rounds, which are the frames LSan reported at
+   driver_close_test.cc:777. Whether the LSan leak is gone rests on CI, which was queued at 5de6c78
+   (run 44651118073).
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | gap | All twelve criterion jobs (A1 bf02e4 b6b882, A2 52f24d 4b09cc, A3 1a5534, A5 88fd6c, mutants 89cbce f9a18c 11af82 860ad8 52f61f, A4 8ca554) are malformed. Each `cmd` starts with the one quoted token `'--quest consensus-worker-release'`, so `quest` is empty, no `--for` is set and `--fails-without` is not applied. They will exit 127. A1-A5 have no evidence, and the "fails at main" and mutant claims are unshown. | `campaign job show 261119-135119-b6b882` (`"quest": ""`, cmd as described) | Resubmit with the options before `--`. |
-| F2 | yes | defect | **A failed close followed by a live reopen can lose acknowledged records.** Suppose `close_group`'s commit fails after `replace_file` (a `sync_directory` error, host.h:506-509). `update` then restores the entry to open in memory (host.h:488-492), but the shard file says closed with base=S. The Worker fences, the row is released, and the same id recovers live from the log, as ruling 3 and DRIVER.md promise. It then appends S+1 and onward. After any later directory sync and a power cut, the host opens with base=S, so records up to S are superseded and S+1 onward have no checkpoint. TurnLog marks the group lost (turn_log.h:658-660): acknowledged records are gone and the id is refused. Before this quest, consensus never ran `close_group`, so the quest introduced this path. A3 cannot reach it (permanent cuts only). | Analysis. Confirming probe 261119-140902-4049e0 is queued. | Either journal keeps a closed-in-doubt entry, or fails the host, on a failed close commit (as TurnLog fails on an unknown barrier). Or consensus refuses a live recover of an id whose close failed until the host reopens. Add the probe as a driver_close_test case that fails today. |
-| F3 | no | gap | Ruling 3 ("a failed Store::close fences") has no test. No case injects a close failure, so the nofence mutant should survive. F2's test covers it. | e57aba (queued), reading | Folded into F2. |
-| F4 | no | nit | `std::max(sequence, retired) + 1` wraps to 0 if `retired()` returns its "unreadable table" UINT64_MAX (host.h:456). That cannot happen for a resident open group. | driver.h:957 | Saturate, or leave as is. |
-| F5 | no | nit | `close_store` fences on any `Store::close` logic_error ("a replacement is pending", "the last record is not durable yet") where releasing would do. No table write happens on those paths, so durability is safe. | worker.h:654-656, store.h:389-393 | Optional. |
-| F6 | no | gap | Q6, by reading: reopen_rows pins the table, settle and watch mutants (the status-closed check, the parked check, and the loop's spin exit), and main's headers fail its status check. The nocover pre-check duplicates `Journal::close`'s own check, so its mutant should survive. | e57aba (queued) | None beyond F1. |
+| F1 | yes | defect | **The refusal lasts the Driver's life, not the Host's.** `in_doubt_` is a Driver member (driver.h:1007, :941). The pinned journal (be8222c) restores the entry to open after a failed commit and keeps no mark, so a second Driver built over the same live Host recovers the id and appends past the closed base. After a later directory sync and a power cut, the restart holds the group closed, and every record acknowledged after the reopen is lost. This is the old F2 through a second Driver. `Driver(Seams, Sink&)` does not refuse a Host that another Driver used, and DRIVER.md:137 promises `close_in_doubt` "until the host restarts". journal-close-in-doubt (journal:8c92ed9, landed; the pin is its parent) already keeps the mark in the Host, as D128 rules. | Reading. Probe 261119-184141-7487c2 (expected to fail) against 261119-184142-2f5a77 (repinned, expected to pass), both queued. | Repin journal to at least 8c92ed9; A6 already asks for journal's main. Then either drop `in_doubt_` and map the Host's EIO from `hold` to `close_in_doubt` (one mechanism, in journal), or keep `in_doubt_` only to name the error. Add `second_driver` (second_driver.py) as a driver_close_test case. It fails at the current pin. |
+| N1 | no | gap | failed_close injects only the first `sync_directory` failure after the replace (driver_close_test.cc:873). The earlier probe covered the 1st, 2nd and 3rd. The mark is set on any exception, so the outcome should not depend on which sync fails. | driver_close_test.cc:873 | Loop `fail_sync` over 1..3. |
+| N2 | no | nit | DRIVER.md:140 says that after a throw "a staged record is still written". After a power-cut throw it may not be. `cancelled` means the outcome is unknown, and a caller that retries may duplicate the record. | DRIVER.md:140 | Say "may still be written; the outcome is unknown". |
+| N3 | no | defect | `consensus::run` never reads `loop_result.error` (driver.h:1030-1062). A throw that ends the loop in the blocking entry reaches the caller as the work's `task::cancelled`, or as success when the work absorbs it. The Driver is then rearmed (driver.h:1060). Before this commit the same case surfaced as `stalled`. Either way the error passes silently. | driver.h:1030-1062, journal blocking.h:73-79 | Rethrow `loop_result.error` first and leave the Driver stopped. |
+| N4 | no | gap | Pre-existing: `step()` fences only on `std::exception` (driver.h:672). A non-standard throw, such as the crash model's PowerLoss or a Sink's `throw 42`, leaves its group half-stepped and unfenced. A rearmed blocking entry, or a second `run()`, steps it again. The new `catch (...)` could fence every group before `shutdown()`. | driver.h:672, :519 | Optional: fence each group in `loop()`'s `catch (...)`. |
+| N5 | no | nit | After a throw, `loop()` rethrows with IO still in flight, and the completions capture `this` and `&g` (driver.h:950, :967). DRIVER.md:75 allows `~Driver` only after `run()` returned and every group closed, and the life after a throw is unstated. This predates the commit, which only cancels that IO sooner. | driver.h:946-971, DRIVER.md:75 | Document: after a throw, drain the scheduler before `~Driver`. |
+
+The old review's F4 and F5 nits stand unchanged. Its F3 is answered by failed_close.
 
 ## Not run
 
-- No job result: every job, mine and the contributor's, was queued when I wrote this.
-- TSan (A4) and CI.
-- closed_bytes heap numbers (A2).
-- close_crash at 200 seeds.
-- Owned (non-shared) Stores.
-- Multi-voter rows.
-- Concurrency of close with a cross-thread host `settle` beyond the one-loop tests.
+- Neither probe had a result when I wrote this. F1 rests on reading the pinned journal's
+  `close_group` and `update` path, which the earlier probe 261119-140902-4049e0 (at 4fe7df2) and the mutant
+  a56176 show losing records once a live reopen is allowed.
+- CI at 5de6c78, which was queued: linux-asan-ubsan (the LSan leak), linux-tsan and the matrix.
+- A local TSan run at 5de6c78. The A4 TSan job ran at e74fccf. The loop change adds no thread, but
+  the job ran other code.
+- A throw ending `consensus::run`'s loop: no test makes a non-standard exception escape there (N3).
+- Owned (non-shared) Stores. Multi-voter rows.
