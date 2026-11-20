@@ -8,9 +8,10 @@ import json
 import ssl
 from pathlib import Path
 
-from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN
-from managed import scope_identity
+from authority import CONTEXT, READER_TOKEN
 from runtime import Actors, Evidence
+
+OPENED = b'{"version":2,"session":"11111111111111111111111111111111","wait_ms":1000}'
 
 
 class ControlServer:
@@ -68,7 +69,7 @@ class ControlServer:
             if self.case.startswith("close-"):
                 if b"/session/open " in header:
                     status = 200
-                    body = b'{"version":1,"session":"11111111111111111111111111111111","window":0,"mode":"snapshot","wait_ms":1000}'
+                    body = OPENED
                 elif b"/session/close " in header:
                     if self.case == "close-malformed":
                         body = b"{broken"
@@ -84,13 +85,13 @@ class ControlServer:
                 status, body = 403, b'{"error":"scope_forbidden"}'
             elif self.case == "identity":
                 status, body = 409, b'{"error":"identity_changed"}'
-            elif self.case == "profile":
+            elif self.case == "frames":
                 status = 200
                 if b"/session/open " in header:
-                    body = b'{"version":1,"session":"11111111111111111111111111111111","window":0,"mode":"snapshot","wait_ms":1000}'
+                    body = OPENED
                 else:
-                    content_type, body = b"application/vnd.detent.distribution", b"\x00"
-                    extra = b"X-Detent-Session-Version: 1\r\nX-Detent-Session: 11111111111111111111111111111111\r\nX-Detent-Window: 1\r\nX-Detent-Profile: 2\r\nX-Detent-Revision: 1\r\nX-Detent-Kind: 1\r\nX-Detent-Coding: raw\r\n"
+                    content_type, body = b"application/vnd.detent.frames", b"\x00"
+                    extra = b"X-Detent-Session-Version: 2\r\nX-Detent-Session: 11111111111111111111111111111111\r\nX-Detent-Coding: raw\r\n"
             writer.write(
                 f"HTTP/1.1 {status} Response\r\n".encode()
                 + b"Connection: close\r\nContent-Type: "
@@ -134,7 +135,7 @@ async def run(arguments: argparse.Namespace) -> None:
             "unauthorized",
             "forbidden",
             "identity",
-            "profile",
+            "frames",
             "hostname",
             "ca",
             "close-unauthorized",
@@ -157,8 +158,8 @@ async def run(arguments: argparse.Namespace) -> None:
                 ports = [await primary.start(), await secondary.start()]
                 directory = arguments.output / case
                 directory.mkdir(mode=0o700)
-                source = CONTEXT | {
-                    "principal": READER_PRINCIPAL,
+                source = {
+                    "cluster": CONTEXT["cluster"],
                     "namespaces": ["load0"],
                     "token": READER_TOKEN,
                     "authority_endpoints": [
@@ -166,9 +167,8 @@ async def run(arguments: argparse.Namespace) -> None:
                     ],
                     "hostname": "wrong.example" if case == "hostname" else "localhost",
                     "ca": str(arguments.certificates / "ca.pem"),
-                    "delivery_mode": "subscription",
                     "timeout_ms": 1000,
-                    "poll_interval_ms": 10,
+                    "retry_interval_ms": 10,
                     "reconnect_maximum_ms": 100,
                 }
                 path = directory / "managed.json"
@@ -181,11 +181,6 @@ async def run(arguments: argparse.Namespace) -> None:
                             "managed_path": str(path),
                             "generation_dir": str(directory / "generations"),
                             "runtime_dir": str(directory / "run"),
-                            **{
-                                f"generation_{name}": value
-                                for name, value in CONTEXT.items()
-                            },
-                            "generation_scope": scope_identity(1),
                         }
                     )
                 )
@@ -204,7 +199,7 @@ async def run(arguments: argparse.Namespace) -> None:
                         3
                         if case.startswith("close-")
                         else 2
-                        if case == "profile"
+                        if case == "frames"
                         else 0
                         if case in ("hostname", "ca")
                         else 1

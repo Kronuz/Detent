@@ -47,6 +47,8 @@ class Writers:
         self.values = array("q", [0]) * records
         self.sequences = [0] * producers
         self.receipts: list[dict[str, Any] | None] = [None] * producers
+        # The revision of each producer's last applied transaction in its namespace.
+        self.revisions = [0] * producers
         self.counts: Counter[str] = Counter()
         self.latency_total = 0.0
         self.latency_maximum = 0.0
@@ -125,6 +127,8 @@ class Writers:
         self.latency_maximum = max(self.latency_maximum, elapsed)
         self.sequences[producer] = sequence
         self.receipts[producer] = receipt
+        if receipt["status"] == "applied":
+            self.revisions[producer] = int(receipt["revision"])
         applied = receipt["status"] != "capacity"
         self.counts["acknowledged" if applied else "terminal_capacity_rejections"] += 1
         return applied

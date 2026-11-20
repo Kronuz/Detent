@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import socket
+import struct
 import time
 from pathlib import Path
 
@@ -14,36 +15,26 @@ from capacity import CapacityProfile
 from runtime import Actor, Actors
 from writers import Writers
 
-
-def scope_identity(producers: int, namespaces: list[str] | None = None) -> str:
-    principal = READER_PRINCIPAL.encode()
-    names = sorted(
-        {name.encode() for name in namespaces}
-        if namespaces is not None
-        else {f"load{index}".encode() for index in range(producers)}
-    )
-    digest = hashlib.sha256()
-    digest.update(b"detent-authorized-scope-v1")
-    digest.update(len(principal).to_bytes(8, "big") + principal)
-    digest.update((1).to_bytes(8, "big") + len(names).to_bytes(8, "big"))
-    for name in names:
-        digest.update(len(name).to_bytes(8, "big") + name)
-    return digest.hexdigest()
+RELAY_TOKEN = "cd" * 16
 
 
-def table_position(table: bytes) -> int | None:
-    """The position of the agent store's one namespace (D88), from `selected` (DTTABLE1)."""
+def table_positions(table: bytes) -> dict[str, int] | None:
+    """Each namespace's W1 position in the agent store's `selected` table (DTTABLE1, D8)."""
     if (
         len(table) < 64 + 32
         or table[:8] != b"DTTABLE1"
         or hashlib.sha256(table[:-32]).digest() != table[-32:]
     ):
         return None
-    if int.from_bytes(table[12:16], "big") != 1:
-        return None
-    name = table[64]
-    at = 64 + 1 + name + 16 + 16
-    return int.from_bytes(table[at : at + 8], "big")
+    positions: dict[str, int] = {}
+    at = 64
+    for _ in range(int.from_bytes(table[12:16], "big")):
+        length = table[at]
+        name = table[at + 1 : at + 1 + length].decode()
+        position = at + 1 + length + 32
+        positions[name] = int.from_bytes(table[position : position + 8], "big")
+        at += 137 + length
+    return positions
 
 
 class ManagedCohort:
@@ -58,7 +49,6 @@ class ManagedCohort:
         count: int,
         producers: int,
         relay: Path | None = None,
-        delivery_mode: str = "subscription",
         probe_sessions: int = 0,
         probe_active: int = 0,
         source_timeout_ms: int = 2000,
@@ -82,10 +72,9 @@ class ManagedCohort:
         self.namespaces = (
             sorted(set(namespaces))
             if namespaces is not None
-            else [f"load{index}" for index in range(producers)]
+            else sorted(f"load{index}" for index in range(producers))
         )
         self.relay = relay
-        self.delivery_mode = delivery_mode
         if not 0 <= probe_sessions <= 50000 or not 0 <= probe_active <= probe_sessions:
             raise ValueError("invalid relay probe admission")
         if probe_sessions and not probe_active:
@@ -98,14 +87,62 @@ class ManagedCohort:
         self.selection_timeout = selection_timeout
         self.source_paths: list[Path] = []
         self.relays: list[Actor] = []
-        self.scope = scope_identity(producers, self.namespaces)
         self.relay_ports: list[int] = []
         self.members: list[Actor] = []
+
+    def relay_configuration(
+        self, directory: Path, port: int, upstreams: list[dict[str, object]]
+    ) -> dict[str, object]:
+        mirror: dict[str, object] = {
+            "directory": str(directory / "mirror"),
+            "cluster": CONTEXT["cluster"],
+            "namespaces": self.namespaces,
+            "upstreams": upstreams,
+            "hostname": "localhost",
+            "ca": str(self.certificates / "ca.pem"),
+            "token": READER_TOKEN,
+            "interval_ms": 10,
+            "timeout_ms": self.source_timeout_ms,
+        }
+        configuration: dict[str, object] = {
+            "address": self.authority.address,
+            "port": port,
+            "hostname": "localhost",
+            "certificate": str(self.certificates / "one.pem"),
+            "private_key": str(self.certificates / "one.key"),
+            "ca": str(self.certificates / "ca.pem"),
+            "mirror": mirror,
+            "credentials": [
+                {
+                    "token": RELAY_TOKEN,
+                    "principal": READER_PRINCIPAL,
+                    "namespaces": self.namespaces,
+                }
+            ],
+        }
+        if self.probe_sessions:
+            active = (self.probe_active + self.relay_count - 1) // self.relay_count
+            mirror["sessions"] = min(
+                65536,
+                (self.probe_sessions + self.relay_count - 1) // self.relay_count
+                + self.count
+                + 32,
+            )
+            configuration.update(
+                connections=active + 128,
+                control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),
+                service_limits={
+                    "opens": min(256, active + 64),
+                    "closes": 64,
+                    "polls": active + 64,
+                },
+            )
+        return configuration
 
     async def start(self) -> None:
         leader = await self.authority.leader()
         first = (leader + 1) % 3
-        endpoints = [
+        endpoints: list[dict[str, object]] = [
             {
                 "address": self.authority.address,
                 "port": self.authority.ports[3 + (first + offset) % 3],
@@ -117,95 +154,19 @@ class ManagedCohort:
         )
         relay_ports = self.relay_ports
         if self.relay is not None:
-            if self.delivery_mode != "subscription":
-                raise ValueError("relay consumers require subscription delivery")
             for index in range(self.relay_count):
                 directory = self.directory / f"relay-{index}"
                 directory.mkdir(mode=0o700)
-                upstream = CONTEXT | {
-                    "principal": READER_PRINCIPAL,
-                    "policy_epoch": 1,
-                    "namespaces": self.namespaces,
-                    "token": READER_TOKEN,
-                    "authority_endpoints": endpoints,
-                    "hostname": "localhost",
-                    "ca": str(self.certificates / "ca.pem"),
-                    "delivery_mode": "subscription",
-                    "image_format": "paged-v2",
-                    "quorum_refresh_ms": 1000,
-                    "poll_interval_ms": 10,
-                    "reconnect_maximum_ms": 100,
-                    "timeout_ms": self.source_timeout_ms,
-                }
-                if self.capacity is not None:
-                    upstream.update(self.capacity.managed())
-                upstream_path = directory / "upstream.json"
-                upstream_path.write_text(json.dumps(upstream))
-                upstream_path.chmod(0o600)
                 with socket.socket(
-                    socket.AF_INET6
-                    if ":" in self.authority.address
-                    else socket.AF_INET
+                    socket.AF_INET6 if ":" in self.authority.address else socket.AF_INET
                 ) as reservation:
                     reservation.bind((self.authority.address, 0))
                     port = reservation.getsockname()[1]
                 relay_ports.append(port)
-                configuration = {
-                    "address": self.authority.address,
-                    "port": port,
-                    "hostname": "localhost",
-                    "certificate": str(self.certificates / "one.pem"),
-                    "private_key": str(self.certificates / "one.key"),
-                    "ca": str(self.certificates / "ca.pem"),
-                    "bundles": [
-                        {
-                            "source": str(upstream_path),
-                            "directory": str(directory / "generations"),
-                            "mode": "fresh",
-                        }
-                    ],
-                    "credentials": [
-                        {
-                            "token": "cd" * 16,
-                            "principal": READER_PRINCIPAL,
-                            "policy_epoch": 1,
-                            "bundles": [0],
-                        }
-                    ],
-                }
-                if (
-                    self.capacity is not None
-                    and self.capacity.relay_cache_bytes is not None
-                ):
-                    configuration["bundles"][0]["cache_bytes"] = (
-                        self.capacity.relay_cache_bytes
-                    )
-                if self.probe_sessions:
-                    sessions = (
-                        (self.probe_sessions + self.relay_count - 1) // self.relay_count
-                        + self.count
-                        + 32
-                    )
-                    active = (
-                        self.probe_active + self.relay_count - 1
-                    ) // self.relay_count
-                    configuration.update(
-                        connections=active + 128,
-                        control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),
-                        service_limits={
-                            "opens": min(256, active + 64),
-                            "closes": 64,
-                            "polls": active + 64,
-                            "bootstrap_transfers": min(128, active + 64),
-                            "catchup_transfers": min(128, active + 64),
-                            "sessions": sessions,
-                            "per_principal": sessions,
-                            "idle_ms": 3600000,
-                            "maximum_ms": 86400000,
-                        },
-                    )
                 config = directory / "relay.json"
-                config.write_text(json.dumps(configuration))
+                config.write_text(
+                    json.dumps(self.relay_configuration(directory, port, endpoints))
+                )
                 config.chmod(0o600)
                 self.relays.append(
                     await self.actors.start(
@@ -222,19 +183,17 @@ class ManagedCohort:
         for index in range(self.count):
             directory = self.directory / f"agent-{index}"
             directory.mkdir(mode=0o700)
-            source = CONTEXT | {
-                "principal": READER_PRINCIPAL,
-                "policy_epoch": 1,
+            source: dict[str, object] = {
+                "cluster": CONTEXT["cluster"],
                 "namespaces": self.namespaces,
                 "token": READER_TOKEN,
                 "authority_endpoints": endpoints,
                 "hostname": "localhost",
                 "ca": str(self.certificates / "ca.pem"),
-                "delivery_mode": self.delivery_mode,
                 "image_format": "paged-v2",
                 "compaction_interval_ms": 0,
                 "quorum_refresh_ms": 1000,
-                "poll_interval_ms": 10,
+                "retry_interval_ms": 10,
                 "reconnect_maximum_ms": 100,
                 "timeout_ms": self.source_timeout_ms,
             }
@@ -246,7 +205,7 @@ class ManagedCohort:
                 source.update(
                     address=self.authority.address,
                     port=relay_ports[index % len(relay_ports)],
-                    token="cd" * 16,
+                    token=RELAY_TOKEN,
                 )
             managed = directory / "managed.json"
             managed.write_text(json.dumps(source))
@@ -256,8 +215,6 @@ class ManagedCohort:
                 "managed_path": str(managed),
                 "generation_dir": str(directory / "generations"),
                 "runtime_dir": str(directory / "run"),
-                **{f"generation_{name}": value for name, value in CONTEXT.items()},
-                "generation_scope": self.scope,
             }
             config = directory / "agent.json"
             config.write_text(json.dumps(configuration))
@@ -269,36 +226,57 @@ class ManagedCohort:
                 )
             )
 
-    async def wait_selected(self, revision: int) -> None:
+    def positions(self, writers: Writers) -> dict[str, int]:
+        """The writers' last applied revision in each followed namespace."""
+        positions = dict.fromkeys(self.namespaces, 0)
+        for producer, revision in enumerate(writers.revisions):
+            name = self.authority.namespace(producer)
+            if name in positions:
+                positions[name] = max(positions[name], revision)
+        return positions
+
+    async def wait_selected(self, positions: dict[str, int]) -> None:
+        """Wait until every agent's entry for each name reaches its position."""
         for index, member in enumerate(self.members):
             directory = self.directory / f"agent-{index}" / "generations"
             deadline = time.monotonic() + self.selection_timeout
+            behind: dict[str, int | None] = {}
             while True:
                 if member.process.returncode is not None:
                     raise RuntimeError(
                         f"managed agent {index} exited before convergence"
                     )
                 try:
-                    position = table_position((directory / "selected").read_bytes())
-                    if position is not None and position >= revision:
-                        break
+                    table = table_positions((directory / "selected").read_bytes())
                 except FileNotFoundError:
-                    pass
+                    table = None
+                if table is not None:
+                    behind = {
+                        name: table.get(name)
+                        for name, position in positions.items()
+                        if position and table.get(name, 0) < position
+                    }
+                    if not behind:
+                        break
                 if time.monotonic() >= deadline:
-                    raise RuntimeError(f"managed agent {index} did not converge")
+                    raise RuntimeError(
+                        f"managed agent {index} did not converge: {behind} "
+                        f"of {positions}"
+                    )
                 await asyncio.sleep(0.05)
 
     async def verify(self, writers: Writers) -> None:
-        revision = max(
-            int(receipt["revision"])
-            for receipt in writers.receipts
-            if receipt is not None
-        )
+        positions = self.positions(writers)
         expected = self.directory / "expected-values.bin"
         expected.unlink(missing_ok=True)
         with expected.open("xb") as stream:
-            writers.write_expected(stream, revision)
-        await self.wait_selected(revision)
+            stream.write(struct.pack("<QQ", writers.records, writers.producers))
+            stream.writelines(
+                struct.pack("<Q", positions[self.authority.namespace(producer)])
+                for producer in range(writers.producers)
+            )
+            stream.writelines(struct.pack("<q", value) for value in writers.values)
+        await self.wait_selected(positions)
         for index in range(len(self.members)):
             oracle_started = time.monotonic()
             directory = self.directory / f"agent-{index}" / "generations"
@@ -309,9 +287,6 @@ class ManagedCohort:
                     str(directory),
                     str(expected),
                     CONTEXT["cluster"],
-                    CONTEXT["group"],
-                    CONTEXT["epoch"],
-                    self.scope,
                     *(self.capacity.oracle_arguments() if self.capacity else []),
                 ],
             )
@@ -324,7 +299,7 @@ class ManagedCohort:
                 oracle_process_seconds=time.monotonic() - oracle_started,
                 index=index,
                 records=writers.records,
-                revision=revision,
+                positions=positions,
             )
             self.actors.children.remove(verifier)
 

@@ -51,12 +51,14 @@ def health(address: str, port: int, context: ssl.SSLContext) -> dict[str, Any]:
         raw.settimeout(3)
         raw.connect((address, port))
         with context.wrap_socket(raw, server_hostname="localhost") as tls:
-            tls.sendall(b"GET /v1/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+            tls.sendall(
+                b"GET /v1/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+            )
             data = b""
             while chunk := tls.recv(65536):
                 data += chunk
     head, _, body = data.partition(b"\r\n\r\n")
-    # 503 is the relay before its first generation: still an answer over this family.
+    # 503 is the relay before its mirror's first sync: still an answer over this family.
     assert head.startswith((b"HTTP/1.1 200", b"HTTP/1.1 503")), head
     result = json.loads(body[body.index(b"{") :])
     assert isinstance(result, dict)
@@ -76,7 +78,9 @@ def wait_health(
             time.sleep(0.05)
 
 
-def authority_configuration(certificates: Path, directory: Path, ports: list[int]) -> Path:
+def authority_configuration(
+    certificates: Path, directory: Path, ports: list[int]
+) -> Path:
     voters = []
     for index, name in enumerate(["one", "two", "three"]):
         der = ssl.PEM_cert_to_DER_cert((certificates / f"{name}.pem").read_text())
@@ -112,21 +116,6 @@ def authority_configuration(certificates: Path, directory: Path, ports: list[int
 
 
 def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
-    upstream = CONTEXT | {
-        "principal": "reader",
-        "policy_epoch": 1,
-        "namespaces": ["ns"],
-        "token": TOKEN,
-        "authority_endpoints": [{"address": "::1", "port": free_port()}],
-        "hostname": "localhost",
-        "ca": str(certificates / "ca.pem"),
-        "delivery_mode": "subscription",
-        "image_format": "paged-v2",
-        "timeout_ms": 2000,
-    }
-    source = directory / "upstream.json"
-    source.write_text(json.dumps(upstream))
-    source.chmod(0o600)
     configuration = {
         "address": "::",
         "port": port,
@@ -134,11 +123,16 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
         "certificate": str(certificates / "one.pem"),
         "private_key": str(certificates / "one.key"),
         "ca": str(certificates / "ca.pem"),
-        "bundles": [
-            {"source": str(source), "directory": str(directory / "generations"), "mode": "fresh"}
-        ],
+        "mirror": {
+            "directory": str(directory / "mirror"),
+            "cluster": CONTEXT["cluster"],
+            "namespaces": ["ns"],
+            "upstreams": [{"address": "::1", "port": free_port()}],
+            "token": TOKEN,
+            "timeout_ms": 2000,
+        },
         "credentials": [
-            {"token": "cd" * 16, "principal": "reader", "policy_epoch": 1, "bundles": [0]}
+            {"token": "cd" * 16, "principal": "reader", "namespaces": ["ns"]}
         ],
     }
     path = directory / "relay.json"
@@ -148,7 +142,9 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
 
 
 def main() -> int:
-    authority, relay, certificates = (Path(argument).resolve() for argument in sys.argv[1:4])
+    authority, relay, certificates = (
+        Path(argument).resolve() for argument in sys.argv[1:4]
+    )
     if not has_ipv6():
         print("skip: no ::1 on this host")
         return 77
@@ -181,18 +177,25 @@ def main() -> int:
     try:
         for name, command in commands.items():
             log = (directory / f"{name}.log").open("wb")
-            children[name] = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
+            children[name] = subprocess.Popen(
+                command, stdout=log, stderr=subprocess.STDOUT
+            )
         for name, port in served.items():
             wait_health("::1", port, context, children[name])
             families = ["IPv6"]
             # The OS default decides whether a plain v6 socket takes IPv4; Detent must not depend on it.
             health("127.0.0.1", port, context)
             families.append("IPv4")
-            print(f"{name} bound to [::]: served {' and '.join(families)} clients", flush=True)
+            print(
+                f"{name} bound to [::]: served {' and '.join(families)} clients",
+                flush=True,
+            )
         print(f"host v6_only default: {'off' if v4_too else 'on'}", flush=True)
     except BaseException:
         for log in sorted(directory.glob("*.log")):
-            print(f"--- {log.name}\n{log.read_text(errors='replace')[-2000:]}", flush=True)
+            print(
+                f"--- {log.name}\n{log.read_text(errors='replace')[-2000:]}", flush=True
+            )
         raise
     finally:
         for child in children.values():
