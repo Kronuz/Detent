@@ -4318,6 +4318,8 @@
       "after": [
         "dd1-transfer-receiver"
       ],
+      "base": "d1fd27e663d1f15430035bcb90a97889f7adca19",
+      "branch": "quest/detent/dd2-canonical-copy",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4341,11 +4343,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: owner priority (D133, finish dense distribution within a day): overlap is only CMakeLists.txt target additions; DD2's sources are new files",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Dense distribution DD2: seal-order relocation into the canonical copy",
-      "updated": "2026-11-20T04:38:51"
+      "updated": "2026-11-20T04:39:28",
+      "worktree": "../Detent-wt/detent/dd2-canonical-copy"
     },
     "dd3-full-copy-pages": {
       "accepted": {},
