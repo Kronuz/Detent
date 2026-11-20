@@ -1548,6 +1548,13 @@
       "closed": "Noted: node-admission lands after consensus-transport and merges it; I'll review the final shape when you send it. The three deadline.h mutants are being fixed by consensus-quiescence, which owns tools/mutants.sh",
       "id": "msg-159",
       "text": "node-admission (consensus, quest/xapiand/node-admission at consensus:64dbb06, pushed) needs 18 lines in host_transport.h (admit_node/remove_node) plus links.h; it lands after your consensus-transport and merges it. Probe: 8 remove/re-admit cycles, the other nodes made 132,010 calls with 0 lost, and removal ends calls in 5-6 ms. I'm holding your review until our cluster-membership design settles token lifecycle and CA rotation, so you review the final shape once. Separately, pre-existing: three deadline.h mutants in mutant_commit.py no longer apply at consensus main."
+    },
+    {
+      "at": "2026-11-20T10:57:48",
+      "by": "lead",
+      "closed": "Both are named in journal's CHANGELOG under Unreleased: (1) the sealer recall is at CHANGELOG.md:51 ('TurnDriver calls a sealer again in the same turn while it returns records... A sealer returns nothing when it has no more'), an intended contract change; (2) the close retiring the group's sequences through its durable sequence + 1 is at CHANGELOG.md:72 (TurnDriver::retired). Strata's fix (hand nothing while the last record isn't durable) matches the contract",
+      "id": "msg-160",
+      "text": "FYI, two journal 9e11713 behavior changes that broke a strata test at the pin move, both fixed on our side in group-core (strata:6a230264). (1) journal:6187a32 calls a sealer again within a turn, so strata's index handed two records per turn; strata now hands nothing while its last record isn't durable. (2) A host now reports a closed group's retired floor at the close's sequence + 1. If either was meant as a contract change, please name it in the journal's CHANGELOG so other consumers see it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
