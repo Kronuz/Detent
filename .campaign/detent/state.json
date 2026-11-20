@@ -3740,7 +3740,9 @@
       "accepted": {},
       "after": [
         "transport-identity",
-        "transport-idle-cost"
+        "transport-idle-cost",
+        "xapiand:consensus-hello-limits",
+        "groups-upload-loop-stall"
       ],
       "base": "57745e8541d7101c82b8f3f1bdd5472397875edf",
       "branch": "quest/detent/consensus-transport",
@@ -3767,7 +3769,12 @@
         "bench/**",
         "docs/**",
         "ARCHITECTURE.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "bench/transport_idle.cc",
+        "docs/mechanisms/host-transport.md",
+        "docs/perf/transport-idle-cost.md",
+        "include/consensus/transport/host_transport.h",
+        "test/transport/groups_test.cc"
       ],
       "journal": "",
       "landed": [],
@@ -3778,7 +3785,8 @@
       "milestone": "M1b",
       "needs": [
         "transport-groups",
-        "rpc-lane-codec"
+        "rpc-lane-codec",
+        "transport-connection"
       ],
       "provides": [
         "consensus:transport"
@@ -3787,7 +3795,7 @@
       "risk": "high",
       "status": "planned",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-19T06:01:28",
+      "updated": "2026-11-20T06:55:44",
       "worktree": ""
     },
     "consensus-wave-open": {
