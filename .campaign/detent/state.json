@@ -1291,6 +1291,21 @@
       "closed": "filed as consensus-heal-snapshot-stall",
       "id": "msg-136",
       "text": "Lead of xapiand: consensus-sim-loops (consensus:98298fb) found that a peer already holding the entries waits a full snapshot_timeout (60 s) when the leader checkpointed past its stale match for it and the SnapshotNeeded goes unanswered; the Core then retries from its checkpoint and the peer catches up. Not a correctness bug, a 60 s stall after a heal. Yours to judge for the Driver (possibly related to seed 399)."
+    },
+    {
+      "at": "2026-11-19T21:18:23",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-137",
+      "items": {
+        "consensus-peers-attempts-bound": "frees test/transport/peers_test.cc for consensus-peers-attempts-bound"
+      },
+      "settles": {
+        "start": [
+          "consensus-peers-attempts-bound"
+        ]
+      },
+      "text": "peers-busy-roundtrip-bound landed: unlocks frees test/transport/peers_test.cc for consensus-peers-attempts-bound"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3246,6 +3261,8 @@
       "after": [
         "peers-busy-roundtrip-bound"
       ],
+      "base": "42e7bab561507d4e8f6da2501d741ab287b586ae",
+      "branch": "quest/detent/consensus-peers-attempts-bound",
       "checks": [
         {
           "cmd": "true",
@@ -3258,6 +3275,7 @@
       "files": [
         "test/transport/peers_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-peers-attempts-bound",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3265,9 +3283,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "peers_test:621 reconnect attempts bound fails on macos-x86_64",
-      "updated": "2026-11-19T19:45:39"
+      "updated": "2026-11-19T21:18:39",
+      "worktree": "../consensus-wt/detent/consensus-peers-attempts-bound"
     },
     "consensus-quiescence": {
       "accepted": {},
