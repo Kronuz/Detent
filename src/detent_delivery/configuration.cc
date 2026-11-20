@@ -234,17 +234,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	require(result.disk.artifact_mode == 0600 || result.disk.artifact_mode == 0640 ||
 				result.disk.artifact_mode == 0644,
 			"managed artifact_mode must be 384, 416 or 420");
-	if (object.HasMember("reset_from")) {
-		const auto &old = object["reset_from"];
-		fields(old, {"cluster", "group", "epoch", "scope"});
-		detent::distribution::Cursor cursor;
-		cursor.cluster = identity<16>(field(old, "cluster"));
-		cursor.group = identity<16>(field(old, "group"));
-		cursor.restore_epoch = identity<16>(field(old, "epoch"));
-		cursor.scope = identity<32>(field(old, "scope"));
-		require(!cursor.same_identity(source.configured), "managed reset must change identity");
-		result.coordinator.reset_from = cursor;
-	}
 	return result;
 }
 } // namespace detent::delivery

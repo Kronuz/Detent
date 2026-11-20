@@ -15,12 +15,9 @@ target_compile_definitions(detent_delivery_transport PUBLIC ASIO_STANDALONE)
 target_link_libraries(detent_delivery_transport PUBLIC detent::delivery_http reactor::tls task::asio
   PRIVATE http_parser::http_parser)
 add_library(detent::delivery_transport ALIAS detent_delivery_transport)
-# Dense distribution D6 and D9: the encoding per update and the delta receiver, over DD1's receiver
-# (src/detent_local/paged_transfer.cc), which this builds with once it is present.
-if(EXISTS "${PROJECT_SOURCE_DIR}/src/detent_local/paged_transfer.cc")
-  add_library(detent_delivery_delta_transfer STATIC delta_transfer.cc)
-  target_include_directories(detent_delivery_delta_transfer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${PROJECT_SOURCE_DIR}/src/detent_local")
-  target_link_libraries(detent_delivery_delta_transfer PUBLIC detent::local_view detent::distribution)
-  add_library(detent::delivery_delta_transfer ALIAS detent_delivery_delta_transfer)
-endif()
+# Dense distribution D6 and D9: the encoding per update and the delta receiver, over DD1's receiver.
+add_library(detent_delivery_delta_transfer STATIC delta_transfer.cc)
+target_include_directories(detent_delivery_delta_transfer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(detent_delivery_delta_transfer PUBLIC detent::local_transfer detent::distribution)
+add_library(detent::delivery_delta_transfer ALIAS detent_delivery_delta_transfer)

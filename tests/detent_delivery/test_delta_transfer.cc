@@ -4,6 +4,7 @@
 //                                            answer for the same change, and the encoding D6 picks
 #include "delta_scenarios.hh"
 #include "delta_transfer.hh"
+#include "detent_distribution/framing.hh"
 #include "detent_distribution/session_frames.hh"
 #include "page_window.hh"
 #include "paged_page_access.hh"
@@ -189,7 +190,7 @@ static std::string block_answer(const Rows &base, const Rows &target) {
 	for (const auto &[name, position] : to) {
 		if (position == from.at(name))
 			continue;
-		detent::Identity cluster{}, incarnation{};
+		d::Identity cluster{}, incarnation{};
 		cluster.fill('c');
 		incarnation.fill('i');
 		histories.push_back(std::make_unique<BlockHistory>(d::NamespaceCursor{cluster, incarnation, position},

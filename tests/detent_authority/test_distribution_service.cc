@@ -2,7 +2,7 @@
 #include "detent_distribution/framing.hh"
 #include "service.hh"
 #ifdef DETENT_TEST_MANAGED_DELIVERY
-#include "detent_delivery/client.hh"
+#include "detent_delivery/namespace_session.hh"
 #include "detent_transport/await_io.hh"
 #endif
 #include "consensus/transport/tls.h"
@@ -238,20 +238,47 @@ int main(int argc, char **argv) {
 					receive_options.hostname = "localhost";
 					receive_options.token = token;
 					receive_options.tls_context = client_tls;
-					receive_options.configured = cursor;
-					receive_options.namespaces = {"ns"};
 					receive_options.compression = compressed;
 					receive_options.limits.storage_account = account;
-					auto received = detent::transport::run_until_done(
-						client_io, client_scheduler, detent::delivery::receive(std::move(receive_options)));
-					check(received.snapshot && received.target.revision == 2 &&
-						  received.snapshot->records().size() == 1 &&
-						  received.snapshot->records()[0].key == "ns:a");
-					for (;;) {
-						d::WorkBudget work;
-						if (received.snapshot->discard(work))
-							break;
-					}
+					// W5/W6: a first open and next for `ns` is one full copy at the authority's head.
+					struct Copy final : detent::delivery::FramePreparer {
+						std::vector<std::string> keys;
+						std::optional<d::NamespaceCursor> at;
+						struct Frame final : Prepared {
+							Copy &owner;
+							d::NamespaceCursor to;
+							std::vector<std::string> keys;
+							Frame(Copy &copy, const d::NamespaceCursor &cursor) : owner(copy), to(cursor) {}
+							void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
+							void record(std::string_view key, std::uint64_t, const detent::KnobDef *value) override {
+								if (value)
+									keys.emplace_back(key);
+							}
+							std::size_t bytes() const noexcept override { return 64 * (keys.size() + 1); }
+							void publish() override {
+								owner.keys = std::move(keys);
+								owner.at = to;
+							}
+						};
+						std::unique_ptr<Prepared> prepare(std::string_view, d::FrameKind kind, std::uint64_t,
+														  const d::NamespaceCursor &to) override {
+							check(kind == d::FrameKind::FullCopy);
+							return std::make_unique<Frame>(*this, to);
+						}
+					} copy;
+					const detent::delivery::Following following{{{"ns", {}}}, {}};
+					auto session = detent::transport::run_until_done(
+						client_io, client_scheduler, detent::delivery::open_namespace_session(receive_options, following));
+					client_io.restart();
+					const auto outcome = detent::transport::run_until_done(
+						client_io, client_scheduler,
+						detent::delivery::next_namespace_session(receive_options, session, following,
+																 std::chrono::milliseconds(0), copy));
+					check(outcome == detent::delivery::FramesOutcome::Frames && copy.at &&
+						  copy.at->cluster == cursor.cluster && copy.keys == std::vector<std::string>{"ns:a"});
+					client_io.restart();
+					detent::transport::run_until_done(
+						client_io, client_scheduler, detent::delivery::close_namespace_session(receive_options, session));
 				}
 				check(account->used() == 0);
 			}

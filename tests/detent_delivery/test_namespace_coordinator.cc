@@ -19,6 +19,16 @@ namespace l = detent::local;
 using namespace namespace_server;
 
 namespace {
+std::string message(const std::exception_ptr &error) {
+	try {
+		if (error)
+			std::rethrow_exception(error);
+	} catch (const std::exception &failure) {
+		return failure.what();
+	} catch (...) {
+	}
+	return "unknown";
+}
 struct Agent {
 	detent::OwnerLoop owner;
 	std::shared_ptr<l::DiskStore> store;
@@ -56,7 +66,7 @@ struct Agent {
 		for (const auto limit = std::chrono::steady_clock::now() + 30s;; std::this_thread::sleep_for(5ms)) {
 			auto state = status();
 			if (state.phase == t::CoordinatorPhase::Fenced)
-				throw std::runtime_error(std::string("coordinator fenced waiting for ") + what + ": " + state.error);
+				throw std::runtime_error(std::string("coordinator fenced waiting for ") + what + ": " + message(state.error));
 			if (done(state))
 				return state;
 			if (std::chrono::steady_clock::now() > limit)

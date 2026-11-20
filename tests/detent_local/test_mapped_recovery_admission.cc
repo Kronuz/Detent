@@ -51,7 +51,7 @@ int main() {
 		limits.mapping_account = mappings;
 		auto recovered = l::recover_generation(directory, limits);
 		l::detail::StoreCore core(heap, {}, domain.factory());
-		core.retain_recovered(recovered);
+		core.retain_recovered("", recovered);
 		for (bool progress : {false, true}) {
 			std::optional<l::detail::PagedPlan> plan;
 			if (progress) {
@@ -77,7 +77,7 @@ int main() {
 											   plan->descriptor().profile, false)
 								.id);
 			{
-				const auto prior = core.verified_paged;
+				const auto prior = core.namespaces[""].verified;
 				auto target = plan->root();
 				auto eligible = [&] {
 					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(),
@@ -107,7 +107,7 @@ int main() {
 				auto other_mappings = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 				auto mismatch =
 					domain.make<l::detail::MappedRecoveryAdmission>(heap, other_mappings, domain.factory());
-				mismatch->populate(*plan, core.verified_paged);
+				mismatch->populate(*plan, core.namespaces[""].verified);
 				require(!mismatch->warm());
 				mismatch.reset();
 				wait_for([&] { return other_mappings->used() == 0; });
@@ -117,7 +117,7 @@ int main() {
 				auto limited = runtime.domain(heap, 1);
 				auto unavailable =
 					limited.make<l::detail::MappedRecoveryAdmission>(heap, mappings, limited.factory());
-				rejects<d::StoragePressure>([&] { unavailable->populate(*plan, core.verified_paged); });
+				rejects<d::StoragePressure>([&] { unavailable->populate(*plan, core.namespaces[""].verified); });
 				require(mappings->used() == baseline && plan->descriptor().generation == next);
 				unavailable.reset();
 				limited.close().wait();
@@ -139,7 +139,7 @@ int main() {
 						limited.make<l::detail::MappedRecoveryAdmission>(heap, mappings, limited.factory());
 					rejects<d::StoragePressure>([&] {
 						insufficient->populate(*plan,
-											   warm ? core.verified_paged
+											   warm ? core.namespaces[""].verified
 													: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 					});
 					require(plan->descriptor().generation == next);
@@ -162,12 +162,12 @@ int main() {
 					if (short_capacity) {
 						rejects<d::StoragePressure>([&] {
 							admission->populate(*plan,
-												warm ? core.verified_paged
+												warm ? core.namespaces[""].verified
 													 : d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 						});
 						rejects<std::logic_error>([&] { admission->warm(); });
 					} else {
-						admission->populate(*plan, warm ? core.verified_paged
+						admission->populate(*plan, warm ? core.namespaces[""].verified
 														: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 						require(admission->warm() == warm && admission->reserved_bytes() == needed);
 						require(mappings->used() == mappings->limit());
@@ -194,7 +194,7 @@ int main() {
 				const auto baseline = mappings->used();
 				auto admission =
 					pressure_domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, pressure_domain.factory());
-				admission->populate(*plan, warm ? core.verified_paged
+				admission->populate(*plan, warm ? core.namespaces[""].verified
 												: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 				rejects<std::logic_error>([&] { admission->take_view(); });
 				rejects<std::logic_error>([&] { admission->capability()->root(); });
@@ -204,7 +204,7 @@ int main() {
 						heap,
 						mappings,
 						pressure_limits,
-						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
+						warm ? core.namespaces[""].verified : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						admission};
 					rejects<std::invalid_argument>(
 						[&] { l::detail::RecoveryEngine::recover(directory, wrong_selection); });
@@ -234,7 +234,7 @@ int main() {
 						heap,
 						mappings,
 						pressure_limits,
-						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
+						warm ? core.namespaces[""].verified : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						admission};
 					context.budget = {1, 1};
 					auto current = l::detail::RecoveryEngine::recover(directory, std::move(context));
@@ -273,7 +273,7 @@ int main() {
 				trusted_records::stage(directory, descriptor, bytes);
 				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,
-												   core.verified_paged, {}};
+												   core.namespaces[""].verified, {}};
 				context.metrics = metrics;
 				rejects<std::invalid_argument>(
 					[&] { l::detail::RecoveryEngine::recover(directory, context); });

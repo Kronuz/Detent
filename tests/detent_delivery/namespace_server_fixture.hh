@@ -5,6 +5,7 @@
 #include "../detent_distribution/history_fixture.hh"
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/grants.hh"
+#include "detent_distribution/session_frames.hh"
 #include "detent_distribution_http/session_request.hh"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
