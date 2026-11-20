@@ -1,6 +1,6 @@
 # consensus-dns-notes: journal
 
-State: waiting on jobs 261119-181142-7032e8 (suite at b3576ab, A3)
+State: waiting on jobs 261119-185923-ea9df4 (A1 at head), 261119-185934-15dd4a (A1 fails-without: head's test over 0bd4c17's header), 261119-185944-c665b8 (suite, A3), 261119-185946-1b0e41 (TSan, A3)
 Quest: .campaign/detent/quests/consensus-dns-notes.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,6 +19,8 @@ Code and docs done on quest/detent/consensus-dns-notes (pushed). Waiting on the 
 2. When the lead adds CHANGELOG.md to the file set, add the entry under Blocked on, then A2 is complete.
 
 ## Blocked on
+
+CI at b3576ab failed linux-tsan at link: resolve_test.cc's global operator new/delete collided with the sanitizer runtime's. Fixed in the next commit: the hook and the `start_fails` check are compiled out under ASan/TSan (the SANITIZER_THREADS macro, which covers both); the case prints "skipped" there. The check still runs in the plain (and UBSan-only) builds: the suite's Release build and the A1 jobs, on macOS and Linux; the sanitizer builds skip it. Failed suite 404d98: the peers_test :855 one-off, superseded by 7032e8 (passed). Mutant jobs (A1 fails-without) now run the head's test over 0bd4c17's header (git checkout of the old header), since the fix and test are no longer separate commits at head.
 
 Suite 404d98 failed once at peers_test.cc:855 `hangs({other, port})`: a one-off environmental failure of the black-hole setup probe, which runs before any resolver code. Peers x20: head 482e54 0 failures; base 36e4e4 1 failure, at :1163 (busy round-trip bound, peers-busy-roundtrip-bound's), not :855. Suite resubmitted: 7032e8.
 
