@@ -1,40 +1,34 @@
 # consensus-peers-attempts-bound: journal
 
-State: working
+State: waiting on jobs 261119-212019-0bb37f (probe c67c493 on probe/consensus-peers-attempts-bound)
 Quest: .campaign/detent/quests/consensus-peers-attempts-bound.md (the lead's; never edit it)
-
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+CI run 44650101243 printed "NXDOMAIN at startup: 2 lookups of two in 1341 ms": the too-few side
+failed (2 < 4), not the upper bound. Lookups of one name are spaced by resolve_deadline (200 ms) and
+by the lane's 100-199 ms pause, so expect ~250 ms apart (5 in 1.3 s); 2 means the executor or
+lookup thread stalled ~800 ms. Probe (does not land) prints each lookup's time, the commit time,
+elapsed and attempts per run; probe branch probe/consensus-peers-attempts-bound at c67c493.
 
 ## Next
 
-1. <step>
+1. Read 261119-212019-0bb37f: spacing of lookups, which runs fail, commit time.
+2. Name the cause; set or fix the bound at peers_test.cc:621 with the job ids.
+3. A2 loaded 200 runs + mutant (no backoff delay), A3 suite and CI.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | |
+| A2 | |
+| A3 | |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
-
 ## Rulings I made
-
-<Decisions inside the quest's scope, so the reviewer can check them.>
