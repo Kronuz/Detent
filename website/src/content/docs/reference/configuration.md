@@ -185,7 +185,8 @@ A relay configuration requires a `mirror` object: the relay mirrors namespace hi
 | `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure, or an answer older than the mirror, moves to the next |
 | `token` | required | The relay's credential at its upstream |
 | `hostname`, `ca` | `localhost`, the relay's `ca` | How the relay verifies its upstream |
-| `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to 30 seconds or one interval |
+| `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to `reconnect_maximum_ms` |
+| `reconnect_maximum_ms` | 30,000, or the interval when larger | The longest wait after failed syncs, from the interval to 86,400,000 |
 | `timeout_ms` | 10,000 | Deadline for each upstream request |
 | `compression` | `false` | Read W6 answers in zstd |
 | `sessions` | 1,024 | Sessions the relay holds |

@@ -138,6 +138,7 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 	});
 	asio::steady_timer tick(owner.io());
 	std::chrono::steady_clock::time_point health_due{};
+	std::string sync_error; // the last sync failure logged; cleared by a successful sync
 	std::function<void()> turn;
 	turn = [&] {
 		try {
@@ -148,6 +149,11 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 				L_WARNING("detent-relay: namespace mirror stopped: {}", state.error);
 				failure = std::make_exception_ptr(std::runtime_error("relay mirror: " + state.error));
 				shutdown();
+			}
+			if (!state.failed && state.error != sync_error) {
+				if (!state.error.empty())
+					L_WARNING("detent-relay: mirror sync failed: {}", state.error);
+				sync_error = state.error;
 			}
 			if (!announced && !stop_requested && state.ready) {
 				runtime->health(health_snapshot(accounts.metadata, *root, runtime->status(), *mirror, true));

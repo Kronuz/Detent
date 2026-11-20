@@ -18,6 +18,8 @@ struct MirrorServiceOptions {
 	distribution::Identity cluster{}; // the authority's, as its cursors carry it
 	std::vector<std::string> namespaces; // the names mirrored, strictly increasing
 	std::chrono::milliseconds interval{250}, idle{60000};
+	// The longest wait after failed syncs in a row; at least `interval`.
+	std::chrono::milliseconds reconnect_maximum{30000};
 	std::uint64_t maximum_wait_ms = 30000;
 	std::size_t sessions = 1024;
 };

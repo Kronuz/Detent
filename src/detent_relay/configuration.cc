@@ -65,7 +65,7 @@ distribution::Identity identity(const Value &value) {
 // (the authority's voters or another relay), with a credential and no consensus.
 ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, const std::string &ca) {
 	fields(object, {"directory", "cluster", "namespaces", "upstreams", "hostname", "ca", "token", "interval_ms",
-					"timeout_ms", "compression", "sessions", "answer_bytes"});
+					"reconnect_maximum_ms", "timeout_ms", "compression", "sessions", "answer_bytes"});
 	ConfiguredMirror result;
 	auto &service = result.service;
 	service.directory = path(field(object, "directory"), base);
@@ -80,6 +80,9 @@ ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, 
 		service.namespaces.push_back(std::move(value));
 	}
 	service.interval = std::chrono::milliseconds(number(object, "interval_ms", 250, 1, 60000));
+	service.reconnect_maximum = std::chrono::milliseconds(
+		number(object, "reconnect_maximum_ms", std::max<std::uint64_t>(30000, service.interval.count()),
+			   service.interval.count(), 86400000));
 	service.sessions = number(object, "sessions", service.sessions, 1, 65536);
 	result.answer_bytes = number(object, "answer_bytes", result.answer_bytes, 1024 * 1024, 1ull << 32);
 	auto &upstream = result.upstream;

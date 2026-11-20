@@ -102,6 +102,7 @@ class ManagedCohort:
             "ca": str(self.certificates / "ca.pem"),
             "token": READER_TOKEN,
             "interval_ms": 10,
+            "reconnect_maximum_ms": 100,
             "timeout_ms": self.source_timeout_ms,
         }
         configuration: dict[str, object] = {

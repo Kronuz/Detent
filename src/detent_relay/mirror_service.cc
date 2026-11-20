@@ -12,7 +12,6 @@ namespace detent::relay {
 namespace d = distribution;
 namespace {
 using Clock = std::chrono::steady_clock;
-constexpr std::chrono::milliseconds backoff_limit{30000}; // or one interval, when that is longer
 std::string hex(std::span<const char> bytes) {
 	std::string out;
 	for (unsigned char byte : bytes) {
@@ -309,7 +308,7 @@ struct MirrorService::Impl {
 			state.error = std::string("relay mirror: ") + error.what();
 		}
 		auto next_sync = Clock::now();
-		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to backoff_limit
+		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to reconnect_maximum
 		for (;;) {
 			std::deque<std::shared_ptr<MirrorJob>> jobs;
 			{
@@ -341,7 +340,7 @@ struct MirrorService::Impl {
 				failing = sync() ? 0 : std::min(failing + 1, 16u);
 				now = Clock::now();
 				next_sync = now + std::min(options.interval * (1u << failing),
-										   std::max<std::chrono::milliseconds>(options.interval, backoff_limit));
+										   options.reconnect_maximum);
 				std::erase_if(sessions, [&](const auto &entry) {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});
