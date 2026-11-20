@@ -8605,20 +8605,58 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-hop-on-task",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T19:35:14",
+          "commit": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
+          "criteria": {
+            "A1": "D129 (its probe is named there; a failing probe cannot be cited as passing evidence)",
+            "A2": "261119-181456-c79217 (passed at 485cd23dfc96; ignores docs-only CHANGELOG.md, docs/mechanisms/turn-seal.md); fails without: 261119-181502-b6d697",
+            "A3": "261119-181505-2fa91c (passed at 485cd23dfc96; ignores docs-only CHANGELOG.md, docs/mechanisms/turn-seal.md), 261119-181508-6b48ee (passed at 485cd23dfc96; ignores docs-only CHANGELOG.md, docs/mechanisms/turn-seal.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "485cd23dfc960661d522d9be15b11eac80221a05",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/mechanisms/turn-seal.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-181508-6b48ee",
+              "level": "light",
+              "seconds": 245.9,
+              "state": "done",
+              "what": "journal-hop-on-task check suite at 485cd23dfc96"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+          "reason": "",
+          "tested": "bb114f16b07478825a00b6ba32e39bc1da6cbb39"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "journal turn driver: fallback hop on a task primitive",
-      "updated": "2026-11-19T19:06:44",
-      "worktree": "../journal-wt/detent/journal-hop-on-task"
+      "updated": "2026-11-19T19:35:21",
+      "worktree": ""
     },
     "journal-host-guards": {
       "accepted": {
