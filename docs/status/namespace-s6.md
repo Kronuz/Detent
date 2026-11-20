@@ -50,14 +50,21 @@ values, carried in DTDIST01 fragments of `UpdateKind::Frames` (SHA-256 per fragm
 
 ```text
 [1, directory | nil, frame count]
-per frame:  [name, kind, after, [cluster, incarnation, position], piece count]
+per frame:  [name, kind, after, cursor, root | nil, piece count]          kinds 1 to 3
+            [name, 4, after, cursor, piece count]                       dropped
+            [name, 5, after, cursor, root, offset, chunk count]  chunk*  pages
+cursor:     [cluster, incarnation, position]
 per piece:  [piece kind, first, last]  record*  nil
 record:     [key, revision, definition | nil]          nil: a tombstone
 directory:  [cluster, from, to, [[name, incarnation, live], ...]]
 definition: [default, rollout_pct | nil, rollout_value | nil, [[group, 0, value] | [group, 1, pct], ...]]
 ```
 
-Frame kinds: 1 entries, 2 blocks, 3 full copy. Piece kinds: 1 entry [p, p]; 2 block, a named span
+Frame kinds: 1 entries, 2 blocks, 3 full copy, 4 dropped, 5 pages (dense distribution DD3). A
+records frame's root is the target's state commitment when its sender holds a build at that
+position, else nil; an agent whose records build reaches another root fetches the namespace again
+as a full copy (D1). A pages frame's chunks (64 KiB, the last shorter) start at `offset`, a
+multiple of 64 KiB within the transfer: a frame that resumes a cut transfer (D8) starts there. Piece kinds: 1 entry [p, p]; 2 block, a named span
 sent whole, fetchable by (namespace, incarnation, first, last): every named span that starts above
 R; 3 span, trimmed (the span holding R + 1 when it starts at or below R) or merged (level-0); 4 full
 copy [0, s], fetchable by (namespace, incarnation, s). Frames come in name order; a piece's records
@@ -72,14 +79,15 @@ above `after`, belongs to the frame's namespace, and a full copy holds no tombst
 `Limits` bounds. An agent applies a tombstone for a key it lacks as a no-op (D8 "Catch-up input").
 
 Golden answer (`test_session_frames.cc`): x = 1, y = 2, delete x; block [1, 2]; store at 1:
-76 bytes, a span [1, 2] holding y at 2, then entry 3 deleting x.
+77 bytes, a span [1, 2] holding y at 2, then entry 3 deleting x.
 
 ## W5: the request (version 2)
 
 ```text
 open  {"version":2, "profile":1, "coding":"raw"|"zstd", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?,
        "pages"?, "records"?}
-next  {"version":2, "session", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?}
+next  {"version":2, "session", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?,
+       "resume"?: [name, root hex, after, offset]}
 close {"version":2, "session"}
 namespace: [name] (no store) or [name, incarnation, position]
 ```
@@ -91,7 +99,10 @@ cluster earns the same full copy as no store, so the client sends it as `[name]`
 `"pages":true` (dense distribution DD3) lets the session's full copies, and deltas the sender
 finds smaller as pages (D6), come as W6 pages frames; agents send it, relays mirroring upstream do
 not. `"records":[names]`, strictly increasing, are answered with records even then: the agent
-lists a namespace whose transfer it refused (D9) until records publish it.
+lists a namespace whose transfer it refused (D9) until records publish it. `"resume"` on next
+names a pages transfer a cut response left partly received, by its root, `after` and the whole
+chunks held: a sender with the same transfer resumes it at that offset (D8), any other frame for
+the namespace replaces it.
 
 Responses: open 200 `{"version":2,"session","wait_ms"}`; next 200
 `application/vnd.detent.frames` with `X-Detent-Session-Version: 2`, `X-Detent-Session` and
