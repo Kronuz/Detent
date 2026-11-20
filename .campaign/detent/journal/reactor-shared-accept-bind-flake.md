@@ -41,7 +41,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261120-032337-0144b3: old test (base 6cd8f73) under the port churner fails: `BIND FAILED: 0.0.0.0:63280 errno=48`, 80 runs; cause is the free_port reserve/release window |
-| A2 | mutant 261120-032337-0144b3 (fails without); fix runs 261120-034310-06eb15, 261120-034311-85033d, 261120-034312-934506 (5d9280 timed out, invalid) |
+| A2 | mutant 261120-032337-0144b3 (fails without); fix runs 261120-034310-06eb15, 261120-034311-85033d, 261120-034312-934506 (5d9280: superseded run, timed out at its 10-minute deadline beside light holds, invalid) |
 | A3 | suite 261120-032344-c78468 passed; CI run 44727258672 success on reactor:c8930ed |
 
 ## Result
