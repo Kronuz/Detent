@@ -8522,6 +8522,8 @@
       "after": [
         "journal-blocking-wake"
       ],
+      "base": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+      "branch": "quest/detent/journal-hop-on-task",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -8543,6 +8545,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-hop-on-task",
       "landed": [],
       "lenses": [
         "correctness"
@@ -8552,9 +8555,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal turn driver: fallback hop on a task primitive",
-      "updated": "2026-11-19T06:00:06"
+      "updated": "2026-11-19T18:07:45",
+      "worktree": "../journal-wt/detent/journal-hop-on-task"
     },
     "journal-host-guards": {
       "accepted": {
