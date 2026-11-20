@@ -3213,7 +3213,8 @@
         "include/consensus/core.h",
         "test/consensus_test.cc",
         "ARCHITECTURE.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/worker_test.cc"
       ],
       "history": [
         {
@@ -3255,7 +3256,7 @@
       "risk": "high",
       "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-20T00:19:34",
+      "updated": "2026-11-20T01:26:38",
       "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
