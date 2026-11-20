@@ -1,6 +1,6 @@
 # groups-upload-loop-stall: journal
 
-State: waiting on jobs 261119-200155-ebcce0 (probe 4, run 44671627878), 261119-200157-067f2c (CI 44671575494 at d7b49a1), 261119-200137-1dd882 (suite); then set "increment ready: --upto d7b49a1" if the probe log shows raw offsets, build, UUID, slide
+State: increment ready: --upto d7b49a1 (A1 and A3 evidenced; the cause moved to groups-upload-stall-cause, D130)
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
@@ -95,13 +95,12 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [manual] Notes, A1: five probed CI failures (run ids there), all host 1's connection loop in write(2) under SSL_write in Connection::flush, state U, 0 CPU, sockets empty: a handler that did not return (a kernel wait inside write), not an unscheduled thread |
-| A2 | pending |
-| A3 | pending |
+| A1 | [manual] Probe 4, run 44671627878 (consensus:596df12 = d7b49a1 plus the forced 1.3 s hold; never lands), macos-15-intel. Header line: `upload: kernel build 24G830 uuid F6A1B3D4-1EBB-3628-A1C5-89506C51DDEC base 0xffffff80002e8000 slide 0xe8000 unslid __TEXT 0xffffff8000200000`; kernel frames raw (`*298 kernel + 0x1300a0 [0xffffff80004180a0]`, `kernel + 0x81db6`); user frames symbolicated (`__semwait_signal`, `sleep_for`, `Connection::flush`) |
+| A3 | suite 261119-200137-1dd882; CI run 44671575494 at d7b49a1 (green) |
 
 ## Result
 
-<pending>
+Raw kernel frames, OS build, kernel UUID and slide in the spindump capture at consensus:d7b49a1; offline-symbolication note in ci.yml and docs/mechanisms/host-transport.md.
 
 ## Rulings I made
 
