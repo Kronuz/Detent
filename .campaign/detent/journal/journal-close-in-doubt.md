@@ -1,6 +1,6 @@
 # journal-close-in-doubt: journal
 
-State: waiting on jobs 261119-155358-d7b542 261119-155359-aa394f 261119-155400-64866e 261119-155402-ef5a34 261119-155403-6701c3
+State: waiting on jobs 261119-161045-09bab2 261119-161045-96fa14 and CI 44641415020 at journal:a64c618; ready to land once they pass
 Quest: .campaign/detent/quests/journal-close-in-doubt.md (the lead's; never edit it)
 
 ## Doing
@@ -11,8 +11,7 @@ At journal:6ab0fd2 every earlier job passed (brief's table below).
 
 ## Next
 
-1. When the reruns pass: `campaign accept journal-close-in-doubt correctness --confirm F1=261119-155400-64866e ...`
-   is the lead's; paste the brief's table at a64c618, set State to ready for review.
+1. When the two mutant reruns and CI 44641415020 pass: set State to ready to land.
 
 ## Blocked on
 
@@ -22,10 +21,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-145734-c35afd (close_in_doubt at the fix); 261119-145814-f4c7ce (--fails-without: close_in_doubt and failed_close_crash both fail under main's host.h 0202ebc) |
-| A2 | 261119-145740-13f24c (failed_close_crash, 192 points); 261119-145814-f4c7ce (at main's host.h) |
-| A3 | 261119-145750-f2f69d (mutant close-restores-open), 261119-145754-5345d7 (mutant hold-ignores-doubt) |
-| A4 | 261119-145820-931e5c (suite), 261119-145900-52089d (host + shared_store under TSan), CI 44633320764 (Linux TSan, ASan/UBSan) |
+| A1 | 261119-155358-d7b542; fails without: 261119-145814-f4c7ce |
+| A2 | 261119-155359-aa394f; fails without: 261119-145814-f4c7ce |
+| A3 | 261119-161045-09bab2 (close-restores-open), 261119-161045-96fa14 (hold-ignores-doubt), 261119-155400-64866e (close-unfenced, killed) |
+| A4 | 261119-155403-6701c3 (suite), 261119-155402-ef5a34 (TSan), CI 44641415020 at a64c618 |
 
 Local run before the jobs: under main's host.h, close_in_doubt fails 4 checks ("the turn log lost
 this group" after the restart) and failed_close_crash loses records at 24 of 192 points (each a
