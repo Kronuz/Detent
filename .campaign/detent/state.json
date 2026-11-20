@@ -3205,6 +3205,34 @@
       "updated": "2026-11-19T19:45:09",
       "worktree": ""
     },
+    "consensus-peers-attempts-bound": {
+      "accepted": {},
+      "after": [
+        "peers-busy-roundtrip-bound"
+      ],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/peers_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "peers_test:621 reconnect attempts bound fails on macos-x86_64",
+      "updated": "2026-11-19T19:45:39"
+    },
     "consensus-quiescence": {
       "accepted": {},
       "after": [],
