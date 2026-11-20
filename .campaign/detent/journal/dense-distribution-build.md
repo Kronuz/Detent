@@ -1,8 +1,9 @@
 # dense-distribution-build: journal
 
-State: D139 done at Detent:dba1ce32; gate jobs to submit there (suite, D139 mutants, F2 ASan
-pair, F4 5M strict). F1 probe rerun passed: 261120-125854-e45912. Mutant jobs 261120-125856-673c7a ..
-261120-125908-7185f2 are void (zsh passed patch and target as one argument).
+State: waiting on jobs 261120-141018-363fb4 (suite at Detent:e9937a82), 261120-141019-07be70,
+261120-141024-5b7b19, 261120-141026-8818b0 (D139 mutants), 261120-141028-b54373 / 261120-141032-1ff8f3
+(F2 ASan pair), 261120-134038-4ee64d (F4 5M strict), 261120-131414-94ce66 (F11 fuzz hour), and CI at
+Detent:e9937a82. Not "ready for review" until those pass.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -192,6 +193,20 @@ removal of test_local_view, which no longer exists.
 |---|---|
 | A1 | 261120-085935-8d23e7: 205/205 at Detent:d9668727; 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
 | A2 | <no evidence yet> |
+
+Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2 are void):
+
+| Finding | Evidence |
+|---|---|
+| F1 | probe rerun 261120-125854-e45912 (refused); mutants killed: 261120-130720-4e5da1, 261120-130722-c1de00 (f1-unbound-transfer), 261120-130724-33d8ce (f1-stuck-delta-not-repaired) |
+| F2 | 261120-141028-b54373 (test_relay_pages under ASan+UBSan), 261120-141032-1ff8f3 (answer-borrows mutant under ASan); the review's probe is ported as answer_owns |
+| F3 | mutant killed 261120-130727-a5032b (f3-cut-prefix-dropped); relay resume in test_relay_pages |
+| F4 | 261120-134038-4ee64d (5M strict, after arm); local before/after in docs/perf/relay-window.md |
+| F5 | mutant killed 261120-130729-9a8e6e (f5-records-root-unchecked) |
+| F7 | mutant killed 261120-130731-c646f9 (f7-d5-packing-unchecked) |
+| F10/D139 | 261120-141019-07be70, 261120-141024-5b7b19, 261120-141026-8818b0 |
+| F11 | 261120-131414-94ce66 (one CPU-hour) |
+| Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 at Detent:e9937a82 |
 
 ## Result
 
