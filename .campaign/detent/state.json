@@ -3064,6 +3064,8 @@
     "consensus-late-append-tests": {
       "accepted": {},
       "after": [],
+      "base": "5935efae4064a5ee88026e9e4684a50c69fada43",
+      "branch": "quest/detent/consensus-late-append-tests",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3077,6 +3079,7 @@
         "test/consensus_test.cc",
         "test/retained_state_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-late-append-tests",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3084,9 +3087,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: tests for late-success read probe and the snapshot guard",
-      "updated": "2026-11-19T16:56:51"
+      "updated": "2026-11-19T16:56:55",
+      "worktree": "../consensus-wt/detent/consensus-late-append-tests"
     },
     "consensus-quiescence": {
       "accepted": {},
