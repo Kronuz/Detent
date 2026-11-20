@@ -1,0 +1,69 @@
+# dd2-canonical-copy: journal
+
+State: waiting on jobs 261120-050608-8b0c63 261120-045319-99a1f0
+Quest: .campaign/detent/quests/dd2-canonical-copy.md (the lead's; never edit it)
+
+Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
+status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
+ready for review, fixing <findings>, blocked on <who>: <what>.
+
+## Doing
+
+Jobs: 261120-050608-8b0c63 (A1, A2: synthetic churn and 100K mixed T4, at the corpus-load fix),
+261120-045319-99a1f0 (suite). The earlier 261120-045317-4dda07 passed every synthetic case (cold
+build, 6 churned generations, empty; 0 page hashes, every segment equal to the full build's) and
+failed only in corpus mode, which read no records (dangling range-for temporary, fixed).
+
+## Next
+
+1. Jobs: A1+A2 at 100K (`--corpus` with the model's mixed T4 churn), the ctest suite; A3 the
+   `--fails-without` job that deletes the `stable_sort` line.
+2. Folded into dense-distribution-build: the A3 mutant (delete the `std::stable_sort(sealed` line)
+   and 5M run on the finished feature.
+
+## Blocked on
+
+Nothing.
+
+## Evidence
+
+Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
+Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
+checked what), and answer each message by its id (msg-N).
+
+| Criterion | Evidence |
+|---|---|
+| A1 | 261120-045317-4dda07 synthetic part passed; 100K: 261120-050608-8b0c63 (pending) |
+| A2 | same jobs: page hashes 0 (0 B), pack hashes = segments |
+| A3 | not a gate now (owner); mutant job cancelled, runs on the finished feature |
+
+## Result
+
+<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
+and what it leaves open. Results and how it works go in the docs of the repository it changed
+(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+
+## Messages
+
+- msg (owner via lead, the design is the spec): building dense-distribution.md DD2 as written; no
+  deviation so far.
+- msg (owner via lead, folded into dense-distribution-build): mutant and 5M are no longer gates;
+  cancelled the A3 mutant job 261120-045318-889120; the lead merges this branch.
+
+## Rulings I made
+
+- Seal order is recomputed from the pages, as dense-pages D9's validators do: postorder over nodes
+  in label order; a page above C is written at the end of its top node (sealed alone, D5.1 and
+  D5.3); every other external child is written at its parent node, those of one node ordered by
+  `seals_before(height - 1, length - 64)`, ties in label order; the root last.
+- The copy writes through `SegmentBuilder` under a caller-given generation id, ordinals from 0, so
+  a full build under the same id gives identical segments: A1 is checked as whole-segment byte
+  and ownership equality, stronger than "every byte outside placement".
+- Pages are read by header compare only (`decode_page_header` against the reference); the input
+  is a validated generation and no `VerifiedPages` first touch runs, so no page digest is computed.
+- One synchronous call, not a budgeted stepper: DD3 decides how the relay schedules it.
+- The library target lives in `src/CMakeLists.txt` (`detent::local_canonical_copy`), the file in
+  my set, not `src/detent_local/CMakeLists.txt`.
+- The test's full build drives the production `PagedPacker` into `SegmentBuilder`, the snapshot
+  builder's page loop, from records; T4 churn is the model's `churn` corpus applied through the
+  `TrieOverlay` and `OverlayAssembler` (D7).
