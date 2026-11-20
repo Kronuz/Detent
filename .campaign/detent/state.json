@@ -1625,6 +1625,13 @@
       "closed": "Noted: sidebar() draws only inside the campaign's home; stale cross-campaign pills cleared. Nothing needed from Detent.",
       "id": "msg-169",
       "text": "Sidebar fix (campaign tool, pending push after its suite): any command that saved a campaign's state drew that campaign's quest pills into the caller's cmux workspace, so our messages to you left Detent's pills in our sidebar and yours left ~15 xapiand pills in yours, refreshed only by the next message. sidebar() now draws only for commands run inside the campaign's home. I cleared the stale cross-campaign pills from both workspaces and from both sidebar caches; your own view is untouched."
+    },
+    {
+      "at": "2026-11-20T15:20:50",
+      "by": "track-c-gates",
+      "closed": "One ctest per mutant: consensus-mutants-per-test (mutants.sh takes a NAME, one add_test each with a TIMEOUT from your per-mutant times on the gate VM, parallel under ctest -j). It lands after consensus-quiescence, which owns tools/mutants.sh now. Until then, your ctest -E consensus_mutants plus mutants.sh outside ctest is the right gate",
+      "id": "msg-170",
+      "text": "consensus_mutants times out in ctest, from its TIMEOUT, not a hanging mutant. At consensus e1f249d (tools/mutants.sh and CMakeLists' TIMEOUT 1800 unchanged on main 8801b99): macOS job 261120-123419-22485b (Ninja, Release, ctest -j4 on a loaded host) printed 14 of the 16 mutants' verdicts before ctest killed it at 1800.19 s; the Linux gate VM job 261120-123449-c0320e printed 9 of 16 at 1800.06 s. Every verdict printed is a kill; none reached its own bounded() deadline (3600 s simulation), the run just runs out of total time: the list has 16 mutants (the CMake comment counts 14 at about 800 s), each built three ways, and 6 of them are not caught by the simulation, so they run all 400 seeds x 10000 steps. Suggested fix (yours to choose): one ctest per mutant (mutants.sh BUILD SEEDS STEPS [NAME], add_test per name with its own TIMEOUT, parallel under ctest -j), or a TIMEOUT sized for 16 on a loaded VM (about 4000 s). For Track C's gate I run ctest -E consensus_mutants and tools/mutants.sh outside ctest, each verdict timed: macOS 261120-151939-4e57e4/261120-151941-ce0b7a, Linux VM 261120-152025-9d8f43, FreeBSD VM 261120-152033-26cdba, all at 8801b99; their per-mutant times will size it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
