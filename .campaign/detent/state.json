@@ -21213,6 +21213,8 @@
     "warm-relay-agent-boot": {
       "accepted": {},
       "after": [],
+      "base": "53b145fc941d73f7cb58aea9c681b00f78ea4516",
+      "branch": "quest/detent/warm-relay-agent-boot",
       "checks": [
         {
           "cmd": "true",
@@ -21233,9 +21235,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "agent cold bootstrap against a warm relay at 100K, 1M and 5M",
-      "updated": "2026-11-20T04:06:41"
+      "updated": "2026-11-20T04:06:49",
+      "worktree": "../Detent-wt/detent/warm-relay-agent-boot"
     },
     "wheel-evidence": {
       "accepted": {},
