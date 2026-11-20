@@ -6815,18 +6815,51 @@
         ".github/workflows/ci.yml",
         "docs/mechanisms/host-transport.md"
       ],
-      "journal": "../Detent-wt/detent/groups-upload-loop-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T22:13:15",
+          "commit": "db86af666b4cc51a65f585070aa926b2d6d0d681",
+          "criteria": {
+            "A1": "[manual] Probe 4, run 44671627878 (consensus:596df12 = d7b49a1 plus the forced 1.3 s hold; never lands), macos-15-intel. Header line: `upload: kernel build 24G830 uuid F6A1B3D4-1EBB-3628-A1C5-89506C51DDEC base 0xffffff80002e8000 slide 0xe8000 unslid __TEXT 0xffffff8000200000`; kernel frames raw (`*298 kernel + 0x1300a0 [0xffffff80004180a0]`, `kernel + 0x81db6`); user frames symbolicated in the run's artifact report (`298  __semwait_signal + 10 (libsystem_kernel.dylib + 13762) [0x7ff8183f15c2]`)",
+            "A3": "261119-200137-1dd882 (passed at d7b49a17298f; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 600",
+              "commit": "d7b49a17298f5b8540f770b6e99f6ba39d367d97",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-200137-1dd882",
+              "level": "light",
+              "seconds": 865.7,
+              "state": "done",
+              "what": "groups-upload-loop-stall check suite at d7b49a17298f"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "db86af666b4cc51a65f585070aa926b2d6d0d681",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "42e7bab561507d4e8f6da2501d741ab287b586ae",
+          "reason": "",
+          "tested": "db86af666b4cc51a65f585070aa926b2d6d0d681"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "groups_upload: name and fix the 1.3 s connection-loop stall from a probed CI failure",
-      "updated": "2026-11-19T20:02:25",
-      "worktree": "../consensus-wt/detent/groups-upload-loop-stall"
+      "updated": "2026-11-19T22:13:19",
+      "worktree": ""
     },
     "groups-upload-stall": {
       "accepted": {},
