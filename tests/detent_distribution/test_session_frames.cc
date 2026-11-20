@@ -240,6 +240,12 @@ void other_incarnation() {
 		// Another cluster's positions say nothing about this one: always a full copy.
 		require(d::select_answer(history, d::NamespaceCursor{id(4), id(2), r}).kind == d::AnswerKind::FullCopy,
 				"another cluster at R = " + std::to_string(r));
+		// D139: a repair's floor at R, of this incarnation or another, gets a full copy, or nothing
+		// while head is below it.
+		for (const auto incarnation : {id(2), id(3)})
+			require(d::select_answer(history, d::NamespaceCursor{id(1), incarnation, r}, true).kind ==
+						 (r > 40 ? d::AnswerKind::Ahead : d::AnswerKind::FullCopy),
+					"a repair's floor at R = " + std::to_string(r));
 	}
 }
 

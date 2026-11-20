@@ -444,6 +444,66 @@ int main(int argc, char **argv) {
 			rooted_state = agent.until([&](const auto &s) { return at(s, "big", wrong.first) && s.repair.completed > 0; },
 									   "diverged records repaired");
 			matches(server, root / "foreign", limits, "big");
+			// D139: a repair while the source's newest build is older than the agent's position. The repair
+			// names that position; an older source that ignores it sends a copy below it, which the agent
+			// skips; a source that honors it answers nothing until its head reaches it.
+			const auto floor = wrong.first;
+			bool below = false;
+			const auto never_below = [&](const t::CoordinatorStatus &s) {
+				for (const auto &each : s.namespaces)
+					if (each.name == "big" && each.cursor && each.cursor->position < floor.position)
+						below = true;
+			};
+			std::vector<Transaction> kept;
+			{
+				std::lock_guard lock(server.mutex);
+				auto &served = server.find("big");
+				kept = served.transactions;
+				served.transactions.resize(served.transactions.size() - 2);
+				server.ignore_floor = true;
+				server.open_session = false;
+			}
+			const auto stale = canonical(server.find("big"), limits);
+			check(stale.descriptor.cursor.position + 2 == floor.position);
+			install(server, "big", stale.transfer);
+			const auto completed = rooted_state.repair.completed;
+			agent.repair("big");
+			auto repairing = agent.until(
+				[&](const auto &s) {
+					never_below(s);
+					return s.repair.below > 0;
+				},
+				"a copy below the floor skipped");
+			check(at(repairing, "big", floor) && repairing.repair.pending && repairing.repair.completed == completed);
+			const auto idle = [&] {
+				std::lock_guard lock(server.mutex);
+				server.ignore_floor = false;
+				return server.idle.load();
+			}();
+			repairing = agent.until(
+				[&](const auto &s) {
+					never_below(s);
+					return server.idle > idle + 1;
+				},
+				"no answer below the floor");
+			check(at(repairing, "big", floor) && repairing.repair.pending);
+			{
+				std::lock_guard lock(server.mutex);
+				check(!server.repairs.empty() && server.repairs.back() == floor);
+				auto &served = server.find("big");
+				served.transactions = std::move(kept);
+				served.transactions.push_back({{"big:k0000004", def(93, 0)}});
+			}
+			const auto healed = canonical(server.find("big"), limits);
+			install(server, "big", healed.transfer);
+			repairing = agent.until(
+				[&](const auto &s) {
+					never_below(s);
+					return at(s, "big", healed.descriptor.cursor) && s.repair.completed > completed;
+				},
+				"the repair at or above the floor", 120s);
+			check(!below && healed.descriptor.cursor.position > floor.position);
+			same_generation(repairing, root / "foreign", "big", healed);
 		}
 		check(!server.failure);
 		queue.reset();

@@ -69,6 +69,7 @@ struct NamespaceRequest {
 	// A records answer's root digest: the history head's state commitment when the sender built it
 	// (D1), else zero, which the frame sends as nil.
 	RootDigest root{};
+	bool repair = false; // `store` is the floor of a full copy (D139; select_answer)
 };
 // Selects every namespace's answer at construction, then emits the body in bounded steps. A
 // Current or Ahead answer gets no frame. Names must be valid and strictly increasing. Its own

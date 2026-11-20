@@ -5,6 +5,7 @@
 #include "detent_distribution/grants.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
+#include "frames_export.hh"
 #include "namespace_sessions.hh"
 #include "node.hh"
 #include "subscription.hh"
@@ -133,7 +134,7 @@ class Service final : public http::HttpHandler {
 		// W5 (version 2): the followed namespaces and their stores, `all`'s directory cursor, and
 		// the group revision of the last look for changes.
 		bool frames = false, bound = false, compressed = false;
-		std::vector<std::pair<std::string, std::optional<distribution::NamespaceCursor>>> follows;
+		std::vector<Followed> follows;
 		std::optional<distribution::DirectoryCursor> all;
 		std::uint64_t looked = UINT64_MAX;
 		SessionPrincipal frames_principal;

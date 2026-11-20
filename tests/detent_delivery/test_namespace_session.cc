@@ -379,6 +379,23 @@ void request_bodies() {
 		  resumed->request().resume->offset == d::transfer_chunk_bytes);
 	check(t::namespace_session_body(t::SessionResponsePurpose::Open, following, false).find("resume") == std::string::npos);
 	following.resume.reset();
+	// D139: a repair names the position it published, the floor of its full copy.
+	following.namespaces[0].repair = true;
+	const auto repairing = t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms);
+	check(repairing.find("[\"a\",\"" + twos + "\",5,true]") != std::string::npos);
+	auto repaired = h::parse_session_request(account, h::RequestKind::Next, repairing);
+	check(repaired->request().positions[0].repair && repaired->request().positions[0].cursor->position == 5 &&
+		  !repaired->request().positions[1].repair);
+	auto falsified = repairing;
+	falsified.replace(falsified.find(",5,true]"), 8, ",5,false]");
+	bool refused_false = false;
+	try {
+		h::parse_session_request(account, h::RequestKind::Next, falsified);
+	} catch (const std::invalid_argument &) {
+		refused_false = true;
+	}
+	check(refused_false);
+	following.namespaces[0].repair = false;
 	following.records = {"c", "b"};
 	bool unordered = false;
 	try {

@@ -1159,7 +1159,7 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 			task->refused = Reply{403, "{\"error\":\"scope_forbidden\"}"};
 		task->follows.reserve(command.positions.size());
 		for (const auto &position : command.positions)
-			task->follows.emplace_back(std::string(position.name), position.cursor);
+			task->follows.push_back({std::string(position.name), position.cursor, position.repair});
 		task->all = command.all;
 	}
 	switch (command.kind) {

@@ -16,14 +16,16 @@ struct Resume {
 	distribution::RootDigest root{};
 	std::uint64_t after = 0, offset = 0;
 };
-// A W5 position: a followed namespace and, when the reader holds a store of it, where that store is.
+// A W5 position: a followed namespace and, when the reader holds a store of it, where that store is;
+// with `repair`, the cursor is the position the reader last published, the floor of its full copy
+// (D139).
 // `pages`: the reader takes this namespace's full copy, and a delta D6 picks, as a page transfer;
 // `resume`: the transfer it holds a prefix of, which the answer sends from that offset when it is
 // the same transfer.
 struct Position {
 	std::string name;
 	std::optional<distribution::NamespaceCursor> cursor;
-	bool pages = false;
+	bool pages = false, repair = false;
 	std::optional<Resume> resume;
 };
 // What a relay reads from.

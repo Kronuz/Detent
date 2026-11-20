@@ -164,18 +164,20 @@ struct ParsedSessionRequest::Impl {
 		std::size_t size = 0;
 		std::string_view previous;
 		for (const auto &entry : names.GetArray()) {
-			require(entry.IsArray() && (entry.Size() == 1 || entry.Size() == 3), "session namespace entry arity");
+			require(entry.IsArray() && (entry.Size() == 1 || entry.Size() == 3 || entry.Size() == 4),
+					"session namespace entry arity");
 			auto name = text(entry[0], 198);
 			require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
 						(previous.empty() || previous < name),
 					"session namespaces are not valid names in order");
 			previous = name;
 			std::optional<d::NamespaceCursor> at;
-			if (entry.Size() == 3) {
+			if (entry.Size() >= 3) {
 				require(cluster != d::Identity{}, "a namespace cursor needs the cluster");
 				at = d::NamespaceCursor{cluster, identity<d::Identity>(entry[1]), number(entry[2])};
 			}
-			std::construct_at(positions + size++, NamespacePosition{name, at});
+			require(entry.Size() < 4 || entry[3].IsTrue(), "a repair position ends with true");
+			std::construct_at(positions + size++, NamespacePosition{name, at, entry.Size() == 4});
 		}
 		result.positions = {positions, size};
 		require(size || result.all, "a session follows at least one namespace or all");

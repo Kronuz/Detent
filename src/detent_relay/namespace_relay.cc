@@ -382,11 +382,17 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
 		histories.push_back(std::make_unique<MirrorHistory>(*this, cluster, *layout, rings.at(position.name)));
 		const auto &history = *histories.back();
 		d::NamespaceRequest request{position.name, &history, position.cursor};
+		request.repair = position.repair;
 		if (position.pages) {
-			const auto chosen = d::select_answer(history, position.cursor);
+			const auto chosen = d::select_answer(history, position.cursor, position.repair);
 			bool wait = false;
 			if (chosen.kind == d::AnswerKind::FullCopy) {
-				if (auto full = copy(position.name, history, wait)) {
+				// A repair's copy is at or above its floor (D139); a lower one leaves it to records.
+				auto full = copy(position.name, history, wait);
+				if (full && position.repair && position.cursor && full->at.cluster == position.cursor->cluster &&
+					full->at.position < position.cursor->position)
+					full = nullptr;
+				if (full) {
 					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
 					resume(sent, position.resume);
 					request.pages = &sent;

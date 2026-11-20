@@ -56,9 +56,10 @@ struct ScrubStatus {
 	bool source_failure = false;
 };
 // Repair of the selected generation (namespace design D10.3): requested by a scrub report of a damaged pack or
-// a first-touch failure in the update path, completed when a repair publication is selected.
+// a first-touch failure in the update path, completed when a repair publication is selected. Below:
+// frames a repair skipped because they sat below the position the namespace had published (D139).
 struct RepairStatus {
-	std::uint64_t requested = 0, completed = 0;
+	std::uint64_t requested = 0, completed = 0, below = 0;
 	bool pending = false;
 };
 // Full copies sent as page transfers (dense distribution DD3): verified and refused ones, and the

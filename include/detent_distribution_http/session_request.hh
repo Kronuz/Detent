@@ -15,9 +15,12 @@ struct RequestLimits {
 };
 // W5: a namespace the client follows and, when it holds a store of it, where that store is
 // (under the request's cluster). No cursor: no store, or one of another cluster.
+// A followed namespace: [name], [name, incarnation, position] for a store at that cursor, or
+// [name, incarnation, position, true] for a repair, a full copy at or above that cursor (D139).
 struct NamespacePosition {
 	std::string_view name;
 	std::optional<distribution::NamespaceCursor> cursor;
+	bool repair = false;
 };
 // Dense distribution D8, next only: the page transfer the client holds a prefix of, named by its
 // namespace, root digest and `after`, and the prefix's length, a whole number of chunks. A source

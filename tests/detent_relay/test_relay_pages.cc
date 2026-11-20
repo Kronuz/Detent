@@ -469,7 +469,7 @@ void resume_and_roots(const std::filesystem::path &scratch) {
 	check(whole.size() == 1 && whole[0].kind == d::FrameKind::Pages && whole[0].offset == 0);
 	const auto &full = whole[0].transfer;
 	check(full.size() > d::transfer_chunk_bytes);
-	r::Position resumed{"app", std::nullopt, true, r::Resume{whole[0].root, 0, d::transfer_chunk_bytes}};
+	r::Position resumed{"app", std::nullopt, true, false, r::Resume{whole[0].root, 0, d::transfer_chunk_bytes}};
 	const auto rest = decode(answer(relay, {resumed}));
 	check(rest.size() == 1 && rest[0].kind == d::FrameKind::Pages && rest[0].offset == d::transfer_chunk_bytes &&
 		  rest[0].root == whole[0].root && rest[0].transfer == full.substr(d::transfer_chunk_bytes));
@@ -493,6 +493,39 @@ void resume_and_roots(const std::filesystem::path &scratch) {
 	check(moved.size() == 1 && moved[0].root == d::RootDigest{});
 	std::fprintf(stderr, "resume: the rest of a %zu-byte transfer from %zu; records name the head's root\n",
 				 full.size(), std::size_t(d::transfer_chunk_bytes));
+}
+
+// D139: a repair names the position its reader published, and the relay answers at or above it: its
+// canonical copy when that is at or above it, records at the head when the copy is older, and
+// nothing while the head is below it.
+void repair_floor(const std::filesystem::path &scratch) {
+	prepare(scratch / "repair");
+	Upstream up;
+	up.create("app", 3000);
+	const std::vector<std::string> names{"app"};
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "repair", 0644), cluster, up);
+	relay.sync(names);
+	const auto cold = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(cold.size() == 1 && cold[0].kind == d::FrameKind::Pages);
+	const auto copy_at = cold[0].to;
+	up.write("app", {1, 2, 3}, 70);
+	relay.sync(names);
+	const auto head = reference_build(relay, "app")->at();
+	check(head.position > copy_at.position);
+	// A cold reader still gets the copy at s; a repair above it does not.
+	const auto still = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(still.size() == 1 && still[0].kind == d::FrameKind::Pages && still[0].to == copy_at);
+	const auto at_copy = decode(answer(relay, {{"app", copy_at, true, true}}));
+	check(at_copy.size() == 1 && at_copy[0].kind == d::FrameKind::Pages && at_copy[0].to == copy_at &&
+		  at_copy[0].transfer == still[0].transfer);
+	const auto above_copy = decode(answer(relay, {{"app", head, true, true}}));
+	check(above_copy.size() == 1 && above_copy[0].kind == d::FrameKind::FullCopy && above_copy[0].to == head);
+	auto beyond = head;
+	beyond.position += 5;
+	check(decode(answer(relay, {{"app", beyond, true, true}})).empty());
+	check(decode(answer(relay, {{"app", beyond, false, true}})).empty());
+	std::fprintf(stderr, "repair floor: the copy at %llu for a floor at it, records at %llu above it, none above head\n",
+				 static_cast<unsigned long long>(copy_at.position), static_cast<unsigned long long>(head.position));
 }
 
 // The mirror reads records only: a pages frame from its upstream fails the sync, unretried.
@@ -619,6 +652,7 @@ int main(int argc, char **argv) {
 		incremental(scratch);
 		answer_owns(scratch);
 		resume_and_roots(scratch);
+		repair_floor(scratch);
 		mirror_refuses(scratch);
 		service_builds_aside(scratch, 100000);
 	} catch (const std::exception &error) {

@@ -13,6 +13,7 @@
 #include <atomic>
 #include <deque>
 #include <map>
+#include <set>
 #include <mutex>
 #include <source_location>
 #include <thread>
@@ -74,6 +75,9 @@ struct Server {
 	std::vector<std::string> session_records;
 	d::NamespaceGrants grants;
 	bool open_session = false, corrupt = false, behind = false;
+	// An older source: a repair's position (D139) is taken as no store, its floor ignored.
+	bool ignore_floor = false;
+	std::vector<d::NamespaceCursor> repairs; // each repair position asked, in order
 	// The next reply carrying a pages frame stops after this many body bytes, once (D8).
 	std::size_t cut = 0;
 	std::vector<std::uint64_t> offsets; // each pages frame's offset, in order
@@ -147,10 +151,18 @@ struct Server {
 			return "HTTP/1.1 204 No Content\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 		}
 		std::map<std::string_view, std::optional<d::NamespaceCursor>> wanted;
+		std::set<std::string_view> repairing;
 		for (const auto &position : request.positions) {
 			if (!grants.allows(position.name))
 				return control("403 Forbidden", "forbidden");
 			wanted[position.name] = position.cursor;
+			if (position.repair) {
+				repairs.push_back(*position.cursor);
+				if (ignore_floor)
+					wanted[position.name].reset();
+				else
+					repairing.insert(position.name);
+			}
 		}
 		if (behind)
 			return control("503 Service Unavailable", "source_behind");
@@ -183,10 +195,12 @@ struct Server {
 			}
 			histories.push_back(each.history());
 			const auto transfer = transfers.find(name);
+			const bool repair = repairing.contains(name);
 			if (pages_session && transfer != transfers.end() && transfer->second.answer.to == histories.back().head() &&
-				(cursor ? cursor->same_identity(transfer->second.answer.to) &&
-							  cursor->position == transfer->second.answer.after
-						: !transfer->second.answer.after) &&
+				(repair	  ? !transfer->second.answer.after && transfer->second.answer.to.position >= cursor->position
+				 : cursor ? cursor->same_identity(transfer->second.answer.to) &&
+							   cursor->position == transfer->second.answer.after
+						  : !transfer->second.answer.after) &&
 				!std::binary_search(session_records.begin(), session_records.end(), name)) {
 				auto &answer = resumed.emplace_back(transfer->second.answer);
 				if (const auto &resume = request.resume; resume && resume->name == name && resume->root == answer.root &&
@@ -195,8 +209,10 @@ struct Server {
 				offsets.push_back(answer.offset);
 				pages_frame = true;
 				requests.push_back({name, &histories.back(), cursor, std::nullopt, &answer});
+				requests.back().repair = repair;
 			} else {
 				requests.push_back({name, &histories.back(), cursor});
+				requests.back().repair = repair;
 				if (const auto root = roots.find(name); root != roots.end() && root->second.first == histories.back().head())
 					requests.back().root = root->second.second;
 			}

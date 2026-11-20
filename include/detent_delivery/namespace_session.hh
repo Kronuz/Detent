@@ -9,6 +9,7 @@ namespace detent::delivery {
 struct FollowedNamespace {
 	std::string name;
 	std::optional<distribution::NamespaceCursor> cursor; // none: no store of it
+	bool repair = false; // `cursor` is the last published position, the floor of a full copy (D139)
 };
 struct Following {
 	std::vector<FollowedNamespace> namespaces; // strictly increasing names

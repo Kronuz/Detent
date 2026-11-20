@@ -78,8 +78,11 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 			body += ',';
 		previous = followed.name;
 		body += "[\"" + followed.name + '"';
-		if (const auto &at = followed.cursor; at && at->cluster == cluster && at->incarnation != d::Identity{})
+		if (const auto &at = followed.cursor; at && at->cluster == cluster && at->incarnation != d::Identity{}) {
 			body += ",\"" + hex(at->incarnation) + "\"," + std::to_string(at->position);
+			if (followed.repair)
+				body += ",true";
+		}
 		body += ']';
 	}
 	body += ']';

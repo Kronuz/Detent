@@ -162,11 +162,22 @@ struct Coordinator::Impl {
 	bool fail_worker_wait = false, close_after_session_open = false;
 	std::uint64_t wakes = 0;
 	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause, scrub_pause;
-	// Per followed namespace (C1): its recovered base, and whether a full copy is asked for it (D10).
+	// Per followed namespace (C1): its recovered base, whether a full copy is asked for it (D10), and
+	// the newest position it published, which the full copy never goes below (D139).
 	struct Followed {
 		d::RetirementHandle<RecoveryResult> base;
 		bool repair = false;
+		std::optional<d::NamespaceCursor> published;
 	};
+	// Keeps the newest position each selected namespace published.
+	void note_published() {
+		for (const auto &entry : store->selection().namespaces) {
+			auto &published = followed[entry.name].published;
+			if (!published || published->cluster != entry.descriptor.cursor.cluster ||
+				published->position < entry.descriptor.cursor.position)
+				published = entry.descriptor.cursor;
+		}
+	}
 	std::map<std::string, Followed, std::less<>> followed;
 	// Namespaces whose page transfer was refused: asked as records until records publish them (D9).
 	std::set<std::string, std::less<>> records_only;
@@ -220,6 +231,11 @@ struct Coordinator::Impl {
 	}
 	// Asks a full copy of `name` at the next build ordinal (D10.3); a network wait in progress ends.
 	void request_repair(const std::string &name, bool wake) noexcept {
+		try {
+			note_published();
+		} catch (...) {
+			// Out of memory: the floor stays the one following() noted at the last request.
+		}
 		auto &state = followed[name];
 		if (state.repair)
 			return;
@@ -331,9 +347,10 @@ struct Coordinator::Impl {
 			if (result->failure && settlement.paged.admission)
 				l::detail::ManagedRecovery::settle_failure(*store, settlement, result->failure);
 			else if (result->failure && damaged(result->failure)) {
-				// A selected entry that does not recover fails alone; a fresh full copy replaces it (D136).
-				store->fail(name);
+				// A selected entry that does not recover fails alone; a fresh full copy replaces it (D136),
+				// at or above the position it published (D139).
 				request_repair(name, false);
+				store->fail(name);
 			}
 			throw;
 		}
@@ -569,11 +586,15 @@ struct Coordinator::Impl {
 		if (options.all)
 			for (const auto &entry : selection.namespaces)
 				names.insert(entry.name);
+		note_published();
 		Following out;
 		for (const auto &name : names) {
 			FollowedNamespace entry{name, {}};
 			const auto found = followed.find(name);
-			if (const auto *selected = selection.find(name); selected && (found == followed.end() || !found->second.repair))
+			if (found != followed.end() && found->second.repair) {
+				entry.cursor = found->second.published;
+				entry.repair = entry.cursor.has_value();
+			} else if (const auto *selected = selection.find(name))
 				entry.cursor = selected->cursor;
 			out.namespaces.push_back(std::move(entry));
 		}
@@ -622,6 +643,14 @@ struct Coordinator::Impl {
 				throw asio::system_error(asio::error::operation_aborted);
 			const auto name = input->name();
 			const bool pages = input->kind() == d::FrameKind::Pages;
+			// D139: a repair publishes at or above the position the namespace published.
+			if (const auto found = followed.find(name); found != followed.end() && found->second.repair &&
+														found->second.published &&
+														found->second.published->cluster == input->target().cluster &&
+														input->target().position < found->second.published->position) {
+				++diagnostic.repair.below;
+				continue;
+			}
 			d::RetirementHandle<BuildResult> built;
 			try {
 				built = co_await build_frame(*input);

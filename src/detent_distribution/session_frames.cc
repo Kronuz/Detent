@@ -29,14 +29,14 @@ void check_shape(const NamespaceHistory &history) {
 }
 } // namespace
 
-Answer select_answer(const NamespaceHistory &history, const std::optional<NamespaceCursor> &store) {
+Answer select_answer(const NamespaceHistory &history, const std::optional<NamespaceCursor> &store, bool repair) {
 	check_shape(history);
 	const auto head = history.head();
 	// Positions continue across incarnations (D1): a store above head, of any incarnation, is ahead of
 	// a source still behind a drop and re-creation.
 	if (store && store->cluster == head.cluster && store->position > head.position)
 		return {AnswerKind::Ahead, store->position};
-	if (!store || !store->same_identity(head))
+	if (repair || !store || !store->same_identity(head))
 		return {AnswerKind::FullCopy};
 	const auto r = store->position;
 	if (r == head.position)
@@ -413,7 +413,7 @@ SessionFramesEncoder::SessionFramesEncoder(std::optional<DirectoryUpdate> direct
 			impl_->frames.push_back(plan_dropped(request));
 			continue;
 		}
-		const auto answer = select_answer(*request.history, request.store);
+		const auto answer = select_answer(*request.history, request.store, request.repair);
 		impl_->answers.push_back(answer);
 		if (answer.kind != AnswerKind::Current && answer.kind != AnswerKind::Ahead)
 			impl_->frames.push_back(plan(request, answer));
