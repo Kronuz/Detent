@@ -21041,18 +21041,45 @@
         "test/sync_test.cc",
         "docs/API.md"
       ],
-      "journal": "../Detent-wt/detent/task-settle-notes",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T15:21:18",
+          "commit": "a4ba197b26576d4aeac590ae1582bc4acca3d363",
+          "criteria": {
+            "A1": "261119-144904-ce9830 (passed at 3df933982ede; only 1 merge from main since, none touching its files); fails without: 261119-144917-4bc31f",
+            "A2": "[artifact] `docs/API.md`: the cancel_callback wait rule, line 49 (task:a4ba197)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+              "commit": "3df933982edea87d793d971cc81dae007a3c58ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-144904-ce9830",
+              "level": "light",
+              "seconds": 81.9,
+              "state": "done",
+              "what": "task-settle-notes check suite at 3df933982ede"
+            }
+          ],
+          "final": true,
+          "from": "f937bc2f513ff83e1cd810d528c79f0b55434c04",
+          "reason": "",
+          "tested": "a4ba197b26576d4aeac590ae1582bc4acca3d363"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../task",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "task: same-thread settle test and the cancel-callback wait rule",
-      "updated": "2026-11-19T14:42:16",
-      "worktree": "../task-wt/detent/task-settle-notes"
+      "updated": "2026-11-20T15:21:23",
+      "worktree": ""
     },
     "task-wheel": {
       "accepted": {
