@@ -1,6 +1,6 @@
 # consensus-dns-notes: journal
 
-State: waiting on jobs 261119-165312-91a81d (A1 fails-without at 0bd4c17), 261119-165313-11543e (A1 at c411e50), 261119-165558-404d98 (suite, A3), 261119-165558-071155 (TSan, A3)
+State: waiting on jobs 261119-173355-482e54 (peers_test x20 at head b3576ab), 261119-173358-36e4e4 (x20 at base 5935efa)
 Quest: .campaign/detent/quests/consensus-dns-notes.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,6 +12,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 Code and docs done on quest/detent/consensus-dns-notes (pushed). Waiting on the jobs above.
 
 ## Next
+
+0. msg (coordinator): suite 404d98 failed at peers_test.cc:855 `hangs({other, port})`, a socket probe (full accept queue) that runs before any resolver; compare the two x20 jobs' 'failures: N of 20' lines; same rate = pre-existing flake (report counts), higher at head = my change, fix with a test.
 
 1. Read the jobs (check the fails-without log shows the `start_fails` CHECK failing, not a build error); paste `campaign brief`'s table below.
 2. When the lead adds CHANGELOG.md to the file set, add the entry under Blocked on, then A2 is complete.
