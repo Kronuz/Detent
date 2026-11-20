@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261120-041206-eee476 261120-041208-23e7e4 261120-042634-382bae 261120-042636-86edd1 261120-042638-33dce4 261120-042639-2a0b48 261120-042641-7f6992 261120-042643-d21172 261120-042645-6308e2 261120-042647-d964b3 261120-042648-8b762d 261120-042650-a9e03a
+State: waiting on jobs 261120-041206-eee476 261120-041208-23e7e4 261120-042634-382bae 261120-042636-86edd1 261120-042638-33dce4 261120-042639-2a0b48 261120-042641-7f6992 261120-042647-d964b3
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,14 +13,14 @@ Harness in docs/measurements/warm-relay-agent-boot/ (boot.py one run warm|cold; 
 driver; seed.sh 1M seed; submit.sh queues smoke, seed, rows). Jobs: smoke 261120-041206-eee476 (strict, 10K warm+cold); seed
 261120-041208-23e7e4 (light, 1M to capacity-trials/1000000-main); rows (exclusive, --after both):
 100K 3 rounds 261120-042634-382bae; 1M r1 261120-042636-86edd1, r2 261120-042641-7f6992, r3
-261120-042647-d964b3; 5M r1 warm 261120-042638-33dce4, cold 261120-042639-2a0b48; r2 cold
-261120-042643-d21172, warm 261120-042645-6308e2; r3 warm 261120-042648-8b762d, cold
-261120-042650-a9e03a.
+261120-042647-d964b3; 5M r1 warm 261120-042638-33dce4, cold 261120-042639-2a0b48. Per D85 (lead's message), 5M is one
+confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b762d,
+-042650-a9e03a) cancelled; spread comes from 100K (3 rounds in one job) and 1M (3 jobs).
 
 ## Next
 
 1. If smoke or seed fails: fix, resubmit (rows replace themselves at the new head).
-2. Tabulate rows into docs/perf/warm-relay-agent-boot.md (A2); check no "ran beside" record.
+2. Tabulate rows into docs/perf/warm-relay-agent-boot.md (A2); its method cites D85 (5M one round); check no "ran beside" record.
 
 ## Blocked on
 
