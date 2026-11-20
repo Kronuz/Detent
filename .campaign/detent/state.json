@@ -13971,13 +13971,31 @@
           "weakened": [
             "lens design removed"
           ]
+        },
+        {
+          "at": "2026-11-20T04:49:29",
+          "lenses": [
+            [
+              "durability",
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "D135 (owner): reviews never block a landing; this quest lands on its tests, mutants, sanitizers, suite and CI, and its review runs after it lands",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens durability removed",
+            "lens correctness removed"
+          ]
         }
       ],
       "landed": [],
-      "lenses": [
-        "durability",
-        "correctness"
-      ],
+      "lenses": [],
       "milestone": "N1",
       "needs": [
         "namespace-s6-cutover",
@@ -13987,10 +14005,10 @@
       ],
       "provides": [],
       "repo": ".",
-      "risk": "high",
+      "risk": "low",
       "status": "planned",
       "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
-      "updated": "2026-11-15T21:13:12"
+      "updated": "2026-11-20T04:49:29"
     },
     "namespace-s7": {
       "accepted": {
