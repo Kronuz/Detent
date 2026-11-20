@@ -2059,6 +2059,37 @@
       "title": "consensus worker: validate a batch against the host's turn room",
       "updated": "2026-11-19T05:59:18"
     },
+    "consensus-blocking-hold-loop": {
+      "accepted": {},
+      "after": [
+        "journal-blocking-wake"
+      ],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "test/driver_test.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
+      "updated": "2026-11-19T18:04:31"
+    },
     "consensus-close-fenced": {
       "accepted": {
         "correctness": {
