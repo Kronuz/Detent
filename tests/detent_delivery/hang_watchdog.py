@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 
-THRESHOLD_S = 300
+THRESHOLD_S = 90
 POLL_S = 15
 LIFETIME_S = 3600
 
@@ -68,7 +68,7 @@ def monitor(ctest: int, roots: list[str], log) -> None:
 				log.write(f"\n--- pid {pid}: {command}\n")
 				run(log, ["lsof", "-p", str(pid)])
 				if sys.platform == "darwin":
-					run(log, ["sample", str(pid), "3"])
+					run(log, ["sample", str(pid), "2"])
 				else:
 					run(log, ["gdb", "-p", str(pid), "-batch", "-ex", "thread apply all bt"])
 			for pid, _, _, _ in stale:

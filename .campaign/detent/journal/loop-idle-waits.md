@@ -114,7 +114,7 @@ reclaim scans ~60 completion ops/s) frames A1.
 - Every test touching the quest's code has a TIMEOUT, yet the step ran 50 min: ctest waits for a test's
   output pipe to close, so a daemon that outlives its killed harness hangs the run unnamed.
 - tests/detent_delivery/hang_watchdog.py (test hang_watchdog, macOS only): a detached monitor samples
-  (`sample`, `lsof`) and SIGKILLs any suite process alive past 300 s, so ctest reports the hung test; its
+  (`sample`, `lsof`) and SIGKILLs any suite process alive past 90 s, so ctest reports the hung test; its
   log is build/tests/detent_delivery/.scratch/hang-watchdog/watchdog.log, a failure artifact. Diagnostic
   only: removed once the hang is fixed.
 

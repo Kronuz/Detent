@@ -249,7 +249,7 @@ foreach(phase IN ITEMS published receiving building publishing)
     COMMAND test_delivery_relay_delta_shutdown ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture 10000 ${phase})
   set_tests_properties(test_delivery_relay_delta_shutdown_${phase} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
 endforeach()
-# macOS CI: a detached monitor samples and kills any suite process alive past 300 s, so a hang names its test.
+# macOS CI: a detached monitor samples and kills any suite process alive past 90 s (CI tests take at most 40 s), so a hang names its test.
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(APPLE AND Python3_FOUND)
   add_test(NAME hang_watchdog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/hang_watchdog.py
