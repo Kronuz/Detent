@@ -5,27 +5,23 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus_transport_groups_upload fails intermittently on CI macos-x86_64 (D116's standing --no-ci). groups-upload-loop-stall landed a capture that records raw kernel and symbolicated user frames of a loop stuck in state U. When this quest lands, the cause is named from a captured failure and fixed in the product or bounded for the runner, and D116's exception for groups_upload is retired.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [manual] The capture's output from a CI failure is quoted in the journal (run id), symbolicated offline, and it says whether the loop was not scheduled (runner) or was in a handler that did not return (product).
+- A2 A product cause is fixed with a test that fails without it; a runner cause gets a bound from the measured stall that stated headroom covers, with the derivation in the journal: jobs.
+- A3 [decision] D116's groups_upload exception is retired or restated in PLAN.md.
+- A4 The suite passes, plus CI: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None, unless the cause is in the transport: then include/consensus/transport/* or src/transport/*, which the lead grants.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Starts when a CI failure carries a capture (the lead watches).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
