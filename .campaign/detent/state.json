@@ -19065,6 +19065,8 @@
         "xapiand:task-lifecycle",
         "xapiand:xapiand-lifecycle"
       ],
+      "base": "f47ef2201754b8dae9686d7c784a00d65f04fd20",
+      "branch": "quest/detent/server-composition-adoption",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -19087,9 +19089,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-19T16:51:21"
+      "updated": "2026-11-20T03:07:20",
+      "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
       "accepted": {
