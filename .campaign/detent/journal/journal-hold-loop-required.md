@@ -1,6 +1,6 @@
 # journal-hold-loop-required: journal
 
-State: waiting on jobs 261119-230956-1c62ec 261119-230958-bbc01a 261119-231013-d62978 261119-230959-49f27c 261119-231000-3ff92a 261119-231002-971376 261119-231003-aa3407 261119-231005-12b22a
+State: waiting on jobs 261119-232342-d1e01c; CI run 44692769460 queued
 Quest: .campaign/detent/quests/journal-hold-loop-required.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -33,8 +33,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | jobs above |
-| A2 | jobs above |
+| A1 | pass at head 1c62ec; fails-without at test-only journal:32172e7 d62978 and at mutant hold-any-loop 49f27c |
+| A2 | suite 3ff92a, TSan 971376, consensus@adb918f aa3407 pass. Detent 12b22a fails at CMake configure (journal names completion::task, Detent pins lack it); same command at journal main bb114f1 d1e01c must fail identically = pin gap, not this change |
 | A3 | [artifact] journal `CHANGELOG.md` (2026-11-19 Changed) and `docs/mechanisms/turn-seal.md` (Asking for a turn, wake_refused row) at journal:1222e3b |
 
 ## Result
