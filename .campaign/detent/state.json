@@ -17702,6 +17702,34 @@
       "title": "SC-1: relay snapshot lifecycle with retained bootstrap paths",
       "updated": "2026-11-08T15:38:02"
     },
+    "relay-tls-drain-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/system/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "relay tests fail together on SSL UNEXPECTED_MESSAGE and an undrained fleet under heavy load",
+      "updated": "2026-11-19T21:44:11"
+    },
     "rename-detentd": {
       "accepted": {},
       "after": [],
