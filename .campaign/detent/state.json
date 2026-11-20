@@ -9218,12 +9218,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: a pre-existing silent-loss fix on journal main that lands alone and first; journal-idle-groups touches tables and parking, this touches the block scan, and idle-groups merges main after it",
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Recovery reports, never drops: a damaged block followed by a damaged header loses acknowledged records silently",
-      "updated": "2026-11-20T09:10:33",
+      "updated": "2026-11-20T09:55:17",
       "worktree": "../journal-wt/detent/journal-double-damage"
     },
     "journal-driver": {
