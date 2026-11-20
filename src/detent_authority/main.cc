@@ -115,8 +115,10 @@ struct AuthorityComponent {
 struct HttpComponent {
 	http::HttpAsioService& service;
 	unsigned short port;
+	std::function<void()> listening;
 	task::task<void> start(task::cancel_token) {
 		service.start(port);
+		listening();
 		co_return;
 	}
 	void stop() {}
@@ -270,17 +272,15 @@ int run(const std::vector<std::string>& input_args) {
 			asio::io_context io(1);
 			task::asio_scheduler loop(io.get_executor());
 			AuthorityComponent authority_component{authority};
-			HttpComponent http_component{service, port};
-			LeaderComponent leader_component{authority, lone_quorum};
-			auto announce = [&] {
-				ready();
+			HttpComponent http_component{service, port, [&] {
 				L_INFO("detent-authority: durable {} authority listening with {} on {}:{}", authority_mode,
 					publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
-			};
+			}};
+			LeaderComponent leader_component{authority, lone_quorum};
 			const task::stop_timing timing{shutdown_timeout, std::min<std::chrono::nanoseconds>(kShutdownGrace, shutdown_timeout)};
 			task::stopped result;
 			task::spawn(task::scheduler_ref::of(loop),
-				task::lifecycle(loop, signals, timing, announce, authority_component, http_component, leader_component),
+				task::lifecycle(loop, signals, timing, ready, authority_component, http_component, leader_component),
 				[&](std::exception_ptr error, std::optional<task::stopped> stopped) {
 					result = stopped ? std::move(*stopped) : task::stopped{error};
 					io.stop();
