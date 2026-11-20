@@ -95,7 +95,7 @@ reclaim scans ~60 completion ops/s) frames A1.
   ctest mode, and only v1 bundle tasks need the enqueue wake (a v2 mirror task is woken by
   `MirrorJob::answered`), which the bench pair does not serve. An end-to-end relay latency test
   stays F3's optional follow-up.
-- R4: Authority: transient in-flight work (queued commands in their 5 ms batching window, quorum
+- R4 (amended by R8): Authority: transient in-flight work (queued commands in their 5 ms batching window, quorum
   reads, exports, authorization, retirement, W5 frames tasks) keeps the 1 ms visit; only idle and
   parked-only states sleep. Recovery and the stop drain wait on storage completions bounded at
   250 ms.
@@ -105,14 +105,30 @@ reclaim scans ~60 completion ops/s) frames A1.
   (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
+- R8 (macOS hang): start, replay and stop visit the node again at once unless storage or history I/O
+  is in flight: R4's 250 ms storage_wait now bounds only a missed completion wake. A loop with no I/O
+  and no progress spins rather than polls at 1 ms; on single-voter start and stop nothing external can
+  move it, and main's 1 ms poll would not end either.
 
 ## macOS hang hunt (contributor 2)
 
 - Hangs at quest heads: 44614222390 arm64 (8d56b21a), 44638635880 arm64 (0faf6474), 44682975400 x86_64
   attempt 1 and arm64 attempt 2 (edff2eb0); the other macOS jobs passed in 7 to 14 min. Main: no macOS
   hang in its last 20 CI runs (one x86_64 failure, test_authority_frames_service).
-- Every test touching the quest's code has a TIMEOUT, yet the step ran 50 min: ctest waits for a test's
-  output pipe to close, so a daemon that outlives its killed harness hangs the run unnamed.
+- Every test touching the quest's code has a TIMEOUT, yet the step ran 50 min. Checked with ctest 4.4:
+  a test's TIMEOUT also ends it when a child holds its pipe, so no single test hangs the step; it takes
+  many tests each running to their 90 to 240 s timeouts (or a SIGKILL-immune process).
+- Cause found (quest defect): the authority's start, replay and stop loops slept up to 250 ms whenever
+  the applied index stood still (R4 read storage completions as their only progress). Each node visit
+  advances budgeted work no wake announces: replay cost ~400 ms per committed entry and every stop one
+  full 250 ms sleep. Local, test_authority_restart_wake without the fix: starts 1.8, 3.3, 5.1 s over 4, 8,
+  12 entries, stops 251 ms; with it 43 ms and 0 ms. CI (linux too): test_authority_service 5 to 12 s,
+  test_authority_daemon_ready 2.9 to 5.5 s, test_relay_paged_shared_process 2.7 to 5 s, quest vs main.
+  Any daemon test that restarts an authority over a long log scales with it, which is how the slower
+  macOS runners reach the timeouts.
+- Fix Detent:39e5ab7e (service.cc only, needs re-review): the three loops sleep only while storage or
+  history I/O is in flight (its completion raises the wake), else yield; peers keep 1 ms. Test
+  test_authority_restart_wake (new; fails without the fix, locally).
 - tests/detent_delivery/hang_watchdog.py (test hang_watchdog, macOS only): a detached monitor samples
   (`sample`, `lsof`) and SIGKILLs any suite process alive past 90 s, so ctest reports the hung test; its
   log is build/tests/detent_delivery/.scratch/hang-watchdog/watchdog.log, a failure artifact. Diagnostic
