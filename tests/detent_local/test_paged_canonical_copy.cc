@@ -267,7 +267,8 @@ static void corpus_mode(const std::string &before_path, const std::string &after
 	auto account = std::make_shared<d::StorageLedger>(16ull * 1024 * 1024 * 1024);
 	const auto load_rows = [](const std::string &path) {
 		Records rows;
-		for (auto &row : *corpus(path))
+		const auto loaded = corpus(path);
+		for (auto &row : *loaded)
 			rows.emplace_hint(rows.end(), std::move(row.key), std::move(row.body));
 		return rows;
 	};
