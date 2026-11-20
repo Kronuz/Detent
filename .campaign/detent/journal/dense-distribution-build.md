@@ -9,26 +9,30 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 1: relay on v2 only (helper agent on branch `quest/detent/dense-distribution-build--relay`,
-worktree ~/.scratch/detent/ddb-relay/wt): bundles, the v1 session routes, the per-bundle
-Coordinator and the PublicationSink go; the relay is its namespace mirror.
-Step 2 (me, in parallel): the delivery client's v1 request, one-shot `receive`, v1 sessions,
-`DeliveryMode` and poll go; `distribution::FrameInput` mints a one-namespace ValidatedSnapshot
-(full copy) or ValidatedDelta (entries, blocks; grouped by revision) from W6 records, so the
-paged builders take W6 frames unchanged.
+Step 6: the tree builds and the suite passes on v2 (tests and system harness ported).
+
+## Done
+
+- Steps 2-4: `distribution::FrameInput` (test_frame_input); DiskStore cycles of named plans,
+  selection and recovery per table entry (D8); the coordinator on one W5 session with per-namespace
+  records; readers attach by name (C3) (Detent:6906fb4a).
+- Step 5: managed.json `namespaces` or all, `retry_interval_ms`; v1 client, probe and
+  PublicationSink removed; host readiness per namespace (C4) (Detent:db87768a).
+- Merged dd4's final branch (Detent:5f21ccba).
 
 ## Next
 
-1. Step 3: the agent coordinator on W5/W6 (C1): one session, one FramePreparer, per-namespace
-   state as records (name, W1 cursor, base, failed); each response builds one plan per namespace
-   on the worker and publishes them in one AgentStore cycle (D8); Dropped frames drop entries.
-2. Step 4: DiskStore and recovery per entry (D8, C2, C3): `begin` takes N plans; selection and
-   recovery by name; bases recovered on demand under a bound; readers find their entry by name.
-3. Step 5: managed config and host: `namespaces` or `all`, no group/epoch/scope/principal/
-   reset_from/delivery_mode/poll; readiness per namespace (C4).
-4. Step 6: system harness (managed.py, fleet) on v2; suite via `campaign verify`; push.
-5. Step 7 (former DD3): full copy as a page transfer through DD1's receiver; a 100K cold agent
+1. Step 1 (relay helper, branch `quest/detent/dense-distribution-build--relay`): merge when it
+   reports.
+2. Step 6: system harness (managed.py, fleet) on v2; suite via `campaign verify`; push.
+3. Step 7 (former DD3): full copy as a page transfer through DD1's receiver; a 100K cold agent
    runs no packer.
+
+## Messages
+
+- msg-1 (mine, to the folded namespace-local-cursor writer): its points stand as this branch's
+  plan; the interim bridge (`namespace_cursor`, `distribution::frame_cursor`) is in
+  Detent:6906fb4a, and the W1 local change deletes it when it merges here.
 
 ## Coordination with namespace-local-cursor
 
