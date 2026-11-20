@@ -47,6 +47,8 @@ struct MirrorService::Impl {
 		d::SubscriptionPrincipal principal;
 		bool compressed = false, busy = false;
 		Clock::time_point used;
+		bool pages = false;
+		std::vector<std::string> records;
 	};
 	std::map<d::Identity, Session> sessions;
 	struct Parked {
@@ -134,7 +136,11 @@ struct MirrorService::Impl {
 	}
 	// A next's answer now, or false while every followed namespace is current (it waits).
 	bool answer(MirrorJob &job, Session &session) {
-		auto body = relay->changes(job.positions);
+		auto positions = job.positions;
+		for (auto &position : positions)
+			position.pages = session.pages &&
+							 !std::binary_search(session.records.begin(), session.records.end(), position.name);
+		auto body = relay->changes(positions);
 		if (!body)
 			return false;
 		frames(job, session, *body);
@@ -150,8 +156,13 @@ struct MirrorService::Impl {
 				control(job, 503, "{\"error\":\"admission_full\"}");
 				break;
 			}
+			if (!std::is_sorted(job.records.begin(), job.records.end()) ||
+				std::adjacent_find(job.records.begin(), job.records.end()) != job.records.end()) {
+				control(job, 400, "{\"error\":\"invalid_request\"}");
+				break;
+			}
 			auto id = random_identity();
-			sessions[id] = {job.principal, job.compressed, false, now};
+			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records};
 			control(job, 200, "{\"version\":2,\"session\":\"" + hex(id) +
 								  "\",\"wait_ms\":" + std::to_string(options.maximum_wait_ms) + "}");
 			break;

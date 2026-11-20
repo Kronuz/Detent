@@ -10,9 +10,11 @@
 // the authority.
 namespace detent::relay {
 // A W5 position: a followed namespace and, when the reader holds a store of it, where that store is.
+// `pages`: the reader takes this namespace's full copy, and a delta D6 picks, as a page transfer.
 struct Position {
 	std::string name;
 	std::optional<distribution::NamespaceCursor> cursor;
+	bool pages = false;
 };
 // What a relay reads from.
 class Upstream {
@@ -46,6 +48,10 @@ struct SyncStats {
 	AdoptStats files;
 	std::uint64_t entries = 0; // ring positions received
 };
+// Dense distribution D6, D7 on the relay: full builds, and the answers sent as pages or kept as records.
+struct PagesStats {
+	std::uint64_t builds = 0, full_copies = 0, deltas = 0, delta_records = 0;
+};
 
 class NamespaceRelay final : public Upstream {
   public:
@@ -68,8 +74,11 @@ class NamespaceRelay final : public Upstream {
 	std::string fetch(std::string_view name_space, const MirrorFile &) override;
 	std::string frames(std::span<const Position>) override;
 	// The W6 body for a session's next, or nothing while every answer is Current or Ahead (the
-	// session waits, as the authority's does).
+	// session waits, as the authority's does). A position that takes pages gets a pages frame for a
+	// full copy (dense distribution D7.4: the relay's build at its head, built once per position),
+	// or for a delta from a base the page window holds when D6 finds the pages smaller.
 	std::optional<std::string> changes(std::span<const Position>);
+	const PagesStats &pages() const noexcept;
 
   private:
 	struct Impl;

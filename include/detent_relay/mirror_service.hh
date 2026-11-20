@@ -32,6 +32,10 @@ struct MirrorJob {
 	std::vector<Position> positions; // Open and Next; Layouts: the names, no cursors
 	std::string name_space, name;    // File
 	bool all = false, compressed = false;
+	// Open: the session takes pages (`"pages":true`), except for the namespaces in `records`
+	// (`"records":[names]`, strictly increasing), which keep records (dense distribution D9).
+	bool pages = false;
+	std::vector<std::string> records;
 	std::uint64_t wait_ms = 0;
 	// The answer, set by the mirror thread before `done`: a JSON control body, or chunks.
 	struct Reply {
