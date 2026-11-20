@@ -31,8 +31,13 @@ and mirror_service.cc is the fix contributor's. Options:
 
 | Criterion | Evidence |
 |---|---|
-| D138.1 ranges, verified, resumed | test_http_upstream (exact, resume), test_authority_history_ranges: jobs below |
-| D138.2 bounded backoff, reported | test_http_upstream (backoff): jobs below |
+| D138.1 ranges, verified, resumed | test_http_upstream (exact, resume) 261120-140658-c98aab, ASan+UBSan 261120-140701-e20960; test_authority_history_ranges 261120-140659-cc116c, ASan+UBSan 261120-140702-b2e24c |
+| D138.2 bounded backoff, reported | test_http_upstream (backoff), same jobs |
+| Mutants killed (--fails-without) | prefix_dropped 261120-140716-764a97, whole_files 261120-140717-ac69d9, no_backoff 261120-140718-121ba1, unbounded 261120-140720-77337a |
+| No regression | ctest -R 'relay\|history\|test_authority_service\|http_upstream' 261120-140704-29b54e |
+| 5M relay mirror (the repro) | dense-distribution-row 5000000-flat-main 261120-140706-39dc89 (strict, 10 min) |
+
+Void: 261120-140615-f81b0b .. 140633-b220ff (a shell quoting slip ran no test).
 
 ## Result
 
