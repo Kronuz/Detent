@@ -8937,7 +8937,34 @@
       "worktree": ""
     },
     "journal-hold-loop-required": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-20T00:10:16",
+          "base": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
+          "blobs": {
+            "CHANGELOG.md": "100644:b3d449b5effcb9c7160dcc1a5f10ef684bfdc57e",
+            "docs/mechanisms/turn-seal.md": "100644:cfb52f9dd1f273fedf0a93f6a748267bddadb1ab",
+            "include/journal/turn_driver.h": "100644:27cd3bbdb213361f2883145d953e6e3721304a8c",
+            "test/turn_seal_mutants.sh": "100644:8ae36e44fe75da359c1e357ba975a2b668b519a2",
+            "test/turn_seal_test.cc": "100644:7be56f1872448aad3481b99c05669c6f5c7177a3"
+          },
+          "by": "review",
+          "commit": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+          "criteria": "d9630d986208d323",
+          "diffs": {
+            "CHANGELOG.md": "6122fb52249396ed",
+            "docs/mechanisms/turn-seal.md": "775eb8b059ae9432",
+            "include/journal/turn_driver.h": "1a6a76707223c9ab",
+            "test/turn_seal_mutants.sh": "dcbfd1ec088f9586",
+            "test/turn_seal_test.cc": "5e2336b980d697b2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "61053d5a7f1a1aa845f7bd3edf08187a43dbecd5",
+          "reviewed": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
       "branch": "quest/detent/journal-hold-loop-required",
@@ -8970,7 +8997,7 @@
       "risk": "normal",
       "status": "active",
       "title": "journal Hold takes its loop as required and refuses an empty one (D131)",
-      "updated": "2026-11-19T23:05:17",
+      "updated": "2026-11-20T00:10:16",
       "worktree": "../journal-wt/detent/journal-hold-loop-required"
     },
     "journal-hop-on-task": {
