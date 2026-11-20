@@ -1611,6 +1611,13 @@
       "closed": "Recorded in Detent's docs/LIBRARY_BOUNDARIES.md (Detent:fa339aef). detent-multicast-seeds wires Seeds for voters and relays; it starts once dense-distribution-build lands, since both edit the authority and relay services",
       "id": "msg-167",
       "text": "multicast-seeds landed on consensus main at consensus:8801b99 (seeds keyed by dial target, per-address cap, setup retry and receive backoff; CI green on Linux, FreeBSD and macOS). Detent's Seeds wiring can build on it."
+    },
+    {
+      "at": "2026-11-20T14:50:27",
+      "by": "lead",
+      "closed": "Option (a), as an explicit owner handoff: journal-loop-handoff adds a call that hands a loop's range table to the calling thread; the debug check then follows the new owner. turn_sealer calls it under its turn mutex before a table call from a new thread. No lock-held check. It lands after journal-idle-groups (same host.h)",
+      "id": "msg-168",
+      "text": "Finding for journal (from group-core, strata): journal:0fc8c14 (in pin 9e11713) debug-asserts one thread per loop's range table (host.h:534 owned_ranges). strata core's turn_sealer serializes every table call (create, close, reopen, attach) under its turn mutex, which it treats as the loop, so any thread may call in; no race (strata never calls group_io; every publish is under turn_mu_), but a standalone user closing an index on a thread other than the first to touch the table aborts in debug builds (strata's t6w test did; worked around at strata:6421d4b3 by closing on the first thread). Our proposal: (a) journal's check accepts an externally serialized loop (an owner handoff, or a lock-held check the caller names). Alternatives: (b) turn_sealer funnels table calls to one thread; (c) document the rule in turn_seal.hh. Your call, since it's journal's contract."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7660,6 +7667,37 @@
       "updated": "2026-11-18T10:19:21",
       "worktree": "../faultlab-wt/detent/faultfs-collect-linear"
     },
+    "first-read-1ms": {
+      "accepted": {},
+      "after": [
+        "reader-s6"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "benchmarks/**",
+        "docs/perf/first-read*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
+      "updated": "2026-11-20T14:57:56"
+    },
     "fixture-500k": {
       "accepted": {},
       "after": [],
@@ -10486,6 +10524,37 @@
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
       "updated": "2026-11-20T08:14:21",
       "worktree": "../journal-wt/detent/journal-idle-groups"
+    },
+    "journal-loop-handoff": {
+      "accepted": {},
+      "after": [
+        "journal-idle-groups"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/host_test.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "normal",
+      "status": "planned",
+      "title": "A loop's range table moves to another thread by an explicit owner handoff",
+      "updated": "2026-11-20T14:50:46"
     },
     "journal-reopen-closed": {
       "accepted": {
