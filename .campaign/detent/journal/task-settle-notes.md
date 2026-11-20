@@ -1,6 +1,6 @@
 # task-settle-notes: journal
 
-State: waiting on jobs 261119-144904-ce9830 261119-144917-4bc31f
+State: ready to land (only CI left)
 Quest: .campaign/detent/quests/task-settle-notes.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,7 @@ task:3df9339 (branch quest/detent/task-settle-notes) adds `test_settle_inline` t
 
 ## Next
 
-1. When both jobs pass, record the ids in Evidence and set State to ready for review.
+1. Land once CI is green. Main merged into task:a4ba197 (clean, no conflicts).
 
 ## Blocked on
 
@@ -28,7 +28,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | jobs 261119-144904-ce9830 (suite), 261119-144917-4bc31f (--fails-without mutant) |
-| A2 | artifact: docs/API.md, under `cancel_callback` (task:3df9339) |
+| A2 | [artifact] `docs/API.md`: the cancel_callback wait rule, line 49 (task:a4ba197) |
 
 ## Result
 
