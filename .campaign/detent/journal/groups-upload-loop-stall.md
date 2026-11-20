@@ -1,23 +1,20 @@
 # groups-upload-loop-stall: journal
 
-State: waiting on jobs 261119-155015-0d1014 (probe 2, run 44640924436), 261119-155356-0877a9 (capture probe, run 44641415023), 261119-155402-40ffd5 (suite at consensus:8c29e51); CI 44641351505
+State: waiting on jobs 261119-173341-34236f (capture probe 3, run 44654477324), 261119-173347-9ec3c4 (suite at consensus:7f84a09); CI 44654397584
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
 
-The lead's ruling (Messages) is in place at consensus:8c29e51: on CI, upload's first stuck sample
-starts `sudo -n spindump` and a failure prints its matching threads in the log. Running:
-1. Probe 2, run 44640924436 (bf56a07): 40 more suites with spindump.
-2. Capture probe, run 44641415023 (probe/groups-upload-loop-stall-capture, cba94dc on 8c29e51):
-   upload with host 1's connection loop held 1.3 s (GROUPS_UPLOAD_HOLD_MS) proves the capture
-   prints on a real runner, then 20 suites.
-3. Suite 261119-155402-40ffd5 and CI 44641351505 at 8c29e51 (the prefix the lead lands).
+Increment candidate: consensus:7f84a09 (counters + CI capture, no forced hold). Proving it:
+1. Capture probe 3, run 44654477324 (bf9d0e8 on 7f84a09, probe-only: any stuck loop triggers,
+   GROUPS_UPLOAD_HOLD_MS): the held run must print spindump threads with named kernel frames.
+2. Suite 261119-173347-9ec3c4 and CI 44654397584 at 7f84a09.
 
 ## Next
 
-1. Read both probes. A stall: name the kernel wait from its frames. None: 8c29e51 is ready for
-   the lead's `campaign land --upto` once the capture probe shows the spindump in its log and
-   suite plus CI pass; the quest stays open with A2 unmet until a CI failure brings stacks.
+1. All three green and the held run's log shows named kernel frames: tell the lead to
+   `campaign land --upto 7f84a09`. The quest stays open, A2 unmet, until a CI failure brings
+   stacks.
 
 ## Blocked on
 
@@ -85,6 +82,16 @@ Nothing.
   sample, so spindump never ran and there is no artifact. CI 44634220600 on consensus:7fcd21f
   (the kernel counters) passed on every platform, macos-x86_64 included. No other probed
   failure since 2026-11-19 21:15Z. The kernel wait inside write(2) is not named yet.
+
+- Probe 2 (44640924436, 4 x 10 suites at bf56a07): 0 of 40 failed. 80 probed suites, 0 stalls.
+- Capture probe (44641415023, cba94dc): the held run aborted (rc 134: no TLS fixture, the
+  probe's bug); 0 of 20 suites failed. One suite's upload had a loop stuck 250 ms without
+  failing, and spindump ran under sudo (artifact spindump-2/spindump-1.txt, macOS 15.7.9
+  24G830, Macmini6,2, 4 CPUs, 14 GB): user frames are named, kernel frames are "??? (kernel +
+  N) [address]", and the loop that tripped it was a busy one (99 of 130 samples in the
+  reader's sleep_for), not a kernel wait. So 7f84a09 triggers only on a U-state stuck loop and
+  names kernel frames from `nm -n /System/Library/Kernels/kernel` (23,429 symbols here,
+  sosend, msleep, lck_mtx_lock among them).
 
 ## Evidence
 
