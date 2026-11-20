@@ -16196,7 +16196,38 @@
       "updated": "2026-11-08T15:38:29"
     },
     "reactor-tls-cache": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T16:14:18",
+          "base": "6fdd45fb783ff4de035b2b8c3cd06ec8f3c1a90a",
+          "blobs": {
+            "CHANGELOG.md": "100644:00153ec7147e4cfc7e3e9a70ade7a90195048ad7",
+            "docs/mechanisms/tls-certificate-cache.md": "100644:1df630f9e0e6412554b8de7b432e36595a5ecc90",
+            "docs/perf/tls-configure.md": "100644:45f18973d5948407086df517fd3c267f63bfb4fc",
+            "docs/perf/tls-configure/ab.sh": "100755:75264a49bed35c5fbb93d5d91c58ee7df8fac3b1",
+            "docs/perf/tls-configure/bench.cc": "100644:178287fecfc6f2845249c484abc3e7b34c2a2c27",
+            "reactor_tls.h": "100644:5e84f3b9d3ba4bf378adad1701777fad3bd94464",
+            "test/tls_test.cc": "100644:0cc2eade6023f2f1d72b5c1a0ec853312ef225c2"
+          },
+          "by": "review",
+          "commit": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+          "criteria": "e70b6d8cd010e9c8",
+          "diffs": {
+            "CHANGELOG.md": "4b871c2d6ee67fd1",
+            "docs/mechanisms/tls-certificate-cache.md": "5a8d8855e1aa8dc2",
+            "docs/perf/tls-configure.md": "16512157cb640c75",
+            "docs/perf/tls-configure/ab.sh": "a70eb6f115a4bb65",
+            "docs/perf/tls-configure/bench.cc": "d43cd524457b8b9b",
+            "reactor_tls.h": "0478a993007e9aab",
+            "test/tls_test.cc": "55edc02a220b9fb9"
+          },
+          "findings": {},
+          "note": "",
+          "review": "e2ab84e320a9a1730089377f8534ac142b62c7a3",
+          "reviewed": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "xapiand:reactor-server-composition"
       ],
@@ -16229,7 +16260,7 @@
       "risk": "high",
       "status": "review",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T15:56:45",
+      "updated": "2026-11-19T16:14:18",
       "worktree": "../reactor-wt/detent/reactor-tls-cache"
     },
     "reactor-tls-cache-bound": {
