@@ -7595,7 +7595,65 @@
       "updated": "2026-11-19T05:59:59"
     },
     "journal-close-in-doubt": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T16:10:33",
+          "base": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "blobs": {
+            "CHANGELOG.md": "100644:861430d3929c401852227b86bd6ea768dea15e7b",
+            "docs/design/host-layout.md": "100644:5a45a9c27fe64ad402f834982d84238955c429df",
+            "docs/mechanisms/group-lifetime.md": "100644:0261702cd593d4d3123e1489a2896cc22d2073dd",
+            "include/journal/host.h": "100644:9155b68af387dc2bff3ffcfbbc58493d109163a6",
+            "test/host_test.cc": "100644:1ebc29328095ff1c06174bfd164e377eebc11be6",
+            "test/mutants.py": "100644:bd5fb761344871e672f9851fade1af5b2ed60320"
+          },
+          "by": "review",
+          "commit": "a64c6188a931cb2bee2489614e1e31cfe0f7ff8c",
+          "criteria": "5472e03c968732c3",
+          "diffs": {
+            "CHANGELOG.md": "515259c120d64be0",
+            "docs/design/host-layout.md": "c52c939232db3683",
+            "docs/mechanisms/group-lifetime.md": "a4b1e0701db28d4c",
+            "include/journal/host.h": "5a2539a4ae567a56",
+            "test/host_test.cc": "72bd9e97bcfc5a6f",
+            "test/mutants.py": "b26f44910325e7d3"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "build/journal_host_test close_in_doubt",
+                  "commit": "a64c6188a931cb2bee2489614e1e31cfe0f7ff8c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261119-155358-d7b542",
+                  "level": "light",
+                  "seconds": 2.8,
+                  "state": "done",
+                  "what": "close_in_doubt at the fix"
+                },
+                {
+                  "cmd": "sh -c 'python3 test/mutants.py close-unfenced; rc=$?; git checkout -- include/journal/journal.h; [ $rc -eq 0 ] && exit 1; exit 0'",
+                  "commit": "a64c6188a931cb2bee2489614e1e31cfe0f7ff8c",
+                  "exit": 1,
+                  "host": "kronuz",
+                  "job": "261119-155400-64866e",
+                  "level": "light",
+                  "seconds": 23.4,
+                  "state": "done",
+                  "what": "close_in_doubt fails at mutant close-unfenced"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "db4b74052508053b2d0d57453e17233790728297",
+          "reviewed": "6ab0fd2a9d89d6618ac46f6968b30e6e9cfce5ff",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
       "branch": "quest/detent/journal-close-in-doubt",
@@ -7627,7 +7685,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
-      "updated": "2026-11-19T15:54:30",
+      "updated": "2026-11-19T16:10:33",
       "worktree": "../journal-wt/detent/journal-close-in-doubt"
     },
     "journal-driver": {
