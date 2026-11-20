@@ -4377,11 +4377,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Dense distribution DD2: seal-order relocation into the canonical copy",
-      "updated": "2026-11-20T04:49:39",
+      "updated": "2026-11-20T04:57:30",
       "worktree": "../Detent-wt/detent/dd2-canonical-copy"
     },
     "dd3-full-copy-pages": {
