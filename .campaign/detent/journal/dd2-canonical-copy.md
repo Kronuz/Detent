@@ -1,6 +1,6 @@
 # dd2-canonical-copy: journal
 
-State: working
+State: waiting on jobs 261120-045317-4dda07 261120-045318-889120 261120-045319-99a1f0
 Quest: .campaign/detent/quests/dd2-canonical-copy.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,8 +9,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Built `src/detent_local/paged_canonical_copy.{hh,cc}` (`x::canonical_copy`) and
-`tests/detent_local/test_paged_canonical_copy.cc`; first local Debug build running.
+Jobs at quest/detent/dd2-canonical-copy:26f9bf49: 261120-045317-4dda07 (A1, A2: synthetic churn and
+100K mixed T4), 261120-045318-889120 (A3 mutant, --fresh), 261120-045319-99a1f0 (suite).
 
 ## Next
 
