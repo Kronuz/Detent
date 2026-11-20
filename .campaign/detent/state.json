@@ -6494,11 +6494,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "folded into docs-site-start as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Docs refresh: usage guides and operations",
-      "updated": "2026-11-10T12:02:20"
+      "updated": "2026-11-20T06:55:43"
     },
     "docs-wave-1": {
       "accepted": {},
