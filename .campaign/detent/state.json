@@ -15945,13 +15945,39 @@
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 60,
           "name": "suite"
         }
       ],
       "consumes": [],
       "files": [
         "test/transport/peers_test.cc"
+      ],
+      "history": [
+        {
+          "at": "2026-11-19T20:16:05",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
       ],
       "journal": "../Detent-wt/detent/peers-busy-roundtrip-bound",
       "landed": [],
@@ -15963,7 +15989,7 @@
       "risk": "low",
       "status": "active",
       "title": "consensus: peers_test busy round-trip bound (64 ms) fails under load at 256 ms",
-      "updated": "2026-11-19T14:40:24",
+      "updated": "2026-11-19T20:16:05",
       "worktree": "../consensus-wt/detent/peers-busy-roundtrip-bound"
     },
     "peers-retry-flake": {
