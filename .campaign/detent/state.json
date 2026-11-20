@@ -7597,8 +7597,8 @@
     "journal-close-in-doubt": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T16:10:33",
-          "base": "0202ebc059adec7a4ad5fd9f7e74e28b8f82063f",
+          "at": "2026-11-19T16:21:51",
+          "base": "be8222cda090e8b062c843c40217c461926d661c",
           "blobs": {
             "CHANGELOG.md": "100644:861430d3929c401852227b86bd6ea768dea15e7b",
             "docs/design/host-layout.md": "100644:5a45a9c27fe64ad402f834982d84238955c429df",
@@ -7608,7 +7608,7 @@
             "test/mutants.py": "100644:bd5fb761344871e672f9851fade1af5b2ed60320"
           },
           "by": "review",
-          "commit": "a64c6188a931cb2bee2489614e1e31cfe0f7ff8c",
+          "commit": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
           "criteria": "5472e03c968732c3",
           "diffs": {
             "CHANGELOG.md": "515259c120d64be0",
@@ -7685,7 +7685,7 @@
       "risk": "high",
       "status": "review",
       "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
-      "updated": "2026-11-19T16:10:33",
+      "updated": "2026-11-19T16:21:51",
       "worktree": "../journal-wt/detent/journal-close-in-doubt"
     },
     "journal-driver": {
