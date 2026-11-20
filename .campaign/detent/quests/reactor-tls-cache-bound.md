@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The parse cache in `tls::configure` holds no entry, and no decrypted key, once every context built from it is gone, so the cache is bounded by the live contexts (reactor-tls-cache review F3).
 
 ## Acceptance criteria
 
@@ -14,7 +14,9 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 After the last context using an entry is freed, the entry and its key are released: a test that fails without it.
+- A2 Configuring N distinct paths and freeing their contexts leaves the cache empty: a test.
+- A3 The suite, ASan+UBSan and TSan pass: jobs.
 
 ## Contracts
 
