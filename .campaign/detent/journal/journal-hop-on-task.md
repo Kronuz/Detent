@@ -1,44 +1,30 @@
 # journal-hop-on-task: journal
 
-State: waiting on jobs 261119-181300-c03364 261119-181456-c79217 261119-181502-b6d697 261119-181505-2fa91c 261119-181508-6b48ee
+State: ready for review
 Quest: .campaign/detent/quests/journal-hop-on-task.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs queued at journal:8a79661 (A1 probe) and journal:485cd23 (fix, A2, A3). Branch pushed.
+Nothing. CI run 44659451731 at journal:485cd23 is still queued on GitHub.
 
 ## Next
 
-1. Read the jobs: 261119-181300-c03364 must exit nonzero (the F6 failure at main's code); the
-   rest must pass (the mutant job passes when its test fails).
-2. Lead: record A1's decision (PLAN.md Decisions id), then a correctness reviewer.
+1. Correctness review; confirm CI 44659451731 green.
 
 ## Blocked on
 
-lead: A1's decision id. Evidence and recommendation:
-
-- journal:904037a does not close F6. It makes `run()` refuse a loop without `post_call`
-  (turn_driver.h `run`), but `Cancel` posts to `waiter.home`, which is the `durable()` caller's
-  `task::current()` (await_suspend), never checked. A waiter homed on a scheduler without
-  `post_call` still ran `hop` on the cancelling thread, unlinking it from the driver's list there.
-  `Cancel` is unchanged from 904037a to journal:9e11713 (main).
-- Probe: `cancel_bare_home` (journal:8a79661, test only, on main) is `cancel_hops` on a
-  scheduler declaring only post/now: cancel on another thread between drives, join, assert the
-  waiter is still linked. Job 261119-181300-c03364; expected to exit 1 on "the cancelling thread
-  leaves the waiter linked for the loop".
-- Recommendation: record "904037a does not close F6; fixed in journal by refusing at
-  await_suspend" (A2, done, below). No task change is needed: the primitive `hop` uses,
-  `scheduler_ref::post_call`, exists at the pinned task:95798a0 and on task main; the review's
-  "expose post_call in scheduler_ref" was already true. Task lacks only a side-effect-free
-  "declares post_call" query; journal probes with a no-op post_call instead (see Rulings).
+Nothing. A1 is recorded as D129: journal:904037a does not close F6; the fix is the await_suspend
+refusal. Its evidence: `cancel_bare_home` (journal:8a79661, test only, on main) failed in
+261119-181300-c03364 on "the cancelling thread leaves the waiter linked for the loop".
+`Cancel` posts to the `durable()` caller's home, which 904037a's `run()` check never covers.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Decision id pending (lead). Probe 261119-181300-c03364 at journal:8a79661 |
-| A2 | 261119-181456-c79217 (driver_test at journal:485cd23); 261119-181502-b6d697 (--fails-without, bare_home_refused at the bare-home mutant) |
-| A3 | 261119-181508-6b48ee (suite); 261119-181505-2fa91c (TSan: journal_driver and turn_seal thread cases) |
+| A1 | D129; probe 261119-181300-c03364 at journal:8a79661 (failed, as F6 predicts) |
+| A2 | 261119-181456-c79217; fails without: 261119-181502-b6d697 (bare-home mutant) |
+| A3 | 261119-181505-2fa91c (TSan), 261119-181508-6b48ee (suite) |
 
 ## Result
 
