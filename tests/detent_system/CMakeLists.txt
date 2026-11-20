@@ -77,6 +77,13 @@ if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET 
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_system_managed_relay_ipv6 PROPERTIES
       FIXTURES_REQUIRED authority_tls TIMEOUT 180 SKIP_RETURN_CODE 77)
+    # Dense distribution DD3 end to end: a 100K cold agent boots from a real relay over pages with
+    # no build, to the root a records agent builds; a clustered delta goes as pages.
+    add_test(NAME test_system_relay_pages
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_pages.sh
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
+    set_tests_properties(test_system_relay_pages PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 300)
     add_test(NAME test_system_dual_stack
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_dual_stack.py
         $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-relay> ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)

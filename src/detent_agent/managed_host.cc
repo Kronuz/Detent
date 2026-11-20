@@ -30,6 +30,7 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	std::uint64_t reported = 0;
 	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0, damaged_packs = 0;
 	l::SyncCounters published_sync;
+	t::TransferStatus transfers;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
@@ -72,6 +73,11 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 			L_INFO("detent-agent: hashed {} bytes since start: {} to build, {} to check, {} in frames",
 				   state.hash.total_bytes(), state.hash.built_bytes(), state.hash.checked_bytes(),
 				   state.hash.frame.bytes);
+		}
+		if (state.transfers.received != transfers.received || state.transfers.refused != transfers.refused) {
+			transfers = state.transfers;
+			L_INFO("detent-agent: page transfers {} received ({} bytes), {} refused", transfers.received,
+				   transfers.bytes, transfers.refused);
 		}
 		if (state.scrub.damaged_packs != damaged_packs) {
 			L_WARNING("detent-agent: managed scrub found {} damaged packs in the selected generation after {} "

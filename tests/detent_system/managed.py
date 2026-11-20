@@ -8,6 +8,7 @@ import json
 import socket
 import struct
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN, Authority
@@ -56,6 +57,8 @@ class ManagedCohort:
         namespaces: list[str] | None = None,
         capacity: CapacityProfile | None = None,
         relay_count: int = 2,
+        label: str = "",
+        observe: Callable[[int, bytes], None] | None = None,
     ) -> None:
         self.authority = authority
         self.capacity = capacity
@@ -89,6 +92,9 @@ class ManagedCohort:
         self.relays: list[Actor] = []
         self.relay_ports: list[int] = []
         self.members: list[Actor] = []
+        # Actor names carry `label`, so cohorts share one Actors; `observe` sees each agent's output.
+        self.label = label
+        self.observe = observe
 
     def relay_configuration(
         self, directory: Path, port: int, upstreams: list[dict[str, object]]
@@ -171,7 +177,7 @@ class ManagedCohort:
                 config.chmod(0o600)
                 self.relays.append(
                     await self.actors.start(
-                        f"relay-{index}",
+                        f"{self.label}relay-{index}",
                         [
                             str(self.relay),
                             "--config",
@@ -219,12 +225,28 @@ class ManagedCohort:
             config = directory / "agent.json"
             config.write_text(json.dumps(configuration))
             config.chmod(0o644)
-            self.members.append(
-                await self.actors.start(
-                    f"agent-{index}",
-                    [str(self.binary), "--config", str(config), "--initialize-managed"],
-                )
-            )
+            self.members.append(await self.start_agent(index, initialize=True))
+
+    async def start_agent(self, index: int, *, initialize: bool) -> Actor:
+        """Agent `index` on its configuration; a restart opens the store it holds."""
+        config = self.directory / f"agent-{index}" / "agent.json"
+        observe = self.observe
+
+        def output(payload: bytes) -> None:
+            if observe is not None:
+                observe(index, payload)
+
+        return await self.actors.start(
+            f"{self.label}agent-{index}",
+            [str(self.binary), "--config", str(config)]
+            + (["--log-level", "info"] if observe is not None else [])
+            + (["--initialize-managed"] if initialize else []),
+            observe=output,
+        )
+
+    async def restart_agent(self, index: int) -> None:
+        await self.actors.stop([self.members[index]])
+        self.members[index] = await self.start_agent(index, initialize=False)
 
     def positions(self, writers: Writers) -> dict[str, int]:
         """The writers' position in each followed namespace (D3: its own counter)."""
@@ -281,7 +303,7 @@ class ManagedCohort:
             oracle_started = time.monotonic()
             directory = self.directory / f"agent-{index}" / "generations"
             verifier = await self.actors.start(
-                f"oracle-{index}",
+                f"{self.label}oracle-{index}",
                 [
                     str(self.oracle),
                     str(directory),

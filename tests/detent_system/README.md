@@ -38,6 +38,10 @@ CTest registers managed authority leader death, reachable former-leader partitio
 
 The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, malformed Next frames, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
 
+## Relay pages
+
+`test_system_relay_pages` (`run_relay_pages.py`) runs dense distribution DD3 end to end on three voters, one relay and two agents: one agent reads the authority and builds from records, the other boots 100,000 keys from the relay's page transfer, logging zero bytes hashed to build, to the same root (the root page's content entry at the same position). A clustered rewrite of 55,555 keys made while the relay is stopped (SIGSTOP) then reaches the warm agent as one pages delta, counted in the relay's `/v1/health` `mirror.pages`. `forcing/relay-root-forced.patch` makes every full copy the relay sends name a wrong root; `forcing/relay_pages_forced.sh` runs the test under it with `--expect-refusal`: the agent refuses the transfer and boots from records, to the same root, and its session then takes the delta as records.
+
 ## Flake forcings
 
 `forcing/` reproduces the CI flakes fixed by quest ci-test-flakes. Each `<cause>-forced.patch` opens the failing window (a stall, a delay or a held resource) with the fix kept and must pass; each `<cause>-mutant.patch` opens the same window with the fix removed and must fail. `patched.sh PATCH CMD...` applies one in a disposable checkout and runs `CMD`, usually `loop.sh` (one test, repeated, copies at once), `soak.py` (each copy in its own directory) or `tsan_loop.sh`. Run them from the repository root, through `campaign job submit`, never in a working tree you keep.

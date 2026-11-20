@@ -34,6 +34,15 @@ The agent (`src/detent_delivery/coordinator.cc`) opens with `"pages":true` and t
 
 A refusal of either fails the response; the next open lists the namespace in `"records"` until records publish it (D9). A base that lacks a reused page, or fails first touch, asks a full copy (namespace D10.3).
 
+## The relay's builds
+
+The relay (`src/detent_relay/namespace_relay.cc`, `page_copy.cc`) answers a session that opened with `"pages":true` from full builds of the records it mirrors (D7), named as the agent names a full copy, so a cold build is its own canonical copy:
+
+- **A full copy** goes as the newest build a delta still follows: same incarnation, not below the cut. When that build is older than the head, the build at the head starts; with no such build the position gets no frame, as a Current answer does, while one is in flight, and records when the build failed.
+- **A delta** from a base the page window holds (its last 4 builds) goes as pages when D6 finds them smaller against the records answer from that base. Below the newest build it waits for the build at the head, but only when D6 rule 1 could pick pages: when the records answer is at least a third of the newest build's root page, which every delta carries one of.
+
+`MirrorService` runs one build at a time on a second thread. The mirror thread reads the files the full copy needs and copies the layout and ring; decoding, the records encode and the build run on the builder, and a build that lands wakes the mirror thread to answer the sessions that wait for it. At 100K keys a records answer goes in 3 ms while the build runs, which takes 250 ms. `/v1/health` reports `mirror.pages`: builds, build failures, and full copies and deltas sent as pages.
+
 ## Cost
 
 A full copy hashes each page once and each segment once: at 5M, 306,989,416 page bytes and 315,759,038 pack bytes, as the dense build. `checked_hash_counts()` counts both.
@@ -41,6 +50,8 @@ A full copy hashes each page once and each segment once: at 5M, 306,989,416 page
 ## Tests
 
 - `test_pages_coordinator` runs an agent against a test server that sends DD1 transfers: a 100K-key cold agent boots from pages with no build hash, its descriptor and packs equal to the server's build; a clustered change of 10,000 keys comes as a delta transfer (251 KB against 2.84 MB for the full copy) and publishes with no build hash; a wrong root, for a full copy and for a delta, falls back to records.
+- `test_relay_pages` runs the relay over a scripted upstream that serves real history files: the full copy reproduces the relay's build under the agent's derived ids, D6 picks records for 5 scattered keys and pages for a rewrite of all 3,000, a base outside the window keeps records, the mirror refuses a pages frame from its upstream, and in the service a records answer goes while a 100K build runs (`mutants/build-on-mirror-thread.patch` builds inline and fails it).
+- `test_system_relay_pages` runs three authority voters, a relay and two agents, one on the authority (records) and one on the relay: the relayed agent boots 100K keys from one page transfer with zero bytes hashed to build, to the records agent's root, and a clustered rewrite of 55,555 keys made while the relay is paused reaches it as one pages delta (1.2 MB). `forcing/relay_pages_forced.sh` under `forcing/relay-root-forced.patch` makes every full copy name a wrong root: the agent refuses it and boots from records, to the same root, and its session then takes the delta as records.
 - `test_local_paged_transfer` builds generations with the packer and checks the round trip (pages equal outside placement, the re-made transfer of the received generation equal to the stream, the hash counters), a delta over a base, and a refusal per check.
 - `test_local_paged_transfer --fixtures DIR [--only SLUG]` replays the model's fixtures (`dense-distribution-model.py check|full|delta CORPUS --out=DIR`): the full copy's root, packs byte for byte with the model's segment ids and the hash counters; the deltas' roots; and each refusal case of D4's table.
 - The fixtures come from a corpus in today's definition encoding (`corpus-100k-varint.bin`, SHA-256 `39a0751b…2acf821`): the design's r12 corpora (`bb87ae5d…`, `3214561e…`) store definitions in an older body encoding, which the leaf check refuses. On that corpus largest-first packs as D5 does, so the model forges the non-canonical tree densest-first.
