@@ -1,6 +1,6 @@
 # consensus-heal-snapshot-stall: journal
 
-State: waiting on jobs 261120-011552-f33105 261120-011554-819825 261120-011554-ca003a 261120-011554-ff1844 261120-011554-c86a94 261120-011554-138f3d 261120-011601-4154cf 261120-011603-79ea73
+State: waiting on jobs 261120-011554-819825 261120-011554-ca003a 261120-011554-ff1844 261120-011554-c86a94 261120-011554-138f3d 261120-011601-4154cf 261120-011603-79ea73
 Quest: .campaign/detent/quests/consensus-heal-snapshot-stall.md (the lead's; never edit it)
 
 ## Doing
@@ -13,11 +13,12 @@ Head consensus:47e7005, pushed. Changed after consensus:5a8685c: test/worker_tes
 2. Attribution, consensus_worker x4 each: head 5a8685c 4/4 fail (261120-003741-f752f3); main a8e867b 0/4 (261120-003747-00aef3). Deterministic: the fix causes it; not a flake.
 3. Cause: a turn race in the test's exit predicate, not a protocol defect. Mode 2 drops the receiver's Installed result and jumps the leader's clock 60,040 ms; the leader times the install out, steps down (no quorum contact on its clock) and is re-elected in term 2 with a no-op at 3. The loop exited only when all three nodes stood at applied 2 in the same turn, i.e. only if the receiver applies 2 before the leader applies 3. Traces of both cores (all messages to and from node 2 and 3): identical message sequences except the refusal round trip the fix adds at the heal (append prev 1 refused hint 1, then SnapshotNeeded); after the re-election the same messages, one turn apart in the leader's scheduling. Main: receiver applies 2 a turn before the leader applies 3; head: same turn, so the predicate never holds and the run ends 3/3/3 with the exact application state (image + "/tail" on every node).
 4. Sweeps, local probe build (receiver opened 0..19 turns late; leader jump 60,040 + 0..38): the old predicate holds on main 20/20 and 20/20, on head 3/20 and 0/20; the new predicate holds 40/40 on each core with 0 check failures.
-5. Change, consensus:47e7005: the loop waits until each node has applied 2 or past it (`>= 2`); the final check of exact application state (receiver == image + "/tail", leader and healthy equal, no source held) is unchanged.
+5. CI at 5a8685c (run 44695198678) failed the same test the same way on linux-asan-ubsan and linux-tsan.
+6. Change, consensus:47e7005: the loop waits until each node has applied 2 or past it (`>= 2`); the final check of exact application state (receiver == image + "/tail", leader and healthy equal, no source held) is unchanged.
 
 ## Next
 
-1. Read the jobs: suite 261120-011552-f33105; consensus_worker x4 at 47e7005 (261120-011601-4154cf) and 47e7005's test with main's core.h (261120-011603-79ea73, supporting); A1-A3 reruns at 47e7005 (819825, ca003a, ff1844, c86a94, 138f3d); CI on 47e7005.
+1. Suite at 47e7005 passed: 261120-011552-f33105. Read the rest: consensus_worker x4 at 47e7005 (261120-011601-4154cf) and 47e7005's test with main's core.h (261120-011603-79ea73, supporting); A1-A3 reruns at 47e7005 (819825, ca003a, ff1844, c86a94, 138f3d); CI on 47e7005 (run 44709221576).
 2. Paste `campaign brief`'s evidence table.
 
 ## Blocked on
