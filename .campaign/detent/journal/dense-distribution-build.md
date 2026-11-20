@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: D136 built; suite, relay -j4 x5 and CI queued at the head; next: step 7 (DD3 wiring)
+State: waiting on jobs 261120-092520-b041d1 (suite, A1) and 261120-092532-58e85e (relay system tests 5x under -j4, D136) and CI (A2) at Detent:b6e0bea7; next: step 7 (DD3), Next 4. Dev build in .scratch/build (Release, suite flags).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
