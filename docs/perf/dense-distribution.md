@@ -19,7 +19,7 @@ boot takes half a second either way, and most of it is fixed cost that both arms
   measured agents, one at a time, each a fresh process with an empty store, in the order P R R P P R.
   All of them use that one relay.
 - The arms are the same build. The pages agent is the head's `detent-agent`. The records agent is the
-  head under `dense-distribution-records.patch` (`out.pages = false`), so its opens never ask for
+  head with its opens' `out.pages = true;` set to false by `dense-distribution-bins.sh`, so it never asks for
   pages. The harness aborts unless every pages agent takes page transfers and hashes 0 bytes to
   build, and every records agent takes no transfer and builds.
 - Ready means the agent's `selected` table holds every namespace at the authority's

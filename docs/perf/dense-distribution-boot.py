@@ -303,6 +303,7 @@ async def run() -> list[dict[str, Any]]:
                     {
                         "authority_ready_s": authority_ready,
                         "relay_mirror_ready_s": mirror_ready,
+                        "relay_at_mirror_ready": rusage(relay),
                         "positions": positions,
                         "relay_health": health,
                     }
