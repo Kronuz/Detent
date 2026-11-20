@@ -3816,7 +3816,12 @@
         "test/**",
         "docs/**",
         "ARCHITECTURE.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "include/consensus/worker.h",
+        "include/consensus/admission.h",
+        "include/consensus/types.h",
+        "tools/mutants.sh",
+        "fuzz/**"
       ],
       "journal": "../Detent-wt/detent/consensus-quiescence",
       "landed": [],
@@ -3830,7 +3835,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-20T09:02:37",
+      "updated": "2026-11-20T09:36:17",
       "worktree": "../consensus-wt/detent/consensus-quiescence"
     },
     "consensus-transport": {
