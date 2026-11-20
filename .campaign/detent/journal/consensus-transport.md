@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261120-151658-9b66f3 (suite) 261120-151648-8b372d -151648-f83d74 -151648-3bafb4 -151649-90f30f -151649-71c006 -151650-f76654 -151650-a7e706 -151650-11c8e1 -151637-39c1fe -144831-38a455 and CI at consensus:bab6b4d
+State: waiting on jobs 261120-151658-9b66f3 261120-151648-8b372d 261120-151648-f83d74 261120-151648-3bafb4 261120-151649-90f30f 261120-151649-71c006 261120-151650-f76654 261120-151650-a7e706 261120-151650-11c8e1 261120-144831-38a455 and CI at consensus:bab6b4d
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,7 +25,7 @@ transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
   dead_after with nothing in its socket (the acceptor sends no keepalives); a frame 100 ms after
   the wake lands in the extension and both stay open. The first version (a0fa257) let the mutant
   survive (261120-150439-44833e: queued keepalives completed the read before the expired timer
-  ran); the mutant now ends the dialer dead locally; job 261120-151637-39c1fe.
+  ran); the mutant now ends the dialer dead: 261120-151637-39c1fe exit 134 ("the dialer ended DEAD"). ASan at a0fa257: 261120-150427-2132c5 exit 0.
 - N5: links_test `resolver_outlives` (resolver gated until Links and its loop are gone); ASan job
   261120-150427-2132c5 runs it with churn and N13/N14.
 - N6 dropped: `NodePins::authenticate` refuses a missing or unverified leaf, so the context's
