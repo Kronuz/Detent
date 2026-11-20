@@ -9,6 +9,7 @@
 #   coordinator-disk the disk worker never settles its event on the owner     test_delivery_coordinator
 #   coordinator-work a worker job does not hold the owner's io_context as work test_delivery_worker_lifetime
 #   absence-merged   owner_absence counts from the later of the pass and the planned deadline test_owner_absence
+#   start-stop-sleep start, replay and stop sleep with no I/O in flight      test_authority_restart_wake
 set -u
 mutant=${1:?mutant}
 build=.scratch/loop-idle-waits-mutant
@@ -48,6 +49,10 @@ absence-merged)
 		'return (slept - pass) + std::max(late, std::chrono::steady_clock::duration::zero());' \
 		'(void)late; return next - std::max(pass, std::min(planned, next));'
 	target=test_owner_absence ;;
+start-stop-sleep)
+	mutate src/detent_authority/service.cc 'auto in_flight = [&] { return active || history_active || peers; };' \
+		'auto in_flight = [&] { return true; };'
+	target=test_authority_restart_wake ;;
 *)
 	echo "unknown mutant $mutant" >&2
 	exit 126 ;;
