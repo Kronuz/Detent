@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on CI 44739992170 (push) and 44740001777 (dispatch) at Detent:6d1484eb (arm64 hang diagnostics), and jobs at Detent:9b27cb95: 261120-054330-7de7d0 -054343-67cb93 -054345-f92c9a -054347-5f3f0d (A4 TSan relay; the -0519 reruns built the old detentd target), -051928-9f1a5d (A2), -051929-b61395 (A4 suite), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Blocked on the macOS arm64 hang (recurred at Detent:485bb354).
+State: blocked on the macOS arm64 hang (Blocked on); waiting on CI 44749550410 (push) and 44749551625 (dispatch) at Detent:2d3aa978 (code = Detent:9b27cb95), and jobs at Detent:9b27cb95: 261120-054330-7de7d0 -054343-67cb93 -054345-f92c9a -054347-5f3f0d (A4 TSan relay), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Done: -051929-b61395 suite, -051928-9f1a5d A2. Code changed after Detent:edff2eb0: src/detent_authority/service.cc only, Detent:39e5ab7e (the bound of 5f8b0ba1 removed by 9b27cb95); tests: test_restart_wake + mutant start-stop-sleep; diagnostics: hang_watchdog.py, bench suite_sample.py.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
