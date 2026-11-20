@@ -4401,18 +4401,37 @@
         "tests/detent_system/full_copy_pages*",
         "docs/perf/full-copy-pages.md"
       ],
-      "landed": [],
-      "lenses": [
-        "correctness"
+      "history": [
+        {
+          "at": "2026-11-20T04:49:25",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            []
+          ],
+          "reason": "D135 (owner): reviews never block a landing; this quest lands on its tests, mutants, sanitizers, suite and CI, and its review runs after it lands",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk high -> low",
+            "lens correctness removed"
+          ]
+        }
       ],
+      "landed": [],
+      "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
-      "risk": "high",
+      "risk": "low",
       "status": "active",
       "title": "Dense distribution DD3: the full copy ships as pages",
-      "updated": "2026-11-20T04:46:54",
+      "updated": "2026-11-20T04:49:25",
       "worktree": "../Detent-wt/detent/dd3-full-copy-pages"
     },
     "dd4-delta-transfers": {
