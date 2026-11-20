@@ -1,14 +1,14 @@
 diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
 --- a/src/detent_relay/namespace_relay.cc
 +++ b/src/detent_relay/namespace_relay.cc
-@@ -368,7 +368,9 @@
+@@ -387,7 +387,9 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
  			bool wait = false;
  			if (chosen.kind == d::AnswerKind::FullCopy) {
- 				if (const auto *built = copy(position.name, history, wait)) {
--					request.pages = &transfers.emplace_back(d::PagesAnswer{built->root(), 0, built->at(), built->transfer()});
-+					auto forced = built->root();
+ 				if (auto full = copy(position.name, history, wait)) {
+-					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
++					auto forced = full->root;
 +					forced[0] ^= 1; // forced: a full copy names a root its pages do not hash to
-+					request.pages = &transfers.emplace_back(d::PagesAnswer{forced, 0, built->at(), built->transfer()});
- 					++pages_stats.full_copies;
- 				}
- 			} else if (chosen.kind == d::AnswerKind::Entries || chosen.kind == d::AnswerKind::Blocks) {
++					auto &sent = transfers.emplace_back(d::PagesAnswer{forced, 0, full->at, full->transfer});
+ 					resume(sent, position.resume);
+ 					request.pages = &sent;
+ 					owned.push_back(std::move(full));
