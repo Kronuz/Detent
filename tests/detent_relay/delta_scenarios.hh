@@ -21,7 +21,7 @@ inline double seconds(std::chrono::steady_clock::time_point begin) {
 	return std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
 }
 // SPEC.patch from delta_scenarios.py: changed or new records at their new bodies; kind 255 removes.
-inline std::shared_ptr<Rows> apply(const Rows &base, const std::string &path) {
+inline std::shared_ptr<Rows> patched(const Rows &base, const std::string &path) {
 	auto data = load(path);
 	require(data.size() >= 32 && std::string_view(data.data(), 8) == "DTCORP01");
 	const auto count = l::read_integer(data, 8, 8), keys = l::read_integer(data, 16, 8),
@@ -239,8 +239,8 @@ inline std::shared_ptr<Rows> changed(const Rows &rows, std::size_t first, std::s
 		} else if (done < updates + removed + added) {
 			auto copy = row;
 			copy.key.insert(copy.key.size() - 1, "x");
-			out->push_back(std::move(copy));
 			touched.insert(std::string(p::decode_key(row.key).name_space));
+			out->push_back(std::move(copy)); // invalidates `row`
 		}
 		++done;
 	}
