@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: blocked on lead: relay staleness ruling (Blocked on); waiting on jobs 261120-085935-8d23e7 (A1) and CI (A2) at Detent:d9668727
+State: D136 built; suite, relay -j4 x5 and CI queued at the head; next: step 7 (DD3 wiring)
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -9,7 +9,7 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 6: suite and CI at Detent:d9668727; relay staleness awaits the lead.
+Step 7 (former DD3, then DD4's wiring): the plan is under Next 4.
 
 ## Done
 
@@ -37,17 +37,40 @@ Step 6: suite and CI at Detent:d9668727; relay staleness awaits the lead.
 - Authority enables positions once its history is ready; the distribution service test runs W5
   first (its v1 sequence raced the enabling entry: 5/5 pass after) (Detent:4b0736e5). Relay
   mirror `reconnect_maximum_ms` and sync-failure logging (Detent:d9668727).
+- Suite 261120-085935-8d23e7: 205/205 at Detent:d9668727.
+- D136 idle seal: `AdministrativeKind::Seal`; the leader proposes it when positioned changes stay
+  unsealed for `ServiceOptions::seal_after` (1 s); test_history_layout's seal_entry case
+  (Detent:67a16fab). Design doc "Seal" rule 3, RELAY.md staleness line.
+- D136 damaged entry: a selected entry's recovery failure (not pressure) calls `DiskStore::fail`
+  and requests a repair; test_namespace_coordinator damages every `.owner` and both entries are
+  replaced (fails without the fix: local mutant run timed out on the case) (Detent:be42ee82).
+- Agent reads credentials through `detent::internal::read_private_configuration`; README drops
+  local_export, bundles and flat-v1; tls-fixture-diagnostics' coordinator mode repeats
+  test_namespace_coordinator (Detent:407aed82). Docs link fix for the CI Docs failure at
+  Detent:501f9c4d (Detent:c96dc63b).
 
 ## Next
 
 1. Port to the W5 fixture what the retired v1 tests covered: hash-once (D12.2), scrub damage to
    repair, prepared startup; a W5 fleet load for the measurement arms.
-2. A selected entry whose bytes are damaged (startup checks presence only, C2) refuses recovery
-   on each round: base_of fails, and a full copy at the same incarnation also asks base_of. The
-   store should fail the entry (as startup does for a missing file) so a fresh copy replaces it.
+2. (done, D136) Damaged entries.
 3. `distribution::UpdateCache` is unused; ACTORS.md and RELAY_ARCHITECTURE.md describe bundles.
-4. Step 7 (former DD3): full copy as a page transfer through DD1's receiver; a 100K cold agent
-   runs no packer.
+4. Step 7 (former DD3): nothing ships a transfer yet; no host uses DD1/DD2/DD4. Map:
+   a. Local: a transfer plan builder (friend of PagedPlanState/PagedImage): name by
+      `next_generation`, `derive_segment` as TransferSegmentId, `receive_transfer`, fill a
+      PagedImage (Root needs records and namespaces counts the receiver does not return), then
+      reuse PagedSnapshotPlanBuilder's CandidatePagedValidator tail for counts and histogram.
+   b. Wire: W6 `FrameKind::Pages = 5` with encoding and 32-byte root commitment; the decoder's
+      tokenizer caps bin at 32 bytes and buffers payloads whole (session_frames.cc:487), so pages
+      go as one bin token per page (<= 64 KiB) with a raised per-token bound. FrameInput gains the
+      transfer bytes.
+   c. Sender: the relay (build tier, D7) holds no generation: it builds one per namespace from its
+      mirror (full build at cold start, D7 after), keeps the canonical copy (DD2) and PageWindow,
+      and answers a cold or below-cut session with Pages; the authority keeps records (Limit 6).
+   d. Agent: build_frame takes Pages -> plan (a); a refusal asks records (one other source, then
+      records, D9); delta pages through `receive_delta`.
+   e. Tests: no packer is `hash.built.page_calls == 0 && pack_calls == 0` (CoordinatorStatus.hash)
+      on a 100K cold agent; root mismatch falls back to records; a resumed fetch.
 
 ## Messages
 
@@ -65,7 +88,7 @@ builders taking a W1 target is all this branch needs from it. DiskStore's multi-
 
 ## Blocked on
 
-Lead ruling, relays and sealed history (the cause of test_system_managed_relay[_ipv6] failing
+Nothing. (Resolved by D136, kept for the record:) Lead ruling, relays and sealed history (the cause of test_system_managed_relay[_ipv6] failing
 under load: 2 of 5 under `-j4`, 0 of 3 alone). The leader now enables positions as it leads, so
 seal 0 is cut before the harness seeds; seals fire only every 2048 transactions (or 1/8 of the
 log), and a relay mirrors sealed history only, so a quiet cluster's later writes never reach a
@@ -77,17 +100,14 @@ request triggered enabling, after the seed, which hid the gap. Options:
 2. Relays also mirror the unsealed tail from W5 frames (larger; relay design change).
 3. Enable on demand again (a W5 next or layouts request), which hides the gap for tests only.
 
-For the lead, outside this file set: .github/workflows/tls-fixture-diagnostics.yml is left at
-main's version, which names `test_delivery_coordinator_subscription-relay-http-500000`, a test
-this branch retires (retarget it to test_namespace_coordinator, or delete it). README.md still
-lists `detent::local_export`, which this branch removes. .github/workflows/ci.yml carries
-namespace-local-cursor's removal of test_local_view from the reader job; it stays.
+The workflow and README items are fixed (Detent:407aed82); ci.yml keeps namespace-local-cursor's
+removal of test_local_view, which no longer exists.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
+| A1 | 261120-085935-8d23e7: 205/205 at Detent:d9668727; 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
 | A2 | <no evidence yet> |
 
 ## Result
@@ -104,8 +124,12 @@ namespace-local-cursor's removal of test_local_view from the reader job; it stay
   test_preparation_deadline, test_client, test_response, test_probe_*) and the v1 fleet load
   (benchmarks/fleet_load, test_system_fleet_*) are removed with the v1 client; their W5 ports
   are Next 1.
-- `delivery::read_private_configuration` duplicates the relay's new
-  `detent::internal::read_private_configuration`; left for the lead (the helper's edit was denied).
+- `delivery::read_private_configuration` goes; the agent uses the shared reader (its messages
+  now say "private configuration").
+- D136's interval is 1 s (`ServiceOptions::seal_after`, no config key): the relay tests wait 30 s,
+  relays sync every 250 ms, and no doc promises a tighter bound. A write rate below 2048/s now
+  seals once a second, so seal files and roll-ups follow the clock on slow clusters.
+- A recovery failure counts as damage unless it is StoragePressure, DiskPressure or bad_alloc.
 - The authority leader proposes EnablePositions as soon as it leads (no longer on demand): a
   follower answers W5 only once positions are enabled, so on-demand enabling left followers idle.
 - Lead message (namespace-local-cursor done, merge it with DD1 and DD4): merged at Detent:e52e8d31;
