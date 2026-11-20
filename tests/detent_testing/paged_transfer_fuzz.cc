@@ -68,7 +68,7 @@ struct Seeds {
 	static l::detail::ReceivedTransfer receive(std::span<const char> stream, const l::detail::TransferBase *base,
 											   const p::Digest &root) {
 		return l::detail::receive_transfer(std::make_shared<d::StorageLedger>(std::size_t(64) << 20), stream, base,
-										   {root, 10}, own_id, p::Limits{});
+										   {root, 10, 256, "ns"}, own_id, p::Limits{});
 	}
 	static std::vector<std::string> packs(const l::detail::ReceivedTransfer &got) {
 		std::vector<std::string> out;
