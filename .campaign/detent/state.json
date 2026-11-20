@@ -15980,7 +15980,84 @@
       "updated": "2026-11-08T15:38:03"
     },
     "prism-server-composition": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-19T17:14:35",
+          "base": "468729bfd88f6b212fa638aa4e5de6ca0d562b5c",
+          "blobs": {
+            "AGENTS.md": "100644:dd701b5678069b6244bd8f8b37064c6dcc3595e1",
+            "ARCHITECTURE.md": "100644:f76fd52c33408cffc78a79a0d4c70060eb52828d",
+            "BENCHMARKS.md": "100644:cbf21591bdeddce6fb14a0d1c3b7bf1baf434075",
+            "CMakeLists.txt": "100644:bfd78373e3ad303952c7ee8b360f1380e4e46c53",
+            "README.md": "100644:cee040753cd8a4b4221795e7b8120f474b9bef11",
+            "src/main.cc": "100644:679642ac424286fe88fc5a0c1662ac39f8388868",
+            "src/test/lifecycle_test.cc": "100644:0210b2e501eccc1704c4a11ee61cf1462adb9880"
+          },
+          "by": "review",
+          "commit": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+          "criteria": "e3af53f6aeebd72e",
+          "diffs": {
+            "AGENTS.md": "13f84bad162ce1f0",
+            "ARCHITECTURE.md": "af6f702c215a69de",
+            "BENCHMARKS.md": "4ad53dc5a763a2ff",
+            "CMakeLists.txt": "6d668a1e2f5ea0e1",
+            "README.md": "96cb51399b88b9d1",
+            "src/main.cc": "8aeba67fdfac634d",
+            "src/test/lifecycle_test.cc": "9df117b348496bb7"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "ctest --test-dir build --output-on-failure",
+                  "commit": "cf3b65174cfd55a5d1be441f2df526c902183f4c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261119-155135-0d9393",
+                  "level": "light",
+                  "seconds": 8.6,
+                  "state": "done",
+                  "what": "prism lifecycle test"
+                },
+                {
+                  "cmd": "sh -c 'sed -i.orig '\"'\"'s/service.set_shutdown_grace(std::min(kShutdownGrace, o.shutdown_timeout));/service.set_shutdown_grace(std::chrono::milliseconds(60000));/'\"'\"' src/main.cc && grep -q '\"'\"'set_shutdown_grace(std::chrono::milliseconds(60000))'\"'\"' src/main.cc || exit 126; cmake -S . -B build-mutant -G Ninja && cmake --build build-mutant -j4 || exit 126; ctest --test-dir build-mutant --output-on-failure'",
+                  "commit": "cf3b65174cfd55a5d1be441f2df526c902183f4c",
+                  "exit": 8,
+                  "host": "kronuz",
+                  "job": "261119-155137-da8de7",
+                  "level": "light",
+                  "seconds": 120.5,
+                  "state": "done",
+                  "what": "lifecycle test at a 60 s-grace mutant (F1)"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4",
+                  "commit": "cf3b65174cfd55a5d1be441f2df526c902183f4c",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261119-155134-1b2ec6",
+                  "level": "light",
+                  "seconds": 36.4,
+                  "state": "done",
+                  "what": "prism-server-composition check build at cf3b65174cfd"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "120eccb1a457c41752c0198bac24a25e119fe274",
+          "reviewed": "805acc1141228f95865fa3fdccdf893a339edf7a",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "4d3c96d16ccaceecba270a120ae25faf9a8ff138",
       "branch": "quest/detent/prism-server-composition",
@@ -16033,7 +16110,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Prism adopts the server composition note (D122)",
-      "updated": "2026-11-19T15:47:05",
+      "updated": "2026-11-19T17:14:35",
       "worktree": "../prism-wt/detent/prism-server-composition"
     },
     "prism-server-composition-limits": {
