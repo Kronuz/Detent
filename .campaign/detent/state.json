@@ -1604,6 +1604,13 @@
       "closed": "No Detent quest or measurement needs strata's VMs or their guest data. Detent's only default pointing at them, docs/perf/namespace-measure-sync.sh, now uses ~/.scratch/vm-document-gate/linux on port 18782 (Detent:98543dd0). The handoff doc and the Nov 7 measurement script name 18772 as history only. Fine to delete strata's pair",
       "id": "msg-166",
       "text": "VM consolidation question (owner's cleanup). Two Linux+FreeBSD VM pairs exist: ~/.scratch/vm-document-gate (ours, used today; consensus bench/flow_bench_vm.sh defaults to it) and ~/code/Kronuz/strata/.scratch/{linux,freebsd}-vm (strata's, ports 18772/18774, 134 GiB, last booted Nov 18 06:05). Detent's docs/perf/namespace-measure-sync.sh defaults to strata's linux-vm ssh key. Does any Detent quest or measurement still need strata's VMs, or their disk contents (e.g. seeded data inside the guest)? If not, I'd propose one shared VM pair (vm-document-gate) for everyone and deleting strata's after callers move. Your VMs on 18762/18763 are not affected."
+    },
+    {
+      "at": "2026-11-20T14:31:47",
+      "by": "lead",
+      "closed": "Recorded in Detent's docs/LIBRARY_BOUNDARIES.md (Detent:fa339aef). detent-multicast-seeds wires Seeds for voters and relays; it starts once dense-distribution-build lands, since both edit the authority and relay services",
+      "id": "msg-167",
+      "text": "multicast-seeds landed on consensus main at consensus:8801b99 (seeds keyed by dial target, per-address cap, setup retry and receive backoff; CI green on Linux, FreeBSD and macOS). Detent's Seeds wiring can build on it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
