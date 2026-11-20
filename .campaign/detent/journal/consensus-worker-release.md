@@ -39,7 +39,7 @@ checked what), and answer each message by its id (msg-N).
 | A5 | at 08cdf68: 191143-2db797; fails without: 191145-91f9c5 |
 | A6 | suite at 08cdf68 (journal 9e11713) 261119-191152-8abf98 |
 | A7 | at 08cdf68: second_driver 191119-509297; fails without: at 5de6c78's headers and pin 191121-9e2d59, mutant 191124-9c1a6d |
-| A4 | TSan 191147-b78d00, ASan+UBSan 191150-03bd0f (macOS, no LSan) at 08cdf68; CI at 08cdf68 running (linux-asan-ubsan is the LSan check) |
+| A4 | TSan 261119-203855-8c3501 (rerun of b78d00, which failed on a quiet hold-name collision), ASan+UBSan 261119-191150-03bd0f (macOS, no LSan), suite 261119-191152-8abf98; CI green at 18f55c6 including linux-asan-ubsan (the LSan check) |
 
 Review findings: F1 (malformed jobs: `'--quest ...'` as one token, zsh does not split an unquoted
 variable) resubmitted from a POSIX sh script, ~/.scratch/detent/consensus-worker-release/submit.sh;
