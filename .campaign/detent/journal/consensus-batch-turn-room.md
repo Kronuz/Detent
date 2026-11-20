@@ -1,6 +1,6 @@
 # consensus-batch-turn-room: journal
 
-State: waiting on jobs 261120-000859-5ca9f3
+State: waiting on jobs 261120-041054-4c49ab 261120-041102-43a4be and CI at 1c08c9f
 Quest: .campaign/detent/quests/consensus-batch-turn-room.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,16 +18,14 @@ Fix and test committed (consensus:1421fb5 test only, consensus:0c52e87 fix plus 
 
 ## Blocked on
 
-CHANGELOG.md is held by another quest; entry text for the lead to add under the current Unreleased section:
-
-> Worker: a group on a journal host refuses at construction (`std::invalid_argument`, "worker batch exceeds the host's turn room") a configuration whose largest record, a batch of `Limits::rpc_entries`/`rpc_bytes` (or `WorkerLimits::follower_batch_*` when larger) or the founding record, exceeds one empty segment of the host's turn log. Before, it reached the journal and fenced its group at the first append. The default 2 MiB rpc batch needs segments big enough for it, or explicit lower limits.
+Nothing. CHANGELOG entry added (consensus:1c08c9f, D132); origin/main merged clean (consensus:e06b03f).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | jobs 261119-233216-39451c (fails at test-only 1421fb5), 261120-001302-72d527 (passes at 0c52e87) |
-| A2 | job 261120-000859-5ca9f3 at e904c8d (earlier df57ad failed at 0c52e87 on the 7 configurations below; D132), CI after push |
+| A1 | 261120-041102-43a4be at 1c08c9f (rerun); fails without: 261119-233216-39451c at 1421fb5 |
+| A2 | suite 261120-041054-4c49ab at 1c08c9f, CI |
 
 ## Result
 
