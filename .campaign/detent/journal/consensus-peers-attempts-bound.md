@@ -1,21 +1,25 @@
 # consensus-peers-attempts-bound: journal
 
-State: waiting on jobs 261119-212019-0bb37f (probe c67c493 on probe/consensus-peers-attempts-bound)
+State: waiting on jobs 261119-214648-2b4b98 (loaded probe, consensus:<probe head> on probe/consensus-peers-attempts-bound)
 Quest: .campaign/detent/quests/consensus-peers-attempts-bound.md (the lead's; never edit it)
 
 ## Doing
 
-CI run 44650101243 printed "NXDOMAIN at startup: 2 lookups of two in 1341 ms": the too-few side
-failed (2 < 4), not the upper bound. Lookups of one name are spaced by resolve_deadline (200 ms) and
-by the lane's 100-199 ms pause, so expect ~250 ms apart (5 in 1.3 s); 2 means the executor or
-lookup thread stalled ~800 ms. Probe (does not land) prints each lookup's time, the commit time,
-elapsed and attempts per run; probe branch probe/consensus-peers-attempts-bound at c67c493.
+Probe 261119-212019-0bb37f (consensus:c67c493, 8x25 parallel, quiet host, 200 runs, 0 failures):
+every run made 5 lookups of two, at ~1, 259, 608, 860, 1073 ms (gaps 258, 348, 252, 213: the
+lane pause is deterministic per round), elapsed 1233-1241, commit 232-240 ms. The 4th lookup lands
+at 860 ms, 378 ms before the window ends. The CI failure (2 lookups in 1341 ms) did not reproduce
+(0 of 200): the process lost ~700 ms. Lookups are spaced by resolve_deadline (200 ms), not by
+"two lanes once per 100 ms", so the old upper bound (26) is 4x loose and cannot see a removed
+pause (lookups stay 200 ms apart); the lane pause shows in reconnects rounds. Loaded probe
+261119-214648-2b4b98 (12 workers + 12 spinners, adds rounds and a 10 ms watchdog's stall) is
+running to see the stall.
 
 ## Next
 
-1. Read 261119-212019-0bb37f: spacing of lookups, which runs fail, commit time.
-2. Name the cause; set or fix the bound at peers_test.cc:621 with the job ids.
-3. A2 loaded 200 runs + mutant (no backoff delay), A3 suite and CI.
+1. Read 261119-214648-2b4b98: does a stall reproduce, and are rounds a usable backoff check?
+2. Set the bound/check from the cause with a two-line comment citing the probe ids.
+3. A2 loaded 200 runs + mutant (--fails-without); A3 suite, push for CI.
 
 ## Blocked on
 
