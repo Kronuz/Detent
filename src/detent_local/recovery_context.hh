@@ -20,6 +20,8 @@ struct RecoveryContext {
 	std::shared_ptr<RecoveryMetrics> metrics;
 	// The agent's cold start: trust the generation's live record, and refuse a generation without one.
 	bool trusted_start = false;
+	// The table entry recovered (D8); empty: the table's only entry.
+	std::string name;
 };
 class RecoveryEngine {
   public:

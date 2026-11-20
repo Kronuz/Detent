@@ -62,6 +62,7 @@ struct SnapshotStorage {
 };
 } // namespace detail
 class SnapshotDecoder;
+class FrameInput;
 // Only a complete semantic decoder mints this capability. Records contain
 // subscriber definitions only, never producer receipts or Raft recovery state.
 class ValidatedSnapshot {
@@ -109,6 +110,7 @@ class ValidatedSnapshot {
 	Profile profile_;
 	StorageOwner<detail::SnapshotStorage> storage_;
 	friend class SnapshotDecoder;
+	friend class FrameInput;
 };
 class SnapshotDecoder {
   public:
@@ -203,6 +205,7 @@ class ValidatedDelta {
 	UpdateKind kind_ = UpdateKind::Delta;
 	StorageOwner<detail::DeltaStorage> storage_;
 	friend class DeltaDecoder;
+	friend class FrameInput;
 };
 class DeltaDecoder {
   public:

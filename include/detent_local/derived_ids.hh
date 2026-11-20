@@ -20,9 +20,8 @@ GenerationId derive_generation(const distribution::Profile &, const distribution
 inline constexpr std::string_view segment_domain = "detent.agent-store.segment";
 inline constexpr std::size_t segment_derivation_bytes = segment_domain.size() + sizeof(GenerationId) + 8;
 SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal);
-// D88: the old cursor as a namespace cursor until namespace-s6-cutover. The incarnation digests the
-// cluster, group, restore epoch and scope, so a reset changing any of them derives new names; the
-// position is the revision.
+// A namespace generation's W1 cursor from the paged root's cursor, which holds it as
+// distribution::frame_cursor writes it: the incarnation in the group's place, the position as revision.
 distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &);
 // D88: the table entry of the old cursor's namespace, named after its scope (lowercase hex).
 std::string namespace_name(const distribution::Cursor &);

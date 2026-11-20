@@ -51,6 +51,7 @@ struct AgentWork final : DiskWork {
 	bool collect = false, deferred = false;
 	std::vector<PreparedGeneration> cycle;
 	std::vector<std::string> dropped;
+	std::optional<DirectoryCursor> directory;
 	std::exception_ptr error;
 	StoreUsage usage;
 	SyncCounters synced;
@@ -62,7 +63,7 @@ struct AgentWork final : DiskWork {
 			if (collect)
 				agent->collect();
 			else
-				agent->publish({}, cycle, dropped);
+				agent->publish(directory.value_or(agent->table().directory), cycle, dropped);
 		} catch (...) {
 			error = std::current_exception();
 		}
@@ -82,10 +83,10 @@ struct DiskStore::Impl {
 	std::shared_ptr<detail::StoreCore> core;
 	// Created and not yet taken, or taken and not yet settled; never both.
 	std::shared_ptr<AgentWork> pending, running;
-	// What a pending or running publication views, and settles with.
-	distribution::RetirementHandle<detail::PagedPublicationArtifacts> artifacts;
+	// What a pending or running publication views, and settles with: per namespace, its artifacts.
+	std::vector<std::pair<std::string, distribution::RetirementHandle<detail::PagedPublicationArtifacts>>> artifacts;
 	std::shared_ptr<const distribution::OwnedBuffer> image, live;
-	Descriptor descriptor;
+	std::vector<NamespaceSelection> published;
 	DiskLedger::Permit permit;
 	SyncCounters before;
 	DiskPublicationStatus publication = DiskPublicationStatus::Idle;
@@ -94,26 +95,47 @@ struct DiskStore::Impl {
 	std::chrono::steady_clock::time_point collection_retry = std::chrono::steady_clock::time_point::max();
 	std::chrono::seconds collection_backoff{1};
 
-	// Queues a cycle publishing `generation` as the store's one namespace (D88), every other entry dropped.
-	void queue(PreparedGeneration generation, DiskUsage peak) {
+	// Queues one cycle: the namespaces' generations, the entries `dropped` removed.
+	void queue(std::vector<PreparedGeneration> generations, std::vector<std::string> dropped,
+			   std::optional<DirectoryCursor> directory, DiskUsage peak, bool adopt) {
 		auto &core = *this->core;
 		auto work = std::make_shared<AgentWork>();
 		work->agent = core.agent.get();
-		for (const auto &entry : core.agent->table().entries)
-			if (entry.name != generation.name)
-				work->dropped.push_back(entry.name);
-		work->cycle.push_back(std::move(generation));
+		work->dropped = std::move(dropped);
+		work->cycle = std::move(generations);
+		work->directory = directory;
 		permit = core.ledger.reserve(peak);
-		// Every other entry is dropped, so a publication may change the store's profile.
-		core.agent->adopt(descriptor.profile);
+		// A cycle that drops every other entry may change the store's profile.
+		if (adopt)
+			core.agent->adopt(published.front().descriptor.profile);
 		pending = std::move(work);
 		publication = DiskPublicationStatus::Preparing;
 		publication_error = {};
 	}
 	void release_publication() noexcept {
-		artifacts.reset();
+		artifacts.clear();
 		image.reset();
 		live.reset();
+		published.clear();
+	}
+	void select(const AgentWork &work) {
+		auto &selection = core->selection;
+		auto &entries = selection.namespaces;
+		for (const auto &name : work.dropped) {
+			std::erase_if(entries, [&](const auto &entry) { return entry.name == name; });
+			core->namespaces.erase(name);
+		}
+		for (const auto &entry : published) {
+			const auto at = std::lower_bound(entries.begin(), entries.end(), entry.name,
+											 [](const auto &e, const std::string &key) { return e.name < key; });
+			if (at != entries.end() && at->name == entry.name)
+				at->descriptor = entry.descriptor;
+			else
+				entries.insert(at, entry);
+		}
+		selection.directory = core->agent->table().directory;
+		selection.knowledge = entries.empty() ? SelectionKnowledge::Absent : SelectionKnowledge::Known;
+		selection.descriptor = entries.size() == 1 ? std::optional(entries.front().descriptor) : std::nullopt;
 	}
 	void settle(AgentWork &work) {
 		auto &core = *this->core;
@@ -134,12 +156,15 @@ struct DiskStore::Impl {
 		if (!work.error) {
 			core.ledger.settle(permit, census(work.usage));
 			core.publication_sync = work.synced - before;
-			core.selection = {SelectionKnowledge::Known, descriptor};
-			if (artifacts) {
-				core.pending_paged_recovery = artifacts;
-				core.recovery_attempt = artifacts->recovery_admission().get();
-			} else
-				core.verified_paged.reset();
+			select(work);
+			for (auto &[name, handle] : artifacts) {
+				auto &state = core.namespaces[name];
+				state.attempt = handle->recovery_admission().get();
+				state.pending = std::move(handle);
+			}
+			if (artifacts.empty())
+				for (const auto &entry : published)
+					core.namespaces[entry.name].verified.reset();
 			core.collect = true;
 			publication = DiskPublicationStatus::Published;
 		} else if (rejected(work.error)) {
@@ -181,7 +206,7 @@ std::shared_ptr<DiskWork> DiskStore::work() {
 		impl_->collection_retry = std::chrono::steady_clock::time_point::max();
 	}
 	if (!impl_->pending && core.collect && !core.closing && core.status == StoreStatus::Ready &&
-		!core.pending_paged_recovery) {
+		!core.pending_recovery()) {
 		auto work = std::make_shared<AgentWork>();
 		work->agent = core.agent.get();
 		work->collect = true;
@@ -208,8 +233,7 @@ void DiskStore::advance() {
 	if (core.closing && !impl_->running && core.status != StoreStatus::Closed) {
 		cancel_publication();
 		impl_->pending.reset();
-		core.pending_paged_recovery.reset();
-		core.verified_paged.reset();
+		core.namespaces.clear();
 		core.factory.reset();
 		core.agent.reset();
 		core.status = StoreStatus::Closed;
@@ -218,7 +242,7 @@ void DiskStore::advance() {
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
 bool DiskStore::publication_ready() const noexcept {
 	const auto &core = *impl_->core;
-	return core.status == StoreStatus::Ready && !core.closing && !core.pending_paged_recovery && !impl_->pending &&
+	return core.status == StoreStatus::Ready && !core.closing && !core.pending_recovery() && !impl_->pending &&
 		   !impl_->running;
 }
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
@@ -228,105 +252,181 @@ void DiskStore::begin(detail::PagedPlan &&plan) { begin_paged(std::move(plan), n
 void DiskStore::begin_reset(detail::PagedPlan &&plan, const TrustedIdentityReset &reset) {
 	begin_paged(std::move(plan), &reset);
 }
+void DiskStore::begin(std::vector<NamespacePublication> &&cycle, std::vector<std::string> dropped,
+					  std::optional<distribution::DirectoryCursor> directory) {
+	std::vector<std::pair<std::string, detail::PagedPlan *>> plans;
+	for (auto &entry : cycle) {
+		if (!entry.plan)
+			throw std::invalid_argument("managed publication cycle is not one plan per namespace in order");
+		plans.emplace_back(entry.name, entry.plan.get());
+	}
+	begin_cycle(plans, std::move(dropped), directory, nullptr);
+}
 void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset *reset) {
+	const auto &core = *impl_->core;
+	auto name = namespace_name(plan.descriptor().cursor);
+	std::vector<std::string> dropped;
+	for (const auto &entry : core.selection.namespaces)
+		if (entry.name != name)
+			dropped.push_back(entry.name);
+	const std::pair<std::string, detail::PagedPlan *> cycle[]{{std::move(name), &plan}};
+	begin_cycle(cycle, std::move(dropped), {}, reset);
+}
+void DiskStore::begin_cycle(std::span<const std::pair<std::string, detail::PagedPlan *>> cycle, std::vector<std::string> dropped,
+							std::optional<distribution::DirectoryCursor> directory, const TrustedIdentityReset *reset) {
 	auto &core = *impl_->core;
 	if (!publication_ready())
 		throw std::logic_error("managed store unavailable for publication");
-	const auto descriptor = plan.descriptor();
-	const auto base = plan.selected_base();
-	const auto intent = plan.intent();
-	if (core.selection.knowledge == SelectionKnowledge::Uncertain || core.selection.descriptor != base ||
-		(intent == detail::PagedPlanIntent::Fresh ? core.selection.knowledge != SelectionKnowledge::Absent
-												  : core.selection.knowledge != SelectionKnowledge::Known))
+	if (core.selection.knowledge == SelectionKnowledge::Uncertain || (cycle.empty() && dropped.empty() && !directory))
 		throw std::invalid_argument("managed paged publication actual selection mismatch");
-	if (reset) {
-		if (intent != detail::PagedPlanIntent::TrustedReset || !base || *base != reset->expected_selected ||
-			!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
-			base->cursor.same_identity(descriptor.cursor) || plan.registry())
-			throw std::invalid_argument("managed paged trusted identity reset mismatch");
-	} else if (intent == detail::PagedPlanIntent::TrustedReset ||
-			   (base && (!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
-						 (plan.maintenance() ? descriptor.cursor != base->cursor
-						  : intent == detail::PagedPlanIntent::Repair
-							  ? descriptor.cursor.revision < base->cursor.revision
-							  : descriptor.cursor.revision <= base->cursor.revision))))
-		throw std::invalid_argument("managed paged publication requires authorized intent");
+	for (std::size_t i = 0; i < cycle.size(); ++i)
+		if (!cycle[i].second || (i && !(cycle[i - 1].first < cycle[i].first)) ||
+			std::find(dropped.begin(), dropped.end(), cycle[i].first) != dropped.end())
+			throw std::invalid_argument("managed publication cycle is not one plan per namespace in order");
 	const auto &limits = core.options.recovery_limits;
-	if (plan.directory_identity() != core.directory_identity || plan.bytes()->account() != core.account ||
-		descriptor.length != paged::root_bytes || descriptor.length > limits.bytes ||
-		plan.root().bytes > limits.bytes - descriptor.length || plan.root().pages > limits.pages ||
-		plan.root().segments > limits.segments || plan.root().records > limits.records ||
-		plan.root().namespaces > limits.namespaces || plan.counts().strings > limits.strings ||
-		plan.counts().maximum_overrides > limits.overrides)
-		throw std::invalid_argument("managed paged publication exact base or admission mismatch");
-	if (next_generation(base, descriptor.cursor, descriptor.profile, plan.snapshot()) !=
-		DerivedGeneration{descriptor.generation, descriptor.ordinal})
-		throw std::invalid_argument("managed paged publication name is not derived");
-	auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
-	artifacts->populate(plan);
-	if (artifacts->target_physical_bytes() > limits.bytes)
-		throw std::invalid_argument("paged target packs exceed recovery byte limit");
-	auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(core.account, limits.mapping_account,
-																		  *core.factory);
-	// A snapshot shares no packs with its base, which may be damaged.
-	recovery->populate(plan, plan.snapshot() ? decltype(core.verified_paged){} : core.verified_paged, limits);
-	artifacts->attach_recovery(std::move(recovery));
-	// The cycle views the artifacts, which the store keeps until the cycle settles.
-	PreparedGeneration generation;
-	generation.name = namespace_name(descriptor.cursor);
-	generation.cursor = namespace_cursor(descriptor.cursor);
-	generation.base = plan.snapshot() ? GenerationId{} : base->generation;
-	generation.ordinal = descriptor.ordinal;
-	std::map<SegmentId, PreparedGeneration::Segment> segments;
+	std::vector<distribution::RetirementHandle<detail::PagedPublicationArtifacts>> staged;
+	std::vector<PreparedGeneration> generations;
+	std::vector<NamespaceSelection> published;
 	std::vector<std::uint64_t> packs;
-	for (const auto &artifact : artifacts->artifacts()) {
-		const auto name = artifact.filename();
-		if (const auto segment = detail::parse_segment_name(name)) {
-			auto &prepared = segments[segment->segment];
-			prepared.id = segment->segment;
-			if (segment->kind == detail::SegmentFile::Owner)
-				prepared.owner = artifact.bytes();
-			else {
-				prepared.pack = artifact.bytes();
-				packs.push_back(artifact.bytes().size());
-			}
-		} else if (const auto file = detail::parse_generation_name(name);
-				   file && file->generation == descriptor.generation) {
-			if (file->kind == detail::GenerationFile::Image)
-				generation.image = artifact.bytes();
-			else if (file->kind == detail::GenerationFile::ReaderMetadata)
-				generation.read = artifact.bytes();
-			else if (file->kind == detail::GenerationFile::Live)
-				generation.live = artifact.bytes();
-			else
+	std::uint64_t live_bytes = 0;
+	for (const auto &[name, owned] : cycle) {
+		auto &plan = *owned;
+		const auto descriptor = plan.descriptor();
+		const auto base = plan.selected_base();
+		const auto intent = plan.intent();
+		const auto *selected = core.selection.find(name);
+		const std::optional<Descriptor> actual = selected ? std::optional(*selected) : std::nullopt;
+		// A fresh build replaces an absent entry or one of another incarnation (W7).
+		if (actual != base && !(intent == detail::PagedPlanIntent::Fresh && !base && actual &&
+								!actual->cursor.same_identity(descriptor.cursor)))
+			throw std::invalid_argument("managed paged publication actual selection mismatch");
+		if (intent != detail::PagedPlanIntent::Fresh && !actual)
+			throw std::invalid_argument("managed paged publication actual selection mismatch");
+		if (reset) {
+			if (intent != detail::PagedPlanIntent::TrustedReset || !base || *base != reset->expected_selected ||
+				!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
+				base->cursor.same_identity(descriptor.cursor) || plan.registry())
+				throw std::invalid_argument("managed paged trusted identity reset mismatch");
+		} else if (intent == detail::PagedPlanIntent::TrustedReset ||
+				   (base && (!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
+							 (plan.maintenance() ? descriptor.cursor != base->cursor
+							  : intent == detail::PagedPlanIntent::Repair
+								  ? descriptor.cursor.revision < base->cursor.revision
+								  : descriptor.cursor.revision <= base->cursor.revision))))
+			throw std::invalid_argument("managed paged publication requires authorized intent");
+		if (plan.directory_identity() != core.directory_identity || plan.bytes()->account() != core.account ||
+			descriptor.length != paged::root_bytes || descriptor.length > limits.bytes ||
+			plan.root().bytes > limits.bytes - descriptor.length || plan.root().pages > limits.pages ||
+			plan.root().segments > limits.segments || plan.root().records > limits.records ||
+			plan.root().namespaces > limits.namespaces || plan.counts().strings > limits.strings ||
+			plan.counts().maximum_overrides > limits.overrides)
+			throw std::invalid_argument("managed paged publication exact base or admission mismatch");
+		if (next_generation(base, descriptor.cursor, descriptor.profile, plan.snapshot()) !=
+			DerivedGeneration{descriptor.generation, descriptor.ordinal})
+			throw std::invalid_argument("managed paged publication name is not derived");
+		auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
+		artifacts->populate(plan);
+		if (artifacts->target_physical_bytes() > limits.bytes)
+			throw std::invalid_argument("paged target packs exceed recovery byte limit");
+		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(core.account, limits.mapping_account,
+																			  *core.factory);
+		// A snapshot shares no packs with its base, which may be damaged.
+		const auto found = core.namespaces.find(name);
+		const auto verified = plan.snapshot() || found == core.namespaces.end()
+								  ? distribution::RetirementHandle<detail::LeasedPagedRoot>{}
+								  : found->second.verified;
+		recovery->populate(plan, verified, limits);
+		artifacts->attach_recovery(std::move(recovery));
+		// The cycle views the artifacts, which the store keeps until the cycle settles.
+		PreparedGeneration generation;
+		generation.name = name;
+		generation.cursor = namespace_cursor(descriptor.cursor);
+		generation.base = plan.snapshot() ? GenerationId{} : base->generation;
+		generation.ordinal = descriptor.ordinal;
+		std::map<SegmentId, PreparedGeneration::Segment> segments;
+		for (const auto &artifact : artifacts->artifacts()) {
+			const auto file_name = artifact.filename();
+			if (const auto segment = detail::parse_segment_name(file_name)) {
+				auto &prepared = segments[segment->segment];
+				prepared.id = segment->segment;
+				if (segment->kind == detail::SegmentFile::Owner)
+					prepared.owner = artifact.bytes();
+				else {
+					prepared.pack = artifact.bytes();
+					packs.push_back(artifact.bytes().size());
+				}
+			} else if (const auto file = detail::parse_generation_name(file_name);
+					   file && file->generation == descriptor.generation) {
+				if (file->kind == detail::GenerationFile::Image)
+					generation.image = artifact.bytes();
+				else if (file->kind == detail::GenerationFile::ReaderMetadata)
+					generation.read = artifact.bytes();
+				else if (file->kind == detail::GenerationFile::Live)
+					generation.live = artifact.bytes();
+				else
+					throw std::logic_error("unexpected paged publication artifact");
+			} else
 				throw std::logic_error("unexpected paged publication artifact");
-		} else
-			throw std::logic_error("unexpected paged publication artifact");
+		}
+		for (const auto &[id, segment] : segments)
+			generation.segments.push_back(segment);
+		live_bytes += generation.live.size();
+		generations.push_back(std::move(generation));
+		published.push_back({name, descriptor});
+		staged.push_back(std::move(artifacts));
 	}
-	for (const auto &[id, segment] : segments)
-		generation.segments.push_back(segment);
-	const auto peak = DiskLedger::paged_peak(packs, generation.live.size());
-	// Queued before the plan moves: a refused reservation leaves the caller's plan whole.
-	impl_->descriptor = descriptor;
-	impl_->queue(std::move(generation), peak);
+	const auto peak = DiskLedger::paged_peak(packs, live_bytes);
+	// Every other entry dropped: the cycle may change the store's profile.
+	const bool adopt = !published.empty() && dropped.size() + published.size() >= core.selection.namespaces.size() &&
+					   std::all_of(core.selection.namespaces.begin(), core.selection.namespaces.end(), [&](const auto &e) {
+						   return std::find(dropped.begin(), dropped.end(), e.name) != dropped.end() ||
+								  std::any_of(published.begin(), published.end(),
+											  [&](const auto &p) { return p.name == e.name; });
+					   });
+	// Queued before the plans move: a refused reservation leaves the caller's plans whole.
+	impl_->published = published;
+	impl_->queue(std::move(generations), std::move(dropped), directory, peak, adopt);
 	try {
-		artifacts->attach(std::move(plan));
+		for (std::size_t i = 0; i < cycle.size(); ++i) {
+			staged[i]->attach(std::move(*cycle[i].second));
+			impl_->artifacts.emplace_back(cycle[i].first, std::move(staged[i]));
+		}
 	} catch (...) {
 		cancel_publication();
 		throw;
 	}
-	impl_->artifacts = std::move(artifacts);
+}
+std::vector<std::string> DiskStore::pending() const {
+	std::vector<std::string> out;
+	for (const auto &[name, state] : impl_->core->namespaces)
+		if (state.pending)
+			out.push_back(name);
+	return out;
+}
+std::vector<std::string> DiskStore::failed() const {
+	const auto &core = *impl_->core;
+	if (!core.agent)
+		return {};
+	const auto names = core.agent->failed();
+	return {names.begin(), names.end()};
 }
 void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
+	const auto names = pending();
+	if (names.size() != 1)
+		throw std::invalid_argument("paged publication recovery does not match selected state");
+	confirm_recovered(names.front(), generation);
+}
+void DiskStore::confirm_recovered(std::string_view name, const RecoveredGeneration &generation) {
 	auto &core = *impl_->core;
-	if (!core.pending_paged_recovery || core.closing || core.status != StoreStatus::Ready ||
-		core.selection.knowledge != SelectionKnowledge::Known ||
-		core.selection.descriptor != generation.descriptor() ||
+	const auto found = core.namespaces.find(name);
+	const auto *selected = core.selection.find(name);
+	if (found == core.namespaces.end() || !found->second.pending || core.closing ||
+		core.status != StoreStatus::Ready || !selected || *selected != generation.descriptor() ||
 		generation.directory_identity() != core.directory_identity)
 		throw std::invalid_argument("paged publication recovery does not match selected state");
-	core.confirm_paged(generation);
-	core.pending_paged_recovery.reset();
-	core.recovery_attempt = nullptr;
+	core.confirm_paged(found->first, generation);
+	found->second.pending.reset();
+	found->second.attempt = nullptr;
 	advance();
 }
 void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset) {
@@ -377,13 +477,19 @@ void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distributi
 	generation.base = full_copy ? GenerationId{} : core.selection.descriptor->generation;
 	generation.ordinal = descriptor.ordinal;
 	const auto peak = DiskLedger::generation_peak(descriptor.length, 0, live->size());
-	impl_->descriptor = descriptor;
+	std::vector<std::string> dropped;
+	for (const auto &entry : core.selection.namespaces)
+		if (entry.name != generation.name)
+			dropped.push_back(entry.name);
+	impl_->published = {{generation.name, descriptor}};
 	impl_->live = std::move(live);
 	impl_->image = std::move(bytes);
 	generation.image = impl_->image->view();
 	generation.live = impl_->live->view();
 	try {
-		impl_->queue(std::move(generation), peak);
+		std::vector<PreparedGeneration> cycle;
+		cycle.push_back(std::move(generation));
+		impl_->queue(std::move(cycle), std::move(dropped), {}, peak, true);
 	} catch (...) {
 		impl_->release_publication();
 		throw;
@@ -464,17 +570,17 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	core->synced = core->startup_sync = core->agent->sync_counters();
 	core->ledger.initialize(census(core->agent->usage()));
 	try {
-		const auto &table = core->agent->table();
-		if (table.entries.size() > 1)
-			throw std::runtime_error("managed store holds more than one namespace");
-		if (table.entries.empty())
-			core->selection = {SelectionKnowledge::Absent, {}};
-		else {
-			auto recovered = detail::ManagedRecovery::recover(directory, detail::ManagedRecovery::capture(*store));
-			if (recovered.directory_identity() != core->directory_identity)
-				throw std::runtime_error("recovered directory differs from the store's");
-			core->retain_recovered(recovered);
-			core->selection = {SelectionKnowledge::Known, recovered.descriptor()};
+		// Each entry's descriptor from its root's prefix; generations recover on demand (C2).
+		auto &selection = core->selection;
+		selection = {SelectionKnowledge::Absent, {}, {}, core->agent->table().directory};
+		if (!core->agent->table().entries.empty()) {
+			const auto failed = core->agent->failed();
+			for (auto &[name, descriptor] : read_generation_selections(directory))
+				if (std::find(failed.begin(), failed.end(), name) == failed.end())
+					selection.namespaces.push_back({std::move(name), descriptor});
+			selection.knowledge = SelectionKnowledge::Known;
+			if (selection.namespaces.size() == 1)
+				selection.descriptor = selection.namespaces.front().descriptor;
 		}
 		core->status = StoreStatus::Ready;
 	} catch (...) {
@@ -482,21 +588,29 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	}
 	return store;
 }
-detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore &store) {
+detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore &store, std::string_view name) {
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
-	const bool snapshot = core.pending_paged_recovery && core.pending_paged_recovery->plan().snapshot();
+	std::string entry(name);
+	if (entry.empty() && core.selection.namespaces.size() == 1)
+		entry = core.selection.namespaces.front().name;
+	const auto found = core.namespaces.find(entry);
+	const detail::StoreCore::Namespace none;
+	const auto &state = found == core.namespaces.end() ? none : found->second;
+	const bool snapshot = state.pending && state.pending->plan().snapshot();
 	RecoveryContext paged{*core.factory,
 						  core.account,
 						  core.options.recovery_limits.mapping_account,
 						  core.options.recovery_limits,
-						  snapshot ? decltype(core.verified_paged){} : core.verified_paged,
-						  core.pending_paged_recovery
-							  ? core.pending_paged_recovery->recovery_admission()
-							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
+						  snapshot ? decltype(state.verified){} : state.verified,
+						  state.pending ? state.pending->recovery_admission()
+										: distribution::RetirementHandle<MappedRecoveryAdmission>{}};
 	paged.trusted_start = true;
-	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.directory_identity};
+	paged.name = entry;
+	auto legacy = *core.legacy_recovery;
+	legacy.name = entry;
+	return {std::move(legacy), std::move(paged), store.impl_->core, core.directory_identity};
 }
 RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
 													 ManagedRecoveryContext context) {
@@ -509,7 +623,8 @@ void detail::ManagedRecovery::settle_failure(DiskStore &store, const ManagedReco
 	if (!context.paged.admission)
 		return;
 	auto &core = *store.impl_->core;
-	if (core.recovery_attempt != context.paged.admission.get())
+	const auto found = core.namespaces.find(context.paged.name);
+	if (found == core.namespaces.end() || found->second.attempt != context.paged.admission.get())
 		throw std::invalid_argument("managed recovery failure does not match pending attempt");
 	if (auto original = context.paged.admission->failure())
 		failure = original;

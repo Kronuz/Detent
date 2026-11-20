@@ -19,7 +19,7 @@ struct CoordinatorAccess {
 	static bool retains_paged_candidate(const Coordinator &);
 	static bool cancelled_construction_settled(const Coordinator &);
 	static void request_compaction(Coordinator &);
-	static void request_repair(Coordinator &);
+	static void request_repair(Coordinator &, std::string_view name);
 	static void fail_next_compaction_admission(Coordinator &);
 	static void fail_next_maintenance_recovery(Coordinator &, std::exception_ptr);
 	static std::uint64_t completed_compactions(const Coordinator &);

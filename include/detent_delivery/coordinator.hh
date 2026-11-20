@@ -3,7 +3,7 @@
 #include "detent_distribution/allocator.hh"
 #include "detent_local/disk_store.hh"
 #include "hash_stats.hh"
-#include "publication_sink.hh"
+#include "namespace_session.hh"
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
 #include <completion/native_completion.h>
@@ -15,17 +15,19 @@ using NativeDriver = kronuz::journal::AsioCompletionDriver<kronuz::io::completio
 namespace detail {
 struct CoordinatorAccess;
 }
-enum class DeliveryMode { Poll, Subscription };
 enum class LocalImageFormat { FlatV1, PagedV2 };
+// The agent's delivery (namespace-delivery D8, W5, W6): one W5 session following every namespace,
+// each response's frames built into one generation per namespace and published in one store cycle.
 struct CoordinatorOptions {
 	ClientOptions source;
-	DeliveryMode delivery_mode = DeliveryMode::Poll;
+	// The followed namespaces, strictly increasing; with `all`, every granted name as the directory
+	// reaches it, beside these.
+	std::vector<std::string> namespaces;
+	bool all = false;
 	std::filesystem::path directory;
 	local::ViewLimits view_limits;
-	// Trusted previous identity permitted by configuration, never by input bytes.
-	std::optional<distribution::Cursor> reset_from;
-	std::chrono::milliseconds poll_interval{200};
-	std::shared_ptr<PublicationSink> publication_sink;
+	// The first retry after a failure; failures in a row back off to `reconnect_maximum`.
+	std::chrono::milliseconds retry_interval{200};
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
 	LocalImageFormat image_format = LocalImageFormat::PagedV2;
@@ -48,10 +50,6 @@ enum class CoordinatorPhase {
 	Closed,
 	Fenced
 };
-struct CleanupProgress {
-	std::chrono::steady_clock::time_point last_resume{}, finished{};
-	std::uint64_t turns = 0, charged_bytes = 0, maximum_gap_ns = 0;
-};
 struct ScrubStatus {
 	std::uint64_t passes = 0, bytes_hashed = 0, damaged_packs = 0;
 	// A pack of the selected generation differs from its owner record; reads of its pages fail first touch.
@@ -63,22 +61,28 @@ struct RepairStatus {
 	std::uint64_t requested = 0, completed = 0;
 	bool pending = false;
 };
+struct NamespaceStatus {
+	std::string name;
+	std::optional<distribution::NamespaceCursor> cursor; // none: no generation of it
+	bool repair = false; // a full copy is asked for it (D10)
+	bool operator==(const NamespaceStatus &) const = default;
+};
 struct CoordinatorStatus {
 	CoordinatorPhase phase = CoordinatorPhase::Starting;
 	local::SelectionSnapshot selected;
-	std::optional<distribution::Cursor> received, validated, acknowledged, recoverable;
-	std::uint64_t failures = 0;
+	std::vector<NamespaceStatus> namespaces;
+	std::optional<distribution::DirectoryCursor> directory;
+	// Responses whose frames were published, and the cycle that last published.
+	std::uint64_t responses = 0, idle = 0, failures = 0;
 	bool initialized = false;
-	bool prepared_ready = false;
+	// Every followed namespace is published or the source answered for it (C4).
+	bool ready = false;
 	bool worker_pending = false;
 	std::exception_ptr error;
 	std::size_t source_endpoint_index = 0;
 	std::uint64_t source_rotations = 0, quorum_refresh_failures = 0;
 	std::optional<std::chrono::steady_clock::time_point> last_quorum_open;
-	std::chrono::steady_clock::time_point publication_acknowledged_at{}, discard_started_at{},
-		recovery_started_at{};
-	// Publication sink, image builder, then decoded input.
-	std::array<CleanupProgress, 3> cleanup;
+	std::chrono::steady_clock::time_point recovery_started_at{};
 	ScrubStatus scrub;
 	RepairStatus repair;
 	local::SyncStats sync;

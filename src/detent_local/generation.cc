@@ -90,28 +90,33 @@ std::string_view generation_name(const GenerationId &id, std::span<char> destina
 	}
 	return {destination.data(), length};
 }
-std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner) {
+namespace {
+StoreTable read_table(int directory, uid_t owner, std::uint64_t bound) {
 	File table_file(::openat(directory, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 	if (table_file.fd < 0 && errno == ENOENT)
 		throw GenerationUnavailable("the store has no selected generation");
 	struct stat info{};
 	require(table_file.fd >= 0 && ::fstat(table_file.fd, &info) == 0 && info.st_size > 0 &&
-			std::uint64_t(info.st_size) <= table_bytes(1));
+			std::uint64_t(info.st_size) <= bound);
 	trusted_file(table_file.fd, owner, std::uint64_t(info.st_size));
 	std::vector<char> bytes(std::size_t(info.st_size));
 	read_record(table_file.fd, bytes);
 	DETENT_COUNT(record_opens, 1);
 	DETENT_COUNT(bytes_hashed, bytes.size() - 32);
-	StoreTable table;
 	try {
-		table = decode_table(bytes);
+		return decode_table(bytes);
 	} catch (const TableRefused &) {
 		require(false);
 	}
-	require(table.entries.size() == 1);
-	const auto &entry = table.entries.front();
+	return {};
+}
+// An entry's descriptor: the cursor is the image's, its leading bytes (the paged root or the flat header).
+using detail::GenerationFile;
+using detail::GenerationName;
+using detail::validate_paged_root_prefix;
+std::optional<detail::Selected> select_entry(int directory, uid_t owner, const StoreTable &table,
+											 const TableEntry &entry) {
 	require(entry.root_length >= header_bytes);
-	// The cursor is the image's: its leading bytes, the paged root or the flat header.
 	const GenerationName image_name(entry.generation, GenerationFile::Image);
 	std::array<char, 65> terminated{};
 	std::copy(image_name.view().begin(), image_name.view().end(), terminated.begin());
@@ -123,7 +128,7 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	const auto length = std::min<std::uint64_t>(entry.root_length, prefix.size());
 	read_record(image.fd, std::span(prefix).first(length));
 	DETENT_COUNT(record_opens, 1);
-	Selected selected;
+	detail::Selected selected;
 	auto &descriptor = selected.descriptor;
 	if (std::string_view(prefix.data(), 8) == "DTROOT03") {
 		require(entry.root_length == paged::root_bytes);
@@ -149,20 +154,43 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	descriptor.ordinal = entry.ordinal;
 	return selected;
 }
+} // namespace
+std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner, std::string_view name) {
+	const auto table = read_table(directory, owner, table_bytes(name.empty() ? 1 : 1u << 20));
+	const auto *found = name.empty() ? (table.entries.size() == 1 ? &table.entries.front() : nullptr) : table.find(name);
+	if (!found && !name.empty())
+		throw GenerationUnavailable("the store has no entry for the namespace");
+	require(found != nullptr);
+	return select_entry(directory, owner, table, *found);
+}
+std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const std::filesystem::path &directory) {
+	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+	struct stat info{};
+	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
+	const auto table = read_table(dir.fd, info.st_uid, table_bytes(1u << 20));
+	std::vector<std::pair<std::string, Descriptor>> out;
+	out.reserve(table.entries.size());
+	for (const auto &entry : table.entries) {
+		const auto selected = select_entry(dir.fd, info.st_uid, table, entry);
+		require(selected.has_value());
+		out.emplace_back(entry.name, selected->descriptor);
+	}
+	return out;
+}
 namespace {
 // The selection of an open directory: the table read again while the image it names moves on.
-detail::Selected selection_of(int directory, uid_t owner) {
+detail::Selected selection_of(int directory, uid_t owner, std::string_view name) {
 	for (unsigned attempt = 0; attempt < 3; ++attempt)
-		if (auto selected = detail::read_selected(directory, owner))
+		if (auto selected = detail::read_selected(directory, owner, name))
 			return *selected;
 	throw RecoverySelectionChanged();
 }
 } // namespace
-GenerationSelection read_generation_selection(const std::filesystem::path &directory) {
+GenerationSelection read_generation_selection(const std::filesystem::path &directory, std::string_view name) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
 	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
-	return {selection_of(dir.fd, info.st_uid).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+	return {selection_of(dir.fd, info.st_uid, name).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem::path &directory,
 														   RecoveryContext legacy,
@@ -175,7 +203,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 		struct stat info{};
 		require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) &&
 				!(info.st_mode & 0022));
-		const auto selected = detail::read_selected(dir.fd, info.st_uid);
+		const auto selected = detail::read_selected(dir.fd, info.st_uid, paged_context.name);
 		if (!selected)
 			continue;
 		const auto &descriptor = selected->descriptor;
@@ -255,7 +283,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			if (auto failure = context.admission->failure())
 				std::rethrow_exception(failure);
 			context.admission->bind_resources(context.heap, context.mappings, prior);
-			const auto selection = read_generation_selection(directory);
+			const auto selection = read_generation_selection(directory, context.name);
 			context.admission->bind_selection(selection.descriptor, selection.directory_identity);
 		}
 		std::shared_ptr<File> dir;
@@ -275,7 +303,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 		require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
 				!(directory_info.st_mode & 0022));
 		for (unsigned attempt = 0; attempt < (context.admission ? 1u : 3u); ++attempt) {
-			const auto selected = detail::read_selected(dir->fd, directory_info.st_uid);
+			const auto selected = detail::read_selected(dir->fd, directory_info.st_uid, context.name);
 			if (!selected) {
 				if (context.selection)
 					throw RecoverySelectionChanged();

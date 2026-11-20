@@ -7,17 +7,37 @@
 #include <chrono>
 #include <exception>
 #include <filesystem>
+#include <algorithm>
 #include <memory>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace detent::local {
 enum class StoreOpenMode { FreshEmpty, ExistingManaged };
 enum class StoreStatus { Starting, Ready, Fenced, Closing, Closed };
 enum class SelectionKnowledge { Absent, Known, Uncertain };
 enum class DiskPublicationStatus { Idle, Preparing, Published, Rejected, Cancelled, Fenced };
+struct NamespaceSelection {
+	std::string name;
+	Descriptor descriptor;
+	bool operator==(const NamespaceSelection &) const = default;
+};
+// The table's entries (D8), one generation per namespace in name order. `descriptor` is the entry
+// when the table holds exactly one.
 struct SelectionSnapshot {
 	SelectionKnowledge knowledge = SelectionKnowledge::Absent;
 	std::optional<Descriptor> descriptor;
+	std::vector<NamespaceSelection> namespaces;
+	distribution::DirectoryCursor directory;
+	const Descriptor *find(std::string_view name) const noexcept {
+		const auto found = std::lower_bound(namespaces.begin(), namespaces.end(), name,
+											[](const auto &entry, std::string_view key) { return entry.name < key; });
+		return found != namespaces.end() && found->name == name ? &found->descriptor : nullptr;
+	}
 };
+// One namespace's generation in a publication cycle.
+struct NamespacePublication;
 struct DiskStoreOptions {
 	StoreOpenMode mode = StoreOpenMode::ExistingManaged;
 	DiskLimits limits;
@@ -63,9 +83,19 @@ class DiskStore {
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
+	// The table's only namespace, named by its cursor; every other entry is dropped.
 	void begin(detail::PagedPlan &&);
-	// Settles the retained plan only after actual selected recovery succeeds.
+	// One cycle (D8, D11): each namespace's generation, the entries `dropped` removed, the directory
+	// cursor recorded. Every plan's base is that namespace's selected generation.
+	void begin(std::vector<NamespacePublication> &&, std::vector<std::string> dropped = {},
+			   std::optional<distribution::DirectoryCursor> directory = {});
+	// Settles a published plan only after actual selected recovery succeeds; one call per namespace
+	// the cycle published (`pending()` names them).
 	void confirm_recovered(const RecoveredGeneration &);
+	void confirm_recovered(std::string_view name, const RecoveredGeneration &);
+	std::vector<std::string> pending() const;
+	// Entries whose files did not verify at startup and have not been republished (D10).
+	std::vector<std::string> failed() const;
 	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
 	void begin_reset(detail::PagedPlan &&, const TrustedIdentityReset &);
 	void cancel_publication() noexcept;
@@ -81,11 +111,20 @@ class DiskStore {
 	friend class detail::ManagedRecovery;
 	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
 	void begin_paged(detail::PagedPlan &&, const TrustedIdentityReset *);
+	void begin_cycle(std::span<const std::pair<std::string, detail::PagedPlan *>>, std::vector<std::string>,
+					 std::optional<distribution::DirectoryCursor>, const TrustedIdentityReset *);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 	friend std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &,
 													  const std::filesystem::path &, std::shared_ptr<void>,
 													  DiskStoreOptions);
+};
+namespace detail {
+class PagedPlan;
+}
+struct NamespacePublication {
+	std::string name;
+	std::unique_ptr<detail::PagedPlan> plan;
 };
 // Startup/validation worker only: owns locking, entropy and full selected
 // semantic recovery. Returned Starting work uses bounded completion requests.

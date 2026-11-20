@@ -52,7 +52,9 @@ struct GenerationSelection {
 	Descriptor descriptor;
 	DirectoryIdentity directory_identity;
 };
-GenerationSelection read_generation_selection(const std::filesystem::path &directory);
+GenerationSelection read_generation_selection(const std::filesystem::path &directory, std::string_view name = {});
+// Every table entry's descriptor, from one read of the table (D8).
+std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const std::filesystem::path &directory);
 class RecoveredGeneration {
   public:
 	const ReadView &view() const noexcept { return view_; }
