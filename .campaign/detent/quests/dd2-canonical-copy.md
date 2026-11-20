@@ -5,16 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D133. Build dense-distribution.md's DD2: `src/detent_local/paged_canonical_copy.{hh,cc}` relocates a generation's pages into seal order, the full build's layout, without computing a page digest.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 After dense-pages' T4 churn applied through dense-pages D7, relocating into seal order gives the full build's pages in the full build's order and offsets, every byte outside placement equal.
+- A2 Zero page digests are computed during relocation (dense-pages T7's counter), checked by a test.
+- A3 A test fails without the relocation's ordering rule (a `--fails-without` job).
 
 ## Contracts
 

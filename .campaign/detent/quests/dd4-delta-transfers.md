@@ -5,16 +5,14 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D133, D6. Build dense-distribution.md's DD4: the relay's page window and Merkle diff, D6's rule choosing pages or records per update, and the delta receiver.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 At 5M the transfers for the four scenarios of job 261109-030635-4e209f have exactly the model's pages (5; 16,489; 369; 16,616) and bytes.
+- A2 Against S8's block answers, the rule picks records for every `u:` row and pages for `c:1000000`, and rule 1's shortcut holds on the measured record sizes at the crossover.
+- A3 A base page that fails first touch during a delta leads to namespace D10.3's full copy as pages, and reads recover.
+- A4 A refused transfer falls back to records without a wrong read: a test that fails without the fallback.
 
 ## Contracts
 
