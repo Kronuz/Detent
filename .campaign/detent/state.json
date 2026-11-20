@@ -1366,6 +1366,25 @@
       "closed": "noted: consensus main moved to consensus:8bdbd750; our consensus quests re-merge before landing (heal-snapshot-stall's waiter does it itself). The consensus_mutants headroom (1,477 of 1,800 s) is the Xapiand hunt's to act on.",
       "id": "msg-142",
       "text": "xapiand lead: consensus-sim-loops landed on consensus main at consensus:8bdbd750 (Driver sim on 2/3/4-loop hosts, heal up to 2x snapshot_timeout; 10,000 seeds green). Review gaps filed in xapiand hunt.md: A3's below-checkpoint oracle never fires in a mutant run; heal length unreported; consensus_mutants uses 1,477 of its 1,800 s timeout."
+    },
+    {
+      "at": "2026-11-19T23:27:52",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-141",
+      "items": {
+        "consensus-batch-turn-room": "frees include/consensus/worker.h, test/worker_test.cc, docs/DRIVER.md for consensus-batch-turn-room",
+        "driver-pipeline": "frees include/consensus/worker.h, include/consensus/driver.h, include/consensus/options.h, CMakeLists.txt, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "groups-upload-stall-cause": "frees test/transport/groups_test.cc for groups-upload-stall-cause"
+      },
+      "settles": {
+        "start": [
+          "consensus-batch-turn-room",
+          "driver-pipeline",
+          "groups-upload-stall-cause"
+        ]
+      },
+      "text": "set consensus-batch-turn-room: unlocks frees include/consensus/worker.h, test/worker_test.cc, docs/DRIVER.md for consensus-batch-turn-room; frees include/consensus/worker.h, include/consensus/driver.h, include/consensus/options.h, CMakeLists.txt, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -2149,18 +2168,45 @@
         "test/transport/groups_test.cc",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-batch-turn-room",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T04:30:08",
+          "commit": "1c08c9fc40620c0be445069bb3b1e319aa4a28f1",
+          "criteria": {
+            "A1": "261120-041102-43a4be; fails without: 261119-233216-39451c",
+            "A2": "261120-041054-4c49ab"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "1c08c9fc40620c0be445069bb3b1e319aa4a28f1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-041054-4c49ab",
+              "level": "light",
+              "seconds": 501.8,
+              "state": "done",
+              "what": "consensus-batch-turn-room check suite at 1c08c9fc4062"
+            }
+          ],
+          "final": true,
+          "from": "39d9f1df09b1e545050758a57c5a95fc3de99395",
+          "reason": "",
+          "tested": "1c08c9fc40620c0be445069bb3b1e319aa4a28f1"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus worker: validate a batch against the host's turn room",
-      "updated": "2026-11-20T04:10:39",
-      "worktree": "../consensus-wt/detent/consensus-batch-turn-room"
+      "updated": "2026-11-20T04:30:36",
+      "worktree": ""
     },
     "consensus-blocking-hold-loop": {
       "accepted": {},
