@@ -113,17 +113,17 @@ check_format "$root/generations" mark > "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 # A namespace the agent does not follow gets no entry and moves none.
 "$agent" --status --config "$root/agent.json" > "$root/progress-status.txt"
-grep -Fq "durable revision=$first_revision knob_count=1 namespace=ns" "$root/progress-status.txt"
+grep -q "knob_count=1 namespace=ns$" "$root/progress-status.txt"
 ! grep -q 'namespace=other' "$root/progress-status.txt"
 [[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
-deleted_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/deleted.json")
+# Positions are the namespace's own (W1), so the deletion is found by its effect.
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if "$agent" --status --config "$root/agent.json" > "$root/deleted-status.txt" &&
-        grep -Fq "durable revision=$deleted_revision knob_count=0 namespace=ns" "$root/deleted-status.txt"; then break; fi
+        grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"; then break; fi
     sleep 0.02
 done
-grep -Fq "durable revision=$deleted_revision knob_count=0 namespace=ns" "$root/deleted-status.txt"
+grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"
 wait_value 7
 kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
@@ -159,10 +159,12 @@ wait_agent_failure "$agent_pid" "$root/agent-unauthorized.log"
 agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
 cp "$root/managed-good.json" "$root/managed.json"
-# W7: the authority restarts empty under a new epoch; the agent's next answer is a full copy.
+# An authority restored empty is another cluster: its positions restart, so the agent configured
+# for it replaces its entry with the new cluster's full copy (W7).
 kill -TERM "$authority_pid"; wait "$authority_pid"; authority_pid=
-identity=${identity/65000000000000000000000000000000/66000000000000000000000000000000}
-"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["epoch"]="66000000000000000000000000000000"; data["directory"]="authority-data-reset"; open(p,"w").write(json.dumps(data))' "$root/authority.json"
+identity=${identity/63000000000000000000000000000000/64000000000000000000000000000000}
+"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["cluster"]="64000000000000000000000000000000"; data["directory"]="authority-data-reset"; open(p,"w").write(json.dumps(data))' "$root/authority.json"
+"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["cluster"]="64000000000000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
 "$authority" --authority "$root/authority.json" --port "$port" --runtime-dir "$root/authority-run" > "$root/authority-reset.log" 2>&1 &
 authority_pid=$!
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
@@ -171,6 +173,7 @@ deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
 done
 grep -q '"generation":1' "$root/reset-open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
+reset_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/reset-value.json")
 "$agent" --config "$root/agent.json" > "$root/agent-reset.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-reset.log"
@@ -191,7 +194,7 @@ wait_ready "$root/agent-fatal.log"
 mv "$root/generations" "$root/displaced-generations"
 mkdir "$root/generations"
 chmod 700 "$root/generations"
-post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:fatal\",\"value\":{\"default\":100},\"expected_revision\":0}]}" > "$root/fatal-progress.json"
+post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":100},\"expected_revision\":$reset_revision}]}" > "$root/fatal-progress.json"
 for ((attempt=0;attempt<300;attempt++)); do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
     sleep 0.02

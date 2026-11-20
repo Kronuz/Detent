@@ -233,7 +233,11 @@ void DiskStore::advance() {
 	if (core.closing && !impl_->running && core.status != StoreStatus::Closed) {
 		cancel_publication();
 		impl_->pending.reset();
-		core.namespaces.clear();
+		// Each attempt stays named: a recovery failure that settles after close still matches it.
+		for (auto &[name, state] : core.namespaces) {
+			state.pending.reset();
+			state.verified.reset();
+		}
 		core.factory.reset();
 		core.agent.reset();
 		core.status = StoreStatus::Closed;
@@ -593,7 +597,10 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
 	std::string entry(name);
-	if (entry.empty() && core.selection.namespaces.size() == 1)
+	// Without a name, the store's one namespace: its only pending or selected entry.
+	if (entry.empty() && core.namespaces.size() == 1)
+		entry = core.namespaces.begin()->first;
+	else if (entry.empty() && core.selection.namespaces.size() == 1)
 		entry = core.selection.namespaces.front().name;
 	const auto found = core.namespaces.find(entry);
 	const detail::StoreCore::Namespace none;

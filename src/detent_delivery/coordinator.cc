@@ -883,6 +883,8 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					std::rethrow_exception(failure);
 				} catch (const SourceTrustError &) {
 					throw;
+				} catch (const l::GenerationUnavailable &) {
+					throw; // a selected entry the store can no longer recover: the store is gone
 				} catch (const SessionResetError &error) {
 					if (fatal_source_reset(error.reason()))
 						throw;

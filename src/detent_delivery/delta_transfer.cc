@@ -9,9 +9,11 @@ namespace x = local::detail;
 
 std::uint64_t sent_bytes(std::span<const char> body) {
 	std::uint64_t sent = 0;
+	d::Identity update{}; // any nonzero name: the size does not depend on it
+	update.fill('\x01');
 	for (std::size_t at = 0; at < body.size(); at += d::fragment_bytes) {
 		const auto size = std::min(d::fragment_bytes, body.size() - at);
-		sent += d::encode_fragment({d::UpdateKind::Frames, {}, at, body.size(), at + size == body.size(),
+		sent += d::encode_fragment({d::UpdateKind::Frames, update, at, body.size(), at + size == body.size(),
 									std::string(body.data() + at, size)},
 								   true)
 					.size();
