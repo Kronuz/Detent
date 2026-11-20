@@ -122,8 +122,10 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	DETENT_COUNT(record_opens, 1);
 	Selected selected;
 	auto &descriptor = selected.descriptor;
-	// A whole root of another format: its digest is the entry's and its magic another root's.
-	if (std::string_view(prefix.data(), 6) == "DTROOT" && std::string_view(prefix.data(), 8) != paged::root_magic) {
+	// A whole root of an older format: its digest is the entry's and its magic an older root's.
+	const auto digit = [&](std::size_t at) { return prefix[at] >= '0' && prefix[at] <= '9'; };
+	if (std::string_view(prefix.data(), 6) == "DTROOT" && digit(6) && digit(7) &&
+		unsigned(prefix[6] - '0') * 10 + unsigned(prefix[7] - '0') < paged::format_version) {
 		SHA256 hash;
 		hash.add(prefix.data(), prefix.size());
 		std::array<char, 32> sum{};

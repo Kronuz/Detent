@@ -37,8 +37,9 @@ class TableRefused : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
-// A whole store of another layout: a table of another layout, or a root it names in another format.
-// No other layout is read (D43): the agent refuses the store once and bootstraps a fresh copy.
+// A whole store of an older layout: a table of an older layout, or a root it names in an older format.
+// No other layout is read (D43): the agent refuses the store once and bootstraps a fresh copy. A newer
+// layout is not this agent's to remove: it fences like damage.
 class LayoutRefused : public TableRefused {
   public:
 	using TableRefused::TableRefused;

@@ -38,14 +38,15 @@ class Input {
 };
 } // namespace
 
-GenerationId derive_generation(const distribution::Profile &profile, const distribution::Identity &incarnation,
-							   std::uint64_t position, const GenerationId &base, std::uint32_t ordinal) {
+GenerationId derive_generation(const distribution::Profile &profile, const distribution::NamespaceCursor &at,
+							   const GenerationId &base, std::uint32_t ordinal) {
 	return Input("detent.agent-store.generation")
 		.add(agent_store_layout, 4)
 		.add(profile.semantic_id, 4)
 		.add(profile.required_capabilities, 8)
-		.add(incarnation)
-		.add(position, 8)
+		.add(at.cluster)
+		.add(at.incarnation)
+		.add(at.position, 8)
 		.add(base)
 		.add(ordinal, 4)
 		.id();
@@ -70,6 +71,6 @@ DerivedGeneration next_generation(const std::optional<Descriptor> &selected,
 		throw std::invalid_argument("a build from a base needs the selected generation");
 	const auto ordinal = build_ordinal(selected, target);
 	const GenerationId base = full_copy ? GenerationId{} : selected->generation;
-	return {derive_generation(profile, target.incarnation, target.position, base, ordinal), ordinal};
+	return {derive_generation(profile, target, base, ordinal), ordinal};
 }
 } // namespace detent::local

@@ -33,7 +33,7 @@ The table `selected` (`DTTABLE1`, layout 2, `include/detent_local/store_table.hh
 
 ## Other layouts
 
-No other layout is read (D43). A whole table of another layout, or a whole root of another format whose digest its entry names, is `LayoutRefused`: the agent refuses the store once (`DiskStore::refusal()`), removes `selected`, opens empty and bootstraps a full copy; collection removes the old files no reader holds. A root whose digest differs from its entry's is damage and fences the store.
+No other layout is read (D43). A whole table of an older layout, or a whole root of an older format whose digest its entry names, is `LayoutRefused`: the agent refuses the store once (`DiskStore::refusal()`), removes `selected`, opens empty and bootstraps a full copy; collection removes the old files no reader holds. A newer layout or format is not this agent's to remove, and a root whose digest differs from its entry's is damage: both fence the store and keep every file.
 
 ## Verification and remaining gates
 
@@ -186,7 +186,7 @@ Focused tests cover repeated-key updates across 17 transactions, deletion/reinse
 
 ## Paged-root recovery
 
-A generation's image is its exactly 320-byte root (`DTROOT04`). A root of another format is refused as described in [Other layouts](#other-layouts); any other root that differs from its table entry's fences the store.
+A generation's image is its exactly 320-byte root (`DTROOT04`). A root of an older format is refused as described in [Other layouts](#other-layouts); any other root that differs from its table entry's fences the store.
 
 Paged dependencies use `segment-<32 hex digits>.pack` and `.owner`. Recovery locks the selected root's lease, verifies the root against its table entry, resolves only reachable dependencies, checks each full segment checksum, validates the complete semantic graph and records per-segment reachability. Before sealing the private leased-root capability, it rechecks named payload identities, owner records and the root image/lease identities. Unrelated files are not mapped. All views retain the root lease and admitted segment mappings, with cleanup on the retirement worker.
 

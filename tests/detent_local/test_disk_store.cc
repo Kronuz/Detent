@@ -291,7 +291,7 @@ void older_layouts(d::RetirementRuntime &runtime, const std::shared_ptr<d::Stora
 	auto table_of = [](const std::filesystem::path &directory) {
 		return l::decode_table(trusted_records::slurp(directory / "selected"));
 	};
-	for (const auto change : {"table layout", "root format", "root damage"}) {
+	for (const auto change : {"table layout", "root format", "root damage", "newer table"}) {
 		const auto directory = fresh(root, change);
 		{
 			Store s(runtime, account, directory, l::StoreOpenMode::FreshEmpty);
@@ -299,10 +299,11 @@ void older_layouts(d::RetirementRuntime &runtime, const std::shared_ptr<d::Stora
 		}
 		auto table = table_of(directory);
 		const auto image = directory / (l::generation_name(table.entries.front().generation) + ".image");
-		if (std::string_view(change) == "table layout") {
-			// Layout 1: the current table with its layout field and digest rewritten.
+		const bool newer = std::string_view(change) == "newer table";
+		if (std::string_view(change) == "table layout" || newer) {
+			// Layout 1, or a newer one: the current table with its layout field and digest rewritten.
 			auto bytes = trusted_records::slurp(directory / "selected");
-			l::write_integer(bytes, 8, l::agent_store_layout - 1, 4);
+			l::write_integer(bytes, 8, newer ? l::agent_store_layout + 1 : l::agent_store_layout - 1, 4);
 			const auto sum = trusted_records::sha(std::span<const char>(bytes).first(bytes.size() - 32));
 			std::copy(sum.begin(), sum.end(), bytes.end() - 32);
 			replace(directory / "selected", bytes);
@@ -318,7 +319,19 @@ void older_layouts(d::RetirementRuntime &runtime, const std::shared_ptr<d::Stora
 				replace(directory / "selected", l::encode_table(table));
 			}
 		}
+		if (newer) {
+			// A newer layout is not this agent's to remove: the store does not open and keeps every file.
+			bool refused = false;
+			try {
+				Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
+			} catch (const l::TableRefused &) {
+				refused = true;
+			}
+			check(refused && std::filesystem::exists(directory / "selected") && std::filesystem::exists(image));
+			continue;
+		}
 		Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
+		// Damage fences and keeps every file.
 		if (std::string_view(change) == "root damage") {
 			check(reopened.store->status() == l::StoreStatus::Fenced && !reopened.store->refusal());
 			check(std::filesystem::exists(directory / "selected") && std::filesystem::exists(image));
@@ -356,7 +369,7 @@ int main() {
 		std::filesystem::remove_all(root);
 		runtime.shutdown();
 		std::cout << "startup modes, census settlement, cancellation, admission, collection around a lease and "
-					 "close while running, and older layouts refused once passed\n";
+					 "close while running, and older layouts refused once, newer ones fenced passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

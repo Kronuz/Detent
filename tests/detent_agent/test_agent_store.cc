@@ -87,21 +87,22 @@ std::vector<std::string> expected_names(std::initializer_list<const Generation *
 
 // W11, D8.1: ids derive from what was built, with no storage identity.
 void derived_ids() {
-	const l::GenerationId zero{}, base = l::derive_generation(profile, identity('i'), 7, zero, 0);
-	const auto id = l::derive_generation(profile, identity('i'), 9, base, 0);
-	check(id == l::derive_generation(profile, identity('i'), 9, base, 0));
+	const l::GenerationId zero{}, base = l::derive_generation(profile, cursor('i', 7), zero, 0);
+	const auto id = l::derive_generation(profile, cursor('i', 9), base, 0);
+	check(id == l::derive_generation(profile, cursor('i', 9), base, 0));
 	d::Profile other = profile;
 	other.required_capabilities = 0;
 	d::Profile semantic = profile;
 	semantic.semantic_id = 2;
 	for (const auto &variant :
-		 {l::derive_generation(other, identity('i'), 9, base, 0), l::derive_generation(semantic, identity('i'), 9, base, 0),
-		  l::derive_generation(profile, identity('j'), 9, base, 0), l::derive_generation(profile, identity('i'), 10, base, 0),
-		  l::derive_generation(profile, identity('i'), 9, zero, 0), l::derive_generation(profile, identity('i'), 9, base, 1)})
+		 {l::derive_generation(other, cursor('i', 9), base, 0), l::derive_generation(semantic, cursor('i', 9), base, 0),
+		  l::derive_generation(profile, cursor('j', 9), base, 0), l::derive_generation(profile, cursor('i', 10), base, 0),
+		  l::derive_generation(profile, {identity('d'), identity('i'), 9}, base, 0),
+		  l::derive_generation(profile, cursor('i', 9), zero, 0), l::derive_generation(profile, cursor('i', 9), base, 1)})
 		check(variant != id);
 	// Pinned: two builds on any host name the same files, and the derivation never drifts silently.
-	const auto pinned = l::generation_name(l::derive_generation(profile, identity('i'), 9, zero, 0));
-	if (pinned != "generation-769d4f78b559a65597a3188c10bb87ad")
+	const auto pinned = l::generation_name(l::derive_generation(profile, cursor('i', 9), zero, 0));
+	if (pinned != "generation-560af59f6e78605358004bdb201499f4")
 		throw std::runtime_error("derivation drifted: " + pinned);
 	check(l::derive_segment(id, 0) == l::derive_segment(id, 0) && l::derive_segment(id, 0) != l::derive_segment(id, 1) &&
 		  l::derive_segment(id, 0) != l::derive_segment(base, 0));
@@ -116,7 +117,7 @@ void table_codec() {
 		entry.name = name;
 		entry.cursor = cursor(name[0], 3);
 		entry.slot = std::uint32_t(table.entries.size()) ^ 1;
-		entry.generation = l::derive_generation(profile, entry.cursor.incarnation, 3, {}, 0);
+		entry.generation = l::derive_generation(profile, entry.cursor, {}, 0);
 		entry.ordinal = 2;
 		entry.root_length = 320;
 		entry.root = sha(name);

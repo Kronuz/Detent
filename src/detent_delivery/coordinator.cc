@@ -110,6 +110,7 @@ struct Coordinator::Impl {
 	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> scrub_pause;
 	d::RetirementHandle<PagedCandidateResult> paged_candidate;
 	bool pending_paged_confirmation = false, compaction_requested = false;
+	std::uint64_t wakes = 0;
 	bool compaction_admission_refused = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
@@ -139,7 +140,7 @@ struct Coordinator::Impl {
 			repair_woke = true;
 			network_cancel.request();
 		}
-		notify_candidate();
+		this->wake();
 	}
 	void stop_construction() noexcept {
 		if (construction) {
@@ -170,8 +171,18 @@ struct Coordinator::Impl {
 		++reconnect_observation.count;
 		return reconnect_observation.delay;
 	}
+	// Waits out `duration`: disk progress does not end it; a close, a cancelled update or a wake does.
 	task::task<void> pause(std::chrono::milliseconds duration) {
-		co_await wait_candidate(std::chrono::steady_clock::now() + duration);
+		const auto expires = std::chrono::steady_clock::now() + duration;
+		const auto epoch = cancellation, woken = wakes;
+		do
+			co_await wait_candidate(expires);
+		while (!closing && cancellation == epoch && wakes == woken && std::chrono::steady_clock::now() < expires);
+	}
+	// Ends a pause so the loop asks again now.
+	void wake() noexcept {
+		++wakes;
+		notify_candidate();
 	}
 	task::task<void> wait_candidate(std::chrono::steady_clock::time_point expires) {
 		candidate_wake->expires_at(expires);
@@ -1228,7 +1239,7 @@ void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coor
 }
 void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
 	coordinator.impl_->compaction_requested = true;
-	coordinator.impl_->notify_candidate();
+	coordinator.impl_->wake();
 }
 void detail::CoordinatorAccess::request_repair(Coordinator &coordinator) {
 	coordinator.impl_->request_repair(true);

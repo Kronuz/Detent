@@ -43,7 +43,7 @@ A delta is two steps: `TrieOverlay` (`paged_trie_overlay.cc`) records the change
 
 ## Refusal and reclamation
 
-The agent store holds `owner.lock` for its life. Startup checks each table entry's `.image`, `.read` and `.live` against the entry (the root's SHA-256 and length, `.read`'s SHA-256, `.live`'s bindings). Damage, or a `.lease` that is not empty, fails the entry; the store fences and keeps every file, including `selected`. No older layout is read or migrated (D43): a whole table of another layout, or a whole root of another format that its entry's digest names, is refused once (`LayoutRefused`); the store removes `selected`, opens empty, and the agent's ordinary bootstrap takes a full copy.
+The agent store holds `owner.lock` for its life. Startup checks each table entry's `.image`, `.read` and `.live` against the entry (the root's SHA-256 and length, `.read`'s SHA-256, `.live`'s bindings). Damage, or a `.lease` that is not empty, fails the entry; the store fences and keeps every file, including `selected`. No older layout is read or migrated (D43): a whole table of an older layout, or a whole root of an older format that its entry's digest names, is refused once (`LayoutRefused`); the store removes `selected`, opens empty, and the agent's ordinary bootstrap takes a full copy. A newer layout fences like damage.
 
 A page cannot name its own format. Bytes that are not DTPAGE03 are damage: the decoders throw `invalid_argument`, first touch reports `ReadSourceFailure`, and damage never removes a table entry. Trusted restart maps packs without scanning them; its first-touch and scrub checks keep that boundary. A reader that meets a generation of another format reports `GenerationUnavailable`.
 

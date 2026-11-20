@@ -595,10 +595,9 @@ int main(int argc, char **argv) {
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		disk_options.recovery_limits.mapping_account = mapping;
 		disk_options.recovery_limits.retirement_domain = &domain;
-		// Under reader pressure the store holds two generations and a third's reservation does not fit beside
-		// them while a reader pins the first.
-		const std::uint64_t pressure_bytes = std::getenv("DETENT_PRESSURE_BYTES") ? std::stoull(std::getenv("DETENT_PRESSURE_BYTES")) : 4096;
-		disk_options.limits = {pressure ? pressure_bytes : 512ull * 1024 * 1024, 4096u, 10};
+		// Under reader pressure the store holds two paged generations (peak 4138 bytes with a publication's
+		// reservation) and a third does not fit beside them (5834) while a reader pins the first.
+		disk_options.limits = {pressure ? 5120ull : 512ull * 1024 * 1024, 4096u, 10};
 		std::optional<l::ReadView> pinned_installed;
 		if (from_installed) {
 			const auto reply = response(count);

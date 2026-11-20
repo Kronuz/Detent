@@ -1,4 +1,4 @@
-// A selected generation the store cannot read (another format's framing, damage) fences the store at
+// A selected generation the store cannot read (a newer format's framing, damage) fences the store at
 // startup and keeps every file: D43 has no migration, and nothing unreadable authorizes a removal.
 #include "detent_local/disk_store.hh"
 #include "generation_mapping.hh"

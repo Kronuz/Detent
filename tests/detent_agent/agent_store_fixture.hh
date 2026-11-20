@@ -68,7 +68,7 @@ inline Generation generation(const d::Profile &profile, std::string name, l::Nam
 							 unsigned fresh, char seed) {
 	Generation g;
 	auto &bytes = *g.bytes;
-	g.id = l::derive_generation(profile, at.incarnation, at.position, base, ordinal);
+	g.id = l::derive_generation(profile, at, base, ordinal);
 	g.prepared.name = std::move(name);
 	g.prepared.cursor = at;
 	g.prepared.base = base;
