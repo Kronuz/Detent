@@ -1,6 +1,6 @@
 # consensus-late-append-tests: journal
 
-State: working
+State: waiting on jobs 261119-165818-4fe4e7 261119-165835-4605e6 261119-165837-e49853 261119-165838-a838b5
 Quest: .campaign/detent/quests/consensus-late-append-tests.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Tests at consensus:a292fd0 (test/consensus_test.cc): late_append_read_probe (A1), late_append_during_snapshot (A2). Jobs: plain 4fe4e7 (must pass first; mutants pass falsely if the plain test fails), A1 mutant 4605e6 (drops acknowledge_read in the late path), A2 mutant e49853 (drops `peer.snapshot ||` guard), suite a838b5. Mutant jobs exit 0 on setup/build failure so those fail the job.
 
 ## Next
 
-1. <step>
+1. Check the four jobs; read mutant logs to confirm only the new check fails; then ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
