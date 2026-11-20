@@ -2,6 +2,7 @@
 #include "detent_local/paged_layout.hh"
 #include "paged_transfer.hh"
 #include <deque>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -26,25 +27,28 @@ MerkleDiff merkle_diff(const local::paged::Reference &target, const local::detai
 					   const local::paged::Reference &base, const local::detail::TransferPages &base_pages,
 					   local::paged::Limits = {});
 
-// One generation the window holds: its position, root page and page access, and the owner that
-// keeps those pages readable.
+// One generation the window holds: its position, root page and page access, the owner that keeps
+// those pages readable, and the segments they live in (id and length). Generations built from one
+// another share every segment they both reach.
 struct WindowGeneration {
 	std::uint64_t position = 0;
 	local::paged::Reference root;
 	local::detail::TransferPages pages;
 	std::shared_ptr<const void> owner;
-	// Bytes of the pages the next newer generation lacks: what keeping this one costs (0 at head).
-	std::uint64_t retained = 0;
+	std::vector<std::pair<local::SegmentId, std::uint64_t>> segments;
 };
 // D7.3: the relay's generations at recent positions, which share every unchanged page. It is
 // bounded like the record ring, by `positions` generations and by the head's own page bytes of
-// retained pages; the oldest go first. A base outside it gets records (D6) or the full copy (D10).
+// retained segments (those the head does not reach); the oldest go first. A base outside it gets
+// records (D6) or the full copy (D10).
 class PageWindow {
   public:
 	explicit PageWindow(std::size_t positions = 64, local::paged::Limits = {});
 	// Makes `head` the newest generation, at a position above the current head's; `head_bytes` is
 	// its page bytes (Root::bytes).
 	void advance(WindowGeneration head, std::uint64_t head_bytes);
+	// Replaces the head with the same state in other segments (its canonical relocation, D7.4).
+	void rebase(WindowGeneration head);
 	// Drops every generation: a new incarnation, or a head that is not the window's successor.
 	void clear() noexcept;
 	const WindowGeneration *head() const noexcept;
@@ -53,12 +57,19 @@ class PageWindow {
 	// `base` is outside the window.
 	std::optional<MerkleDiff> delta(std::uint64_t base) const;
 	std::size_t size() const noexcept { return generations_.size(); }
-	std::uint64_t retained_bytes() const noexcept { return retained_; }
+	// Bytes of the segments the window holds beyond the head's, and of all it holds.
+	std::uint64_t retained_bytes() const noexcept { return held_ - head_segments_; }
+	std::uint64_t held_bytes() const noexcept { return held_; }
 
   private:
+	void hold(const WindowGeneration &, int change);
+	std::uint64_t own(const WindowGeneration &) const;
+	void trim();
 	std::size_t positions_;
 	local::paged::Limits limits_;
 	std::deque<WindowGeneration> generations_; // oldest first
-	std::uint64_t retained_ = 0, head_bytes_ = 0;
+	// Per segment: its length and how many generations reach it.
+	std::map<local::SegmentId, std::pair<std::uint64_t, std::size_t>> segments_;
+	std::uint64_t held_ = 0, head_segments_ = 0, head_bytes_ = 0;
 };
 } // namespace detent::relay

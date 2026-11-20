@@ -106,26 +106,52 @@ PageWindow::PageWindow(std::size_t positions, p::Limits limits) : positions_(pos
 	if (!positions_)
 		throw std::invalid_argument("page window: no positions");
 }
-void PageWindow::advance(WindowGeneration head, std::uint64_t head_bytes) {
-	head.retained = 0;
-	if (!generations_.empty()) {
-		auto &previous = generations_.back();
-		if (head.position <= previous.position)
-			throw std::invalid_argument("page window: a head at or below the window's");
-		previous.retained =
-			merkle_diff(previous.root, previous.pages, head.root, head.pages, limits_).bytes;
-		retained_ += previous.retained;
+void PageWindow::hold(const WindowGeneration &generation, int change) {
+	for (const auto &[id, length] : generation.segments) {
+		auto &[bytes, count] = segments_[id];
+		if (change > 0 && !count++) {
+			bytes = length;
+			held_ += length;
+		} else if (change < 0 && !--count) {
+			held_ -= bytes;
+			segments_.erase(id);
+		}
 	}
-	generations_.push_back(std::move(head));
-	head_bytes_ = head_bytes;
-	while (generations_.size() > positions_ || retained_ > head_bytes_) {
-		retained_ -= generations_.front().retained;
+}
+std::uint64_t PageWindow::own(const WindowGeneration &generation) const {
+	std::uint64_t total = 0;
+	for (const auto &[id, length] : generation.segments)
+		total += length;
+	return total;
+}
+void PageWindow::trim() {
+	while (generations_.size() > positions_ || (generations_.size() > 1 && retained_bytes() > head_bytes_)) {
+		hold(generations_.front(), -1);
 		generations_.pop_front();
 	}
 }
+void PageWindow::advance(WindowGeneration head, std::uint64_t head_bytes) {
+	if (!generations_.empty() && head.position <= generations_.back().position)
+		throw std::invalid_argument("page window: a head at or below the window's");
+	hold(head, 1);
+	head_segments_ = own(head);
+	generations_.push_back(std::move(head));
+	head_bytes_ = head_bytes;
+	trim();
+}
+void PageWindow::rebase(WindowGeneration head) {
+	if (generations_.empty() || head.position != generations_.back().position)
+		throw std::invalid_argument("page window: a rebase off the head's position");
+	hold(head, 1);
+	hold(generations_.back(), -1);
+	head_segments_ = own(head);
+	generations_.back() = std::move(head);
+	trim();
+}
 void PageWindow::clear() noexcept {
 	generations_.clear();
-	retained_ = head_bytes_ = 0;
+	segments_.clear();
+	held_ = head_segments_ = head_bytes_ = 0;
 }
 const WindowGeneration *PageWindow::head() const noexcept {
 	return generations_.empty() ? nullptr : &generations_.back();
