@@ -60,8 +60,7 @@ Pending the jobs. ARCHITECTURE.md (compacted follower paragraph) states the inst
 
 ## Rulings I made
 
-4. test/worker_test.cc is outside the quest's file set (core.h, consensus_test.cc, ARCHITECTURE.md, CHANGELOG.md); the lead asked for an order-assuming test to be updated, so I changed its one predicate. The lead adds it to the file set.
-
 1. One per-peer flag checked in `replicate`, rather than clamping next at each site that moves it without evidence (flight timeout, checkpoint, install outcome): one decision point. A refusal's evidence survives a later checkpoint: by log matching, a peer lacking the leader's entry at i lacks every later one until the leader sends it more.
 2. A refusal that leads to an install still installs at once; a Rejected, Stale or Unavailable release keeps the flag, so those retries still request a new image, as the existing tests require.
 3. The A2 bound is measured in the compact profile (heartbeat 20, rpc_timeout 40), the simulation's timing.
+4. test/worker_test.cc is outside the quest's file set (core.h, consensus_test.cc, ARCHITECTURE.md, CHANGELOG.md); the lead asked for an order-assuming test to be updated, so I changed its one predicate. The lead adds it to the file set.
