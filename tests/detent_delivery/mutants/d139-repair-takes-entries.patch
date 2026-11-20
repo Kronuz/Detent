@@ -1,0 +1,13 @@
+diff --git a/src/detent_distribution/session_frames.cc b/src/detent_distribution/session_frames.cc
+index 315c9819..e8d67a23 100644
+--- a/src/detent_distribution/session_frames.cc
++++ b/src/detent_distribution/session_frames.cc
+@@ -36,7 +36,7 @@ Answer select_answer(const NamespaceHistory &history, const std::optional<Namesp
+ 	// a source still behind a drop and re-creation.
+ 	if (store && store->cluster == head.cluster && store->position > head.position)
+ 		return {AnswerKind::Ahead, store->position};
+-	if (repair || !store || !store->same_identity(head))
++	if (!store || !store->same_identity(head))
+ 		return {AnswerKind::FullCopy};
+ 	const auto r = store->position;
+ 	if (r == head.position)

@@ -179,10 +179,16 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "web");
 			check(server.answered == 1); // web's full copy only
 		}
+		d::NamespaceCursor published;
 		{
 			// D136: an entry whose stored bytes are damaged passes startup (C2 checks presence), fails
-			// alone when its base recovers, and a fresh full copy replaces it.
+			// alone when its base recovers, and a fresh full copy replaces it. D139: app's repair names the
+			// position app published, and a source whose app is older answers it below that position:
+			// ignoring the floor, its copy is skipped; honoring it, it answers nothing.
 			std::lock_guard lock(server.mutex);
+			published = server.find("app").history().head();
+			server.repair_head["app"] = server.find("app").transactions.size() - 1;
+			server.ignore_floor = true;
 			server.find("app").transactions.push_back({{"app:k1", def(41, 0)}});
 			server.find("web").transactions.push_back({{"web:k2", def(42, 0)}});
 		}
@@ -199,6 +205,21 @@ int main(int argc, char **argv) {
 		check(damaged > 0);
 		{
 			Agent agent(root, l::StoreOpenMode::ExistingManaged, options, account, domain, queue);
+			const auto skipped = agent.until([](const auto &s) { return s.repair.below > 0; }, "app's copy below its floor");
+			const auto answered = server.answered.load();
+			const auto older = agent.until([&](const auto &s) { return server.answered > answered + 2; }, "more answers");
+			check(skipped.repair.pending && older.repair.pending && older.repair.completed <= 1); // web's only
+			const auto idle = [&] {
+				std::lock_guard lock(server.mutex);
+				server.ignore_floor = false;
+				check(!server.repairs.empty() && server.repairs.back() == published);
+				return server.idle.load();
+			}();
+			agent.until([&](const auto &s) { return server.idle > idle + 1; }, "no answer below the floor");
+			{
+				std::lock_guard lock(server.mutex);
+				server.repair_head.clear();
+			}
 			const auto state = agent.until([&](const auto &s) { return at_heads(server, s, followed) && !s.repair.pending; },
 										   "damaged entries replaced");
 			check(state.repair.requested == 2 && state.repair.completed == 2);

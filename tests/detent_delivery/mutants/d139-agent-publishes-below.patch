@@ -1,0 +1,12 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 6aa69668..49df6900 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -649,7 +649,6 @@ struct Coordinator::Impl {
+ 														found->second.published->cluster == input->target().cluster &&
+ 														input->target().position < found->second.published->position) {
+ 				++diagnostic.repair.below;
+-				continue;
+ 			}
+ 			d::RetirementHandle<BuildResult> built;
+ 			try {

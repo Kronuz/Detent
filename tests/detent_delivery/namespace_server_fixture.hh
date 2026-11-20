@@ -78,6 +78,9 @@ struct Server {
 	// An older source: a repair's position (D139) is taken as no store, its floor ignored.
 	bool ignore_floor = false;
 	std::vector<d::NamespaceCursor> repairs; // each repair position asked, in order
+	// A repair of this namespace is answered from its first N transactions: a source whose newest
+	// build is older than the history.
+	std::map<std::string, std::size_t, std::less<>> repair_head;
 	// The next reply carrying a pages frame stops after this many body bytes, once (D8).
 	std::size_t cut = 0;
 	std::vector<std::uint64_t> offsets; // each pages frame's offset, in order
@@ -151,12 +154,13 @@ struct Server {
 			return "HTTP/1.1 204 No Content\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 		}
 		std::map<std::string_view, std::optional<d::NamespaceCursor>> wanted;
-		std::set<std::string_view> repairing;
+		std::set<std::string_view> repairing, asked_repair;
 		for (const auto &position : request.positions) {
 			if (!grants.allows(position.name))
 				return control("403 Forbidden", "forbidden");
 			wanted[position.name] = position.cursor;
 			if (position.repair) {
+				asked_repair.insert(position.name);
 				repairs.push_back(*position.cursor);
 				if (ignore_floor)
 					wanted[position.name].reset();
@@ -193,7 +197,12 @@ struct Server {
 					requests.push_back({name, nullptr, cursor, each.dropped});
 				continue;
 			}
-			histories.push_back(each.history());
+			if (const auto stale = repair_head.find(name); stale != repair_head.end() && asked_repair.contains(name)) {
+				auto older = each;
+				older.transactions.resize(stale->second);
+				histories.push_back(older.history());
+			} else
+				histories.push_back(each.history());
 			const auto transfer = transfers.find(name);
 			const bool repair = repairing.contains(name);
 			if (pages_session && transfer != transfers.end() && transfer->second.answer.to == histories.back().head() &&
