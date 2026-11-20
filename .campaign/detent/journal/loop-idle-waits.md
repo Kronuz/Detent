@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on CI 44728587634 (lead's dispatch at Detent:53a2fa93, 50-min Test cap, artifact failure-macos-arm64) and push CI at Detent:d055a988; jobs 261120-033554-85da95 / 261120-033556-ef43b9 (strict spin probes), 261120-033558-317f17 -826f8b (A1), -dbffd7 (A3), 261120-033928-7be37f / 261120-033929-590a92 (suite sample, head / main).
+State: waiting on CI 44739992170 (push) and 44740001777 (dispatch) at Detent:6d1484eb (arm64 hang diagnostics), and jobs at Detent:9b27cb95: 261120-051926-bbdf55 -051927-1a5ee5 -051927-57ec95 -051928-7486af (A4 TSan relay), -051928-9f1a5d (A2), -051929-b61395 (A4 suite), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Blocked on the macOS arm64 hang (recurred at Detent:485bb354).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -74,6 +74,21 @@ Codex's local branch codex/idle-wakeups: usage.c ported from Detent:dbb5029d; it
 (docs/perf/idle-wakeups.md at Detent:be0d12b9: 952 interrupt wakeups/s, ~1,004 owner dispatches/s,
 reclaim scans ~60 completion ops/s) frames A1.
 
+## Contributor 4 (spin bound, samplers, arm64)
+
+- Samplers (local, -j4): head 261120-033928-7be37f passed 280/280 in 509 s; main fcb07845 261120-033929-590a92 exit 8
+  = ctest's failure exit: test_delivery_client timed out at 30 s on main (passed 2.1 s at head), a main flake, not the
+  sampler. Peaks head vs main: TIME_WAIT 10,419 vs 13,486, suite RSS 3,186 vs 3,250 MiB, processes 22 vs 27; the top
+  CPU-share processes are the same tests at both (test_delivery_coordinator, test_authority_history_power_cut ~1.0),
+  no detent-relay or detent-authority among them. No port, memory or spinning-process difference locally (x86_64).
+- arm64 hang recurred: 44729425517 at Detent:485bb354, "hosted runner lost communication", no log (BlobNotFound) and
+  no artifact; macOS x86_64 and every Linux job passed. Every arm64 loss ends ~49.4 min after Test starts
+  (44614222390 49:21, 44717173788 49:23, 44729425517 49:33), just before the 50-min step cap, never mid-run.
+- Detent:6d1484eb: hang_watchdog logs load, vm_stat, swap, TCP states and the top-6 CPU and RSS processes every 15 s,
+  and at 20 min samples and SIGKILLs the suite and ctest, so the step fails by itself and uploads watchdog.log.
+  CI at 6d1484eb: 44739992170 (push), 44740001777 (dispatch).
+- Spin bound removed (R11, Detent:9b27cb95); evidence jobs rerun at Detent:9b27cb95 (State).
+
 ## Result
 
 <Not yet.>
@@ -105,10 +120,14 @@ reclaim scans ~60 completion ops/s) frames A1.
   (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
-- R9 (spin bound): every 64th start, replay or stop visit in a row with nothing to wait on sleeps 1 ms
-  (main's poll period). A step that stops advancing then costs 64 cheap visits per ms, not a core; one
-  that advances loses at most 1 ms per 64 visits. No reachable state wedges these loops, so the proof is
-  a probe (bench/idle-wakeups/spin_probe.sh wedges the stop loop 2 s per stop), not a test.
+- R9 (spin bound) withdrawn by R11.
+- R11 (no spin bound): the 64-yield bound (Detent:5f8b0ba1) is removed (Detent:9b27cb95); service.cc is
+  Detent:39e5ab7e's again. Wedged 2 s per stop with nothing in flight (instrumented local build, light), the stop
+  loop visited 50,709 to 74,605 times per wedge unbounded and ~56,300 bounded: each yield waits its turn on the
+  loaded scheduler (263k involuntary switches), so the bound never changed the visit rate. Process CPU over 8 s
+  wedged, strict: 1.29 s bounded (261120-033554-85da95), 2.76 s unbounded (261120-033556-ef43b9, exit 0, the
+  "must fail" probe). macOS strict holds share cores, so CPU time measures the load; no test tells the bound from
+  its absence, and no reachable state wedges these loops (R8).
 - R10 (watchdog): hang_watchdog registers only under GitHub Actions and kills past 300 s. At 90 s it killed
   test_agent_store_crash in the local suite (5 to 14 min there; 31 to 69 s on macOS CI) and sat 1 s above
   test_relay_network_500000 on macOS x86_64 CI (89 s).
