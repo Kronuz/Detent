@@ -1,6 +1,6 @@
 # reactor-tls-cache-bound: journal
 
-State: waiting on jobs 261119-174128-f8387d
+State: waiting on jobs 261119-234119-dba69c
 Quest: .campaign/detent/quests/reactor-tls-cache-bound.md (the lead's; never edit it)
 
 ## Doing
@@ -20,10 +20,10 @@ before reactor:1dd5f32 (unbounded cache), after head. release passed at 388e161
 2. TSan 261119-170547-7f622f failed in reactor_lag only (median wake within the 1,024 us edge,
    load ~22); rerun 261119-174122-8e50d9. If reactor_lag fails again, give the lead the counts
    (they file it as a load flake). Strict A/B 61aafd unusable (6 light holds, load 22;
-   system-roots 19.5 ms vs 8.6); exclusive rerun 261119-174128-f8387d. If held cases are still
+   system-roots 19.5 ms vs 8.6); exclusive rerun 261119-234119-dba69c (lead requeued f8387d at reactor:72aff48). If held cases are still
    slower after than at 1dd5f32, find why (suspects: hold()'s Held allocation and ex_data set,
    weak_ptr lock) before the perf doc.
-3. From the A/B (261119-174128-f8387d, round 5 medians), rewrite docs/perf/tls-configure.md:
+3. From the A/B (261119-234119-dba69c, round 5 medians), rewrite docs/perf/tls-configure.md:
    before = reactor:1dd5f32, after = head; held cases should match, unheld after = full parse
    (compare the no-cache numbers of job 261119-153634-6252d5, labeled as that job's). Say plainly
    when the cache hits (live holder) and when it misses. Commit, push.
