@@ -16248,20 +16248,49 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/reactor-tls-cache",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T16:39:01",
+          "commit": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+          "criteria": {
+            "A1": "261119-160723-6a8eaa; fails without: 261119-145839-5b1364, 261119-153630-49e28b, 261119-160724-3d6c3e",
+            "A2": "261119-160725-a36699; fails without: 261119-145842-13f356, 261119-153633-22e918, 261119-160727-e1c9ad",
+            "A3": "261119-161155-c85aa4",
+            "A4": "261119-160733-baa48c, 261119-160734-96e25b, 261119-160735-2f6e65, 261119-160728-d08851, 261119-160730-f04f47; fails without: 261119-160729-ff811c, 261119-160732-d23c52"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-160733-baa48c",
+              "level": "light",
+              "seconds": 10.6,
+              "state": "done",
+              "what": "reactor-tls-cache check suite at 1dd5f32bf6fe"
+            }
+          ],
+          "final": true,
+          "from": "6fdd45fb783ff4de035b2b8c3cd06ec8f3c1a90a",
+          "reason": "",
+          "tested": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "reactor tls::configure: load certificates once, reload on change",
-      "updated": "2026-11-19T16:14:18",
-      "worktree": "../reactor-wt/detent/reactor-tls-cache"
+      "updated": "2026-11-19T16:39:04",
+      "worktree": ""
     },
     "reactor-tls-cache-bound": {
       "accepted": {},
