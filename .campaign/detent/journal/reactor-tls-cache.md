@@ -33,7 +33,7 @@ Nothing.
 |---|---|
 | A1 | 261119-160723-6a8eaa (cache at reactor:1dd5f32); fails without: 261119-160724-3d6c3e (mutant reactor:f0cb1b7, no-cache) |
 | A2 | 261119-160725-a36699 (rotation + race at reactor:1dd5f32); fails without: 261119-160727-e1c9ad (mutant reactor:58dee1e, path-only) |
-| A3 | 261119-153634-6252d5 (strict, main reactor:6fdd45f vs reactor:c1c0393, beside 10 light holds; docs/perf/tls-configure.md) |
+| A3 | 261119-161155-c85aa4 (strict, main reactor:6fdd45f vs reactor:c1c0393, beside 10 light holds; docs/perf/tls-configure.md) |
 | A4 | 261119-160733-baa48c suite, 261119-160734-96e25b ASan+UBSan, 261119-160735-2f6e65 TSan; F4 261119-160728-d08851 / mutant 261119-160729-ff811c; F2 261119-160730-f04f47 / mutant 261119-160732-d23c52 |
 
 At reactor:0b3d05d every job passed and both mutants failed; superseded by the merge.
