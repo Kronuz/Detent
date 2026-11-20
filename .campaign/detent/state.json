@@ -2097,13 +2097,15 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-worker-release"
+      ],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
       "status": "planned",
       "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
-      "updated": "2026-11-19T18:04:31"
+      "updated": "2026-11-19T18:08:09"
     },
     "consensus-close-fenced": {
       "accepted": {
@@ -6995,8 +6997,8 @@
     "http-drop-user-data": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T15:58:03",
-          "base": "ec273dd4d37e46a4c206c8307200eab35ab5e448",
+          "at": "2026-11-19T18:31:18",
+          "base": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc",
           "blobs": {
             "AGENTS.md": "100644:ddaa305d2d466b473dd18eddb07ed217728fe2e5",
             "ARCHITECTURE.md": "100644:c29b11a401ccf0cb301034e98d2749f2901f8560",
@@ -7014,14 +7016,14 @@
             "http_message.h": "100644:8b5eba250b9b239772fa2495faccac27ee21334b",
             "http_request_parser.h": "100644:70f518cb455eb7a8d46bc9160b07b19647f38b3f",
             "test/asio_test.cc": "100644:aba74cfde8262af2a4c17a4ee366abc1a17254b6",
-            "test/coroutine_test.cc": "100644:be37ae827872c2ab3c739d91afe7b4429c03fb37",
+            "test/coroutine_test.cc": "100644:d94bc69330ed17dfcbf8b9877d002497abd362f3",
             "test/deferred_asio_test.cc": "deleted",
             "test/deferred_test.cc": "100644:86ec882338d16c610342fc1012166a505a0c65c3",
             "test/readahead_test.cc": "100644:7ec20e28081ea001e498ee6b4764d27bde357d31",
             "test/timeouts_test.cc": "100644:67cb0146d37b520bcd5e21e3e6d29bae04c435d9"
           },
           "by": "review",
-          "commit": "054970910c65dec41f6788df960290d2df46514d",
+          "commit": "35116b04deca7c35072e8b87922e496870fc280f",
           "criteria": "587f1f7d123c6781",
           "diffs": {
             "AGENTS.md": "a358312d4dbdcacd",
@@ -7051,14 +7053,14 @@
               "jobs": [
                 {
                   "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
-                  "commit": "054970910c65dec41f6788df960290d2df46514d",
+                  "commit": "35116b04deca7c35072e8b87922e496870fc280f",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261119-154010-049d80",
+                  "job": "261119-171647-04581a",
                   "level": "light",
-                  "seconds": 166.9,
+                  "seconds": 74.5,
                   "state": "done",
-                  "what": "http-drop-user-data check suite at 054970910c65"
+                  "what": "http-drop-user-data check suite at 35116b04deca"
                 }
               ],
               "kind": "defect",
@@ -7105,20 +7107,49 @@
         "ARCHITECTURE.md",
         "AGENTS.md"
       ],
-      "journal": "../Detent-wt/detent/http-drop-user-data",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T18:32:21",
+          "commit": "35116b04deca7c35072e8b87922e496870fc280f",
+          "criteria": {
+            "A1": "261119-171647-04581a",
+            "A2": "261119-171648-48d8c6; fails without: 261119-145429-db04cf, 261119-145430-8ae0a9",
+            "A3": "Detent `.campaign/detent/PLAN.md` D127 (Xapiand lead's agreement, msg-124)",
+            "A4": "261119-171647-04581a"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "35116b04deca7c35072e8b87922e496870fc280f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-171647-04581a",
+              "level": "light",
+              "seconds": 74.5,
+              "state": "done",
+              "what": "http-drop-user-data check suite at 35116b04deca"
+            }
+          ],
+          "final": true,
+          "from": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc",
+          "reason": "",
+          "tested": "35116b04deca7c35072e8b87922e496870fc280f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T15:58:03",
-      "worktree": "../http-wt/detent/http-drop-user-data"
+      "updated": "2026-11-19T18:32:24",
+      "worktree": ""
     },
     "http-idle-cost": {
       "accepted": {
@@ -8522,6 +8553,8 @@
       "after": [
         "journal-blocking-wake"
       ],
+      "base": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+      "branch": "quest/detent/journal-hop-on-task",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -8543,6 +8576,7 @@
         "docs/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-hop-on-task",
       "landed": [],
       "lenses": [
         "correctness"
@@ -8552,9 +8586,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "journal turn driver: fallback hop on a task primitive",
-      "updated": "2026-11-19T06:00:06"
+      "updated": "2026-11-19T18:07:45",
+      "worktree": "../journal-wt/detent/journal-hop-on-task"
     },
     "journal-host-guards": {
       "accepted": {
@@ -16523,18 +16558,45 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/reactor-abortlist-thread",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T18:23:40",
+          "commit": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b",
+          "criteria": {
+            "A1": "261119-170249-dacc88; fails without: 261119-171143-723158",
+            "A2": "261119-170254-5ab021, 261119-170306-fc93ed"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-171145-ddad3b",
+              "level": "light",
+              "seconds": 35.2,
+              "state": "done",
+              "what": "reactor-abortlist-thread check suite at fbad85f1e2cf"
+            }
+          ],
+          "final": true,
+          "from": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+          "reason": "",
+          "tested": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "reactor: a session ending on another loop untracks on the owning loop",
-      "updated": "2026-11-19T17:03:53",
-      "worktree": "../reactor-wt/detent/reactor-abortlist-thread"
+      "updated": "2026-11-19T18:23:45",
+      "worktree": ""
     },
     "reactor-on-wheel": {
       "accepted": {},
@@ -16784,7 +16846,8 @@
         "test/tls_test.cc",
         "docs/mechanisms/tls-certificate-cache.md",
         "docs/perf/tls-configure/**",
-        "docs/perf/tls-configure.md"
+        "docs/perf/tls-configure.md",
+        "CHANGELOG.md"
       ],
       "journal": "../Detent-wt/detent/reactor-tls-cache-bound",
       "landed": [],
@@ -16798,7 +16861,7 @@
       "risk": "high",
       "status": "active",
       "title": "reactor: the TLS parse cache releases entries no context uses",
-      "updated": "2026-11-19T17:04:41",
+      "updated": "2026-11-19T18:24:03",
       "worktree": "../reactor-wt/detent/reactor-tls-cache-bound"
     },
     "reader-acl": {
