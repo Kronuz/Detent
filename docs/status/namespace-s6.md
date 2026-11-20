@@ -77,7 +77,8 @@ Golden answer (`test_session_frames.cc`): x = 1, y = 2, delete x; block [1, 2]; 
 ## W5: the request (version 2)
 
 ```text
-open  {"version":2, "profile":1, "coding":"raw"|"zstd", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?}
+open  {"version":2, "profile":1, "coding":"raw"|"zstd", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?,
+       "pages"?, "records"?}
 next  {"version":2, "session", "cluster"?, "namespaces":[...], "all"?, "wait_ms"?}
 close {"version":2, "session"}
 namespace: [name] (no store) or [name, incarnation, position]
@@ -86,6 +87,11 @@ namespace: [name] (no store) or [name, incarnation, position]
 Names are valid and strictly increasing; a cursor or a nonzero `all` needs `cluster`; a session
 follows at least one namespace or `all`. The cluster is the request's, once: a store of another
 cluster earns the same full copy as no store, so the client sends it as `[name]`.
+
+`"pages":true` (dense distribution DD3) lets the session's full copies, and deltas the sender
+finds smaller as pages (D6), come as W6 pages frames; agents send it, relays mirroring upstream do
+not. `"records":[names]`, strictly increasing, are answered with records even then: the agent
+lists a namespace whose transfer it refused (D9) until records publish it.
 
 Responses: open 200 `{"version":2,"session","wait_ms"}`; next 200
 `application/vnd.detent.frames` with `X-Detent-Session-Version: 2`, `X-Detent-Session` and

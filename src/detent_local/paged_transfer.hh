@@ -79,6 +79,8 @@ struct ReceivedTransfer {
 	std::uint64_t pages = 0, bytes = 0, base_children = 0, base_pages_walked = 0, namespaces = 0;
 };
 using TransferSegmentId = std::function<SegmentId(std::uint32_t number)>;
+// The ids a generation named `name` gives a transfer's segments: the segment builder's, from ordinal 0.
+TransferSegmentId transfer_segment_ids(const DerivedGeneration &name);
 
 // What the frame names: the target's root digest and its position, whose revision bounds every leaf.
 struct TransferTarget {

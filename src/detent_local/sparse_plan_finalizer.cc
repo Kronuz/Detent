@@ -18,8 +18,14 @@ void SparsePlanFinalizer::start(TrieOverlay &&source) {
 	(void)source.root();
 	overlay.emplace(std::move(source));
 }
+void SparsePlanFinalizer::start(PagedImage &&image, std::vector<SegmentReachability> removed) {
+	if (overlay || received_removed || retiring || removed.size() != plan->registry_->inputs().size())
+		throw std::logic_error("invalid sparse finalization handoff");
+	plan->image_.emplace(std::move(image));
+	received_removed.emplace(std::move(removed));
+}
 bool SparsePlanFinalizer::done() const noexcept {
-	return overlay && !failed && phase == Phase::Done;
+	return (overlay || received_removed) && !failed && phase == Phase::Done;
 }
 bool SparsePlanFinalizer::grant(std::size_t bytes, ValidationBudget &budget) {
 	if (!budget.rows)
@@ -35,7 +41,7 @@ bool SparsePlanFinalizer::grant(std::size_t bytes, ValidationBudget &budget) {
 	return true;
 }
 void SparsePlanFinalizer::step(ValidationBudget &budget) {
-	if (failed || !overlay || retiring)
+	if (failed || (!overlay && !received_removed) || retiring)
 		throw std::logic_error("failed sparse plan finalization");
 	try {
 		while (phase != Phase::Done) {
@@ -45,6 +51,12 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					if (!grant(sizeof(SegmentReachability), budget))
 						return;
 					old_live.push_back(plan->registry_->reachability(position++));
+					break;
+				}
+				position = 0;
+				if (received_removed) {
+					added.reserve(plan->image_->segments().size());
+					phase = Phase::Validate;
 					break;
 				}
 				assembly.emplace(account, *overlay, plan->registry_->inputs(), old_live,
@@ -121,7 +133,8 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					if (!grant(sizeof(SegmentReachability), budget))
 						return;
 					const auto removed = validator->removed(position);
-					const auto expected = assembly->removed()[position];
+					const auto expected =
+						received_removed ? (*received_removed)[position] : assembly->removed()[position];
 					if (removed.pages != expected.pages || removed.bytes != expected.bytes)
 						throw std::logic_error("sparse construction removal proof mismatch");
 					plan->base_live_.push_back({old_live[position].pages - removed.pages,

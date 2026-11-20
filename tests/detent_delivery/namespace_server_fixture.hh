@@ -57,7 +57,8 @@ inline std::vector<Transaction> writes(const std::string &name, int count, int s
 	return out;
 }
 
-// A full copy as a page transfer (dense distribution DD3), answered at `answer.to` only.
+// A page transfer to `answer.to` (dense distribution DD3, DD4): a full copy (`answer.after` 0) for a
+// follower with no store of it, or a delta for one whose store is at `answer.after`.
 struct Transfer {
 	std::vector<char> bytes;
 	d::PagesAnswer answer;
@@ -173,8 +174,10 @@ struct Server {
 			}
 			histories.push_back(each.history());
 			const auto transfer = transfers.find(name);
-			if (pages_session && !cursor && transfer != transfers.end() &&
-				transfer->second.answer.to == histories.back().head() &&
+			if (pages_session && transfer != transfers.end() && transfer->second.answer.to == histories.back().head() &&
+				(cursor ? cursor->same_identity(transfer->second.answer.to) &&
+							  cursor->position == transfer->second.answer.after
+						: !transfer->second.answer.after) &&
 				!std::binary_search(session_records.begin(), session_records.end(), name))
 				requests.push_back({name, &histories.back(), cursor, std::nullopt, &transfer->second.answer});
 			else

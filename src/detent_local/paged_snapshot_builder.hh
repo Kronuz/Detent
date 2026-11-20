@@ -49,6 +49,7 @@ class PagedImage {
 	distribution::StorageOwner<Impl> impl_;
 	friend class PagedSnapshotBuilder;
 	friend class OverlayAssembler;
+	friend class PagedTransferPlanBuilder;
 	friend PagedImage receive_image(std::shared_ptr<distribution::StorageLedger>, std::span<const char>,
 									const paged::Digest &, const distribution::NamespaceCursor &,
 									const distribution::Profile &, const DerivedGeneration &, paged::Limits,

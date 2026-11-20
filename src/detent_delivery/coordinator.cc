@@ -10,7 +10,9 @@
 #include "paged_compaction_plan.hh"
 #include "paged_delta_plan.hh"
 #include "paged_snapshot_plan.hh"
-#include "paged_transfer.hh"
+#include "delta_transfer.hh"
+#include "paged_navigation.hh"
+#include "paged_transfer_plan.hh"
 #include "scrub_source.hh"
 #include "source_selection.hh"
 #include "state_equivalence.hh"
@@ -381,10 +383,9 @@ struct Coordinator::Impl {
 		const bool repair = followed[name].repair;
 		if (options.cluster != d::Identity{} && target.cluster != options.cluster)
 			throw SourceTrustError("namespace frame of another cluster");
+		if (input.kind() == d::FrameKind::Pages && input.after())
+			co_return co_await build_delta(input);
 		if (input.kind() == d::FrameKind::Pages) {
-			if (input.after())
-				throw l::detail::TransferRefused(l::detail::TransferRefusal::BaseLacks,
-												 "a pages delta is not taken: asked as records");
 			std::optional<l::RecoveredGeneration> actual;
 			if (at && at->same_identity(target))
 				actual = *co_await base_of(name);
@@ -443,6 +444,49 @@ struct Coordinator::Impl {
 		co_return co_await build([base = *base, delta = std::shared_ptr<const d::ValidatedDelta>(input.delta()),
 								  factory, heap, bounds](BuildResult &result) mutable {
 			l::detail::PagedDeltaPlanBuilder candidate(base, std::move(delta), factory, heap, bounds);
+			drive(candidate, result.control);
+			result.plan.emplace(candidate.take());
+		});
+	}
+	// A delta transfer over the namespace's base (D6): DD1's receiver through receive_delta, then a
+	// plan over the base. A base that lacks a reused page, or fails first touch, asks a full copy
+	// (D10.3); any other refusal asks records.
+	task::task<d::RetirementHandle<BuildResult>> build_delta(d::FrameInput &input) {
+		const auto name = input.name();
+		const auto target = input.target();
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
+		if (!selected || selected->cursor != d::NamespaceCursor{target.cluster, target.incarnation, input.after()})
+			throw std::invalid_argument("pages delta of " + name + " does not start at the store's cursor");
+		const auto *base = co_await base_of(name);
+		if (!base)
+			throw std::invalid_argument("pages delta requires a base");
+		auto limits = options.view_limits;
+		const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
+		l::paged::Digest root;
+		std::copy(input.root().begin(), input.root().end(), root.begin());
+		co_return co_await build([transfer = input.transfer(), root, target, base = *base, factory = domain.factory(),
+								  heap = domain.storage_account(), bounds,
+								  overrides = limits.overrides](BuildResult &result) mutable {
+			const auto leased = l::detail::ScrubSource::root(base);
+			const auto inputs = leased->registry()->inputs();
+			const l::detail::TransferBase on{leased->root().tree, [inputs](const l::paged::Reference &reference) {
+												 const auto i = l::detail::find_segment(inputs, reference.segment);
+												 if (i == inputs.size())
+													 throw l::detail::ReadSourceFailure("base lacks a page's segment");
+												 return l::detail::checked_page_bytes(inputs[i], reference);
+											 }};
+			const auto name = l::next_generation(base.descriptor(), target, base.descriptor().profile, false);
+			result.control.step();
+			auto receipt = receive_delta(heap, transfer, on, {root, target.position, overrides},
+										 l::detail::transfer_segment_ids(name), bounds, 1);
+			if (receipt.outcome == DeltaOutcome::FullCopy)
+				throw l::detail::ReadSourceFailure(receipt.reason.c_str());
+			if (receipt.outcome != DeltaOutcome::Published)
+				throw l::detail::TransferRefused(receipt.refusal.value_or(l::detail::TransferRefusal::Page),
+												 receipt.reason.c_str());
+			l::detail::PagedTransferPlanBuilder candidate(base, std::move(*receipt.received), target, factory, heap,
+														  bounds);
 			drive(candidate, result.control);
 			result.plan.emplace(candidate.take());
 		});

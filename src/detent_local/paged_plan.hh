@@ -74,6 +74,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	friend class PagedMaintenanceBuilder;
 	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
+	friend class PagedTransferPlanBuilder;
 };
 // Move-only exact-base publication authority; retirement never runs on its caller.
 class PagedPlan {
@@ -118,5 +119,6 @@ class PagedPlan {
 	friend class PagedMaintenanceBuilder;
 	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
+	friend class PagedTransferPlanBuilder;
 };
 } // namespace detent::local::detail

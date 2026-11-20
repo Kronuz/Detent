@@ -2,7 +2,8 @@
 // server's page transfer through DD1's receiver and publishes it with no packer run (no build hash);
 // its generation is the one a records build of the same state writes, pack for pack. A transfer
 // whose root is wrong is refused, the next open asks that namespace as records, and the records
-// build publishes the same generation.
+// build publishes the same generation. A clustered change then comes as a delta transfer over the
+// agent's generation, and publishes with no build either.
 //   test_pages_coordinator CERTIFICATES [KEYS]   KEYS definitions in the namespace (100,000)
 #include "coordinator_agent_fixture.hh"
 #include "detent_delivery/hash_stats.hh"
@@ -11,6 +12,7 @@
 #include "detent_local/layout.hh"
 #include "paged_limits.hh"
 #include "paged_snapshot_builder.hh"
+#include "page_window.hh"
 #include "paged_transfer.hh"
 #include <fstream>
 #include <iostream>
@@ -42,6 +44,7 @@ std::vector<Transaction> corpus(const std::string &name, std::size_t keys) {
 // which is seal order.
 struct Canonical {
 	l::Descriptor descriptor;
+	p::Reference tree;
 	std::map<l::SegmentId, std::string> packs;
 	Transfer transfer;
 };
@@ -65,6 +68,7 @@ Canonical canonical(const Served &served, const l::ViewLimits &view) {
 	auto image = builder.take();
 	Canonical out;
 	out.descriptor = image.descriptor();
+	out.tree = image.root().tree;
 	std::vector<p::Reference> order;
 	for (const auto &segment : image.segments()) {
 		const std::span<const char> bytes(segment.bytes->data(), segment.bytes->size());
@@ -82,6 +86,20 @@ Canonical canonical(const Served &served, const l::ViewLimits &view) {
 		},
 		bounds);
 	out.transfer.answer = {image.root().tree.digest, 0, to, {}};
+	return out;
+}
+x::TransferPages reader(const Canonical &copy) {
+	return [&copy](const p::Reference &r) {
+		return std::span<const char>(copy.packs.at(r.segment)).subspan(r.offset, r.length);
+	};
+}
+// The delta transfer from `base` to `target`: the target's pages the base lacks, in seal order (D7.3).
+Transfer delta(const Canonical &base, const Canonical &target, const l::ViewLimits &view) {
+	const auto bounds = x::paged_limits(view, p::root_bytes);
+	const auto diff = detent::relay::merkle_diff(target.tree, reader(target), base.tree, reader(base), bounds);
+	Transfer out;
+	out.bytes = x::make_transfer(diff.pages, reader(target), bounds);
+	out.answer = {target.tree.digest, base.descriptor.cursor.position, target.descriptor.cursor, {}};
 	return out;
 }
 void install(Server &server, const std::string &name, Transfer transfer) {
@@ -183,10 +201,69 @@ int main(int argc, char **argv) {
 			check(spent.built.page_calls == 0 && spent.built.pack_calls == 0);
 			same_generation(state, root / "big", "big", big);
 			matches(server, root / "big", limits, "big");
-			std::lock_guard lock(server.mutex);
-			check(!server.records_asked.empty() &&
-				  std::all_of(server.records_asked.begin(), server.records_asked.end(),
-							  [](const auto &names) { return names.empty(); }));
+			{
+				std::lock_guard lock(server.mutex);
+				check(!server.records_asked.empty() &&
+					  std::all_of(server.records_asked.begin(), server.records_asked.end(),
+								  [](const auto &names) { return names.empty(); }));
+			}
+			// A clustered change of a tenth of the keys comes as a delta transfer over the agent's base,
+			// installed with the change so the agent never sees the change without it.
+			Served changed = server.find("big");
+			Transaction change;
+			for (std::size_t i = keys / 3; i < keys / 3 + keys / 10; ++i) {
+				char key[16];
+				std::snprintf(key, sizeof key, ":k%07zu", i);
+				change.push_back({"big" + std::string(key), def(std::int64_t(i) + 7, 0)});
+			}
+			changed.transactions.push_back(change);
+			const auto big2 = canonical(changed, limits);
+			auto moved = delta(big, big2, limits);
+			const auto delta_bytes = moved.bytes.size();
+			const auto before_delta = t::hash_stats();
+			{
+				std::lock_guard lock(server.mutex);
+				server.find("big").transactions.push_back(std::move(change));
+				auto &held = server.transfers["big"] = std::move(moved);
+				held.answer.bytes = held.bytes;
+			}
+			const auto next = agent.until([&](const auto &s) { return at(s, "big", big2.descriptor.cursor); },
+										  "big's delta from pages", 120s);
+			const auto delta_spent = t::hash_stats() - before_delta;
+			if (next.transfers.received != 2 || next.transfers.refused || next.failures)
+				throw std::runtime_error("delta: received " + std::to_string(next.transfers.received) + ", refused " +
+										 std::to_string(next.transfers.refused) + ", failures " +
+										 std::to_string(next.failures) + ": " + coordinator_agent::message(next.error));
+			check(next.transfers.bytes == big.transfer.bytes.size() + delta_bytes && delta_bytes < big2.transfer.bytes.size());
+			check(delta_spent.built.page_calls == 0 && delta_spent.built.pack_calls == 0);
+			const auto *selected = next.selected.find("big");
+			check(selected && selected->cursor == big2.descriptor.cursor && selected->generation != big2.descriptor.generation);
+			matches(server, root / "big", limits, "big");
+			std::cout << "delta pages: " << keys / 10 << " keys changed, " << delta_bytes << " transfer bytes (full copy "
+					  << big2.transfer.bytes.size() << "), built hashes " << delta_spent.built.page_calls << "+"
+					  << delta_spent.built.pack_calls << ", checked page hashes " << delta_spent.checked.page_calls << "\n";
+			// A delta whose root is wrong is refused, and the next open asks big as records (D9).
+			Served again = server.find("big");
+			Transaction more{{"big:k0000001", def(77, 0)}};
+			again.transactions.push_back(more);
+			auto wrong_delta = delta(big2, canonical(again, limits), limits);
+			wrong_delta.answer.root[0] ^= 1;
+			{
+				std::lock_guard lock(server.mutex);
+				server.find("big").transactions.push_back(std::move(more));
+				auto &held = server.transfers["big"] = std::move(wrong_delta);
+				held.answer.bytes = held.bytes;
+				server.records_asked.clear();
+			}
+			const auto third = agent.until([&](const auto &s) { return at(s, "big", again.history().head()); },
+										   "big's refused delta as records", 120s);
+			check(third.transfers.received == 2 && third.transfers.refused == 1);
+			matches(server, root / "big", limits, "big");
+			{
+				std::lock_guard lock(server.mutex);
+				check(std::find(server.records_asked.begin(), server.records_asked.end(),
+								std::vector<std::string>{"big"}) != server.records_asked.end());
+			}
 			std::cout << "pages: " << keys << " keys, " << big.transfer.bytes.size() << " transfer bytes, "
 					  << big.packs.size() << " packs, built hashes " << spent.built.page_calls << "+"
 					  << spent.built.pack_calls << ", checked page hashes " << spent.checked.page_calls << " ("

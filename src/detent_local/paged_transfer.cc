@@ -387,16 +387,18 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
 	return out;
 }
 
+TransferSegmentId transfer_segment_ids(const DerivedGeneration &name) {
+	return [id = name.id](std::uint32_t number) {
+		p::count_hash(p::HashKind::Metadata, 1, segment_derivation_bytes);
+		return derive_segment(id, number - 1);
+	};
+}
 PagedImage receive_image(std::shared_ptr<distribution::StorageLedger> account, std::span<const char> stream,
 						 const p::Digest &root, const distribution::NamespaceCursor &target,
 						 const distribution::Profile &profile, const DerivedGeneration &name, p::Limits limits,
 						 std::uint32_t maximum_overrides) {
-	const auto segment_id = [&name](std::uint32_t number) {
-		p::count_hash(p::HashKind::Metadata, 1, segment_derivation_bytes);
-		return derive_segment(name.id, number - 1);
-	};
 	auto received = receive_transfer(account, stream, nullptr, {root, target.position, maximum_overrides},
-									 segment_id, limits);
+									 transfer_segment_ids(name), limits);
 	if (received.tree.keys < received.namespaces || received.tree.keys - received.namespaces > limits.records ||
 		received.namespaces > limits.namespaces)
 		throw TransferRefused(TransferRefusal::Limits, "transfer over the record or namespace limit");

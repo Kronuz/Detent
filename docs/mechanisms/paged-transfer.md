@@ -25,12 +25,22 @@ Keys, length and height stay in every content entry. The derived layout is `tran
 
 Placement is outside the page digest, so the layout and order checks (1, 3, 4) are what make the receiver's files a function of the target's pages alone: a sender cannot choose segment breaks or page order. Steps 3 and 5 are the defense against a wrong tree under a root the sender names, since that root is the sending relay's (D4).
 
+## The agent's plans
+
+The agent (`src/detent_delivery/coordinator.cc`) opens with `"pages":true` and takes a W6 pages frame two ways, neither running the packer:
+
+- **A full copy** (`after` 0): `receive_image` names the generation as a full copy over the selected base (`next_generation(..., true)`), receives over the empty base with `transfer_segment_ids` (the segment builder's ids, from ordinal 0) and returns the build's image: its packs are byte for byte the ones a records build of the same state writes. `PagedSnapshotPlanBuilder` takes that image in place of the records encoder.
+- **A delta** (`after` the store's position): `receive_delta` over the selected base, whose pages are read with first touch, then `PagedTransferPlanBuilder`: the new packs are the received ones, named by `next_generation` over the base; a walk of the base from its root that stops at the pages the transfer reuses gives the removed base pages per pack and the new root's counts, and `SparsePlanFinalizer`'s warm validator must find the same removal.
+
+A refusal of either fails the response; the next open lists the namespace in `"records"` until records publish it (D9). A base that lacks a reused page, or fails first touch, asks a full copy (namespace D10.3).
+
 ## Cost
 
 A full copy hashes each page once and each segment once: at 5M, 306,989,416 page bytes and 315,759,038 pack bytes, as the dense build. `checked_hash_counts()` counts both.
 
 ## Tests
 
+- `test_pages_coordinator` runs an agent against a test server that sends DD1 transfers: a 100K-key cold agent boots from pages with no build hash, its descriptor and packs equal to the server's build; a clustered change of 10,000 keys comes as a delta transfer (251 KB against 2.84 MB for the full copy) and publishes with no build hash; a wrong root, for a full copy and for a delta, falls back to records.
 - `test_local_paged_transfer` builds generations with the packer and checks the round trip (pages equal outside placement, the re-made transfer of the received generation equal to the stream, the hash counters), a delta over a base, and a refusal per check.
 - `test_local_paged_transfer --fixtures DIR [--only SLUG]` replays the model's fixtures (`dense-distribution-model.py check|full|delta CORPUS --out=DIR`): the full copy's root, packs byte for byte with the model's segment ids and the hash counters; the deltas' roots; and each refusal case of D4's table.
 - The fixtures come from a corpus in today's definition encoding (`corpus-100k-varint.bin`, SHA-256 `39a0751b…2acf821`): the design's r12 corpora (`bb87ae5d…`, `3214561e…`) store definitions in an older body encoding, which the leaf check refuses. On that corpus largest-first packs as D5 does, so the model forges the non-canonical tree densest-first.
