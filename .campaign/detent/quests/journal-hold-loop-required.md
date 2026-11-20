@@ -5,27 +5,22 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+journal's `Hold` cannot be built without a loop: the loop parameter is required, and an empty `scheduler_ref` throws `std::logic_error` at construction, as `durable()` refuses a scheduler without `post_call` (D131). A deaf blocking entry, the defect consensus-blocking-hold-loop and journal-blocking-wake fixed, can no longer be written.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `Hold` without a loop does not compile, and `Hold` with an empty `scheduler_ref` throws `std::logic_error` before it holds anything; a test shows the throw and fails without the change (--fails-without): jobs.
+- A2 journal's suite and TSan pass, and consensus and Detent build against it unchanged: jobs.
+- A3 [artifact] The CHANGELOG and docs/mechanisms/turn-seal.md state the rule: `CHANGELOG.md`.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Changes journal's public `Hold` constructor (no default loop). Every known caller already passes one.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D131 (the lead).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
