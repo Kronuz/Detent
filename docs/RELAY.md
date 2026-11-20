@@ -1,6 +1,6 @@
 # Relay
 
-`detent-relay` mirrors namespace history from the authority's voters, or from another relay, and serves it to readers: W5 sessions (version 2) with W6 frames, and the history routes a downstream relay reads. It is a reader, never a consensus member, and links no consensus. How the mirror works is in [namespace S8](status/namespace-s8.md).
+`detent-relay` mirrors namespace history from the authority's voters, or from another relay, and serves it to readers: W5 sessions (version 2) with W6 frames, and the history routes a downstream relay reads. It is a reader, never a consensus member, and links no consensus. It mirrors sealed history only; the authority's leader seals changes that stay unsealed for one second, so on a quiet cluster a relay trails the authority by about one second plus `interval_ms`. How the mirror works is in [namespace S8](status/namespace-s8.md).
 
 ```text
 Authority voters ──layouts, files, W6──▶ Relay A ──▶ Relay B ──▶ ...

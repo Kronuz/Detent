@@ -664,6 +664,7 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 	accounting_->delivery_resource = distribution::make_storage_resource(accounting_->delivery_account);
 	check(options_.subscription_wait.count() >= 0 && options_.subscription_wait <= std::chrono::minutes(1),
 		  "invalid subscription poll duration");
+	check(options_.seal_after.count() > 0 && options_.seal_after <= std::chrono::minutes(1), "invalid seal interval");
 	check(options_.subscription_requests.polls <= 512, "subscription polls must preserve listener headroom");
 	check(options_.subscription_requests.opens <= 128 && options_.subscription_requests.closes <= 128,
 		  "subscription controls must preserve listener headroom");
@@ -1591,6 +1592,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	};
 	std::optional<FramesSlot> framing;
 	Clock::time_point enabling_at{};
+	std::uint64_t unsealed_after = 0; // The seal index unsealed changes follow, and since when.
+	std::optional<Clock::time_point> unsealed_since;
+	Clock::time_point sealing_at{};
 	kronuz::metrics::Counter frames_answers, frames_idle, frames_held_back, frames_errors;
 	using SessionTasks =
 		std::vector<std::shared_ptr<Task>, distribution::StorageAllocator<std::shared_ptr<Task>>>;
@@ -2766,6 +2770,23 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					enable.nonce[0] |= 1;
 					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
 					(void)node.propose_administrative(++next, enable);
+				}
+				// D136: positioned changes unsealed for seal_after get a seal entry, so relays, which
+				// mirror sealed history only, stay current on a quiet cluster.
+				if (const auto &seal = node.state().seal(); !seal.transactions || seal.index != unsealed_after) {
+					unsealed_after = seal.index;
+					unsealed_since.reset();
+					if (seal.transactions)
+						unsealed_since = now;
+				} else if (!unsealed_since) {
+					unsealed_since = now;
+				} else if (node.worker().role() == kronuz::consensus::Role::Leader &&
+						   (!node.history() || node.history()->ready()) && now - *unsealed_since >= options_.seal_after &&
+						   now >= sealing_at) {
+					sealing_at = now + options_.seal_after;
+					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
+					(void)node.propose_administrative(
+						++next, AdministrativeCommand{options_.node.context, AdministrativeKind::Seal, {}, {}, {}, {}});
 				}
 				if (framing) {
 					auto &slot = *framing;

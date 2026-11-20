@@ -108,8 +108,9 @@ struct NamespaceCursor {
 // to catch up, a full copy (another cluster or incarnation), or nothing to follow.
 enum class CursorAnswer : std::uint8_t { Current = 1, Behind, Ahead, FullCopy, Absent };
 // Replicated entries that are not producer transactions; each applies at one log index.
-// SetLayout is the "set limits" entry: its policy takes effect at the next seal.
-enum class AdministrativeKind : std::uint8_t { EnablePositions = 1, DropNamespace = 2, SetLayout = 3 };
+// SetLayout is the "set limits" entry: its policy takes effect at the next seal. Seal is the
+// leader's idle seal (D136): it seals where it applies when positioned changes are unsealed.
+enum class AdministrativeKind : std::uint8_t { EnablePositions = 1, DropNamespace = 2, SetLayout = 3, Seal = 4 };
 struct AdministrativeCommand {
 	Context context;
 	AdministrativeKind kind = AdministrativeKind::EnablePositions;
@@ -125,7 +126,7 @@ struct SealCounters {
 	std::uint64_t ordinal = 0, index = 0;		  // The last seal's ordinal and log index.
 	std::uint64_t transactions = 0, bytes = 0;	  // Positioned changes and their canonical bytes.
 	std::uint64_t entries = 0, log_bytes = 0;	  // Log entries and their payload bytes.
-	bool forced = false;						  // The enabling entry seals where it applies.
+	bool forced = false;						  // The enabling or a seal entry seals where it applies.
 	bool operator==(const SealCounters &) const = default;
 };
 using Digest = std::array<unsigned char, 32>;

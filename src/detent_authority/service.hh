@@ -50,6 +50,9 @@ struct ServiceOptions {
 	SubscriptionLimits subscriptions;
 	SubscriptionRequestLimits subscription_requests;
 	std::chrono::milliseconds subscription_wait{30000};
+	// The leader's idle seal (D136): changes unsealed this long get a seal entry, so a relay
+	// mirrors a quiet cluster's writes within it.
+	std::chrono::milliseconds seal_after{1000};
 	std::chrono::milliseconds timeout{5000};
 	std::optional<std::chrono::milliseconds> delivery_timeout;
 };

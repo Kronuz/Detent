@@ -328,7 +328,7 @@ SubmitResult Node::propose_administrative(std::uint64_t request, const Administr
 	auto entry = command;
 	if (entry.kind == AdministrativeKind::EnablePositions)
 		entry.policy = options_.application.layout;
-	if (entry.kind != AdministrativeKind::DropNamespace) {
+	if (entry.kind == AdministrativeKind::EnablePositions || entry.kind == AdministrativeKind::SetLayout) {
 		// The log-progress seal derives from the group's consensus limits, never a constant.
 		entry.policy.log_entries = options_.consensus.log_entries;
 		entry.policy.log_bytes = options_.consensus.log_bytes;
