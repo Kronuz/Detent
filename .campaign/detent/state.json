@@ -6898,6 +6898,36 @@
       "updated": "2026-11-19T04:42:52",
       "worktree": ""
     },
+    "groups-upload-stall-cause": {
+      "accepted": {},
+      "after": [
+        "groups-upload-loop-stall"
+      ],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups_upload loop stall on macos-x86_64: name the cause from a captured CI failure, then fix or bound it",
+      "updated": "2026-11-19T21:22:43"
+    },
     "hash-once": {
       "accepted": {},
       "after": [],
