@@ -1,9 +1,13 @@
 # consensus-heal-snapshot-stall: journal
 
-State: waiting on jobs 261119-232821-ad2f96 261119-232822-da09d2 261119-232822-bff66e 261119-232822-71c928 261119-232823-89d14a 261119-232829-68d538
+State: investigating the real suite's failure (consensus_worker, job 261120-001946-6b43d4) at head 5a8685c
 Quest: .campaign/detent/quests/consensus-heal-snapshot-stall.md (the lead's; never edit it)
 
 ## Doing
+
+Real suite (placeholder `true` replaced) failed consensus_worker at 5a8685c: `binary_transfer_integration(65553, 0, false, true)` ends with commit=3 on all nodes, term 2, never passing applied 2. A/B, consensus_worker x4 each: head 5a8685c 4/4 fail (261120-003741-f752f3), main a8e867b 0/4 (261120-003747-00aef3): deterministic, caused by the fix. Tracing the run to see whether the test asserts the old install order or the fix has a defect.
+
+Earlier:
 
 Jobs queued at head consensus:5a8685c (main merged at a8e867b; ARCHITECTURE.md and CHANGELOG.md entries committed); CI on the pushed branch (linux-tsan, ASan/UBSan, matrix).
 
