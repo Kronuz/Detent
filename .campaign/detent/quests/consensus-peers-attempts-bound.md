@@ -5,27 +5,22 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`consensus_transport_peers` aborted on CI macos-x86_64 at test/transport/peers_test.cc:621, `CHECK failed: attempts >= 4 && attempts <= 2 * (elapsed / 100 + 1)` (run 44650101243, at consensus:a292fd0, a test-only commit that does not touch peers). The bound is set from a named cause, as peers-busy-roundtrip-bound did for :1163, or the check is fixed if it measures the wrong thing.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] The cause, named from samples of a failing or loaded run (which side of the bound failed, the elapsed and attempt counts), is stated at the bound in `test/transport/peers_test.cc` with the probe job ids.
+- A2 The case passes 200 runs under load, and a mutant that breaks the backoff (no delay, or a doubled delay) fails the bound (--fails-without): jobs.
+- A3 The suite and CI pass: jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+No bound without a named cause: the lead.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Everything.
