@@ -119,7 +119,7 @@ The semantics differ in ways that matter (concurrent versus single-owner, refund
 | `Kronuz/ledger` (new) | Capacity ledger and permits (single-owner and concurrent flavors), PMR adapter, budgeted retirement | none |
 | `Kronuz/completion` (new, from `cluster/completion`) | Completion I/O backends, image publication, directory scan | `metrics`, `ledger` |
 | `Kronuz/journal` (new, from `cluster/journal`) | Durable journal, artifacts, mutations, reclamation, inventory | `completion` |
-| `Kronuz/consensus` (new, from `cluster/consensus`) | Strict durable Raft `Core` and `Worker`, checkpoints, snapshot channel; `transport/` with Detent's peer transport | `journal`; `reactor` for `transport/` only |
+| `Kronuz/consensus` (new, from `cluster/consensus`) | Strict durable Raft `Core` and `Worker`, checkpoints, snapshot channel; `transport/` with Detent's peer transport; `transport/seeds`: multicast seed discovery, `DTSD0001` datagrams of at most 512 B carrying 1-8 named service ports per host ([seeds](https://github.com/Kronuz/consensus/blob/main/docs/mechanisms/seeds.md)) | `journal`; `reactor` for `transport/` only |
 | `Kronuz/cluster` | `bus.h`, `raft.h`, `length.h`, liveness | `reactor`, `varint` |
 | `Kronuz/http` | Server as today, plus a client (blocking keep-alive and Asio coroutine) | `reactor` |
 | `Kronuz/reactor` | Adds the shared TLS context and session layer used by `http` and `consensus/transport` | Asio, OpenSSL (optional) |
