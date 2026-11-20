@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-080129-538d87 (A1 suite) and CI (A2) at Detent:410242d4
+State: waiting on jobs 261120-081334-e4f6a8 (A1 suite) and CI (A2) at Detent:501f9c4d
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -32,6 +32,8 @@ Step 6: suite and CI on v2 with namespace-local-cursor merged (Detent:410242d4).
   --generation-* identity flags go (Detent:410242d4). Local suite after the merge: 201/206, the
   five failures fixed and passing on rerun (startup and foreign-generation tests now expect C2's
   failed entry, not a fence; writers.py dropped a field the fakes lack).
+- managed.json examples in the quickstart and guide carry v2 fields only; docs e2e passes
+  locally against the build (23 blocks, 0 failed) (Detent:501f9c4d).
 
 ## Next
 
