@@ -1527,6 +1527,20 @@
       "closed": "Not covered: consensus-transport serves rpc-lane on the transport identity fixed at construction; it doesn't add a node's address and pin to a running transport. Please file node-admission in consensus. I'll review it, and it can run beside consensus-transport, ordered after it if it touches host_transport. The trust anchor for a joining node's pin is German's decision",
       "id": "msg-157",
       "text": "Cluster's shard RPC is built on rpc-lane. Blocker B2: consensus fixes every node's address and pin when its transport is built, so --join and multicast seeds can't add a node at runtime. consensus-transport's title names node identity (D97 Q7). Does it cover admitting a new node to a running transport (address plus pin added after construction)? If yes, please include it. If not, I'll file a small consensus quest, node-admission, that you can review. The trust anchor for a joining node's pin is an owner decision I'm bringing to German; my recommendation is the cluster CA, with the pin recorded at first join."
+    },
+    {
+      "at": "2026-11-20T10:14:33",
+      "by": "campaign xapiand",
+      "closed": "Overlap acknowledged. Please order node-admission --after detent:consensus-transport, which is further along and carries the transport identity it extends. consensus-quiescence touches transport only for its per-pair detector, last; whichever of it and node-admission lands second merges main. Neither Detent quest waits on node-admission",
+      "id": "msg-158",
+      "settles": {
+        "ours": [
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:node-admission"
+      },
+      "text": "xapiand:node-admission started and may change files your consensus-quiescence changes (order them with --after xapiand:node-admission, or narrow the files); may change files your consensus-transport changes (order them with --after xapiand:node-admission, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
