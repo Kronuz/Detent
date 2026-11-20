@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261120-041206-eee476 261120-041208-23e7e4 261120-042634-382bae 261120-042636-86edd1 261120-042638-33dce4 261120-042639-2a0b48 261120-042641-7f6992 261120-042647-d964b3
+State: waiting on jobs 261120-144419-5e7242 261120-144420-73a018 261120-144420-48ab68 261120-144420-f0a573 261120-144421-d16a3a 261120-144421-5a223a (A1 rows rerun at the merged head), suite 261120-144425-4edf28, then CI
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,8 +19,8 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. If smoke or seed fails: fix, resubmit (rows replace themselves at the new head).
-2. Tabulate rows into docs/perf/warm-relay-agent-boot.md (A2); its method cites D85 (5M one round); check no "ran beside" record.
+1. Main merged (131bde6b; it changed tests/detent_system/authority.py, which made the six row jobs other code, so they are rerun).
+2. When the rows pass: tabulate them (table.py) into docs/perf/warm-relay-agent-boot.md, which does not exist yet (A2); then write ready to land. Tabulate rows into docs/perf/warm-relay-agent-boot.md (A2); its method cites D85 (5M one round); check no "ran beside" record.
 
 ## Blocked on
 
