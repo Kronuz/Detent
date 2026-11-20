@@ -16956,11 +16956,12 @@
         "reader-s6"
       ],
       "provides": [],
+      "reason": "folded into paged-first-touch-one-shape as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
-      "updated": "2026-11-18T14:27:14"
+      "updated": "2026-11-20T06:56:03"
     },
     "paged-first-touch-one-shape": {
       "accepted": {},
