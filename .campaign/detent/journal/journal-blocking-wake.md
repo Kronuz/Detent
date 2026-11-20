@@ -1,49 +1,34 @@
 # journal-blocking-wake: journal
 
-State: blocked on lead: add include/journal/blocking.h and docs/mechanisms/turn-seal.md to the file set (jobs 261119-165717-173c61, 261119-165726-bcdfbd queued)
+State: waiting on jobs 261119-165717-173c61 261119-165904-295eae 261119-165908-3668c1 261119-165912-fca4c3
 Quest: .campaign/detent/quests/journal-blocking-wake.md (the lead's; never edit it)
 
 ## Doing
 
-Fix is in turn_driver.h (journal:0f5afcb); the entry must hand its scheduler to Hold, which is
-blocking.h, outside the file set. Waiting on the ruling below.
+Jobs at head journal:9e11713 (fix in turn_driver.h + blocking.h passes its scheduler to Hold;
+turn-seal.md describes the wake under both holders). CI runs on the pushed branch.
 
 ## Next
 
-1. On the ruling: blocking.h line 91 becomes
-   `TurnDriver::Hold hold(turns, TurnDriver::Holder::entry, task::scheduler_ref::of(scheduler));`
-   and its run() comment names a wake() among the posts that cut the sleep short;
-   turn-seal.md:222-225 ("The blocking entry sees it at its next pass; wake() posts nothing
-   there...") says the wake posts to the entry's scheduler and ends its sleep.
-2. `campaign verify journal-blocking-wake --for A2` (suite), TSan job on journal_driver
-   (entry_wake_threads), CI on the pushed branch.
-3. Ready for review (correctness lens).
+1. Read the jobs; on green, State "ready for review" (correctness lens) and fill Result.
 
 ## Blocked on
 
-Lead: the file set. The driver cannot learn the entry's scheduler from inside turn_driver.h:
-journal::run constructs `Hold(turns, Holder::entry)` with no scheduler, and every driver call
-the entry makes between passes (idle, commit) runs outside the scheduler, so task::current() is
-null there. And turn-seal.md:222-225 documents the old behavior, so it is stale after any fix.
-
-Options:
-1. (Recommended) Add include/journal/blocking.h and docs/mechanisms/turn-seal.md to the files.
-   One line in blocking.h passes the scheduler to Hold; both holders register their loop the
-   same way, and wake() posts to whichever holds. Explicit and complete.
-2. Keep the file set: link() records the first waiter's home as the entry's loop. Covers a
-   durable() waiter (the quest's case) but not a wake while the task waits on something else;
-   implicit, and the doc is still stale (docs still needs adding).
+Nothing. msg (lead, file set): added blocking.h and turn-seal.md; took option 1, journal:9e11713.
+Cancelled the sed experiment 261119-165726-bcdfbd (not evidence).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-165717-173c61 (--fails-without, test-only commit journal:449553d); passing run waits on the ruling. Experiment 261119-165726-bcdfbd: fix + the blocking.h line applied by sed, full driver suite. |
-| A2 | not yet |
+| A1 | 261119-165717-173c61 (--fails-without at test-only journal:449553d); 261119-165904-295eae (entry_wake_threads at head) |
+| A2 | 261119-165912-fca4c3 (suite); 261119-165908-3668c1 (TSan: journal_driver and turn_seal thread cases); CI on the branch |
 
 ## Result
 
-Not yet.
+Pending jobs. Changed: include/journal/turn_driver.h (Hold carries the holder's loop; wake()
+posts to it), include/journal/blocking.h (passes its scheduler), docs/mechanisms/turn-seal.md
+("Asking for a turn"), CHANGELOG.md, test/driver_test.cc (entry_wake_threads).
 
 ## Rulings I made
 
