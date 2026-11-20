@@ -1,11 +1,8 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-134027-875c2b (suite), 261120-134028-c017c6 / 261120-134029-66794b
-(F2 ASan pair), 261120-134038-4ee64d (F4 5M strict), 261120-130720-4e5da1 .. 261120-130731-c646f9
-(mutants), 261120-131414-94ce66 (F11 fuzz hour), and CI at Detent:820c6a8e. All findings fixed or
-ruled; F10 is the owner's call (Blocked on).
-F1 probe rerun passed: 261120-125854-e45912. Mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2
-are void (zsh passed patch and target as one argument; the runner's usage exit read as killed).
+State: D139 done at Detent:dba1ce32; gate jobs to submit there (suite, D139 mutants, F2 ASan
+pair, F4 5M strict). F1 probe rerun passed: 261120-125854-e45912. Mutant jobs 261120-125856-673c7a ..
+261120-125908-7185f2 are void (zsh passed patch and target as one argument).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -44,7 +41,22 @@ Review-fix round (owner priority):
   as -isystem ahead of libc++ because brew clang's implicit SDK is MacOSX15.sdk; transfer_fuzz.sh
   configures with the compiler's own sysroot. Local 34 s smoke: 3,173 runs, 0 crashes. Hour: job
   261120-131414-94ce66. The target receives bound to "ns".
-- F8, F9: not changed (rulings). F10: Blocked on (owner's call).
+- F8, F9: not changed (rulings).
+- F10, D139 (Detent:11c155ce, Detent:e7893553): a repair or D136-failed entry names the last
+  published position as a W5 floor ([name, incarnation, position, true]); select_answer gives it a
+  full copy, or Ahead while head is below it; the relay sends its canonical copy only at or above
+  the floor, else records at the head; the agent skips any frame below it (repair.below). The store
+  already refuses a repair below its selected base, so the agent check decides only for an entry
+  the store no longer selects (D136). Tests: test_pages_coordinator (stale source two below,
+  ignoring then honoring the floor, ends above it, never below), test_namespace_coordinator (D136
+  path), test_relay_pages repair_floor, test_session_frames, test_namespace_session. Mutants
+  d139-agent-publishes-below (killed locally, status 8), d139-relay-copy-below,
+  d139-repair-takes-entries.
+- F4 cold peak RSS: +117 MB (1,380 vs 1,263 MB, +9%) at equal live heap (821 vs 813 MB); steady RSS
+  after 8 moves 1,522 vs 1,640 MB and head-move CPU 2.7 s vs 11.2 s both improve. Not attributed:
+  both arms hold the build's segments and the copy's transfer, so freed memory the allocator keeps
+  mapped is the likely cause; the cheap probe is the bench printing malloc_zone_statistics'
+  size_allocated beside size_in_use. Recorded, not chased (lead message, D139 round).
 
 Integration round:
 1. Off-thread builds (Detent:251c6cc4): MirrorService runs builds on a builder thread; the mirror
@@ -140,6 +152,11 @@ Integration round:
 
 ## Messages
 
+- Lead message (D139 round): F10 is D139 option 2, done as above with the asked test
+  (test_pages_coordinator, and the D136 path in test_namespace_coordinator). F4 cold peak RSS:
+  recorded with its numbers (Doing), not chased. "ready for review" goes here when the gate is
+  green; blocking findings' jobs are listed under Evidence, not the void ones.
+
 - msg-1 (mine, to the folded namespace-local-cursor writer): its points stand as this branch's
   plan; the interim bridge (`namespace_cursor`, `distribution::frame_cursor`) is in
   Detent:6906fb4a, and the W1 local change deletes it when it merges here.
@@ -153,15 +170,6 @@ builders taking a W1 target is all this branch needs from it. DiskStore's multi-
 (step 4) is this branch's; the single `scope` entry there is replaced here.
 
 ## Blocked on
-
-- F10 (owner's call, review nit): a repaired or D136-failed entry refills from the relay's newest
-  build, which may sit below the position the agent had published; a repair over the base is
-  refused until a build at or above it lands, and a failed (unselected) entry publishes the older
-  position for a while. Options:
-  1. Accept: the position moves back only for a failed entry, and the next frames bring it to the
-     head; nothing is lost (recommended: no wire change, converges within one relay build).
-  2. The repair request names the agent's last published position and the relay answers it only
-     from a build at or above it (waits otherwise): no step back, a new request field and a wait.
 
 Nothing. (Resolved by D136, kept for the record:) Lead ruling, relays and sealed history (the cause of test_system_managed_relay[_ipv6] failing
 under load: 2 of 5 under `-j4`, 0 of 3 alone). The leader now enables positions as it leads, so
