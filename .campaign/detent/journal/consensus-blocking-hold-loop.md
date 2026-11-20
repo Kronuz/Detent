@@ -1,18 +1,15 @@
 # consensus-blocking-hold-loop: journal
 
-State: waiting on jobs 261119-230258-affdb7 261119-230259-564331 261119-230308-56689f 261119-230309-5599f1
+State: ready to land
 Quest: .campaign/detent/quests/consensus-blocking-hold-loop.md (the lead's; never edit it)
 
 ## Doing
 
-Jobs queued at consensus:5fc2ba7 (test commit, branch head) and the mutant consensus:aed7674.
-CI pushed on quest/detent/consensus-blocking-hold-loop.
+Nothing: every job passed. Only CI run 44692132158 at consensus:5fc2ba7 remains.
 
 ## Next
 
-1. When jobs finish: read 261119-230259-564331's log and confirm it failed on the latency
-   check ("within 50 ms"), not a build error (exit 2 would also count as nonzero).
-2. Paste `campaign brief`'s Evidence table; check CI on the branch; State "ready for review".
+1. Land once CI at consensus:5fc2ba7 is green (the lead).
 
 ## Blocked on
 
@@ -24,8 +21,8 @@ turn_driver.h:315, journal blocking.h:91, consensus driver.h:1031). Detent const
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-230258-affdb7 (pass, consensus:5fc2ba7); 261119-230259-564331 (--fails-without, mutant consensus:aed7674) |
-| A2 | 261119-230308-56689f (TSan: consensus_driver incl. entry_wake_threads, blocking_entry, waiter_threads); suite 261119-230309-5599f1; CI on the branch |
+| A1 | 261119-230258-affdb7 (slowest wake to return 87 us); fails without: 261119-230259-564331 (mutant consensus:aed7674: 0 of 20 durable, the round cancelled at its 2 s deadline, 1998654 us; failed the 50 ms check, not the build) |
+| A2 | 261119-230308-56689f (TSan), 261119-230309-5599f1 (suite); CI run 44692132158 at consensus:5fc2ba7 |
 | A3 | [decision] D131 (Hold's loop required; journal-hold-loop-required) |
 
 ## Result
