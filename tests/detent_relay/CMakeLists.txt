@@ -32,3 +32,11 @@ if(TARGET detent::relay_mirror_service AND TARGET detent-authority AND TARGET de
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
   set_tests_properties(test_relay_service PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 240)
 endif()
+
+# Dense distribution DD4: the page window and Merkle diff against the occurrence-write oracle. With
+# CORPUS DIR SPEC..., A1 against the model's transfers (tests/detent_relay/delta_scenarios.py).
+add_executable(test_page_window test_page_window.cc)
+target_include_directories(test_page_window PRIVATE "${PROJECT_SOURCE_DIR}/tests/detent_local")
+target_link_libraries(test_page_window PRIVATE detent::relay_page_window detent::local_fullbuild hashes::hashes)
+add_test(NAME test_page_window COMMAND test_page_window)
+set_tests_properties(test_page_window PROPERTIES TIMEOUT 300)

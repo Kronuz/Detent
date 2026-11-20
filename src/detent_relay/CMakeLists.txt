@@ -40,3 +40,9 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   target_link_libraries(detent_relay_config PUBLIC detent::relay detent::delivery_config detent::relay_mirror_service)
   add_library(detent::relay_config ALIAS detent_relay_config)
 endif()
+# Dense distribution D7.3: the relay's page window and the Merkle diff that names a delta transfer.
+add_library(detent_relay_page_window STATIC page_window.cc)
+target_include_directories(detent_relay_page_window PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(detent_relay_page_window PUBLIC detent::local_codec detent::distribution)
+add_library(detent::relay_page_window ALIAS detent_relay_page_window)

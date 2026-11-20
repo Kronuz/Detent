@@ -241,3 +241,14 @@ foreach(phase IN ITEMS published receiving building publishing)
     COMMAND test_delivery_relay_delta_shutdown ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture 10000 ${phase})
   set_tests_properties(test_delivery_relay_delta_shutdown_${phase} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
 endforeach()
+# Dense distribution DD4: D6's choice and the delta receiver's outcomes. With CORPUS DIR SPEC...,
+# A2 against S8's block answers (tests/detent_relay/delta_scenarios.py writes DIR).
+if(TARGET detent::delivery_delta_transfer AND TARGET detent::relay_page_window)
+  add_executable(test_delta_transfer test_delta_transfer.cc)
+  target_include_directories(test_delta_transfer PRIVATE "${PROJECT_SOURCE_DIR}/tests/detent_local"
+    "${PROJECT_SOURCE_DIR}/tests/detent_relay")
+  target_link_libraries(test_delta_transfer PRIVATE detent::delivery_delta_transfer detent::relay_page_window
+    detent::local_fullbuild)
+  add_test(NAME test_delta_transfer COMMAND test_delta_transfer)
+  set_tests_properties(test_delta_transfer PROPERTIES TIMEOUT 300)
+endif()
