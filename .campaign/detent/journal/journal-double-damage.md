@@ -1,6 +1,6 @@
 # journal-double-damage: journal
 
-State: waiting on jobs 261120-094322-5b34a1 261120-094325-3140b2 261120-094327-db2bf3 261120-094329-72ecca 261120-094331-af0f45
+State: waiting on jobs CI (GitHub Actions on quest/detent/journal-double-damage at journal:cca2427)
 Quest: .campaign/detent/quests/journal-double-damage.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,8 +15,7 @@ CHANGELOG). Branch pushed. Locally with the fix: turn_log 60 checks, 0 failures;
 
 ## Next
 
-1. Read jobs: 5b34a1 (A1 fails without), 3140b2 (A2 fails without), db2bf3 (A1), 72ecca (A2),
-   af0f45 (suite, A3); check CI on quest/detent/journal-double-damage; then "ready for review".
+1. CI green on journal:cca2427, then State "ready for review". All campaign jobs passed.
 
 ## Blocked on
 
@@ -26,13 +25,20 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending> |
-| A2 | <pending> |
-| A3 | <pending> |
+| A1 | 261120-094327-db2bf3; fails without: 261120-094322-5b34a1 (at journal:920a4f5 = 1222e3b + tests) |
+| A2 | 261120-094329-72ecca; fails without: 261120-094325-3140b2 |
+| A3 | suite 261120-094331-af0f45 (passed); CI running at journal:cca2427 |
 
 ## Result
 
-<pending>
+journal:cca2427 changes only the recovery scan in include/journal/turn_log.h (`damaged_header`,
+`Item::damage`, the newest epoch's tail check, unnamed damage costs every group); CHANGELOG
+2026-11-20. Tests: turn_log_test `double_damage` (the probe) and `double_damage_copy` (a
+forwarded copy that masks a loss); turn_log_power_test `double_damage`, 295 doubly damaged block
+boundaries over 8 seeds, each reported and no kept group missing a record, alongside the
+existing 2040 crash points with no false damage. Leaves open: R2's multi-sector header limit,
+and R3's broader cost (a copy flag in the format would narrow it). ARCHITECTURE.md and
+docs/mechanisms are outside the file set; their text is still accurate.
 
 ## Rulings I made
 
