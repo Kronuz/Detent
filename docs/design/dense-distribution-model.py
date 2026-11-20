@@ -30,6 +30,11 @@ Modes:
                             that check and accepted by a mutant without it.
 
 Options: --dense=PATH (the dense model; default $JOB_REF_DENSE/docs/design/dense-pages-model.py).
+  --out=DIR writes the receiver's fixtures for the C++ receiver (src/detent_local/paged_transfer.cc):
+    full: full.transfer (wire form), full/pack-N (the build's packs, N from 1) and full.txt;
+    delta: base/pack-N and base.txt (the base build), delta-SLUG.transfer and delta.txt;
+    check: both at the small corpus, plus case-SLUG.transfer per refusal and cases.txt.
+  Every .txt line is space-separated: a word, then its values; digests and ids in hex.
 Needs Python 3.14 (compression.zstd). Run under a light hold, as a campaign job, e.g.:
   campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 60 \\
       -- /usr/local/bin/python3 -I docs/design/dense-distribution-model.py full CORPUS
@@ -60,6 +65,27 @@ SNAPSHOT_HEADER = 160  # snapshot frame header, cursors and counts; a modeled co
 MEASURED_RECORDS = {5_000_004: (261_337_255, 25_646_713), 100_004: (4_894_345, 542_302)}
 
 D: Any = None  # the dense model, loaded by load_dense()
+OUT: Path | None = None  # --out: the fixtures directory
+
+
+def slug(text: str) -> str:
+    return "-".join("".join(c if c.isalnum() else " " for c in text.lower()).split())
+
+
+def revision_of(corpus: Any) -> int:
+    """The greatest revision any record states: the position a frame for this corpus names."""
+    return max(D.be(corpus.body(i), 0, 8) for i in range(corpus.count))
+
+
+def write_packs(directory: Path, encoder: Any) -> list[str]:
+    """The build's packs as directory/pack-N, N from 1; returns `pack N ID` lines."""
+    directory.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for ordinal in range(encoder.segments):
+        sid = D.segment_id(ordinal)
+        (directory / f"pack-{ordinal + 1}").write_bytes(encoder.memory[sid])
+        lines.append(f"pack {ordinal + 1} {sid.hex()}")
+    return lines
 
 
 def load_dense(path: Path) -> ModuleType:
@@ -789,6 +815,20 @@ def full_main(D: Any, corpus: Any, replay: bool = True) -> tuple[float, float]:
             f" {encoder.segments:,} for .live; writes {encoder.raw:,} B; {time.monotonic() - t0:.0f} s"
         )
         assert got.root == root and same and got.hashed == encoder.hashed
+        if OUT is not None:
+            OUT.mkdir(parents=True, exist_ok=True)
+            (OUT / "full.transfer").write_bytes(wire.stream)
+            lines = [
+                f"root {root.hex()}",
+                f"revision {revision_of(corpus)}",
+                f"pages {len(pages)}",
+                f"segments {encoder.segments}",
+                f"page_hashed {encoder.hashed}",
+                f"pack_bytes {encoder.raw}",
+                *write_packs(OUT / "full", encoder),
+            ]
+            (OUT / "full.txt").write_text("\n".join(lines) + "\n")
+            print(f"fixtures: full copy written to {OUT}", flush=True)
     print(f"full: {time.monotonic() - started:.0f} s", flush=True)
     return scale
 
@@ -861,6 +901,18 @@ def delta_main(
         f"base: {len(base.pages):,} pages; {time.monotonic() - started:.0f} s",
         flush=True,
     )
+    deltas: list[str] = []
+    if OUT is not None:
+        top = base.pages[base.root]
+        o, off = base_encoder.placed[base.root]
+        lines = [
+            (
+                f"base {D.segment_id(o).hex()} {off} {top.length} {top.keys}"
+                f" {top.height} {top.digest.hex()}"
+            ),
+            *write_packs(OUT / "base", base_encoder),
+        ]
+        (OUT / "base.txt").write_text("\n".join(lines) + "\n")
     for spec in specs:
         t0 = time.monotonic()
         after = scenario(D, corpus, spec).corpus()
@@ -890,6 +942,14 @@ def delta_main(
             D, wire.stream, index, root, lambda n: D.segment_id(1_000_000 + n)
         )
         assert got.root == root
+        if OUT is not None:
+            name = slug(spec)
+            (OUT / f"delta-{name}.transfer").write_bytes(wire.stream)
+            deltas.append(
+                f"delta {name} {root.hex()} {revision_of(after)} {got.digests} {got.hashed}"
+                f" {got.base_children} {got.base_walk_pages}"
+            )
+            (OUT / "delta.txt").write_text("\n".join(deltas) + "\n")
         print(
             f"  receiver replay: root equal; SHA-256 page input {got.hashed:,} B in {got.digests:,}"
             f" digests; base children resolved {got.base_children:,} (walks of at most"
@@ -1253,9 +1313,22 @@ def check_main(D: Any, corpus: Any) -> None:
     wire = make_transfer(D, packing, encoder, chosen, "wire")
     digests = make_transfer(D, packing, encoder, chosen, "digests")
     tail = packing.pages[packing.root].length  # the root page ends every stream
+    cases: list[str] = []
+    revision = revision_of(corpus)
 
-    def case(name: str, run: Any, expect: str, mutant: str | None = None) -> None:
-        """Refused with every check; accepted with the mutant's check off."""
+    def case(
+        name: str, run: Any, expect: str, mutant: str | None = None, cpp: str = ""
+    ) -> None:
+        """Refused with every check; accepted with the mutant's check off. A stream case is a
+        fixture (`case SLUG ROOT REVISION CHECK EXPECT`, CHECK the C++ mutant's or -), unless the
+        C++ receiver has no such input (`cpp` "none": segments handed over)."""
+        if OUT is not None and cpp != "none" and hasattr(run, "stream"):
+            name_slug = slug(name)
+            (OUT / f"case-{name_slug}.transfer").write_bytes(run.stream)
+            cases.append(
+                f"case {name_slug} {run.expected.hex()} {revision} {cpp or mutant or '-'} {expect}"
+            )
+            (OUT / "cases.txt").write_text("\n".join(cases) + "\n")
         try:
             run(frozenset())
         except Refused as error:
@@ -1276,7 +1349,11 @@ def check_main(D: Any, corpus: Any) -> None:
         print(line, flush=True)
 
     def stream_run(stream: bytes, expected: bytes | None) -> Any:
-        return lambda skip: receive_stream(D, stream, None, expected, one, skip)
+        def run(skip: frozenset[str]) -> Any:
+            return receive_stream(D, stream, None, expected, one, skip)
+
+        run.stream, run.expected = stream, expected  # type: ignore[attr-defined]
+        return run
 
     def edit_root(stream: bytes, at: int, value: bytes) -> bytes:
         s = bytearray(stream)
@@ -1364,11 +1441,13 @@ def check_main(D: Any, corpus: Any) -> None:
         lambda skip: receive(D, half.segments, None, root, one, skip),
         "placement names no page of the derived layout",
         "layout",
+        cpp="none",
     )
     case(
         "P1 placement naming 512 KiB breaks, as a stream",
         stream_run(half.stream, root),
         "placement names no page of the derived layout",
+        cpp="layout",
     )
     children: dict[int, list[int]] = {}
     for p, page in enumerate(packing.pages):
@@ -1490,6 +1569,8 @@ def main(argv: list[str]) -> None:
         Path(os.environ.get("JOB_REF_DENSE", ".")) / "docs/design/dense-pages-model.py"
     )
     D = load_dense(Path(options.get("dense", default)))
+    global OUT
+    OUT = Path(options["out"]) if options.get("out") else None
     D.segment_id_from_one = lambda n: D.segment_id(n - 1)
     print(
         f"python {sys.version.split()[0]}; corpus {rest[1]} sha256 {hashlib.sha256(Path(rest[1]).read_bytes()).hexdigest()}"
