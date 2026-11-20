@@ -5,16 +5,12 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The time a new agent pays to join a fleet: one agent cold-bootstrapping against a relay that already holds the bundle (started, durable bundles ready, then the clock starts), at 100K, 1M and 5M records on current main. Today's numbers (dense-sync-stack 136-163 s at 5M; cold-bootstrap-5m.md 754 s) start the relay and the agent under one clock, so they include the relay's own catch-up from the authority; cold-bootstrap-5m.md's phase split put the agent at 32% (100K, main) and 38% (5M, r12 binaries) of that total, an estimate for today's code. This quest measures it directly, with the agent phase split (fetch, decode and build, publish and sync, select) where counters allow.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Exclusive jobs on current main: per size, the relay starts and reaches "durable bundles ready" outside the clock, then at least 3 interleaved rounds time one cold agent from start to selecting the fixture's revision; no "ran beside" record. The harness lives under docs/measurements/warm-relay-agent-boot/.
+- A2 [artifact] docs/perf/warm-relay-agent-boot.md: per size, the median and range of the agent's warm-relay bootstrap, its CPU and wall, files, device flushes and wire bytes, the relay-plus-agent total from the same fixture for comparison, the hardware, and the job ids.
 
 ## Contracts
 
