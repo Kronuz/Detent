@@ -7202,15 +7202,43 @@
       ],
       "checks": [
         {
-          "cmd": "true",
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 60,
           "name": "suite"
         }
       ],
       "consumes": [],
       "files": [
         "test/transport/groups_test.cc"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T00:19:37",
+          "checks": [
+            [
+              {
+                "cmd": "true",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "replaces the placeholder suite check `true`, which proved nothing, with the repository's real build and ctest run (a strengthening; the tool records any check change as a weakening)",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [
@@ -7223,7 +7251,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "groups_upload loop stall on macos-x86_64: name the cause from a captured CI failure, then fix or bound it",
-      "updated": "2026-11-19T21:22:43"
+      "updated": "2026-11-20T00:19:37"
     },
     "hash-once": {
       "accepted": {},
