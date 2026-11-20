@@ -1,19 +1,23 @@
 # consensus-quiescence: journal
 
-State: waiting on jobs 261120-125553-eb46b6 (suite at consensus:2ddf9b2, --for A1,A2),
-261120-124658-a4a9be (A6 owners), 261120-124659-af6f59 (A4 1M rest, strict); CI on the push.
+State: waiting on jobs 261120-144352-fc9628 (suite at consensus:82cefee, --for A1,A2); CI on the push.
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
 
-Final evidence at consensus:2ddf9b2 (docs-only past 077f84f). Done at head: A1 261120-124657-bd28b4
-(36 checks), A3 TSan 261120-124658-a7fcbc (300 x 10,000, 150 quiescent, Driver 30 x 3,000: ok),
-A5 261120-124714-2cb311 (926 cuts, 162 resumed, 462 stale), A6 261120-124658-f2feae (idle 5,719 B),
-261120-124659-8f32a6 (100k leaders 1,308 MB).
-
-## Next
-
-1. Fill the Evidence table with the head jobs; "ready for review" once suite and CI are green.
+CI red at consensus:2ddf9b2 (run 44815736257): one test, consensus_transport_rpc_host_fetch, SIGPIPE
+on linux-tsan, linux-asan-ubsan, linux-arm64-gcc. Not this quest's and not main's: the case comes
+from consensus-transport (consensus:975c51d, not on main) and fails the same way on its own head
+consensus:50f0a48 (run 44795129569, same three jobs). Cause: rpc_host_test's main did not ignore
+SIGPIPE, the host's duty where SO_NOSIGPIPE is missing (connection.h); main fixed the same gap in
+seeds_test (consensus:8801b99).
+- Merged consensus main: consensus:dc4317e (CHANGELOG Added lists joined).
+- Fix consensus:82cefee (test/transport): main ignores SIGPIPE on Linux; fetch raises one first so
+  a host that stops ignoring it fails at once; rpc_mutants.py sigpipe-default. Fails without: the
+  Linux CI runs above (macOS has SO_NOSIGPIPE, so no local job can show it). Pushed for CI.
+- Out-of-set files the brief lists (CMakeLists.txt, bench/flow_bench.cc, bench/transport_idle.cc):
+  every change is consensus-transport's (3284055, 0a65af1, 1d24b8a, 895b3c6, 975c51d, c2b0133) or
+  main's seeds; this quest changes none. None needed in the set.
 
 ## Seed 399 (lead's task, Xapiand's Driver simulation)
 
