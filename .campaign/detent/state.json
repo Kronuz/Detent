@@ -21709,11 +21709,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into paged-first-touch-one-shape as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "dropped",
       "title": "stale-leader write probe; one await shape",
-      "updated": "2026-11-19T06:00:55"
+      "updated": "2026-11-20T06:56:05"
     },
     "warm-graph-5m": {
       "accepted": {
