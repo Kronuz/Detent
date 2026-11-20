@@ -21,7 +21,7 @@ no-credit-on-refuse -100643-062f07, data-unbounded -100637-57c2d3, control-unbou
 -100640-082b18 (134); coverage -103119-56d7ac: rule 7.6 1, pool waits reached (ticket 6, granted
 5). lane-via-other-loop -102035-9cd55a exited 139 (a dangling Link in the mutant, not the latency
 the case asserts): the mutant now hands frames to the peer's current link
-(consensus:f-commit after 06b9a76), rerun 261120-104122-60d46f.
+(consensus:50f0a48), rerun 261120-104122-60d46f.
 
 A4 at consensus:975c51d: `fetch(node, name, done)` is method 1; `RpcOptions::reader` serves it
 (D8 table). Local: rpc_host fetch: 16 MiB exact in 1.1 s beside 131 MiB of group uploads on the
