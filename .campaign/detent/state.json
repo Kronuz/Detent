@@ -3306,20 +3306,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-heal-snapshot-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T04:10:20",
+          "commit": "39d9f1df09b1e545050758a57c5a95fc3de99395",
+          "criteria": {
+            "A1": "261120-011554-819825 (passed at 47e700505101; only merges from main since); fails without: 261119-231700-6abdcf, 261119-231702-89d08c",
+            "A2": "261120-011554-ca003a (passed at 47e700505101; only merges from main since), 261120-011554-ff1844 (passed at 47e700505101; only merges from main since); fails without: 261119-231702-89d08c",
+            "A3": "261120-011554-138f3d (passed at 47e700505101; only merges from main since), 261120-011554-c86a94 (passed at 47e700505101; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "47e7005051013f0ee4f99edceabf612f06992788",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-011552-f33105",
+              "level": "light",
+              "seconds": 309.9,
+              "state": "done",
+              "what": "consensus-heal-snapshot-stall check suite at 47e700505101"
+            }
+          ],
+          "final": true,
+          "from": "8bdbd750a7b683753ea16f79fa9161b63550273a",
+          "reason": "",
+          "tested": "39d9f1df09b1e545050758a57c5a95fc3de99395"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-20T04:10:06",
-      "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
+      "updated": "2026-11-20T04:10:24",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {
