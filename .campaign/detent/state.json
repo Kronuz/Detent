@@ -16529,18 +16529,45 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/reactor-abortlist-thread",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T18:23:40",
+          "commit": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b",
+          "criteria": {
+            "A1": "261119-170249-dacc88; fails without: 261119-171143-723158",
+            "A2": "261119-170254-5ab021, 261119-170306-fc93ed"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-171145-ddad3b",
+              "level": "light",
+              "seconds": 35.2,
+              "state": "done",
+              "what": "reactor-abortlist-thread check suite at fbad85f1e2cf"
+            }
+          ],
+          "final": true,
+          "from": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+          "reason": "",
+          "tested": "fbad85f1e2cfc21ceab7472cd7bde64d78bbc34b"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../reactor",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "reactor: a session ending on another loop untracks on the owning loop",
-      "updated": "2026-11-19T17:03:53",
-      "worktree": "../reactor-wt/detent/reactor-abortlist-thread"
+      "updated": "2026-11-19T18:23:45",
+      "worktree": ""
     },
     "reactor-on-wheel": {
       "accepted": {},
