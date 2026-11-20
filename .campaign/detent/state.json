@@ -14021,11 +14021,12 @@
         "namespace-local-cursor"
       ],
       "provides": [],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "S6 v1 removal: one cursor, no one-shot or poll mode, agent on v2 sessions",
-      "updated": "2026-11-20T04:49:29"
+      "updated": "2026-11-20T04:57:35"
     },
     "namespace-s7": {
       "accepted": {
