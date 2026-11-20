@@ -971,14 +971,20 @@ Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr
 			task->keys.push_back(std::move(name));
 		}
 	} else if (request.path == "/v2/history/file") {
-		// W8: one file of a granted namespace's layout, by the name the layout gives it.
-		fields(d, {"namespace", "name"});
+		// W8: one file of a granted namespace's layout, by the name the layout gives it, whole or a
+		// range of it (D138): `offset` and `length` together.
+		fields(d, {"namespace", "name", "offset", "length"});
 		task->kind = Task::Kind::HistoryFile;
 		task->name_space = text(field(d, "namespace"));
 		check(distribution::valid_namespace_name(task->name_space) &&
 				  task->admission->credential->grants.allows(task->name_space),
 			  "unauthorized namespace");
 		task->keys.push_back(text(field(d, "name"), 255));
+		check(d.HasMember("offset") == d.HasMember("length"), "a range names its offset and length");
+		if (d.HasMember("offset")) {
+			task->range.emplace(number(field(d, "offset")), number(field(d, "length")));
+			check(task->range->second > 0, "an empty range");
+		}
 	} else {
 		return {Reply{404, "{\"error\":\"unknown_endpoint\"}"}, nullptr};
 	}
@@ -1192,19 +1198,44 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 
 // W8, on the owner: a relay's layouts, or one file of a granted namespace's layout, from this voter's
 // history at its latest seal (docs/status/namespace-s8.md, "The service").
-// A file above `maximum` (the reply bound) is refused 413, before it is read once a layout sized it.
-Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum) {
+// A whole file above `maximum` (the reply bound) is refused 413, before it is read once a layout sized
+// it. A range (D138) answers at most `maximum` bytes from its offset: fewer than asked when the bound
+// or the file's end comes first, 416 when the offset is at or past the end.
+Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport &exporter,
+									  std::optional<HeldFile> &held, std::uint64_t maximum) {
 	const Reply unavailable{503, "{\"error\":\"history_unavailable\"}"};
 	auto *files = node.history_files();
 	if (!files || !node.history()->ready() || !node.sealed())
 		return unavailable;
 	try {
 		const auto &table = node.history()->layout().table();
-		if (task.kind == Task::Kind::HistoryFile) {
+		if (task.kind == Task::Kind::HistoryFile && !task.range) {
 			auto bytes = exporter.file(task.name_space, task.keys.front(), table, *files, node.sealed()->limits(), maximum);
 			if (!bytes)
 				return {404, "{\"error\":\"not_found\"}"};
 			return {200, std::move(*bytes), true, {}, "application/octet-stream"};
+		}
+		if (task.kind == Task::Kind::HistoryFile) {
+			const auto &name = task.keys.front();
+			if (!held || held->name_space != task.name_space || held->name != name || held->seal != table.index) {
+				held.reset();
+				auto bytes = exporter.file(task.name_space, name, table, *files, node.sealed()->limits(),
+										   std::numeric_limits<std::uint64_t>::max());
+				if (!bytes)
+					return {404, "{\"error\":\"not_found\"}"};
+				held = HeldFile{task.name_space, name, table.index, std::move(*bytes)};
+			}
+			const auto [offset, length] = *task.range;
+			const auto size = held->bytes.size();
+			if (offset >= size) {
+				held.reset();
+				return {416, "{\"error\":\"range_not_satisfiable\"}"};
+			}
+			const auto count = std::min({length, maximum, size - offset});
+			auto body = held->bytes.substr(offset, count);
+			if (offset + count == size)
+				held.reset();
+			return {200, std::move(body), true, {}, "application/octet-stream"};
 		}
 		auto layouts = exporter.layouts(task.keys, *node.sealed(), table, *files);
 		if (!layouts)
@@ -1213,6 +1244,7 @@ Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport
 	} catch (const std::length_error &) {
 		return {413, "{\"error\":\"reply_bound\"}"};
 	} catch (const std::exception &) {
+		held.reset();
 		return unavailable;
 	}
 }
@@ -1583,6 +1615,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	// W5/W6 sessions (version 2): their table, the requests on the owner, and the one answer in flight.
 	std::optional<NamespaceSessions> frames_sessions;
 	LayoutExport layout_export;
+	std::optional<HeldFile> held_file;
 	std::vector<std::shared_ptr<Task>> frames_tasks;
 	struct FramesSlot {
 		std::shared_ptr<Task> task;
@@ -3040,7 +3073,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					// W8: this voter's own history, by name; immutable files need no quorum read. A
 					// voter that knows no live leader may be cut off from the quorum: it refuses, and the
 					// relay reads another.
-					complete(first, serving() ? Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256)
+					complete(first, serving() ? Service::history_reply(*first, node, layout_export, held_file,
+																		options_.reply_bytes - 256)
 											: Reply{503, "{\"error\":\"not_ready\"}"});
 					first.reset();
 				}

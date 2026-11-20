@@ -39,6 +39,11 @@ if(DETENT_BUILD_AUTHORITY)
   target_link_libraries(test_authority_service_wire PRIVATE detent_authority_service)
   add_test(NAME test_authority_service_wire COMMAND test_authority_service_wire)
   set_tests_properties(test_authority_service_wire PROPERTIES TIMEOUT 60)
+  # D138: a history file several times the reply bound, read in ranges.
+  add_executable(test_authority_history_ranges test_history_ranges.cc)
+  target_link_libraries(test_authority_history_ranges PRIVATE detent_authority_service)
+  add_test(NAME test_authority_history_ranges COMMAND test_authority_history_ranges)
+  set_tests_properties(test_authority_history_ranges PROPERTIES TIMEOUT 60)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)
