@@ -71,11 +71,13 @@ struct Store {
 		}
 	}
 };
-static p::Limits limits_for(const Records &rows) {
-	std::uint64_t records = 0;
-	for (const auto &[key, body] : rows)
-		records += key.front() == 'K';
-	return corpus_limits(records, rows.size() - records);
+static p::Limits limits_for(const Records &rows, const Records &other = {}) {
+	std::uint64_t records[2] = {};
+	for (const auto *set : {&rows, &other})
+		for (const auto &[key, body] : *set)
+			records[set == &other] += key.front() == 'K';
+	return corpus_limits(std::max(records[0], records[1]),
+						 std::max(rows.size() - records[0], other.size() - records[1]));
 }
 // The full build: the packer's pages written as the snapshot builder writes them.
 static std::shared_ptr<Store> build(const std::shared_ptr<d::StorageLedger> &account,
@@ -280,7 +282,7 @@ static void corpus_mode(const std::string &before_path, const std::string &after
 		if (found == before.end() || found->second != v)
 			changes.emplace_back(k, v);
 	}
-	const auto limits = limits_for(before.size() > after.size() ? before : after);
+	const auto limits = limits_for(before, after);
 	auto began = std::chrono::steady_clock::now();
 	const auto base = build(account, before, generation('a'), limits);
 	std::cout << "base: " << before.size() << " records, " << base->root.pages << " pages, "
