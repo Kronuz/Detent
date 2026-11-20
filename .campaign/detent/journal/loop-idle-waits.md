@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: macOS CI hang hunt (contributor 2). Diagnostic watchdog pushed; waiting on CI.
+State: waiting on jobs 261120-013517-2f7d3e (suite at Detent:cf6d9442), 261120-013518-340c44 (A2 mutant start-stop-sleep, --fails-without); CI 44709359840 macos-x86_64 at Detent:b692cdd9 (unfixed, watchdog on). Fix commits not pushed yet: pushing cancels that x86 job.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -133,6 +133,13 @@ reclaim scans ~60 completion ops/s) frames A1.
   (`sample`, `lsof`) and SIGKILLs any suite process alive past 90 s, so ctest reports the hung test; its
   log is build/tests/detent_delivery/.scratch/hang-watchdog/watchdog.log, a failure artifact. Diagnostic
   only: removed once the hang is fixed.
+
+- Next: if 44709359840 x86_64 hangs, read the watchdog artifact for the test name; then push
+  Detent:cf6d9442+ and trigger CI; drop the watchdog once macOS is green twice; ask re-review of
+  Detent:39e5ab7e. CI 44709359840 macos-arm64 at Detent:b692cdd9 passed (no hang, 465 s).
+- Changed after Detent:edff2eb0: hang_watchdog.py + its CMake entry (diagnostic, tests/detent_delivery);
+  src/detent_authority/service.cc (Detent:39e5ab7e, the fix: code, needs re-review);
+  test_restart_wake.cc + CMake entry; mutant start-stop-sleep (tests only).
 
 ## Lead: macOS hang hunt
 
