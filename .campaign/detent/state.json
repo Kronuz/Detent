@@ -4262,6 +4262,38 @@
       "title": "Dense distribution DD1: transfer codec and verifying receiver",
       "updated": "2026-11-20T04:29:09"
     },
+    "dd2-canonical-copy": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_canonical_copy.hh",
+        "src/detent_local/paged_canonical_copy.cc",
+        "tests/detent_local/test_paged_canonical_copy.cc",
+        "src/CMakeLists.txt",
+        "tests/detent_local/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "dd1-transfer-receiver"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Dense distribution DD2: seal-order relocation into the canonical copy",
+      "updated": "2026-11-20T04:29:11"
+    },
     "delta-plan-fixed-cost": {
       "accepted": {
         "correctness": {
