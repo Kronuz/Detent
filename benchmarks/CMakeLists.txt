@@ -78,8 +78,9 @@ if(TARGET detent::testing_store)
   target_link_libraries(detent_paged_collection_bench PRIVATE detent::testing_store)
 endif()
 
-if(TARGET detent::relay_mirror AND TARGET detent::authority)
-  # Dense distribution D7: the relay's builds, window and canonical copy at scale (docs/perf/relay-window.md).
+if(APPLE AND TARGET detent::relay_mirror AND TARGET detent::authority)
+  # Dense distribution D7: the relay's builds, window and canonical copy at scale (docs/perf/relay-window.md);
+  # it reads memory through Mach and malloc zones.
   add_executable(detent_relay_window_bench relay_window_bench.cc)
   target_include_directories(detent_relay_window_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_authority")
   target_link_libraries(detent_relay_window_bench PRIVATE detent::relay_mirror detent::authority)
