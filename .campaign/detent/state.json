@@ -11313,18 +11313,36 @@
             "risk high -> low",
             "lens correctness removed"
           ]
+        },
+        {
+          "at": "2026-11-20T07:05:47",
+          "lenses": [
+            [],
+            [
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "risk": [
+            "low",
+            "high"
+          ],
+          "voided": [],
+          "weakened": []
         }
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
-      "risk": "low",
+      "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-20T04:49:29",
+      "updated": "2026-11-20T07:05:47",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
