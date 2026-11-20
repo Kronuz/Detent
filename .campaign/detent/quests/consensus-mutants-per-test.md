@@ -5,16 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`tools/mutants.sh BUILD SEEDS STEPS [NAME]` runs one mutant; CMake adds one `consensus_mutant_<name>` test per mutant, each with a TIMEOUT sized from its measured time, so ctest -j runs them in parallel and a slow one names itself (msg-170: the single 1800 s test ran out of time with 9-14 of 16 verdicts on loaded hosts).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Every mutant is its own ctest and each is killed: a job on macOS and one in the Linux VM
+- A2 Each TIMEOUT is at least twice its mutant's measured time on the gate VM (track-c-gates' jobs 261120-152025-9d8f43 and 261120-152033-26cdba give the times): [artifact] the CMake list
+- A3 CI passes
 
 ## Contracts
 
