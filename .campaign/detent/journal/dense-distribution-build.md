@@ -1,9 +1,11 @@
 # dense-distribution-build: journal
 
-State: review-fix round (correctness review .campaign/detent/reviews/dense-distribution-build-correctness.md,
-D137). F1, F3 (agent side), F5 (agent side), F7 done at Detent:a7dfd19a; waiting on jobs
-261120-125854-e45912 (F1 probe), 261120-125856-673c7a .. 261120-125908-7185f2 (mutants). F2/F4 and
-the relay halves of F3/F5 on the fork branch quest/detent/dense-distribution-build--relay-window.
+State: review-fix round (D137). F1, F3/F5 agent side, F7, F11 build done (Detent:39652e64); waiting
+on jobs 261120-130720-4e5da1 .. 261120-130731-c646f9 (mutants, --fails-without), 261120-131414-94ce66
+(F11 fuzz hour) and the relay fork (F2, F4, relay halves of F3/F5, then F8).
+F1 probe rerun passed: 261120-125854-e45912 ("REFUSED: the foreign namespace's transfer fell back
+to records"). Mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2 are void: zsh passed patch and
+target as one argument, and the runner's usage exit 1 read as killed (runner now exits 126).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -29,7 +31,10 @@ Review-fix round (owner priority):
 - F7: "tree packed against D5" case in test_paged_transfer (unpacked()); the review's canonical
   mutant is tests/detent_local/mutants/f7-d5-packing-unchecked.patch.
 - F2, F4: fork (relay window from DD2's canonical copy; 5M strict before/after).
-- F11: libFuzzer build fails in compressors-src with brew LLVM (libc++ header order); in progress.
+- F11 (Detent:39652e64): cause, CMake kept zlib's SDK/usr/include (MacOSX26.2.sdk via xcrun's link)
+  as -isystem ahead of libc++ because brew clang's implicit SDK is MacOSX15.sdk; transfer_fuzz.sh
+  configures with the compiler's own sysroot. Local 34 s smoke: 3,173 runs, 0 crashes. Hour: job
+  261120-131414-94ce66. The target receives bound to "ns".
 - F9: not changed (ruling). F10: Blocked on (owner's call). F8: after the fork merges (its
   relay answer path is being rewritten there).
 
