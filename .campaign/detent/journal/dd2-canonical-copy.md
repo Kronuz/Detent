@@ -1,6 +1,6 @@
 # dd2-canonical-copy: journal
 
-State: waiting on jobs 261120-045317-4dda07 261120-045318-889120 261120-045319-99a1f0
+State: waiting on jobs 261120-050608-8b0c63 261120-045319-99a1f0
 Quest: .campaign/detent/quests/dd2-canonical-copy.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs at quest/detent/dd2-canonical-copy:26f9bf49: 261120-045317-4dda07 (A1, A2: synthetic churn and
-100K mixed T4), 261120-045318-889120 (A3 mutant, --fresh), 261120-045319-99a1f0 (suite).
+Jobs: 261120-050608-8b0c63 (A1, A2: synthetic churn and 100K mixed T4, at the corpus-load fix),
+261120-045319-99a1f0 (suite). The earlier 261120-045317-4dda07 passed every synthetic case (cold
+build, 6 churned generations, empty; 0 page hashes, every segment equal to the full build's) and
+failed only in corpus mode, which read no records (dangling range-for temporary, fixed).
 
 ## Next
 
-1. Local run of the test (synthetic churn), then commit and push.
-2. Jobs: A1+A2 at 100K (`--corpus` with the model's mixed T4 churn), the ctest suite; A3 the
+1. Jobs: A1+A2 at 100K (`--corpus` with the model's mixed T4 churn), the ctest suite; A3 the
    `--fails-without` job that deletes the `stable_sort` line.
-3. Folded into dense-distribution-build: the A3 mutant (delete the `std::stable_sort(sealed` line)
+2. Folded into dense-distribution-build: the A3 mutant (delete the `std::stable_sort(sealed` line)
    and 5M run on the finished feature.
 
 ## Blocked on
@@ -32,7 +33,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261120-045317-4dda07 synthetic part passed; 100K: 261120-050608-8b0c63 (pending) |
+| A2 | same jobs: page hashes 0 (0 B), pack hashes = segments |
+| A3 | not a gate now (owner); mutant job cancelled, runs on the finished feature |
 
 ## Result
 
