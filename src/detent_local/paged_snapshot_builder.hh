@@ -51,7 +51,7 @@ class PagedImage {
 	friend class OverlayAssembler;
 	friend class PagedTransferPlanBuilder;
 	friend PagedImage receive_image(std::shared_ptr<distribution::StorageLedger>, std::span<const char>,
-									const paged::Digest &, const distribution::NamespaceCursor &,
+									std::string_view, const paged::Digest &, const distribution::NamespaceCursor &,
 									const distribution::Profile &, const DerivedGeneration &, paged::Limits,
 									std::uint32_t);
 };

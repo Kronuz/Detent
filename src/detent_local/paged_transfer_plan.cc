@@ -107,6 +107,9 @@ PagedTransferPlanBuilder::PagedTransferPlanBuilder(const RecoveredGeneration &ba
 	for (std::size_t i = 0; i < inputs.size(); ++i)
 		segments += registry.reachability(i).pages > removed[i].pages;
 	const auto namespaces = prior.namespaces - removed_namespaces + received.namespaces;
+	// The namespace's one watermark stays: a delta that drops or adds one is not this namespace's.
+	if (namespaces != 1)
+		throw TransferRefused(TransferRefusal::Leaf, "a delta transfer without its namespace's one leaf");
 	within(received.tree.keys >= namespaces && namespaces <= limits.namespaces &&
 		   received.tree.keys - namespaces <= limits.records && segments <= limits.segments &&
 		   prior.pages - removed_pages + received.pages <= limits.pages &&

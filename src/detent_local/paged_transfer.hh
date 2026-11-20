@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 // Dense distribution D2-D4 (docs/design/dense-distribution.md; docs/mechanisms/paged-transfer.md).
@@ -51,7 +52,8 @@ enum class TransferRefusal {
 	ContentSummary, // a content entry's keys, length or height differ from the child's
 	PageDigest,		// a stated header digest differs from the page's
 	Page,			// dense-pages' page checks: structure, labels, keys, height, D5 packing
-	Leaf,			// a leaf body disagrees with the frame's position (dense-pages D4.4)
+	Leaf,			// a leaf body disagrees with the frame's position (dense-pages D4.4), or a leaf or
+					// the namespace leaf count disagrees with the frame's namespace
 	RootDigest,		// the last page's digest is not the target's
 };
 class TransferRefused : public std::invalid_argument {
@@ -82,11 +84,14 @@ using TransferSegmentId = std::function<SegmentId(std::uint32_t number)>;
 // The ids a generation named `name` gives a transfer's segments: the segment builder's, from ordinal 0.
 TransferSegmentId transfer_segment_ids(const DerivedGeneration &name);
 
-// What the frame names: the target's root digest and its position, whose revision bounds every leaf.
+// What the frame names: the target's root digest, its position, whose revision bounds every leaf, and
+// its namespace. A named transfer holds that namespace's leaves only: definitions keyed 'K' name 0 and
+// its one watermark 'W' name 0. An empty name binds no namespace (DD1's model corpora hold many).
 struct TransferTarget {
 	paged::Digest root{};
 	std::uint64_t revision = 0;
 	std::uint32_t maximum_overrides = 256;
+	std::string_view name_space;
 };
 // D4: verifies `stream`, a transfer over `base` (null for the empty base), against `target`, and
 // returns the segments to write. It parses and walks every page, reruns D5 through dense-pages'
@@ -95,11 +100,12 @@ struct TransferTarget {
 ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
 								  const TransferBase *base, const TransferTarget &target,
 								  const TransferSegmentId &segment_id, paged::Limits);
-// DD3: a full copy received as generation `name` at `target`. D4 over the empty base, with the
-// generation's derived segment ids from ordinal 0, so the image is the one a build of the same state
-// writes, and no packer runs. Throws TransferRefused.
+// DD3: a full copy of namespace `name_space` received as generation `name` at `target`. D4 over the
+// empty base, with the generation's derived segment ids from ordinal 0, so the image is the one a
+// build of the same state writes, and no packer runs. Throws TransferRefused.
 PagedImage receive_image(std::shared_ptr<distribution::StorageLedger>, std::span<const char> stream,
-						 const paged::Digest &root, const distribution::NamespaceCursor &target,
+						 std::string_view name_space, const paged::Digest &root,
+						 const distribution::NamespaceCursor &target,
 						 const distribution::Profile &, const DerivedGeneration &name, paged::Limits,
 						 std::uint32_t maximum_overrides);
 } // namespace detent::local::detail
