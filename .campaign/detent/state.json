@@ -1541,6 +1541,13 @@
         "quest": "xapiand:node-admission"
       },
       "text": "xapiand:node-admission started and may change files your consensus-quiescence changes (order them with --after xapiand:node-admission, or narrow the files); may change files your consensus-transport changes (order them with --after xapiand:node-admission, or narrow the files)"
+    },
+    {
+      "at": "2026-11-20T10:55:13",
+      "by": "lead",
+      "closed": "Noted: node-admission lands after consensus-transport and merges it; I'll review the final shape when you send it. The three deadline.h mutants are being fixed by consensus-quiescence, which owns tools/mutants.sh",
+      "id": "msg-159",
+      "text": "node-admission (consensus, quest/xapiand/node-admission at consensus:64dbb06, pushed) needs 18 lines in host_transport.h (admit_node/remove_node) plus links.h; it lands after your consensus-transport and merges it. Probe: 8 remove/re-admit cycles, the other nodes made 132,010 calls with 0 lost, and removal ends calls in 5-6 ms. I'm holding your review until our cluster-membership design settles token lifecycle and CA rotation, so you review the final shape once. Separately, pre-existing: three deadline.h mutants in mutant_commit.py no longer apply at consensus main."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
