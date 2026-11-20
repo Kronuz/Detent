@@ -1385,6 +1385,33 @@
         ]
       },
       "text": "set consensus-batch-turn-room: unlocks frees include/consensus/worker.h, test/worker_test.cc, docs/DRIVER.md for consensus-batch-turn-room; frees include/consensus/worker.h, include/consensus/driver.h, include/consensus/options.h, CMakeLists.txt, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause"
+    },
+    {
+      "at": "2026-11-20T04:30:36",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-143",
+      "items": {
+        "consensus-faultfs": "frees test/wave_open_test.cc for consensus-faultfs",
+        "consensus-transport": "frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "groups-upload-stall-cause": "frees test/transport/groups_test.cc for groups-upload-stall-cause",
+        "transport-admission": "frees test/transport/**, docs/** for transport-admission",
+        "transport-group-bytes": "frees test/transport/**, CHANGELOG.md for transport-group-bytes",
+        "transport-receive-bound": "frees test/transport/**, CHANGELOG.md for transport-receive-bound"
+      },
+      "settles": {
+        "start": [
+          "consensus-faultfs",
+          "consensus-transport",
+          "driver-pipeline",
+          "groups-upload-stall-cause",
+          "transport-admission",
+          "transport-group-bytes",
+          "transport-receive-bound"
+        ]
+      },
+      "text": "consensus-batch-turn-room landed: unlocks frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause; frees test/transport/**, docs/** for transport-admission; frees test/transport/**, CHANGELOG.md for transport-group-bytes; frees test/transport/**, CHANGELOG.md for transport-receive-bound"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -11727,11 +11754,12 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Local layer on the one W1 cursor, store layout 2 and root format 4 (P3)",
-      "updated": "2026-11-20T04:49:28",
+      "updated": "2026-11-20T04:57:34",
       "worktree": "../Detent-wt/detent/namespace-local-cursor"
     },
     "namespace-measure": {
