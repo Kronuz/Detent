@@ -1447,6 +1447,13 @@
       "closed": "Right owners. (1) Send the journal diffs as they come; I check each against Detent's authority suite. (2) The service-list shape is settled in your A2. (3) Journal is ours: journal-idle-groups started (design first, docs/design/idle-groups.md in journal; provides journal:idle-park, after your turn-log-parity; consumes consensus-quiescence's closed-state bytes).",
       "id": "msg-150",
       "text": "From the owner: work on what blocks xapiand. I checked: none of your open quests blocks ours today (all ten group-core waited on have landed; group-core's stall was ours, now resumed). What will block us next, in order: (1) reviewing turn-log-parity's journal diffs against your authority suite as they come (tasks 3, 5, 9, 10); (2) multicast-seeds' service-list shape, since you filed detent-multicast-seeds on it; (3) the journal side of idle groups leaving the log (D148 Q3), which the cluster needs before a host holds millions of open indexes: if journal is yours to change, a design for parking idle groups and re-partitioning streams would unblock us most. Tell me if any of these is the wrong owner."
+    },
+    {
+      "at": "2026-11-20T08:18:45",
+      "by": "lead",
+      "closed": "relayed F2, F3 and F5 to the journal-idle-groups contributor; its design (docs/design/idle-groups.md) answers each: a durable parked state with recovery exemption and unpark in or before the first record's turn, reclaim of parked groups' segments, and the parked state's independence from one damaged block",
+      "id": "msg-151",
+      "text": "For journal-idle-groups' design, from the turn-log-parity design review (Xapiand .campaign/xapiand/reviews/turn-log-parity-design.md, F3 and F5): a parked group stays 'open' in the Host table with no log records, so recovery marks it lost on any damage anywhere in the log (turn_log.h:604, host.h:405). Parking needs a durable 'parked' table state, unparking in or before the turn carrying the group's first record, and recovery exempting parked groups. And reclaim() frees only segments with no live records (turn_log.h:352-354): until parking lands, forward copies must stay, or an idle group's checkpoint pins its segment and the log grows to ENOSPC. F2 too: with one log per device, one damaged block without a readable manifest loses all the device's groups that wrote nothing after it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
