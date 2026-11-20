@@ -51,7 +51,16 @@ Detent:cc942c46.
 
 ## Blocked on
 
-Nothing. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mirror_service.hh).
+- macOS arm64 CI hang (lead's call). The runner is lost ~49.4 min into Test in about half the quest's arm64 runs
+  (5 of 9; main 0 of 20), with no log or artifact; the 20-min watchdog end did not fire either, so the machine
+  itself stalls. Options: (a) bisect on arm64 by dispatching CI at quest commits (2 to 3 runs each; the hang predates
+  Detent:39e5ab7e, so the relay host turn, the authority idle sleep and the coordinator events are the suspects);
+  (b) in cpp-libraries, run macOS arm64 Test with `--parallel 1` or a `ulimit -v` / per-test memory cap to see
+  whether it is starvation; (c) land on x86_64 + Linux green and track arm64 as its own quest. Recommendation (a),
+  starting with Detent:0fe9bc6c (relay turn) vs Detent:c75dc35f (authority), since local samplers (x86_64) show
+  no port, memory or CPU difference from main.
+
+Nothing else. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mirror_service.hh).
 
 ## Evidence
 
@@ -90,7 +99,12 @@ reclaim scans ~60 completion ops/s) frames A1.
 - Spin bound removed (R11, Detent:9b27cb95); evidence jobs rerun at Detent:9b27cb95 (State).
 - CI at 6d1484eb: dispatch 44740001777 macos-arm64 passed (Test 6:53); push 44739992170 macos-arm64 hung again: Test
   still running at 32 min, past the watchdog's 20-min end, so the watchdog itself did not run or could not end the step
-  (a frozen machine fits: the runner, the watchdog and ctest all stall).
+  (a frozen machine fits: the runner, the watchdog and ctest all stall). It ended "runner lost communication" at
+  14:00:58, 49:26 after Test began; no log, no artifact. arm64 at quest heads since 8d56b21a: 5 lost, 4 passed.
+- Passing arm64 at 6d1484eb vs main 421dc946 (44738385932): Total Test time 412.8 vs 369.5 s; relay-heavy tests slowest
+  to gain (test_relay_network_500000 34.6 vs 26.2 s, test_delivery_coordinator_subscription-relay-http-500000 20.5 vs
+  14.9, test_system_authority_writer_failover 19.7 vs 14.1). One sample each.
+- Suite at Detent:9b27cb95: 261120-051929-b61395 passed 288/288. A2 wake/absence x20: 261120-051928-9f1a5d passed.
 
 ## Result
 
