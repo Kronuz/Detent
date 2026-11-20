@@ -3114,7 +3114,8 @@
       "consumes": [],
       "files": [
         "include/consensus/core.h",
-        "test/consensus_test.cc"
+        "test/consensus_test.cc",
+        "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/consensus-heal-snapshot-stall",
       "landed": [],
@@ -3128,7 +3129,7 @@
       "risk": "high",
       "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-19T22:58:48",
+      "updated": "2026-11-19T23:20:31",
       "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
