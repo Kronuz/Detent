@@ -161,7 +161,8 @@ reclaim scans ~60 completion ops/s) frames A1.
   (no authority code); every earlier local suite ran it 300 to 835 s (two 900 s timeouts); CI 44709359840
   macOS ran it 69 s (x86_64) and 31 s (arm64). Reruns alone (no watchdog), head vs main fcb07845:
   head 261120-020714-457e01 261120-020720-721815 261120-020724-d6d007, main 261120-020717-5beac9
-  261120-020722-19d599 261120-020726-63b2cd. Fix: R10, Detent:f9f570b5.
+  261120-020722-19d599 261120-020726-63b2cd: 3 of 3 pass at each, 65, 44, 39 s at head and 54, 53, 48 s at
+  main. Not caused by the fix; under the full suite's load it outlives 90 s. Fix: R10, Detent:f9f570b5.
 - The yield path could spin a core: with nothing in flight and nothing advancing, each loop yielded
   forever. Bounded by R9, Detent:5f8b0ba1. Probes: 261120-021140-5bd6e2 (bounded, must pass: CPU < 4 s
   over 8 s wedged), 261120-021148-508f39 (bound lifted, expected to fail).
