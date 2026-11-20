@@ -1,6 +1,6 @@
 # groups-upload-loop-stall: journal
 
-State: waiting on jobs 261119-173341-34236f (capture probe 3, run 44654477324), 261119-173347-9ec3c4 (suite at consensus:7f84a09); CI 44654397584
+State: blocked on the lead: probe 3's kernel frames are named but wrong (exported symbols only); see Blocked on
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
@@ -18,16 +18,17 @@ Increment candidate: consensus:7f84a09 (counters + CI capture, no forced hold). 
 
 ## Blocked on
 
-Nothing.
-
-## Messages
-
-- Lead's ruling, if probe 2 catches nothing: option 1, refined. The quest branch captures on the
-  regular macos-x86_64 CI job (mbuf and page counters, `sudo spindump` on a stall); the lead
-  lands that prefix with `campaign land --upto` (test tooling, no product change); the quest
-  stays open with A2 unmet; no bound without a named cause. Done at 8c29e51, except the
-  artifact: the CI workflow (Kronuz/cpp-libraries cmake.yml) is outside the file set, so the
-  failure prints the spindump's matching threads to the log instead of uploading a file.
+The lead: how to name kernel frames. Probe 3 (44654477324, job 136017219615, 24G830) printed
+named frames, but `nm` of the release kernel holds only exported symbols (18,427), so a frame
+takes the nearest export, far off:
+`*49 _vc_display_lzss_icon+0xf0 (kernel + 1245344) [0xffffff80004180a0]` (under sleep_for, a
+wait, not a boot-logo routine) and `*5 _bpfioctl+0x1833 (kernel + 2432931)` (under a loop's
+handler). Missing: the full symbols of the runner's kernel (Kernel Debug Kit for 24G830, behind
+an Apple developer login). Options:
+1. Recommended: drop the nm naming, print the raw "kernel + N" frames and the OS build, and
+   symbolicate a captured failure offline against the KDK for that build. Small change at
+   7f84a09's successor; then land that.
+2. Land 7f84a09 as it is: the raw offsets stay in each line beside the misleading names.
 
 ## Notes
 
