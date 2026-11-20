@@ -4401,6 +4401,8 @@
       "after": [
         "dd3-full-copy-pages"
       ],
+      "base": "45e91a6ad366dc2309a8c4771d1288019b6230a4",
+      "branch": "quest/detent/dd4-delta-transfers",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4427,11 +4429,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: owner priority (D133): DD4 adds only new files; the overlap is loop-idle-waits' tests/detent_relay/** and tests/detent_delivery/** globs",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Dense distribution DD4: delta transfers and the pages-or-records rule",
-      "updated": "2026-11-20T04:39:00"
+      "updated": "2026-11-20T04:39:35",
+      "worktree": "../Detent-wt/detent/dd4-delta-transfers"
     },
     "delta-plan-fixed-cost": {
       "accepted": {
