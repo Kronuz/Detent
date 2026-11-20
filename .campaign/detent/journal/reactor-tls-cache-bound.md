@@ -83,3 +83,8 @@ hit and miss conditions in docs/mechanisms/tls-certificate-cache.md (When it hit
    can escape cleansing; a test reads the storage after destruction through a volatile pointer.
 5. A fresh context configured with no other live holder now reparses; that is the bound the
    quest asks for (Blocked on 2 for the bench).
+
+## Lead: review probes
+
+- 261120-022622-5209e0 failed in the reviewer's own probe, which expected `std::invalid_argument` for a mismatched pair; OpenSSL refuses the pair first with `std::system_error` (review F4, a pre-existing comment). The quest's suite and `newer_survives` passed in it.
+- 261120-022624-ecbfa6 failed as intended: the reviewer's mutant (`Release` erases unconditionally) passes the `reactor_tls` suite and fails `newer_survives` (review F1, non-blocking: costs a reparse, no stale material).
