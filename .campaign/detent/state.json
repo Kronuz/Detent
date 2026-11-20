@@ -18712,6 +18712,18 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-20T04:44:39",
+          "reason": "the change is test-harness only (tests/detent_system: dial the daemon's bound address, verify the certificate as localhost); low risk covers tests. Three fails-without jobs reproduce UNEXPECTED_MESSAGE without it; 100k calls and 50 echo-injected fleet runs pass with it",
+          "risk": [
+            "normal",
+            "low"
+          ],
+          "voided": [],
+          "weakened": [
+            "risk normal -> low"
+          ]
         }
       ],
       "landed": [],
@@ -18722,10 +18734,10 @@
       "needs": [],
       "provides": [],
       "repo": ".",
-      "risk": "normal",
+      "risk": "low",
       "status": "active",
       "title": "relay tests fail together on SSL UNEXPECTED_MESSAGE and an undrained fleet under heavy load",
-      "updated": "2026-11-20T03:29:12",
+      "updated": "2026-11-20T04:44:39",
       "worktree": "../Detent-wt/detent/relay-tls-drain-flake"
     },
     "rename-detentd": {
