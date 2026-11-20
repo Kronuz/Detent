@@ -1,6 +1,6 @@
 # journal-double-damage: journal
 
-State: waiting on jobs 261120-103833-515d78 261120-103834-355174 261120-103836-0bd8e4 261120-103837-8062a8 261120-103839-e6f93e 261120-103840-a4ab03 261120-103840-0765f6
+State: waiting on jobs CI (GitHub Actions run for journal:178030b, queued)
 Quest: .campaign/detent/quests/journal-double-damage.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,8 +14,9 @@ F3 recorded (R8). Mutant journal:27ecb12 = 178030b's tests with cca2427's turn_l
 
 ## Next
 
-1. Read jobs: 515d78 (A1 fails at mutant), 355174 (A2 fails at mutant), 0bd8e4 (A1), 8062a8
-   (A2), e6f93e (suite), a4ab03 and 0765f6 (reviewer probes at 178030b); CI; "ready for review".
+1. All campaign jobs at journal:178030b passed (A1 0bd8e4, A2 8062a8, suite e6f93e, probes a4ab03
+   and 0765f6; mutants 515d78 and 355174 fail as they must). When CI on 178030b is green, set
+   State "ready for review". CI at cca2427 was green (run 44785977997).
 
 ## Blocked on
 
