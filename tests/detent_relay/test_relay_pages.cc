@@ -144,7 +144,7 @@ struct Collect final : d::FrameSink {
 	}
 	void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
 	void record(std::string_view, std::uint64_t, const detent::KnobDef *) override { ++frames.back().records; }
-	void pages(const d::RootDigest &root) override { frames.back().root = root; }
+	void root(const d::RootDigest &root) override { frames.back().root = root; }
 	void chunk(std::string_view bytes) override { frames.back().transfer.append(bytes); }
 };
 std::vector<Frame> decode(std::string_view body) {

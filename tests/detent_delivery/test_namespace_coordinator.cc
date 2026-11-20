@@ -130,6 +130,18 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "app");
 			matches(server, root, limits, "web");
 
+			// A delta that does not apply to app's base asks a full copy (D10.3), so a wrong base is never
+			// stuck failing every later delta.
+			agent.fail_next_build(std::make_exception_ptr(std::invalid_argument("delta outside the base")));
+			{
+				std::lock_guard lock(server.mutex);
+				server.find("app").transactions.push_back({{"app:k2", def(52, 0)}});
+			}
+			state = agent.until([&](const auto &s) { return at_heads(server, s, followed) && s.repair.completed == 2; },
+								"failed delta repaired");
+			check(state.repair.requested == 2 && state.failures);
+			matches(server, root, limits, "app");
+
 			// web is dropped: its entry leaves the table, app keeps serving.
 			{
 				std::lock_guard lock(server.mutex);

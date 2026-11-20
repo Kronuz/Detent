@@ -36,9 +36,16 @@ class FrameInput {
 	// frame's delta from `after` under the target's incarnation.
 	std::shared_ptr<ValidatedSnapshot> snapshot();
 	std::shared_ptr<ValidatedDelta> delta();
-	// A Pages frame: the root digest it commits to, then its transfer's chunks, admitted as they arrive.
-	void pages(const RootDigest &);
+	// The root digest the frame names (D1): a Pages frame's commitment, or a records frame's when
+	// its sender built the target; zero when it names none.
+	void root(const RootDigest &);
+	// A Pages frame's transfer chunks, admitted as they arrive: from the start, or appended to the
+	// prefix this input already holds when the frame resumes at its size (D8).
+	void pages(std::uint64_t offset);
 	void chunk(std::string_view);
+	// Trims a Pages frame's transfer to whole chunks; true when any remain, the prefix a resumed
+	// fetch keeps (D8).
+	bool hold_whole_chunks() noexcept;
 	const RootDigest &root() const noexcept { return root_; }
 	std::span<const char> transfer() const noexcept { return transfer_; }
 

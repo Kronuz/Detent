@@ -52,6 +52,14 @@ struct Agent {
 		});
 		done.get_future().get();
 	}
+	void fail_next_build(std::exception_ptr failure) {
+		std::promise<void> done;
+		asio::post(owner.io(), [&] {
+			t::detail::CoordinatorAccess::fail_next_build(*coordinator, std::move(failure));
+			done.set_value();
+		});
+		done.get_future().get();
+	}
 	t::CoordinatorStatus status() {
 		std::promise<t::CoordinatorStatus> out;
 		asio::post(owner.io(), [&] { out.set_value(coordinator->status()); });

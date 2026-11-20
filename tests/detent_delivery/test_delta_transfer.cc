@@ -77,6 +77,12 @@ static void receiver() {
 			receipt.refusal == x::TransferRefusal::RootDigest);
 	receipt = v::receive_delta(account, stream, held, wrong, id, target.limits(), 1);
 	require(receipt.outcome == v::DeltaOutcome::Records && !receipt.received);
+	// A transfer bound to a namespace refuses another namespace's leaves (this corpus holds "a" and "b").
+	auto named = target.target();
+	named.name_space = "b";
+	receipt = v::receive_delta(account, stream, held, named, id, target.limits(), 1);
+	require(receipt.outcome == v::DeltaOutcome::Records && !receipt.received &&
+			receipt.refusal == x::TransferRefusal::Leaf);
 	// A damaged base takes the full copy: a base page failing first touch, or a base lacking a page.
 	receipt = v::receive_delta(account, stream, {base.root(), failing(base.pages(), 0)}, target.target(), id,
 							   target.limits());

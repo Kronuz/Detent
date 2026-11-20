@@ -12,7 +12,8 @@ then each ARM boots one fresh agent, one at a time, after the relay goes quiet. 
 when its selected table reaches every namespace's position at the authority. Per agent: wall time
 to ready, socket bytes in (nettop), bytes hashed and page transfers (its log), CPU, disk bytes
 written and lifetime peak physical footprint (proc_pid_rusage), and the relay's CPU and bytes out.
-With DD_PROFILE_S=N, one more agent per arm boots under `sample` (N s, 1 ms) into its sample.txt.
+With DD_PROFILE_S=N, one more agent per arm boots under `sample` (N s, 1 ms) into its sample.txt:
+stopped just after launch and resumed once `sample` attached.
 Prints one "AGENT {json}" line per agent; exits nonzero when an arm did not boot as its arm.
 """
 
@@ -23,6 +24,7 @@ import ctypes
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -335,25 +337,31 @@ async def run() -> list[dict[str, Any]]:
                 relay_before = rusage(relay)
                 relay_wire_before = nettop(relay)
                 sampler = None
-                if role == "profiled":
-                    # -wait attaches as the arm's binary launches, so the profile covers the boot.
-                    sampler = await asyncio.create_subprocess_exec(
-                        "sample",
-                        agents[arm].name,
-                        str(PROFILE_S),
-                        "1",
-                        "-wait",
-                        "-mayDie",
-                        "-file",
-                        str(directory / "sample.txt"),
-                        stdout=asyncio.subprocess.DEVNULL,
-                        stderr=asyncio.subprocess.DEVNULL,
-                    )
-                    await asyncio.sleep(1)
                 start_wall = time.time()
                 start = time.monotonic()
                 await bounded(f"agent {label}agent-0 to start", cohort.start(), 60)
                 agent = cohort.members[0].process.pid
+                if role == "profiled":
+                    # Stopped within milliseconds of its launch, the agent resumes once `sample` has attached,
+                    # so the profile covers its whole boot (its ready_s includes the pause).
+                    os.kill(agent, signal.SIGSTOP)
+                    stopped_after = time.monotonic() - start
+                    sampler = await asyncio.create_subprocess_exec(
+                        "sample",
+                        str(agent),
+                        str(PROFILE_S),
+                        "1",
+                        "-mayDie",
+                        "-file",
+                        str(directory / "sample.txt"),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    assert sampler.stderr is not None
+                    began = await bounded(f"sample to attach to {label}agent-0", sampler.stderr.readline(), 30)
+                    if not began.startswith(b"Sampling process"):
+                        raise RuntimeError(f"sample did not attach: {began!r}")
+                    os.kill(agent, signal.SIGCONT)
                 # wait_selected raises after `selection` with the positions still behind.
                 await bounded(
                     f"agent {label}agent-0 (pid {agent}) to select {positions}",
@@ -380,6 +388,7 @@ async def run() -> list[dict[str, Any]]:
                     "arm": arm,
                     "records": records,
                     "ready_s": ready_s,
+                    "profile_stopped_after_s": stopped_after if sampler is not None else None,
                     "log": [[round(t - start_wall, 3), line] for t, line in lines[:60]],
                     "published_s": synced[0] - start_wall if synced else None,
                     "relay_quiet": settled,

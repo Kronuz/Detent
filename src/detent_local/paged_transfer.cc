@@ -61,6 +61,7 @@ struct Receiver {
 	};
 	const TransferBase *base;
 	p::Limits limits;
+	std::string_view name_space;
 	std::vector<std::span<char>> pages;
 	std::vector<p::PageHeader> headers;
 	std::vector<TransferPlace> places;
@@ -144,6 +145,18 @@ struct Receiver {
 			refuse(TransferRefusal::BaseLacks, "base page unreadable on the path");
 		}
 	}
+	// The leaf's key names the frame's namespace: 'K' name 0 local 0, or its watermark 'W' name 0.
+	void bound(const p::NodeView &node) const {
+		const auto n = name_space.size();
+		const auto size = path.size() + node.prefix.size();
+		const auto at = [&](std::size_t i) { return i < path.size() ? path[i] : node.prefix[i - path.size()]; };
+		const bool watermark = node.kind == p::PageKind::Namespace;
+		bool named = (watermark ? size == n + 2 : size > n + 2) && at(0) == (watermark ? 'W' : 'K') && at(n + 1) == 0;
+		for (std::size_t i = 0; named && i < n; ++i)
+			named = at(i + 1) == name_space[i];
+		if (!named)
+			refuse(TransferRefusal::Leaf, "a leaf outside the frame's namespace");
+	}
 	// D9's walk: resolves the node's external slots and emits, after its subtrees, the transfer
 	// pages it seals in D5's order; a page over the capacity follows its own top node.
 	p::NodeAt visit(std::size_t i, p::NodeAt at, bool top) {
@@ -154,6 +167,8 @@ struct Receiver {
 		if (node.kind != p::PageKind::Branch) {
 			if (path.size() + node.prefix.size() > 202)
 				refuse(TransferRefusal::Page, "key longer than 202 bytes");
+			if (!name_space.empty())
+				bound(node);
 			if (alone)
 				order.push_back(i);
 			return next;
@@ -283,7 +298,7 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
 		total += length;
 		at += length;
 	}
-	Receiver r{base, limits};
+	Receiver r{base, limits, target.name_space};
 	r.places = transfer_layout(lengths);
 	const std::size_t count = r.places.back().segment;
 	if (count > limits.segments)
@@ -366,6 +381,9 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
 		// D4.5: the root.
 		if (references.back().digest != target.root)
 			refuse(TransferRefusal::RootDigest, "root digest mismatch");
+		// A named full copy holds its namespace's one watermark.
+		if (!target.name_space.empty() && !base && out.namespaces != 1)
+			refuse(TransferRefusal::Leaf, "a full copy without its namespace's one leaf");
 		out.tree = references.back();
 	} catch (const TransferRefused &) {
 		throw;
@@ -394,10 +412,12 @@ TransferSegmentId transfer_segment_ids(const DerivedGeneration &name) {
 	};
 }
 PagedImage receive_image(std::shared_ptr<distribution::StorageLedger> account, std::span<const char> stream,
-						 const p::Digest &root, const distribution::NamespaceCursor &target,
+						 std::string_view name_space, const p::Digest &root, const distribution::NamespaceCursor &target,
 						 const distribution::Profile &profile, const DerivedGeneration &name, p::Limits limits,
 						 std::uint32_t maximum_overrides) {
-	auto received = receive_transfer(account, stream, nullptr, {root, target.position, maximum_overrides},
+	if (name_space.empty())
+		throw std::logic_error("a received full copy names its namespace");
+	auto received = receive_transfer(account, stream, nullptr, {root, target.position, maximum_overrides, name_space},
 									 transfer_segment_ids(name), limits);
 	if (received.tree.keys < received.namespaces || received.tree.keys - received.namespaces > limits.records ||
 		received.namespaces > limits.namespaces)

@@ -17,6 +17,13 @@ struct Following {
 	// names, strictly increasing, as records after their transfer was refused (D9).
 	bool pages = false;
 	std::vector<std::string> records;
+	// Next asks a page transfer's rest from `offset`, when it holds that prefix of it (D8).
+	struct Resume {
+		std::string name;
+		distribution::RootDigest root{};
+		std::uint64_t after = 0, offset = 0;
+	};
+	std::optional<Resume> resume;
 };
 // A W5 body (version 2). The request's cluster is the directory cursor's, else the first store
 // cursor's; a cursor of another cluster is sent as no store, which earns the same full copy.
@@ -39,8 +46,9 @@ class FramePreparer {
 		virtual ~Prepared() = default;
 		virtual void piece(distribution::PieceKind, std::uint64_t first, std::uint64_t last) = 0;
 		virtual void record(std::string_view key, std::uint64_t revision, const KnobDef *value) = 0;
-		// A pages frame: its root digest, then its transfer's chunks.
-		virtual void pages(const distribution::RootDigest &) {}
+		// The root digest the frame names; a pages frame's offset, then its transfer's chunks.
+		virtual void root(const distribution::RootDigest &) {}
+		virtual void pages(std::uint64_t) {}
 		virtual void chunk(std::string_view) {}
 		// The memory it holds: admitted to the ledger as it grows.
 		virtual std::size_t bytes() const noexcept = 0;

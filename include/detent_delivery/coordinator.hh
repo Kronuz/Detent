@@ -62,9 +62,10 @@ struct RepairStatus {
 	bool pending = false;
 };
 // Full copies sent as page transfers (dense distribution DD3): verified and refused ones, and the
-// verified ones' page bytes. A refused namespace is asked as records next (D9).
+// verified ones' page bytes. A refused namespace is asked as records next (D9). Diverged: records
+// builds whose root differs from the one their frame names (D1); the namespace is fetched again.
 struct TransferStatus {
-	std::uint64_t received = 0, refused = 0, bytes = 0;
+	std::uint64_t received = 0, refused = 0, bytes = 0, diverged = 0;
 };
 struct NamespaceStatus {
 	std::string name;

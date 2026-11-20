@@ -112,8 +112,18 @@ std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> f) {
 	f->root.tree = packer.root();
 	return f;
 }
-// `count` definitions; every 5,000th has 120 overrides, a page alone. `changed` gets another value.
-std::shared_ptr<Fixture> generation(std::size_t count, std::size_t changed = SIZE_MAX) {
+void add_watermark(Fixture &f, const std::string &name) {
+	std::array<char, 202> key{};
+	const auto length = p::encode_namespace_key(key, name);
+	std::vector<char> watermark(8);
+	l::write_integer(watermark, 0, 9, 8);
+	f.rows.push_back({std::string(key.data(), length), std::move(watermark)});
+}
+// `count` definitions of "ns"; every 5,000th has 120 overrides, a page alone. `changed` gets another
+// value. `extra` definitions of namespace `other` and its watermark join them; "ns" has no watermark
+// without `watermark`.
+std::shared_ptr<Fixture> generation(std::size_t count, std::size_t changed = SIZE_MAX, const std::string &other = {},
+									std::size_t extra = 0, bool watermark = true) {
 	auto result = std::make_shared<Fixture>();
 	std::array<char, 202> key{};
 	for (std::size_t i = 0; i < count; ++i) {
@@ -121,10 +131,14 @@ std::shared_ptr<Fixture> generation(std::size_t count, std::size_t changed = SIZ
 		result->rows.push_back(
 			{std::string(key.data(), length), definition(i == changed ? i + 7 : i, i % 5000 == 17 ? 120 : 0)});
 	}
-	const auto length = p::encode_namespace_key(key, "ns");
-	std::vector<char> watermark(8);
-	l::write_integer(watermark, 0, 9, 8);
-	result->rows.push_back({std::string(key.data(), length), std::move(watermark)});
+	for (std::size_t i = 0; i < extra; ++i) {
+		const auto length = p::encode_definition_key(key, other + ":k" + std::to_string(i));
+		result->rows.push_back({std::string(key.data(), length), definition(i, 0)});
+	}
+	if (watermark)
+		add_watermark(*result, "ns");
+	if (extra)
+		add_watermark(*result, other);
 	return seal(std::move(result));
 }
 l::detail::TransferPages reader(const Fixture &f) {
@@ -458,6 +472,140 @@ void refusals(const Fixture &f) {
 	std::cout << "refusals: every case refused for its reason\n";
 }
 
+// The pages of `after` that `before` lacks at the same trie path, in seal order.
+std::vector<p::Reference> diff_pages(const Fixture &before, const Fixture &after) {
+	std::map<std::string, p::Reference> by_path;
+	for (const auto &page : before.pages)
+		by_path[page.path] = page.reference;
+	std::vector<p::Reference> chosen;
+	for (const auto &page : after.pages) {
+		const auto found = by_path.find(page.path);
+		const auto &r = page.reference;
+		if (found == by_path.end() || found->second.digest != r.digest || found->second.keys != r.keys ||
+			found->second.length != r.length || found->second.height != r.height)
+			chosen.push_back(r);
+	}
+	return chosen;
+}
+
+// D5's packing forged (F7): a definition alone in its page (120 overrides) gets a small body, and
+// every digest up to the root is recomputed, so the tree is honest but for its packing: D5 would
+// now keep that leaf in its parent's page, which still seals it. The page moves to the place the
+// seal order then implies (the receiver checks order before packing), and the receiver refuses it.
+void unpacked(const Fixture &f) {
+	using Key = std::pair<l::SegmentId, std::uint32_t>;
+	const auto bounds = limits();
+	std::map<Key, std::vector<char>> bytes;
+	std::map<Key, p::Reference> refs;
+	std::vector<Key> order;
+	for (const auto &page : f.pages) {
+		const Key key{page.reference.segment, page.reference.offset};
+		bytes[key] = page.bytes;
+		refs[key] = page.reference;
+		order.push_back(key);
+	}
+	std::size_t alone = SIZE_MAX;
+	for (std::size_t i = 0; i < order.size() && alone == SIZE_MAX; ++i) {
+		const auto &page = bytes[order[i]];
+		if (page.size() > p::page_capacity && !p::decode_page_header(page, bounds).externals &&
+			p::decode_node(page, p::page_header_bytes, bounds).kind == p::PageKind::Definition)
+			alone = i;
+	}
+	check(alone != SIZE_MAX);
+	{
+		auto &page = bytes[order[alone]];
+		const auto node = p::decode_node(page, p::page_header_bytes, bounds);
+		const auto body = definition(3, 0);
+		std::vector<char> small(page.begin(), page.begin() + p::page_header_bytes + 2);
+		small.resize(small.size() + 2);
+		l::write_integer(small, p::page_header_bytes + 2, body.size(), 2);
+		small.insert(small.end(), node.prefix.begin(), node.prefix.end());
+		small.insert(small.end(), body.begin(), body.end());
+		l::write_integer(small, 8, small.size(), 4);
+		check(small.size() < p::page_header_bytes + p::child_bytes); // never sealed by D5
+		page = std::move(small);
+		refs[order[alone]].length = std::uint32_t(page.size());
+	}
+	// Each changed page's digest, then its parent's content entry, up to the root.
+	for (auto child = order[alone];;) {
+		auto &reference = refs[child];
+		reference.digest = p::page_commitment(bytes[child], bounds);
+		std::copy(reference.digest.begin(), reference.digest.end(), bytes[child].begin() + 32);
+		bool found = false;
+		for (const auto &key : order) {
+			auto &page = bytes[key];
+			const auto externals = p::decode_page_header(page, bounds).externals;
+			for (std::uint16_t j = 0; j < externals && !found; ++j) {
+				const auto r = p::decode_external(page, j, bounds);
+				if (r.segment != child.first || r.offset != child.second)
+					continue;
+				const auto content = page.size() - p::child_bytes * externals + p::content_bytes * j;
+				std::copy(reference.digest.begin(), reference.digest.end(), page.begin() + content);
+				l::write_integer(page, content + 40, reference.length, 4);
+				child = key;
+				found = true;
+			}
+			if (found)
+				break;
+		}
+		if (!found)
+			break;
+	}
+	const l::detail::TransferPages read = [&bytes](const p::Reference &r) {
+		return std::span<const char>(bytes.at({r.segment, r.offset}));
+	};
+	const auto root = refs[order.back()].digest;
+	// The leaf's place in the seal order it now implies: between its old one and its parent's.
+	for (std::size_t at = alone; at + 1 < order.size(); ++at) {
+		auto moved = order;
+		const auto key = moved[alone];
+		moved.erase(moved.begin() + alone);
+		moved.insert(moved.begin() + at, key);
+		std::vector<p::Reference> pages;
+		for (const auto &each : moved)
+			pages.push_back(refs[each]);
+		const auto stream = l::detail::make_transfer(pages, read, bounds);
+		try {
+			receive(stream, nullptr, root);
+			throw std::runtime_error("a tree packed against D5 accepted");
+		} catch (const l::detail::TransferRefused &error) {
+			if (error.reason() == TransferRefusal::Order)
+				continue;
+			check(error.reason() == TransferRefusal::Page);
+			std::cout << "unpacked: a tree packed against D5 refused (" << error.what() << ")\n";
+			return;
+		} catch (const std::logic_error &) {
+			continue; // the leaf after its parent: make_transfer refuses to write it
+		}
+	}
+	throw std::runtime_error("no seal order for the forged packing");
+}
+
+// A transfer named for a namespace holds that namespace's leaves and its one watermark (F1).
+void namespaces(const Fixture &f, std::size_t count) {
+	const auto bound = [](std::span<const char> stream, const l::detail::TransferBase *base, const p::Digest &root,
+						  std::string_view name) {
+		return l::detail::receive_transfer(ledger(), stream, base, {root, 10, 256, name}, own_id, limits());
+	};
+	const auto wire = l::detail::make_transfer(seal_order(f), reader(f), limits());
+	check(bound(wire, nullptr, f.root.tree.digest, "ns").namespaces == 1);
+	for (const char *name : {"other", "n", "nss"})
+		refused(TransferRefusal::Leaf, [&] { bound(wire, nullptr, f.root.tree.digest, name); });
+	// A full copy holding another namespace's keys, or no watermark of its own: accepted unbound.
+	for (const auto &g : {generation(count, SIZE_MAX, "zz", 10), generation(count, SIZE_MAX, {}, 0, false)}) {
+		const auto stream = l::detail::make_transfer(seal_order(*g), reader(*g), limits());
+		check(receive(stream, nullptr, g->root.tree.digest).tree.digest == g->root.tree.digest);
+		refused(TransferRefusal::Leaf, [&] { bound(stream, nullptr, g->root.tree.digest, "ns"); });
+	}
+	// A delta whose new pages add another namespace's keys.
+	const auto after = generation(count, SIZE_MAX, "zz", 10);
+	const auto stream = l::detail::make_transfer(diff_pages(f, *after), reader(*after), limits());
+	const l::detail::TransferBase base{f.root.tree, reader(f)};
+	check(receive(stream, &base, after->root.tree.digest).tree.digest == after->root.tree.digest);
+	refused(TransferRefusal::Leaf, [&] { bound(stream, &base, after->root.tree.digest, "ns"); });
+	std::cout << "namespaces: a foreign leaf or a missing watermark refused, full copy and delta\n";
+}
+
 void delta(const Fixture &before, std::size_t count, std::size_t changed) {
 	const auto after = generation(count, changed);
 	std::map<std::string, p::Reference> by_path;
@@ -695,6 +843,8 @@ int main(int argc, char **argv) {
 		const auto f = generation(count);
 		round_trip(*f);
 		refusals(*f);
+		namespaces(*f, count);
+		unpacked(*f);
 		delta(*f, count, 12345);
 		return 0;
 	} catch (const std::exception &error) {

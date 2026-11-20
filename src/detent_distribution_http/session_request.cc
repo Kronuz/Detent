@@ -112,8 +112,8 @@ struct ParsedSessionRequest::Impl {
 				"invalid session parser admission");
 	}
 	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?, pages?, records?};
-	// next {version, session, cluster?, namespaces, all?, wait_ms?}; close {version, session}.
-	// A namespace is [name] or [name, incarnation, position].
+	// next {version, session, cluster?, namespaces, all?, wait_ms?, resume?}; close {version, session}.
+	// A namespace is [name] or [name, incarnation, position]; resume is [name, root, after, offset].
 	void parse_positions() {
 		switch (result.kind) {
 		case RequestKind::Open:
@@ -131,8 +131,18 @@ struct ParsedSessionRequest::Impl {
 			}
 			break;
 		case RequestKind::Next:
-			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms"});
+			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms", "resume"});
 			result.session = identity<d::Identity>(field(document, "session"));
+			if (document.HasMember("resume")) {
+				const auto &resume = field(document, "resume");
+				require(resume.IsArray() && resume.Size() == 4, "session resume arity");
+				const auto name = text(resume[0], 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char),
+						"session resume name");
+				result.resume = TransferResume{name, identity<std::array<char, 32>>(resume[1]), number(resume[2]),
+											   number(resume[3])};
+				require(result.resume->offset && result.resume->offset % (64 * 1024) == 0, "session resume offset");
+			}
 			break;
 		case RequestKind::Close:
 			fields(document, {"version", "session"});

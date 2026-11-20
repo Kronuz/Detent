@@ -67,13 +67,19 @@ struct ScrubResult : d::RetirementNode {
 };
 // The frames of one response (W6), each held as the paged builders read it; none is visible until
 // next returns Frames and the coordinator publishes them in one cycle.
+// A pages frame's prefix outlives a response cut short (D8): `held` keeps its whole chunks, the next
+// request asks the rest from there, and a frame resuming at that offset continues it.
 class Response final : public FramePreparer {
   public:
-	explicit Response(const d::Limits &limits) : limits_(limits) {}
+	Response(const d::Limits &limits, std::unique_ptr<d::FrameInput> &held) : limits_(limits), held_(held) {}
 	class Frame final : public Prepared {
 	  public:
 		Frame(Response &owner, std::string name, std::unique_ptr<d::FrameInput> input)
 			: owner_(owner), name_(std::move(name)), input_(std::move(input)) {}
+		~Frame() override {
+			if (input_ && input_->kind() == d::FrameKind::Pages && input_->hold_whole_chunks())
+				owner_.held_ = std::move(input_);
+		}
 		void piece(d::PieceKind kind, std::uint64_t first, std::uint64_t last) override {
 			if (input_)
 				input_->piece(kind, first, last);
@@ -82,9 +88,22 @@ class Response final : public FramePreparer {
 			if (input_)
 				input_->record(key, revision, value);
 		}
-		void pages(const d::RootDigest &root) override {
+		void root(const d::RootDigest &root) override {
 			if (input_)
-				input_->pages(root);
+				input_->root(root);
+		}
+		void pages(std::uint64_t offset) override {
+			if (!input_)
+				return;
+			auto &held = owner_.held_;
+			if (offset) {
+				if (!held || held->name() != input_->name() || held->after() != input_->after() ||
+					held->target() != input_->target() || held->root() != input_->root())
+					throw std::invalid_argument("a pages frame resumes a transfer this agent does not hold");
+				input_ = std::move(held);
+			} else if (held && held->name() == input_->name())
+				held.reset();
+			input_->pages(offset);
 		}
 		void chunk(std::string_view bytes) override {
 			if (input_)
@@ -106,6 +125,8 @@ class Response final : public FramePreparer {
 	};
 	std::unique_ptr<Prepared> prepare(std::string_view name, d::FrameKind kind, std::uint64_t after,
 									  const d::NamespaceCursor &to) override {
+		if (held_ && held_->name() == name && kind != d::FrameKind::Pages)
+			held_.reset();
 		if (kind == d::FrameKind::Dropped)
 			return std::make_unique<Frame>(*this, std::string(name), nullptr);
 		return std::make_unique<Frame>(*this, std::string(name),
@@ -118,6 +139,7 @@ class Response final : public FramePreparer {
 
   private:
 	d::Limits limits_;
+	std::unique_ptr<d::FrameInput> &held_;
 };
 } // namespace
 
@@ -135,7 +157,7 @@ struct Coordinator::Impl {
 	std::uint64_t steps_at_stop = 0, settled_construction_steps = 0;
 	bool construction_stopped = false;
 	bool terminal_fenced = false;
-	std::exception_ptr injected_worker_failure, injected_maintenance_failure;
+	std::exception_ptr injected_worker_failure, injected_maintenance_failure, injected_build_failure;
 	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
 	std::uint64_t wakes = 0;
@@ -148,6 +170,8 @@ struct Coordinator::Impl {
 	std::map<std::string, Followed, std::less<>> followed;
 	// Namespaces whose page transfer was refused: asked as records until records publish them (D9).
 	std::set<std::string, std::less<>> records_only;
+	// A pages transfer's prefix from a response cut short: the next request resumes it (D8).
+	std::unique_ptr<d::FrameInput> held_transfer;
 	bool retains_candidate = false;
 	bool compaction_requested = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
@@ -340,8 +364,9 @@ struct Coordinator::Impl {
 	}
 	template <class Work> task::task<d::RetirementHandle<BuildResult>> build(Work work) {
 		auto result = domain.make<BuildResult>();
+		auto injected_build = std::exchange(injected_build_failure, {});
 		asio::post(worker, [result, work = std::move(work),
-							injected = std::exchange(injected_worker_failure, {})]() mutable {
+							injected = injected_build ? injected_build : std::exchange(injected_worker_failure, {})]() mutable {
 			try {
 				if (injected)
 					std::rethrow_exception(injected);
@@ -392,12 +417,12 @@ struct Coordinator::Impl {
 			const auto directory = store->directory_identity();
 			l::paged::Digest root;
 			std::copy(input.root().begin(), input.root().end(), root.begin());
-			co_return co_await build([transfer = input.transfer(), root, target, actual = std::move(actual), directory,
-									  factory, heap, limits, repair](BuildResult &result) mutable {
+			co_return co_await build([transfer = input.transfer(), name, root, target, actual = std::move(actual),
+									  directory, factory, heap, limits, repair](BuildResult &result) mutable {
 				const auto generation = l::next_generation(actual ? std::optional(actual->descriptor()) : std::nullopt,
 														   target, d::Profile{}, true);
 				result.control.step();
-				auto image = l::detail::receive_image(heap, transfer, root, target, d::Profile{}, generation,
+				auto image = l::detail::receive_image(heap, transfer, name, root, target, d::Profile{}, generation,
 													  l::detail::paged_limits(limits, l::paged::root_bytes),
 													  limits.overrides);
 				l::detail::PagedSnapshotPlanBuilder candidate(std::move(image), std::move(actual), directory, factory,
@@ -465,7 +490,8 @@ struct Coordinator::Impl {
 		const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
 		l::paged::Digest root;
 		std::copy(input.root().begin(), input.root().end(), root.begin());
-		co_return co_await build([transfer = input.transfer(), root, target, base = *base, factory = domain.factory(),
+		co_return co_await build([transfer = input.transfer(), space = name, root, target, base = *base,
+								  factory = domain.factory(),
 								  heap = domain.storage_account(), bounds,
 								  overrides = limits.overrides](BuildResult &result) mutable {
 			const auto leased = l::detail::ScrubSource::root(base);
@@ -478,7 +504,7 @@ struct Coordinator::Impl {
 											 }};
 			const auto name = l::next_generation(base.descriptor(), target, base.descriptor().profile, false);
 			result.control.step();
-			auto receipt = receive_delta(heap, transfer, on, {root, target.position, overrides},
+			auto receipt = receive_delta(heap, transfer, on, {root, target.position, overrides, space},
 										 l::detail::transfer_segment_ids(name), bounds, 1);
 			if (receipt.outcome == DeltaOutcome::FullCopy)
 				throw l::detail::ReadSourceFailure(receipt.reason.c_str());
@@ -555,6 +581,9 @@ struct Coordinator::Impl {
 			out.all = selection.directory;
 		out.pages = true;
 		out.records.assign(records_only.begin(), records_only.end());
+		if (held_transfer)
+			out.resume = Following::Resume{held_transfer->name(), held_transfer->root(), held_transfer->after(),
+										   held_transfer->transfer().size()};
 		return out;
 	}
 	void refresh_status() {
@@ -605,6 +634,23 @@ struct Coordinator::Impl {
 				records_only.insert(name);
 				++diagnostic.transfers.refused;
 				throw;
+			} catch (const std::invalid_argument &) {
+				// A delta that does not apply to the namespace's base: the namespace is asked as a full
+				// copy (D10.3), so a wrong base never fails every later delta.
+				if (input->after())
+					request_repair(name, false);
+				throw;
+			}
+			// D1: a records frame that names its sender's root publishes only a build that reaches it;
+			// otherwise the namespace is fetched again as a full copy, as pages when the source has them.
+			if (!pages && input->root() != d::RootDigest{} && built->plan) {
+				const auto commitment = l::paged::state_commitment(built->plan->root());
+				if (!std::equal(commitment.begin(), commitment.end(), input->root().begin())) {
+					++diagnostic.transfers.diverged;
+					records_only.erase(name);
+					request_repair(name, false);
+					throw std::runtime_error("the records build of " + name + " diverges from its frame's root");
+				}
 			}
 			if (pages) {
 				++transferred;
@@ -974,7 +1020,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				const auto wait = sources.wait(std::chrono::steady_clock::now(),
 											   std::min({session.maximum_wait, std::chrono::milliseconds(30000),
 														 request.timeout / 2}));
-				Response response(request.limits);
+				Response response(request.limits, held_transfer);
 				network_attempt = true;
 				const auto outcome =
 					co_await next_namespace_session(request, session, following(), wait, response, network_cancel.token());
@@ -1112,6 +1158,9 @@ void detail::CoordinatorAccess::fail_worker_and_wait_after_ready(Coordinator &co
 																 std::exception_ptr failure) {
 	coordinator.impl_->injected_worker_failure = std::move(failure);
 	coordinator.impl_->fail_settled_worker_wait = true;
+}
+void detail::CoordinatorAccess::fail_next_build(Coordinator &coordinator, std::exception_ptr failure) {
+	coordinator.impl_->injected_build_failure = std::move(failure);
 }
 void detail::CoordinatorAccess::fail_next_worker_wait(Coordinator &coordinator) {
 	coordinator.impl_->fail_worker_wait = true;

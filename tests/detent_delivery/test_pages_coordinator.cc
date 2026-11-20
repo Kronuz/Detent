@@ -10,10 +10,16 @@
 #include "detent_distribution/frame_input.hh"
 #include "detent_local/derived_ids.hh"
 #include "detent_local/layout.hh"
+#include "detent_local/paged_definition.hh"
 #include "paged_limits.hh"
+#include "paged_navigation.hh"
+#include "paged_overlay_assembler.hh"
+#include "paged_page_access.hh"
 #include "paged_snapshot_builder.hh"
+#include "paged_trie_overlay.hh"
 #include "page_window.hh"
 #include "paged_transfer.hh"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <unistd.h>
@@ -44,7 +50,9 @@ std::vector<Transaction> corpus(const std::string &name, std::size_t keys) {
 // which is seal order.
 struct Canonical {
 	l::Descriptor descriptor;
+	p::Root root;
 	p::Reference tree;
+	std::vector<x::BuiltSegment> segments;
 	std::map<l::SegmentId, std::string> packs;
 	Transfer transfer;
 };
@@ -68,7 +76,9 @@ Canonical canonical(const Served &served, const l::ViewLimits &view) {
 	auto image = builder.take();
 	Canonical out;
 	out.descriptor = image.descriptor();
+	out.root = image.root();
 	out.tree = image.root().tree;
+	out.segments.assign(image.segments().begin(), image.segments().end());
 	std::vector<p::Reference> order;
 	for (const auto &segment : image.segments()) {
 		const std::span<const char> bytes(segment.bytes->data(), segment.bytes->size());
@@ -100,6 +110,59 @@ Transfer delta(const Canonical &base, const Canonical &target, const l::ViewLimi
 	Transfer out;
 	out.bytes = x::make_transfer(diff.pages, reader(target), bounds);
 	out.answer = {target.tree.digest, base.descriptor.cursor.position, target.descriptor.cursor, {}};
+	return out;
+}
+// A delta from `base` to its tree with one definition of namespace "bad" added (dense-pages D7):
+// honest pages and root, under `to`, whose new pages hold a leaf of another namespace.
+Transfer foreign_delta(const Canonical &base, const d::NamespaceCursor &to, const l::ViewLimits &view) {
+	const auto bounds = x::paged_limits(view, p::root_bytes);
+	auto account = std::make_shared<d::StorageLedger>(std::size_t(2) << 30);
+	std::vector<x::SegmentInput> inputs;
+	for (const auto &segment : base.segments)
+		inputs.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
+	std::sort(inputs.begin(), inputs.end(), [](const auto &a, const auto &b) {
+		return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), a.ownership.segment.size()) < 0;
+	});
+	std::vector<x::SegmentReachability> live(inputs.size());
+	for (std::vector<p::Reference> stack{base.tree}; !stack.empty();) {
+		const auto r = stack.back();
+		stack.pop_back();
+		const auto i = x::find_segment(inputs, r.segment);
+		const auto bytes = x::checked_page_bytes(inputs[i], r);
+		++live[i].pages;
+		live[i].bytes += r.length;
+		const auto header = p::decode_page_header(bytes, bounds);
+		for (std::uint16_t e = 0; e < header.externals; ++e)
+			stack.push_back(p::decode_external(bytes, e, bounds));
+	}
+	detent::KnobDef value{5};
+	std::vector<char> body(p::definition_size(value));
+	p::encode_definition(body, value, 1);
+	x::TrieOverlay overlay(account, std::make_shared<int>(0), inputs, base.root, bounds);
+	overlay.change(std::string_view("Kbad\0k1\0", 8), std::span<const char>(body));
+	while (!overlay.operation_done()) {
+		l::ValidationBudget budget;
+		overlay.step(budget);
+	}
+	overlay.seal();
+	l::GenerationId id;
+	id.fill('f');
+	x::OverlayAssembler assembler(account, overlay, inputs, live, base.root, {id, 0}, to, bounds);
+	while (!assembler.done()) {
+		l::ValidationBudget budget;
+		assembler.step(budget);
+	}
+	auto image = assembler.take();
+	std::map<l::SegmentId, std::span<const char>> pages;
+	for (const auto &input : inputs)
+		pages.emplace(input.ownership.segment, input.bytes);
+	for (const auto &segment : image.segments())
+		pages.emplace(segment.ownership.segment, std::span<const char>(segment.bytes->data(), segment.bytes->size()));
+	const x::TransferPages read = [&pages](const p::Reference &r) { return pages.at(r.segment).subspan(r.offset, r.length); };
+	const auto diff = detent::relay::merkle_diff(image.root().tree, read, base.tree, reader(base), bounds);
+	Transfer out;
+	out.bytes = x::make_transfer(diff.pages, read, bounds);
+	out.answer = {image.root().tree.digest, base.descriptor.cursor.position, to, {}};
 	return out;
 }
 void install(Server &server, const std::string &name, Transfer transfer) {
@@ -189,15 +252,27 @@ int main(int argc, char **argv) {
 			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		}
 		{
-			// A cold agent boots from the transfer: it verifies and writes it, and builds nothing.
+			// A cold agent boots from the transfer: it verifies and writes it, and builds nothing. Its
+			// first answer is cut halfway; the next resumes from the whole chunks it holds (D8).
+			{
+				std::lock_guard lock(server.mutex);
+				server.cut = big.transfer.bytes.size() / 2;
+			}
 			const auto before = t::hash_stats();
 			const auto started = std::chrono::steady_clock::now();
 			Agent agent(root / "big", l::StoreOpenMode::FreshEmpty, options, account, domain, queue);
 			const auto state = agent.until([&](const auto &s) { return at(s, "big", big_head); }, "big from pages", 120s);
 			const auto elapsed = std::chrono::steady_clock::now() - started;
 			const auto spent = t::hash_stats() - before;
-			check(state.transfers.received == 1 && state.transfers.refused == 0 && !state.failures);
+			check(state.transfers.received == 1 && state.transfers.refused == 0 && state.failures == 1);
 			check(state.transfers.bytes == big.transfer.bytes.size());
+			{
+				std::lock_guard lock(server.mutex);
+				check(server.offsets.size() == 2 && server.offsets[0] == 0 && server.offsets[1] >= d::transfer_chunk_bytes &&
+					  server.offsets[1] < big.transfer.bytes.size() && server.offsets[1] % d::transfer_chunk_bytes == 0);
+				std::cout << "resumed: the cut answer's next sent the transfer from " << server.offsets[1] << " of "
+						  << big.transfer.bytes.size() << " bytes\n";
+			}
 			check(spent.built.page_calls == 0 && spent.built.pack_calls == 0);
 			same_generation(state, root / "big", "big", big);
 			matches(server, root / "big", limits, "big");
@@ -230,7 +305,7 @@ int main(int argc, char **argv) {
 			const auto next = agent.until([&](const auto &s) { return at(s, "big", big2.descriptor.cursor); },
 										  "big's delta from pages", 120s);
 			const auto delta_spent = t::hash_stats() - before_delta;
-			if (next.transfers.received != 2 || next.transfers.refused || next.failures)
+			if (next.transfers.received != 2 || next.transfers.refused || next.failures != state.failures)
 				throw std::runtime_error("delta: received " + std::to_string(next.transfers.received) + ", refused " +
 										 std::to_string(next.transfers.refused) + ", failures " +
 										 std::to_string(next.failures) + ": " + coordinator_agent::message(next.error));
@@ -264,6 +339,29 @@ int main(int argc, char **argv) {
 				check(std::find(server.records_asked.begin(), server.records_asked.end(),
 								std::vector<std::string>{"big"}) != server.records_asked.end());
 			}
+			// F1: a delta whose new pages hold another namespace's leaf, honestly rooted, is refused, and
+			// the next open asks big as records.
+			Transaction last{{"big:k0000002", def(78, 0)}};
+			Served moved_on = again;
+			moved_on.transactions.push_back(last);
+			auto foreign = foreign_delta(canonical(again, limits), moved_on.history().head(), limits);
+			{
+				std::lock_guard lock(server.mutex);
+				server.find("big").transactions.push_back(std::move(last));
+				auto &held = server.transfers["big"] = std::move(foreign);
+				held.answer.bytes = held.bytes;
+				server.records_asked.clear();
+				server.open_session = false; // the session that asked big as records expires; the next asks pages
+			}
+			const auto fourth = agent.until([&](const auto &s) { return at(s, "big", moved_on.history().head()); },
+											"big's foreign delta as records", 120s);
+			check(fourth.transfers.received == 2 && fourth.transfers.refused == 2);
+			matches(server, root / "big", limits, "big");
+			{
+				std::lock_guard lock(server.mutex);
+				check(std::find(server.records_asked.begin(), server.records_asked.end(),
+								std::vector<std::string>{"big"}) != server.records_asked.end());
+			}
 			std::cout << "pages: " << keys << " keys, " << big.transfer.bytes.size() << " transfer bytes, "
 					  << big.packs.size() << " packs, built hashes " << spent.built.page_calls << "+"
 					  << spent.built.pack_calls << ", checked page hashes " << spent.checked.page_calls << " ("
@@ -288,6 +386,64 @@ int main(int argc, char **argv) {
 			check(server.records_asked.front().empty());
 			check(std::find(server.records_asked.begin(), server.records_asked.end(), std::vector<std::string>{"bad"}) !=
 				  server.records_asked.end());
+		}
+		{
+			// F1, the review's probe: big is served bad's honest, correctly rooted full copy under big's
+			// cursor. The agent refuses it, and big comes as records with big's own reads.
+			const auto head = server.find("big").history().head();
+			Transfer foreign = bad.transfer;
+			foreign.answer.to = head;
+			install(server, "big", std::move(foreign));
+			{
+				std::lock_guard lock(server.mutex);
+				server.records_asked.clear();
+			}
+			options.namespaces = {"big"};
+			options.directory = root / "foreign";
+			std::filesystem::create_directories(root / "foreign");
+			std::filesystem::permissions(root / "foreign", std::filesystem::perms::owner_all);
+			Agent agent(root / "foreign", l::StoreOpenMode::FreshEmpty, options, account, domain, queue);
+			const auto state = agent.until([&](const auto &s) { return at(s, "big", head); }, "foreign copy as records", 120s);
+			check(state.transfers.refused == 1 && state.transfers.received == 0);
+			matches(server, root / "foreign", limits, "big");
+			{
+				std::lock_guard lock(server.mutex);
+				check(std::find(server.records_asked.begin(), server.records_asked.end(),
+								std::vector<std::string>{"big"}) != server.records_asked.end());
+			}
+			// D1: a records frame names its sender's root. One that the build reaches publishes; one it
+			// does not is refused and the namespace is fetched again as a full copy.
+			const auto rooted = [&](std::int64_t value) {
+				std::lock_guard lock(server.mutex);
+				auto &served = server.find("big");
+				served.transactions.push_back({{"big:k0000003", def(value, 0)}});
+				const auto copy = canonical(served, limits);
+				const auto commitment = p::state_commitment(copy.root);
+				d::RootDigest digest;
+				std::copy(commitment.begin(), commitment.end(), digest.begin());
+				return std::pair{served.history().head(), digest};
+			};
+			auto honest = rooted(91);
+			{
+				std::lock_guard lock(server.mutex);
+				server.roots["big"] = honest;
+			}
+			auto rooted_state = agent.until([&](const auto &s) { return at(s, "big", honest.first); }, "rooted records");
+			check(rooted_state.transfers.diverged == 0);
+			auto wrong = rooted(92);
+			wrong.second[0] ^= 1;
+			{
+				std::lock_guard lock(server.mutex);
+				server.roots["big"] = wrong;
+			}
+			agent.until([](const auto &s) { return s.transfers.diverged > 0 && s.repair.requested > 0; }, "diverged records");
+			{
+				std::lock_guard lock(server.mutex);
+				server.roots.clear();
+			}
+			rooted_state = agent.until([&](const auto &s) { return at(s, "big", wrong.first) && s.repair.completed > 0; },
+									   "diverged records repaired");
+			matches(server, root / "foreign", limits, "big");
 		}
 		check(!server.failure);
 		queue.reset();
