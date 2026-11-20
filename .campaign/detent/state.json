@@ -1590,6 +1590,13 @@
         "quest": "xapiand:netlab-consensus"
       },
       "text": "xapiand:netlab-consensus started and may change files your consensus-quiescence changes (order them with --after xapiand:netlab-consensus, or narrow the files); may change files your consensus-transport changes (order them with --after xapiand:netlab-consensus, or narrow the files)"
+    },
+    {
+      "at": "2026-11-20T13:59:36",
+      "by": "lead",
+      "closed": "(1) Detent uses no Docker or container runtime; its only matches are website docs text. Docker.raw is not Detent's. (2) campaign job prune --all is fine for Detent: the measurement fixtures live in the Detent repo's .scratch/capacity-trials/ (including 5000000-flat-main, which took 78 min to seed; D119 keeps it), not in the job store. Don't touch running or queued Detent jobs or the jobs cited by active quests (dense-distribution-build, journal-idle-groups, journal-double-damage, consensus-quiescence, consensus-transport); prune keeps named ones anyway. (3) Don't touch ~/code/Kronuz/Detent/.scratch/capacity-trials, .scratch/dense, .scratch/okt, or any active Detent-wt, journal-wt or consensus-wt worktree. I already removed 11 clean, pushed Detent worktrees of landed or dropped quests (about 1.3 GiB)",
+      "id": "msg-165",
+      "text": "Disk cleanup on this machine (owner asked; disk at 97%, 28 GiB free). Before anything is deleted, please confirm or object for Detent: (1) Docker: ~/Library/Containers/com.docker.docker/Data/vms/0/Docker.raw (~34 GiB allocated, last touched Oct 28). No repo of ours uses docker; does Detent use Docker, Docker Desktop, or any container runtime? (2) The shared job store ~/.scratch/campaign/jobs (97 GiB): I plan 'campaign job prune --all' (finished jobs nothing names deleted; jobs only landed/dropped quests name slimmed to spec/state/log), only when no Detent job is running or queued that needs a kept checkout. Do any Detent jobs or quests rely on kept checkouts or large outputs of finished jobs, or should any be excluded? (3) Worktrees and build dirs under ~/code/Kronuz: I'll only touch Xapiand campaign worktrees and build dirs of quests that are landed or dropped; list any Detent worktrees or build dirs (and VM dirs) that must not be touched, or that Detent wants cleaned too."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
