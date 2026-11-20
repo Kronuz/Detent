@@ -1,49 +1,31 @@
 # consensus-quiescence: journal
 
-State: blocked on lead: file set (see Blocked on); waiting on jobs 261120-092714-977394
+State: A1 Driver step done at consensus:b8de3b8 (pushed); waiting on jobs 261120-095339-49e5f9 (suite), 261120-095359-890b19 (mutant), 261120-095401-ec64ca; next A3
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
 
-A1 Driver step: `Driver::recover` with a closed record, `Driver::closed_state(id)`, and a
-barrier-counting Driver test (reopened lone voter's first write = an open group's). Needs the
-files under Blocked on.
+A3: TSan job over the simulation's closes and reopens.
 
 ## Next
 
-1. Once worker.h and admission.h are in the set: Worker forwarders `closed_state()` and
-   `reopen(ClosedState)`; Propose and ChangeMembership plans reserve the hard state (the term
-   record, 24 B); Driver `closed_state(id)` (RFTCLOS1 bound to the host table's incarnation) and
-   `recover(id, restore, record)`; driver_close_test case counting turn barriers for the first
-   write after a reopen against an open group's; crash at every step of close and reopen.
-2. Quiescence proper (needs types.h): leader at rest stops heartbeats and CheckQuorum (R18),
-   followers stop timers; `Wake`, `LeaderGone` messages (DTC2 tags in transport/codec.h).
-3. A3: TSan simulation job over closes, reopens and quiescence under partitions.
-4. A6: per-idle-group heap breakdown (consensus row + journal) against Xapiand's 6,984 B.
-5. A2: merge quest/detent/consensus-transport, then the per-node-pair detector raising
+1. A3: TSan simulation job over closes, reopens and quiescence under partitions.
+2. A6: per-idle-group heap breakdown (consensus row + journal) against Xapiand's 6,984 B.
+3. A2: `Wake`, `LeaderGone` in types.h; leader at rest stops heartbeats and CheckQuorum, followers
+   stop timers; merge quest/detent/consensus-transport, then the per-node-pair detector raising
    LeaderGone for every group on the pair; mutant dropping one group's LeaderGone.
-6. A4: idle CPU per group at 1M groups, strict job, results doc.
+4. A4: idle CPU per group at 1M groups, strict job, results doc.
+5. Crash at every step of close and reopen through the Driver (A5's last test).
 
 ## Blocked on
 
-Lead: the file set lacks files the Driver step and quiescence must change. No in-flight quest
-holds them (driver-pipeline is planned and already waits on core.h/driver.h):
-- `include/consensus/worker.h`: two forwarders (`closed_state()`, `reopen()`), so the Driver
-  reaches the Core it owns.
-- `include/consensus/admission.h`: Propose and ChangeMembership plans reserve the hard state;
-  without it the reopened leader's first batch (entry + term record) overruns its reservation
-  and the journal refuses it (store.h:414, "oversized append reservation").
-- `include/consensus/types.h`: `Wake` and `LeaderGone` (D12), which the quest's contract names.
-- Recommendation: `campaign set consensus-quiescence files+=include/consensus/worker.h,include/consensus/admission.h,include/consensus/types.h,tools/mutants.sh,fuzz/**`
-  (mutants.sh for A2's LeaderGone mutant; fuzz/ for the codec's new tags).
-- Alternative: only worker.h + admission.h now (A1's Driver step, what Xapiand waits on), types.h
-  when quiescence starts.
+Nothing.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Core: consensus:b4314e4, simulation_test `closing` cases (lone voter 2 barriers vs 5 without the record; three voters no election; stale record elects; bytes); suite 261120-092714-977394 (running). Driver step pending (Blocked on) |
+| A1 | Core: consensus:b4314e4, simulation_test `closing` cases (lone voter 2 barriers vs 5 without the record; three voters no election; stale record elects; bytes). Driver: consensus:b8de3b8, driver_close_test `reopen_barriers` (a request issued with the reopening recover: 2 turn barriers = an open group's; without the record 5; damaged bytes Corruption), job 261120-095401-ec64ca; mutant without the admission fix (journal refuses the batch) 261120-095359-890b19 --fails-without; suite 261120-095339-49e5f9 |
 | A2 | <no evidence yet> |
 | A3 | Core closes/reopens under the random simulation's partitions: 300 seeds x 10,000 steps, 31,198 closes, 16,401 resumed terms, 315 stale refusals, oracles clean (local run); TSan job pending |
 | A4 | <no evidence yet> |
@@ -71,5 +53,16 @@ holds them (driver-pipeline is planned and already waits on core.h/driver.h):
   removal commits (the random simulation found such a record within 300 seeds).
 - R5 The closed state's types and codec live in core.h while storage.h and types.h are outside
   the file set; they move there if the set widens.
+- R7 Driver::closed_state requires no waiter and an empty inbox besides Core::closed_state: the
+  group is at rest. recover(id, restore, closed) decodes before any recovery IO, so a refused
+  record leaves a half-opened row that closes (a Core built by recover and never started never
+  drains).
+- R8 Propose and ChangeMembership plans always reserve the hard state (not only after a reopen):
+  one plan shape, and a reservation is released at the append.
+- R9 The barrier count is the host turn log's `stats().barriers`. A request issued after the
+  recover completes costs 3: the journal re-stages the table's checkpoint record as the group's
+  first record (journal recover_shared) and it takes its own turn; issued with the recover, it
+  rides that turn (2). Documented in quiescence.md "Through the Driver"; Xapiand issues the request
+  with the recover.
 - R6 Term record: the first storage batch after a reopen carries the hard state (Core::persist),
   so the reopen adds no barrier. Mutant without it fails `lone_voter` (local).
