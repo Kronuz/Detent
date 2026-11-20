@@ -6188,11 +6188,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "folded into docs-site-start as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Docs refresh: architecture",
-      "updated": "2026-11-10T11:59:26"
+      "updated": "2026-11-20T06:55:40"
     },
     "docs-site-audit": {
       "accepted": {},
