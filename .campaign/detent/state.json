@@ -20565,11 +20565,12 @@
         "transport-connection"
       ],
       "provides": [],
+      "reason": "folded into consensus-transport as a task (one feature per quest, owner msg-145/147)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "dropped",
       "title": "Pre-authentication admission favors configured peers; transport-connection's notes",
-      "updated": "2026-11-18T02:57:33"
+      "updated": "2026-11-20T06:55:46"
     },
     "transport-connection": {
       "accepted": {
