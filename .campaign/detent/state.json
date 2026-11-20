@@ -3764,6 +3764,8 @@
       "after": [
         "consensus-transport"
       ],
+      "base": "e1f249d8d9ff64410f87042ba90f4c218d9ec336",
+      "branch": "quest/detent/consensus-quiescence",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3788,6 +3790,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-quiescence",
       "landed": [],
       "lenses": [
         "correctness"
@@ -3797,9 +3800,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-20T09:02:30"
+      "updated": "2026-11-20T09:02:37",
+      "worktree": "../consensus-wt/detent/consensus-quiescence"
     },
     "consensus-transport": {
       "accepted": {},
