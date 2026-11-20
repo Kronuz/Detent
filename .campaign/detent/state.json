@@ -5105,7 +5105,9 @@
         "benchmarks/**",
         "docs/**",
         "website/src/content/docs/**",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "README.md",
+        ".github/workflows/**"
       ],
       "landed": [],
       "lenses": [
@@ -5114,12 +5116,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: owner msg-145: one whole-feature quest built today; overlaps are broad globs where other active quests edit other regions, and each merges main",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T04:57:40",
+      "updated": "2026-11-20T09:00:20",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
