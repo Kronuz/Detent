@@ -1199,6 +1199,23 @@
         ]
       },
       "text": "journal-close-in-doubt landed: unlocks frees include/journal/turn_driver.h, test/**, CHANGELOG.md for journal-blocking-wake; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T16:51:10",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-131",
+      "items": {
+        "consensus-dns-notes": "frees include/consensus/transport/resolve.h, test/transport/resolve_test.cc, docs/mechanisms/peer-dns.md for consensus-dns-notes",
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+      },
+      "settles": {
+        "start": [
+          "consensus-dns-notes",
+          "journal-hop-on-task"
+        ]
+      },
+      "text": "set consensus-dns-notes: unlocks frees include/consensus/transport/resolve.h, test/transport/resolve_test.cc, docs/mechanisms/peer-dns.md for consensus-dns-notes; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3041,8 +3058,7 @@
       "consumes": [],
       "files": [
         "test/consensus_test.cc",
-        "test/retained_state_test.cc",
-        "CMakeLists.txt"
+        "test/retained_state_test.cc"
       ],
       "landed": [],
       "lenses": [],
@@ -3053,7 +3069,7 @@
       "risk": "low",
       "status": "planned",
       "title": "consensus: tests for late-success read probe and the snapshot guard",
-      "updated": "2026-11-19T05:59:16"
+      "updated": "2026-11-19T16:56:51"
     },
     "consensus-quiescence": {
       "accepted": {},
