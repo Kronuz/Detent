@@ -21,7 +21,7 @@ CI at aa8a5c04 (run 44698269834): failed only test_system_managed_relay_ipv6 on 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [manual] Eight `exclusive` jobs, 10 min bound, quest-tagged, each exit 0, each at its named commit (dense Detent:9852a3c, s2 Detent:35296ba, stacked Detent:d04794d, main Detent:ea1fddc; harness Detent:ea1fddc). Round 1: dense 261119-155051-8896b4, s2 261119-155053-88d935, stacked 261119-155055-bede28, main 261119-155057-fc4275. Round 2: dense 261119-155100-6a6707, s2 261119-155102-50abde, stacked 261119-155104-b28b3c, main 261119-155106-5540f0. No job has a "beside" record in its state, log or runner log; each ran its measured part from `began` to `ended` with no other hold (5540f0 waited about two hours to start and then ran alone). |
+| A1 | [manual] Eight `exclusive` jobs, 10 min bound, quest-tagged, each exit 0, each at its named commit (dense Detent:9852a3c, s2 Detent:35296ba, stacked Detent:d04794d, main Detent:ea1fddc; harness Detent:ea1fddc). Round 1: dense 261119-155051-8896b4, s2 261119-155053-88d935, stacked 261119-155055-bede28, main 261119-155057-fc4275. Round 2: dense 261119-155100-6a6707, s2 261119-155102-50abde, stacked 261119-155104-b28b3c, main 261119-155106-5540f0. No job has a "beside" record in its state, log or runner log; each ran its measured part from `began` to `ended` with no other hold (5540f0 waited about two hours to start and then ran alone). Lead checked 2026-11-20: all eight ids are `done` at level `exclusive` in `campaign job list`. |
 | A2 | [artifact] `docs/perf/dense-sync-stack.md`: the 5M times table and paired differences beside the 100K table, and the Runs rows. |
 
 ## Result
