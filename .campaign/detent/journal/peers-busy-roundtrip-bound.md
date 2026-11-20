@@ -1,6 +1,6 @@
 # peers-busy-roundtrip-bound: journal
 
-State: waiting on jobs 261119-155313-833fb6 261119-155314-762e16 261119-155316-53e971 261119-155317-278c71
+State: waiting on jobs 261119-161259-366f8f 261119-161300-7ea583 261119-161302-bf6ec3 261119-161315-9fcd66, CI at consensus:16d10b0
 Quest: .campaign/detent/quests/peers-busy-roundtrip-bound.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,27 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 1 (A1). First probes (consensus:7beb709, 6 workers x N beside 16 niced spinners, ~/.scratch/peers-busy-roundtrip-bound/{rel,tsan}-1):
-- RelWithDebInfo, d7f473: 67 of 72 fail peers_test.cc:1210 (the bound). Fetching slowest bucket
-  <=256 ms in 67, <=64 ms in 5; quiet phase <=16 ms in 72 of 72. Pump gap while fetching 88-163 ms
-  (quiet 1-3 ms); watchdog thread host stall 0-1 ms in every run. Buckets while fetching:
-  ~35 in 4 ms, ~75 in 16 ms, ~8 in 64 ms, ~5 in 256 ms of ~120 round trips.
-- TSan, bacf48: 3 of 36 fail (1 s bucket), 33 pass at the 256 ms bound; quiet <=16 ms in 31, <=64 ms in 5.
-- So the executor stops for 100+ ms while fetching, the oversleeping watchdog does not see a host
-  stall (a sleeper is favoured over a busy thread, so it proves little). Next probe separates
-  executor work from time off the CPU with thread CPU time per pump gap (af3d2b1):
-  The af3d2b1 probes (3024fe 1465fa 8569a4 62a3e2) failed to compile (my `auto` declaration
-  error, fixed in a34b8ed); rerun at a34b8ed with spinners capped at the light hold's CPUs
-  (4 workers + 4 spinners): 833fb6 rel loaded x48, 762e16 TSan loaded x32, 53e971 rel quiet x20
-  (strict), 278c71 TSan quiet x15 (strict).
+Fix at consensus:16d10b0 (test/transport/peers_test.cc); proofs queued: A2 passes 366f8f (RelWithDebInfo
+loaded x48, STRICT) and 7ea583 (TSan loaded x32); A2 mutant bf6ec3 (--fails-without at
+consensus:3e52869, refs/mutants/peers-busy-roundtrip-bound/append-delay-100ms: the append writer
+pauses 100 ms before every send; its log must fail the `slow * slow_round_trips_share <= busy.count`
+CHECK, not another); A3 suite 9fcd66 (--minutes 50) and CI.
 
 ## Next
 
-1. Read them: the worst gap's CPU vs wall time (work or off CPU), and the quiet-host baseline.
-2. Derive the bound with stated headroom, keeping a 100 ms transport delay failing; mutant =
-   writer pauses 100 ms before sending an append (refs/mutants/peers-busy-roundtrip-bound/append-delay-100ms),
-   job --fails-without; the failing CHECK must be the bound's line.
-3. Suite (consensus, --minutes 50) and CI.
+1. Read the four jobs; check the mutant's failing line is the share CHECK.
+2. If all green: fill Evidence and Result, ready for review.
 
 ## Blocked on
 
@@ -37,20 +26,23 @@ Step 1 (A1). First probes (consensus:7beb709, 6 workers x N beside 16 niced spin
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | Cause: the one executor runs 20-35 ms of fetch work per pump gap (quiet host, 100% CPU: rel-quiet 53e971 gap 19-23 ms, cpu equal), so an append round trip spans one to two such gaps (quiet: 18 of 20 runs <=16 ms, 2 <=64 ms), and a loaded host takes the executor off the CPU for tens of ms more. Loaded RelWithDebInfo 833fb6 (48 runs, 4 workers + 4 spinners, consensus:a34b8ed): 5 failed the 64 ms bound; their longest gap was off the CPU 42-84 ms (wall 85, cpu <=37), the 41 passing ones <=47 ms; each failing run had 1-3 of ~120 round trips (2.3% at most) in the 256 ms bucket. Not the transport: quiet-phase round trips <=16 ms in 72 of 72 runs (7beb709 probe d7f473), and the watchdog thread saw no host stall (0-6 ms) because a sleeper is favoured over a busy thread. Heavier load (d7f473: 16 spinners + 6 workers) put up to 8% past 64 ms (67 of 72 runs failed the old bound); TSan 762e16 loaded: 4 of 32 reach 256 ms bucket, <=0.6% of round trips; bacf48 heavy TSan: up to 18.5% past 64 ms, 3 of 36 in the 1 s bucket. Passing distributions in ~/.scratch/peers-busy-roundtrip-bound/{rel,tsan}-{1,loaded,quiet}. |
+| A2 | see jobs |
+| A3 | see jobs |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+peers_test fetch-alongside-consensus bounds the share of append round trips past the bucket edge
+(64 ms; 256 ms under TSan), one in eight at most, instead of the slowest bucket. Headroom: loaded
+runs peak at 2.3% (RelWithDebInfo) and 0.6% (TSan), so 12.5% is 5x and 20x; a 100 ms delay on every
+append puts nearly all past 64 ms. The edge under TSan is unchanged (a 100 ms delay passes it there).
+Not fixed in the transport: the executor's 20-35 ms work gaps are the design of the fetch lane.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Share, not slowest: a bucket maximum names the one stalled round trip, the host's; the share
+   names whether appends are held back. Timeouts stay 0, commits and term checks unchanged.
+2. Kept the TSan/non-TSan edge split (an existing shape); a 64 ms TSan edge fails heavy overload (21 of 36 at 1/8).
+3. Removed the stall instrumentation (watchdog, CPU per gap) from the test after naming the cause; its numbers are in A1.
