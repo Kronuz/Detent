@@ -17,7 +17,8 @@ Jobs at quest/detent/dd2-canonical-copy:26f9bf49: 261120-045317-4dda07 (A1, A2: 
 1. Local run of the test (synthetic churn), then commit and push.
 2. Jobs: A1+A2 at 100K (`--corpus` with the model's mixed T4 churn), the ctest suite; A3 the
    `--fails-without` job that deletes the `stable_sort` line.
-3. 5M: one round (D85).
+3. Folded into dense-distribution-build: the A3 mutant (delete the `std::stable_sort(sealed` line)
+   and 5M run on the finished feature.
 
 ## Blocked on
 
@@ -43,6 +44,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 - msg (owner via lead, the design is the spec): building dense-distribution.md DD2 as written; no
   deviation so far.
+- msg (owner via lead, folded into dense-distribution-build): mutant and 5M are no longer gates;
+  cancelled the A3 mutant job 261120-045318-889120; the lead merges this branch.
 
 ## Rulings I made
 
