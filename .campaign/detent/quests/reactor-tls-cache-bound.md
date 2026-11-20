@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-The parse cache in `tls::configure` holds no entry, and no decrypted key, once every context built from it is gone, so the cache is bounded by the live contexts (reactor-tls-cache review F3).
+The parse cache in `tls::configure` holds no entry, and no decrypted key, once every context built from it is gone, so the cache is bounded by the live contexts (reactor-tls-cache review F3), and no freed copy of a password digest outlives its use (F7). A wrong password on a cache hit calls the password callback twice (F8); that stays, since it only happens on a failing configure.
 
 ## Acceptance criteria
 
@@ -16,6 +16,7 @@ job can show it.
 
 - A1 After the last context using an entry is freed, the entry and its key are released: a test that fails without it.
 - A2 Configuring N distinct paths and freeing their contexts leaves the cache empty: a test.
+- A4 The password digest and every copy of it are cleansed when freed (reactor-tls-cache review F7): a test or an ASan-visible check.
 - A3 The suite, ASan+UBSan and TSan pass: jobs.
 
 ## Contracts
