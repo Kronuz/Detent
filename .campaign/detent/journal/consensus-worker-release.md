@@ -1,6 +1,6 @@
 # consensus-worker-release: journal
 
-State: waiting on jobs 261119-170644-cac82f 261119-170646-a56176 261119-170647-c66dad 261119-170649-5a5b1e 261119-170650-eb7f80 261119-170651-ca2fc5
+State: waiting on jobs 261119-191100-549567 261119-191103-5a8902 261119-191106-27f3ae 261119-191108-fcbabe 261119-191111-411633 261119-191113-2b1775 261119-191116-d053b8 261119-191119-509297 261119-191121-9e2d59 261119-191124-9c1a6d 261119-191127-8e0f0f 261119-191129-3f9672 261119-191132-a7d1f4 261119-191135-0d8700 261119-191137-b98c7e 261119-191140-4fdf57 261119-191143-2db797 261119-191145-91f9c5 261119-191147-b78d00 261119-191150-03bd0f 261119-191152-8abf98
 Quest: .campaign/detent/quests/consensus-worker-release.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 2 at consensus:5de6c78 (pushed, CI running): CI 44627924741 at e74fccf failed
-linux-asan-ubsan, a LeakSanitizer indirect leak in consensus_driver_close_crash. Fixed in the
-Driver (ruling 10). Round-1 jobs at e74fccf: all passed; the ten that exited 1 are
---fails-without runs (at-main/at-4fe7df2 headers and mutants), where 1 is the pass.
+Round 3 at consensus:08cdf68 (pushed, CI running): durability review at 5de6c78 CHANGES, F1
+(in_doubt_ dies with the Driver). journal repinned to its main journal:9e11713 (past
+journal:8c92ed9); in_doubt_ and Worker::close_failed() deleted; create/recover map the Host's
+hold EIO to close_in_doubt; second_driver (A7) and entry_throw (N3) added; N2 wording fixed.
+Local: default cases 164 checks, 0 failures; close_crash 8 seeds clean.
 
 ## Next
 
-1. When the jobs land: paste `campaign brief`'s table; check CI linux-asan-ubsan at 5de6c78.
-2. Ask the lead to accept durability: F2=261119-170651-ca2fc5 (suite at 5de6c78).
+1. When the jobs land: paste `campaign brief`'s table; read the reviewer's probes
+   261119-184141-7487c2 and 184142-2f5a77; check CI at 08cdf68.
+2. Ask the lead to accept durability with the suite 261119-191152-8abf98.
 
 ## Blocked on
 
@@ -31,12 +33,13 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | at e74fccf: 261119-142320-5cb4f1, 142322-16421c; fails without: 142324-be3da9, 142326-5f385a, 142330-95163b, 142332-eb61d7, 142333-05802c, 142336-bc2e25, 142337-e17ff4. At 5de6c78: failed_close 170644-cac82f, mutant 170646-a56176 |
-| A2 | at e74fccf: 261119-142339-ecefd0; fails without: 142342-9c0442, 142344-c6f533, 142330-95163b, 142332-eb61d7 |
-| A3 | at e74fccf: 261119-142346-b97e3c. At 5de6c78: 170647-c66dad (200 seeds); loop-throw mutant 170649-5a5b1e |
-| A5 | at e74fccf: 261119-142349-842507; fails without: 142351-017c12 |
-| A6 | suite at e74fccf 261119-142246-121550; at 5de6c78 261119-170651-ca2fc5 |
-| A4 | TSan at e74fccf 261119-142353-d367e9; ASan+UBSan close tests at 5de6c78 170650-eb7f80 (no LSan on macOS); CI linux-asan-ubsan at 5de6c78 running |
+| A1 | at 08cdf68: reopen_rows 191100-549567, failed_close 191103-5a8902; fails without: main's headers 191106-27f3ae, mutants 191108-fcbabe (table), 191111-411633 (settle), 191113-2b1775 (watch), 191116-d053b8 (EIO not mapped) |
+| A2 | at 08cdf68: 191127-8e0f0f; fails without: 191129-3f9672 (main's headers), 191132-a7d1f4 (no table close) |
+| A3 | at 08cdf68: 191135-0d8700 (200 seeds); fails without: 191137-b98c7e (loop throw), 191140-4fdf57 (entry drops the loop's throw, N3) |
+| A5 | at 08cdf68: 191143-2db797; fails without: 191145-91f9c5 |
+| A6 | suite at 08cdf68 (journal 9e11713) 261119-191152-8abf98 |
+| A7 | at 08cdf68: second_driver 191119-509297; fails without: at 5de6c78's headers and pin 191121-9e2d59, mutant 191124-9c1a6d |
+| A4 | TSan 191147-b78d00, ASan+UBSan 191150-03bd0f (macOS, no LSan) at 08cdf68; CI at 08cdf68 running (linux-asan-ubsan is the LSan check) |
 
 Review findings: F1 (malformed jobs: `'--quest ...'` as one token, zsh does not split an unquoted
 variable) resubmitted from a POSIX sh script, ~/.scratch/detent/consensus-worker-release/submit.sh;
@@ -108,3 +111,14 @@ consensus:4fe7df2 (local numbers; jobs pending).
     one: DRIVER.md promises every call completes. loop() now runs shutdown() on a throw, then
     rethrows. close_crash checks every call it started completes; without the catch it fails at
     seed 1 cut 53 (local), mutant job 170649-5a5b1e.
+11. Round 3 (D128): the in-doubt mark is journal's (Host's GroupEntry::in_doubt, refused by
+    Host::hold with EIO). The Driver names it close_in_doubt only when the EIO leaves the Store
+    holding nothing (`!host_.holding(id)`): the hold is taken first and refuses before any IO,
+    while an EIO from later IO leaves the hold held, so a real disk EIO keeps its own error.
+12. Pin journal:9e11713 (its main), not 8c92ed9: A6 asks for main. The blocking entry passes its
+    scheduler to TurnDriver::Hold, as journal::run does there.
+13. The nofence mutant is dropped: journal fences a failed close itself now (journal:a64c618), so
+    the Worker's fence is a second guard and its mutant would survive.
+14. Test Loop: the reviewer's second_driver gives the Driver its own stop (driver_stop);
+    Loop::shutdown() requests both, the turn driver's first, which shutdown_ends and
+    shutdown_idles now call.
