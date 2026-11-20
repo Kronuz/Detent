@@ -9534,18 +9534,51 @@
         "logger.cc",
         "test/wake_mutant.sh"
       ],
-      "journal": "../Detent-wt/detent/logger-slack-mutant",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T16:49:01",
+          "commit": "18be8a3c3c1919e9c4331e1490212d5295aec7f5",
+          "criteria": {
+            "A1": "261119-154335-131ea3",
+            "A2": "261119-154338-cee29b"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "18be8a3c3c1919e9c4331e1490212d5295aec7f5",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-154338-cee29b",
+              "level": "light",
+              "seconds": 124.9,
+              "state": "done",
+              "what": "logger-slack-mutant check suite at 18be8a3c3c19"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "18be8a3c3c1919e9c4331e1490212d5295aec7f5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "1d52e89644205cc18a852587717fd2a267c63de8",
+          "reason": "",
+          "tested": "18be8a3c3c1919e9c4331e1490212d5295aec7f5"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "logger: a mutant for the deferred lines' 8 ms slack",
-      "updated": "2026-11-19T15:16:13",
-      "worktree": "../logger-wt/detent/logger-slack-mutant"
+      "updated": "2026-11-19T16:49:03",
+      "worktree": ""
     },
     "logger-wheel-ab": {
       "accepted": {},
