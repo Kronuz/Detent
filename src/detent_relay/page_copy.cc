@@ -1,8 +1,15 @@
 #include "page_copy.hh"
 #include "detent_distribution/frame_input.hh"
 #include "detent_local/derived_ids.hh"
+#include "detent_local/layout.hh"
+#include "paged_canonical_copy.hh"
+#include "paged_delta_leaves.hh"
+#include "paged_navigation.hh"
+#include "paged_overlay_assembler.hh"
+#include "paged_trie_overlay.hh"
+#include <algorithm>
+#include <cstring>
 #include <limits>
-#include <map>
 #include <optional>
 #include <stdexcept>
 
@@ -29,14 +36,27 @@ p::Limits page_limits() {
 	limits.records = std::numeric_limits<std::uint32_t>::max();
 	return limits;
 }
-// The one records full copy of a body, as an agent's coordinator reads it.
-class CopyInput final : public d::FrameSink {
+constexpr local::ValidationBudget unbounded{std::numeric_limits<std::size_t>::max(),
+											std::numeric_limits<std::size_t>::max()};
+void cancelled(const std::atomic<bool> *cancel) {
+	if (cancel && cancel->load(std::memory_order_relaxed))
+		throw std::runtime_error("relay pages: the build was cancelled");
+}
+template <class T> void dispose(T &work) {
+	for (;;) {
+		auto budget = unbounded;
+		if (work.discard(budget))
+			return;
+	}
+}
+// The one records frame of a body, as an agent's coordinator reads it.
+class RecordsInput final : public d::FrameSink {
   public:
-	explicit CopyInput(const d::Limits &limits) : limits_(limits) {}
+	explicit RecordsInput(const d::Limits &limits) : limits_(limits) {}
 	std::optional<d::FrameInput> input;
 	void frame(std::string_view name, d::FrameKind kind, std::uint64_t after, const d::NamespaceCursor &to) override {
-		if (input || kind != d::FrameKind::FullCopy)
-			throw std::invalid_argument("relay pages: the records answer is not one full copy");
+		if (input || kind == d::FrameKind::Pages)
+			throw std::invalid_argument("relay pages: the records answer is not one records frame");
 		input.emplace(name, kind, after, to, d::Profile{}, limits_);
 	}
 	void piece(d::PieceKind kind, std::uint64_t first, std::uint64_t last) override { input->piece(kind, first, last); }
@@ -47,70 +67,176 @@ class CopyInput final : public d::FrameSink {
   private:
 	d::Limits limits_;
 };
+// Pages and bytes of a segment whose every page is live: one a build or a relocation just wrote.
+x::SegmentReachability all_live(std::span<const char> bytes) {
+	x::SegmentReachability out;
+	for (std::size_t at = 0; at < bytes.size(); ++out.pages) {
+		const auto length = local::read_integer(bytes, at + 8, 4);
+		out.bytes += length;
+		at = (at + length + 7) & ~std::size_t(7);
+	}
+	return out;
+}
 } // namespace
 
-struct BuiltCopy::Impl {
-	std::optional<x::PagedImage> image;
-	std::map<local::SegmentId, std::string_view> segments;
-	~Impl() {
-		local::ValidationBudget disposal{std::numeric_limits<std::size_t>::max(), std::numeric_limits<std::size_t>::max()};
-		if (image)
-			image->discard(disposal);
-	}
-};
-BuiltCopy::BuiltCopy() : impl_(std::make_unique<Impl>()) {}
-BuiltCopy::~BuiltCopy() = default;
-std::span<const x::BuiltSegment> BuiltCopy::segments() const { return impl_->image->segments(); }
-x::TransferPages BuiltCopy::pages() const {
-	return [impl = impl_.get()](const p::Reference &reference) -> std::span<const char> {
-		const auto found = impl->segments.find(reference.segment);
-		if (found == impl->segments.end() || reference.offset > found->second.size() ||
-			reference.length > found->second.size() - reference.offset)
-			throw std::invalid_argument("relay pages: a reference outside the built copy");
-		return {found->second.data() + reference.offset, reference.length};
+Generation::~Generation() = default;
+std::uint64_t Generation::physical_bytes() const noexcept {
+	std::uint64_t total = 0;
+	for (const auto &segment : segments_)
+		total += segment.ownership.length;
+	return total;
+}
+x::TransferPages Generation::pages() const {
+	return [this](const p::Reference &reference) -> std::span<const char> {
+		const auto i = x::find_segment(inputs_, reference.segment);
+		if (i == inputs_.size() || reference.offset > inputs_[i].bytes.size() ||
+			reference.length > inputs_[i].bytes.size() - reference.offset)
+			throw std::invalid_argument("relay pages: a reference outside the generation");
+		return inputs_[i].bytes.subspan(reference.offset, reference.length);
 	};
 }
-p::Limits BuiltCopy::limits() const noexcept { return page_limits(); }
+p::Limits Generation::limits() const noexcept { return page_limits(); }
+void Generation::hold(std::vector<std::pair<x::BuiltSegment, x::SegmentReachability>> held) {
+	std::sort(held.begin(), held.end(), [](const auto &a, const auto &b) {
+		return std::memcmp(a.first.ownership.segment.data(), b.first.ownership.segment.data(),
+						   a.first.ownership.segment.size()) < 0;
+	});
+	std::uint64_t pages = 0, bytes = 0;
+	for (auto &[segment, live] : held) {
+		inputs_.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}, nullptr});
+		live_.push_back(live);
+		segments_.push_back(std::move(segment));
+		pages += live.pages;
+		bytes += live.bytes;
+	}
+	if (pages != root_.pages || bytes != root_.bytes || segments_.size() != root_.segments)
+		throw std::logic_error("relay pages: a generation's segments disagree with its root");
+	const auto commitment = p::state_commitment(root_);
+	std::copy(commitment.begin(), commitment.end(), commitment_.begin());
+}
 
-std::shared_ptr<const BuiltCopy> build_copy(std::string_view body, const std::atomic<bool> *cancel) {
+std::shared_ptr<const Generation> build_generation(std::string_view body, std::shared_ptr<const Generation> base,
+												   const std::atomic<bool> *cancel) {
 	const auto limits = input_limits();
-	CopyInput sink(limits);
+	const auto account = limits.storage_account;
+	RecordsInput sink(limits);
 	d::SessionFramesDecoder decoder(sink, limits);
 	std::span<const char> input(body);
 	auto budget = body.size();
 	decoder.feed(input, budget);
 	decoder.finish();
 	if (!sink.input)
-		throw std::invalid_argument("relay pages: the records answer holds no full copy");
+		throw std::invalid_argument("relay pages: the records answer holds no frame");
 	const auto at = sink.input->target();
-	std::shared_ptr<const d::ValidatedSnapshot> snapshot = sink.input->snapshot();
-	sink.input.reset();
 	const auto bounds = page_limits();
-	x::PagedSnapshotBuilder builder(std::move(snapshot), local::next_generation(std::nullopt, at, d::Profile{}, true),
-									bounds);
-	while (!builder.done()) {
-		if (cancel && cancel->load(std::memory_order_relaxed))
-			throw std::runtime_error("relay pages: the build was cancelled");
-		local::ValidationBudget step{std::size_t{1} << 20, 4096};
-		builder.step(step);
+	std::shared_ptr<Generation> out(new Generation);
+	std::vector<std::pair<x::BuiltSegment, x::SegmentReachability>> held;
+	std::optional<x::PagedImage> image;
+	if (!base) {
+		if (sink.input->kind() != d::FrameKind::FullCopy)
+			throw std::invalid_argument("relay pages: a cold build needs a full copy");
+		std::shared_ptr<const d::ValidatedSnapshot> snapshot = sink.input->snapshot();
+		sink.input.reset();
+		x::PagedSnapshotBuilder builder(std::move(snapshot),
+										local::next_generation(std::nullopt, at, d::Profile{}, true), bounds);
+		while (!builder.done()) {
+			cancelled(cancel);
+			local::ValidationBudget step{std::size_t{1} << 20, 4096};
+			builder.step(step);
+		}
+		image.emplace(builder.take());
+	} else {
+		const auto kind = sink.input->kind();
+		if ((kind != d::FrameKind::Entries && kind != d::FrameKind::Blocks) ||
+			sink.input->after() != base->at().position || !at.same_identity(base->at()))
+			throw std::invalid_argument("relay pages: a build over a base needs the records after it");
+		std::shared_ptr<const d::ValidatedDelta> delta = sink.input->delta();
+		const auto name = sink.input->name();
+		sink.input.reset();
+		// dense-pages D7: each changed leaf through the base's trie, then the new pages assembled.
+		x::DeltaLeaves leaves(name, base->at().position, delta, bounds);
+		x::TrieOverlay overlay(account, base, base->inputs_, base->root_, bounds);
+		for (;;) {
+			cancelled(cancel);
+			auto step = unbounded;
+			leaves.step(step);
+			if (leaves.done())
+				break;
+			const auto leaf = leaves.leaf();
+			overlay.change(leaf.key, leaf.body);
+			while (!overlay.operation_done()) {
+				auto change = unbounded;
+				overlay.step(change);
+			}
+			leaves.consume();
+		}
+		overlay.seal();
+		x::OverlayAssembler assembler(account, overlay, base->inputs_, base->live_, base->root_,
+									  local::next_generation(base->descriptor_, at, d::Profile{}, false), at, bounds);
+		while (!assembler.done()) {
+			cancelled(cancel);
+			local::ValidationBudget step{std::size_t{1} << 20, 4096};
+			assembler.step(step);
+		}
+		const std::vector<x::SegmentReachability> removed(assembler.removed().begin(), assembler.removed().end());
+		image.emplace(assembler.take());
+		for (std::size_t i = 0; i < base->segments_.size(); ++i) {
+			const auto &live = base->live_[i];
+			if (live.pages != removed[i].pages)
+				held.push_back({base->segments_[i], {live.pages - removed[i].pages, live.bytes - removed[i].bytes}});
+		}
+		dispose(assembler);
+		dispose(overlay);
+		dispose(leaves);
 	}
-	std::shared_ptr<BuiltCopy> copy(new BuiltCopy);
-	auto &image = copy->impl_->image.emplace(builder.take());
-	for (const auto &segment : image.segments())
-		copy->impl_->segments.emplace(segment.ownership.segment, segment.bytes->view());
-	const auto &root = image.root();
-	copy->at_ = at;
-	copy->tree_ = root.tree;
-	copy->page_bytes_ = root.bytes;
-	const auto commitment = p::state_commitment(root);
-	std::copy(commitment.begin(), commitment.end(), copy->root_.begin());
-	const auto pages = copy->pages();
-	const auto full = merkle_diff(root.tree, pages, {}, {}, bounds);
-	copy->transfer_ = x::make_transfer(full.pages, pages, bounds);
-	return copy;
+	out->root_ = image->root();
+	out->descriptor_ = image->descriptor();
+	for (const auto &segment : image->segments())
+		held.push_back({segment, all_live(segment.bytes->view())});
+	dispose(*image);
+	out->hold(std::move(held));
+	return out;
 }
 
-std::vector<char> delta_transfer(const MerkleDiff &diff, const BuiltCopy &target) {
+std::shared_ptr<const Generation> relocate(const Generation &generation, const std::atomic<bool> *cancel) {
+	cancelled(cancel);
+	const auto bounds = page_limits();
+	const auto name = local::next_generation(std::nullopt, generation.at(), d::Profile{}, true);
+	auto copy = x::canonical_copy(input_limits().storage_account, generation.inputs_, generation.root_, name.id, bounds);
+	std::shared_ptr<Generation> out(new Generation);
+	out->root_ = copy.root;
+	const auto encoded = p::encode_root(copy.root, bounds);
+	out->descriptor_ = {name.id, p::root_bytes, p::metadata_commitment(encoded), copy.root.cursor, copy.root.profile,
+						name.ordinal};
+	std::vector<std::pair<x::BuiltSegment, x::SegmentReachability>> held;
+	for (auto &segment : copy.segments) {
+		const auto live = all_live(segment.bytes->view());
+		held.push_back({std::move(segment), live});
+	}
+	out->hold(std::move(held));
+	return out;
+}
+
+std::shared_ptr<const CanonicalCopy> full_copy(const Generation &canonical) {
+	auto out = std::make_shared<CanonicalCopy>();
+	out->at = canonical.at();
+	out->tree = canonical.tree();
+	out->root = canonical.root();
+	const auto pages = canonical.pages();
+	const auto full = merkle_diff(canonical.tree(), pages, {}, {}, canonical.limits());
+	out->transfer = x::make_transfer(full.pages, pages, canonical.limits());
+	return out;
+}
+
+WindowGeneration window_entry(std::shared_ptr<const Generation> generation) {
+	WindowGeneration out{generation->at().position, generation->tree(), generation->pages(), {}, {}};
+	for (const auto &segment : generation->segments())
+		out.segments.emplace_back(segment.ownership.segment, segment.ownership.length);
+	out.owner = std::move(generation);
+	return out;
+}
+
+std::vector<char> delta_transfer(const MerkleDiff &diff, const Generation &target) {
 	return x::make_transfer(diff.pages, target.pages(), target.limits());
 }
 } // namespace detent::relay

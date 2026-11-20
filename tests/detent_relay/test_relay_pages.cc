@@ -1,10 +1,13 @@
 // The relay's page answers (dense distribution DD3, D6, D7) over a scripted upstream that serves real
 // history files. A reader that takes pages gets the full copy as a pages frame, and DD1's receiver
 // rebuilds from it the relay's build: every pack byte for byte under the agent's derived ids, and its
-// root. The relay builds once per head. A base its page window holds gets D6's smaller encoding. A
-// position that keeps records gets the same bytes as from a relay that never built. The mirror
-// refuses a pages frame from its upstream. In the service, a build runs off the mirror thread: a
-// records answer goes while a cold pages reader waits for the build.
+// root. The relay builds once per head, over its previous head (D7.2): that build's root is a full
+// build's, and its relocation (D7.4) a full build's files. The canonical copy stays at s while the
+// delta from s is smaller than a fresh copy. A base its page window holds gets D6's smaller encoding.
+// A position that keeps records gets the same bytes as from a relay that never built. A pages answer
+// owns what it sends while a build lands. The mirror refuses a pages frame from its upstream. In the
+// service, a build runs off the mirror thread: a records answer goes while a cold pages reader waits
+// for the build.
 #include "delta_transfer.hh"
 #include "detent_local/derived_ids.hh"
 #include "detent_relay/mirror_service.hh"
@@ -62,6 +65,21 @@ class Upstream final : public r::Upstream {
 		h::Block block{name, identity('i'), first, first + keys.size() - 1, {}};
 		for (std::size_t j = 0; j < keys.size(); ++j)
 			block.changes.push_back(change(name, keys[j], first + j, salt + int(keys[j])));
+		n.files.push_back(add(r::MirrorFile::Kind::Section, "seal-" + std::to_string(seal) + "#" + name, block.first,
+							  block.last, h::encode_block(block)));
+		++seal;
+	}
+	// One seal rewriting keys [0, keep) to `salt + i` and deleting [keep, total).
+	void rewrite_and_drop(const std::string &name, std::size_t total, std::size_t keep, int salt) {
+		auto &n = namespaces_.at(name);
+		const auto first = n.files.back().last + 1;
+		h::Block block{name, identity('i'), first, first + total - 1, {}};
+		for (std::size_t j = 0; j < total; ++j) {
+			auto each = change(name, j, first + j, salt + int(j));
+			if (j >= keep)
+				each.definition.reset();
+			block.changes.push_back(std::move(each));
+		}
 		n.files.push_back(add(r::MirrorFile::Kind::Section, "seal-" + std::to_string(seal) + "#" + name, block.first,
 							  block.last, h::encode_block(block)));
 		++seal;
@@ -155,7 +173,7 @@ struct Received {
 				}};
 	}
 };
-std::unique_ptr<Received> receive(const Frame &frame, const r::BuiltCopy &target, const Received *base = nullptr) {
+std::unique_ptr<Received> receive(const Frame &frame, const r::Generation &target, const Received *base = nullptr) {
 	check(frame.kind == d::FrameKind::Pages);
 	const auto id = l::next_generation(std::nullopt, frame.to, d::Profile{}, true).id;
 	p::Digest root;
@@ -173,9 +191,20 @@ std::unique_ptr<Received> receive(const Frame &frame, const r::BuiltCopy &target
 			out->segments.emplace(id_of, bytes);
 	return out;
 }
-// The build a records reader's answer carries, as the relay builds it.
-std::shared_ptr<const r::BuiltCopy> reference_build(r::NamespaceRelay &relay, const std::string &name) {
-	return r::build_copy(answer(relay, {{name, std::nullopt, false}}));
+// The full build of the state a records reader's answer carries, as the relay builds it cold.
+std::shared_ptr<const r::Generation> reference_build(r::NamespaceRelay &relay, const std::string &name) {
+	return r::build_generation(answer(relay, {{name, std::nullopt, false}}));
+}
+// The pages frame of `built`'s full copy, as a relay that holds it at s sends it.
+Frame full_frame(const r::Generation &built) {
+	const auto copy = r::full_copy(built);
+	return {"", d::FrameKind::Pages, 0, 0, copy->at, copy->root, std::string(copy->transfer.begin(), copy->transfer.end())};
+}
+std::map<l::SegmentId, std::string_view> packs_of(const r::Generation &built) {
+	std::map<l::SegmentId, std::string_view> out;
+	for (const auto &segment : built.segments())
+		out.emplace(segment.ownership.segment, segment.bytes->view());
+	return out;
 }
 
 void prepare(const std::filesystem::path &root) {
@@ -208,13 +237,12 @@ void full_copy(const std::filesystem::path &scratch) {
 
 	const auto built = reference_build(relay, "app");
 	check(built->at() == frames[0].to && built->root() == frames[0].root);
-	check(std::string_view(built->transfer().data(), built->transfer().size()) == frames[0].transfer);
+	check(full_frame(*built).transfer == frames[0].transfer);
 	const auto got = receive(frames[0], *built);
-	const auto packs = built->segments();
+	const auto packs = packs_of(*built);
 	check(got->transfer.tree == built->tree() && got->transfer.segments.size() == packs.size());
-	for (std::size_t i = 0; i < packs.size(); ++i)
-		check(got->transfer.segments[i].ownership.segment == packs[i].ownership.segment &&
-			  got->transfer.segments[i].bytes->view() == packs[i].bytes->view());
+	for (const auto &segment : got->transfer.segments)
+		check(packs.at(segment.ownership.segment) == segment.bytes->view());
 
 	// Another cold reader at the same head reuses the build; records readers see no change.
 	check(answer(relay, {{"app", std::nullopt, true}}) == answer(relay, {{"app", std::nullopt, true}}));
@@ -229,35 +257,44 @@ void full_copy(const std::filesystem::path &scratch) {
 void deltas(const std::filesystem::path &scratch) {
 	prepare(scratch / "deltas");
 	Upstream up;
-	up.create("app", 3000);
+	up.create("app", 45000); // two segments: a clustered rewrite leaves one
 	const std::vector<std::string> names{"app"};
 	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "deltas", 0644), cluster, up);
-	std::vector<std::shared_ptr<const r::BuiltCopy>> builds;
+	std::vector<std::shared_ptr<const r::Generation>> builds;
 	std::vector<std::unique_ptr<Received>> held;
+	// A cold reader gets the canonical copy, at s, and starts the build at the head. An agent that
+	// holds each head is its full build's full copy.
 	auto cold = [&] {
 		relay.sync(names);
 		const auto frames = decode(answer(relay, {{"app", std::nullopt, true}}));
-		check(frames.size() == 1);
+		check(frames.size() == 1 && frames[0].kind == d::FrameKind::Pages);
 		builds.push_back(reference_build(relay, "app"));
-		held.push_back(receive(frames[0], *builds.back()));
-		check(held.back()->transfer.tree == builds.back()->tree());
+		held.push_back(receive(full_frame(*builds.back()), *builds.back()));
+		check(held.back()->transfer.tree.digest == builds.back()->tree().digest);
+		return frames[0];
 	};
-	cold();
+	const auto first = cold();
+	check(first.to == builds[0]->at() && first.transfer == full_frame(*builds[0]).transfer);
 	struct Step {
 		const char *name;
 		std::vector<std::size_t> keys;
 	};
 	std::vector<std::size_t> scattered, clustered;
-	for (std::size_t i = 0; i < 3000; i += 600)
+	for (std::size_t i = 0; i < 45000; i += 9000)
 		scattered.push_back(i);
-	for (std::size_t i = 0; i < 3000; ++i)
+	for (std::size_t i = 0; i < 36000; ++i)
 		clustered.push_back(i);
 	const Step steps[] = {{"scattered", scattered}, {"clustered", clustered}};
 	std::size_t chosen[3] = {};
 	for (std::size_t s = 0; s < std::size(steps); ++s) {
 		up.write("app", steps[s].keys, int(1000 * (s + 1)));
-		cold();
+		const auto relocations = relay.pages().relocations;
+		const auto copy = cold();
 		const auto &base = *builds[builds.size() - 2], &head = *builds.back();
+		// The head is built over the previous one, and the copy stays at s: the delta from s is smaller
+		// than a fresh copy.
+		check(relay.pages().incremental == s + 1 && relay.pages().relocations == relocations);
+		check(copy.to == builds[0]->at() && copy.transfer == first.transfer);
 		const auto stats = relay.pages();
 		const auto frames = decode(answer(relay, {{"app", base.at(), true}}));
 		check(frames.size() == 1);
@@ -285,11 +322,128 @@ void deltas(const std::filesystem::path &scratch) {
 	}
 	using detent::delivery::Encoding;
 	check(chosen[std::size_t(Encoding::Records)] && chosen[std::size_t(Encoding::Pages)]);
+	// A rewrite of every key makes the delta from s no smaller than a fresh copy: the new head is
+	// relocated into the new copy, whose files are a full build's.
+	std::vector<std::size_t> every(45000);
+	for (std::size_t i = 0; i < every.size(); ++i)
+		every[i] = i;
+	up.write("app", every, 9000);
+	const auto relocations = relay.pages().relocations;
+	cold();
+	check(relay.pages().relocations == relocations + 1);
+	const auto rewritten = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(rewritten.size() == 1 && rewritten[0].to == builds.back()->at() &&
+		  rewritten[0].transfer == full_frame(*builds.back()).transfer);
 	// A base the window does not hold keeps records.
 	auto between = builds.front()->at();
 	++between.position;
 	const auto outside = decode(answer(relay, {{"app", between, true}}));
 	check(outside.size() == 1 && outside[0].kind != d::FrameKind::Pages && outside[0].after == between.position);
+}
+
+// D7.2 and D7.4: a build over the previous generation from the records after it has a full build's
+// root and shares the base's segments it still reaches; its relocation writes a full build's files.
+void incremental(const std::filesystem::path &scratch) {
+	prepare(scratch / "incremental");
+	Upstream up;
+	up.create("app", 3000);
+	const std::vector<std::string> names{"app"};
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "incremental", 0644), cluster, up);
+	relay.sync(names);
+	auto base = reference_build(relay, "app");
+	std::vector<std::size_t> scattered, clustered;
+	for (std::size_t i = 0; i < 3000; i += 300)
+		scattered.push_back(i);
+	for (std::size_t i = 1000; i < 1600; ++i)
+		clustered.push_back(i);
+	const auto shared = [](const r::Generation &a, const r::Generation &b) {
+		std::size_t count = 0;
+		const auto held = packs_of(a);
+		for (const auto &segment : b.segments())
+			count += held.contains(segment.ownership.segment);
+		return count;
+	};
+	for (int step = 0; step < 4; ++step) {
+		if (step == 0)
+			up.write("app", scattered, 500);
+		else if (step == 1)
+			up.write("app", clustered, 600);
+		else if (step == 2)
+			up.rewrite_and_drop("app", 3000, 1200, 700);
+		else
+			up.write("app", {1, 2, 2999}, 800); // brings a deleted key back
+		relay.sync(names);
+		const auto body = answer(relay, {{"app", base->at(), false}});
+		const auto built = r::build_generation(body, base);
+		const auto full = reference_build(relay, "app");
+		check(built->at() == full->at() && built->root() == full->root() && built->tree().digest == full->tree().digest &&
+			  built->page_bytes() == full->page_bytes());
+		if (step < 2)
+			check(shared(*base, *built) > 0);
+		const auto moved = r::relocate(*built);
+		check(moved->root() == full->root() && packs_of(*moved) == packs_of(*full) &&
+			  full_frame(*moved).transfer == full_frame(*full).transfer);
+		std::fprintf(stderr,
+					 "incremental %d: root equal, %zu of %zu segments shared with the base, %llu physical bytes for %llu "
+					 "page bytes; relocation equals the full build's files\n",
+					 step, shared(*base, *built), built->segments().size(),
+					 static_cast<unsigned long long>(built->physical_bytes()),
+					 static_cast<unsigned long long>(built->page_bytes()));
+		base = built;
+	}
+}
+
+// A pages answer owns what it sends: in one answer for two namespaces, the second's build lands the
+// first's newer head and a new canonical copy, which replaces the copy the first's frame names; the
+// frame still carries that copy's bytes. The runner holds each build until the next is submitted,
+// which forces that order.
+void answer_owns(const std::filesystem::path &scratch) {
+	prepare(scratch / "owns");
+	Upstream up;
+	up.create("app", 3000);
+	up.create("beta", 40);
+	std::vector<std::size_t> all(3000);
+	for (std::size_t i = 0; i < all.size(); ++i)
+		all[i] = i;
+	up.write("app", all, 100000);
+	const std::vector<std::string> names{"app", "beta"};
+	std::vector<std::function<void()>> queued;
+	auto run_queued = [&] {
+		auto now = std::move(queued);
+		queued.clear();
+		for (auto &task : now)
+			task();
+	};
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "owns", 0644), cluster, up, {},
+							[&](std::function<void()> task) {
+								run_queued();
+								queued.push_back(std::move(task));
+							});
+	relay.sync(names);
+	check(decode(answer(relay, {{"app", std::nullopt, true}})).empty());
+	decode(answer(relay, {{"beta", std::nullopt, true}}));
+	run_queued();
+	relay.collect();
+	const auto first = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(first.size() == 1 && first[0].kind == d::FrameKind::Pages);
+	const auto h1 = reference_build(relay, "app");
+	check(first[0].to == h1->at() && first[0].transfer == full_frame(*h1).transfer);
+	// h2 rewrites every app key and drops half, so its build relocates into a new copy at h2.
+	up.rewrite_and_drop("app", 3000, 1500, 7);
+	up.write("beta", {0, 1, 2}, 9);
+	relay.sync(names);
+	const auto relocations = relay.pages().relocations;
+	const auto both = decode(answer(relay, {{"app", std::nullopt, true}, {"beta", std::nullopt, true}}));
+	check(relay.pages().relocations == relocations + 1);
+	check(both.size() == 2 && both[0].name == "app" && both[0].kind == d::FrameKind::Pages);
+	check(both[0].to == h1->at() && both[0].root == h1->root() && both[0].transfer == first[0].transfer);
+	check(both[1].name == "beta" && both[1].kind == d::FrameKind::Pages);
+	run_queued();
+	relay.collect();
+	const auto h2 = reference_build(relay, "app");
+	const auto now = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(now.size() == 1 && now[0].to == h2->at() && now[0].transfer == full_frame(*h2).transfer);
+	std::fprintf(stderr, "answer owns: the copy a frame names outlives its replacement within the answer\n");
 }
 
 // The mirror reads records only: a pages frame from its upstream fails the sync, unretried.
@@ -413,6 +567,8 @@ int main(int argc, char **argv) {
 		std::filesystem::create_directories(scratch);
 		full_copy(scratch);
 		deltas(scratch);
+		incremental(scratch);
+		answer_owns(scratch);
 		mirror_refuses(scratch);
 		service_builds_aside(scratch, 100000);
 	} catch (const std::exception &error) {

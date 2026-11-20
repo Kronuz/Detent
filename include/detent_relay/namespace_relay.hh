@@ -49,12 +49,14 @@ struct SyncStats {
 	AdoptStats files;
 	std::uint64_t entries = 0; // ring positions received
 };
-// Dense distribution D6, D7 on the relay: full builds, and the answers sent as pages or kept as records.
+// Dense distribution D6, D7 on the relay: generations built (`incremental` of them over the previous
+// head), canonical relocations, and the answers sent as pages or kept as records.
 struct PagesStats {
-	std::uint64_t builds = 0, build_failures = 0, full_copies = 0, deltas = 0, delta_records = 0;
+	std::uint64_t builds = 0, incremental = 0, relocations = 0, build_failures = 0, full_copies = 0, deltas = 0,
+				  delta_records = 0;
 };
-// Runs one full build: the task may run later on another thread, and is called once. Empty: the
-// build runs within the answer that asked for it.
+// Runs one build: the task may run later on another thread, and is called once. Empty: the build
+// runs within the answer that asked for it.
 using BuildRunner = std::function<void(std::function<void()>)>;
 
 class NamespaceRelay final : public Upstream {
@@ -79,11 +81,12 @@ class NamespaceRelay final : public Upstream {
 	std::string frames(std::span<const Position>) override;
 	// The W6 body for a session's next, or nothing while every answer is Current or Ahead (the
 	// session waits, as the authority's does). A position that takes pages gets a pages frame for a
-	// full copy (dense distribution D7.4: the relay's newest build that a delta still follows),
+	// full copy (dense distribution D7.4: the canonical copy at s, while a delta still follows it),
 	// or for a delta from a base the page window holds when D6 finds the pages smaller. A position
-	// waits for a build in flight, and gets no frame meanwhile: a full copy with no such build, or a
+	// waits for a build in flight, and gets no frame meanwhile: a full copy with no copy yet, or a
 	// delta whose pages could be smaller once the build at the head lands. A full copy or such a
-	// delta below the head starts the build at the head, one per namespace at a time.
+	// delta below the head starts the build at the head, one per namespace at a time. A pages frame
+	// owns what it sends until the body is encoded.
 	std::optional<std::string> changes(std::span<const Position>);
 	// Takes the builds that finished since the last call; true when one did, so a waiting answer
 	// may now go.

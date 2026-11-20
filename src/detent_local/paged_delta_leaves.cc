@@ -55,6 +55,20 @@ struct DeltaLeaves::Impl {
 			(source->kind() != d::UpdateKind::Delta && source->kind() != d::UpdateKind::Progress))
 			throw std::invalid_argument("paged delta does not match recovered base");
 	}
+	Impl(std::string_view name, std::uint64_t watermark, std::shared_ptr<const d::ValidatedDelta> delta,
+		 p::Limits bounds)
+		: source(std::move(delta)), arena(*account(source), 8192), namespaces(arena),
+		  index(arena, *source), limits(bounds) {
+		if (watermark != source->base().revision || name.empty() || name.size() > 198 ||
+			(source->kind() != d::UpdateKind::Delta && source->kind() != d::UpdateKind::Progress))
+			throw std::invalid_argument("paged delta does not match its namespace's base");
+		Namespace row;
+		row.length = name.size();
+		std::copy(name.begin(), name.end(), row.text.begin());
+		row.original = row.revision = watermark;
+		namespaces.push_back(row);
+		phase = Phase::Collect;
+	}
 	bool grant(std::size_t n, ValidationBudget &budget) {
 		if (!budget.rows)
 			return false;
@@ -115,6 +129,10 @@ struct DeltaLeaves::Impl {
 DeltaLeaves::DeltaLeaves(const RecoveredGeneration &base,
 						 std::shared_ptr<const d::ValidatedDelta> source, p::Limits limits)
 	: impl_(d::make_storage_owner<Impl>(account(source), std::malloc, std::free, base, source,
+										limits)) {}
+DeltaLeaves::DeltaLeaves(std::string_view name, std::uint64_t watermark,
+						 std::shared_ptr<const d::ValidatedDelta> source, p::Limits limits)
+	: impl_(d::make_storage_owner<Impl>(account(source), std::malloc, std::free, name, watermark, source,
 										limits)) {}
 DeltaLeaves::~DeltaLeaves() = default;
 DeltaLeaves::DeltaLeaves(DeltaLeaves &&) noexcept = default;
