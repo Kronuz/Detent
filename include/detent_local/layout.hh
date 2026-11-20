@@ -8,5 +8,5 @@ namespace detent::local {
 std::uint64_t read_integer(std::span<const char> bytes, std::size_t offset, unsigned width);
 void write_integer(std::span<char> bytes, std::size_t offset, std::uint64_t value, unsigned width);
 // A generation's identity: a configured cursor identity and the one supported profile; throws otherwise.
-void validate_identity(const distribution::Cursor &, const distribution::Profile &);
+void validate_identity(const distribution::NamespaceCursor &, const distribution::Profile &);
 } // namespace detent::local

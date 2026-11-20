@@ -6,7 +6,7 @@ namespace detent::local {
 struct ClientSourceOptions {
 	std::filesystem::path directory;
 	ViewLimits limits;
-	std::optional<distribution::Cursor> identity;
+	std::optional<distribution::NamespaceCursor> identity;
 	std::chrono::milliseconds poll_interval{200};
 	bool auto_refresh = true;
     // Explicit publisher trust enables synchronous, checked-path attachment.
@@ -31,5 +31,5 @@ class LocalReadSource final : public ReadSource {
 ReadSourceFactory make_local_read_source(ClientSourceOptions);
 ReadSourceFactory make_managed_read_source(std::filesystem::path, std::uint32_t publisher,
                                          ViewLimits = ViewLimits::prepared(),
-                                         std::optional<distribution::Cursor> identity = {});
+                                         std::optional<distribution::NamespaceCursor> identity = {});
 } // namespace detent::local

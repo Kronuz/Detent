@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_local/disk_store.hh"
 // Test support: installs a hand-built generation as the store's one namespace, the files a publication
 // leaves (docs/status/namespace-s7.md). A paged generation's `.read` and `.live` come from one full
 // recovery of what was installed, the way a publication derives them from its plan.
@@ -69,8 +70,8 @@ inline void select(const std::filesystem::path &directory, const detent::local::
 	table.sequence = 1;
 	table.profile = descriptor.profile;
 	l::TableEntry entry;
-	entry.name = l::namespace_name(descriptor.cursor);
-	entry.cursor = l::namespace_cursor(descriptor.cursor);
+	entry.name = l::disk_store_entry;
+	entry.cursor = descriptor.cursor;
 	entry.generation = descriptor.generation;
 	entry.ordinal = descriptor.ordinal;
 	entry.root_length = descriptor.length;
@@ -165,7 +166,7 @@ inline detent::local::detail::PagedImage build(std::shared_ptr<const detent::dis
 											   detent::local::paged::Limits limits = {}) {
 	namespace l = detent::local;
 	l::detail::PagedSnapshotBuilder builder(
-		source, l::next_generation(std::nullopt, source->cursor(), source->profile(), true), limits);
+		source, l::next_generation(std::nullopt, source->namespace_cursor(), source->profile(), true), limits);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);

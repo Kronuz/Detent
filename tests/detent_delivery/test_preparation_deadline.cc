@@ -71,7 +71,7 @@ int main() {
 		t::CoordinatorOptions options;
 		options.source.scheduler = &scheduler;
 		options.directory = fixture->path;
-		options.source.configured = fixture->root.cursor;
+		options.source.configured = dense_graph_test::configured_cursor();
 		options.source.endpoint = {asio::ip::address_v4::loopback(), 1};
 		options.source.hostname = "localhost";
 		options.source.token = "prepared-deadline-0123456789abcdef";

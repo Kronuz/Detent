@@ -1,3 +1,4 @@
+#include "managed_recovery.hh"
 #include "paged_snapshot_plan.hh"
 #include "applied_delta_fixture.hh"
 #include "detent_local/disk_store.hh"
@@ -135,8 +136,8 @@ int main() {
 	{
 		auto reader =
 			std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
-		auto target = reader->descriptor().cursor;
-		++target.revision;
+		auto target = cursor();
+		target.revision = reader->descriptor().cursor.position + 1;
 		const auto wire = fixture(1, 24, 25, target.revision);
 		d::Limits decode_limits;
 		decode_limits.storage_account = account;
@@ -172,7 +173,8 @@ int main() {
 		}
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
 		{
-			auto current = l::recover_generation(root, options.recovery_limits, {}, &*reader);
+			// A full copy shares no pack with its base: the store recovers it cold.
+			auto current = l::detail::ManagedRecovery::recover(root, l::detail::ManagedRecovery::capture(*store));
 			store->confirm_recovered(current);
 		}
 		store->request_collection();

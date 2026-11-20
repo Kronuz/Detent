@@ -40,6 +40,19 @@ struct RecoveryResult : d::RetirementNode {
 struct MaintenanceFailure {
 	std::exception_ptr cause;
 };
+// The v1 boundary (D88): local generations carry W1 cursors, which the configured v1 identities name.
+bool same_identity(const d::NamespaceCursor &local, const d::Cursor &configured) {
+	return local.same_identity(d::namespace_cursor(configured));
+}
+bool same_cursor(const d::NamespaceCursor &local, const d::Cursor &cursor) {
+	return local == d::namespace_cursor(cursor);
+}
+// A local generation's v1 cursor under the configured identity that names it.
+d::Cursor v1_cursor(const d::Cursor &configured, const d::NamespaceCursor &local) {
+	auto cursor = configured;
+	cursor.revision = local.position;
+	return cursor;
+}
 struct ConstructionControl {
 	std::atomic<bool> stop{false};
 	std::atomic<std::uint64_t> steps{0};
@@ -388,10 +401,10 @@ struct Coordinator::Impl {
 				recovered->generation->directory_identity() != store->directory_identity())
 				throw std::runtime_error("managed recovery differs from actual selection");
 			const auto &cursor = recovered->generation->descriptor().cursor;
-			if (!cursor.same_identity(options.source.configured) &&
-				(!options.reset_from || !cursor.same_identity(*options.reset_from)))
+			const bool configured = same_identity(cursor, options.source.configured);
+			if (!configured && (!options.reset_from || !same_identity(cursor, *options.reset_from)))
 				throw std::invalid_argument("managed identity transition is not configured");
-			diagnostic.recoverable = cursor;
+			diagnostic.recoverable = v1_cursor(configured ? options.source.configured : *options.reset_from, cursor);
 		} else {
 			if (recovered->generation)
 				throw std::runtime_error("unexpected managed recovery for absent selection");
@@ -423,7 +436,7 @@ struct Coordinator::Impl {
 		base = std::move(recovered);
 		confirmed_prepared.reset();
 		if (base->prepared && base->generation &&
-			base->generation->descriptor().cursor.same_identity(options.source.configured))
+			same_identity(base->generation->descriptor().cursor, options.source.configured))
 			confirmed_prepared = base->generation->descriptor();
 		if (options.publication_sink && base->generation) {
 			if (equivalent)
@@ -528,10 +541,10 @@ struct Coordinator::Impl {
 				throw std::logic_error("paged candidate has no publication plan");
 			if (paged_candidate->plan->intent() == l::detail::PagedPlanIntent::TrustedReset) {
 				if (!actual.descriptor || !options.reset_from ||
-					!actual.descriptor->cursor.same_identity(*options.reset_from))
+					!same_identity(actual.descriptor->cursor, *options.reset_from))
 					throw std::invalid_argument("managed paged reset is not configured");
 				store->begin_reset(std::move(*paged_candidate->plan),
-								   {*actual.descriptor, options.source.configured, {}});
+								   {*actual.descriptor, d::namespace_cursor(options.source.configured), {}});
 			} else
 				store->begin(std::move(*paged_candidate->plan));
 			pending_paged_confirmation = true;
@@ -850,8 +863,8 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				request.endpoint = sources.endpoint();
 				const auto actual = store->selection();
 				request.base =
-					actual.descriptor && actual.descriptor->cursor.same_identity(request.configured)
-						? std::optional(actual.descriptor->cursor)
+					actual.descriptor && same_identity(actual.descriptor->cursor, request.configured)
+						? std::optional(v1_cursor(request.configured, actual.descriptor->cursor))
 						: std::nullopt;
 				if (diagnostic.repair.pending && options.delivery_mode == DeliveryMode::Poll)
 					request.base.reset();
@@ -930,7 +943,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				// A repair at the selected cursor replaces the selected generation by an equal one: the sink keeps
 				// its cache and receives selected_repaired.
 				const bool repair_in_place = diagnostic.repair.pending && update->snapshot &&
-											 actual.descriptor && update->target == actual.descriptor->cursor;
+											 actual.descriptor && same_cursor(actual.descriptor->cursor, update->target);
 				if (!cancelled()) {
 					if (options.publication_sink && !repair_in_place) {
 						options.publication_sink->begin_stage(*update);
@@ -959,7 +972,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 							if (options.publication_sink)
 								options.publication_sink->bind_candidate(*actual.descriptor,
 																		 store->directory_identity());
-							acknowledge(candidate.cursor);
+							acknowledge(v1_cursor(options.source.configured, candidate.cursor));
 						} else {
 							co_await publish_candidate();
 						}
@@ -1056,16 +1069,16 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 			if (!closing) {
 				bind_base(std::move(recovered));
 				if (paged_candidate && !failure && !cancelled() && diagnostic.received && base->generation &&
-					base->generation->descriptor().cursor == *diagnostic.received)
+					same_cursor(base->generation->descriptor().cursor, *diagnostic.received))
 					acknowledge(*diagnostic.received);
 			}
 			if (!closing && options.delivery_mode == DeliveryMode::Poll && !failure && !cancelled() &&
 				diagnostic.received && base->generation &&
-				base->generation->descriptor().cursor == *diagnostic.received)
+				same_cursor(base->generation->descriptor().cursor, *diagnostic.received))
 				reconnect.reset();
 			if (!closing && options.delivery_mode == DeliveryMode::Subscription && session.valid() &&
 				offered) {
-				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
+				if (actual.descriptor && same_cursor(actual.descriptor->cursor, offered->cursor) && base->generation &&
 					base->generation->descriptor() == actual.descriptor && !failure && !cancelled()) {
 					feedback = offered;
 					reconnect.reset();

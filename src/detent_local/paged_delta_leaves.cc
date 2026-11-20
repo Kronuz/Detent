@@ -50,7 +50,7 @@ struct DeltaLeaves::Impl {
 		: source(std::move(delta)), arena(*account(source), 8192), namespaces(arena),
 		  index(arena, *source),
 		  cursor(std::in_place, account(source), base, p::PageKind::Namespace), limits(bounds) {
-		if (base.descriptor().cursor != source->base() ||
+		if (base.descriptor().cursor.position != source->base().revision ||
 			base.descriptor().profile != source->profile() ||
 			(source->kind() != d::UpdateKind::Delta && source->kind() != d::UpdateKind::Progress))
 			throw std::invalid_argument("paged delta does not match recovered base");

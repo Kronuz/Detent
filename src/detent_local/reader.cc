@@ -6,7 +6,7 @@
 
 namespace detent::local {
 GenerationReader::GenerationReader(std::filesystem::path directory, ViewLimits limits,
-                                   std::optional<distribution::Cursor> identity,
+                                   std::optional<distribution::NamespaceCursor> identity,
                                    std::optional<std::uint32_t> prepared_publisher)
     : directory_(std::move(directory)), limits_(std::move(limits)), identity_(identity),
       prepared_publisher_(prepared_publisher) {}
@@ -53,7 +53,7 @@ bool GenerationReader::refresh() {
 			throw std::invalid_argument("local generation directory was replaced");
 		if (descriptor_) {
 			if (!descriptor_->cursor.same_identity(next.cursor) ||
-			    next.cursor.revision < descriptor_->cursor.revision)
+			    next.cursor.position < descriptor_->cursor.position)
 				throw std::invalid_argument("local generation identity changed or revision regressed");
 			if (next == *descriptor_)
 				return false;

@@ -11,7 +11,7 @@ ENTRY_FIXED = 137
 # The generation follows the name, the cursor's cluster, incarnation and position, and the slot.
 GENERATION_AT = 16 + 16 + 8 + 4
 # The selected generation's `.image` is its paged root (docs/LOCAL_IMAGE_FORMAT.md).
-ROOT_MAGIC = b"DTROOT03"
+ROOT_MAGIC = b"DTROOT04"
 
 
 def checked(table: bytes) -> bytes:

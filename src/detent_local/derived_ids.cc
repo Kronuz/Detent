@@ -55,17 +55,7 @@ SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal) 
 	return Input(segment_domain).add(generation).add(ordinal, 8).id();
 }
 
-distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &cursor) {
-	const auto incarnation = Input("detent.agent-store.incarnation")
-								 .add(cursor.cluster)
-								 .add(cursor.group)
-								 .add(cursor.restore_epoch)
-								 .add(cursor.scope)
-								 .id();
-	return {cursor.cluster, incarnation, cursor.revision};
-}
-
-std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::Cursor &target) {
+std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::NamespaceCursor &target) {
 	if (!selected || selected->cursor != target)
 		return 0;
 	if (selected->ordinal == std::numeric_limits<std::uint32_t>::max())
@@ -73,23 +63,13 @@ std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const dis
 	return selected->ordinal + 1;
 }
 
-std::string namespace_name(const distribution::Cursor &cursor) {
-	static constexpr char hex[] = "0123456789abcdef";
-	std::string name;
-	name.reserve(cursor.scope.size() * 2);
-	for (unsigned char byte : cursor.scope) {
-		name.push_back(hex[byte >> 4]);
-		name.push_back(hex[byte & 15]);
-	}
-	return name;
-}
-DerivedGeneration next_generation(const std::optional<Descriptor> &selected, const distribution::Cursor &target,
-								  const distribution::Profile &profile, bool full_copy) {
+DerivedGeneration next_generation(const std::optional<Descriptor> &selected,
+								  const distribution::NamespaceCursor &target, const distribution::Profile &profile,
+								  bool full_copy) {
 	if (!full_copy && !selected)
 		throw std::invalid_argument("a build from a base needs the selected generation");
-	const auto at = namespace_cursor(target);
 	const auto ordinal = build_ordinal(selected, target);
 	const GenerationId base = full_copy ? GenerationId{} : selected->generation;
-	return {derive_generation(profile, at.incarnation, at.position, base, ordinal), ordinal};
+	return {derive_generation(profile, target.incarnation, target.position, base, ordinal), ordinal};
 }
 } // namespace detent::local

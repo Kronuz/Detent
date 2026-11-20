@@ -109,8 +109,10 @@ int main(int argc, char **argv) {
 		l::GenerationId generation{};
 		generation.fill('g');
 		l::Descriptor original;
+		d::Cursor configured; // the corpus's v1 cursor, which its deltas name
 		{
 			auto corpus = detent::bench::local_corpus(count);
+			configured = corpus.cursor;
 			d::SnapshotDecoder decoder(corpus.cursor, {"app"});
 			auto input = std::span<const char>(corpus.wire);
 			while (!input.empty()) {
@@ -146,7 +148,7 @@ int main(int argc, char **argv) {
 			for (const unsigned changes : {0, 1, 10, 1000}) {
 				if (changes && std::uint64_t(changes - 1) * 4 >= count)
 					continue;
-				auto update = delta(original.cursor, changes, heap);
+				auto update = delta(configured, changes, heap);
 				std::optional<l::detail::PagedPlan> plan;
 				if (changes) {
 					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), domain);

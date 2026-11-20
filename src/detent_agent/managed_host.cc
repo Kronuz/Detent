@@ -45,7 +45,7 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 		if (!announced && !timed_out && may_announce_ready(state, require_prepared)) {
 			if (state.selected.descriptor)
 				L_INFO("detent-agent: managed local store ready, selected generation {}",
-					   state.selected.descriptor->cursor.revision);
+					   state.selected.descriptor->cursor.position);
 			else
 				L_INFO("detent-agent: managed delivery running, awaiting its first generation");
 			try {

@@ -23,9 +23,9 @@ struct RecoveryContext {
 class RecoveryEngine {
   public:
 	static RecoveredGeneration recover(const std::filesystem::path &, RecoveryContext,
-									   std::optional<distribution::Cursor> = {});
+									   std::optional<distribution::NamespaceCursor> = {});
 	// The selected generation, bound to its lease; with an admission, the admission's own selection.
 	static RecoveredGeneration recover_selected(const std::filesystem::path &, RecoveryContext,
-												std::optional<distribution::Cursor> = {});
+												std::optional<distribution::NamespaceCursor> = {});
 };
 } // namespace detent::local::detail

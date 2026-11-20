@@ -358,7 +358,7 @@ task::task<void> observe_poll_backoff(task::asio_scheduler &scheduler, std::shar
 				const auto state = coordinator->status();
 				check(state.failures == 4 && state.acknowledged == cursor() &&
 					  state.recoverable == cursor() && state.selected.descriptor &&
-					  state.selected.descriptor->cursor == cursor() && !state.worker_pending &&
+					  state.selected.descriptor->cursor == d::namespace_cursor(cursor()) && !state.worker_pending &&
 					  state.source_rotations == 0);
 				observed = true;
 				break;
@@ -394,7 +394,7 @@ task::task<void> observe_pressure(task::asio_scheduler &scheduler, std::shared_p
 	// The test deliberately performs its small fixture recovery synchronously;
 	// production SDK recovery runs on its configuration worker.
 	auto pinned = l::recover_generation(options.directory, options.view_limits).view();
-	check(pinned.cursor() == expected);
+	check(pinned.cursor() == d::namespace_cursor(expected));
 	expected.revision = 2;
 	co_await wait_for([&] { return coordinator->status().acknowledged == expected; });
 	co_await wait_for([&] {
@@ -404,8 +404,8 @@ task::task<void> observe_pressure(task::asio_scheduler &scheduler, std::shared_p
 	timer.expires_after(30ms);
 	co_await detent::transport::await_timer(timer);
 	check(coordinator->status().acknowledged == expected &&
-		  coordinator->status().selected.descriptor->cursor == expected);
-	check(pinned.cursor().revision == 1);
+		  coordinator->status().selected.descriptor->cursor == d::namespace_cursor(expected));
+	check(pinned.cursor().position == 1);
 	pinned = {};
 	expected.revision = 3;
 	co_await wait_for([&] {
@@ -837,7 +837,7 @@ int main(int argc, char **argv) {
 									else
 										valid = valid && state.acknowledged == cursor() &&
 												state.recoverable == cursor() && state.selected.descriptor &&
-												state.selected.descriptor->cursor == cursor();
+												state.selected.descriptor->cursor == d::namespace_cursor(cursor());
 									observed.set_value(valid);
 								});
 								check(ready.get());
@@ -872,10 +872,10 @@ int main(int argc, char **argv) {
 									const auto status = coordinator->status();
 									bool valid = status.recoverable == cursor() &&
 												 status.selected.descriptor &&
-												 status.selected.descriptor->cursor == cursor() &&
+												 status.selected.descriptor->cursor == d::namespace_cursor(cursor()) &&
 												 status.selected.descriptor->length == l::paged::root_bytes;
 									if (pinned_installed)
-										valid = valid && pinned_installed->cursor() == cursor() &&
+										valid = valid && pinned_installed->cursor() == d::namespace_cursor(cursor()) &&
 												pinned_installed->size() == count;
 									if (relay_bundle) {
 										valid = valid && relay_bundle->status().ready;
@@ -1005,7 +1005,7 @@ int main(int argc, char **argv) {
 								verified.set_value(
 									status.recoverable == expected && status.acknowledged == expected &&
 									status.selected.descriptor &&
-									status.selected.descriptor->cursor == expected &&
+									status.selected.descriptor->cursor == d::namespace_cursor(expected) &&
 									status.selected.descriptor->length == l::paged::root_bytes &&
 									t::detail::CoordinatorAccess::completed_compactions(*coordinator) ==
 										(compaction_pressure ? 0u : 1u));
@@ -1173,7 +1173,7 @@ int main(int argc, char **argv) {
 			check(coordinator->status().error == original_maintenance_failure &&
 				  !coordinator->status().acknowledged);
 		} else {
-			check(store->selection().descriptor->cursor == final_cursor);
+			check(store->selection().descriptor->cursor == d::namespace_cursor(final_cursor));
 			check(coordinator->status().received == final_cursor &&
 				  coordinator->status().validated == final_cursor);
 		}
@@ -1208,8 +1208,8 @@ int main(int argc, char **argv) {
 			l::StoreTable table;
 			table.sequence = 1;
 			l::TableEntry entry;
-			entry.name = l::namespace_name(cursor());
-			entry.cursor = l::namespace_cursor(cursor());
+			entry.name = l::disk_store_entry;
+			entry.cursor = d::namespace_cursor(cursor());
 			entry.generation.fill('f');
 			table.entries.push_back(entry);
 			trusted_records::put(failed_directory / "owner.lock", {});
@@ -1293,7 +1293,7 @@ int main(int argc, char **argv) {
 		check(cache_account->used() == 0);
 		if (!cancel_open && !worker_cancel) {
 			auto recovered = l::recover_generation(directory);
-			check(recovered.descriptor().cursor == final_cursor);
+			check(recovered.descriptor().cursor == d::namespace_cursor(final_cursor));
 			check(recovered.view().size() == count);
 			const auto view = recovered.view();
 			for (std::uint32_t i = 0; i != count; ++i) {

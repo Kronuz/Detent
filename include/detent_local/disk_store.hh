@@ -19,6 +19,8 @@ struct SelectionSnapshot {
 	SelectionKnowledge knowledge = SelectionKnowledge::Absent;
 	std::optional<Descriptor> descriptor;
 };
+// The name of the one table entry a DiskStore keeps (D88: the agent serves one namespace).
+inline constexpr std::string_view disk_store_entry = "namespace";
 struct DiskStoreOptions {
 	StoreOpenMode mode = StoreOpenMode::ExistingManaged;
 	DiskLimits limits;
@@ -55,6 +57,8 @@ class DiskStore {
 	SyncStats sync_stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
+	// The layout this store refused at open (LayoutRefused's message): it opened empty, for a full copy.
+	const std::optional<std::string> &refusal() const noexcept;
 	// The next disk work, or null. Taking it starts it: the store waits for its run() before any other.
 	std::shared_ptr<DiskWork> work();
 	void advance();

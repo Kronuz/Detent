@@ -74,8 +74,9 @@ int main() {
 		overlay.step(work);
 	}
 	overlay.seal();
-	auto target = cursor();
-	target.revision = 43;
+	auto wire = cursor();
+	wire.revision = 43;
+	const auto target = local_cursor(wire);
 	const auto baseline = account->used();
 	{
 		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), next, target);
@@ -127,7 +128,7 @@ int main() {
 			}
 		}
 		auto expected =
-			std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
+			std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), wire));
 		l::detail::PagedSnapshotBuilder oracle(expected, next);
 		while (!oracle.done()) {
 			l::ValidationBudget work;

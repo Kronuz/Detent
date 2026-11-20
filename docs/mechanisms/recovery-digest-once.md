@@ -6,7 +6,7 @@ A full paged recovery runs discovery and semantic graph validation over the same
 | --- | --- | --- |
 | Pack checksum | Every file byte, including placement and padding | The owned segment record's checksum |
 | Page digest | Header outside its digest field, nodes and external-child content | The parent reference's digest |
-| Root checksum | Every byte of DTROOT03 | The table entry's root checksum |
+| Root checksum | Every byte of DTROOT04 | The table entry's root checksum |
 
 Each page has one placement-free digest. Its reference also binds length, key count and height to the reached header. Page relocation preserves that digest. Pack checksums cover the placement bytes outside page commitments.
 

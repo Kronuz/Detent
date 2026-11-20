@@ -4,13 +4,16 @@ namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
 PagedSnapshotSource::PagedSnapshotSource(RecoveredGeneration generation,
-										 std::shared_ptr<d::StorageLedger> account)
-	: descriptor_(generation.descriptor()), account_(std::move(account)),
+										 std::shared_ptr<d::StorageLedger> account, const d::Cursor &identity)
+	: descriptor_(generation.descriptor()), cursor_(identity), account_(std::move(account)),
 	  namespaces_cursor_(account_, generation, p::PageKind::Namespace),
 	  records_cursor_(account_, generation, p::PageKind::Definition),
 	  namespaces_(d::StorageAllocator<Namespace>(account_)) {
+	cursor_.revision = descriptor_.cursor.position;
 	if (!account_ || descriptor_.profile != d::Profile{} || !generation.paged_)
 		throw std::invalid_argument("unsupported paged snapshot source");
+	if (d::namespace_cursor(cursor_) != descriptor_.cursor)
+		throw std::invalid_argument("paged snapshot source identity differs from its generation");
 	expected_namespaces_ = generation.paged_->root().namespaces;
 	namespaces_.reserve(expected_namespaces_);
 }

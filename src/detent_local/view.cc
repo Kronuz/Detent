@@ -70,7 +70,7 @@ std::optional<detail::BorrowedDefinition> ReadView::Root::definition(std::string
 																	 std::string_view key) const {
 	return paged->definition(ns, key);
 }
-const distribution::Cursor &ReadView::cursor() const {
+const distribution::NamespaceCursor &ReadView::cursor() const {
 	if (!root_)
 		throw std::logic_error("empty local read view");
 	return root_->paged->root.cursor;

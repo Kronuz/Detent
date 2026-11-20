@@ -153,6 +153,7 @@ SyncStats DiskStore::sync_stats() const noexcept {
 }
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
+const std::optional<std::string> &DiskStore::refusal() const noexcept { return impl_->core->refusal; }
 std::exception_ptr DiskStore::error() const noexcept { return impl_->core->failure; }
 std::exception_ptr DiskStore::collection_error() const noexcept { return impl_->collection_error; }
 std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
@@ -231,8 +232,8 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			   (base && (!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
 						 (plan.maintenance() ? descriptor.cursor != base->cursor
 						  : intent == detail::PagedPlanIntent::Repair
-							  ? descriptor.cursor.revision < base->cursor.revision
-							  : descriptor.cursor.revision <= base->cursor.revision))))
+							  ? descriptor.cursor.position < base->cursor.position
+							  : descriptor.cursor.position <= base->cursor.position))))
 		throw std::invalid_argument("managed paged publication requires authorized intent");
 	const auto &limits = core.options.recovery_limits;
 	if (plan.directory_identity() != core.directory_identity || plan.bytes()->account() != core.account ||
@@ -256,8 +257,8 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 	artifacts->attach_recovery(std::move(recovery));
 	// The cycle views the artifacts, which the store keeps until the cycle settles.
 	PreparedGeneration generation;
-	generation.name = namespace_name(descriptor.cursor);
-	generation.cursor = namespace_cursor(descriptor.cursor);
+	generation.name = disk_store_entry;
+	generation.cursor = descriptor.cursor;
 	generation.base = plan.snapshot() ? GenerationId{} : base->generation;
 	generation.ordinal = descriptor.ordinal;
 	std::map<SegmentId, PreparedGeneration::Segment> segments;
@@ -356,6 +357,18 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 			throw std::runtime_error("fresh storage directory contains existing entries");
 	} else if (!io->inspect_entry("owner.lock"))
 		throw std::runtime_error("managed store is missing: initialize it first");
+	// A store of another layout is refused once (D43): its table goes, so the store opens empty and the
+	// agent bootstraps a full copy; collection removes the old files no reader holds.
+	if (io->inspect_entry("selected")) {
+		try {
+			read_generation_selection(directory);
+		} catch (const LayoutRefused &error) {
+			core->refusal = error.what();
+			io->remove("selected");
+		} catch (const std::exception &) {
+			// Damage is the recovery's below: it fences the store.
+		}
+	}
 	// The store keeps the profile its table holds; a new store takes the default one.
 	AgentStore::Options agent{};
 	agent.mode = options.artifact_mode;

@@ -92,7 +92,7 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     return true;
 }
 PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
-                                        std::optional<d::Cursor> expected) {
+                                        std::optional<d::NamespaceCursor> expected) {
 	auto &domain = resources::domain(limits);
 	auto factory = domain.factory();
 	auto heap = domain.storage_account();
@@ -109,7 +109,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		const auto &descriptor = selected->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
-			        descriptor.cursor.revision >= expected->revision);
+			        descriptor.cursor.position >= expected->position);
 		const GenerationName lease_name(descriptor.generation, GenerationFile::Lease);
 		files->lease.fd = open_record(files->directory.fd, lease_name.view());
 		if (files->lease.fd < 0 && errno == ENOENT)

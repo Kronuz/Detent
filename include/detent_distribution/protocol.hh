@@ -67,11 +67,13 @@ class SnapshotDecoder;
 class ValidatedSnapshot {
   public:
 	ValidatedSnapshot(ValidatedSnapshot &&other) noexcept
-		: cursor_(std::exchange(other.cursor_, {})), profile_(other.profile_),
-		  storage_(std::move(other.storage_)) {}
+		: cursor_(std::exchange(other.cursor_, {})), namespace_cursor_(std::exchange(other.namespace_cursor_, {})),
+		  profile_(other.profile_), storage_(std::move(other.storage_)) {}
 	ValidatedSnapshot(const ValidatedSnapshot &) = delete;
 	ValidatedSnapshot &operator=(ValidatedSnapshot &&) = delete;
 	const Cursor &cursor() const noexcept { return cursor_; }
+	// The W1 cursor a local build of this copy publishes at.
+	const NamespaceCursor &namespace_cursor() const noexcept { return namespace_cursor_; }
 	const Profile &profile() const noexcept { return profile_; }
 	const StableRows<NamespaceRevision> &namespaces() const {
 		if (!storage_)
@@ -106,6 +108,7 @@ class ValidatedSnapshot {
 				  bounds.storage_account, bounds.storage_allocate, bounds.storage_release, bounds);
 		  }()) {}
 	Cursor cursor_;
+	NamespaceCursor namespace_cursor_;
 	Profile profile_;
 	StorageOwner<detail::SnapshotStorage> storage_;
 	friend class SnapshotDecoder;

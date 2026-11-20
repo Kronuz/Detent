@@ -110,7 +110,7 @@ int main() {
 		}
 		auto image = builder.take();
 		install(directory, image);
-		auto projection = l::detail::make_snapshot_source(l::recover_generation(directory), output);
+		auto projection = l::detail::make_snapshot_source(l::recover_generation(directory), output, source->cursor());
 		std::filesystem::remove_all(directory);
 		require(encode(projection, count == 2) == expected);
 		require(encode(projection, count == 2) == expected);
@@ -126,6 +126,6 @@ int main() {
 			decoder.feed(input, b);
 		}
 		const auto roundtrip = decoder.finish();
-		require(roundtrip.records().size() == count && roundtrip.cursor() == image.root().cursor);
+		require(roundtrip.records().size() == count && roundtrip.namespace_cursor() == image.root().cursor);
 	}
 }

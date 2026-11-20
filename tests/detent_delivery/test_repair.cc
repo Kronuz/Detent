@@ -236,7 +236,7 @@ void delta(const fs::path &certificates, const fs::path &root) {
 	Reader reader(store);
 	const auto reads = reader.read(2);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
-	check(l::read_generation_selection(store).descriptor.cursor.revision == 2);
+	check(l::read_generation_selection(store).descriptor.cursor.position == 2);
 	std::cout << "delta: the delta was offered " << server.deltas << " time(s), " << server.forced_opens
 			  << " forced open(s), the failure counted " << final_status.failures << " time(s); revision 2 selected, "
 			  << reads.ok << " reads ok, none failed, " << old_packs.size() << " damaged packs replaced\n";
@@ -280,7 +280,7 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
 	check(l::read_generation_selection(store).descriptor.generation != before.generation);
 	std::cout << "unchanged" << (relay ? " (relay bundle)" : "") << ": the same-cursor snapshot published nothing; the repair published generation "
-			  << "different from the first at cursor " << before.cursor.revision << ", " << reads.ok << " reads ok\n";
+			  << "different from the first at cursor " << before.cursor.position << ", " << reads.ok << " reads ok\n";
 }
 void repair_reset(const fs::path &certificates, const fs::path &root) {
 	const auto store = root / "store";
@@ -376,7 +376,7 @@ void delta_clears(const fs::path &certificates, const fs::path &root) {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
 		auto *raw = coordinator.get();
 		sink->on_bind = [&, raw](const l::Descriptor &candidate) {
-			if (!fired && candidate.cursor.revision == 2) {
+			if (!fired && candidate.cursor.position == 2) {
 				fired = true;
 				phase_at_request = raw->status().phase;
 				t::detail::CoordinatorAccess::request_repair(*raw);
@@ -432,7 +432,7 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 					  coordinator, server));
 		first = coordinator->status();
 		sink->on_bind = [&, raw](const l::Descriptor &candidate) {
-			if (!fired && candidate.cursor.revision == 2) {
+			if (!fired && candidate.cursor.position == 2) {
 				fired = true;
 				t::detail::CoordinatorAccess::request_repair(*raw);
 			}
@@ -452,7 +452,7 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 			  << " deltas " << server.deltas << "\n";
 	check(fired && server.deltas == 1 && server.forced_opens == 2);
 	check(final_status.repair.requested == 2 && !final_status.repair.pending && !fenced);
-	check(final_status.selected.descriptor && final_status.selected.descriptor->cursor.revision == 2);
+	check(final_status.selected.descriptor && final_status.selected.descriptor->cursor.position == 2);
 	Reader reader(store);
 	const auto reads = reader.read(2);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);

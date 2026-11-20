@@ -23,9 +23,8 @@ void write_integer(std::span<char> bytes, std::size_t offset, std::uint64_t valu
 	for (unsigned i = width; i; --i)
 		bytes[offset + width - i] = static_cast<char>(value >> ((i - 1) * 8));
 }
-void validate_identity(const distribution::Cursor &cursor, const distribution::Profile &profile) {
-	require(cursor.cluster != distribution::Identity{} && cursor.group != distribution::Identity{} &&
-				cursor.restore_epoch != distribution::Identity{} && cursor.scope != distribution::ScopeIdentity{},
+void validate_identity(const distribution::NamespaceCursor &cursor, const distribution::Profile &profile) {
+	require(cursor.cluster != distribution::Identity{} && cursor.incarnation != distribution::Identity{},
 			"unconfigured local image identity");
 	require(profile.semantic_id == 1 && !(profile.required_capabilities & ~1ull), "unsupported local image profile");
 }

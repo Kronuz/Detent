@@ -98,7 +98,8 @@ StoreTable decode_table(std::span<const char> in) {
 	const auto sum = digest({in.data(), in.size() - 32});
 	refuse(std::equal(sum.begin(), sum.end(), in.end() - 32), "digest");
 	std::size_t at = 8;
-	refuse(take(in, at, 4) == agent_store_layout, "layout");
+	if (take(in, at, 4) != agent_store_layout)
+		throw LayoutRefused("agent store table: layout");
 	const auto count = take(in, at, 4);
 	refuse(count <= maximum_entries, "entry count");
 	StoreTable table;

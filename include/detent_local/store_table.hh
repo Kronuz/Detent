@@ -37,6 +37,12 @@ class TableRefused : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
+// A whole store of another layout: a table of another layout, or a root it names in another format.
+// No other layout is read (D43): the agent refuses the store once and bootstraps a fresh copy.
+class LayoutRefused : public TableRefused {
+  public:
+	using TableRefused::TableRefused;
+};
 std::string encode_table(const StoreTable &);
 // Throws TableRefused for anything but a whole, current table.
 StoreTable decode_table(std::span<const char>);

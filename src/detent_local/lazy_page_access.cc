@@ -210,9 +210,9 @@ struct LazyPageAccess::State {
 			for (p::NodeAt at; at.offset() < nodes_end;) {
 				const auto node = at.decode(bytes, bounds);
 				if (node.kind == p::PageKind::Definition)
-					p::validate_definition(node.body, root.cursor.revision, limits.overrides);
+					p::validate_definition(node.body, root.cursor.position, limits.overrides);
 				else if (node.kind == p::PageKind::Namespace &&
-						 read_integer(node.body, 0, 8) > root.cursor.revision)
+						 read_integer(node.body, 0, 8) > root.cursor.position)
 					throw ReadSourceFailure("local namespace exceeds selected revision");
 				at = p::NodeAt::after(node);
 			}

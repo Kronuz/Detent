@@ -36,7 +36,7 @@ int main() {
 		const auto descriptor = built.descriptor();
 		const auto name = l::generation_name(descriptor.generation);
 		trusted_records::install(directory, built);
-		require(l::open_generation(directory).cursor() == cursor());
+		require(l::open_generation(directory).cursor() == local_cursor());
 		const auto table = trusted_records::slurp(directory / "selected");
 		// The `.lease` is an empty regular file, singly linked: a reader locks it and nothing else.
 		write(directory / (name + ".lease"), std::string_view("x"));
@@ -52,7 +52,7 @@ int main() {
 		std::filesystem::remove(directory / (name + ".lease"));
 		std::filesystem::remove(directory / "other");
 		write(directory / (name + ".lease"), {});
-		require(l::open_generation(directory).cursor() == cursor());
+		require(l::open_generation(directory).cursor() == local_cursor());
 		// The table: whole, trusted, and naming the image's cursor and profile.
 		for (const auto at : {std::size_t(0), std::size_t(70), table.size() - 1}) {
 			auto broken = table;
@@ -98,7 +98,7 @@ int main() {
 		}
 		write(image_path, root);
 		write(directory / "selected", table);
-		require(l::open_generation(directory).cursor() == cursor());
+		require(l::open_generation(directory).cursor() == local_cursor());
 		std::filesystem::remove_all(directory);
 		std::cout << "the table, lease and image binding of a reader, and unsafe entry rejection passed\n";
 	} catch (const std::exception &error) {

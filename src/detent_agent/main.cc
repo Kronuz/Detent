@@ -56,7 +56,7 @@ detent_logging::Settings g_logging_settings;
 std::optional<std::string> g_runtime_dir;
 std::optional<std::string> g_managed_config;
 std::optional<std::string> g_generation_dir;
-std::optional<detent::distribution::Cursor> g_generation_identity;
+std::optional<detent::distribution::NamespaceCursor> g_generation_identity;
 bool g_system = false;
 std::string g_executable;
 
@@ -133,7 +133,7 @@ int cmd_status(const std::vector<std::string> &args) {
 				prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt);
 			reader.refresh();
 			auto view = reader.read_view();
-			std::printf("durable revision=%llu knob_count=%u\n", (unsigned long long)view.cursor().revision,
+			std::printf("durable revision=%llu knob_count=%u\n", (unsigned long long)view.cursor().position,
 						view.size());
 		} catch (const std::exception &error) {
 			std::printf("local generation unavailable: %s\n", error.what());
@@ -422,7 +422,7 @@ int main(int argc, char** argv) {
 			expected.group = detent::distribution::parse_identity_hex<16>(*identity[1]);
 			expected.restore_epoch = detent::distribution::parse_identity_hex<16>(*identity[2]);
 			expected.scope = detent::distribution::parse_identity_hex<32>(*identity[3]);
-			g_generation_identity = expected;
+			g_generation_identity = detent::distribution::namespace_cursor(expected);
 		}
 #ifndef DETENT_READER
 		if (has_flag(args, "--status")) {

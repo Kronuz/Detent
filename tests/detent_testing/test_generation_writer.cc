@@ -44,7 +44,7 @@ int main() {
 			auto next = x::PreparedReader::open(writer.store(), ::getuid(), {});
 			CHECK(next.view.get("t", "rev").value() == rev);
 			CHECK(next.view.get("t", "flag").value() == (rev % 2 == 0 ? 1 : 0));
-			CHECK(next.descriptor.cursor.revision == std::uint64_t(rev));
+			CHECK(next.descriptor.cursor.position == std::uint64_t(rev));
 			CHECK(seen.view.get("t", "rev").value() == 1);
 		}
 	}

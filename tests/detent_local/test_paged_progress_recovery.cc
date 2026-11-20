@@ -67,7 +67,7 @@ int main() {
 		{
 			auto pressure = mappings->admit(mappings->limit() - baseline - page);
 			current.emplace(l::recover_generation(directory, limits, {}, &*base));
-			require(current->view().cursor().revision == 45 && current->view().size() == 2);
+			require(current->view().cursor().position == 45 && current->view().size() == 2);
 			require(current->view().get("app", "count").value() == std::numeric_limits<std::int64_t>::min());
 			current.reset();
 			wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
@@ -99,7 +99,7 @@ int main() {
 		{
 			l::GenerationReader reader(directory, limits);
 			require(reader.refresh());
-			require(reader.read_view().cursor().revision == 45);
+			require(reader.read_view().cursor().position == 45);
 			auto delta = progress(current->descriptor().cursor, heap);
 			l::GenerationId later;
 			later.fill('p');
@@ -116,7 +116,7 @@ int main() {
 			const auto installed_bytes = mappings->used();
 			auto pressure = mappings->admit(mappings->limit() - installed_bytes - page);
 			require(reader.refresh());
-			require(reader.read_view().cursor().revision == 48 && !reader.refresh());
+			require(reader.read_view().cursor().position == 48 && !reader.refresh());
 			require(reader.read_view().get("app", "count").has_value());
 		}
 		std::filesystem::remove_all(directory);

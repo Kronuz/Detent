@@ -6,6 +6,17 @@
 
 namespace detent::relay {
 namespace d = distribution;
+namespace {
+// The v1 boundary (D88): local generations carry W1 cursors, which the configured v1 identity names.
+bool same_identity(const d::NamespaceCursor &local, const d::Cursor &configured) {
+	return local.same_identity(d::namespace_cursor(configured));
+}
+d::Cursor v1_cursor(const d::Cursor &configured, const d::NamespaceCursor &local) {
+	auto cursor = configured;
+	cursor.revision = local.position;
+	return cursor;
+}
+} // namespace
 bool BootstrapPlan::covers(const d::Cursor &base) const noexcept {
 	if (!base.same_identity(head) || base.revision >= head.revision) return false;
 	for (std::size_t i = position; i < count; ++i)
@@ -50,7 +61,7 @@ void Bundle::authenticated() noexcept {
 }
 bool Bundle::ready() const noexcept {
 	return !diagnostic_.fenced && diagnostic_.authenticated && head_.has_value() &&
-		   head_->descriptor().cursor.same_identity(options_.configured);
+		   same_identity(head_->descriptor().cursor, options_.configured);
 }
 void Bundle::refused() noexcept {
 	++diagnostic_.refusals;
@@ -118,7 +129,7 @@ bool Bundle::release_stage(d::WorkBudget &budget) noexcept {
 }
 void Bundle::selected(const local::RecoveredGeneration &generation) {
 	const auto &descriptor = generation.descriptor();
-	if (!descriptor.cursor.same_identity(options_.configured)) {
+	if (!same_identity(descriptor.cursor, options_.configured)) {
 		// A configured identity reset can recover the prior head during startup.
 		token_.reset();
 		candidate_.reset();
@@ -131,20 +142,20 @@ void Bundle::selected(const local::RecoveredGeneration &generation) {
 		 head_->descriptor().checksum != descriptor.checksum ||
 		 head_->descriptor().profile != descriptor.profile))
 		throw std::invalid_argument("relay same-cursor state conflict");
+	const auto cursor = v1_cursor(options_.configured, descriptor.cursor);
 	const bool matched = token_ && candidate_ && *candidate_ == descriptor &&
-						 candidate_directory_ == generation.directory_identity() &&
-						 token_->target() == descriptor.cursor;
+						 candidate_directory_ == generation.directory_identity() && token_->target() == cursor;
 	if (matched)
-		cache_.select_publication(descriptor.cursor, std::move(token_));
+		cache_.select_publication(cursor, std::move(token_));
 	else {
-		const bool changed = !cache_.selected() || *cache_.selected() != descriptor.cursor;
-		cache_.select_publication(descriptor.cursor);
+		const bool changed = !cache_.selected() || *cache_.selected() != cursor;
+		cache_.select_publication(cursor);
 		if (changed)
 			++diagnostic_.gaps;
 		token_.reset();
 	}
 	if (snapshot_stage_ && snapshot_base_ &&
-		!cache_.covers_to_head(snapshot_base_->cursor))
+		!cache_.covers_to_head(v1_cursor(options_.configured, snapshot_base_->cursor)))
 		snapshot_failed_ = true;
 	candidate_.reset();
 	head_ = generation;
@@ -216,7 +227,7 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 			snapshot_directory_ = head_->directory_identity();
 			snapshot_failed_ = false;
 			snapshot_stage_ = domain_.make<d::UpdateStage>(
-				domain_, local::detail::make_snapshot_source(*head_, domain_.storage_account()),
+				domain_, local::detail::make_snapshot_source(*head_, domain_.storage_account(), options_.configured),
 				next_identity(), options_.encoding);
 			++diagnostic_.snapshot_started;
 		} catch (const d::StoragePressure &) {
@@ -243,7 +254,7 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 			return false;
 		auto snapshot = snapshot_stage_->take();
 		snapshot_stage_.reset();
-		if (!cache_.covers_to_head(snapshot_base_->cursor) ||
+		if (!cache_.covers_to_head(v1_cursor(options_.configured, snapshot_base_->cursor)) ||
 			snapshot_directory_ != head_->directory_identity()) {
 			++diagnostic_.snapshot_discarded;
 			diagnostic_.snapshot_discarded_logical_bytes += snapshot->logical_bytes();
@@ -251,7 +262,7 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 			return false;
 		}
 		cache_.install_snapshot(std::move(snapshot));
-		if (requested_snapshot_ && requested_snapshot_->revision <= snapshot_base_->cursor.revision)
+		if (requested_snapshot_ && requested_snapshot_->revision <= snapshot_base_->cursor.position)
 			requested_snapshot_.reset();
 		snapshot_base_.reset();
 		++diagnostic_.snapshots;

@@ -6,7 +6,9 @@
 
 namespace detent::local::paged {
 using Digest = std::array<char, 32>;
-inline constexpr std::uint32_t format_version = 3;
+// A root's magic and format; a root of any other is refused (D43: no older layout is read).
+inline constexpr std::string_view root_magic = "DTROOT04";
+inline constexpr std::uint32_t format_version = 4;
 inline constexpr std::uint32_t page_bytes = 64 * 1024, segment_bytes = 1024 * 1024;
 // A body stops 80 bytes short of a page, less its suffix, so a lone leaf fits one page (design D2).
 inline constexpr std::size_t content_bytes = 48, placement_bytes = 20,
@@ -47,7 +49,7 @@ struct PageHeader {
 	Digest digest{};
 };
 struct Root {
-	distribution::Cursor cursor;
+	distribution::NamespaceCursor cursor;
 	distribution::Profile profile;
 	std::uint64_t bytes = 0, pages = 0, segments = 0;
 	std::uint32_t records = 0, namespaces = 0;

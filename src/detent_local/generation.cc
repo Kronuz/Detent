@@ -101,6 +101,8 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	StoreTable table;
 	try {
 		table = decode_table(bytes);
+	} catch (const LayoutRefused &) {
+		throw;
 	} catch (const TableRefused &) {
 		require(false);
 	}
@@ -120,14 +122,23 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 	DETENT_COUNT(record_opens, 1);
 	Selected selected;
 	auto &descriptor = selected.descriptor;
-	std::optional<std::pair<distribution::Cursor, distribution::Profile>> root;
+	// A whole root of another format: its digest is the entry's and its magic another root's.
+	if (std::string_view(prefix.data(), 6) == "DTROOT" && std::string_view(prefix.data(), 8) != paged::root_magic) {
+		SHA256 hash;
+		hash.add(prefix.data(), prefix.size());
+		std::array<char, 32> sum{};
+		hash.getHash(reinterpret_cast<unsigned char *>(sum.data()));
+		if (sum == entry.root)
+			throw LayoutRefused("agent store root: format");
+	}
+	std::optional<std::pair<distribution::NamespaceCursor, distribution::Profile>> root;
 	try {
 		root = validate_paged_root_prefix(prefix);
 	} catch (const std::invalid_argument &) {
 	}
 	require(root.has_value() && root->second == table.profile);
 	descriptor.cursor = root->first;
-	require(namespace_cursor(descriptor.cursor) == entry.cursor);
+	require(descriptor.cursor == entry.cursor);
 	descriptor.generation = entry.generation;
 	descriptor.length = entry.root_length;
 	descriptor.checksum = entry.root;
@@ -152,7 +163,7 @@ GenerationSelection read_generation_selection(const std::filesystem::path &direc
 }
 RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesystem::path &directory,
 															 RecoveryContext paged_context,
-															 std::optional<distribution::Cursor> expected) {
+															 std::optional<distribution::NamespaceCursor> expected) {
 	if (paged_context.admission)
 		return recover(directory, std::move(paged_context), expected);
 	for (unsigned attempt = 0; attempt < 3; ++attempt) {
@@ -197,11 +208,11 @@ RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesyst
 	throw RecoverySelectionChanged();
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
-									   std::optional<distribution::Cursor> expected) {
+									   std::optional<distribution::NamespaceCursor> expected) {
 	return recover_generation(directory, limits, expected, nullptr);
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
-									   std::optional<distribution::Cursor> expected,
+									   std::optional<distribution::NamespaceCursor> expected,
 									   const RecoveredGeneration *prior) {
 	auto &domain = resources::domain(limits);
 	detail::RecoveryContext context{domain.factory(),
@@ -215,7 +226,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 }
 RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path &directory,
 													RecoveryContext context,
-													std::optional<distribution::Cursor> expected) {
+													std::optional<distribution::NamespaceCursor> expected) {
 	bool claimed = false;
 	try {
 		auto limits = context.limits;
@@ -331,7 +342,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
 						(!expected || (expected->same_identity(root.cursor) &&
-									   root.cursor.revision >= expected->revision)));
+									   root.cursor.position >= expected->position)));
 				auto account = context.heap;
 				const DirectoryIdentity identity{std::uint64_t(directory_info.st_dev),
 												 std::uint64_t(directory_info.st_ino)};
@@ -533,7 +544,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 }
 
 ReadView open_generation(const std::filesystem::path &directory, ViewLimits limits,
-						 std::optional<distribution::Cursor> expected) {
+						 std::optional<distribution::NamespaceCursor> expected) {
 	return recover_generation(directory, limits, expected).view();
 }
 } // namespace detent::local

@@ -1,4 +1,5 @@
 #pragma once
+#include "detent/cursor.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_graph_validator.hh"
 #include "paged_packer.hh"
@@ -55,6 +56,16 @@ struct Fixture {
 		inputs[0] = {ownership, bytes};
 	}
 };
+// The v1 identity whose W1 cursor (D88) the fixture's root carries.
+inline d::Cursor configured_cursor() {
+	d::Cursor cursor;
+	cursor.cluster.fill('c');
+	cursor.group.fill('g');
+	cursor.restore_epoch.fill('e');
+	cursor.scope.fill('s');
+	cursor.revision = 10;
+	return cursor;
+}
 inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_t definitions,
                                      std::size_t namespaces) {
 	std::sort(result->rows.begin(), result->rows.end(),
@@ -115,11 +126,7 @@ inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_
 	result->root.segments = 1;
 	result->root.records = definitions;
 	result->root.namespaces = namespaces;
-	result->root.cursor.cluster.fill('c');
-	result->root.cursor.group.fill('g');
-	result->root.cursor.restore_epoch.fill('e');
-	result->root.cursor.scope.fill('s');
-	result->root.cursor.revision = 10;
+	result->root.cursor = d::namespace_cursor(configured_cursor());
 	result->refresh();
 	return result;
 }

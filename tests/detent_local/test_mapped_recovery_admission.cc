@@ -87,10 +87,10 @@ int main() {
 				++target.namespaces;
 				require(!eligible());
 				target = plan->root();
-				target.cursor.restore_epoch[0] ^= 1;
+				target.cursor.incarnation[0] ^= 1;
 				require(!eligible());
 				target = plan->root();
-				target.cursor.revision = prior->root().cursor.revision - 1;
+				target.cursor.position = prior->root().cursor.position - 1;
 				require(!eligible());
 				target = plan->root();
 				target.profile = {2, 1};
@@ -173,7 +173,7 @@ int main() {
 						require(mappings->used() == mappings->limit());
 						admission->bind(plan->descriptor(), plan->directory_identity());
 						auto wrong = plan->descriptor();
-						++wrong.cursor.revision;
+						++wrong.cursor.position;
 						rejects<std::invalid_argument>([&] {
 							admission->bind(wrong, plan->directory_identity());
 						});

@@ -5,8 +5,9 @@
 namespace detent::local::detail {
 class PagedSnapshotSource final : public distribution::SnapshotSource {
   public:
-	PagedSnapshotSource(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
-	const distribution::Cursor &cursor() const noexcept override { return descriptor_.cursor; }
+	PagedSnapshotSource(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>,
+						const distribution::Cursor &identity);
+	const distribution::Cursor &cursor() const noexcept override { return cursor_; }
 	std::shared_ptr<distribution::StorageLedger> storage_account() const noexcept override {
 		return account_;
 	}
@@ -25,6 +26,7 @@ class PagedSnapshotSource final : public distribution::SnapshotSource {
 		std::string_view name() const { return {text.data(), length}; }
 	};
 	Descriptor descriptor_;
+	distribution::Cursor cursor_;
 	std::shared_ptr<distribution::StorageLedger> account_;
 	PagedCursor namespaces_cursor_, records_cursor_;
 	std::vector<Namespace, distribution::StorageAllocator<Namespace>> namespaces_;

@@ -16,7 +16,7 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 	limits_.retirement_domain = nullptr;
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	// A snapshot is a full copy, so its name has a zero base (D8.1).
-	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->cursor(),
+	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->namespace_cursor(),
 									  source->profile(), true);
 	encoder_.emplace(std::move(source), name, bounds);
 }

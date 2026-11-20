@@ -22,6 +22,8 @@ d::Cursor cursor() {
 	value.revision = 42;
 	return value;
 }
+// The fixture's cursor as the local layer holds it (D88).
+d::NamespaceCursor local_cursor(const d::Cursor &value = cursor()) { return d::namespace_cursor(value); }
 std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, std::uint64_t percentage = 25,
 					std::uint64_t revision = 42, unsigned padding = 0) {
 	std::string out;

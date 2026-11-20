@@ -23,6 +23,7 @@ struct StoreCore {
 	const MappedRecoveryAdmission *recovery_attempt = nullptr;
 	// The one writer of the directory (D8). Disk work touches it off the owner, one job at a time.
 	std::unique_ptr<AgentStore> agent;
+	std::optional<std::string> refusal; // the LayoutRefused this store opened past, if any
 	SyncCounters synced, startup_sync, publication_sync;
 	DirectoryIdentity directory_identity{};
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};

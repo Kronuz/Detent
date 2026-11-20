@@ -6,6 +6,7 @@
 #include "managed_recovery.hh"
 #include "paged_snapshot_plan.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <fcntl.h>
 #include <filesystem>
@@ -268,12 +269,69 @@ void close_while_running(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 	worker.join();
 	store->advance();
 	check(store->publication_status() == l::DiskPublicationStatus::Published && store->drained());
-	// The settled store keeps nothing of the publication, though the taken work is still held.
+	// The settled store keeps nothing of the publication, though the taken work is still held: the plan
+	// retires on the retirement worker.
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	while (!image.expired() && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
 	check(image.expired());
 	work.reset();
 	store.reset();
 	domain.close().wait();
-	check(l::read_generation_selection(directory).descriptor.cursor.revision == 42);
+	check(l::read_generation_selection(directory).descriptor.cursor.position == 42);
+}
+// D43: a store of another layout, synthesized from current bytes, is refused once and opens empty for a
+// full copy; damage still fences.
+void older_layouts(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
+				   const std::filesystem::path &root) {
+	auto replace = [](const std::filesystem::path &path, std::span<const char> bytes) {
+		std::filesystem::remove(path);
+		trusted_records::put(path, bytes);
+	};
+	auto table_of = [](const std::filesystem::path &directory) {
+		return l::decode_table(trusted_records::slurp(directory / "selected"));
+	};
+	for (const auto change : {"table layout", "root format", "root damage"}) {
+		const auto directory = fresh(root, change);
+		{
+			Store s(runtime, account, directory, l::StoreOpenMode::FreshEmpty);
+			s.publish(s.build(42));
+		}
+		auto table = table_of(directory);
+		const auto image = directory / (l::generation_name(table.entries.front().generation) + ".image");
+		if (std::string_view(change) == "table layout") {
+			// Layout 1: the current table with its layout field and digest rewritten.
+			auto bytes = trusted_records::slurp(directory / "selected");
+			l::write_integer(bytes, 8, l::agent_store_layout - 1, 4);
+			const auto sum = trusted_records::sha(std::span<const char>(bytes).first(bytes.size() - 32));
+			std::copy(sum.begin(), sum.end(), bytes.end() - 32);
+			replace(directory / "selected", bytes);
+		} else {
+			// Format 3: the current root with its magic and format rewritten, its entry naming its digest.
+			// Damage: the same root with the entry's digest left as it was.
+			auto bytes = trusted_records::slurp(image);
+			bytes[7] = '3';
+			l::write_integer(bytes, 8, l::paged::format_version - 1, 4);
+			replace(image, bytes);
+			if (std::string_view(change) == "root format") {
+				table.entries.front().root = trusted_records::sha(bytes);
+				replace(directory / "selected", l::encode_table(table));
+			}
+		}
+		Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
+		if (std::string_view(change) == "root damage") {
+			check(reopened.store->status() == l::StoreStatus::Fenced && !reopened.store->refusal());
+			check(std::filesystem::exists(directory / "selected") && std::filesystem::exists(image));
+			continue;
+		}
+		check(reopened.store->status() == l::StoreStatus::Ready && reopened.store->refusal() &&
+			  reopened.store->selection().knowledge == l::SelectionKnowledge::Absent);
+		reopened.publish(reopened.build(43));
+		reopened.store->request_collection();
+		drive(reopened.store);
+		check(!std::filesystem::exists(image) && reopened.store->stats().used == census(directory));
+		check(table_of(directory).entries.front().cursor.position == 43);
+	}
 }
 } // namespace
 int main() {
@@ -293,10 +351,12 @@ int main() {
 		check_released(account);
 		close_while_running(runtime, account, root);
 		check_released(account);
+		older_layouts(runtime, account, root);
+		check_released(account);
 		std::filesystem::remove_all(root);
 		runtime.shutdown();
 		std::cout << "startup modes, census settlement, cancellation, admission, collection around a lease and "
-					 "close while running passed\n";
+					 "close while running, and older layouts refused once passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

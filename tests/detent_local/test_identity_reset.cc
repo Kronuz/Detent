@@ -107,13 +107,13 @@ int main() {
 		target.revision = 1;
 		auto candidate = build(target, directory, store, domain);
 		const auto candidate_descriptor = candidate.descriptor();
-		l::TrustedIdentityReset reset{actual, target, {}};
+		l::TrustedIdentityReset reset{actual, d::namespace_cursor(target), {}};
 		for (unsigned fault = 0; fault != 3; ++fault) {
 			auto wrong = reset;
 			if (fault == 0)
 				++wrong.expected_selected.length;
 			if (fault == 1)
-				wrong.configured.scope[0] ^= 1;
+				wrong.configured.incarnation[0] ^= 1;
 			if (fault == 2)
 				wrong.profile.semantic_id = 2;
 			bool rejected = false;
@@ -129,7 +129,7 @@ int main() {
 			identity.revision = revision;
 			bool rejected = false;
 			try {
-				store->begin_reset(build(identity, directory, store, domain), {actual, old, {}});
+				store->begin_reset(build(identity, directory, store, domain), {actual, d::namespace_cursor(old), {}});
 			} catch (const std::exception &) {
 				rejected = true;
 			}
@@ -146,7 +146,7 @@ int main() {
 		next.revision = 2;
 		auto cancelled = build(next, directory, store, domain);
 		const auto selected = cancelled.descriptor();
-		store->begin_reset(std::move(cancelled), {candidate_descriptor, next, {}});
+		store->begin_reset(std::move(cancelled), {candidate_descriptor, d::namespace_cursor(next), {}});
 		// Taken work runs to its end: a cancellation after it is taken changes nothing.
 		auto work = store->work();
 		check(work != nullptr);

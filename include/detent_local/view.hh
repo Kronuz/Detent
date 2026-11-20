@@ -34,7 +34,7 @@ class ReadView {
   public:
 	ReadView() = default;
 	explicit operator bool() const noexcept { return static_cast<bool>(root_); }
-	const distribution::Cursor &cursor() const;
+	const distribution::NamespaceCursor &cursor() const;
 	std::uint32_t size() const noexcept;
 	bool contains(std::string_view name_space, std::string_view key) const;
 	// Absence is represented without constructing an allocating KnobError.

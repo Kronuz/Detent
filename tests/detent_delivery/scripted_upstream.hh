@@ -512,7 +512,7 @@ inline bool explain(bool ok, const std::shared_ptr<t::Coordinator> &coordinator,
 			  << status.failures << " repair " << status.repair.requested << "/" << status.repair.completed
 			  << (status.repair.pending ? " pending" : "") << " scrub passes " << status.scrub.passes << " damaged "
 			  << status.scrub.damaged_packs << " selected "
-			  << (status.selected.descriptor ? status.selected.descriptor->cursor.revision : 0) << " opens "
+			  << (status.selected.descriptor ? status.selected.descriptor->cursor.position : 0) << " opens "
 			  << server.opens << " forced " << server.forced_opens << " snapshots " << server.snapshots
 			  << " deltas " << server.deltas << '\n';
 	try {
