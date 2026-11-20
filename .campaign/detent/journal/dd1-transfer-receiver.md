@@ -7,13 +7,21 @@ Keep this current and commit it with the work, so a fresh contributor can contin
 status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
+## API
+
+`src/detent_local/paged_transfer.hh` (namespace `detent::local::detail`), pushed for DD2-DD4 at the
+commit that adds it (see `git log -- src/detent_local/paged_transfer.hh`). Entry points:
+`transfer_layout`, `make_transfer` (wire form of a page list in seal order), `receive_transfer`
+(D4; returns `ReceivedTransfer`: segments with ownership and pack checksum, the tree reference,
+counters), `TransferRefused` with `TransferRefusal`. Stable; any change is noted here with its reason.
+
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Receiver implementation (paged_transfer.cc), then the model's `--out` fixtures at 100K.
 
 ## Next
 
-1. <step>
+1. paged_transfer.cc; hermetic test; model `--out` writer; fixture replay mode.
 
 ## Blocked on
 
