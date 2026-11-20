@@ -5,16 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Fresh resident first reads (1 and 1,000 namespaces, publisher stopped and running) reach p99 below 1 ms on this host; today main is 1.18-1.32 ms and reader-s6 1.03-1.15 ms (D140). A profile names where the time goes before any change.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A profile of the slowest cell names the top costs: a job
+- A2 p99 below 1 ms in all four cells, exclusive interleaved runs against main (`docs/perf/first-read-gate.sh`): jobs
+- A3 The suite and CI pass
 
 ## Contracts
 
