@@ -1,34 +1,31 @@
 # groups-upload-loop-stall: journal
 
-State: blocked on the lead: probe 3's kernel frames are named but wrong (exported symbols only); see Blocked on
+State: waiting on jobs 261119-200155-ebcce0 (probe 4, run 44671627878), 261119-200157-067f2c (CI 44671575494 at d7b49a1), 261119-200137-1dd882 (suite); then set "increment ready: --upto d7b49a1" if the probe log shows raw offsets, build, UUID, slide
 Quest: .campaign/detent/quests/groups-upload-loop-stall.md (the lead's; never edit it)
 
 ## Doing
 
-Increment candidate: consensus:7f84a09 (counters + CI capture, no forced hold). Proving it:
-1. Capture probe 3, run 44654477324 (bf9d0e8 on 7f84a09, probe-only: any stuck loop triggers,
-   GROUPS_UPLOAD_HOLD_MS): the held run must print spindump threads with named kernel frames.
-2. Suite 261119-173347-9ec3c4 and CI 44654397584 at 7f84a09.
+The lead's ruling on kernel frames (raw, no nearest-export names): done at consensus:d7b49a1
+(quest branch, pushed). The spindump report's kernel frames print as `kernel + 0xN [addr]`, under
+`upload: kernel build <sw_vers> uuid <loaded kernel's> base <slid base> slide <base - on-disk
+__TEXT vmaddr> unslid __TEXT 0x...` (base and UUID from the report's Binary Images kernel line;
+the vmaddr from `otool -l`). Offline symbolication against the matching KDK is stated in
+.github/workflows/ci.yml's header and docs/mechanisms/host-transport.md (Checks); CI downloads none.
+Formatting checked against probe 3's artifact with a standalone harness (kernel + 0x1300a0 for
+kernel + 1245344, slide 0xe8000).
+
+Proof: probe 4, run 44671627878 (consensus:596df12 on branch probe/groups-upload-loop-stall-raw,
+d7b49a1 plus the forced 1.3 s hold; never lands, one shard, hold only): its log must show raw
+offsets, build, UUID, slide. Suite 261119-200137-1dd882 and CI 44671575494 at d7b49a1.
 
 ## Next
 
-1. All three green and the held run's log shows named kernel frames: tell the lead to
-   `campaign land --upto 7f84a09`. The quest stays open, A2 unmet, until a CI failure brings
-   stacks.
+1. All three green and probe 4's log has the four items: State "increment ready: --upto d7b49a1",
+   A2 stays open (no CI failure with stacks yet).
 
 ## Blocked on
 
-The lead: how to name kernel frames. Probe 3 (44654477324, job 136017219615, 24G830) printed
-named frames, but `nm` of the release kernel holds only exported symbols (18,427), so a frame
-takes the nearest export, far off:
-`*49 _vc_display_lzss_icon+0xf0 (kernel + 1245344) [0xffffff80004180a0]` (under sleep_for, a
-wait, not a boot-logo routine) and `*5 _bpfioctl+0x1833 (kernel + 2432931)` (under a loop's
-handler). Missing: the full symbols of the runner's kernel (Kernel Debug Kit for 24G830, behind
-an Apple developer login). Options:
-1. Recommended: drop the nm naming, print the raw "kernel + N" frames and the OS build, and
-   symbolicate a captured failure offline against the KDK for that build. Small change at
-   7f84a09's successor; then land that.
-2. Land 7f84a09 as it is: the raw offsets stay in each line beside the misleading names.
+Nothing.
 
 ## Notes
 
@@ -107,6 +104,9 @@ an Apple developer login). Options:
 <pending>
 
 ## Rulings I made
+
+- The note the lead asked for lives in docs/mechanisms/host-transport.md and a header comment in
+  ci.yml (outside the quest's file set: the lead named both).
 
 - A1's "runner or product" from the probe: U with 0 CPU inside write(2) is a call that did not
   return; which kernel resource it waits on decides whether the fix is in the product.
