@@ -1,18 +1,16 @@
 # journal-idle-groups: journal
 
-State: waiting on jobs 261120-095112-ec7b19 261120-095115-033c33 261120-095118-0e43df (Q1 before/after on a real disk, split-keeps-parent)
+State: waiting on job 261120-100217-9e45a1 (suite at journal:a336c58); then ready for review
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Lead rulings (coordinator, after the first hand-off): Q1 bounded table shards (D9), Q2 park call
-contract (D10), Q3 damaged shard fails only its groups (D11), F3 unmanifested test written and
-pending journal-double-damage. Code at journal:893fd77; docs (idle-groups.md D9-D11) in progress.
+Lead rulings Q1-Q3 done at journal:a336c58 (idle-groups.md D9-D11); F3 unmanifested test written,
+pending journal-double-damage.
 
 ## Next
 
-1. Fill idle-groups.md D9's real-disk row from 261120-095112-ec7b19 (before) and 261120-095115-033c33 (after); commit docs.
-2. Suite and A3 at the final head (`campaign verify`), CI on the branch, then State: ready for review (D135).
+1. When 261120-100217-9e45a1 passes: check CI on quest/detent/journal-idle-groups (pushed at a336c58), set State to ready for review (D135).
 
 ## Blocked on
 
@@ -22,10 +20,11 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | journal docs/design/idle-groups.md (journal:177814e, updated through journal:7b64376) |
-| A2 | 261120-090241-b0ccee (park_count, 1M); at b55e34d: 261120-084841-834ac9: 1,000,000 parked, heap slope -0.0006 B/group, 62.0 B/group on disk, log back to 1 segment, 93 s |
-| A3 | 261120-090244-85f26d (idle_crash 176 cuts x3 restarts, idle_damage, failed_reopen); mutants killed: parked-as-open 261120-090247-44cc33, wake-skips-commit 261120-090249-51170f, create-with-block 261120-090252-5f0ac1, park-keeps-log 261120-090255-807b5e |
-| A4 | 261120-090240-a27b5a (suite); CI on push |
+| A1 | journal docs/design/idle-groups.md (journal:177814e, through journal:a336c58: D9-D11 the lead's Q1-Q3) |
+| A2 | 261120-095115-033c33 at journal:893fd77 (strict, 1M): 1,000,000 parked, heap slope 0.24 B/group (the shard index), 62.6 B/group on disk, log back to 1 segment; also 261120-092916-3cb2bf at 48df21b |
+| Q1 before/after (strict, 1M) | before 261120-092423-3fc8cc (7129c53), 261120-095112-ec7b19 (a0944ca, APFS); after 261120-092916-3cb2bf (48df21b), 261120-095115-033c33 (893fd77, APFS): 15,192 -> 3,143 table B per transition; APFS 59.6 -> 61.7 ms per transition (sync-bound, same within noise) |
+| A3 | 261120-100219-c9e590 at a336c58 (idle_crash, split_crash, split_stale_node, table_damage, park_mid_turn, idle_damage); mutants killed: parked-as-open 261120-090247-44cc33, wake-skips-commit 261120-090249-51170f, create-with-block 261120-090252-5f0ac1, park-keeps-log 261120-090255-807b5e, damaged-shard-fails-open 261120-092920-ea237b, split-removes-early 261120-092924-a5abc0, split-keeps-parent 261120-095118-0e43df (survived on split_crash 261120-092922-489113; retargeted to split_stale_node) |
+| A4 | 261120-100217-9e45a1 (suite at a336c58, pending); 261120-092926-4d25e2 passed at 48df21b (57/57); CI on push |
 
 Coordinator's design inputs (review F2, F3, F5 of Xapiand turn-log-parity-design.md): answered in
 idle-groups.md D1 (F3: parked is closed, a durable state recovery already exempts), D5 (F3:
