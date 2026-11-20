@@ -4325,11 +4325,12 @@
       "provides": [
         "paged-transfer"
       ],
+      "reason": "folded into dense-distribution-build (owner msg-145: one feature quest); its branch merges in as a task",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Dense distribution DD1: transfer codec and verifying receiver",
-      "updated": "2026-11-20T04:49:23",
+      "updated": "2026-11-20T04:57:29",
       "worktree": "../Detent-wt/detent/dd1-transfer-receiver"
     },
     "dd2-canonical-copy": {
