@@ -10425,8 +10425,8 @@
     "loop-idle-waits": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-19T16:04:51",
-          "base": "a62f101aa761fd525c9d11a76ffd3168e9629957",
+          "at": "2026-11-19T23:25:38",
+          "base": "3144c58f95030424e1a5717850691f8cfa2d5b9e",
           "blobs": {
             "bench/idle-wakeups/compare.sh": "100755:361743911617959079bbf19ab8f659ac2a1ff4b9",
             "bench/idle-wakeups/idle_loops.py": "100644:3b9958dfa4f363575b353bedd581a8e122cf6f17",
@@ -10454,7 +10454,7 @@
             "tests/detent_delivery/test_reply_pump.cc": "100644:a0fa0f627e1914f8b7ba244f84c83641c712fca4"
           },
           "by": "review",
-          "commit": "0faf6474cb6eb767318c1519eea14540abf0a728",
+          "commit": "edff2eb0fce385f3d332005873811d2a5e044e7a",
           "criteria": "f2de37697762691b",
           "diffs": {
             "bench/idle-wakeups/compare.sh": "74f63a45437b2a04",
@@ -10486,15 +10486,15 @@
             "F10": {
               "jobs": [
                 {
-                  "cmd": "sh -c 'bench/idle-wakeups/compare.sh idle \"$JOB_REF_MAIN\"'",
-                  "commit": "0faf6474cb6eb767318c1519eea14540abf0a728",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "8d56b21ad45e7674af02fafc500e1bc5a0972ef6",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261119-153343-7b0799",
-                  "level": "strict",
-                  "seconds": 114.4,
+                  "job": "261119-125943-91cc3d",
+                  "level": "light",
+                  "seconds": 521.4,
                   "state": "done",
-                  "what": "A1 idle wakeups and turns over 10 s, head vs main 68531fde3599, 3 interleaved rounds"
+                  "what": "loop-idle-waits check suite at 8d56b21ad45e"
                 }
               ],
               "kind": "defect",
@@ -10549,7 +10549,7 @@
       "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-19T16:04:51",
+      "updated": "2026-11-19T23:25:38",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
