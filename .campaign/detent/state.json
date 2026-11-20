@@ -7690,20 +7690,49 @@
         "docs/**",
         "CHANGELOG.md"
       ],
-      "journal": "../Detent-wt/detent/journal-close-in-doubt",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T16:50:35",
+          "commit": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
+          "criteria": {
+            "A1": "261119-155358-d7b542 (passed at a64c6188a931; only merges from main since); fails without: 261119-145814-f4c7ce",
+            "A2": "261119-155359-aa394f (passed at a64c6188a931; only merges from main since); fails without: 261119-145814-f4c7ce",
+            "A3": "261119-161045-09bab2 (passed at a64c6188a931; only merges from main since), 261119-161045-96fa14 (passed at a64c6188a931; only merges from main since); fails without: 261119-155400-64866e",
+            "A4": "261119-155403-6701c3 (passed at a64c6188a931; only merges from main since), 261119-155402-ef5a34 (passed at a64c6188a931; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+              "commit": "a64c6188a931cb2bee2489614e1e31cfe0f7ff8c",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-155403-6701c3",
+              "level": "light",
+              "seconds": 189.1,
+              "state": "done",
+              "what": "journal-close-in-doubt check suite at a64c6188a931"
+            }
+          ],
+          "final": true,
+          "from": "be8222cda090e8b062c843c40217c461926d661c",
+          "reason": "",
+          "tested": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "journal: a failed close_group leaves its group closed-in-doubt, never open",
-      "updated": "2026-11-19T16:21:51",
-      "worktree": "../journal-wt/detent/journal-close-in-doubt"
+      "updated": "2026-11-19T16:50:37",
+      "worktree": ""
     },
     "journal-driver": {
       "accepted": {
