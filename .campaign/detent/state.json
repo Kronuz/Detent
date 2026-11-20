@@ -3470,7 +3470,36 @@
       "worktree": ""
     },
     "consensus-worker-release": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-19T20:42:01",
+          "base": "a292fd0f6c982ce1db3f670798ed84705f14b7eb",
+          "blobs": {
+            "CHANGELOG.md": "100644:e4f3947747748def02ae1ebdcfef78ffa54fde61",
+            "CMakeLists.txt": "100644:cb0175c2fe29a9dd05ab68c93b544bf616337b66",
+            "docs/DRIVER.md": "100644:b6f5c4584c36842fe39e3610bd238bcd1e6feaac",
+            "include/consensus/driver.h": "100644:30e9baebc56e3fde74f6997ebbe5c22354befbf6",
+            "include/consensus/worker.h": "100644:4104dfcd862ae60621bda2d62ad774b849c1ddaf",
+            "test/driver_close_test.cc": "100644:510098d67541e2cbfefc9fdf1cd4c7343ca4bff4"
+          },
+          "by": "review",
+          "commit": "18f55c69946e1a5d63e6b0b8dd46ba21d5ecdc54",
+          "criteria": "64b7ba2ce8fd59c8",
+          "diffs": {
+            "CHANGELOG.md": "cfc5b49745c8ef1e",
+            "CMakeLists.txt": "246b34981c147d85",
+            "docs/DRIVER.md": "2639ce631c0aeebc",
+            "include/consensus/driver.h": "3ca1f2f780c358a9",
+            "include/consensus/worker.h": "5c5ef521e96903ef",
+            "test/driver_close_test.cc": "182e97e519c0fcb2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "f5eb389e49560ec92b7c15a2e9db904b2ba692e1",
+          "reviewed": "18f55c69946e1a5d63e6b0b8dd46ba21d5ecdc54",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "driver-apply-gap"
       ],
@@ -3555,7 +3584,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus: a closed row releases its journal group",
-      "updated": "2026-11-19T14:02:39",
+      "updated": "2026-11-19T20:42:01",
       "worktree": "../consensus-wt/detent/consensus-worker-release"
     },
     "container-selection": {
