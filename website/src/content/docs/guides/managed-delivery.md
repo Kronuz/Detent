@@ -142,34 +142,29 @@ The managed agent accounts for its own memory, mappings and disk:
 | `disk_bytes` | 1 GiB named disk space |
 | `disk_entries` | 4,096 entries |
 | `disk_generations` | 1,024 generations |
-| `poll_interval_ms` | 200 |
-| `reconnect_maximum_ms` | 30,000, or the poll interval when larger |
+| `retry_interval_ms` | 200 |
+| `reconnect_maximum_ms` | 30,000, or the retry interval when larger |
 | `timeout_ms` | 60,000 |
 | `image_format` | `"flat-v1"`; opt in with `"paged-v2"` |
 | `compaction_interval_ms` | 60,000; zero disables; enabled range 1,000–86,400,000 |
 | `compression` | `true` |
 | `artifact_mode` | `384` (`0600`) for users, `420` (`0644`) for system agents |
 
-Subscription reconnects use independently seeded exponential equal jitter. Authenticated idle responses and durable publication reset backoff; successful long polls and disk waits retain their existing timing. `reconnect_maximum_ms` must cover `poll_interval_ms` and cannot exceed 86,400,000.
+Session reconnects use independently seeded exponential equal jitter. Authenticated idle responses and durable publication reset backoff; successful long polls and disk waits retain their existing timing. `reconnect_maximum_ms` must cover `retry_interval_ms` and cannot exceed 86,400,000.
 
 `artifact_mode` takes the decimal value `384`, `416` or `420` (octal `0600`,
 `0640` or `0644`). Unknown or duplicate fields are rejected.
 
 ### Changing Authorities
 
-Changing the authority identity requires an explicit `reset_from` object
-naming the old `cluster`, `group`, `epoch` and `scope`. A trusted reset
-publishes a new snapshot while keeping the local storage identity; an
-unconfigured identity change fails startup. That's an administrative trust
-decision, never an automatic fallback.
+A new cluster or a new incarnation of a namespace arrives as a full copy of
+that namespace; no configured identity transition exists.
 
-## Subscription Delivery
+## Session Delivery
 
-Add `"delivery_mode":"subscription"` to the private managed credential configuration to use publication windows and long polling. The default remains `"poll"`. Subscriptions reuse the same TLS verification, framed updates and durable local generations.
+The agent follows the configured `namespaces` (every granted namespace when the list is absent) over one W5 session: it opens with each namespace's durable cursor, and each `next` long-polls for the frames past them. A response's frames publish as one local cycle before the next request. Session expiry reopens from the durable cursors. Lost history answers a full copy; changed identity or revoked authorization fences the agent until trusted configuration is corrected.
 
-The agent opens from its recovered local cursor, receives one update and sends exact publication feedback only after local publication and recovery complete. An unchanged agent waits without repeatedly exporting authority state. Session expiry permits reopening from the actual durable cursor. Lost history requests an explicit new snapshot; changed identity or revoked authorization fences the agent until trusted configuration is corrected.
-
-`poll_interval_ms` controls retry backoff in subscription mode. The authority negotiates the maximum long-poll wait, and each network operation remains bounded by `timeout_ms`. Shutdown drains accepted network work before a bounded best-effort session close. Subscriptions and relay fan-out have component acceptance. Opt-in incremental paged publication is under assembled-process qualification; sustained fleet capacity remains a separate gate.
+`retry_interval_ms` is the first retry after a failure. The authority negotiates the maximum long-poll wait, and each network operation remains bounded by `timeout_ms`. Shutdown drains accepted network work before a bounded best-effort session close.
 
 ## Paged local publication
 
@@ -183,6 +178,6 @@ A managed source can set `authority_endpoints` to an array of up to eight object
 
 The coordinator tries members serially and stays on a successful member. Transport failures, unavailable authorities and follower read rejection permit rotation. Admission pressure and local storage failures retain the route. Authentication, authorization, TLS verification and unexpected identity or profile fail closed, including denials received while closing a session. Sessions and publication feedback remain bound to their opening endpoint.
 
-For pooled subscriptions, `quorum_refresh_ms` defaults to 30000 and accepts 1000 through 86400000. Refresh uses bounded jitter of ±20%; idle responses do not postpone it. A fresh Open revalidates authority quorum after accepted local publication and recovery settle. Polling already performs quorum reads. Discovery time includes refresh, per-member request deadlines, retry backoff and accepted local work; the default 60-second request timeout provides no short failover guarantee.
+For pooled sessions, `quorum_refresh_ms` defaults to 30000 and accepts 1000 through 86400000. Refresh uses bounded jitter of ±20%; idle responses do not postpone it. A fresh Open revalidates authority quorum after accepted local publication and recovery settle. Discovery time includes refresh, per-member request deadlines, retry backoff and accepted local work; the default 60-second request timeout provides no short failover guarantee.
 
-Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay must use a single relay endpoint and explicit `"delivery_mode":"subscription"`.
+Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay uses a single relay endpoint.

@@ -1,6 +1,7 @@
 #pragma once
 #include "view.hh"
 #include <array>
+#include <vector>
 #include <filesystem>
 #include <stdexcept>
 

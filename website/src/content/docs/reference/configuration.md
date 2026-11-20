@@ -140,7 +140,7 @@ Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime
 | `alpha_num`, `alpha_den` | 1 and 8 | The block limit, as a fraction of a namespace's live bytes |
 | `cap` | 2 | Disk cap, in units of the block limit |
 
-The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `poll_interval_ms` and capped by `reconnect_maximum_ms` (default 30,000, or the poll interval when larger). The cap must cover the poll interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
+The private managed agent configuration names the followed `namespaces` (every granted namespace when absent) and follows them over one W5 session; the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `retry_interval_ms` (default 200) and capped by `reconnect_maximum_ms` (default 30,000, or the retry interval when larger). The cap must cover the retry interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
 
 ---
 
