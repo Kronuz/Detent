@@ -40,6 +40,13 @@ void check(bool value, int line) {
 	}
 }
 #define CHECK(value) check(value, __LINE__)
+// A lookup that must answer: a refusal prints its status and the last recorded failure.
+void check_ok(detent_status status, int line) {
+	if (status != DETENT_OK)
+		std::cerr << "lookup status " << int(status) << " (" << t::last_failure() << ")" << std::endl;
+	check(status == DETENT_OK, line);
+}
+#define CHECK_OK(status) check_ok(status, __LINE__)
 detent_str S(std::string_view s) { return {s.data(), s.size()}; }
 std::string knobs(std::int64_t rev) {
 	return R"({"schema_version":1,"knobs":{"t:rev":{"default":)" + std::to_string(rev) +
@@ -90,7 +97,7 @@ std::thread parked(Park &park, t::Window at, std::function<void()> body, Park *n
 
 std::int64_t get(detent_reader *h) {
 	std::int64_t out = -1;
-	CHECK(detent_get(h, S("t:rev"), {nullptr, 0}, {nullptr, 0}, -1, &out) == DETENT_OK);
+	CHECK_OK(detent_get(h, S("t:rev"), {nullptr, 0}, {nullptr, 0}, -1, &out));
 	return out;
 }
 std::size_t threads() {
@@ -242,8 +249,8 @@ void switching(const std::filesystem::path &root) {
 					CHECK(value >= last && value >= 1 && value <= shared->ceiling.load());
 					last = value;
 					std::int64_t flag = 0;
-					CHECK(detent_get(r.handle, S("t:flag"), {nullptr, 0}, {nullptr, 0}, 0, &flag) == DETENT_OK &&
-					      flag == 1);
+					CHECK_OK(detent_get(r.handle, S("t:flag"), {nullptr, 0}, {nullptr, 0}, 0, &flag));
+					CHECK(flag == 1);
 					++mine;
 				}
 				// Every reader reaches the last publish once publishing stops.
