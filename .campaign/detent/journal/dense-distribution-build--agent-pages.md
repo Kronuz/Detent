@@ -1,6 +1,6 @@
 # dense-distribution-build--agent-pages: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 The agent's half of DD3: it asks for pages, verifies a pages full copy through DD1's receiver and
@@ -32,8 +32,7 @@ All four steps built. Steps 1-3 at Detent:8adf04ea; quest branch merged at Deten
 
 ## Next
 
-1. Job 261120-104134-35f3e1 at Detent:c88fd1d5 (touched tests, relay pages included). When green:
-   State "ready for review"; the lead merges.
+1. The lead merges into the quest branch (job 261120-104134-35f3e1 green at Detent:c88fd1d5).
 2. End to end against the real relay once the integration round wires service.cc.
 
 ## Blocked on
@@ -47,7 +46,7 @@ Task jobs (no criterion of their own; the quest's A1/A2 run on the quest branch)
 | What | Job | Result |
 |---|---|---|
 | Steps 1-3, touched tests + relay pages, at Detent:06b9b3c4 | 261120-102303-2536af | 10/10 passed; 100K pages boot: 2,888,084 B, built hashes 0+0, 1,347 ms |
-| Steps 1-4 at Detent:c88fd1d5 | 261120-104134-35f3e1 | pending |
+| Steps 1-4 at Detent:c88fd1d5 | 261120-104134-35f3e1 | 14/14 passed; delta 10,000 keys: 250,970 B, built hashes 0+0; 100K boot 445 ms |
 
 ## Result
 
