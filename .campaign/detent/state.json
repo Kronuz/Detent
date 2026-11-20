@@ -8985,20 +8985,48 @@
         "CHANGELOG.md",
         "docs/mechanisms/turn-seal.md"
       ],
-      "journal": "../Detent-wt/detent/journal-hold-loop-required",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T00:10:25",
+          "commit": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+          "criteria": {
+            "A1": "261119-230956-1c62ec; fails without: 261119-230959-49f27c, 261119-231013-d62978",
+            "A2": "261119-230837-f9b88b, 261119-231000-3ff92a, 261119-231002-971376, 261119-231003-aa3407",
+            "A3": "[artifact] journal `CHANGELOG.md` (2026-11-19 Changed) and `docs/mechanisms/turn-seal.md` (Asking for a turn, wake_refused row) at journal:1222e3b"
+          },
+          "evidence": [
+            {
+              "cmd": "true",
+              "commit": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-230837-f9b88b",
+              "level": "light",
+              "seconds": 0.1,
+              "state": "done",
+              "what": "journal-hold-loop-required check suite at 1222e3b33f12"
+            }
+          ],
+          "final": true,
+          "from": "bb114f16b07478825a00b6ba32e39bc1da6cbb39",
+          "reason": "",
+          "tested": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "journal Hold takes its loop as required and refuses an empty one (D131)",
-      "updated": "2026-11-20T00:10:16",
-      "worktree": "../journal-wt/detent/journal-hold-loop-required"
+      "updated": "2026-11-20T00:10:26",
+      "worktree": ""
     },
     "journal-hop-on-task": {
       "accepted": {
