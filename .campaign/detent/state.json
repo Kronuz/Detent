@@ -16081,6 +16081,8 @@
       "after": [
         "reactor-tls-cache"
       ],
+      "base": "1dd5f32bf6fe597683dad2eb7703bcd1991fdbd5",
+      "branch": "quest/detent/reactor-abortlist-thread",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -16095,6 +16097,7 @@
         "test/session_test.cc",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/reactor-abortlist-thread",
       "landed": [],
       "lenses": [
         "correctness"
@@ -16104,9 +16107,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "reactor: a session ending on another loop untracks on the owning loop",
-      "updated": "2026-11-19T05:59:41"
+      "updated": "2026-11-19T16:39:35",
+      "worktree": "../reactor-wt/detent/reactor-abortlist-thread"
     },
     "reactor-on-wheel": {
       "accepted": {},
