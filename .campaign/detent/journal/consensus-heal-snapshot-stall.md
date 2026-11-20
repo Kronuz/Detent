@@ -1,40 +1,55 @@
 # consensus-heal-snapshot-stall: journal
 
-State: working
+State: waiting on jobs 261119-231939-d37063 261119-231700-6abdcf 261119-231702-89d08c 261119-231733-1977b1 261119-231908-20c482 261119-231909-77e47d 261119-231722-0ef072 261119-231724-f68f28
 Quest: .campaign/detent/quests/consensus-heal-snapshot-stall.md (the lead's; never edit it)
-
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Jobs queued for A1-A3 (ids in State); CI run 44693792407 on the pushed branch (linux-tsan, ASan/UBSan, matrix).
 
 ## Next
 
-1. <step>
+1. Read the jobs and CI; paste `campaign brief`'s evidence table; then ready for review (correctness).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. The 60 s is not a design bound for this case: snapshot_timeout bounds an install whose source never progresses (ARCHITECTURE.md, Sender flights); here no install was needed. Fixed in the Core, no wire change.
+
+## Cause (A1)
+
+Reproduction: Xapiand's Driver simulation at consensus:98298fb (branch quest/xapiand/consensus-sim-loops; its core.h is main's), `SIM_DRIVER_SEEDS=1 SIM_DRIVER_TRACE=1 consensus_simulation_test 0 1000 <seed>`, seeds 4270, 6197, 8247: deterministic (5 identical traces), at 1,000 steps (3,000 steps does not hit it). Each emits one SnapshotNeeded at heal round 0-1 and heals only by rounds 14,881 / 13,154 / 10,498. Seed 399 is unrelated (the 3,000-step regression seed the same binary replays).
+
+Core state at the stall (seed 4270, group 412174842685, leader node 1 term 4, peer 2 a data voter; Core instrumented in scratch):
+1. now 2035: peer 2 refuses an append at previous 5 with hint 1 (empty log): next 1, matched 0.
+2. now 2076-2343: the append at previous 0 reaches peer 2 (it commits 1..2, holds 1..7), but no reply reaches the leader; each rpc_timeout `reset_flights` puts next back at matched + 1 = 1.
+3. now 2353: the leader checkpoints at base 2; the flight then times out with next 1 <= base 2 and nothing in flight, so `replicate` asks for an install (SnapshotNeeded at base 2) though no answer showed peer 2 lacks the base.
+4. The simulated host never supplies a source; while AwaitSource, `replicate` sends only empty keepalives (prev 0; replies ignored by design), so nothing probes peer 2's log.
+5. now 62353 (2353 + snapshot_timeout): TimedOut release with a probe at base + 1; the append succeeds and peer 2 commits.
+
+SnapshotNeeded goes unanswered because the simulated host sends no images. The leader waits because the Core took "next <= base" to mean "the peer lacks the base" when a flight timeout and its own checkpoint, not the peer, put next there; a pending install then owns the peer until released. A production host would build and ship a full image (answered CaughtUp or Installed) to a peer that needed one append.
+
+Core reproduction: `heal_after_checkpoint_past_stale_match` in test/consensus_test.cc (Network fixture with a one-way cut, compact timing 20/40): cut 2->1, replicate c3-c8, let flights time out, checkpoint past 2's stale match, time out again, heal. Fails at consensus:910925a (test-only commit).
+
+## Fix (A2)
+
+consensus:95e15f3, include/consensus/core.h: `Peer::lacks_base`, set by a refusal that puts next at or below the base, cleared by any append sent and by an image installed or released with a probe. `replicate` starts an install only when it is set; otherwise it appends at the base, and a refusal there starts the install one round trip later. After the heal the peer catches up within rpc_timeout (its outstanding flight's timeout): 2 heartbeats in the compact and simulation profiles (20/40). Under the library default (100/500) the bound is rpc_timeout, the same as for any lost flight.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
+Jobs: A1 261119-231939-d37063 (head, builds 98298fb: expect-stall), 261119-231700-6abdcf (fails-without at c08afe7: seed 4270 fails the 4,000-round heal), 261119-231702-89d08c (fails-without at 910925a); supporting, ran 98298fb itself: 261119-231659-1c3890 passed (1 SnapshotNeeded each; heal rounds 14,881 / 13,154 / 10,498). A2 261119-231702-89d08c, 261119-231733-1977b1 (test passes at head), 261119-231908-20c482 (head's core.h in 98298fb's sim: expect-heal); supporting 261119-231718-ff0cc8 passed (0 SnapshotNeeded; heal rounds 7 / 40 / 40). A3 261119-231909-77e47d (head's core.h in c08afe7's sim, 4,000-round heal: 10,000 seeds x 1,000 steps, 2,000 x 3,000), 261119-231722-0ef072 (main's sim: 1,000 Core seeds x 10,000, 100 Driver seeds x 3,000), 261119-231724-f68f28 (suite); CI 44693792407 (TSan). Script: /Users/kronuz/.scratch/detent/consensus-heal-snapshot-stall/jobs/heal-seeds.sh.
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending |
+| A2 | pending |
+| A3 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending the jobs. Open for the lead: ARCHITECTURE.md (Sender flights: "A leader needing unavailable history emits SnapshotNeeded") and CHANGELOG.md are outside the file set; suggested sentence: "An install starts only after the peer refuses an append at or below the leader's base; a next index there for any other reason (a flight timeout, the leader's own checkpoint) first appends at the base." Xapiand's 98298fb (heal outlasting 2 x snapshot_timeout) can return to 4,000 rounds once this lands.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. One per-peer flag checked in `replicate`, rather than clamping next at each site that moves it without evidence (flight timeout, checkpoint, install outcome): one decision point. A refusal's evidence survives a later checkpoint: by log matching, a peer lacking the leader's entry at i lacks every later one until the leader sends it more.
+2. A refusal that leads to an install still installs at once; a Rejected, Stale or Unavailable release keeps the flag, so those retries still request a new image, as the existing tests require.
+3. The A2 bound is measured in the compact profile (heartbeat 20, rpc_timeout 40), the simulation's timing.
