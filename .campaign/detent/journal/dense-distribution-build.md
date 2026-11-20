@@ -1,6 +1,8 @@
 # dense-distribution-build: journal
 
-State: DD3 step 1 (pages frame) done at Detent:0e63b069; steps 2-4 next (lead msg: start DD3 now, order 1-4). Waiting on job 261120-092532-58e85e (relay system tests 5x -j4, D136) and CI. Dev build in .scratch/build (Release, suite flags), current at Detent:0e63b069.
+State: integration round (lead: e2e on the real relay, off-thread builds, gate). Both DD3 halves merged
+(relay Detent:68b9665d, agent Detent:c88fd1d5, parser Detent:9175920e, service copy Detent:3d6e70b2).
+Off-thread builds at Detent:251c6cc4; the system test test_system_relay_pages is being built locally.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -9,7 +11,16 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 7 (former DD3, then DD4's wiring): the plan is under Next 4.
+Integration round:
+1. Off-thread builds (done, Detent:251c6cc4): MirrorService runs builds on a builder thread;
+   test_relay_pages' service case (records answer 3 ms while a 100K build runs; pages at 250 ms);
+   mutant tests/detent_relay/mutants/build-on-mirror-thread.patch (job 261120-111716-653937).
+2. System test test_system_relay_pages (run_relay_pages.py): authority + relay + two agents (one
+   direct, records; one relayed, pages); cold 100K boot with 0 bytes hashed to build, roots equal;
+   a clustered rewrite while the relay is SIGSTOPped reaches the warm agent as one pages delta.
+   Forced root mismatch: tests/detent_system/forcing/relay-root-forced.patch +
+   forcing/relay_pages_forced.sh (agent refuses, boots from records, same root).
+3. Gate: suite + CI at the head; then "ready for review".
 
 ## Done
 
