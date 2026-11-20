@@ -1,7 +1,8 @@
 #pragma once
 // A W5/W6 test server: it parses W5 bodies with the session request parser, filters by grants (W13),
 // answers from a test history source per namespace, and sends every frame in one fragment-framed
-// response. A pages session gets a namespace's installed page transfer when it has no store of it.
+// response. A pages session gets a namespace's installed page transfer when it has no store of it,
+// from the offset a next resumes it at (dense distribution D8).
 #include "../detent_distribution/history_fixture.hh"
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/grants.hh"
@@ -10,6 +11,7 @@
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 #include <atomic>
+#include <deque>
 #include <map>
 #include <mutex>
 #include <source_location>
@@ -72,6 +74,11 @@ struct Server {
 	std::vector<std::string> session_records;
 	d::NamespaceGrants grants;
 	bool open_session = false, corrupt = false, behind = false;
+	// The next reply carrying a pages frame stops after this many body bytes, once (D8).
+	std::size_t cut = 0;
+	std::vector<std::uint64_t> offsets; // each pages frame's offset, in order
+	// A records frame of a namespace at this head names this root (dense distribution D1).
+	std::map<std::string, std::pair<d::NamespaceCursor, d::RootDigest>, std::less<>> roots;
 	std::atomic<unsigned> answered{0}, idle{0};
 	std::exception_ptr failure;
 	asio::io_context io;
@@ -164,6 +171,8 @@ struct Server {
 		}
 		std::vector<TestHistory> histories;
 		histories.reserve(wanted.size());
+		std::deque<d::PagesAnswer> resumed;
+		bool pages_frame = false;
 		std::vector<d::NamespaceRequest> requests;
 		for (const auto &[name, cursor] : wanted) {
 			const auto &each = find(name);
@@ -178,10 +187,19 @@ struct Server {
 				(cursor ? cursor->same_identity(transfer->second.answer.to) &&
 							  cursor->position == transfer->second.answer.after
 						: !transfer->second.answer.after) &&
-				!std::binary_search(session_records.begin(), session_records.end(), name))
-				requests.push_back({name, &histories.back(), cursor, std::nullopt, &transfer->second.answer});
-			else
+				!std::binary_search(session_records.begin(), session_records.end(), name)) {
+				auto &answer = resumed.emplace_back(transfer->second.answer);
+				if (const auto &resume = request.resume; resume && resume->name == name && resume->root == answer.root &&
+														  resume->after == answer.after && resume->offset <= answer.bytes.size())
+					answer.offset = resume->offset;
+				offsets.push_back(answer.offset);
+				pages_frame = true;
+				requests.push_back({name, &histories.back(), cursor, std::nullopt, &answer});
+			} else {
 				requests.push_back({name, &histories.back(), cursor});
+				if (const auto root = roots.find(name); root != roots.end() && root->second.first == histories.back().head())
+					requests.back().root = root->second.second;
+			}
 		}
 		d::SessionFramesEncoder encoder(directory, requests);
 		const bool frames = std::any_of(encoder.answers().begin(), encoder.answers().end(), [](const d::Answer &a) {
@@ -211,11 +229,14 @@ struct Server {
 		if (corrupt) // A byte in the last fragment's payload: the earlier fragments verify.
 			wire[last_fragment + (wire.size() - last_fragment) / 2] ^= 0x40;
 		++answered;
-		return reply("200 OK",
-					 "Content-Type: application/vnd.detent.frames\r\nX-Detent-Session-Version: 2\r\n"
-					 "X-Detent-Session: " +
-						 session_hex + "\r\nX-Detent-Coding: " + (compressed ? "zstd" : "raw") + "\r\n",
-					 wire);
+		auto out = reply("200 OK",
+						 "Content-Type: application/vnd.detent.frames\r\nX-Detent-Session-Version: 2\r\n"
+						 "X-Detent-Session: " +
+							 session_hex + "\r\nX-Detent-Coding: " + (compressed ? "zstd" : "raw") + "\r\n",
+						 wire);
+		if (pages_frame && cut && cut < wire.size())
+			out.resize(out.size() - wire.size() + std::exchange(cut, 0));
+		return out;
 	}
 	bool compressed = false;
 	void handle(asio::ip::tcp::socket accepted) {

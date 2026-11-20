@@ -364,7 +364,21 @@ void request_bodies() {
 	const auto next = t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms);
 	check(next.ends_with(",\"wait_ms\":250}"));
 	auto renext = h::parse_session_request(account, h::RequestKind::Next, next);
-	check(!renext->request().pages && renext->request().records.empty());
+	check(!renext->request().pages && renext->request().records.empty() && !renext->request().resume);
+	// D8: next asks a held transfer's rest; open never does.
+	following.resume = t::Following::Resume{"a", {}, 3, d::transfer_chunk_bytes};
+	following.resume->root.fill('\x0f');
+	const auto resuming = t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms);
+	std::string root_hex;
+	for (int i = 0; i < 32; ++i)
+		root_hex += "0f";
+	check(resuming.ends_with(",\"resume\":[\"a\",\"" + root_hex + "\",3,65536]}"));
+	auto resumed = h::parse_session_request(account, h::RequestKind::Next, resuming);
+	check(resumed->request().resume && resumed->request().resume->name == "a" &&
+		  resumed->request().resume->root == following.resume->root && resumed->request().resume->after == 3 &&
+		  resumed->request().resume->offset == d::transfer_chunk_bytes);
+	check(t::namespace_session_body(t::SessionResponsePurpose::Open, following, false).find("resume") == std::string::npos);
+	following.resume.reset();
 	following.records = {"c", "b"};
 	bool unordered = false;
 	try {

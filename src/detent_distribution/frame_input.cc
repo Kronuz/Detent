@@ -50,9 +50,13 @@ FrameInput::FrameInput(std::string_view name, FrameKind kind, std::uint64_t afte
 FrameInput::~FrameInput() = default;
 
 void FrameInput::piece(PieceKind, std::uint64_t, std::uint64_t) {}
-void FrameInput::pages(const RootDigest &root) {
-	require(kind_ == FrameKind::Pages, "a root digest outside a pages frame");
-	root_ = root;
+void FrameInput::root(const RootDigest &root) { root_ = root; }
+void FrameInput::pages(std::uint64_t offset) {
+	require(kind_ == FrameKind::Pages && offset == transfer_.size(), "a pages frame resumes at its prefix");
+}
+bool FrameInput::hold_whole_chunks() noexcept {
+	transfer_.resize(transfer_.size() - transfer_.size() % transfer_chunk_bytes);
+	return !transfer_.empty();
 }
 void FrameInput::chunk(std::string_view bytes) {
 	require(kind_ == FrameKind::Pages, "a transfer chunk outside a pages frame");

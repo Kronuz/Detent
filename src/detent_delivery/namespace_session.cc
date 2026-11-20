@@ -87,8 +87,14 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 	if (following.all)
 		body += ",\"all\":" +
 				std::to_string(following.all->cluster == cluster ? following.all->position : std::uint64_t{0});
-	if (purpose == SessionResponsePurpose::Next)
+	if (purpose == SessionResponsePurpose::Next) {
 		body += ",\"wait_ms\":" + std::to_string(wait.count());
+		if (const auto &resume = following.resume) {
+			require(d::valid_namespace_name(resume->name) && resume->offset, "a resumed transfer is named");
+			body += ",\"resume\":[\"" + resume->name + "\",\"" + hex(resume->root) + "\"," +
+					std::to_string(resume->after) + ',' + std::to_string(resume->offset) + ']';
+		}
+	}
 	else if (following.pages)
 		body += ",\"pages\":true";
 	if (purpose == SessionResponsePurpose::Open && !following.records.empty()) {
@@ -418,7 +424,8 @@ class StagedFrames final : public d::FrameSink {
 		frames_.back()->record(key, revision, value);
 		charge();
 	}
-	void pages(const d::RootDigest &root) override { frames_.back()->pages(root); }
+	void root(const d::RootDigest &root) override { frames_.back()->root(root); }
+	void pages(std::uint64_t offset) override { frames_.back()->pages(offset); }
 	void chunk(std::string_view bytes) override {
 		frames_.back()->chunk(bytes);
 		charge();
