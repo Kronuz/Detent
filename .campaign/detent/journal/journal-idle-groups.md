@@ -1,19 +1,18 @@
 # journal-idle-groups: journal
 
-State: waiting on jobs 261120-090241-b0ccee 261120-090255-807b5e
+State: waiting on jobs 261120-095112-ec7b19 261120-095115-033c33 261120-095118-0e43df (Q1 before/after on a real disk, split-keeps-parent)
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Evidence jobs at journal:7b64376 (suite A4, park_count 1M A2, idle_crash/idle_damage A3, four
-mutants A3). The same set passed at journal:b55e34d except the suite, whose three failures
-(sync_seam, host view_sweep, shared_store census) 7b64376 fixes; the full suite is green locally.
+Lead rulings (coordinator, after the first hand-off): Q1 bounded table shards (D9), Q2 park call
+contract (D10), Q3 damaged shard fails only its groups (D11), F3 unmanifested test written and
+pending journal-double-damage. Code at journal:893fd77; docs (idle-groups.md D9-D11) in progress.
 
 ## Next
 
-1. When A2 (1M) and park-keeps-log finish: confirm, check CI on quest/detent/journal-idle-groups, set State to ready for review (one review, D135).
-
-Done at 7b64376: suite 261120-090240-a27b5a passed; A3 261120-090244-85f26d passed; mutants parked-as-open, wake-skips-commit, create-with-block killed.
+1. Fill idle-groups.md D9's real-disk row from 261120-095112-ec7b19 (before) and 261120-095115-033c33 (after); commit docs.
+2. Suite and A3 at the final head (`campaign verify`), CI on the branch, then State: ready for review (D135).
 
 ## Blocked on
 
@@ -53,6 +52,13 @@ durable table state (Host::park, Host::close_group; on disk the `closed` entry s
   "payload: damaged 1 lost 2" vs "payload+header: damaged 0 lost 0 groups 6 ... g6:1" (g6 wrote 5).
   It blocks F3's "unmanifested" damage test; idle_damage uses manifested damage.
 
+## Pending another quest
+
+- `host_test idle_unmanifested` (review F3's unmanifested case: header plus payload damage of a
+  woken group's turn) fails today, as the double-damage gap predicts ("the log reports the
+  damage", "the woken group ... is lost"). It runs by name only, outside the default run, until
+  journal-double-damage lands; then it joins the cases list.
+
 ## Rulings I made
 
 - R1. Parked is the existing closed state (D1), not a new table state: same bytes, same exemption.
@@ -69,3 +75,17 @@ durable table state (Host::park, Host::close_group; on disk the `closed` entry s
   consumer) need telling.
 - R7. Dropped mutant wake-skips-commit-damage: manifested damage names the group lost regardless
   of the table, so it survives (261120-084852-c797f8); idle_crash kills the same mutant.
+- R8. Q1: bounded shards (D9), not the turn-carried transition: the latter leaves a wake's only
+  evidence in the blocks it would protect (F3), shown by idle_unmanifested once double-damage lands.
+  leaf_bytes = 4 KiB (one page); shards never merge.
+- R9. Q1 measurement: per-transition time on the memory disk rose (646 -> 1,749 us at 1M) because
+  faultfs walks every inode at each ordering point (settle_staged/recount), O(files); a real-disk
+  phase (JOURNAL_DISK_DIR, PosixIO, 100 samples) times the same transitions with real syncs.
+  The before side is journal:a0944ca (branch measure/idle-groups-before: 7129c53 with 893fd77's
+  journal_test.cc), local only.
+- R10. Q3: a damaged shard's whole path range is lost (ids unknown), never rewritten; the log
+  forgets its groups (artifact names unknown). Read errors other than Corruption still fail open.
+- R11. Q2: park is safe mid-turn (skips staged groups; forwarded copies superseded by base);
+  no park-ignores-flight mutant: opened_ already excludes a released group with records in flight.
+- R12. Took over the stopped second contributor's park_count edit (sample skipped group 1);
+  redone in journal:7129c53 counting only transitions made.
