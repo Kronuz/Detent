@@ -21,8 +21,8 @@ A knob change moves through five actors:
 
 - **Producer**: your service, writing changes as namespaced transactions with `POST /v2/transactions` over HTTPS.
 - **Authority**: `detent-authority --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
-- **Relay** (optional): `detent-relay`, subscribed to the authority, keeps a durable copy per bundle and serves snapshots and deltas to many agents.
-- **Agent**: `detent-agent`, one per host. It receives snapshots and deltas and publishes immutable local generations on disk.
+- **Relay** (optional): `detent-relay`, following the authority, mirrors each namespace's sealed history and serves full copies and changes to many agents.
+- **Agent**: `detent-agent`, one per host. It receives full copies and changes per namespace and publishes immutable local generations on disk.
 - **Client**: your application, through `detent::Client`, mapping the agent's selected generation and reading in memory. `detent get` is the command-line client.
 
 This is the managed profile, the topology the [production contract](docs/PRODUCTION_CONTRACT.md) targets. [Detent's actors](docs/ACTORS.md) says what each actor does, how, when and where, including ports, files, build options and restart behavior.
@@ -206,7 +206,7 @@ bindings/
 
 The core client has no networking dependency. Binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
-Managed agents and relay bundle sources write `"image_format": "paged-v2"` by default, for incremental immutable local publication; `"flat-v1"` selects one self-contained image. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
+Managed agents write paged generations, one store entry per namespace, for incremental immutable local publication. See [the local image format](docs/LOCAL_IMAGE_FORMAT.md) for collection and disk accounting.
 
 | Module | Main target | Purpose |
 | --- | --- | --- |
@@ -214,10 +214,9 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
 | Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
 | Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies |
-| Relay host | `detent_relay_host`, `detent-relay` | Optional finite-bundle TLS daemon; [qualification and configuration](docs/RELAY.md) |
-| Relay core | `detent::relay` | Durable bundle caches and authorized session adapters |
+| Relay host | `detent_relay_host`, `detent-relay` | Optional TLS daemon serving mirrored namespaces; [qualification and configuration](docs/RELAY.md) |
+| Relay mirror | `detent::relay_mirror` | The relay's namespace mirror: sealed history, blocks and bases |
 | Immutable local view | `detent::local_view` | Read mapped durable generations |
-| Pinned local export | `detent::local_export` | Encode public definitions from a recovered immutable image |
 | Local publication | `detent::local_publication` | Reconcile and publish durable generations |
 | Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
 | Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |

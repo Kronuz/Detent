@@ -5,12 +5,9 @@
 #include "detent_distribution/grants.hh"
 #include "source_selection.hh"
 #include <algorithm>
-#include <cerrno>
-#include <fcntl.h>
 #include <openssl/rand.h>
 #include <rapidjson/document.h>
 #include <set>
-#include <sys/stat.h>
 #include <unistd.h>
 
 namespace detent::delivery {
@@ -20,13 +17,6 @@ void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
 }
-struct File {
-	int descriptor;
-	~File() {
-		if (descriptor >= 0)
-			::close(descriptor);
-	}
-};
 void fields(const Value &object, std::initializer_list<std::string_view> allowed) {
 	require(object.IsObject(), "managed configuration requires an object");
 	std::set<std::string_view> seen;
@@ -61,38 +51,10 @@ template <std::size_t N> std::array<char, N> identity(const Value &value) {
 }
 
 } // namespace
-std::string read_private_configuration(const std::filesystem::path &configuration) {
-	File file{::open(configuration.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)};
-	struct stat info{};
-	require(file.descriptor >= 0 && ::fstat(file.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
-				(info.st_uid == 0 || info.st_uid == ::geteuid()) && info.st_nlink == 1 &&
-				!(info.st_mode & 0027) && detent::internal::mode_only_acl(file.descriptor) &&
-				info.st_size > 0 && info.st_size <= 1024 * 1024,
-			"managed credential configuration ownership, permissions or size");
-	std::string bytes(static_cast<std::size_t>(info.st_size), '\0');
-	std::size_t offset = 0;
-	while (offset != bytes.size()) {
-		auto count = ::read(file.descriptor, bytes.data() + offset, bytes.size() - offset);
-		if (count < 0 && errno == EINTR)
-			continue;
-		require(count > 0, "short managed configuration");
-		offset += count;
-	}
-	char extra;
-	ssize_t remaining;
-	do {
-		remaining = ::read(file.descriptor, &extra, 1);
-	} while (remaining < 0 && errno == EINTR);
-	require(remaining == 0, "managed configuration changed while reading");
-	require(detent::internal::mode_only_acl(file.descriptor),
-			"managed credential configuration ACL changed while reading");
-	return bytes;
-}
-
 ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 									const std::filesystem::path &directory, detent::local::StoreOpenMode mode,
 									bool system) {
-	auto bytes = read_private_configuration(configuration);
+	auto bytes = detent::internal::read_private_configuration(configuration);
 	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16),
 			"managed configuration JSON bound");
 	rapidjson::Document object;
