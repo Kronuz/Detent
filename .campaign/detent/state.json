@@ -1,6 +1,34 @@
 {
   "campaign": "detent",
   "ci": "github",
+  "landing": {
+    "at": "2026-11-20T04:40:54",
+    "criteria": {
+      "A1": "261120-040331-771e99, 261120-040332-52f4bf",
+      "A2": "261120-040331-771e99; fails without: 261120-034135-ffc330, 261120-035138-af5e5b, 261120-040334-0bfcc8",
+      "A3": "[artifact] `ARCHITECTURE.md` \"How `main` is put together\" at prism:5487d43: the deviation table lists none of the four rows",
+      "A4": "261120-040331-771e99; fails without: 261120-040344-128d37"
+    },
+    "evidence": [
+      {
+        "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4",
+        "commit": "5487d430c99d791f8a2cab1e4b9ec23e3f7777dd",
+        "exit": 0,
+        "host": "kronuz",
+        "job": "261120-040331-771e99",
+        "level": "light",
+        "seconds": 62.0,
+        "state": "done",
+        "what": "prism-server-composition-limits check suite at 5487d430c99d"
+      }
+    ],
+    "final": true,
+    "from": "a87fa0f3ca6273296a6d0caa4960e7e752f3a12a",
+    "id": "prism-server-composition-limits",
+    "mode": "ff",
+    "reason": "",
+    "target": "5487d430c99d791f8a2cab1e4b9ec23e3f7777dd"
+  },
   "messages": [
     {
       "at": "2026-11-08T21:24:05",

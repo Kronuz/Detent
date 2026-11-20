@@ -7,6 +7,9 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 D133. Build dense-distribution.md's DD2: `src/detent_local/paged_canonical_copy.{hh,cc}` relocates a generation's pages into seal order, the full build's layout, without computing a page digest.
 
+
+**Build the design as written** (owner, 2026-11-20): docs/design/dense-distribution.md is the spec. Deviate only where a measurement shows the design is not optimal or efficient; write that measurement in the journal under "Deviation" and report it before changing course.
+
 ## Acceptance criteria
 
 - A1 After dense-pages' T4 churn applied through dense-pages D7, relocating into seal order gives the full build's pages in the full build's order and offsets, every byte outside placement equal.

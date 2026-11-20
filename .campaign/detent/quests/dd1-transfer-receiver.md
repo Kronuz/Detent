@@ -7,6 +7,9 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 D133. Build docs/design/dense-distribution.md's DD1: `src/detent_local/paged_transfer.{hh,cc}` makes a transfer (D2, D3: the pages a receiver lacks, in seal order, derived fields zero) from a generation and a page list, and receives one per D4: it verifies every page against the one root digest and writes packs, building nothing. It calls dense-pages' page and canonicity validators. The model (dense-distribution-model.py) is the oracle and gains a `--out` writer.
 
+
+**Build the design as written** (owner, 2026-11-20): docs/design/dense-distribution.md is the spec. Deviate only where a measurement shows the design is not optimal or efficient; write that measurement in the journal under "Deviation" and report it before changing course.
+
 ## Acceptance criteria
 
 - A1 The C++ receiver takes the model's 100K and 5M full-copy transfers and reproduces the root and every pack byte for byte, with the model's segment ids.
