@@ -1216,6 +1216,23 @@
         ]
       },
       "text": "set consensus-dns-notes: unlocks frees include/consensus/transport/resolve.h, test/transport/resolve_test.cc, docs/mechanisms/peer-dns.md for consensus-dns-notes; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T16:56:51",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-132",
+      "items": {
+        "consensus-late-append-tests": "frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests",
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+      },
+      "settles": {
+        "start": [
+          "consensus-late-append-tests",
+          "journal-hop-on-task"
+        ]
+      },
+      "text": "set consensus-late-append-tests: unlocks frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -16432,8 +16449,7 @@
       "files": [
         "reactor_tls.h",
         "test/tls_test.cc",
-        "docs/mechanisms/tls-certificate-cache.md",
-        "CHANGELOG.md"
+        "docs/mechanisms/tls-certificate-cache.md"
       ],
       "landed": [],
       "lenses": [
@@ -16446,7 +16462,7 @@
       "risk": "high",
       "status": "planned",
       "title": "reactor: the TLS parse cache releases entries no context uses",
-      "updated": "2026-11-19T16:03:56"
+      "updated": "2026-11-19T16:56:53"
     },
     "reader-acl": {
       "accepted": {},
