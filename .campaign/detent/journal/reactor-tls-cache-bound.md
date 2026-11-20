@@ -1,33 +1,19 @@
 # reactor-tls-cache-bound: journal
 
-State: waiting on jobs 261119-234119-dba69c
+State: waiting on jobs CI run 44718434892 (GitHub Actions, reactor:6cd8f73)
 Quest: .campaign/detent/quests/reactor-tls-cache-bound.md (the lead's; never edit it)
 
 ## Doing
 
-Fix at reactor:388e161; bench and mechanism doc at reactor:1310405 (pushed, head). msg from the
-lead: fix the bench in this quest (file set now has docs/perf/tls-configure/**,
-docs/perf/tls-configure.md). The bench keeps one configured context alive per held case and adds
-server-ec-unheld and peer-ec-unheld (each context freed first). Strict A/B 261119-170530-61aafd:
-before reactor:1dd5f32 (unbounded cache), after head. release passed at 388e161
-(261119-170319-db4214), so the code compiles.
+Code, bench, docs and CHANGELOG done at reactor:6cd8f73 (pushed). Waiting on CI run 44718434892.
+The run at reactor:72aff48 (44660573405) was cancelled by infrastructure: the "ccache" install
+step of linux-tsan and linux-x86_64-clang hung for the 1 h limit before configure ran; every
+other job passed. The run at reactor:1310405 (44650984320) passed.
 
 ## Next
 
-1. Read the jobs: `campaign status reactor-tls-cache-bound`. A failing build or test: fix, commit,
-   rebuild the two mutants on top (refs/mutants/reactor-tls-cache-bound/{pin,digest} in the reactor
-   repo, one-line edits named in their messages), resubmit.
-2. TSan 261119-170547-7f622f failed in reactor_lag only (median wake within the 1,024 us edge,
-   load ~22); rerun 261119-174122-8e50d9. If reactor_lag fails again, give the lead the counts
-   (they file it as a load flake). Strict A/B 61aafd unusable (6 light holds, load 22;
-   system-roots 19.5 ms vs 8.6); exclusive rerun 261119-234119-dba69c (lead requeued f8387d at reactor:72aff48). If held cases are still
-   slower after than at 1dd5f32, find why (suspects: hold()'s Held allocation and ex_data set,
-   weak_ptr lock) before the perf doc.
-3. From the A/B (261119-234119-dba69c, round 5 medians), rewrite docs/perf/tls-configure.md:
-   before = reactor:1dd5f32, after = head; held cases should match, unheld after = full parse
-   (compare the no-cache numbers of job 261119-153634-6252d5, labeled as that job's). Say plainly
-   when the cache hits (live holder) and when it misses. Commit, push.
-4. All green: paste `campaign brief`'s table below, set State to ready for review.
+1. CI 44718434892 green: set State to ready for review. Red in an install step again: report
+   it to the lead as CI infrastructure, with the step and timing.
 
 ## Blocked on
 
@@ -77,6 +63,13 @@ reactor:388e161 changes `reactor_tls.h`, `test/tls_test.cc`, `docs/mechanisms/tl
 3. Tests: `release` (entry and decrypted key freed with the last holder; a reconfigured context
    lets go of its old parses), `bounded` (16 paths, 48 entries, empty after the contexts go),
    `digest` (bytes a Password's and a Pem's digest occupied read zero after destruction).
+
+Perf (exclusive A/B 261119-234119-dba69c, before reactor:1dd5f32, after reactor:72aff48, median
+of 5 round medians): held configures cost the same (server-ec 43.7 vs 43.4 us, server-rsa 39.4 vs
+39.5, client-ca 22.4 vs 22.5, peer-ec 60.8 vs 61.4; paired round differences straddle zero, so the
+strict run 61aafd's held slowdown was load). Unheld configures now parse in full: server-ec 43.7 ->
+161 us (3.7x), peer-ec 61.1 -> 237 us (3.9x). Written up in docs/perf/tls-configure.md, with the
+hit and miss conditions in docs/mechanisms/tls-certificate-cache.md (When it hits).
 
 ## Rulings I made
 
