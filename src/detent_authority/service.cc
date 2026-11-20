@@ -1535,22 +1535,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	};
 	// A start or stop step visits the node again at once: each visit advances budgeted work that no wake
 	// announces. Only while storage or history I/O is in flight does it sleep, until that completion's
-	// wake (250 ms bounds one missed); peers keep 1 ms (wake_by). Every spin_visits-th visit in a row
-	// sleeps 1 ms, so a step that stops advancing costs a few visits per ms, not a core.
+	// wake (250 ms bounds one missed); peers keep 1 ms (wake_by).
 	constexpr auto storage_wait = std::chrono::milliseconds(250);
-	constexpr unsigned spin_visits = 64;
 	auto in_flight = [&] { return active || history_active || peers; };
-	unsigned spins = 0;
-	auto step_wait = [&](bool waiting) -> std::optional<Clock::time_point> {
-		if (waiting) {
-			spins = 0;
-			return wake_by(Clock::now() + storage_wait);
-		}
-		if (++spins < spin_visits)
-			return std::nullopt;
-		spins = 0;
-		return Clock::now() + std::chrono::milliseconds(1);
-	};
 	std::shared_ptr<PeerHistory> peer_history;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
@@ -2075,8 +2062,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				if (node.worker().fenced()) {
 					throw std::runtime_error("authority storage initialization fenced");
 				}
-				if (const auto until = step_wait(in_flight()))
-					co_await sleep(timer, *until);
+				if (in_flight())
+					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
 				else
 					co_await task::yield();
 			}
@@ -2092,11 +2079,11 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				node.service({0, election_delay()});
 				dispatch(owned_node);
 				check(!node.worker().fenced(), "authority recovery application fenced");
-				if (const auto until = step_wait(in_flight() && !node.state().reclamation_pending() &&
-												 node.state().applied_index() == applied))
-					co_await sleep(timer, *until);
-				else
+				if (in_flight() && !node.state().reclamation_pending() && node.state().applied_index() == applied) {
+					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+				} else {
 					co_await task::yield();
+				}
 			}
 			check(!node.worker().fenced(), "authority committed application/profile mismatch");
 		} catch (const std::exception &error) {
@@ -3440,8 +3427,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (const auto until = step_wait(in_flight()))
-			co_await sleep(timer, *until);
+		if (in_flight())
+			co_await sleep(timer, wake_by(Clock::now() + storage_wait));
 		else
 			co_await task::yield();
 	}
