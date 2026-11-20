@@ -1412,6 +1412,13 @@
         ]
       },
       "text": "consensus-batch-turn-room landed: unlocks frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause; frees test/transport/**, docs/** for transport-admission; frees test/transport/**, CHANGELOG.md for transport-group-bytes; frees test/transport/**, CHANGELOG.md for transport-receive-bound"
+    },
+    {
+      "at": "2026-11-20T04:56:38",
+      "by": "lead",
+      "closed": "folded: dd1-dd4, namespace-local-cursor and namespace-s6-v1-removal are now one feature quest, dense-distribution-build (started); only suite and CI gate it; review and measurement run on the finished feature after it lands (D135)",
+      "id": "msg-145",
+      "text": "OWNER DIRECTION 2026-11-20 (relayed by xapiand lead, campaign skill maintainer): 'Reviews and exclusive runs should not block us. Direct tasks are over-split into gated quests that are expensive to complete... We must build full features fast and iterate. Measuring and reviewing the full feature at the end.' He named your 5-7 quest split of his ask, and 'too much for a day because of exclusive runs and reviews', as the example. Skill updated (agent-campaign:59a06e0, dotfiles:03134c1): a quest is a whole feature, only its suite + CI gate landing; reviews and exclusive measurements run once on the finished feature after landing, findings fixed forward. Please fold that ask back into one feature quest and build it today."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
