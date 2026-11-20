@@ -7780,20 +7780,53 @@
         "include/journal/blocking.h",
         "docs/mechanisms/turn-seal.md"
       ],
-      "journal": "../Detent-wt/detent/journal-blocking-wake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T18:05:06",
+          "commit": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+          "criteria": {
+            "A1": "261119-165904-295eae; fails without: 261119-165717-173c61",
+            "A2": "261119-165908-3668c1, 261119-165912-fca4c3"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-165912-fca4c3",
+              "level": "light",
+              "seconds": 268.7,
+              "state": "done",
+              "what": "journal-blocking-wake check suite at 9e11713edbb6"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8c92ed98df15b9f0fc99cf46f0a8c4a0f16520f7",
+          "reason": "",
+          "tested": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
-      "updated": "2026-11-19T18:04:00",
-      "worktree": "../journal-wt/detent/journal-blocking-wake"
+      "updated": "2026-11-19T18:05:08",
+      "worktree": ""
     },
     "journal-close-in-doubt": {
       "accepted": {
