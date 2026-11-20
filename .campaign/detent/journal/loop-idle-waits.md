@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on CI 44739992170 (push) and 44740001777 (dispatch) at Detent:6d1484eb (arm64 hang diagnostics), and jobs at Detent:9b27cb95: 261120-051926-bbdf55 -051927-1a5ee5 -051927-57ec95 -051928-7486af (A4 TSan relay), -051928-9f1a5d (A2), -051929-b61395 (A4 suite), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Blocked on the macOS arm64 hang (recurred at Detent:485bb354).
+State: waiting on CI 44739992170 (push) and 44740001777 (dispatch) at Detent:6d1484eb (arm64 hang diagnostics), and jobs at Detent:9b27cb95: 261120-054330-7de7d0 -054343-67cb93 -054345-f92c9a -054347-5f3f0d (A4 TSan relay; the -0519 reruns built the old detentd target), -051928-9f1a5d (A2), -051929-b61395 (A4 suite), -051929-26bcd0 (restart x10), -051930-eb9dfb (A4 TSan), -051930-1471ac -051931-a2b036 (A1), -051931-6d4c2e (A3), -051932-e37617 (A2 mutant start-stop-sleep). Blocked on the macOS arm64 hang (recurred at Detent:485bb354).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -88,6 +88,9 @@ reclaim scans ~60 completion ops/s) frames A1.
   and at 20 min samples and SIGKILLs the suite and ctest, so the step fails by itself and uploads watchdog.log.
   CI at 6d1484eb: 44739992170 (push), 44740001777 (dispatch).
 - Spin bound removed (R11, Detent:9b27cb95); evidence jobs rerun at Detent:9b27cb95 (State).
+- CI at 6d1484eb: dispatch 44740001777 macos-arm64 passed (Test 6:53); push 44739992170 macos-arm64 hung again: Test
+  still running at 32 min, past the watchdog's 20-min end, so the watchdog itself did not run or could not end the step
+  (a frozen machine fits: the runner, the watchdog and ctest all stall).
 
 ## Result
 
