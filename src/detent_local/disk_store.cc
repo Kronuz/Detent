@@ -398,6 +398,21 @@ std::vector<std::string> DiskStore::failed() const {
 	const auto names = core.agent->failed();
 	return {names.begin(), names.end()};
 }
+void DiskStore::fail(std::string_view name) {
+	auto &core = *impl_->core;
+	if (!core.agent || core.closing)
+		throw std::logic_error("disk store cannot fail an entry");
+	if (const auto found = core.namespaces.find(name); found != core.namespaces.end() && found->second.pending)
+		throw std::logic_error("disk store entry awaits its recovery");
+	core.agent->fail(name);
+	auto &selection = core.selection;
+	std::erase_if(selection.namespaces, [&](const auto &entry) { return entry.name == name; });
+	if (const auto found = core.namespaces.find(name); found != core.namespaces.end())
+		found->second.verified.reset();
+	selection.knowledge = selection.namespaces.empty() ? SelectionKnowledge::Absent : SelectionKnowledge::Known;
+	selection.descriptor =
+		selection.namespaces.size() == 1 ? std::optional(selection.namespaces.front().descriptor) : std::nullopt;
+}
 void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
 	const auto names = pending();
 	if (names.size() != 1)

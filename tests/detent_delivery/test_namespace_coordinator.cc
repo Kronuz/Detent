@@ -10,6 +10,7 @@
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/reader.hh"
 #include <filesystem>
+#include <fstream>
 #include <future>
 #include <iostream>
 #include <unistd.h>
@@ -273,6 +274,32 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "app");
 			matches(server, root, limits, "web");
 			check(server.answered == 1); // web's full copy only
+		}
+		{
+			// D136: an entry whose stored bytes are damaged passes startup (C2 checks presence), fails
+			// alone when its base recovers, and a fresh full copy replaces it.
+			std::lock_guard lock(server.mutex);
+			server.find("app").transactions.push_back({{"app:k1", def(41, 0)}});
+			server.find("web").transactions.push_back({{"web:k2", def(42, 0)}});
+		}
+		std::size_t damaged = 0;
+		for (const auto &file : std::filesystem::directory_iterator(root))
+			if (file.path().extension() == ".owner") {
+				std::fstream bytes(file.path(), std::ios::in | std::ios::out | std::ios::binary);
+				bytes.seekg(20);
+				const char was = static_cast<char>(bytes.get());
+				bytes.seekp(20);
+				bytes.put(static_cast<char>(was ^ 0x5a));
+				++damaged;
+			}
+		check(damaged > 0);
+		{
+			Agent agent(root, l::StoreOpenMode::ExistingManaged, options, account, domain, queue);
+			const auto state = agent.until([&](const auto &s) { return at_heads(server, s, followed) && !s.repair.pending; },
+										   "damaged entries replaced");
+			check(state.repair.requested == 2 && state.repair.completed == 2);
+			matches(server, root, limits, "app");
+			matches(server, root, limits, "web");
 		}
 		check(!server.failure);
 		queue.reset();

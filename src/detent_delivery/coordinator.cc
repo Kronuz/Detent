@@ -293,9 +293,26 @@ struct Coordinator::Impl {
 		} catch (...) {
 			if (result->failure && settlement.paged.admission)
 				l::detail::ManagedRecovery::settle_failure(*store, settlement, result->failure);
+			else if (result->failure && damaged(result->failure)) {
+				// A selected entry that does not recover fails alone; a fresh full copy replaces it (D136).
+				store->fail(name);
+				request_repair(name, false);
+			}
 			throw;
 		}
 		co_return result;
+	}
+	// Whether a recovery failure is the entry's bytes, not memory or disk pressure.
+	static bool damaged(std::exception_ptr failure) noexcept {
+		try {
+			std::rethrow_exception(failure);
+		} catch (const d::StoragePressure &) {
+		} catch (const l::DiskPressure &) {
+		} catch (const std::bad_alloc &) {
+		} catch (...) {
+			return true;
+		}
+		return false;
 	}
 	// The recovered base of `name`, recovered now when not held or when the selection moved.
 	task::task<const l::RecoveredGeneration *> base_of(const std::string &name) {

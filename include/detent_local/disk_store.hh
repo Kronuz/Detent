@@ -98,8 +98,11 @@ class DiskStore {
 	void confirm_recovered(const RecoveredGeneration &);
 	void confirm_recovered(std::string_view name, const RecoveredGeneration &);
 	std::vector<std::string> pending() const;
-	// Entries whose files did not verify at startup and have not been republished (D10).
+	// Entries whose files did not verify at startup or recovery and have not been republished (D10).
 	std::vector<std::string> failed() const;
+	// Fails entry `name`, whose selected generation did not recover: it leaves the selection until a
+	// full copy republishes it (D136). Refused while a publication of it awaits confirmation.
+	void fail(std::string_view name);
 	void begin_reset(detail::PagedPlan &&, const TrustedIdentityReset &);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;
