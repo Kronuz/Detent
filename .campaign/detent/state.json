@@ -20870,11 +20870,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "folded into consensus-transport as a task (one feature per quest, owner msg-145/147)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "dropped",
       "title": "consensus host transport: per-group bytes, vector FIFO, one GroupTable lookup, owe order",
-      "updated": "2026-11-19T06:21:20"
+      "updated": "2026-11-20T06:55:47"
     },
     "transport-groups": {
       "accepted": {
