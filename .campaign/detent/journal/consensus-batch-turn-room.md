@@ -26,7 +26,7 @@ CHANGELOG.md is held by another quest; entry text for the lead to add under the 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | jobs 261119-233216-39451c (fails at test-only 1421fb5), 261119-233229-c53762 (passes at 0c52e87) |
+| A1 | jobs 261119-233216-39451c (fails at test-only 1421fb5), 261120-001302-72d527 (passes at 0c52e87) |
 | A2 | job 261120-000859-5ca9f3 at e904c8d (earlier df57ad failed at 0c52e87 on the 7 configurations below; D132), CI after push |
 
 ## Result
