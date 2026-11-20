@@ -1,4 +1,7 @@
+// A worker job the coordinator accepted outlives close and the facade: here the first full copy's
+// build, held behind a gate on the one worker thread.
 #include "coordinator_internal.hh"
+#include "namespace_server_fixture.hh"
 #include "task_support.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
@@ -69,7 +72,29 @@ task::task<void> observe(task::asio_scheduler &scheduler, std::weak_ptr<t::Coord
 		coordinator->close();
 	std::rethrow_exception(failure);
 }
-void exercise(bool injected, bool settled = false) {
+// A worker failure the owner wait reports after settlement fails that build; the loop records it.
+task::task<void> failed(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						std::exception_ptr expected) {
+	asio::steady_timer timer(scheduler.executor());
+	const auto deadline = std::chrono::steady_clock::now() + 5s;
+	while (coordinator->status().error != expected || coordinator->status().worker_pending) {
+		if (std::chrono::steady_clock::now() >= deadline) {
+			coordinator->close();
+			check(false);
+		}
+		timer.expires_after(1ms);
+		co_await detent::transport::await_timer(timer);
+	}
+	coordinator->close();
+}
+void exercise(const std::filesystem::path &certificates, bool injected, bool settled = false) {
+	auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+	reactor::tls::configure(*server_tls,
+							{(certificates / "one.pem").string(), (certificates / "one.key").string(),
+							 (certificates / "ca.pem").string()},
+							reactor::tls::Role::Server);
+	namespace_server::Server server(server_tls, {"app"});
+	server.served = {{"app", history_fixture::id('a'), 1, namespace_server::writes("app", 4, 1)}};
 	const auto root = directory(::getpid());
 	std::filesystem::create_directories(root);
 	std::filesystem::permissions(root, std::filesystem::perms::owner_all);
@@ -91,13 +116,15 @@ void exercise(bool injected, bool settled = false) {
 	t::CoordinatorOptions options;
 	options.source.scheduler = &scheduler;
 	options.directory = root;
-	options.source.endpoint = {asio::ip::address_v4::loopback(), 8317};
+	options.source.endpoint = server.acceptor.local_endpoint();
+	options.source.compression = server.compressed;
 	options.source.hostname = "localhost";
 	options.source.token = "0123456789abcdef0123456789abcdef";
 	options.namespaces = {"app"};
-	options.cluster.fill('c');
-	options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
-	options.source.tls_context->set_verify_mode(asio::ssl::verify_peer);
+	options.cluster.fill('\x01');
+	options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+	reactor::tls::configure(*options.source.tls_context, {"", "", (certificates / "ca.pem").string()},
+							reactor::tls::Role::Client);
 	auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
 	const auto original_failure = std::make_exception_ptr(std::runtime_error("original worker failure"));
 	if (settled) {
@@ -109,20 +136,15 @@ void exercise(bool injected, bool settled = false) {
 	auto original = coordinator->run();
 	auto done = spawn_future(scheduler, std::move(original));
 	std::future<void> observed;
-	if (!injected && !settled)
+	if (settled)
+		observed = spawn_future(scheduler, failed(scheduler, coordinator, original_failure));
+	else if (!injected)
 		observed = spawn_future(scheduler, observe(scheduler, weak, gate));
-	auto retained = settled ? coordinator : nullptr;
 	coordinator.reset();
 	io.run();
-	if (settled) {
-		done.get();
-		check(retained->status().error == original_failure && !retained->status().worker_pending);
-		retained.reset();
-	} else {
-		done.get();
-		if (!injected)
-			observed.get();
-	}
+	done.get();
+	if (!injected)
+		observed.get();
 	check(!injected && weak.expired() && store->drained());
 	worker.join();
 	driver.reset();
@@ -134,26 +156,26 @@ void exercise(bool injected, bool settled = false) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		if (argc == 2 && std::string_view(argv[1]) == "--fault") {
+		if (argc == 3 && std::string_view(argv[1]) == "--fault") {
 			struct rlimit limit{0, 0};
 			check(::setrlimit(RLIMIT_CORE, &limit) == 0);
-			exercise(true);
+			exercise(argv[2], true);
 			return 1;
 		}
-		check(argc == 1);
+		check(argc == 2);
 		const auto child = ::fork();
 		check(child >= 0);
 		if (!child) {
-			::execl(argv[0], argv[0], "--fault", nullptr);
+			::execl(argv[0], argv[0], "--fault", argv[1], nullptr);
 			::_exit(127);
 		}
 		int status = 0;
 		check(::waitpid(child, &status, 0) == child);
 		check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
 		std::filesystem::remove_all(directory(child));
-		exercise(false);
-		exercise(false, true);
-		std::cout << "held accepted worker survives close/facade loss; owner wait failure fails stop\n";
+		exercise(argv[1], false);
+		exercise(argv[1], false, true);
+		std::cout << "held accepted worker survives close/facade loss; owner wait failure fails the build\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

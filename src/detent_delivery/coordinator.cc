@@ -299,8 +299,11 @@ struct Coordinator::Impl {
 	}
 	template <class Work> task::task<d::RetirementHandle<BuildResult>> build(Work work) {
 		auto result = domain.make<BuildResult>();
-		asio::post(worker, [result, work = std::move(work)]() mutable {
+		asio::post(worker, [result, work = std::move(work),
+							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
+				if (injected)
+					std::rethrow_exception(injected);
 				work(*result);
 			} catch (...) {
 				result->failure = std::current_exception();
