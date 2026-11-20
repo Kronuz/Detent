@@ -9,7 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Head consensus:895b3c6 (pushed). Steps 1-4 coded; next step 5 (A4/A5 fetch as lane method 1).
+Head consensus:06b9a76 (pushed). Steps 1-4 and A4 coded. Next: A5 (port fetch-alongside-consensus
+onto lane fetch, SIGSTOP inside a drain with a never-drain mutant, `timing` label, three macOS
+x86_64 CI runs), then transport-admission, then groups-upload-stall-cause; when the strict jobs
+finish, write group-bytes' and receive-bound's before/after rows into docs/perf/transport-idle-cost.md;
+re-run every evidence job at the final head before review.
+
+A4 at consensus:975c51d: `fetch(node, name, done)` is method 1; `RpcOptions::reader` serves it
+(D8 table). Local: rpc_host fetch: 16 MiB exact in 1.1 s beside 131 MiB of group uploads on the
+same Bulk connection, heartbeats' longest gap 210 ms, every D8 row. Jobs: suite
+261120-102515-dc5d23 (--for A1,A2,A4, at 975c51d), TSan -102517-d9c5e8.
+
+A6 N4 at consensus:06b9a76: fuzz job 250bdc reached the pool waits (ticket 427, granted 299,
+roomless 10) but not rule 7.6 (0); seed-past-credit reaches it (replay: "rule 7.6: past credit").
+Coverage job 261120-103119-56d7ac.
 
 Step 4, A1/A2, at consensus:895b3c6: `hold(node)`/`release(node)` (T3), lane_idle on a Bulk
 connection that carried no group frame (`RpcOptions::idle`, 60 s, D7), Drain then graceful close
@@ -49,7 +62,9 @@ Interface change (consensus-quiescence merges this branch): `HostTransportOption
 drops its open argument; new options `closes` (4096), `arriving` (256) and stats `owed`,
 `unanswered`, `overrun`, `flooded`. Frames on a link its lane replaced are refused in arrived().
 Step 4 adds `hold`, `release`, `linked`, `drain`, `lanes_drained`, `RpcOptions::idle` and
-`drain_deadline`, `LaneStats::drains`/`retired`, and `rpc::Lane::draining()`.
+`drain_deadline`, `LaneStats::drains`/`retired`, and `rpc::Lane::draining()`. A4 adds
+`fetch(node, name, FetchDone)`, `RpcOptions::reader`/`fetches`/`fetch_bytes`/`fetch_deadline`,
+`fetch_method` (1) and `fetch_missing` (Error 256); `handle(1)` throws when a reader is set.
 
 ## Next
 
@@ -120,5 +135,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   loop drains ends `not_processed` (safe to retry elsewhere).
 - R10 (A2, T5) T5's mutant hands lane frames through another loop (`lane-via-other-loop`); the
   `reader` case holds that loop and fails it.
+- R11 (A4, D8) The fetcher enforces its `fetch_bytes` when the bytes it holds would pass it (a
+  Cancel message_size), not at the first Body's total, which the lane's events do not expose. A
+  fetch a drain refused (`not_processed`) ends `resource_unavailable_try_again`, safe to retry.
 - R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
   charged, an empty request no longer skips the pool's FIFO.
