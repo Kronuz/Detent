@@ -1,6 +1,6 @@
 # reactor-tls-cache-bound: journal
 
-State: waiting on jobs 261119-174122-8e50d9 261119-174128-f8387d
+State: waiting on jobs 261119-174128-f8387d
 Quest: .campaign/detent/quests/reactor-tls-cache-bound.md (the lead's; never edit it)
 
 ## Doing
@@ -33,7 +33,7 @@ before reactor:1dd5f32 (unbounded cache), after head. release passed at 388e161
 
 Nothing for this quest. For the lead:
 
-1. CHANGELOG.md (held by reactor-abortlist-thread). Under `## 2026-11-19`, `### Changed`:
+1. (Committed at reactor:72aff48.) CHANGELOG.md, under `## 2026-11-19`, `### Changed`:
 
    ```
    - `tls::configure`'s parse cache keeps a parse only while a context configured from it lives:
@@ -46,12 +46,16 @@ Nothing for this quest. For the lead:
 
 ## Evidence
 
+Head reactor:72aff48 (merged main reactor:fbad85f, then the CHANGELOG entry). campaign reused every
+job across the merge ("only merges from main since"). TSan 261119-170547-7f622f failed in
+reactor_lag under load 22; the rerun 261119-174122-8e50d9 passed.
+
 | Criterion | Evidence |
 |---|---|
-| A1 | release 261119-170319-db4214 (passed; reused at head); mutants for A1, A2, A4 killed as intended; at pin mutant (fails-without) 261119-170321-faabcc |
-| A2 | bounded 261119-170558-97b11f; at pin mutant (fails-without) 261119-170326-388a57 |
-| A4 | digest 261119-170600-875ac8; at no-cleanse mutant (fails-without) 261119-170332-6dcc8d |
-| A3 | suite 261119-170544-6cb23b, ASan+UBSan 261119-170545-daa85c passed; TSan 261119-170547-7f622f failed in reactor_lag (load), rerun 261119-174122-8e50d9 (at reactor:1310405) |
+| A1 | 261119-170319-db4214 (passed at 388e161ce232; only merges from main since); fails without: 261119-170321-faabcc |
+| A2 | 261119-170558-97b11f (passed at 1310405bed4f; only merges from main since); fails without: 261119-170326-388a57 |
+| A4 | 261119-170600-875ac8 (passed at 1310405bed4f; only merges from main since); fails without: 261119-170332-6dcc8d |
+| A3 | suite 261119-170544-6cb23b, ASan+UBSan 261119-170545-daa85c, TSan 261119-174122-8e50d9 (passed at 1310405bed4f; only merges from main since) |
 
 Mutants (reactor repo, kept by refs/mutants/reactor-tls-cache-bound/*): pin reactor:b0f85ab (the
 cache also keeps a strong reference to every parse, as before F3); digest reactor:5cced28
