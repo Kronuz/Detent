@@ -279,7 +279,8 @@ void deltas(const std::filesystem::path &scratch) {
 					 static_cast<unsigned long long>(choice.records_sent),
 					 choice.encoding == detent::delivery::Encoding::Pages ? "pages" : "records");
 	}
-	check(chosen[std::size_t(detent::delivery::Encoding::Records)] >= 1);
+	using detent::delivery::Encoding;
+	check(chosen[std::size_t(Encoding::Records)] && chosen[std::size_t(Encoding::Pages)]);
 	// A base the window does not hold keeps records.
 	auto between = builds.front()->at();
 	++between.position;
