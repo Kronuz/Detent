@@ -1,6 +1,6 @@
 # consensus-batch-turn-room: journal
 
-State: blocked on lead: A2 suite fails on 7 configurations the check correctly refuses
+State: waiting on jobs 261120-000859-5ca9f3
 Quest: .campaign/detent/quests/consensus-batch-turn-room.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,27 +18,24 @@ Fix and test committed (consensus:1421fb5 test only, consensus:0c52e87 fix plus 
 
 ## Blocked on
 
-A2: suite 261119-233230-df57ad at 0c52e87 fails 7 tests, all on the new refusal. Each configuration can truly produce a record larger than one segment (the follower persists an AppendRequest of up to rpc_entries/rpc_bytes; pipeline_test shows frames go up to rpc_bytes), so the bound is not too strict. Room on 16 KiB segments with 1 KiB blocks is 13661 record-cost bytes; no segment can hold more than 16384 bytes whatever the bound's conservatism.
-- wave_open, wave_open_256, wave_open_cut (test/wave_open_test.cc:65): rpc_bytes 16384, rpc_entries 8: batch 16598 bytes, cost 16667 > 13661 (F6's own case).
-- transport groups_driver, groups_joiner, groups_lagging, groups_relayout (test/transport/groups_test.cc:997, :1080): default Limits (rpc_bytes 2 MiB, rpc_entries 256): batch 2102574, cost 2102643.
-Follower batching and the founding record play no part (none set; founding is ~1 KiB). Behavior narrowing: configurations accepted before now throw at Worker construction. I did not touch those tests (outside my file set). Options: (1) recommended: lead assigns the test fix, wave_open rpc_bytes <= 4096 (or segments >= 64 KiB) and groups_test limits with rpc_bytes 4096, rpc_entries 8 (or larger turn_options); (2) drop the check (F6 stays open); (3) bound by the largest command only (leaves merged appends unchecked).
-
 CHANGELOG.md is held by another quest; entry text for the lead to add under the current Unreleased section:
 
-> Worker: a group on a journal host refuses at construction (`std::invalid_argument`, "worker batch exceeds the host's turn room") a configuration whose largest record, a batch of `Limits::rpc_entries`/`rpc_bytes` (or `WorkerLimits::follower_batch_*` when larger) or the founding record, exceeds one empty segment of the host's turn log. Before, it reached the journal and fenced its group at the first append.
+> Worker: a group on a journal host refuses at construction (`std::invalid_argument`, "worker batch exceeds the host's turn room") a configuration whose largest record, a batch of `Limits::rpc_entries`/`rpc_bytes` (or `WorkerLimits::follower_batch_*` when larger) or the founding record, exceeds one empty segment of the host's turn log. Before, it reached the journal and fenced its group at the first append. The default 2 MiB rpc batch needs segments big enough for it, or explicit lower limits.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
 | A1 | jobs 261119-233216-39451c (fails at test-only 1421fb5), 261119-233229-c53762 (passes at 0c52e87) |
-| A2 | job 261119-233230-df57ad, CI after push |
+| A2 | job 261120-000859-5ca9f3 at e904c8d (earlier df57ad failed at 0c52e87 on the 7 configurations below; D132), CI after push |
 
 ## Result
 
 worker.h `validate_turn_room` (host constructor only): record_cost(max(maximum_initialization_size, storage_batch_size(true,true,max(rpc_entries, follower_batch_entries), max(rpc_bytes, follower_batch_bytes)))) must not exceed journal's `turn_room(segment_bytes, block_bytes)`, the driver's own refusal bound. Test: `batch_turn_room` in worker_test.cc (also `--turn-room`). Docs: docs/DRIVER.md (Seams comment).
 
 ## Rulings I made
+
+- D132 (lead): the refusal stands and the tests' limits are fixed. consensus:e904c8d: wave_open_test.cc rpc_bytes 16384 to 8192 (8 entries, command_bytes 4096 kept; batch 8362, cost 8431 <= room 13661); groups_test.cc node open sets command_bytes = rpc_bytes = 4096 with the default 256 rpc entries (batch 9482, cost 9551). Segments unchanged. DRIVER.md states the default 2 MiB batch needs big segments or lower limits.
 
 - Bound is the operating limits, not `RetainedStatePolicy::batch_*`: the retained defaults are the 8 MiB ceilings, which would refuse every host with small segments (all driver tests use 16 KiB). A caller-submitted merged Receive up to the retained bound can still exceed the room and fences its group only (as before); the Worker's own follower batching is covered.
 - Used the conservative `turn_room` bound (as TurnDriver::refuse does before measuring), so a record the log could still fit by measurement is refused at the edge.
