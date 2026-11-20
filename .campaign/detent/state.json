@@ -6275,11 +6275,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "folded into docs-site-start as a task (one feature per quest, owner msg-145/147)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Docs refresh: configuration and limits",
-      "updated": "2026-11-11T05:11:48"
+      "updated": "2026-11-20T06:55:41"
     },
     "docs-site-reference": {
       "accepted": {},
