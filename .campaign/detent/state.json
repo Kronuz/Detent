@@ -17722,7 +17722,7 @@
       ],
       "consumes": [],
       "files": [
-        "src/detentd/**",
+        "src/detent_authority/main.cc",
         "src/detent_relay/main.cc",
         "src/detent_cli/**",
         "src/detent_agent/main.cc"
@@ -17736,7 +17736,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-19T06:35:10"
+      "updated": "2026-11-19T16:51:21"
     },
     "service-shape": {
       "accepted": {
