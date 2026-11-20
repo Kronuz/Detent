@@ -27,7 +27,7 @@ struct Descriptor {
 	GenerationId generation{};
 	std::uint64_t length = 0;
 	std::array<char, 32> checksum{};
-	distribution::Cursor cursor;
+	distribution::NamespaceCursor cursor;
 	distribution::Profile profile;
 	std::uint32_t ordinal = 0; // D8.2's build ordinal: r + 1 for a rebuild at r's unchanged head
 	bool operator==(const Descriptor &) const = default;
@@ -88,20 +88,20 @@ class RecoveredGeneration {
 	friend struct detail::RecoveredTesting;
 	friend struct detail::ScrubSource;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
-												  std::optional<distribution::Cursor>);
+												  std::optional<distribution::NamespaceCursor>);
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
-												  std::optional<distribution::Cursor>,
+												  std::optional<distribution::NamespaceCursor>,
 												  const RecoveredGeneration *, std::string_view);
 };
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits = {},
-									   std::optional<distribution::Cursor> expected = {});
+									   std::optional<distribution::NamespaceCursor> expected = {});
 // A recovered prior root permits checked progress reuse; other heads recover cold.
 RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
-									   std::optional<distribution::Cursor>, const RecoveredGeneration *prior,
+									   std::optional<distribution::NamespaceCursor>, const RecoveredGeneration *prior,
 									   std::string_view name = {});
 // Called on startup or a refresh worker; never on the hot lookup path.
 // The directory must be trusted and owned by the publishing service account.
 // All ReadViews retain a shared kernel lease until their mapped bytes retire.
 ReadView open_generation(const std::filesystem::path &directory, ViewLimits limits = {},
-						 std::optional<distribution::Cursor> expected = {});
+						 std::optional<distribution::NamespaceCursor> expected = {});
 } // namespace detent::local

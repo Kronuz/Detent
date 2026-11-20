@@ -205,7 +205,7 @@ HealthSnapshot Client::health() const noexcept {
 		HealthSnapshot health;
 		health.initialized = true;
 		health.source_connected = status.connected;
-		health.accepted_version = status.cursor ? status.cursor->revision : 0;
+		health.accepted_version = status.cursor ? status.cursor->position : 0;
 		health.staleness_seconds =
 			std::chrono::duration<double>(std::chrono::steady_clock::now() - status.last_success).count();
 		health.knobs = status.knobs;

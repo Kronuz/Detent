@@ -2,6 +2,7 @@
 # detent: the core client library (zero networking dependencies)
 ########################################################################
 add_library(detent
+  detent/cursor.cc
   detent/hashing.cc
   detent/json_schema.cc
   detent/json_patch.cc

@@ -200,8 +200,18 @@ struct Coordinator::Impl {
 		++reconnect_observation.count;
 		return reconnect_observation.delay;
 	}
+	// Waits out `duration`: disk progress does not end it; a close, a cancelled update or a wake does.
 	task::task<void> pause(std::chrono::milliseconds duration) {
-		co_await wait_candidate(std::chrono::steady_clock::now() + duration);
+		const auto expires = std::chrono::steady_clock::now() + duration;
+		const auto epoch = cancellation, woken = wakes;
+		do
+			co_await wait_candidate(expires);
+		while (!closing && cancellation == epoch && wakes == woken && std::chrono::steady_clock::now() < expires);
+	}
+	// Ends a pause so the loop asks again now.
+	void wake() noexcept {
+		++wakes;
+		notify_candidate();
 	}
 	task::task<void> wait_candidate(std::chrono::steady_clock::time_point expires) {
 		candidate_wake->expires_at(expires);
@@ -334,7 +344,7 @@ struct Coordinator::Impl {
 		const auto target = input.target();
 		const auto selection = store->selection();
 		const auto *selected = selection.find(name);
-		const auto at = selected ? std::optional(l::namespace_cursor(selected->cursor)) : std::nullopt;
+		const auto at = selected ? std::optional(selected->cursor) : std::nullopt;
 		auto factory = domain.factory();
 		auto heap = domain.storage_account();
 		auto limits = options.view_limits;
@@ -435,7 +445,7 @@ struct Coordinator::Impl {
 			FollowedNamespace entry{name, {}};
 			const auto found = followed.find(name);
 			if (const auto *selected = selection.find(name); selected && (found == followed.end() || !found->second.repair))
-				entry.cursor = l::namespace_cursor(selected->cursor);
+				entry.cursor = selected->cursor;
 			out.namespaces.push_back(std::move(entry));
 		}
 		if (options.all)
@@ -452,7 +462,7 @@ struct Coordinator::Impl {
 		for (const auto &name : names) {
 			NamespaceStatus status{name, {}, false};
 			if (const auto *selected = selection.find(name))
-				status.cursor = l::namespace_cursor(selected->cursor);
+				status.cursor = selected->cursor;
 			if (const auto found = followed.find(name); found != followed.end())
 				status.repair = found->second.repair;
 			repair = repair || status.repair;
@@ -1047,7 +1057,7 @@ void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coor
 }
 void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
 	coordinator.impl_->compaction_requested = true;
-	coordinator.impl_->notify_candidate();
+	coordinator.impl_->wake();
 }
 void detail::CoordinatorAccess::request_repair(Coordinator &coordinator, std::string_view name) {
 	coordinator.impl_->request_repair(std::string(name), true);

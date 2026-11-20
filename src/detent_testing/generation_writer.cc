@@ -119,7 +119,7 @@ struct GenerationWriter::Impl {
 		if (disk->status() != l::StoreStatus::Ready)
 			throw std::runtime_error("test store did not open: " + store.string());
 		if (auto selected = disk->selection().descriptor)
-			cursor.revision = selected->cursor.revision;
+			cursor.revision = selected->cursor.position;
 	}
 	~Impl() {
 		disk->close();

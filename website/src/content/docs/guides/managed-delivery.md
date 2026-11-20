@@ -145,7 +145,6 @@ The managed agent accounts for its own memory, mappings and disk:
 | `retry_interval_ms` | 200 |
 | `reconnect_maximum_ms` | 30,000, or the retry interval when larger |
 | `timeout_ms` | 60,000 |
-| `image_format` | `"flat-v1"`; opt in with `"paged-v2"` |
 | `compaction_interval_ms` | 60,000; zero disables; enabled range 1,000–86,400,000 |
 | `compression` | `true` |
 | `artifact_mode` | `384` (`0600`) for users, `420` (`0644`) for system agents |
@@ -168,9 +167,9 @@ The agent follows the configured `namespaces` (every granted namespace when the 
 
 ## Paged local publication
 
-Set `"image_format": "paged-v2"` in the private managed source configuration to publish incremental immutable pages. Relay bundle sources accept the same field. Existing configured flat heads migrate without changing the logical cursor; readers holding the old generation remain valid. New deltas replace changed pages and their index paths, while progress updates replace only the root.
+The agent and relay bundle sources publish incremental immutable pages. New deltas replace changed pages and their index paths, while progress updates replace only the root; readers holding an older generation remain valid.
 
-Compaction runs between upstream exchanges and skips admission pressure. Disk limits must cover physical coexistence with pinned predecessors. A stopped agent's selected generation remains readable through the current SDK. Older flat-only binaries cannot read v2; switching the writer back to `flat-v1` requires a subsequent forward publication before the selected head becomes flat.
+Compaction runs between upstream exchanges and skips admission pressure. Disk limits must cover physical coexistence with pinned predecessors. A stopped agent's selected generation remains readable through the current SDK. A store written in an earlier layout is refused once and the agent bootstraps a fresh copy.
 
 ## Managed authority endpoint pools
 

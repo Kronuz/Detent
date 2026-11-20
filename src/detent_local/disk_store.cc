@@ -3,7 +3,6 @@
 #include "detent_local/derived_ids.hh"
 #include "detent_local/store_table.hh"
 #include "leased_paged_root.hh"
-#include "live_record.hh"
 #include "managed_recovery.hh"
 #include "names.hh"
 #include "paged_publication_artifacts.hh"
@@ -12,7 +11,6 @@
 #include "store_core.hh"
 #include <atomic>
 #include <map>
-#include <sha256.h>
 #include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
@@ -22,15 +20,6 @@
 namespace detent::local {
 namespace c = kronuz::io::completion;
 namespace {
-paged::Digest sha(std::string_view bytes) {
-	SHA256 hash;
-	hash.add(bytes.data(), bytes.size());
-	std::array<unsigned char, 32> digest{};
-	hash.getHash(digest.data());
-	paged::Digest out;
-	std::copy(digest.begin(), digest.end(), out.begin());
-	return out;
-}
 // A cycle the store refused before touching the table: the caller retries, or repairs (D10).
 bool rejected(std::exception_ptr error) {
 	try {
@@ -85,7 +74,6 @@ struct DiskStore::Impl {
 	std::shared_ptr<AgentWork> pending, running;
 	// What a pending or running publication views, and settles with: per namespace, its artifacts.
 	std::vector<std::pair<std::string, distribution::RetirementHandle<detail::PagedPublicationArtifacts>>> artifacts;
-	std::shared_ptr<const distribution::OwnedBuffer> image, live;
 	std::vector<NamespaceSelection> published;
 	DiskLedger::Permit permit;
 	SyncCounters before;
@@ -114,8 +102,6 @@ struct DiskStore::Impl {
 	}
 	void release_publication() noexcept {
 		artifacts.clear();
-		image.reset();
-		live.reset();
 		published.clear();
 	}
 	void select(const AgentWork &work) {
@@ -192,6 +178,7 @@ SyncStats DiskStore::sync_stats() const noexcept {
 }
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
+const std::optional<std::string> &DiskStore::refusal() const noexcept { return impl_->core->refusal; }
 std::exception_ptr DiskStore::error() const noexcept { return impl_->core->failure; }
 std::exception_ptr DiskStore::collection_error() const noexcept { return impl_->collection_error; }
 std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
@@ -249,9 +236,6 @@ bool DiskStore::publication_ready() const noexcept {
 	return core.status == StoreStatus::Ready && !core.closing && !core.pending_recovery() && !impl_->pending &&
 		   !impl_->running;
 }
-void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
-	begin_impl(builder, expected_base, nullptr);
-}
 void DiskStore::begin(detail::PagedPlan &&plan) { begin_paged(std::move(plan), nullptr); }
 void DiskStore::begin_reset(detail::PagedPlan &&plan, const TrustedIdentityReset &reset) {
 	begin_paged(std::move(plan), &reset);
@@ -268,7 +252,7 @@ void DiskStore::begin(std::vector<NamespacePublication> &&cycle, std::vector<std
 }
 void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset *reset) {
 	const auto &core = *impl_->core;
-	auto name = namespace_name(plan.descriptor().cursor);
+	std::string name(disk_store_entry);
 	std::vector<std::string> dropped;
 	for (const auto &entry : core.selection.namespaces)
 		if (entry.name != name)
@@ -315,8 +299,8 @@ void DiskStore::begin_cycle(std::span<const std::pair<std::string, detail::Paged
 				   (base && (!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
 							 (plan.maintenance() ? descriptor.cursor != base->cursor
 							  : intent == detail::PagedPlanIntent::Repair
-								  ? descriptor.cursor.revision < base->cursor.revision
-								  : descriptor.cursor.revision <= base->cursor.revision))))
+								  ? descriptor.cursor.position < base->cursor.position
+								  : descriptor.cursor.position <= base->cursor.position))))
 			throw std::invalid_argument("managed paged publication requires authorized intent");
 		if (plan.directory_identity() != core.directory_identity || plan.bytes()->account() != core.account ||
 			descriptor.length != paged::root_bytes || descriptor.length > limits.bytes ||
@@ -344,7 +328,7 @@ void DiskStore::begin_cycle(std::span<const std::pair<std::string, detail::Paged
 		// The cycle views the artifacts, which the store keeps until the cycle settles.
 		PreparedGeneration generation;
 		generation.name = name;
-		generation.cursor = namespace_cursor(descriptor.cursor);
+		generation.cursor = descriptor.cursor;
 		generation.base = plan.snapshot() ? GenerationId{} : base->generation;
 		generation.ordinal = descriptor.ordinal;
 		std::map<SegmentId, PreparedGeneration::Segment> segments;
@@ -433,72 +417,6 @@ void DiskStore::confirm_recovered(std::string_view name, const RecoveredGenerati
 	found->second.attempt = nullptr;
 	advance();
 }
-void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset) {
-	begin_impl(builder, reset.expected_selected.cursor, &reset);
-}
-void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base,
-						   const TrustedIdentityReset *reset) {
-	auto &core = *impl_->core;
-	if (!publication_ready())
-		throw std::logic_error("managed store unavailable for publication");
-	const auto descriptor = builder.descriptor();
-	auto bytes = builder.bytes();
-	const auto base =
-		core.selection.descriptor ? std::optional(core.selection.descriptor->cursor) : std::nullopt;
-	if (core.selection.knowledge == SelectionKnowledge::Uncertain || expected_base != base)
-		throw std::invalid_argument("managed publication actual base mismatch");
-	if (const auto pinned = builder.base_descriptor();
-		pinned && (core.selection.descriptor != pinned || builder.base_directory_identity() != core.directory_identity))
-		throw std::invalid_argument("managed publication pinned generation mismatch");
-	if (reset) {
-		if (core.selection.knowledge != SelectionKnowledge::Known ||
-			core.selection.descriptor != reset->expected_selected || builder.base_descriptor() ||
-			!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
-			reset->expected_selected.cursor.same_identity(descriptor.cursor))
-			throw std::invalid_argument("managed publication trusted identity reset mismatch");
-	} else if (base && (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
-		throw std::invalid_argument("managed publication requires a forward scoped cursor");
-	if (bytes->account() != core.account || bytes->size() != descriptor.length ||
-		descriptor.length > core.options.recovery_limits.bytes)
-		throw std::invalid_argument("managed image account or extent mismatch");
-	const bool full_copy = !builder.base_descriptor();
-	if (next_generation(core.selection.descriptor, descriptor.cursor, descriptor.profile, full_copy) !=
-		DerivedGeneration{descriptor.generation, descriptor.ordinal})
-		throw std::invalid_argument("managed publication name is not derived");
-	// A flat image has no `.read` and reaches no segment: an empty record, and a `.live` without rows.
-	detail::LiveRecord record;
-	record.generation = descriptor.generation;
-	std::copy(descriptor.checksum.begin(), descriptor.checksum.end(), record.root_checksum.begin());
-	record.read_digest = sha({});
-	// Charged to the store's account, as a paged publication's artifacts are.
-	auto live = distribution::make_owned_buffer(core.account, detail::live_record_size(0));
-	live->append(std::string(detail::live_record_size(0), '\0'));
-	detail::encode_live_record(record, live->mutable_bytes());
-	live->seal();
-	PreparedGeneration generation;
-	generation.name = namespace_name(descriptor.cursor);
-	generation.cursor = namespace_cursor(descriptor.cursor);
-	generation.base = full_copy ? GenerationId{} : core.selection.descriptor->generation;
-	generation.ordinal = descriptor.ordinal;
-	const auto peak = DiskLedger::generation_peak(descriptor.length, 0, live->size());
-	std::vector<std::string> dropped;
-	for (const auto &entry : core.selection.namespaces)
-		if (entry.name != generation.name)
-			dropped.push_back(entry.name);
-	impl_->published = {{generation.name, descriptor}};
-	impl_->live = std::move(live);
-	impl_->image = std::move(bytes);
-	generation.image = impl_->image->view();
-	generation.live = impl_->live->view();
-	try {
-		std::vector<PreparedGeneration> cycle;
-		cycle.push_back(std::move(generation));
-		impl_->queue(std::move(cycle), std::move(dropped), {}, peak, true);
-	} catch (...) {
-		impl_->release_publication();
-		throw;
-	}
-}
 void DiskStore::cancel_publication() noexcept {
 	if (!impl_->pending || impl_->pending->collect)
 		return;
@@ -525,20 +443,10 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	if (!admission)
 		throw std::invalid_argument("invalid managed store admission");
 	auto account = domain.storage_account();
-	auto &legacy_domain = resources::domain(options.recovery_limits);
-	detail::RecoveryContext legacy{legacy_domain.factory(),
-								   legacy_domain.storage_account(),
-								   resources::mapping_account(options.recovery_limits),
-								   options.recovery_limits,
-								   {},
-								   {}};
-	legacy.limits.retirement_domain = nullptr;
-	legacy.limits.mapping_account = legacy.mappings;
+	options.recovery_limits.mapping_account = resources::mapping_account(options.recovery_limits);
 	options.recovery_limits.retirement_domain = nullptr;
-	options.recovery_limits.mapping_account = legacy.mappings;
 	auto core = std::allocate_shared<detail::StoreCore>(
 		distribution::StorageAllocator<detail::StoreCore>(account), account, options, domain.factory());
-	core->legacy_recovery.emplace(std::move(legacy));
 	auto store = std::allocate_shared<DiskStore>(distribution::StorageAllocator<DiskStore>(account),
 												 DiskStore::FactoryTag{}, core);
 	auto io = std::make_shared<c::PosixIO>(directory, options.artifact_mode);
@@ -553,6 +461,18 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 			throw std::runtime_error("fresh storage directory contains existing entries");
 	} else if (!io->inspect_entry("owner.lock"))
 		throw std::runtime_error("managed store is missing: initialize it first");
+	// A store of another layout is refused once (D43): its table goes, so the store opens empty and the
+	// agent bootstraps a full copy; collection removes the old files no reader holds.
+	if (io->inspect_entry("selected")) {
+		try {
+			read_generation_selection(directory);
+		} catch (const LayoutRefused &error) {
+			core->refusal = error.what();
+			io->remove("selected");
+		} catch (const std::exception &) {
+			// Damage is the recovery's below: it fences the store.
+		}
+	}
 	// The store keeps the profile its table holds; a new store takes the default one.
 	AgentStore::Options agent{};
 	agent.mode = options.artifact_mode;
@@ -594,7 +514,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 }
 detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore &store, std::string_view name) {
 	const auto &core = *store.impl_->core;
-	if (!core.factory || !core.legacy_recovery || core.closing)
+	if (!core.factory || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
 	std::string entry(name);
 	// Without a name, the store's one namespace: its only pending or selected entry.
@@ -615,13 +535,11 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 										: distribution::RetirementHandle<MappedRecoveryAdmission>{}};
 	paged.trusted_start = true;
 	paged.name = entry;
-	auto legacy = *core.legacy_recovery;
-	legacy.name = entry;
-	return {std::move(legacy), std::move(paged), store.impl_->core, core.directory_identity};
+	return {std::move(paged), store.impl_->core, core.directory_identity};
 }
 RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
 													 ManagedRecoveryContext context) {
-	return RecoveryEngine::recover_routed(directory, std::move(context.legacy), std::move(context.paged));
+	return RecoveryEngine::recover_selected(directory, std::move(context.paged));
 }
 void detail::ManagedRecovery::settle_failure(DiskStore &store, const ManagedRecoveryContext &context,
 											 std::exception_ptr failure) {

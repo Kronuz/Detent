@@ -158,27 +158,23 @@ int main(int argc, char **argv) {
 		object.RemoveMember("quorum_refresh_ms");
 		object.RemoveMember("authority_endpoints");
 		write();
-		using Format = detent::delivery::LocalImageFormat;
-		check(options.coordinator.image_format == Format::PagedV2 &&
-			  options.coordinator.compaction_interval == std::chrono::seconds(60));
-		object.AddMember("image_format", "paged-v2", object.GetAllocator());
+		check(options.coordinator.compaction_interval == std::chrono::seconds(60));
 		object.AddMember("compaction_interval_ms", 0, object.GetAllocator());
 		write();
-		check(load().coordinator.image_format == Format::PagedV2 &&
-			  load().coordinator.compaction_interval == std::chrono::milliseconds::zero());
-		object["image_format"].SetString("unknown");
-		write();
-		rejected();
-		object["image_format"].SetString("flat-v1");
+		check(load().coordinator.compaction_interval == std::chrono::milliseconds::zero());
 		object["compaction_interval_ms"].SetUint64(86400000);
 		write();
-		check(load().coordinator.image_format == Format::FlatV1 &&
-			  load().coordinator.compaction_interval == std::chrono::hours(24));
+		check(load().coordinator.compaction_interval == std::chrono::hours(24));
 		for (const auto interval : {1u, 999u, 86400001u}) {
 			object["compaction_interval_ms"].SetUint64(interval);
 			write();
 			rejected();
 		}
+		// The agent stores one format: an `image_format` key is unknown.
+		object["compaction_interval_ms"].SetUint64(86400000);
+		object.AddMember("image_format", "flat-v1", object.GetAllocator());
+		write();
+		rejected();
 		object.RemoveMember("image_format");
 		object.RemoveMember("compaction_interval_ms");
 		write();

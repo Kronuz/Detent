@@ -190,7 +190,6 @@ class ManagedCohort:
                 "authority_endpoints": endpoints,
                 "hostname": "localhost",
                 "ca": str(self.certificates / "ca.pem"),
-                "image_format": "paged-v2",
                 "compaction_interval_ms": 0,
                 "quorum_refresh_ms": 1000,
                 "retry_interval_ms": 10,

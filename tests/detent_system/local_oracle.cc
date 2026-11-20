@@ -60,10 +60,8 @@ int main(int argc, char **argv) {
 			const auto ready = std::chrono::steady_clock::now();
 			auto view = client.read_view();
 			const auto cursor = view.cursor();
-			const auto scope = detent::distribution::frame_cursor(name, {}).scope;
 			const auto count = (records - producer + producers - 1) / producers;
-			if (!cursor || cursor->cluster != cluster || cursor->scope != scope ||
-				cursor->group != cursor->restore_epoch || cursor->revision < minimum[producer] ||
+			if (!cursor || cursor->cluster != cluster || cursor->position < minimum[producer] ||
 				source->status().knobs != count)
 				throw std::runtime_error("local oracle namespace has not converged: " + name);
 			for (auto ordinal = producer; ordinal < records; ordinal += producers) {
@@ -72,7 +70,7 @@ int main(int argc, char **argv) {
 				if (!value || value.value() != values[ordinal])
 					throw std::runtime_error("local oracle mismatch: " + key);
 			}
-			revision = std::max(revision, cursor->revision);
+			revision = std::max(revision, cursor->position);
 			open += ready - open_begin;
 			verify += std::chrono::steady_clock::now() - ready;
 		}

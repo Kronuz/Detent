@@ -1,30 +1,39 @@
-# Local image format, version 1
+# Local image format, version 4
 
-The managed agent publishes dynamically sized immutable v1 images through the Stage 4 delivery pipeline, into the agent store, whose table `selected` names each generation. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`. Stage 5C adds checked paged-root recovery and an opt-in paged writer under assembled-process qualification. The legacy agent shared-memory mode remains separate.
+The managed agent publishes immutable paged generations into the agent store, whose table `selected` names each one. A generation is a 320-byte root (`DTROOT04`) and the page packs it references. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`.
 
 ## Encoding
 
-All integers are explicitly encoded in big-endian order. The image contains a 192-byte header, 24-byte namespace rows, 56-byte record rows, 24-byte override rows, and a dense string region. Region offsets are canonical and checked with overflow-safe arithmetic. The default image admission ceiling is 256 MiB, with independent limits of 500,000 records, 4,096 namespaces, 128 MiB of strings and 256 overrides per definition. These limits describe image bytes and logical counts; they do not establish an aggregate construction-memory budget.
+All integers are big-endian. The root holds:
 
-The header binds the complete scope Cursor and semantic Profile. Namespace rows carry their revision watermark. Records carry their namespace index and key revision, followed by the complete definition: an `int64` default, an optional rollout percentage and an optional rollout value. Override rows encode a forced `int64` value or a rollout percentage. Namespaces, records and each definition's overrides must be strictly ordered and unique. Every string is consumed exactly once in canonical row order. Reserved fields must be zero.
+| Offset | Bytes | Field |
+| --- | --- | --- |
+| 0 | 8 | Magic `DTROOT04` |
+| 8 | 4 | Format, 4 |
+| 12 | 4 | Root length, 320 |
+| 16 | 8 | Live page bytes |
+| 24 | 4 | Records |
+| 28 | 4 | Namespaces |
+| 32 | 8 | Pages |
+| 40 | 8 | Segments |
+| 48 | 8 | Reserved, zero |
+| 56 | 8 | Position: the namespace cursor's place in its incarnation |
+| 64 | 16 | Cluster |
+| 80 | 16 | Incarnation |
+| 96 | 48 | Reserved, zero |
+| 144 | 4 | Profile semantic id |
+| 148 | 4 | Reserved, zero |
+| 152 | 8 | Profile required capabilities |
+| 160 | 68 | Tree reference: content (48) and placement (20) |
+| 228 | 92 | Reserved, zero |
 
-The table `selected` (`DTTABLE1`, `include/detent_local/store_table.hh`) holds the store's profile and, per namespace, its namespace cursor, `change` slot, nonzero 16-byte generation identity, build ordinal, root length and the SHA-256 of the root and of `.read`, with a trailing SHA-256. A reader takes the full Cursor from the image itself. Filenames derive only from the hexadecimal generation identity: `generation-<32 hex digits>.image`, its empty `.lease`, `.read` and `.live`. Knob names never become filesystem paths.
+The cursor is the W1 namespace cursor (`distribution::NamespaceCursor`): cluster, incarnation and position. Cluster and incarnation are nonzero. Namespace watermarks and definition revisions cannot exceed the position.
 
-## Validation and ownership
+The table `selected` (`DTTABLE1`, layout 2, `include/detent_local/store_table.hh`) holds the store's profile and, per namespace, its namespace cursor, `change` slot, nonzero 16-byte generation identity, build ordinal, root length and the SHA-256 of the root and of `.read`, with a trailing SHA-256. The entry's cursor equals its root's. Filenames derive only from the hexadecimal generation identity: `generation-<32 hex digits>.image`, its empty `.lease`, `.read` and `.live`. Knob names never become filesystem paths.
 
-`ImageValidator` retains an opaque immutable-byte lease. It charges row and byte budgets before validating each row and exposes a `ReadView` only after all regions and definitions validate. Namespace watermarks cannot exceed the Cursor revision, and key revisions must be positive and cannot exceed their namespace watermark. An optional expected Cursor requires the same identity and a revision at least as recent.
+## Other layouts
 
-`open_generation` runs on startup or a refresh worker. It opens the directory and the table without following symlinks, checks regular files and ownership, and acquires a shared nonblocking kernel lock on the separate generation lease before opening the image. A lease unlinked during acquisition causes a bounded retry. Files must have exactly one link and cannot be writable by group or other users. The configured runtime directory and its ancestry must be trusted; this function does not authorize the publishing service account.
-
-The reader checks the exact file length and the table entry's checksum, validates all rows, and retains the mapping, image descriptor and shared lease descriptor through every copied `ReadView`. Cleanup must acquire an exclusive nonblocking lock on that same lease file before removing a retired image. The publishing service must never modify or truncate a sealed image. Recovery and `GenerationReader::refresh()` perform filesystem work on their caller; invoke them on the startup/configuration worker, outside application lookup threads.
-
-`GenerationReader` serializes refreshes and installs a fully validated root under a brief mutex. `read_view()` only copies the installed retirement handle under that mutex; it performs no filesystem or networking work. Failed refresh preserves the previous view. Configured authority identity, installed revision and directory device/inode identity prevent silent scope changes, rollback or directory replacement; identical cursors with different image checksums, lengths or profiles are rejected. A trusted identity transition requires a separately configured reader. Root retirement occurs outside the acquisition lock and mappings retain their existing worker-side cleanup mechanism.
-
-The focused reader fixture checks concurrent acquisition during refresh, configured-scope rejection, unchanged-descriptor detection, failed-refresh retention and usable pinned roots after directory paths disappear. It passes natively, under ASan/UBSan and fully instrumented TSan, on Linux and FreeBSD. SDK overlays and the actual managed agent remain separate integration work; this library test does not establish fleet readiness.
-
-`ReadView` performs binary searches over validated rows and observes one complete generation throughout its lifetime. Its lookup path has no explicit filesystem or network calls. Evaluation uses the full-name SHA-256 rollout semantics: forced switch precedence, per-switch rollout percentages, and the rollout value inside a percentage with the default outside it. The shared hash helper streams the full knob name, NUL separator and hash value directly into SHA-256. In the [allocation benchmark](../benchmarks/hash-allocation-measurements.json), 100,000 calls with a 128-byte hash value change from 100,000 input-buffer allocations to zero while preserving the result sum. Three elapsed-time samples overlap; this establishes allocation removal, not a service latency or power improvement. Error results own diagnostic strings.
-
-`ImageBuilder` borrows a `ValidatedSnapshot` through a shared owner. Counting, buffer initialization, row construction and integrity hashing advance through caller-supplied budgets. The output and descriptor become available only after sealing. It reserves a complete image buffer from the snapshot’s shared storage account before allocation. Original-completion publication and recovery are implemented below; retained-generation accounting remains pending.
+No other layout is read (D43). A whole table of an older layout, or a whole root of an older format whose digest its entry names, is `LayoutRefused`: the agent refuses the store once (`DiskStore::refusal()`), removes `selected`, opens empty and bootstraps a full copy; collection removes the old files no reader holds. A newer layout or format is not this agent's to remove, and a root whose digest differs from its entry's is damage: both fence the store and keep every file.
 
 ## Verification and remaining gates
 
@@ -177,7 +186,7 @@ Focused tests cover repeated-key updates across 17 transactions, deletion/reinse
 
 ## Paged-root recovery
 
-A paged generation's image is its exactly 320-byte root (`DTROOT03`); a flat one is a `DTIMAGE1` image. A root of another encoding than its table entry's fences the store.
+A generation's image is its exactly 320-byte root (`DTROOT04`). A root of an older format is refused as described in [Other layouts](#other-layouts); any other root that differs from its table entry's fences the store.
 
 Paged dependencies use `segment-<32 hex digits>.pack` and `.owner`. Recovery locks the selected root's lease, verifies the root against its table entry, resolves only reachable dependencies, checks each full segment checksum, validates the complete semantic graph and records per-segment reachability. Before sealing the private leased-root capability, it rechecks named payload identities, owner records and the root image/lease identities. Unrelated files are not mapped. All views retain the root lease and admitted segment mappings, with cleanup on the retirement worker.
 
@@ -201,13 +210,11 @@ Native reader/recovery/progress checks pass (3/3, 0.86 seconds), with ASan/UBSan
 
 The warm validator verifies only new segment bytes and new page extents, and checks every reused subtree at its exact entering context against the actual base. It prunes those subtrees during an old-tree walk to compute removals, then validates namespace watermarks, definitions, live-page totals and override statistics. Its completed proof can populate an admitted registry after exact ownership and byte-identity checks. This remains a private validation seam: changed-head recovery and durable paged publication are not enabled by it.
 
-## Writer preference and maintenance
-
-Managed source configuration accepts `image_format`: `paged-v2` (default) or `flat-v1`. The agent and relay bundle sources use the same loader. Paged writing replaces a configured flat head through verified equal-cursor replacement before accepting incremental deltas. Recovery reads either format. A flat writer over a paged head constructs its next forward image from the borrowed state adapter; changing the preference alone leaves an unchanged selected head in its current format.
+## Maintenance
 
 `compaction_interval_ms` defaults to 60,000; zero disables periodic compaction, and enabled intervals range from 1,000 to 86,400,000 milliseconds. Checks occur between upstream exchanges. Each attempt selects at most eight packs below 50% live occupancy, with fixed 32,768-recipe and 16 MiB output caps. Configured view limits also bound construction. Pre-IO admission pressure skips optional compaction; accepted publication still recovers and confirms the actual head. The collection that follows settles the disk credit.
 
-Both generations and all dependencies can coexist during publication. Pinned readers may retain predecessor storage indefinitely within configured admission limits. Older binaries supporting only flat images cannot read a selected v2 head. Deploy readers that support both formats before selecting `paged-v2`; reverting writer preference requires a subsequent forward publication before a flat-only reader can read the selection. The unreleased C++ `CoordinatorOptions` adds writer preference and compaction interval fields.
+Both generations and all dependencies can coexist during publication. Pinned readers may retain predecessor storage indefinitely within configured admission limits. The C++ `CoordinatorOptions` carries the compaction interval.
 
 
 ## Prepared paged readers

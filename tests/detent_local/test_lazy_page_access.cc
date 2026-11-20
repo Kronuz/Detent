@@ -114,10 +114,10 @@ int main() {
 		      (errno == EAGAIN || errno == EWOULDBLOCK));
 		check(::close(collector) == 0);
 		auto wrong_identity = fixture->root.cursor;
-		wrong_identity.scope[0] ^= 1;
+		wrong_identity.incarnation[0] ^= 1;
 		rejected([&] { x::PreparedReader::open(fixture->path, ::getuid(), {}, wrong_identity); });
 		auto future = fixture->root.cursor;
-		++future.revision;
+		++future.position;
 		rejected([&] { x::PreparedReader::open(fixture->path, ::getuid(), {}, future); });
 	}
 	d::RetirementRuntime runtime(fixture->heap);

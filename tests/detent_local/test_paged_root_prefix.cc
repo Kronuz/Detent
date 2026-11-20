@@ -16,7 +16,7 @@ int main() {
 			require(scope->first == root.cursor && scope->second == root.profile);
 	}
 	for (const auto offset :
-		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 144u, 147u, 148u, 151u, 152u, 158u, 205u, 207u, 228u, 319u}) {
+		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 96u, 120u, 143u, 144u, 147u, 148u, 151u, 152u, 158u, 205u, 207u, 228u, 319u}) {
 		auto changed = encoded;
 		changed[offset] ^= 1;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(offset + 1)); });
@@ -26,9 +26,9 @@ int main() {
 		changed[159] = 2;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(160)); });
 	}
-	for (const auto identity : {64u, 80u, 96u, 112u, 160u, 208u}) {
+	for (const auto identity : {64u, 80u, 160u, 208u}) {
 		auto changed = encoded;
-		const auto size = identity == 112 || identity == 160 ? 32u : 16u;
+		const auto size = identity == 160 ? 32u : 16u;
 		std::fill_n(changed.begin() + identity, size, 0);
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(identity + size)); });
 	}

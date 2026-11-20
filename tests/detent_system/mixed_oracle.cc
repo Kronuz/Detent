@@ -70,13 +70,14 @@ int main(int argc, char **argv) {
 			!detent::is_valid_knob_name(shared_namespace + ":key" + std::to_string(records - 1))))
 			throw std::invalid_argument("mixed oracle namespace");
 		benchmark.prepare(records);
-		detent::distribution::Cursor identity;
-		identity.cluster = detent::distribution::parse_identity_hex<16>(argv[3]);
-		identity.group = detent::distribution::parse_identity_hex<16>(argv[4]);
-		identity.restore_epoch = detent::distribution::parse_identity_hex<16>(argv[5]);
-		identity.scope = detent::distribution::parse_identity_hex<32>(argv[6]);
+		detent::distribution::Cursor configured;
+		configured.cluster = detent::distribution::parse_identity_hex<16>(argv[3]);
+		configured.group = detent::distribution::parse_identity_hex<16>(argv[4]);
+		configured.restore_epoch = detent::distribution::parse_identity_hex<16>(argv[5]);
+		configured.scope = detent::distribution::parse_identity_hex<32>(argv[6]);
 		detent::local::ClientSourceOptions local;
 		local.directory = argv[1];
+		const auto identity = detent::distribution::namespace_cursor(configured);
 		local.identity = identity;
 		local.auto_refresh = false;
 		local.limits = capacity.limits;
@@ -96,7 +97,7 @@ int main(int argc, char **argv) {
 		const auto ready_usage = ReaderBenchmark::usage();
 		const auto view = client.read_view();
 		const auto cursor = view.cursor();
-		if (!cursor || !cursor->same_identity(identity) || cursor->revision < revision)
+		if (!cursor || !cursor->same_identity(identity) || cursor->position < revision)
 			throw std::runtime_error("mixed SDK oracle generation has not converged");
 		std::uint64_t booleans = 0, integers = 0, deleted = 0;
 		for (std::uint64_t ordinal = 0; ordinal != records; ++ordinal) {
@@ -150,7 +151,7 @@ int main(int argc, char **argv) {
 		benchmark.run(client, view);
 		std::cout << "{\"records\":" << records << ",\"bool_knobs\":" << booleans
 				  << ",\"int_knobs\":" << integers << ",\"deleted\":" << deleted
-				  << ",\"revision\":" << cursor->revision
+				  << ",\"revision\":" << cursor->position
                   << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
                   << ",\"open_cpu_seconds\":" << ReaderBenchmark::cpu(ready_usage) - ReaderBenchmark::cpu(open_usage)
                   << ",\"open_minor_faults\":" << ready_usage.ru_minflt - open_usage.ru_minflt

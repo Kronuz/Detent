@@ -19,7 +19,7 @@ Each namespace has its own position and history, an agent starts from a store sh
 | Architect, blocks re-check | NB-L1, L2, L4 and NB-C1 to C6 closed, NB-L3 partial; NR-1 to NR-3 and NB-L3's wording folded in; NR-4 answered with the roll-up |
 | Architect, the roll-up (NR-4) | APPROVE WITH CONDITIONS; RU-C1 to RU-C5 folded in, with the lead's calls on RU-C3, RU-3 and RU-C4 (see "Review findings") |
 
-The design covers namespace-granular delivery, agents seeded from an image shipped with the application, and fast agent restart. Classic mode and flat-v1 are being deleted (`docs/status/legacy-removal-inventory.md`, branch `explore/legacy-inventory`), so it covers the authority, relay and managed agent only.
+The design covers namespace-granular delivery, agents seeded from an image shipped with the application, and fast agent restart. It covers the authority, relay and managed agent only.
 
 ## Decisions settled by the owner
 

@@ -116,7 +116,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"disk_generations",
 					"retry_interval_ms",
 					"reconnect_maximum_ms",
-					"image_format",
 					"compaction_interval_ms",
 					"scrub_bytes_per_second",
 					"timeout_ms",
@@ -124,12 +123,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"image_limits"});
 	ManagedOptions result;
 	result.coordinator.directory = directory;
-	if (object.HasMember("image_format")) {
-		const auto format = text(object["image_format"], 16);
-		require(format == "flat-v1" || format == "paged-v2", "invalid managed image format");
-		result.coordinator.image_format =
-			format == "paged-v2" ? LocalImageFormat::PagedV2 : LocalImageFormat::FlatV1;
-	}
 	const auto interval = number(object, "compaction_interval_ms", 60000, 0, 86400000);
 	require(interval == 0 || interval >= 1000,
 			"managed compaction interval must be zero or at least 1000 ms");

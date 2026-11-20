@@ -84,10 +84,8 @@ inline p::Digest digest(std::string_view hex) {
 inline p::Root empty_root() {
 	p::Root root;
 	root.cursor.cluster.fill('c');
-	root.cursor.group.fill('g');
-	root.cursor.restore_epoch.fill('e');
-	root.cursor.scope.fill('s');
-	root.cursor.revision = 17;
+	root.cursor.incarnation.fill('i');
+	root.cursor.position = 17;
 	return root;
 }
 inline p::Reference reference(std::span<const char> page) {

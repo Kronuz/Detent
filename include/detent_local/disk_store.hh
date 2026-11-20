@@ -1,5 +1,6 @@
 #pragma once
-#include "builder.hh"
+#include "derived_ids.hh"
+#include "generation.hh"
 #include "detent_distribution/retirement.hh"
 #include "disk_ledger.hh"
 #include "identity_reset.hh"
@@ -38,6 +39,8 @@ struct SelectionSnapshot {
 };
 // One namespace's generation in a publication cycle.
 struct NamespacePublication;
+// The entry a single-plan `begin` publishes.
+inline constexpr std::string_view disk_store_entry = "namespace";
 struct DiskStoreOptions {
 	StoreOpenMode mode = StoreOpenMode::ExistingManaged;
 	DiskLimits limits;
@@ -74,6 +77,8 @@ class DiskStore {
 	SyncStats sync_stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
+	// The layout this store refused at open (LayoutRefused's message): it opened empty, for a full copy.
+	const std::optional<std::string> &refusal() const noexcept;
 	// The next disk work, or null. Taking it starts it: the store waits for its run() before any other.
 	std::shared_ptr<DiskWork> work();
 	void advance();
@@ -82,8 +87,7 @@ class DiskStore {
 	std::chrono::steady_clock::time_point collection_retry_at() const noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
-	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
-	// The table's only namespace, named by its cursor; every other entry is dropped.
+	// The table's only namespace, `disk_store_entry`; every other entry is dropped.
 	void begin(detail::PagedPlan &&);
 	// One cycle (D8, D11): each namespace's generation, the entries `dropped` removed, the directory
 	// cursor recorded. Every plan's base is that namespace's selected generation.
@@ -96,7 +100,6 @@ class DiskStore {
 	std::vector<std::string> pending() const;
 	// Entries whose files did not verify at startup and have not been republished (D10).
 	std::vector<std::string> failed() const;
-	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
 	void begin_reset(detail::PagedPlan &&, const TrustedIdentityReset &);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;
@@ -109,7 +112,6 @@ class DiskStore {
 
   private:
 	friend class detail::ManagedRecovery;
-	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
 	void begin_paged(detail::PagedPlan &&, const TrustedIdentityReset *);
 	void begin_cycle(std::span<const std::pair<std::string, detail::PagedPlan *>>, std::vector<std::string>,
 					 std::optional<distribution::DirectoryCursor>, const TrustedIdentityReset *);

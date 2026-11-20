@@ -68,7 +68,7 @@ struct OverlayAssembler::Impl {
 	bool failed = false, discarding = false, finishing = false, event = false, relocation = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, const TrieOverlay &source,
 		 std::span<const SegmentInput> segments, std::span<const SegmentReachability> reachability,
-		 p::Root previous, DerivedGeneration publication, d::Cursor target,
+		 p::Root previous, DerivedGeneration publication, d::NamespaceCursor target,
 		 p::Limits bounds, std::uint64_t maximum)
 		: account(std::move(ledger)), overlay(source), inputs(segments), live(reachability),
 		  removed(d::StorageAllocator<SegmentReachability>(account)),
@@ -77,7 +77,7 @@ struct OverlayAssembler::Impl {
 		  root(previous), base(previous), generation(publication),
 		  limits(bounds), maximum_output_bytes(maximum) {
 		require(inputs.size() == live.size() && live.size() == root.segments);
-		require(root.cursor.same_identity(target) && target.revision >= root.cursor.revision);
+		require(root.cursor.same_identity(target) && target.position >= root.cursor.position);
 		p::encode_root(root, limits);
 		root.cursor = target;
 		root.namespaces = overlay.namespaces();
@@ -175,7 +175,7 @@ OverlayAssembler::OverlayAssembler(std::shared_ptr<d::StorageLedger> account,
 								   const TrieOverlay &overlay,
 								   std::span<const SegmentInput> segments,
 								   std::span<const SegmentReachability> live, p::Root base,
-								   DerivedGeneration generation, d::Cursor target, p::Limits limits, std::uint64_t maximum)
+								   DerivedGeneration generation, d::NamespaceCursor target, p::Limits limits, std::uint64_t maximum)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, overlay, segments,
 										live, base, generation, target, limits, maximum)) {
 }

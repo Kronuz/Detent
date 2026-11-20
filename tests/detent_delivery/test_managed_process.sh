@@ -7,7 +7,6 @@ agent=$2
 reader=$3
 interpreter=$4
 certificates=$5
-image_format=paged-v2
 check_format() {
     "$interpreter" "$(dirname "$0")/verify_local_format.py" "$@"
 }
@@ -108,7 +107,7 @@ chmod 644 "$root/reader-limits.json"
 [[ $("$reader" get ns:feature --system --config "$root/reader-limits.json") == 7 ]]
 [[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --system --config "$root/reader-limits.json") == 42 ]]
 [[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
-check_format "$root/generations" "$image_format"
+check_format "$root/generations" root
 check_format "$root/generations" mark > "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 # A namespace the agent does not follow gets no entry and moves none.
@@ -137,7 +136,7 @@ grep -q 'durable revision=' "$root/reader-high-status.txt"
 agent_pid=$!
 wait_ready "$root/agent-restart.log"
 check_format "$root/generations" same-store "$root/storage-before"
-check_format "$root/generations" "$image_format"
+check_format "$root/generations" root
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 cp "$root/generations/selected" "$root/selected-before"
 cp "$root/managed.json" "$root/managed-good.json"

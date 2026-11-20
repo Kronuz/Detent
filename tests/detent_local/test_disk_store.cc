@@ -3,7 +3,10 @@
 // close while work runs, and the release of a settled publication's image.
 #include "detent_local/disk_store.hh"
 #include "detent_local/reader.hh"
+#include "managed_recovery.hh"
+#include "paged_snapshot_plan.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <fcntl.h>
 #include <filesystem>
@@ -39,8 +42,8 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 		work->run();
 	}
 }
-std::unique_ptr<l::ImageBuilder> build(std::shared_ptr<d::StorageLedger> account, char generation,
-									   std::uint64_t revision, std::uint32_t key_padding = 0) {
+std::shared_ptr<const d::ValidatedSnapshot> snapshot(std::shared_ptr<d::StorageLedger> account,
+													 std::uint64_t revision, std::uint32_t key_padding = 0) {
 	auto expected = cursor();
 	expected.revision = revision;
 	d::Limits limits;
@@ -59,13 +62,7 @@ std::unique_ptr<l::ImageBuilder> build(std::shared_ptr<d::StorageLedger> account
 		d::WorkBudget budget;
 		decoder.feed(input, budget);
 	}
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-	auto builder = std::make_unique<l::ImageBuilder>(source);
-	while (!builder->done()) {
-		l::ValidationBudget budget;
-		builder->step(budget);
-	}
-	return builder;
+	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
 // The census the agent store keeps: every name, one generation per `.lease`.
 l::DiskUsage census(const std::filesystem::path &directory) {
@@ -87,11 +84,12 @@ std::filesystem::path fresh(const std::filesystem::path &root, std::string_view 
 	return path;
 }
 struct Store {
+	std::filesystem::path directory;
 	d::RetirementDomain domain;
 	std::shared_ptr<l::DiskStore> store;
 	Store(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
-		  const std::filesystem::path &directory, l::StoreOpenMode mode, l::DiskLimits limits = {1 << 20, 100, 10})
-		: domain(runtime.domain(account, 1)) {
+		  const std::filesystem::path &path, l::StoreOpenMode mode, l::DiskLimits limits = {16 << 20, 100, 10})
+		: directory(path), domain(runtime.domain(account, 64)) {
 		l::DiskStoreOptions options;
 		options.mode = mode;
 		options.limits = limits;
@@ -109,12 +107,32 @@ struct Store {
 		store.reset();
 		domain.close().wait();
 	}
-	void publish(const l::ImageBuilder &builder) {
-		const auto base = store->selection().descriptor;
-		store->begin(builder, base ? std::optional(base->cursor) : std::nullopt);
+	l::RecoveredGeneration recover() {
+		return l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store));
+	}
+	// A full copy at `revision` over the selected generation.
+	l::detail::PagedPlan build(std::uint64_t revision) {
+		std::optional<l::RecoveredGeneration> actual;
+		if (store->selection().descriptor)
+			actual.emplace(recover());
+		l::detail::PagedSnapshotPlanBuilder builder(snapshot(domain.storage_account(), revision), actual,
+													store->directory_identity(), domain.factory(),
+													domain.storage_account(), {});
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		return builder.take();
+	}
+	// Publishes `plan` and confirms its recovery, as the coordinator does.
+	void publish(l::detail::PagedPlan plan) {
+		const auto descriptor = plan.descriptor();
+		store->begin(std::move(plan));
 		drive(store);
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
-		check(store->selection().descriptor == builder.descriptor());
+		check(store->selection().descriptor == descriptor);
+		store->confirm_recovered(recover());
+		drive(store);
 	}
 };
 void startup_modes(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
@@ -152,17 +170,19 @@ void publication_and_collection(d::RetirementRuntime &runtime, const std::shared
 	std::optional<l::Descriptor> last;
 	{
 		Store s(runtime, account, directory, l::StoreOpenMode::FreshEmpty);
-		auto first = build(account, 'a', 42);
-		s.publish(*first);
+		auto first = s.build(42);
+		const auto first_descriptor = first.descriptor();
+		s.publish(std::move(first));
 		check(s.store->stats().used == census(directory) && s.store->stats().reserved == l::DiskUsage{});
-		check(l::read_generation_selection(directory).descriptor == first->descriptor());
+		check(l::read_generation_selection(directory).descriptor == first_descriptor);
 		check(s.store->stats().used.generations == 1);
 		// A reader holds the first generation while the second is published.
-		const auto name = l::generation_name(first->descriptor().generation) + ".lease";
+		const auto name = l::generation_name(first_descriptor.generation) + ".lease";
 		const int lease = ::open((directory / name).c_str(), O_RDONLY | O_CLOEXEC);
 		check(lease >= 0 && ::flock(lease, LOCK_SH | LOCK_NB) == 0);
-		auto second = build(account, 'b', 43);
-		s.publish(*second);
+		auto second = s.build(43);
+		last = second.descriptor();
+		s.publish(std::move(second));
 		check(std::filesystem::exists(directory / name) && s.store->stats().used.generations == 2);
 		check(s.store->stats().used == census(directory) && !s.store->collection_error());
 		check(::close(lease) == 0);
@@ -172,18 +192,18 @@ void publication_and_collection(d::RetirementRuntime &runtime, const std::shared
 		check(s.store->stats().used == census(directory) && !s.store->collection_error());
 		const auto peak = s.store->stats().peak;
 		check(peak.generations == 2 && peak.bytes >= s.store->stats().used.bytes);
-		last = second->descriptor();
 	}
 	Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
 	check(reopened.store->status() == l::StoreStatus::Ready);
 	check(reopened.store->selection().knowledge == l::SelectionKnowledge::Known &&
 		  reopened.store->selection().descriptor == last);
 	check(reopened.store->stats().used == census(directory));
-	// The next publication must move forward from the selected cursor.
-	auto stale = build(account, 'c', 43);
+	// A plan built over a generation that is no longer selected is refused.
+	auto stale = reopened.build(44);
+	reopened.publish(reopened.build(44));
 	bool refused = false;
 	try {
-		reopened.store->begin(*stale, last->cursor);
+		reopened.store->begin(std::move(stale));
 	} catch (const std::invalid_argument &) {
 		refused = true;
 	}
@@ -195,8 +215,7 @@ void cancellation_and_admission(d::RetirementRuntime &runtime, const std::shared
 	{
 		Store s(runtime, account, directory, l::StoreOpenMode::FreshEmpty);
 		const auto before = census(directory);
-		auto first = build(account, 'a', 42);
-		s.store->begin(*first);
+		s.store->begin(s.build(42));
 		check(!s.store->publication_ready() && s.store->stats().reserved != l::DiskUsage{});
 		s.store->cancel_publication();
 		check(s.store->publication_status() == l::DiskPublicationStatus::Cancelled);
@@ -204,7 +223,7 @@ void cancellation_and_admission(d::RetirementRuntime &runtime, const std::shared
 		drive(s.store);
 		check(census(directory) == before && s.store->selection().knowledge == l::SelectionKnowledge::Absent);
 		// Taken work is not cancelled: it runs and settles.
-		s.store->begin(*first);
+		s.store->begin(s.build(42));
 		auto work = s.store->work();
 		check(work && !s.store->work());
 		s.store->cancel_publication();
@@ -214,44 +233,34 @@ void cancellation_and_admission(d::RetirementRuntime &runtime, const std::shared
 	}
 	const auto tight = fresh(root, "tight");
 	Store s(runtime, account, tight, l::StoreOpenMode::FreshEmpty, {64, 100, 10});
-	auto first = build(account, 'a', 42);
+	auto first = s.build(42);
 	bool pressure = false;
 	try {
-		s.store->begin(*first);
+		s.store->begin(std::move(first));
 	} catch (const l::DiskPressure &) {
 		pressure = true;
 	}
 	check(pressure && s.store->publication_ready() && s.store->stats().reserved == l::DiskUsage{});
 	check(!s.store->work());
-	// A flat publication's `.live` is charged to the store's account: with no room for it, begin refuses
-	// before queueing anything.
-	auto heap = std::make_shared<d::StorageLedger>(account, account->limit() - account->used());
-	Store charged(runtime, heap, fresh(root, "live-charge"), l::StoreOpenMode::FreshEmpty);
-	auto flat = build(heap, 'a', 42);
-	auto exhausted = heap->admit(heap->limit() - heap->used());
-	pressure = false;
-	try {
-		charged.store->begin(*flat);
-	} catch (const d::StoragePressure &) {
-		pressure = true;
-	}
-	check(pressure && charged.store->publication_ready() && charged.store->stats().reserved == l::DiskUsage{});
-	check(!charged.store->work() && charged.store->publication_status() == l::DiskPublicationStatus::Idle);
-	exhausted.reset();
-	charged.publish(*flat);
 }
 void close_while_running(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
 						 const std::filesystem::path &root) {
 	const auto directory = fresh(root, "close");
-	auto domain = runtime.domain(account, 1);
+	auto domain = runtime.domain(account, 64);
 	l::DiskStoreOptions options;
 	options.mode = l::StoreOpenMode::FreshEmpty;
-	options.limits = {1 << 20, 100, 10};
+	options.limits = {16 << 20, 100, 10};
 	auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
-	auto builder = build(account, 'a', 42);
-	std::weak_ptr<const d::OwnedBuffer> image = builder->bytes();
-	store->begin(*builder);
-	builder.reset();
+	l::detail::PagedSnapshotPlanBuilder builder(snapshot(domain.storage_account(), 42), std::nullopt,
+												store->directory_identity(), domain.factory(),
+												domain.storage_account(), {});
+	while (!builder.done()) {
+		l::ValidationBudget budget;
+		builder.step(budget);
+	}
+	auto plan = builder.take();
+	std::weak_ptr<const d::OwnedBuffer> image = plan.bytes();
+	store->begin(std::move(plan));
 	auto work = store->work();
 	check(work && !image.expired());
 	store->close();
@@ -260,12 +269,82 @@ void close_while_running(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 	worker.join();
 	store->advance();
 	check(store->publication_status() == l::DiskPublicationStatus::Published && store->drained());
-	// The settled store keeps nothing of the publication, though the taken work is still held.
+	// The settled store keeps nothing of the publication, though the taken work is still held: the plan
+	// retires on the retirement worker.
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	while (!image.expired() && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
 	check(image.expired());
 	work.reset();
 	store.reset();
 	domain.close().wait();
-	check(l::read_generation_selection(directory).descriptor.cursor.revision == 42);
+	check(l::read_generation_selection(directory).descriptor.cursor.position == 42);
+}
+// D43: a store of another layout, synthesized from current bytes, is refused once and opens empty for a
+// full copy; damage still fences.
+void older_layouts(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
+				   const std::filesystem::path &root) {
+	auto replace = [](const std::filesystem::path &path, std::span<const char> bytes) {
+		std::filesystem::remove(path);
+		trusted_records::put(path, bytes);
+	};
+	auto table_of = [](const std::filesystem::path &directory) {
+		return l::decode_table(trusted_records::slurp(directory / "selected"));
+	};
+	for (const auto change : {"table layout", "root format", "root damage", "newer table"}) {
+		const auto directory = fresh(root, change);
+		{
+			Store s(runtime, account, directory, l::StoreOpenMode::FreshEmpty);
+			s.publish(s.build(42));
+		}
+		auto table = table_of(directory);
+		const auto image = directory / (l::generation_name(table.entries.front().generation) + ".image");
+		const bool newer = std::string_view(change) == "newer table";
+		if (std::string_view(change) == "table layout" || newer) {
+			// Layout 1, or a newer one: the current table with its layout field and digest rewritten.
+			auto bytes = trusted_records::slurp(directory / "selected");
+			l::write_integer(bytes, 8, newer ? l::agent_store_layout + 1 : l::agent_store_layout - 1, 4);
+			const auto sum = trusted_records::sha(std::span<const char>(bytes).first(bytes.size() - 32));
+			std::copy(sum.begin(), sum.end(), bytes.end() - 32);
+			replace(directory / "selected", bytes);
+		} else {
+			// Format 3: the current root with its magic and format rewritten, its entry naming its digest.
+			// Damage: the same root with the entry's digest left as it was.
+			auto bytes = trusted_records::slurp(image);
+			bytes[7] = '3';
+			l::write_integer(bytes, 8, l::paged::format_version - 1, 4);
+			replace(image, bytes);
+			if (std::string_view(change) == "root format") {
+				table.entries.front().root = trusted_records::sha(bytes);
+				replace(directory / "selected", l::encode_table(table));
+			}
+		}
+		if (newer) {
+			// A newer layout is not this agent's to remove: the store does not open and keeps every file.
+			bool refused = false;
+			try {
+				Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
+			} catch (const l::TableRefused &) {
+				refused = true;
+			}
+			check(refused && std::filesystem::exists(directory / "selected") && std::filesystem::exists(image));
+			continue;
+		}
+		Store reopened(runtime, account, directory, l::StoreOpenMode::ExistingManaged);
+		// Damage fences and keeps every file.
+		if (std::string_view(change) == "root damage") {
+			check(reopened.store->status() == l::StoreStatus::Fenced && !reopened.store->refusal());
+			check(std::filesystem::exists(directory / "selected") && std::filesystem::exists(image));
+			continue;
+		}
+		check(reopened.store->status() == l::StoreStatus::Ready && reopened.store->refusal() &&
+			  reopened.store->selection().knowledge == l::SelectionKnowledge::Absent);
+		reopened.publish(reopened.build(43));
+		reopened.store->request_collection();
+		drive(reopened.store);
+		check(!std::filesystem::exists(image) && reopened.store->stats().used == census(directory));
+		check(table_of(directory).entries.front().cursor.position == 43);
+	}
 }
 } // namespace
 int main() {
@@ -275,7 +354,7 @@ int main() {
 		std::filesystem::create_directories(root);
 		std::filesystem::permissions(root, std::filesystem::perms::owner_all);
 		auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
-		auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
+		auto account = std::make_shared<d::StorageLedger>(256ull << 20);
 		d::RetirementRuntime runtime(baseline, 2);
 		startup_modes(runtime, account, root);
 		check_released(account);
@@ -285,10 +364,12 @@ int main() {
 		check_released(account);
 		close_while_running(runtime, account, root);
 		check_released(account);
+		older_layouts(runtime, account, root);
+		check_released(account);
 		std::filesystem::remove_all(root);
 		runtime.shutdown();
 		std::cout << "startup modes, census settlement, cancellation, admission, collection around a lease and "
-					 "close while running passed\n";
+					 "close while running, and older layouts refused once, newer ones fenced passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

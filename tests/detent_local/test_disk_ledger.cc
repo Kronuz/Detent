@@ -38,7 +38,7 @@ int main() {
 	try {
 		// A generation's image, `.read` and `.live`, its empty `.lease`, and the table staged beside `selected`.
 		constexpr std::uint64_t table = 64 + 137 + 255 + 32;
-		check(l::DiskLedger::generation_peak(192, 0, 160) == l::DiskUsage{192 + 160 + table, 5, 1});
+		check(l::DiskLedger::generation_peak(320, 0, 160) == l::DiskUsage{320 + 160 + table, 5, 1});
 		check(l::DiskLedger::paged_peak({}, 1184) == l::DiskUsage{320 + 192 + 1184 + table, 5, 1});
 		const std::array<std::uint64_t, 2> packs{1000, l::paged::segment_bytes};
 		const auto paged_peak = l::DiskLedger::paged_peak(packs, 1328);
@@ -50,8 +50,8 @@ int main() {
 		}
 		const auto maximum = std::numeric_limits<std::uint64_t>::max();
 		rejects([&] { l::DiskLedger::generation_peak(maximum, 0, 0); });
-		rejects([&] { l::DiskLedger::generation_peak(191, 0, 0); });
-		rejects([&] { l::DiskLedger::generation_peak(192, (1u << 16) + 1, 0); });
+		rejects([&] { l::DiskLedger::generation_peak(319, 0, 0); });
+		rejects([&] { l::DiskLedger::generation_peak(320, (1u << 16) + 1, 0); });
 		check(l::DiskLedger::generation_peak(maximum - table, 0, 0).bytes == maximum);
 		for (unsigned dimension = 0; dimension < 3; ++dimension) {
 			l::DiskLimits limits{paged_peak.bytes, paged_peak.entries, paged_peak.generations};

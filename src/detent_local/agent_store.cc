@@ -297,8 +297,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		b.entry.name = generation.name;
 		b.entry.cursor = generation.cursor;
 		b.entry.ordinal = generation.ordinal;
-		b.entry.generation = derive_generation(s.options.profile, generation.cursor.incarnation,
-											   generation.cursor.position, generation.base, generation.ordinal);
+		b.entry.generation = derive_generation(s.options.profile, generation.cursor, generation.base, generation.ordinal);
 		b.entry.root_length = generation.image.size();
 		b.entry.root = digest(generation.image);
 		b.entry.read = digest(generation.read);

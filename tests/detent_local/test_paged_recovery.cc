@@ -63,8 +63,8 @@ int main() {
 	require(l::open_generation(directory, limits).size() == 2);
 	limits.overrides = 0;
 	rejects<std::invalid_argument>([&] { l::open_generation(directory, limits); });
-	auto future = cursor();
-	++future.revision;
+	auto future = local_cursor();
+	++future.position;
 	rejects<std::runtime_error>([&] { l::open_generation(directory, {}, future); });
 	limits = {};
 	limits.bytes = image.bytes()->size();

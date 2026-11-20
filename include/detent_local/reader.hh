@@ -8,7 +8,7 @@ namespace detent::local {
 class GenerationReader {
   public:
 	GenerationReader(std::filesystem::path directory, ViewLimits limits = {},
-	                 std::optional<distribution::Cursor> identity = {},
+	                 std::optional<distribution::NamespaceCursor> identity = {},
 	                 std::optional<std::uint32_t> prepared_publisher = {}, std::string name = {});
 	// A prepared publisher enables leased, checked-path attachment; otherwise
 	// refresh fully validates. Exceptions preserve the previous view.
@@ -20,7 +20,7 @@ class GenerationReader {
   private:
 	std::filesystem::path directory_;
 	ViewLimits limits_;
-	std::optional<distribution::Cursor> identity_;
+	std::optional<distribution::NamespaceCursor> identity_;
 	std::optional<std::uint32_t> prepared_publisher_;
 	// The table entry read (D8); empty: the table's only entry.
 	std::string name_;

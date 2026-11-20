@@ -15,7 +15,6 @@ using NativeDriver = kronuz::journal::AsioCompletionDriver<kronuz::io::completio
 namespace detail {
 struct CoordinatorAccess;
 }
-enum class LocalImageFormat { FlatV1, PagedV2 };
 // The agent's delivery (namespace-delivery D8, W5, W6): one W5 session following every namespace,
 // each response's frames built into one generation per namespace and published in one store cycle.
 struct CoordinatorOptions {
@@ -32,7 +31,6 @@ struct CoordinatorOptions {
 	std::chrono::milliseconds retry_interval{200};
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
-	LocalImageFormat image_format = LocalImageFormat::PagedV2;
 	std::chrono::milliseconds compaction_interval{60000};
 	// Pack scrub pace in bytes hashed per second, 0 to disable (namespace delivery D10.2).
 	std::uint64_t scrub_bytes_per_second = 512 * 1024;

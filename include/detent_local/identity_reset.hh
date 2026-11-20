@@ -6,7 +6,7 @@ namespace detent::local {
 // Decoded candidate bytes cannot grant permission to change authority identity.
 struct TrustedIdentityReset {
 	Descriptor expected_selected;
-	distribution::Cursor configured; // Identity fields; revision is ignored.
+	distribution::NamespaceCursor configured; // Identity fields; revision is ignored.
 	distribution::Profile profile;
 };
 } // namespace detent::local

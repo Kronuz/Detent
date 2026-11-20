@@ -33,12 +33,7 @@ void write(const std::filesystem::path &path, std::span<const char> bytes) {
 }
 void publish(const std::filesystem::path &directory, std::shared_ptr<const d::ValidatedSnapshot> snapshot,
 			 char id) {
-	l::ImageBuilder builder(std::move(snapshot));
-	while (!builder.done()) {
-		l::ValidationBudget budget;
-		builder.step(budget);
-	}
-	trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
+	trusted_records::install(directory, trusted_records::build(std::move(snapshot)));
 }
 std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	std::string out;
@@ -84,7 +79,7 @@ int main() {
 		write(defaults, json);
 		l::ClientSourceOptions source_options;
 		source_options.directory = directory;
-		source_options.identity = cursor();
+		source_options.identity = local_cursor();
 		source_options.auto_refresh = false;
 		std::shared_ptr<l::LocalReadSource> source;
 		detent::InitOptions options;
@@ -140,7 +135,7 @@ int main() {
 		publish(directory, empty(), 'b');
 		require(source->refresh());
 		require(client->get("app:count").value() == 0);
-		require(client->read_view().cursor()->revision == 43 && pinned.cursor()->revision == 42);
+		require(client->read_view().cursor()->position == 43 && pinned.cursor()->position == 42);
 		require(pinned.get("app:count").value() == std::numeric_limits<std::int64_t>::min());
 		auto automatic = source_options;
 		automatic.auto_refresh = true;
@@ -157,7 +152,7 @@ int main() {
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
 			require(automatic_client.health().source_connected &&
-					automatic_client.read_view().cursor()->revision == 43);
+					automatic_client.read_view().cursor()->position == 43);
 		}
 		write(directory / "selected", {});
 		bool rejected = false;
@@ -167,7 +162,7 @@ int main() {
 			rejected = true;
 		}
 		require(rejected && !client->health().source_connected &&
-				client->read_view().cursor()->revision == 43);
+				client->read_view().cursor()->position == 43);
 		client.reset();
 		source.reset();
 		cli_client.reset();

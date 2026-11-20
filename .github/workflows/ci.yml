@@ -100,6 +100,6 @@ jobs:
           -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF
           -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
       - name: Build
-        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_view test_local_reader
+        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_reader
       - name: Test
-        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|view|reader)$'
+        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|reader)$'

@@ -16,7 +16,6 @@ struct RecoveryContext {
 	distribution::RetirementHandle<MappedRecoveryAdmission> admission;
 	ValidationBudget budget;
 	std::optional<GenerationSelection> selection;
-	std::optional<bool> paged; // the routed format: a paged root, or a flat image
 	std::shared_ptr<RecoveryMetrics> metrics;
 	// The agent's cold start: trust the generation's live record, and refuse a generation without one.
 	bool trusted_start = false;
@@ -26,9 +25,9 @@ struct RecoveryContext {
 class RecoveryEngine {
   public:
 	static RecoveredGeneration recover(const std::filesystem::path &, RecoveryContext,
-									   std::optional<distribution::Cursor> = {});
-	static RecoveredGeneration recover_routed(const std::filesystem::path &, RecoveryContext legacy,
-											  RecoveryContext paged,
-											  std::optional<distribution::Cursor> = {});
+									   std::optional<distribution::NamespaceCursor> = {});
+	// The selected generation, bound to its lease; with an admission, the admission's own selection.
+	static RecoveredGeneration recover_selected(const std::filesystem::path &, RecoveryContext,
+												std::optional<distribution::NamespaceCursor> = {});
 };
 } // namespace detent::local::detail

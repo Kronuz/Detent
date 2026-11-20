@@ -16,7 +16,7 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 	limits_.retirement_domain = nullptr;
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	// A snapshot is a full copy, so its name has a zero base (D8.1).
-	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->cursor(),
+	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->namespace_cursor(),
 									  source->profile(), true);
 	encoder_.emplace(std::move(source), name, bounds);
 }
@@ -76,21 +76,16 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 			++histogram_;
 		}
 		if (state_->intent_ == PagedPlanIntent::Maintenance) {
-			if (!equality_)
-				equality_.emplace(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
-			equality_->step(budget);
-			if (!equality_->done())
-				return;
-			if (!equality_->equal())
+			StateEquivalence equality(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
+			if (!equality.equal())
 				throw std::invalid_argument("same-cursor snapshot changes logical state");
-			unchanged_proof_.emplace(equality_->take_proof());
+			unchanged_proof_.emplace(equality.take_proof());
 			if (!unchanged_proof_->binds_construction(*base_, state_->descriptor_))
 				throw std::invalid_argument("unchanged snapshot proof binding mismatch");
 		} else
 			state_->sealed_ = true;
 		finished_ = true;
 		validator_.reset();
-		equality_.reset();
 	} catch (...) {
 		failed_ = true;
 		throw;

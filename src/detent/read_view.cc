@@ -31,7 +31,7 @@ Result<std::int64_t, KnobError> ClientReadView::get(std::string_view name, std::
 		return error(ErrorCategory::MissingKnob, name);
 	return detail::evaluate(found->second, name, hash, group);
 }
-std::optional<distribution::Cursor> ClientReadView::cursor() const noexcept {
+std::optional<distribution::NamespaceCursor> ClientReadView::cursor() const noexcept {
 	return evaluator_ ? evaluator_->cursor() : std::nullopt;
 }
 } // namespace detent

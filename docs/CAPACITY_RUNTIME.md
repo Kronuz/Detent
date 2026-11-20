@@ -37,7 +37,6 @@ Merge this envelope into the existing private managed source configuration used 
 
 ```json
 {
-  "image_format": "paged-v2",
   "heap_bytes": 3221225472,
   "mapping_bytes": 3221225472,
   "disk_bytes": 17179869184,

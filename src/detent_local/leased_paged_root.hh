@@ -80,9 +80,9 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	bool sealed_ = false;
 	friend class RecoveryEngine;
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
-																 std::optional<distribution::Cursor>);
+																 std::optional<distribution::NamespaceCursor>);
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
-																 std::optional<distribution::Cursor>,
+																 std::optional<distribution::NamespaceCursor>,
 																 const RecoveredGeneration *, std::string_view);
 };
 } // namespace detent::local::detail

@@ -43,7 +43,7 @@ void warm_skips() {
   const auto &prior = x::RecoveredTesting::root(recovered);
   auto account = std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
   auto root = source->root;
-  ++root.cursor.revision;
+  ++root.cursor.position;
   {
     const auto before = p::hash_counts();
     x::WarmGraphValidator warm(account, recovered, source, {}, root, {}, x::paged_format_semantics);
@@ -207,7 +207,7 @@ void fuzz_warm_sample(std::uint64_t &seed) {
     (*bytes)[random() % bytes->size()] ^= static_cast<char>(1 + random() % 255);
   try {
     auto root = base.source->root;
-    ++root.cursor.revision;
+    ++root.cursor.position;
     const auto digest = p::page_commitment(*bytes, p::Limits{});
     std::copy(digest.begin(), digest.end(), bytes->begin() + 32);
     l::SegmentOwnership ownership;

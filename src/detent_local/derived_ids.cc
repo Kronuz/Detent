@@ -38,14 +38,15 @@ class Input {
 };
 } // namespace
 
-GenerationId derive_generation(const distribution::Profile &profile, const distribution::Identity &incarnation,
-							   std::uint64_t position, const GenerationId &base, std::uint32_t ordinal) {
+GenerationId derive_generation(const distribution::Profile &profile, const distribution::NamespaceCursor &at,
+							   const GenerationId &base, std::uint32_t ordinal) {
 	return Input("detent.agent-store.generation")
 		.add(agent_store_layout, 4)
 		.add(profile.semantic_id, 4)
 		.add(profile.required_capabilities, 8)
-		.add(incarnation)
-		.add(position, 8)
+		.add(at.cluster)
+		.add(at.incarnation)
+		.add(at.position, 8)
 		.add(base)
 		.add(ordinal, 4)
 		.id();
@@ -55,11 +56,7 @@ SegmentId derive_segment(const GenerationId &generation, std::uint64_t ordinal) 
 	return Input(segment_domain).add(generation).add(ordinal, 8).id();
 }
 
-distribution::NamespaceCursor namespace_cursor(const distribution::Cursor &cursor) {
-	return {cursor.cluster, cursor.group, cursor.revision};
-}
-
-std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::Cursor &target) {
+std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const distribution::NamespaceCursor &target) {
 	if (!selected || selected->cursor != target)
 		return 0;
 	if (selected->ordinal == std::numeric_limits<std::uint32_t>::max())
@@ -67,23 +64,13 @@ std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const dis
 	return selected->ordinal + 1;
 }
 
-std::string namespace_name(const distribution::Cursor &cursor) {
-	static constexpr char hex[] = "0123456789abcdef";
-	std::string name;
-	name.reserve(cursor.scope.size() * 2);
-	for (unsigned char byte : cursor.scope) {
-		name.push_back(hex[byte >> 4]);
-		name.push_back(hex[byte & 15]);
-	}
-	return name;
-}
-DerivedGeneration next_generation(const std::optional<Descriptor> &selected, const distribution::Cursor &target,
-								  const distribution::Profile &profile, bool full_copy) {
+DerivedGeneration next_generation(const std::optional<Descriptor> &selected,
+								  const distribution::NamespaceCursor &target, const distribution::Profile &profile,
+								  bool full_copy) {
 	if (!full_copy && !selected)
 		throw std::invalid_argument("a build from a base needs the selected generation");
-	const auto at = namespace_cursor(target);
 	const auto ordinal = build_ordinal(selected, target);
 	const GenerationId base = full_copy ? GenerationId{} : selected->generation;
-	return {derive_generation(profile, at.incarnation, at.position, base, ordinal), ordinal};
+	return {derive_generation(profile, target, base, ordinal), ordinal};
 }
 } // namespace detent::local

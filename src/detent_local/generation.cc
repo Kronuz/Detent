@@ -61,12 +61,8 @@ void read_record(int fd, std::span<char> bytes) {
 } // namespace
 void validate_descriptor(const Descriptor &d) {
 	require(std::any_of(d.generation.begin(), d.generation.end(), [](char c) { return c != 0; }) &&
-			d.length >= header_bytes);
-	// Reuse the header codec to enforce identity and semantic profile invariants.
-	Header h;
-	h.cursor = d.cursor;
-	h.profile = d.profile;
-	encode_header(h);
+			d.length == paged::root_bytes);
+	validate_identity(d.cursor, d.profile);
 }
 bool same_generation(const Descriptor &a, const Descriptor &b) noexcept {
 	return a.generation == b.generation && a.length == b.length && a.checksum == b.checksum &&
@@ -105,18 +101,20 @@ StoreTable read_table(int directory, uid_t owner, std::uint64_t bound) {
 	DETENT_COUNT(bytes_hashed, bytes.size() - 32);
 	try {
 		return decode_table(bytes);
+	} catch (const LayoutRefused &) {
+		throw;
 	} catch (const TableRefused &) {
 		require(false);
 	}
 	return {};
 }
-// An entry's descriptor: the cursor is the image's, its leading bytes (the paged root or the flat header).
+// An entry's descriptor: the cursor is the image's paged root.
 using detail::GenerationFile;
 using detail::GenerationName;
 using detail::validate_paged_root_prefix;
 std::optional<detail::Selected> select_entry(int directory, uid_t owner, const StoreTable &table,
 											 const TableEntry &entry) {
-	require(entry.root_length >= header_bytes);
+	require(entry.root_length == paged::root_bytes);
 	const GenerationName image_name(entry.generation, GenerationFile::Image);
 	std::array<char, 65> terminated{};
 	std::copy(image_name.view().begin(), image_name.view().end(), terminated.begin());
@@ -125,28 +123,29 @@ std::optional<detail::Selected> select_entry(int directory, uid_t owner, const S
 		return std::nullopt;
 	trusted_file(image.fd, owner, entry.root_length);
 	std::array<char, paged::root_bytes> prefix{};
-	const auto length = std::min<std::uint64_t>(entry.root_length, prefix.size());
-	read_record(image.fd, std::span(prefix).first(length));
+	read_record(image.fd, prefix);
 	DETENT_COUNT(record_opens, 1);
 	detail::Selected selected;
 	auto &descriptor = selected.descriptor;
-	if (std::string_view(prefix.data(), 8) == "DTROOT03") {
-		require(entry.root_length == paged::root_bytes);
-		std::optional<std::pair<distribution::Cursor, distribution::Profile>> root;
-		try {
-			root = validate_paged_root_prefix(prefix);
-		} catch (const std::invalid_argument &) {
-		}
-		require(root.has_value());
-		descriptor.cursor = root->first;
-		require(root->second == table.profile);
-		selected.paged = true;
-	} else {
-		const auto header = decode_header(std::span(prefix).first(length), entry.root_length);
-		require(header.layout.length == entry.root_length && header.profile == table.profile);
-		descriptor.cursor = header.cursor;
+	// A whole root of an older format: its digest is the entry's and its magic an older root's.
+	const auto digit = [&](std::size_t at) { return prefix[at] >= '0' && prefix[at] <= '9'; };
+	if (std::string_view(prefix.data(), 6) == "DTROOT" && digit(6) && digit(7) &&
+		unsigned(prefix[6] - '0') * 10 + unsigned(prefix[7] - '0') < paged::format_version) {
+		SHA256 hash;
+		hash.add(prefix.data(), prefix.size());
+		std::array<char, 32> sum{};
+		hash.getHash(reinterpret_cast<unsigned char *>(sum.data()));
+		if (sum == entry.root)
+			throw LayoutRefused("agent store root: format");
 	}
-	require(namespace_cursor(descriptor.cursor) == entry.cursor);
+	std::optional<std::pair<distribution::NamespaceCursor, distribution::Profile>> root;
+	try {
+		root = validate_paged_root_prefix(prefix);
+	} catch (const std::invalid_argument &) {
+	}
+	require(root.has_value() && root->second == table.profile);
+	descriptor.cursor = root->first;
+	require(descriptor.cursor == entry.cursor);
 	descriptor.generation = entry.generation;
 	descriptor.length = entry.root_length;
 	descriptor.checksum = entry.root;
@@ -192,10 +191,9 @@ GenerationSelection read_generation_selection(const std::filesystem::path &direc
 	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
 	return {selection_of(dir.fd, info.st_uid, name).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
-RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem::path &directory,
-														   RecoveryContext legacy,
-														   RecoveryContext paged_context,
-														   std::optional<distribution::Cursor> expected) {
+RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesystem::path &directory,
+															 RecoveryContext paged_context,
+															 std::optional<distribution::NamespaceCursor> expected) {
 	if (paged_context.admission)
 		return recover(directory, std::move(paged_context), expected);
 	for (unsigned attempt = 0; attempt < 3; ++attempt) {
@@ -229,10 +227,9 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 		}
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
-		auto context = selected->paged ? paged_context : legacy;
+		auto context = paged_context;
 		context.selection =
 			GenerationSelection{descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
-		context.paged = selected->paged;
 		try {
 			return recover(directory, std::move(context), expected);
 		} catch (const RecoverySelectionChanged &) {
@@ -241,11 +238,11 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 	throw RecoverySelectionChanged();
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
-									   std::optional<distribution::Cursor> expected) {
+									   std::optional<distribution::NamespaceCursor> expected) {
 	return recover_generation(directory, limits, expected, nullptr);
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
-									   std::optional<distribution::Cursor> expected,
+									   std::optional<distribution::NamespaceCursor> expected,
 									   const RecoveredGeneration *prior, std::string_view name) {
 	auto &domain = resources::domain(limits);
 	detail::RecoveryContext context{domain.factory(),
@@ -260,7 +257,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 }
 RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path &directory,
 													RecoveryContext context,
-													std::optional<distribution::Cursor> expected) {
+													std::optional<distribution::NamespaceCursor> expected) {
 	bool claimed = false;
 	try {
 		auto limits = context.limits;
@@ -350,8 +347,6 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			}
 			if (named_lease.st_dev != lease_info.st_dev || named_lease.st_ino != lease_info.st_ino)
 				continue;
-			if (context.paged && *context.paged != selected->paged)
-				throw RecoverySelectionChanged();
 			mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 			trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 			mapping->length = descriptor.length;
@@ -373,12 +368,12 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			unsigned char digest[32];
 			hash.getHash(digest);
 			require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
-			if (selected->paged) {
+			{
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
 						(!expected || (expected->same_identity(root.cursor) &&
-									   root.cursor.revision >= expected->revision)));
+									   root.cursor.position >= expected->position)));
 				auto account = context.heap;
 				const DirectoryIdentity identity{std::uint64_t(directory_info.st_dev),
 												 std::uint64_t(directory_info.st_ino)};
@@ -570,19 +565,6 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 					context.admission->complete_attempt();
 				return result;
 			}
-			auto header = decode_header(bytes, limits.bytes);
-			require(header.cursor == descriptor.cursor && header.profile == descriptor.profile);
-			using Lease = distribution::RetirementHandle<Mapping>;
-			auto lease =
-				std::allocate_shared<Lease>(distribution::StorageAllocator<Lease>(context.heap), mapping);
-			ImageValidator validator(lease, bytes, limits, expected, factory, context.heap);
-			while (!validator.done()) {
-				auto budget = context.budget;
-				validator.step(budget);
-			}
-			return RecoveredGeneration(
-				validator.take(), descriptor, dir,
-				{std::uint64_t(directory_info.st_dev), std::uint64_t(directory_info.st_ino)});
 		}
 		throw std::runtime_error("local generation changed while acquiring its lease");
 	} catch (...) {
@@ -593,7 +575,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 }
 
 ReadView open_generation(const std::filesystem::path &directory, ViewLimits limits,
-						 std::optional<distribution::Cursor> expected) {
+						 std::optional<distribution::NamespaceCursor> expected) {
 	return recover_generation(directory, limits, expected).view();
 }
 } // namespace detent::local

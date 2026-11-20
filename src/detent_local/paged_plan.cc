@@ -6,27 +6,36 @@
 namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
+namespace {
+// A delta continues its base's incarnation: it starts at the base's position and moves forward.
+bool exact_base(const d::ValidatedDelta &source, const Descriptor &base) {
+	return source.target().same_identity(source.base()) && source.base().revision == base.cursor.position &&
+		   source.target().revision > source.base().revision && source.profile() == base.profile;
+}
+d::NamespaceCursor forward(const Descriptor &base, const d::ValidatedDelta &source) {
+	auto target = base.cursor;
+	target.position = source.target().revision;
+	return target;
+}
+} // namespace
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> base, const d::ValidatedDelta &source)
 	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!base_ || source.kind() != d::UpdateKind::Progress || source.transactions().size() != 0 ||
-		source.base() != base_->descriptor().cursor || !source.target().same_identity(source.base()) ||
-		source.target().revision <= source.base().revision || source.profile() != base_->descriptor().profile)
+		!exact_base(source, base_->descriptor()))
 		throw std::invalid_argument("invalid exact-base paged progress");
-	copy_root(std::move(account), source.target());
+	copy_root(std::move(account), forward(base_->descriptor(), source));
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> base, const d::ValidatedDelta &source,
 							   Forward)
 	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
-	if (!base_ || source.kind() != d::UpdateKind::Delta || source.base() != base_->descriptor().cursor ||
-		!source.target().same_identity(source.base()) || source.target().revision <= source.base().revision ||
-		source.profile() != base_->descriptor().profile)
+	if (!base_ || source.kind() != d::UpdateKind::Delta || !exact_base(source, base_->descriptor()))
 		throw std::invalid_argument("invalid exact-base paged delta");
 	registry_ = base_->registry();
-	derive(source.target(), source.profile());
+	derive(forward(base_->descriptor(), source), source.profile());
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> base, PhysicalMaintenance)
@@ -37,12 +46,12 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	registry_ = base_->registry();
 	derive(base_->descriptor().cursor, base_->descriptor().profile);
 }
-void PagedPlanState::derive(const d::Cursor &target, const d::Profile &profile) {
+void PagedPlanState::derive(const d::NamespaceCursor &target, const d::Profile &profile) {
 	const auto name = next_generation(base_->descriptor(), target, profile, false);
 	descriptor_ = {name.id, p::root_bytes, {}, target, profile, name.ordinal};
 	validate_descriptor(descriptor_);
 }
-void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::Cursor target) {
+void PagedPlanState::copy_root(std::shared_ptr<d::StorageLedger> account, d::NamespaceCursor target) {
 	root_ = base_->root();
 	root_.cursor = target;
 	derive(root_.cursor, root_.profile);
@@ -80,12 +89,12 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 			throw std::invalid_argument("snapshot physical base mismatch");
 		const bool same = descriptor_.cursor.same_identity(prior.cursor);
 		if ((intent == PagedPlanIntent::Forward &&
-			 (!same || descriptor_.cursor.revision <= prior.cursor.revision ||
+			 (!same || descriptor_.cursor.position <= prior.cursor.position ||
 			  descriptor_.profile != prior.profile)) ||
 			(intent == PagedPlanIntent::Maintenance &&
 			 (descriptor_.cursor != prior.cursor || descriptor_.profile != prior.profile)) ||
 			(intent == PagedPlanIntent::Repair &&
-			 (!same || descriptor_.cursor.revision < prior.cursor.revision || descriptor_.profile != prior.profile)) ||
+			 (!same || descriptor_.cursor.position < prior.cursor.position || descriptor_.profile != prior.profile)) ||
 			(intent == PagedPlanIntent::TrustedReset && same))
 			throw std::invalid_argument("snapshot target intent mismatch");
 	}

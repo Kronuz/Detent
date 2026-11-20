@@ -37,12 +37,13 @@ std::uint64_t minimum(std::span<const char> bytes, std::size_t offset, unsigned 
 	return value << ((width - available) * 8);
 }
 } // namespace
-std::optional<std::pair<distribution::Cursor, distribution::Profile>>
+std::optional<std::pair<distribution::NamespaceCursor, distribution::Profile>>
 validate_paged_root_prefix(std::span<const char> bytes) {
 	require(bytes.size() <= p::root_bytes);
-	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '3', 0, 0, 0, 3, 0, 0, 1, 64};
+	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '4', 0, 0, 0, 4, 0, 0, 1, 64};
 	matches(bytes, 0, framing);
 	zeros(bytes, 48, 56);
+	zeros(bytes, 96, 144);
 	zeros(bytes, 148, 152);
 	zeros(bytes, 228, 320);
 	constexpr std::array<char, 4> semantic{0, 0, 0, 1};
@@ -50,9 +51,8 @@ validate_paged_root_prefix(std::span<const char> bytes) {
 	zeros(bytes, 152, 159);
 	if (bytes.size() >= 160)
 		require(!(static_cast<unsigned char>(bytes[159]) & ~1u));
-	for (const auto offset : {64u, 80u, 96u})
+	for (const auto offset : {64u, 80u})
 		nonzero(bytes, offset, 16);
-	nonzero(bytes, 112, 32);
 	if (bytes.size() >= 40) {
 		const auto live = read_integer(bytes, 16, 8), pages = read_integer(bytes, 32, 8);
 		const auto keys = read_integer(bytes, 24, 4) + read_integer(bytes, 28, 4);
@@ -90,12 +90,10 @@ validate_paged_root_prefix(std::span<const char> bytes) {
 		}
 	}
 	if (bytes.size() >= 160) {
-		distribution::Cursor cursor;
-		cursor.revision = read_integer(bytes, 56, 8);
+		distribution::NamespaceCursor cursor;
+		cursor.position = read_integer(bytes, 56, 8);
 		std::copy_n(bytes.begin() + 64, 16, cursor.cluster.begin());
-		std::copy_n(bytes.begin() + 80, 16, cursor.group.begin());
-		std::copy_n(bytes.begin() + 96, 16, cursor.restore_epoch.begin());
-		std::copy_n(bytes.begin() + 112, 32, cursor.scope.begin());
+		std::copy_n(bytes.begin() + 80, 16, cursor.incarnation.begin());
 		distribution::Profile profile{static_cast<std::uint32_t>(read_integer(bytes, 144, 4)),
 									  read_integer(bytes, 152, 8)};
 		return std::pair(cursor, profile);

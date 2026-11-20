@@ -24,10 +24,10 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 		work->run();
 	}
 }
-void run(bool paged_base) {
+void run() {
 	const auto directory =
 		std::filesystem::current_path() / ".scratch" /
-		("paged-maintenance-" + std::to_string(::getpid()) + "-" + std::to_string(paged_base));
+		("paged-maintenance-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
@@ -42,20 +42,13 @@ void run(bool paged_base) {
 		l::GenerationId original{}, next{};
 		original.fill('f');
 		next.fill('p');
-		if (paged_base) {
+		{
 			l::detail::PagedSnapshotBuilder builder(source, original);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
 			install(directory, builder.take());
-		} else {
-			l::ImageBuilder builder(source);
-			while (!builder.done()) {
-				l::ValidationBudget budget;
-				builder.step(budget);
-			}
-			trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
 		}
 		write(directory / "owner.lock", {});
 		l::DiskStoreOptions options;
@@ -144,6 +137,5 @@ void run(bool paged_base) {
 	check(mappings->used() == 0);
 }
 int main() {
-	run(false);
-	run(true);
+	run();
 }
