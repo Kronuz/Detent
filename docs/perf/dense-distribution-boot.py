@@ -39,7 +39,6 @@ from managed import ManagedCohort
 from mixed import MixedWriters
 from runtime import Actors, Evidence
 
-SELECTION_TIMEOUT = 1800
 QUIET_LIMIT = 5.0
 HASHED = re.compile(r"hashed (\d+) bytes since start: (\d+) to build, (\d+) to check, (\d+) in frames")
 TRANSFERS = re.compile(r"page transfers (\d+) received \((\d+) bytes\), (\d+) refused")
@@ -157,6 +156,14 @@ def last(pattern: re.Pattern[str], lines: list[tuple[float, str]]) -> list[int] 
     return [int(value) for value in matches[-1].groups()] if matches else None
 
 
+async def bounded(what: str, awaitable: Any, seconds: float) -> Any:
+    """`awaitable`, or a TimeoutError naming what it waited for."""
+    try:
+        return await asyncio.wait_for(awaitable, seconds)
+    except TimeoutError:
+        raise TimeoutError(f"timed out after {seconds:.0f} s waiting for {what}") from None
+
+
 async def quiet(pid: int) -> tuple[bool, float]:
     """Wait until four 0.25 s samples in a row add at most 0.01 s of CPU, bounded."""
     began = time.monotonic()
@@ -176,6 +183,7 @@ async def run() -> list[dict[str, Any]]:
     fixture, output, bins, tree = Path(FIXTURE), Path(OUTPUT), Path(BINS), Path(TREE)
     seeded = json.loads((fixture / "seeded.json").read_text())
     records = int(seeded["records"])
+    selection = 60 + records / 10_000  # seconds an agent or the relay may take to be ready
     agents = {arm: bins / f"detent-agent-{arm}" for arm in ("pages", "records")}
     binaries = [bins / "detent-authority", bins / "detent-relay", *agents.values()]
     certificates = bins.parent / "tests/detent_authority/tls-fixture"
@@ -219,34 +227,33 @@ async def run() -> list[dict[str, Any]]:
                 bins / "detent-authority", certificates, output, actors, 4, http_workers=4, capacity=capacity
             )
             try:
-                await authority.start()
+                await bounded("the authority's voters to start", authority.start(), 300)
             except RuntimeError as error:
                 if str(error) != "authority did not elect an available leader":
                     raise
-                deadline = time.monotonic() + 900
+                deadline = time.monotonic() + 300
                 while True:
                     try:
-                        await authority.leader()
+                        await bounded("the authority's leader", authority.leader(), 30)
                         break
                     except RuntimeError:
                         if time.monotonic() >= deadline:
-                            raise
+                            raise TimeoutError("timed out after 300 s waiting for an authority leader") from None
                         await asyncio.sleep(0.5)
             authority_ready = time.monotonic() - t0
             writers = MixedWriters(authority, records, 4, 17, maximum_records=records)
             positions: dict[str, int] = {}
             for producer in range(4):
-                state = await asyncio.wait_for(
-                    writers.successful(
-                        producer,
-                        "/v2/read",
-                        {"namespace": authority.namespace(producer), "keys": [writers.key(producer)]},
-                    ),
+                name = authority.namespace(producer)
+                state = await bounded(
+                    f"the authority's read of {name}",
+                    writers.successful(producer, "/v2/read", {"namespace": name, "keys": [writers.key(producer)]}),
                     60,
                 )
-                if type(state.get("version")) is not int or state["version"] <= 0:
-                    raise RuntimeError(f"no position for {authority.namespace(producer)}: {state}")
-                positions[authority.namespace(producer)] = state["version"]
+                # The agent's selected table holds each namespace's own position (W1), not the version.
+                if type(state.get("namespace_revision")) is not int or state["namespace_revision"] <= 0:
+                    raise RuntimeError(f"no namespace position for {name}: {state}")
+                positions[name] = state["namespace_revision"]
             namespaces = sorted(positions)
             relays = ManagedCohort(
                 authority,
@@ -262,25 +269,27 @@ async def run() -> list[dict[str, Any]]:
                 probe_sessions=16,
                 probe_active=16,
                 source_timeout_ms=600000,
-                selection_timeout=SELECTION_TIMEOUT,
+                selection_timeout=selection,
                 namespaces=namespaces,
                 capacity=capacity,
             )
             relay_start = time.monotonic()
-            await asyncio.wait_for(relays.start(), 60)
+            await bounded("the relay to start", relays.start(), 60)
             relay = relays.relays[0].process.pid
             port = relays.relay_ports[0]
             while True:
                 if relays.relays[0].process.returncode is not None:
                     raise RuntimeError("relay exited before its mirror was ready")
                 try:
-                    _, health = await authority.request(0, "/v1/health", endpoint_port=port)
+                    _, health = await bounded(
+                        "relay health", authority.request(0, "/v1/health", endpoint_port=port), 10
+                    )
                     if health.get("ready") and health["mirror"]["ready"]:
                         break
-                except (OSError, RuntimeError, KeyError):
+                except (OSError, RuntimeError, KeyError, TimeoutError):
                     pass
-                if time.monotonic() - relay_start > SELECTION_TIMEOUT:
-                    raise TimeoutError("relay mirror never ready")
+                if time.monotonic() - relay_start > selection:
+                    raise TimeoutError(f"timed out after {selection:.0f} s waiting for the relay's mirror ready")
                 await asyncio.sleep(0.1)
             mirror_ready = time.monotonic() - relay_start
             print(
@@ -310,27 +319,32 @@ async def run() -> list[dict[str, Any]]:
                     1,
                     4,
                     source_timeout_ms=600000,
-                    selection_timeout=SELECTION_TIMEOUT,
+                    selection_timeout=selection,
                     namespaces=namespaces,
                     capacity=capacity,
                     label=label,
                 )
                 cohort.relay_ports = list(relays.relay_ports)
-                _, before = await authority.request(0, "/v1/health", endpoint_port=port)
+                _, before = await bounded("relay health", authority.request(0, "/v1/health", endpoint_port=port), 10)
                 relay_before = rusage(relay)
                 relay_wire_before = nettop(relay)
                 start_wall = time.time()
                 start = time.monotonic()
-                await asyncio.wait_for(cohort.start(), 60)
+                await bounded(f"agent {label}agent-0 to start", cohort.start(), 60)
                 agent = cohort.members[0].process.pid
-                await cohort.wait_selected(positions)
+                # wait_selected raises after `selection` with the positions still behind.
+                await bounded(
+                    f"agent {label}agent-0 (pid {agent}) to select {positions}",
+                    cohort.wait_selected(positions),
+                    selection + 10,
+                )
                 ready_s = time.monotonic() - start
                 usage = rusage(agent)
                 relay_after = rusage(relay)
                 agent_wire = nettop(agent)
                 relay_wire = nettop(relay)
-                _, after = await authority.request(0, "/v1/health", endpoint_port=port)
-                await cohort.close()
+                _, after = await bounded("relay health", authority.request(0, "/v1/health", endpoint_port=port), 10)
+                await bounded(f"agent {label}agent-0 to stop", cohort.close(), 120)
                 lines = actor_lines(events, f"{label}agent-0")
                 hashed = last(HASHED, lines)
                 transfers = last(TRANSFERS, lines) or [0, 0, 0]
@@ -374,7 +388,7 @@ async def run() -> list[dict[str, Any]]:
                     raise RuntimeError(f"the records agent did not boot from records: {result}")
                 if hashed is None or not synced:
                     raise RuntimeError(f"the agent logged no counters: {result}")
-            await relays.close()
+            await bounded("the relay to stop", relays.close(), 120)
     finally:
         evidence.close()
         (output / "results.json").write_text(json.dumps(results, indent=1))
@@ -382,4 +396,8 @@ async def run() -> list[dict[str, Any]]:
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    try:
+        asyncio.run(run())
+    except Exception as error:
+        print(f"BOOT FAILED: {error!r}", flush=True)
+        raise SystemExit(1) from error
