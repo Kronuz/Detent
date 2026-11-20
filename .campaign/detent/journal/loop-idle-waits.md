@@ -105,3 +105,9 @@ reclaim scans ~60 completion ops/s) frames A1.
   (the whole gap), so it marks a return only where main would. A planned sleep never counts (R4).
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
+
+## Lead: macOS hang hunt
+
+- CI macos-arm64 at 0faf6474 hung in Test for 50 min (run 44638635880, log lost); its rerun passed in 6.5 min.
+- 261119-181942-21336c (full suite, until-fail:8, this Mac under load avg ~60) failed one iteration: test_relay_mirror_crash timed out at 900 s, with test_relay_isolated_process and test_system_fleet_raw, all on `SSL: UNEXPECTED_MESSAGE` and "fleet admitted resources did not drain to retained slots". Superseded as evidence; not reproduced:
+- 261119-203637-1a23ab (head) and 261119-203639-28eb72 (main afb5f449): the three tests x12 each, 0 of 12 failures at both. Filed as relay-tls-drain-flake.
