@@ -1,21 +1,19 @@
 # http-drop-user-data: journal
 
-State: waiting on jobs 261119-155820-ab2ecb
+State: waiting on jobs 261119-171647-04581a 261119-171648-48d8c6 261119-171651-1b0234
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
 
-Review CHANGES at `http:b931f28` folded in at `http:0549709` (pushed): D1 (stale deferred wording
-in AGENTS.md, README.md, docs/TRANSPORT.md, coroutine-handlers.md), N2 (deadline() is the bound
-on reads and the rest of the reply, also in ARCHITECTURE.md and CHANGELOG.md), N1 (body hooks see
-max()), N3 (`std::string serialize_head(bool)` removed). Docs and one dead overload only; suite
-rerun 261119-154010-049d80 (A1, A4). G1 and N4 (optional tests) not taken.
+Merged http `main` (`http:d2e1819`, http-affinity-death-tsan) at `http:35116b0`, pushed; clean
+merge: coroutine_test keeps main's TSan/NDEBUG skip of the three death tests and drops
+`/defer-poll`. Queued at `http:35116b0`: suite 261119-171647-04581a (A1, A4), `timeouts_test`
+261119-171648-48d8c6 (A2), Detent build + suite with http at `http:35116b0` 261119-171651-1b0234
+(A1).
 
 ## Next
 
-1. When http-affinity-death-tsan lands (not yet: active at `http:9b1ccdc`): merge http `main`
-   (merge, never rebase), rerun the suite and the A2 jobs as `campaign brief` asks, check CI.
-2. Fold in review findings by id.
+1. Cite the three jobs in Evidence when they pass; check CI at `http:35116b0`.
 
 ## Jobs
 
