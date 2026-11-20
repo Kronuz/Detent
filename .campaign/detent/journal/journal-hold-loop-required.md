@@ -1,6 +1,6 @@
 # journal-hold-loop-required: journal
 
-State: waiting on jobs 261119-232342-d1e01c; CI run 44692769460 queued
+State: ready for review
 Quest: .campaign/detent/quests/journal-hold-loop-required.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,11 +15,7 @@ a loop"), mutant `hold-any-loop`, CHANGELOG, turn-seal.md. Jobs queued, tagged t
 
 ## Next
 
-1. Read the jobs: A1 = 1c62ec passes at head; bbc01a/d62978 must fail at journal:32172e7
-   (--fails-without); 49f27c must fail at the hold-any-loop mutant. A2 = 3ff92a (suite), 971376
-   (TSan), aa3407 (consensus at origin/main adb918f, journal via FETCHCONTENT_SOURCE_DIR_JOURNAL),
-   12b22a (Detent main, detent-authority).
-2. Paste `campaign brief`'s table below; fill Result; ready for review.
+1. Review.
 
 ## Blocked on
 
@@ -34,7 +30,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | pass at head 1c62ec; fails-without at test-only journal:32172e7 d62978 and at mutant hold-any-loop 49f27c |
-| A2 | suite 3ff92a, TSan 971376, consensus@adb918f aa3407 pass. Detent 12b22a fails at CMake configure (journal names completion::task, Detent pins lack it); same command at journal main bb114f1 d1e01c must fail identically = pin gap, not this change |
+| A2 | suite 3ff92a, TSan 971376, consensus@adb918f aa3407 pass. Detent 12b22a fails at CMake configure (journal names completion::task, Detent pins lack it); same command at journal main bb114f1 (d1e01c) fails identically at configure: a pin gap pin-wave fixes, Detent is unchanged by this quest. CI run 44692769460 at journal:1222e3b: success |
 | A3 | [artifact] journal `CHANGELOG.md` (2026-11-19 Changed) and `docs/mechanisms/turn-seal.md` (Asking for a turn, wake_refused row) at journal:1222e3b |
 
 ## Result
