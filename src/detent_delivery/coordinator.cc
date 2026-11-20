@@ -66,10 +66,7 @@ struct ScrubResult : d::RetirementNode {
 // next returns Frames and the coordinator publishes them in one cycle.
 class Response final : public FramePreparer {
   public:
-	explicit Response(const d::Limits &limits) {
-		limits_ = limits;
-		limits_.storage_account = std::make_shared<d::StorageLedger>(limits.storage_bytes);
-	}
+	explicit Response(const d::Limits &limits) : limits_(limits) {}
 	class Frame final : public Prepared {
 	  public:
 		Frame(Response &owner, std::string name, std::unique_ptr<d::FrameInput> input)
@@ -82,7 +79,8 @@ class Response final : public FramePreparer {
 			if (input_)
 				input_->record(key, revision, value);
 		}
-		std::size_t bytes() const noexcept override { return input_ ? input_->bytes() : name_.size(); }
+		// The input's storage admits its bytes to the heap as it grows: nothing to charge twice.
+		std::size_t bytes() const noexcept override { return 0; }
 		void publish() override {
 			if (input_)
 				owner_.frames.push_back(std::move(input_));
@@ -103,12 +101,6 @@ class Response final : public FramePreparer {
 									   std::make_unique<d::FrameInput>(name, kind, after, to, d::Profile{}, limits_));
 	}
 	void directory(const d::DirectoryUpdate &update) override { directory_update = update; }
-	std::size_t bytes() const noexcept {
-		std::size_t total = 0;
-		for (const auto &frame : frames)
-			total += frame->bytes();
-		return total;
-	}
 	std::vector<std::unique_ptr<d::FrameInput>> frames;
 	std::vector<std::string> dropped;
 	std::optional<d::DirectoryUpdate> directory_update;
@@ -296,7 +288,8 @@ struct Coordinator::Impl {
 	}
 	// The recovered base of `name`, recovered now when not held or when the selection moved.
 	task::task<const l::RecoveredGeneration *> base_of(const std::string &name) {
-		const auto *selected = store->selection().find(name);
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
 		if (!selected)
 			co_return nullptr;
 		auto &state = followed[name];
@@ -336,7 +329,8 @@ struct Coordinator::Impl {
 	task::task<d::RetirementHandle<BuildResult>> build_frame(d::FrameInput &input) {
 		const auto name = input.name();
 		const auto target = input.target();
-		const auto *selected = store->selection().find(name);
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
 		const auto at = selected ? std::optional(l::namespace_cursor(selected->cursor)) : std::nullopt;
 		auto factory = domain.factory();
 		auto heap = domain.storage_account();
@@ -366,7 +360,10 @@ struct Coordinator::Impl {
 			});
 		}
 		if (!at || *at != d::NamespaceCursor{target.cluster, target.incarnation, input.after()})
-			throw std::invalid_argument("namespace frame does not start at the store's cursor");
+			throw std::invalid_argument("namespace frame of " + name + " after " + std::to_string(input.after()) +
+										" does not start at the store's cursor " +
+										(at ? std::to_string(at->position) + (at->same_identity(target) ? "" : " of another incarnation")
+											: std::string("(none)")));
 		const auto *base = co_await base_of(name);
 		if (!base || !l::detail::StateCursor::state_commitment(*base))
 			throw std::invalid_argument("namespace delta requires a paged base");
@@ -469,8 +466,6 @@ struct Coordinator::Impl {
 	}
 	// Applies one response: each frame built in name order, then one cycle.
 	task::task<void> apply(Response &response) {
-		d::StorageLedger::Ticket held;
-		held.absorb(options.source.limits.storage_account->admit(response.bytes()));
 		diagnostic.phase = CoordinatorPhase::Building;
 		std::vector<l::NamespacePublication> cycle;
 		std::vector<std::string> repaired;
@@ -494,11 +489,12 @@ struct Coordinator::Impl {
 			cycle.push_back({name, std::make_unique<l::detail::PagedPlan>(std::move(*built->plan))});
 		}
 		std::vector<std::string> dropped;
+		const auto selection = store->selection();
 		for (auto &name : response.dropped)
-			if (store->selection().find(name))
+			if (selection.find(name))
 				dropped.push_back(std::move(name));
 		if (!options.all)
-			for (const auto &entry : store->selection().namespaces)
+			for (const auto &entry : selection.namespaces)
 				if (!followed.contains(entry.name) &&
 					std::find(dropped.begin(), dropped.end(), entry.name) == dropped.end())
 					dropped.push_back(entry.name);

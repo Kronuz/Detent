@@ -269,13 +269,17 @@ int main(int argc, char **argv) {
 					const detent::delivery::Following following{{{"ns", {}}}, {}};
 					auto session = detent::transport::run_until_done(
 						client_io, client_scheduler, detent::delivery::open_namespace_session(receive_options, following));
-					client_io.restart();
-					const auto outcome = detent::transport::run_until_done(
-						client_io, client_scheduler,
-						detent::delivery::next_namespace_session(receive_options, session, following,
-																 std::chrono::milliseconds(0), copy));
-					check(outcome == detent::delivery::FramesOutcome::Frames && copy.at &&
-						  copy.at->cluster == cursor.cluster && copy.keys == std::vector<std::string>{"ns:a"});
+					// The history answers once the write is sealed: idle until then.
+					auto outcome = detent::delivery::FramesOutcome::Idle;
+					for (int attempt = 0; attempt < 50 && outcome == detent::delivery::FramesOutcome::Idle; ++attempt) {
+						client_io.restart();
+						outcome = detent::transport::run_until_done(
+							client_io, client_scheduler,
+							detent::delivery::next_namespace_session(receive_options, session, following, 200ms, copy));
+					}
+					check(outcome == detent::delivery::FramesOutcome::Frames);
+					check(copy.at && copy.at->cluster == cursor.cluster);
+					check(copy.keys == std::vector<std::string>{"ns:a"});
 					client_io.restart();
 					detent::transport::run_until_done(
 						client_io, client_scheduler, detent::delivery::close_namespace_session(receive_options, session));

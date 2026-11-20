@@ -69,8 +69,16 @@ struct Agent {
 				throw std::runtime_error(std::string("coordinator fenced waiting for ") + what + ": " + message(state.error));
 			if (done(state))
 				return state;
-			if (std::chrono::steady_clock::now() > limit)
-				throw std::runtime_error(std::string("timed out waiting for ") + what);
+			if (std::chrono::steady_clock::now() > limit) {
+				std::string at;
+				for (const auto &each : state.namespaces)
+					at += " " + each.name + "@" + (each.cursor ? std::to_string(each.cursor->position) : "-");
+				throw std::runtime_error(std::string("timed out waiting for ") + what + ": phase " +
+										 std::to_string(int(state.phase)) + ", ready " + std::to_string(state.ready) +
+										 ", responses " + std::to_string(state.responses) + ", failures " +
+										 std::to_string(state.failures) + ", namespaces" + at + ", error " +
+										 message(state.error));
+			}
 		}
 	}
 	~Agent() {
@@ -188,6 +196,7 @@ int main(int argc, char **argv) {
 		options.source.token = "0123456789abcdef0123456789abcdef";
 		options.source.tls_context = client_tls;
 		options.source.timeout = 5s;
+		options.source.compression = server.compressed;
 		const std::vector<std::string> followed{"app", "web"};
 		{
 			Agent agent(root, l::StoreOpenMode::FreshEmpty, options, account, domain, queue);
@@ -208,21 +217,23 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "app");
 			matches(server, root, limits, "web");
 
-			// W7: app is re-created under a new incarnation, a full copy replaces its entry.
+			// W7: app is re-created under a new incarnation, its positions above the old ones (D1); a full
+			// copy replaces its entry.
 			{
 				std::lock_guard lock(server.mutex);
 				auto &app = server.find("app");
 				app.incarnation = id('A');
-				app.transactions = writes("app", 4, 8);
+				app.transactions = writes("app", 20, 8);
 			}
-			agent.until([&](const auto &s) { return at_heads(server, s, followed); }, "re-created app");
+			state = agent.until([&](const auto &s) { return at_heads(server, s, followed); }, "re-created app");
 			matches(server, root, limits, "app");
 
 			// A repair refetches app as a full copy at its head (D10); web keeps its generation.
 			const auto web_before = state.selected.find("web")->generation;
 			agent.repair("app");
 			state = agent.until([](const auto &s) { return s.repair.completed == 1 && !s.repair.pending; }, "repair");
-			check(state.repair.requested == 1 && state.selected.find("web")->generation == web_before);
+			check(state.repair.requested == 1);
+			check(state.selected.find("web")->generation == web_before);
 			matches(server, root, limits, "app");
 			matches(server, root, limits, "web");
 
