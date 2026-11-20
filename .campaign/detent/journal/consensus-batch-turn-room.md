@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix and test committed (consensus:1421fb5 test only, consensus:0c52e87 fix plus docs/DRIVER.md). Jobs queued: 233216-39451c (A1, --fails-without at the test-only commit), 233229-c53762 (A1, test with the fix), 233230-df57ad (A2 suite). Not yet pushed: push after the jobs pass.
+Fix and test committed (consensus:1421fb5 test only, consensus:0c52e87 fix plus docs/DRIVER.md). Jobs queued: 233216-39451c (A1, --fails-without at the test-only commit), 233229-c53762 (A1, test with the fix), 233230-df57ad (A2 suite). Pushed; the DRIVER.md states the merged-Receive residual.
 
 ## Next
 
