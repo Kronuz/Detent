@@ -16503,6 +16503,33 @@
       "updated": "2026-11-18T02:55:57",
       "worktree": ""
     },
+    "reactor-shared-accept-bind-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/reactor_test.cc",
+        "test/runtime_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "low",
+      "status": "planned",
+      "title": "reactor runtime test: shared-accept retirement bind hits EADDRINUSE on macos-arm64",
+      "updated": "2026-11-19T17:56:42"
+    },
     "reactor-task-sessions": {
       "accepted": {},
       "after": [],
