@@ -3202,9 +3202,9 @@
       "branch": "quest/detent/consensus-heal-snapshot-stall",
       "checks": [
         {
-          "cmd": "true",
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 60,
           "name": "suite"
         }
       ],
@@ -3214,6 +3214,34 @@
         "test/consensus_test.cc",
         "ARCHITECTURE.md",
         "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T00:19:34",
+          "checks": [
+            [
+              {
+                "cmd": "true",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "replaces the placeholder suite check `true`, which proved nothing, with the repository's real build and ctest run (a strengthening; the tool records any check change as a weakening)",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/consensus-heal-snapshot-stall",
       "landed": [],
@@ -3227,7 +3255,7 @@
       "risk": "high",
       "status": "active",
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
-      "updated": "2026-11-19T23:27:51",
+      "updated": "2026-11-20T00:19:34",
       "worktree": "../consensus-wt/detent/consensus-heal-snapshot-stall"
     },
     "consensus-late-append": {
