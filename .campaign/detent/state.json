@@ -1269,6 +1269,21 @@
         ]
       },
       "text": "prism-server-composition landed: unlocks frees src/**, ARCHITECTURE.md, README.md, CMakeLists.txt for prism-server-composition-limits; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T18:05:08",
+      "by": "campaign",
+      "closed": "starting journal-hop-on-task and consensus-blocking-hold-loop",
+      "id": "msg-135",
+      "items": {
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+      },
+      "settles": {
+        "start": [
+          "journal-hop-on-task"
+        ]
+      },
+      "text": "journal-blocking-wake landed: unlocks frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
