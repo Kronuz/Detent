@@ -2163,9 +2163,9 @@
       "branch": "quest/detent/consensus-blocking-hold-loop",
       "checks": [
         {
-          "cmd": "true",
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
           "level": "light",
-          "minutes": 30,
+          "minutes": 60,
           "name": "suite"
         }
       ],
@@ -2193,6 +2193,32 @@
             "risk high -> low",
             "lens correctness removed"
           ]
+        },
+        {
+          "at": "2026-11-20T00:19:32",
+          "checks": [
+            [
+              {
+                "cmd": "true",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "replaces the placeholder suite check `true`, which proved nothing, with the repository's real build and ctest run (a strengthening; the tool records any check change as a weakening)",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
         }
       ],
       "journal": "../Detent-wt/detent/consensus-blocking-hold-loop",
@@ -2207,7 +2233,7 @@
       "risk": "low",
       "status": "active",
       "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
-      "updated": "2026-11-19T23:04:32",
+      "updated": "2026-11-20T00:19:32",
       "worktree": "../consensus-wt/detent/consensus-blocking-hold-loop"
     },
     "consensus-close-fenced": {
