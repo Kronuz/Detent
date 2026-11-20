@@ -147,17 +147,11 @@ if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
     $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription)
   set_tests_properties(test_managed_subscription_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
-  foreach(format IN ITEMS paged-v2 paged-to-flat)
-    add_test(NAME test_managed_${format}_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
-      $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
-      ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription "" "" ${format})
-    set_tests_properties(test_managed_${format}_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
-  endforeach()
   if(DETENT_BUILD_RELAY)
     foreach(isolation IN ITEMS shared isolated)
       add_test(NAME test_relay_paged_${isolation}_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
         $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
-        ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay> ${isolation} paged-v2)
+        ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay> ${isolation})
       set_tests_properties(test_relay_paged_${isolation}_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
     endforeach()
     add_test(NAME test_relay_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
@@ -206,7 +200,7 @@ target_include_directories(test_relay_bundle_maintenance PRIVATE "${PROJECT_SOUR
 target_link_libraries(test_relay_bundle_maintenance PRIVATE detent::relay detent::local_builder)
 add_test(NAME test_relay_bundle_maintenance COMMAND test_relay_bundle_maintenance)
 
-foreach(mode IN ITEMS subscription-paged subscription-paged-100000 subscription-relay-paged-100000 subscription-relay-paged-from-flat-100000 subscription-relay-paged-transitions-100000 subscription-paged-from-flat-recovery-failure-100000 subscription-relay-paged-transitions-compaction-pressure-100000 subscription-paged-worker-cancel-100000 subscription-relay-paged-500000 subscription-relay-paged-from-flat-500000 subscription-relay-paged-transitions-500000)
+foreach(mode IN ITEMS subscription-paged subscription-paged-100000 subscription-relay-paged-100000 subscription-relay-paged-from-installed-100000 subscription-relay-paged-transitions-100000 subscription-paged-from-installed-recovery-failure-100000 subscription-relay-paged-transitions-compaction-pressure-100000 subscription-paged-worker-cancel-100000 subscription-relay-paged-500000 subscription-relay-paged-from-installed-500000 subscription-relay-paged-transitions-500000)
   add_test(NAME test_delivery_coordinator_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
   if(mode MATCHES "500000$")
     set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 300)

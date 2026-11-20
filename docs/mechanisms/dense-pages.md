@@ -43,7 +43,7 @@ A delta is two steps: `TrieOverlay` (`paged_trie_overlay.cc`) records the change
 
 ## Refusal and reclamation
 
-The agent store holds `owner.lock` for its life. Startup checks each table entry's `.image`, `.read` and `.live` against the entry (the root's SHA-256 and length, `.read`'s SHA-256, `.live`'s bindings). A root in another framing than DTROOT03 or DTIMAGE1, damage, or a `.lease` that is not empty fails the entry; the store fences and keeps every file, including `selected`. There is no older layout to recognize or migrate (D43): the operator bootstraps a fresh store, and the agent's ordinary bootstrap takes a full copy.
+The agent store holds `owner.lock` for its life. Startup checks each table entry's `.image`, `.read` and `.live` against the entry (the root's SHA-256 and length, `.read`'s SHA-256, `.live`'s bindings). A root in another framing than DTROOT03, damage, or a `.lease` that is not empty fails the entry; the store fences and keeps every file, including `selected`. There is no older layout to recognize or migrate (D43): the operator bootstraps a fresh store, and the agent's ordinary bootstrap takes a full copy.
 
 A page cannot name its own format. Bytes that are not DTPAGE03 are damage: the decoders throw `invalid_argument`, first touch reports `ReadSourceFailure`, and damage never removes a table entry. Trusted restart maps packs without scanning them; its first-touch and scrub checks keep that boundary. A reader that meets a generation of another format reports `GenerationUnavailable`.
 

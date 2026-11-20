@@ -3,7 +3,6 @@
 #include "detent/hashing.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
-#include "pinned_source.hh"
 #include "read_root.hh"
 #include "resources.hh"
 #include <algorithm>
@@ -12,10 +11,6 @@
 
 namespace detent::local {
 namespace {
-void require(bool condition) {
-	if (!condition)
-		throw std::runtime_error("invalid local image row");
-}
 bool valid_lookup(std::string_view ns, std::string_view key) {
 	return !ns.empty() && !key.empty() && ns.size() <= 198 && key.size() <= 198 &&
 		   ns.size() + key.size() + 1 <= 200 &&
@@ -58,275 +53,29 @@ ViewLimits ViewLimits::prepared() {
     limits.records = limits.namespaces = UINT32_MAX;
     return limits;
 }
-ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
-	: lease(std::move(owner)), bytes(region), header(metadata) {}
 ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state, std::uint64_t overrides,
-					 std::uint64_t strings)
-	: Root() {
+					 std::uint64_t strings) {
 	install_paged(std::move(owner), state, overrides, strings);
 }
 void ReadView::Root::install_paged(std::shared_ptr<const void> owner, detail::PagedReadState state,
-								   std::uint64_t overrides, std::uint64_t strings) {
+								   std::uint64_t override_count, std::uint64_t string_bytes) {
 	if (lease || paged || !owner)
 		throw std::logic_error("paged read root installation unavailable");
 	lease = std::move(owner);
 	paged = state;
-	header.cursor = state.root.cursor;
-	header.profile = state.root.profile;
-	header.layout.records = state.root.records;
-	header.layout.namespaces = state.root.namespaces;
-	header.layout.overrides = overrides;
-	header.layout.strings = strings;
-}
-std::uint64_t ReadView::Root::number(std::uint64_t offset, unsigned width) const {
-	return read_integer(bytes, offset, width);
-}
-std::string_view ReadView::Root::text(std::uint64_t row) const {
-	auto offset = number(row, 8), size = number(row + 8, 4);
-	require(offset <= header.layout.strings && size <= header.layout.strings - offset);
-	return {bytes.data() + header.layout.string_offset + offset, static_cast<std::size_t>(size)};
-}
-std::optional<std::uint64_t> ReadView::Root::find(std::string_view ns, std::string_view key) const {
-	const auto &l = header.layout;
-	std::uint32_t low = 0, high = l.namespaces;
-	while (low < high) {
-		auto middle = low + (high - low) / 2;
-		if (text(l.namespace_offset + middle * namespace_bytes) < ns)
-			low = middle + 1;
-		else
-			high = middle;
-	}
-	if (low == l.namespaces || text(l.namespace_offset + low * namespace_bytes) != ns)
-		return {};
-	auto ns_index = low;
-	low = 0;
-	high = l.records;
-	while (low < high) {
-		auto middle = low + (high - low) / 2;
-		auto row = l.record_offset + middle * record_bytes;
-		auto index = number(row + 12, 4);
-		auto name = text(row);
-		auto local = name.substr(name.find(':') + 1);
-		if (index < ns_index || (index == ns_index && local < key))
-			low = middle + 1;
-		else
-			high = middle;
-	}
-	if (low == l.records)
-		return {};
-	auto row = l.record_offset + low * record_bytes;
-	auto name = text(row);
-	if (number(row + 12, 4) != ns_index || name.substr(name.find(':') + 1) != key)
-		return {};
-	return row;
+	overrides = override_count;
+	strings = string_bytes;
 }
 std::optional<detail::BorrowedDefinition> ReadView::Root::definition(std::string_view ns,
 																	 std::string_view key) const {
-	if (paged)
-		return paged->definition(ns, key);
-	const auto row = find(ns, key);
-	if (!row)
-		return {};
-	return detail::BorrowedDefinition{bytes.subspan(*row, record_bytes), bytes, &header.layout};
-}
-detail::PinnedImageSource::PinnedImageSource(RecoveredGeneration generation)
-	: generation_(std::move(generation)), rows_(generation_.view()) {}
-detail::FlatStateRows::FlatStateRows(ReadView view) : view_(std::move(view)) {
-	if (!view_ || view_.root_->paged)
-		throw std::invalid_argument("flat state rows require a validated flat view");
-}
-const Header &detail::FlatStateRows::header() const { return view_.root_->header; }
-std::uint32_t detail::FlatStateRows::namespace_count() const noexcept {
-	return view_.root_->header.layout.namespaces;
-}
-std::uint32_t detail::FlatStateRows::record_count() const noexcept {
-	return view_.root_->header.layout.records;
-}
-std::uint64_t detail::FlatStateRows::override_count() const noexcept {
-	return view_.root_->header.layout.overrides;
-}
-detail::SourceNamespace detail::FlatStateRows::name_space(std::uint32_t ordinal) const {
-	if (ordinal >= namespace_count())
-		throw std::out_of_range("pinned namespace ordinal");
-	const auto &root = *view_.root_;
-	const auto row = root.header.layout.namespace_offset + std::uint64_t(ordinal) * namespace_bytes;
-	return {root.text(row), root.number(row + 16, 8)};
-}
-detail::SourceRecord detail::FlatStateRows::record(std::uint32_t ordinal) const {
-	if (ordinal >= record_count())
-		throw std::out_of_range("pinned record ordinal");
-	const auto &root = *view_.root_;
-	const auto row = root.header.layout.record_offset + std::uint64_t(ordinal) * record_bytes;
-	SourceRecord result{
-		static_cast<std::uint32_t>(root.number(row + 12, 4)), root.text(row), root.number(row + 16, 8), {}};
-	auto &definition = result.definition;
-	const auto flags = root.number(row + 44, 1);
-	definition.default_value = std::bit_cast<std::int64_t>(root.number(row + 24, 8));
-	if (flags & 1)
-		definition.rollout_pct = static_cast<std::uint8_t>(root.number(row + 45, 1));
-	if (flags & 2)
-		definition.rollout_value = std::bit_cast<std::int64_t>(root.number(row + 48, 8));
-	definition.override_start = root.number(row + 32, 8);
-	definition.override_count = root.number(row + 40, 4);
-	return result;
-}
-detail::SourceOverride detail::FlatStateRows::override_value(std::uint64_t ordinal) const {
-	if (ordinal >= override_count())
-		throw std::out_of_range("pinned override ordinal");
-	const auto &root = *view_.root_;
-	const auto row = root.header.layout.override_offset + ordinal * override_bytes;
-	const auto value = root.number(row + 16, 8);
-	return {root.text(row), root.number(row + 12, 1)
-								? GroupOverride(GroupRollout{static_cast<std::uint8_t>(value)})
-								: GroupOverride(std::bit_cast<std::int64_t>(value))};
-}
-struct ImageValidator::Impl {
-	distribution::RetirementHandle<ReadView::Root> root;
-	ViewLimits limits;
-	std::uint64_t ns = 0, record = 0, override_index = 0, strings = 0, remaining_charge = 0;
-	std::uint64_t active_override = 0, active_count = 0;
-	std::string_view previous_ns, previous_key, previous_group;
-	std::uint64_t previous_index = 0;
-	bool percentage = false, valued = false;   // the active record's: some percentage, a rollout value
-	bool failed = false, complete = false;
-	void string_row(std::uint64_t row, std::string_view value) {
-		require(root->number(row, 8) == strings);
-		strings += value.size();
-	}
-	std::uint64_t row_cost() const {
-		const auto &l = root->header.layout;
-		auto cost = [&](std::uint64_t row, std::uint64_t metadata, std::uint64_t maximum) {
-			auto name = root->text(row);
-			require(name.size() <= maximum);
-			return metadata + name.size();
-		};
-		if (ns < l.namespaces)
-			return cost(l.namespace_offset + ns * namespace_bytes, namespace_bytes, 198);
-		if (active_count)
-			return cost(l.override_offset + override_index * override_bytes, override_bytes, 128);
-		if (record < l.records)
-			return cost(l.record_offset + record * record_bytes, record_bytes, 200);
-		return 0;
-	}
-	void row() {
-		const auto &l = root->header.layout;
-		if (ns < l.namespaces) {
-			auto r = l.namespace_offset + ns * namespace_bytes;
-			auto name = root->text(r);
-			require(!name.empty() && name.size() <= 198 &&
-					std::all_of(name.begin(), name.end(), detent::detail::is_name_char));
-			require(ns == 0 || previous_ns < name);
-			require(root->number(r + 12, 4) == 0 && root->number(r + 16, 8) <= root->header.cursor.revision);
-			string_row(r, name);
-			previous_ns = name;
-			++ns;
-			return;
-		}
-		if (active_count) {
-			auto r = l.override_offset + override_index * override_bytes;
-			auto name = root->text(r);
-			require(is_valid_group_key(name) && valid_utf8(name, false) &&
-					(active_override == 0 || previous_group < name));
-			auto tag = root->number(r + 12, 1), value = root->number(r + 16, 8);
-			require(tag <= 1 && (!tag || value <= 100) && root->number(r + 13, 3) == 0);
-			percentage = percentage || tag;
-			string_row(r, name);
-			previous_group = name;
-			++override_index;
-			++active_override;
-			if (!--active_count)
-				require(percentage == valued);
-			return;
-		}
-		if (record < l.records) {
-			auto r = l.record_offset + record * record_bytes;
-			auto name = root->text(r);
-			auto index = root->number(r + 12, 4);
-			require(index < l.namespaces && is_valid_knob_name(name));
-			require(name.substr(0, name.find(':')) ==
-					root->text(l.namespace_offset + index * namespace_bytes));
-			require(record == 0 || index > previous_index ||
-					(index == previous_index && previous_key < name));
-			auto rev = root->number(r + 16, 8);
-			require(rev > 0 && rev <= root->number(l.namespace_offset + index * namespace_bytes + 16, 8));
-			auto flags = root->number(r + 44, 1), pct = root->number(r + 45, 1), count = root->number(r + 40, 4);
-			require(flags <= 3 && pct <= 100 && ((flags & 1) || pct == 0) && root->number(r + 46, 2) == 0 &&
-					((flags & 2) || root->number(r + 48, 8) == 0));
-			require(root->number(r + 32, 8) == override_index && count <= limits.overrides &&
-					count <= l.overrides - override_index);
-			percentage = flags & 1;
-			valued = flags & 2;
-			if (!count)
-				require(percentage == valued);
-			string_row(r, name);
-			previous_index = index;
-			previous_key = name;
-			active_count = count;
-			active_override = 0;
-			previous_group = {};
-			++record;
-			return;
-		}
-		require(strings == l.strings && override_index == l.overrides);
-		complete = true;
-	}
-};
-ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes,
-							   ViewLimits limits, std::optional<distribution::Cursor> expected)
-	: ImageValidator(std::move(lease), bytes, limits, expected, resources::domain(limits).factory(),
-					 resources::domain(limits).storage_account()) {}
-ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes,
-							   ViewLimits limits, std::optional<distribution::Cursor> expected,
-							   distribution::RetirementFactory factory,
-							   std::shared_ptr<distribution::StorageLedger> account)
-	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free)) {
-	require(static_cast<bool>(lease));
-	auto header = decode_header(bytes, limits.bytes);
-	const auto &l = header.layout;
-	require(l.length == bytes.size() && l.namespaces <= limits.namespaces && l.records <= limits.records &&
-			l.strings <= limits.strings && l.overrides <= std::uint64_t(l.records) * limits.overrides);
-	if (expected)
-		require(header.cursor.same_identity(*expected) && header.cursor.revision >= expected->revision);
-	impl_->limits = limits;
-	impl_->limits.retirement_domain = nullptr;
-	impl_->root = factory.make<ReadView::Root>(std::move(lease), bytes, header);
-}
-ImageValidator::~ImageValidator() = default;
-ImageValidator::ImageValidator(ImageValidator &&) noexcept = default;
-void ImageValidator::step(ValidationBudget &budget) {
-	if (!impl_ || impl_->failed)
-		throw std::logic_error("inactive local image validator");
-	try {
-		while (!impl_->complete && budget.rows) {
-			if (!impl_->remaining_charge)
-				impl_->remaining_charge = impl_->row_cost();
-			auto charged = std::min<std::uint64_t>(budget.bytes, impl_->remaining_charge);
-			budget.bytes -= charged;
-			impl_->remaining_charge -= charged;
-			if (impl_->remaining_charge)
-				return;
-			--budget.rows;
-			impl_->row();
-		}
-	} catch (...) {
-		impl_->failed = true;
-		throw;
-	}
-}
-bool ImageValidator::done() const noexcept { return impl_ && impl_->complete && !impl_->failed; }
-ReadView ImageValidator::take() {
-	if (!done())
-		throw std::logic_error("local image validation incomplete");
-	auto root = std::move(impl_->root);
-	impl_.reset();
-	return ReadView(std::move(root));
+	return paged->definition(ns, key);
 }
 const distribution::Cursor &ReadView::cursor() const {
 	if (!root_)
 		throw std::logic_error("empty local read view");
-	return root_->header.cursor;
+	return root_->paged->root.cursor;
 }
-std::uint32_t ReadView::size() const noexcept { return root_ ? root_->header.layout.records : 0; }
+std::uint32_t ReadView::size() const noexcept { return root_ ? root_->paged->root.records : 0; }
 bool ReadView::contains(std::string_view ns, std::string_view key) const {
 	return root_ && valid_lookup(ns, key) && root_->definition(ns, key).has_value();
 }

@@ -76,21 +76,16 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 			++histogram_;
 		}
 		if (state_->intent_ == PagedPlanIntent::Maintenance) {
-			if (!equality_)
-				equality_.emplace(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
-			equality_->step(budget);
-			if (!equality_->done())
-				return;
-			if (!equality_->equal())
+			StateEquivalence equality(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
+			if (!equality.equal())
 				throw std::invalid_argument("same-cursor snapshot changes logical state");
-			unchanged_proof_.emplace(equality_->take_proof());
+			unchanged_proof_.emplace(equality.take_proof());
 			if (!unchanged_proof_->binds_construction(*base_, state_->descriptor_))
 				throw std::invalid_argument("unchanged snapshot proof binding mismatch");
 		} else
 			state_->sealed_ = true;
 		finished_ = true;
 		validator_.reset();
-		equality_.reset();
 	} catch (...) {
 		failed_ = true;
 		throw;

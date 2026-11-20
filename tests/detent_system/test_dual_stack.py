@@ -121,7 +121,6 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
         "hostname": "localhost",
         "ca": str(certificates / "ca.pem"),
         "delivery_mode": "subscription",
-        "image_format": "paged-v2",
         "timeout_ms": 2000,
     }
     source = directory / "upstream.json"

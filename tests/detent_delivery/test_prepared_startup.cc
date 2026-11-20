@@ -117,7 +117,6 @@ int main(int argc, char **argv) {
 		t::CoordinatorOptions options;
 		options.source.scheduler = &scheduler;
 		options.directory = fixture->path;
-		options.image_format = t::LocalImageFormat::PagedV2;
 		options.source.configured = fixture->root.cursor;
 		options.source.endpoint = unavailable.local_endpoint();
 		options.source.hostname = "localhost";

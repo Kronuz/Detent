@@ -43,10 +43,6 @@ bool GenerationReader::refresh() {
 		throw std::invalid_argument("local generation has an unexpected authority identity");
 	if (recovered_ && recovered_->descriptor().cursor == next.cursor) {
 		detail::StateEquivalence proof(*recovered_, *recovered, resources::domain(limits_).storage_account());
-		while (!proof.done()) {
-			ValidationBudget budget;
-			proof.step(budget);
-		}
 		if (!proof.equal())
 			throw std::invalid_argument("local generation conflicts with the installed cursor");
 	}

@@ -33,12 +33,7 @@ void write(const std::filesystem::path &path, std::span<const char> bytes) {
 }
 void publish(const std::filesystem::path &directory, std::shared_ptr<const d::ValidatedSnapshot> snapshot,
 			 char id) {
-	l::ImageBuilder builder(std::move(snapshot));
-	while (!builder.done()) {
-		l::ValidationBudget budget;
-		builder.step(budget);
-	}
-	trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
+	trusted_records::install(directory, trusted_records::build(std::move(snapshot)));
 }
 std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	std::string out;

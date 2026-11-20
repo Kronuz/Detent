@@ -43,11 +43,10 @@ void run(bool compressed, const std::filesystem::path &certificates = {}) {
         bundle->authenticated();
         auto select = [&](std::uint64_t revision, bool staged) {
             auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24, 25, revision), at(revision)));
-            l::ImageBuilder builder(source);
-            while (!builder.done()) { l::ValidationBudget budget; builder.step(budget); }
-            install(directory, builder.descriptor(), builder.bytes()->view());
+            const auto image = trusted_records::build(source);
+            install(directory, image);
             auto generation = l::recover_generation(directory, limits);
-            if (staged) bundle->bind_candidate(builder.descriptor(), generation.directory_identity());
+            if (staged) bundle->bind_candidate(image.descriptor(), generation.directory_identity());
             bundle->selected(generation);
         };
         select(42, false);

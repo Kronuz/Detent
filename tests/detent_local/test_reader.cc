@@ -24,18 +24,12 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::ImageBuilder builder(source);
-		while (!builder.done()) {
-			l::ValidationBudget budget;
-			builder.step(budget);
-		}
-		auto descriptor = builder.descriptor();
-		auto image = builder.bytes();
-		trusted_records::install(directory, descriptor, image->view());
+		const auto image = trusted_records::build(source);
+		const auto descriptor = image.descriptor();
+		trusted_records::install(directory, image);
 		const auto table = trusted_records::slurp(directory / "selected");
 		l::ViewLimits limits;
-		const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-		const auto capacity = (image->size() + page - 1) / page * page;
+		const auto capacity = trusted_records::mapped_bytes(image);
 		limits.mapping_account = std::make_shared<d::StorageLedger>(capacity);
 		l::GenerationReader reader(directory, limits, cursor());
 		require(!reader.read_view());

@@ -121,7 +121,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"poll_interval_ms",
 					"reconnect_maximum_ms",
 					"delivery_mode",
-					"image_format",
 					"compaction_interval_ms",
 					"scrub_bytes_per_second",
 					"timeout_ms",
@@ -137,12 +136,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 		result.coordinator.delivery_mode = mode == "subscription"
 											   ? detent::delivery::DeliveryMode::Subscription
 											   : detent::delivery::DeliveryMode::Poll;
-	}
-	if (object.HasMember("image_format")) {
-		const auto format = text(object["image_format"], 16);
-		require(format == "flat-v1" || format == "paged-v2", "invalid managed image format");
-		result.coordinator.image_format =
-			format == "paged-v2" ? LocalImageFormat::PagedV2 : LocalImageFormat::FlatV1;
 	}
 	const auto interval = number(object, "compaction_interval_ms", 60000, 0, 86400000);
 	require(interval == 0 || interval >= 1000,

@@ -23,7 +23,6 @@ class PagedSnapshotPlanBuilder {
 	ViewLimits limits_;
 	std::optional<PagedSnapshotBuilder> encoder_;
 	std::optional<CandidatePagedValidator> validator_;
-	std::optional<StateEquivalence> equality_;
 	std::optional<StateEquivalenceProof> unchanged_proof_;
 	distribution::RetirementHandle<PagedPlanState> state_;
 	std::size_t copied_ = 0, histogram_ = 0, charge_ = 0;

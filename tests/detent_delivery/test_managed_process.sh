@@ -10,12 +10,6 @@ certificates=$5
 delivery_mode=${6:-poll}
 relay=${7:-}
 isolated=${8:-}
-image_format=${9:-flat-v1}
-transition_to_flat=false
-if [[ "$image_format" == paged-to-flat ]]; then
-    image_format=paged-v2
-    transition_to_flat=true
-fi
 check_format() {
     "$interpreter" "$(dirname "$0")/verify_local_format.py" "$@"
 }
@@ -59,8 +53,8 @@ writer_token=managed-writer-test-000000000000000000000000
 reader_token=managed-reader-test-000000000000000000000000
 printf '{%s,"directory":"authority-data","publisher_tls":{"certificate":"%s/one.pem","key":"%s/one.key","ca":"%s/ca.pem"},"credentials":[{"token":"%s","producer":"writer","namespaces":["ns","other"]},{"token":"%s","producer":"agent","principal":"agent-reader","publish":false,"namespaces":["ns"]}]}\n' \
     "$identity" "$certificates" "$certificates" "$certificates" "$writer_token" "$reader_token" > "$root/authority.json"
-printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":0,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s","image_format":"%s"}\n' \
-    "$identity" "$reader_token" "$certificates" "$delivery_mode" "$image_format" > "$root/managed.json"
+printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":0,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s"}\n' \
+    "$identity" "$reader_token" "$certificates" "$delivery_mode" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
 if [[ -n "$relay" ]]; then
     relay_token=managed-relay-test-000000000000000000000000
@@ -140,7 +134,7 @@ if [[ -n "$relay" ]]; then
     set_port "$relay_port" managed.json managed-empty.json relay.json
     wait_relay_ready "$root/relay.log"
     # A ready relay has published its originals through its agent store.
-    check_format "$root/relay-generations" "$image_format"
+    check_format "$root/relay-generations" root
     if [[ "$isolated" == isolated ]]; then
         "$agent" --config "$root/agent-empty.json" --initialize-managed > "$root/agent-empty.log" 2>&1 &
         empty_agent_pid=$!
@@ -197,8 +191,8 @@ chmod 644 "$root/reader-limits.json"
 [[ $("$reader" get ns:feature --system --config "$root/reader-limits.json") == 7 ]]
 [[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --system --config "$root/reader-limits.json") == 42 ]]
 [[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
-check_format "$root/generations" "$image_format"
-if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
+check_format "$root/generations" root
+if [[ -n "$relay" ]]; then check_format "$root/relay-generations" root; fi
 [[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
 check_format "$root/generations" mark > "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
@@ -235,26 +229,11 @@ if "$agent" --status --config "$root/agent.json" --reader-image-bytes 1 > "$root
 grep -q 'local generation unavailable:' "$root/reader-low-status.txt"
 if "$agent" --status --config "$root/agent.json" --reader-image-bytes 3221225472 > "$root/reader-high-status.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/reader-high-status.txt"
-if [[ "$transition_to_flat" == true ]]; then
-    "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["image_format"]="flat-v1"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
-fi
 "$agent" --config "$root/agent.json" > "$root/agent-restart.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-restart.log"
 check_format "$root/generations" same-store "$root/storage-before"
-check_format "$root/generations" "$image_format"
-if [[ "$transition_to_flat" == true ]]; then
-    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":100},\"expected_revision\":$progress_revision}]}" > "$root/flat-forward.json"
-    flat_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/flat-forward.json")
-    deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-        if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "; then break; fi
-        sleep 0.02
-    done
-    "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "
-    check_format "$root/generations" flat-v1
-    [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-    image_format=flat-v1
-fi
+check_format "$root/generations" root
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 if [[ -n "$relay" ]]; then
     check_format "$root/relay-generations" mark > "$root/relay-storage-before"

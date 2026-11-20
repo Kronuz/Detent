@@ -1,5 +1,6 @@
 #pragma once
-#include "builder.hh"
+#include "derived_ids.hh"
+#include "generation.hh"
 #include "detent_distribution/retirement.hh"
 #include "disk_ledger.hh"
 #include "identity_reset.hh"
@@ -62,11 +63,9 @@ class DiskStore {
 	std::chrono::steady_clock::time_point collection_retry_at() const noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
-	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
 	void begin(detail::PagedPlan &&);
 	// Settles the retained plan only after actual selected recovery succeeds.
 	void confirm_recovered(const RecoveredGeneration &);
-	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
 	void begin_reset(detail::PagedPlan &&, const TrustedIdentityReset &);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;
@@ -79,7 +78,6 @@ class DiskStore {
 
   private:
 	friend class detail::ManagedRecovery;
-	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
 	void begin_paged(detail::PagedPlan &&, const TrustedIdentityReset *);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;

@@ -410,7 +410,6 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	t::CoordinatorOptions config;
 	config.source.scheduler = &scheduler;
 	config.directory = directory;
-	config.image_format = t::LocalImageFormat::PagedV2;
 	config.delivery_mode = t::DeliveryMode::Subscription;
 	config.poll_interval = 20ms;
 	config.compaction_interval = 0ms;

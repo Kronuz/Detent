@@ -177,7 +177,7 @@ Focused tests cover repeated-key updates across 17 transactions, deletion/reinse
 
 ## Paged-root recovery
 
-A paged generation's image is its exactly 320-byte root (`DTROOT03`); a flat one is a `DTIMAGE1` image. A root of another encoding than its table entry's fences the store.
+A generation's image is its exactly 320-byte root (`DTROOT03`). A root of another encoding than its table entry's fences the store.
 
 Paged dependencies use `segment-<32 hex digits>.pack` and `.owner`. Recovery locks the selected root's lease, verifies the root against its table entry, resolves only reachable dependencies, checks each full segment checksum, validates the complete semantic graph and records per-segment reachability. Before sealing the private leased-root capability, it rechecks named payload identities, owner records and the root image/lease identities. Unrelated files are not mapped. All views retain the root lease and admitted segment mappings, with cleanup on the retirement worker.
 
@@ -201,13 +201,11 @@ Native reader/recovery/progress checks pass (3/3, 0.86 seconds), with ASan/UBSan
 
 The warm validator verifies only new segment bytes and new page extents, and checks every reused subtree at its exact entering context against the actual base. It prunes those subtrees during an old-tree walk to compute removals, then validates namespace watermarks, definitions, live-page totals and override statistics. Its completed proof can populate an admitted registry after exact ownership and byte-identity checks. This remains a private validation seam: changed-head recovery and durable paged publication are not enabled by it.
 
-## Writer preference and maintenance
-
-Managed source configuration accepts `image_format`: `paged-v2` (default) or `flat-v1`. The agent and relay bundle sources use the same loader. Paged writing replaces a configured flat head through verified equal-cursor replacement before accepting incremental deltas. Recovery reads either format. A flat writer over a paged head constructs its next forward image from the borrowed state adapter; changing the preference alone leaves an unchanged selected head in its current format.
+## Maintenance
 
 `compaction_interval_ms` defaults to 60,000; zero disables periodic compaction, and enabled intervals range from 1,000 to 86,400,000 milliseconds. Checks occur between upstream exchanges. Each attempt selects at most eight packs below 50% live occupancy, with fixed 32,768-recipe and 16 MiB output caps. Configured view limits also bound construction. Pre-IO admission pressure skips optional compaction; accepted publication still recovers and confirms the actual head. The collection that follows settles the disk credit.
 
-Both generations and all dependencies can coexist during publication. Pinned readers may retain predecessor storage indefinitely within configured admission limits. Older binaries supporting only flat images cannot read a selected v2 head. Deploy readers that support both formats before selecting `paged-v2`; reverting writer preference requires a subsequent forward publication before a flat-only reader can read the selection. The unreleased C++ `CoordinatorOptions` adds writer preference and compaction interval fields.
+Both generations and all dependencies can coexist during publication. Pinned readers may retain predecessor storage indefinitely within configured admission limits. The C++ `CoordinatorOptions` carries the compaction interval.
 
 
 ## Prepared paged readers

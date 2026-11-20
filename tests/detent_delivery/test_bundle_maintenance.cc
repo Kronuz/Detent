@@ -27,22 +27,17 @@ int main() {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 		l::GenerationId paged_id{};
 		paged_id.fill('p');
-		l::ImageBuilder builder(source);
-		while (!builder.done()) {
-			l::ValidationBudget budget;
-			builder.step(budget);
-		}
-		install(directory, builder.descriptor(), builder.bytes()->view());
-		auto flat = l::recover_generation(directory, limits);
+		install(directory, trusted_records::build(source));
+		auto first = l::recover_generation(directory, limits);
 		r::BundleOptions options;
 		options.configured = cursor();
 		options.incarnation.fill('i');
 		options.namespaces = 1;
 		r::Bundle bundle(options, domain);
 		bundle.authenticated();
-		bundle.selected(flat);
+		bundle.selected(first);
 		const auto before = bundle.offer(cursor());
-		l::detail::PagedSnapshotBuilder replacement(flat, heap, paged_id);
+		l::detail::PagedSnapshotBuilder replacement(first, heap, paged_id);
 		while (!replacement.done()) {
 			l::ValidationBudget budget;
 			replacement.step(budget);
@@ -69,11 +64,7 @@ int main() {
 			refused = true;
 		}
 		check(refused);
-		l::detail::StateEquivalence equality(flat, paged, heap);
-		while (!equality.done()) {
-			l::ValidationBudget budget{1, 1};
-			equality.step(budget);
-		}
+		l::detail::StateEquivalence equality(first, paged, heap);
 		auto proof = equality.take_proof();
 		bundle.selected_equivalent(paged, proof);
 		const auto after = bundle.offer(cursor());
@@ -111,7 +102,7 @@ int main() {
 		check(refused);
 		// A repair at the head's own cursor swaps the head and leaves the cache as it was.
 		const auto kept = bundle.offer(cursor()).marker;
-		bundle.selected_repaired(flat);
+		bundle.selected_repaired(first);
 		check(bundle.offer(cursor()).marker == kept && bundle.status().gaps == 1 && bundle.status().ready);
 		bundle.fence();
 		refused = false;

@@ -2,6 +2,7 @@
 #include "layout.hh"
 #include <array>
 #include <stdexcept>
+#include <string_view>
 
 namespace detent::local::paged {
 using Digest = std::array<char, 32>;

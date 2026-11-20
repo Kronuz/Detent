@@ -6,7 +6,6 @@ namespace detent::local::detail {
 class PagedSnapshotSource final : public distribution::SnapshotSource {
   public:
 	PagedSnapshotSource(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
-	static bool supports(const RecoveredGeneration &generation) noexcept { return bool(generation.paged_); }
 	const distribution::Cursor &cursor() const noexcept override { return descriptor_.cursor; }
 	std::shared_ptr<distribution::StorageLedger> storage_account() const noexcept override {
 		return account_;

@@ -159,7 +159,7 @@ static int run_managed_owned(const std::filesystem::path &configuration, const s
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
 														scheduler, queue, true);
-	const bool require_prepared = options.coordinator.image_format == t::LocalImageFormat::PagedV2;
+	const bool require_prepared = true;
 	options.coordinator.source.scheduler = &scheduler;
 	auto coordinator = t::prepare_coordinator(std::move(options.coordinator), driver, domain, worker);
 	std::promise<std::shared_ptr<l::DiskStore>> opened;

@@ -106,8 +106,6 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		const auto selected = read_selected(files->directory.fd, publisher);
 		if (!selected)
 			continue;
-		if (!selected->paged)
-			throw GenerationUnavailable("publisher has not prepared a current paged generation");
 		const auto &descriptor = selected->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&

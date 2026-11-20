@@ -2,16 +2,12 @@
 #include "detent/errors.hh"
 #include "detent/result.hh"
 #include "detent_distribution/retirement.hh"
-#include "layout.hh"
 #include "paged_layout.hh"
 #include <memory>
 #include <optional>
 
 namespace detent::local {
 namespace detail {
-class PinnedImageSource;
-class FlatStateRows;
-class CandidateFlatValidator;
 class PagedCursor;
 class GraphValidator;
 class PagedProgressView;
@@ -34,7 +30,6 @@ struct ViewLimits {
 	std::shared_ptr<distribution::StorageLedger> mapping_account;
 	std::uint64_t pages = paged::Limits{}.pages, segments = paged::Limits{}.segments;
 };
-class ImageValidator;
 class ReadView {
   public:
 	ReadView() = default;
@@ -54,36 +49,10 @@ class ReadView {
 	struct Root;
 	explicit ReadView(distribution::RetirementHandle<Root> root) : root_(std::move(root)) {}
 	distribution::RetirementHandle<Root> root_;
-	friend class ImageValidator;
-	friend class detail::PinnedImageSource;
-	friend class detail::FlatStateRows;
 	friend class detail::PagedCursor;
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
 	friend class detail::MappedRecoveryAdmission;
 	friend class detail::PreparedReader;
-};
-// The supplied lease retains the immutable byte region through all views.
-// GenerationReader will supply a mapped image and its acquired kernel lease.
-// No view can escape before every region and semantic row validates.
-class ImageValidator {
-  public:
-	ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes, ViewLimits limits = {},
-				   std::optional<distribution::Cursor> expected = {});
-	~ImageValidator();
-	ImageValidator(ImageValidator &&) noexcept;
-	ImageValidator(const ImageValidator &) = delete;
-	void step(ValidationBudget &budget);
-	bool done() const noexcept;
-	ReadView take();
-
-  private:
-	ImageValidator(std::shared_ptr<const void>, std::span<const char>, ViewLimits,
-				   std::optional<distribution::Cursor>, distribution::RetirementFactory,
-				   std::shared_ptr<distribution::StorageLedger>);
-	friend class detail::RecoveryEngine;
-	friend class detail::CandidateFlatValidator;
-	struct Impl;
-	distribution::StorageOwner<Impl> impl_;
 };
 } // namespace detent::local

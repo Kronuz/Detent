@@ -19,7 +19,6 @@ struct StoreCore {
 	DiskStoreOptions options;
 	DiskLedger ledger;
 	std::optional<distribution::RetirementFactory> factory;
-	std::optional<RecoveryContext> legacy_recovery;
 	distribution::RetirementHandle<PagedPublicationArtifacts> pending_paged_recovery;
 	const MappedRecoveryAdmission *recovery_attempt = nullptr;
 	// The one writer of the directory (D8). Disk work touches it off the owner, one job at a time.

@@ -16,9 +16,6 @@ inline std::int64_t evaluate(const detail::BorrowedDefinition &definition, std::
 	const auto fallback = definition.default_value();
 	std::array<char, 200> qualified;
 	auto name = [&] {
-		auto stored = definition.qualified_key();
-		if (!stored.empty())
-			return stored;
 		std::copy(ns.begin(), ns.end(), qualified.begin());
 		qualified[ns.size()] = ':';
 		std::copy(key.begin(), key.end(), qualified.begin() + ns.size() + 1);

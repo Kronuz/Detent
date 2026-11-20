@@ -16,7 +16,6 @@ namespace detail {
 struct CoordinatorAccess;
 }
 enum class DeliveryMode { Poll, Subscription };
-enum class LocalImageFormat { FlatV1, PagedV2 };
 struct CoordinatorOptions {
 	ClientOptions source;
 	DeliveryMode delivery_mode = DeliveryMode::Poll;
@@ -28,7 +27,6 @@ struct CoordinatorOptions {
 	std::shared_ptr<PublicationSink> publication_sink;
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
-	LocalImageFormat image_format = LocalImageFormat::PagedV2;
 	std::chrono::milliseconds compaction_interval{60000};
 	// Pack scrub pace in bytes hashed per second, 0 to disable (namespace delivery D10.2).
 	std::uint64_t scrub_bytes_per_second = 512 * 1024;

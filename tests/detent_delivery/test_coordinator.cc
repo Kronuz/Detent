@@ -533,16 +533,14 @@ int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
 		const bool retained_idle = argc == 2;
-		const bool paged = argc == 3 && std::string_view(argv[2]).find("paged") != std::string_view::npos;
-		const bool transitions =
-			paged && std::string_view(argv[2]).find("transitions") != std::string_view::npos;
+		const bool transitions = argc == 3 && std::string_view(argv[2]).find("transitions") != std::string_view::npos;
 		const bool compaction_pressure =
-			paged && std::string_view(argv[2]).find("compaction-pressure") != std::string_view::npos;
-		const bool worker_cancel =
-			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
-		const bool from_flat = paged && std::string_view(argv[2]).find("from-flat") != std::string_view::npos;
+			argc == 3 && std::string_view(argv[2]).find("compaction-pressure") != std::string_view::npos;
+		const bool worker_cancel = argc == 3 && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
+		const bool from_installed =
+			argc == 3 && std::string_view(argv[2]).find("from-installed") != std::string_view::npos;
 		const bool maintenance_failure =
-			from_flat && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
+			from_installed && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
 		const auto original_maintenance_failure =
 			std::make_exception_ptr(std::runtime_error("original maintenance recovery failure"));
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
@@ -591,19 +589,18 @@ int main(int argc, char **argv) {
 		auto root = std::make_shared<d::StorageLedger>(384 * 1024 * 1024);
 		auto account = std::make_shared<d::StorageLedger>(root, 256 * 1024 * 1024);
 		d::RetirementRuntime runtime(account, 3);
-		auto domain = runtime.domain(account, paged ? 2048 : 64);
+		auto domain = runtime.domain(account, 2048);
 		auto mapping = std::make_shared<d::StorageLedger>(512ull * 1024 * 1024);
 		l::DiskStoreOptions disk_options;
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
-		if (paged) {
-			disk_options.recovery_limits.mapping_account = mapping;
-			disk_options.recovery_limits.retirement_domain = &domain;
-		}
-		// Under reader pressure the store holds two flat generations (1376 bytes each with their `.live`)
-		// and a third's reservation (1864) does not fit beside them while a reader pins the first.
-		disk_options.limits = {pressure ? 4096ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
-		std::optional<l::ReadView> pinned_flat;
-		if (from_flat) {
+		disk_options.recovery_limits.mapping_account = mapping;
+		disk_options.recovery_limits.retirement_domain = &domain;
+		// Under reader pressure the store holds two generations and a third's reservation does not fit beside
+		// them while a reader pins the first.
+		const std::uint64_t pressure_bytes = std::getenv("DETENT_PRESSURE_BYTES") ? std::stoull(std::getenv("DETENT_PRESSURE_BYTES")) : 4096;
+		disk_options.limits = {pressure ? pressure_bytes : 512ull * 1024 * 1024, 4096u, 10};
+		std::optional<l::ReadView> pinned_installed;
+		if (from_installed) {
 			const auto reply = response(count);
 			d::Limits input_limits;
 			input_limits.storage_account = account;
@@ -621,18 +618,13 @@ int main(int argc, char **argv) {
 					decoder.step(budget);
 			}
 			auto input = decoder.take();
-			l::ImageBuilder builder(input.snapshot);
-			while (!builder.done()) {
-				l::ValidationBudget budget;
-				builder.step(budget);
-			}
-			// A store holding a flat generation, which the paged publications replace.
-			trusted_records::install(directory, builder.descriptor(), builder.bytes()->view());
-			pinned_flat = l::recover_generation(directory, disk_options.recovery_limits).view();
+			// A store holding a generation, which the publications replace.
+			trusted_records::install(directory, trusted_records::build(input.snapshot));
+			pinned_installed = l::recover_generation(directory, disk_options.recovery_limits).view();
 			disk_options.mode = l::StoreOpenMode::ExistingManaged;
 		}
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
-		checkpoint("flat-image-ready");
+		checkpoint("installed-image-ready");
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*server_tls,
@@ -656,7 +648,6 @@ int main(int argc, char **argv) {
 		t::CoordinatorOptions options;
 		options.source.scheduler = &scheduler;
 		options.directory = directory;
-		options.image_format = paged ? t::LocalImageFormat::PagedV2 : t::LocalImageFormat::FlatV1;
 		options.delivery_mode = subscription ? t::DeliveryMode::Subscription : t::DeliveryMode::Poll;
 		options.poll_interval =
 			(cancel_selected || pressure || reset_retry)
@@ -675,10 +666,8 @@ int main(int argc, char **argv) {
 			options.authority_endpoints = {options.source.endpoint};
 			options.source.timeout = 10s;
 		}
-		if (paged && count >= 500000)
+		if (count >= 500000)
 			options.source.timeout = std::chrono::seconds(240);
-		else if (count >= 500000)
-			options.source.timeout = std::chrono::seconds(120);
 #ifdef DETENT_TEST_RELAY_HTTP
 		if (relay_network)
 			options.source.timeout = std::chrono::seconds(240);
@@ -883,13 +872,11 @@ int main(int argc, char **argv) {
 									const auto status = coordinator->status();
 									bool valid = status.recoverable == cursor() &&
 												 status.selected.descriptor &&
-												 status.selected.descriptor->cursor == cursor();
-									if (paged)
-										valid = valid &&
-												status.selected.descriptor->length == l::paged::root_bytes;
-									if (pinned_flat)
-										valid = valid && pinned_flat->cursor() == cursor() &&
-												pinned_flat->size() == count;
+												 status.selected.descriptor->cursor == cursor() &&
+												 status.selected.descriptor->length == l::paged::root_bytes;
+									if (pinned_installed)
+										valid = valid && pinned_installed->cursor() == cursor() &&
+												pinned_installed->size() == count;
 									if (relay_bundle) {
 										valid = valid && relay_bundle->status().ready;
 										if (relay_pressure) {
@@ -1119,9 +1106,12 @@ int main(int argc, char **argv) {
 		});
 		if (cancel_open)
 			t::detail::CoordinatorAccess::close_after_next_session_open(*coordinator);
-		if (maintenance_failure)
+		if (maintenance_failure) {
+			// A forced compaction of the installed head reaches the maintenance recovery first.
 			t::detail::CoordinatorAccess::fail_next_maintenance_recovery(*coordinator,
 																		 original_maintenance_failure);
+			t::detail::CoordinatorAccess::request_compaction(*coordinator);
+		}
 		Timing timing;
 		auto done = spawn_future(scheduler,
 								 exercise(scheduler, coordinator, timing, cancel_selected, pressure, options,
@@ -1295,7 +1285,7 @@ int main(int argc, char **argv) {
 		driver.reset();
 		queue.reset();
 		store.reset();
-		pinned_flat.reset();
+		pinned_installed.reset();
 		checkpoint("domain-draining");
 		domain.close().wait();
 		checkpoint("domain-drained");

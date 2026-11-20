@@ -5,7 +5,7 @@ class DiskStore;
 namespace detail {
 struct StoreCore;
 struct ManagedRecoveryContext {
-	RecoveryContext legacy, paged;
+	RecoveryContext paged;
 	std::weak_ptr<StoreCore> owner;
 	DirectoryIdentity directory;
 };

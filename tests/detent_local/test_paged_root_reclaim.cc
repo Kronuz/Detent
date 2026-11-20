@@ -1,3 +1,4 @@
+#include "paged_snapshot_plan.hh"
 #include "applied_delta_fixture.hh"
 #include "detent_local/disk_store.hh"
 #include "paged_delta_plan.hh"
@@ -146,29 +147,34 @@ int main() {
 			decoder.feed(input, budget);
 		}
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-		l::GenerationId legacy;
-		legacy.fill('v');
 		{
-			l::ImageBuilder builder(snapshot, options.recovery_limits);
+			l::detail::PagedSnapshotPlanBuilder builder(snapshot, *reader, store->directory_identity(),
+														domain.factory(), domain.storage_account(),
+														options.recovery_limits);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
+			auto plan = builder.take();
 			{
 				auto pressure = account->admit(account->limit() - account->used());
 				bool refused = false;
 				try {
-					store->begin(builder, reader->descriptor().cursor);
+					store->begin(std::move(plan));
 				} catch (const d::StoragePressure &) {
 					refused = true;
 				}
 				check(refused && store->publication_ready());
 				check(store->stats().reserved == l::DiskUsage{});
 			}
-			store->begin(builder, reader->descriptor().cursor);
+			store->begin(std::move(plan));
 			drive(store);
 		}
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
+		{
+			auto current = l::recover_generation(root, options.recovery_limits, {}, &*reader);
+			store->confirm_recovered(current);
+		}
 		store->request_collection();
 		store->advance();
 		drive(store);

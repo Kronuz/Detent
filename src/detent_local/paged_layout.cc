@@ -37,10 +37,7 @@ void validate(const PageHeader &h, Limits limits) {
 			h.nodes <= (h.length - page_header_bytes - child_bytes * h.externals) / 4);
 }
 void validate(const Root &root, Limits limits) {
-	Header context;
-	context.cursor = root.cursor;
-	context.profile = root.profile;
-	encode_header(context);
+	validate_identity(root.cursor, root.profile);
 	require(root.records <= limits.records && root.namespaces <= limits.namespaces &&
 			root.pages <= limits.pages && root.segments <= limits.segments &&
 			root.bytes <= limits.bytes);

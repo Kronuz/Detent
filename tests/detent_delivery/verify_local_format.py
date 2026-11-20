@@ -10,6 +10,8 @@ HEADER = 64
 ENTRY_FIXED = 137
 # The generation follows the name, the cursor's cluster, incarnation and position, and the slot.
 GENERATION_AT = 16 + 16 + 8 + 4
+# The selected generation's `.image` is its paged root (docs/LOCAL_IMAGE_FORMAT.md).
+ROOT_MAGIC = b"DTROOT03"
 
 
 def checked(table: bytes) -> bytes:
@@ -41,7 +43,7 @@ def selected_generation(table: bytes) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
-    parser.add_argument("format", choices=("flat-v1", "paged-v2", "mark", "same-store"))
+    parser.add_argument("format", choices=("root", "mark", "same-store"))
     parser.add_argument("before", type=Path, nargs="?")
     args = parser.parse_args()
     directory: Path = args.directory
@@ -65,9 +67,8 @@ def main() -> None:
     )
     with image.open("rb") as stream:
         magic = stream.read(8)
-    wanted = b"DTROOT03" if expected == "paged-v2" else b"DTIMAGE1"
-    if magic != wanted:
-        raise SystemExit(f"selected image format {magic!r}, expected {wanted!r}")
+    if magic != ROOT_MAGIC:
+        raise SystemExit(f"selected image format {magic!r}, expected {ROOT_MAGIC!r}")
 
 
 if __name__ == "__main__":

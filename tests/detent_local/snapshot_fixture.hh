@@ -1,7 +1,9 @@
 #include "detent/hashing.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
-#include "detent_local/builder.hh"
+#include "detent_distribution/buffer.hh"
+#include "detent_local/derived_ids.hh"
+#include "detent_local/generation.hh"
 #pragma once
 #include <iostream>
 #include <source_location>
