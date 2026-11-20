@@ -1,6 +1,6 @@
 # http-drop-user-data: journal
 
-State: waiting on jobs 261119-171647-04581a 261119-171648-48d8c6 261119-171651-1b0234
+State: ready for review
 Quest: .campaign/detent/quests/http-drop-user-data.md (the lead's; never edit it)
 
 ## Doing
@@ -13,7 +13,7 @@ merge: coroutine_test keeps main's TSan/NDEBUG skip of the three death tests and
 
 ## Next
 
-1. Cite the three jobs in Evidence when they pass; check CI at `http:35116b0`.
+1. Nothing: the lead lands.
 
 ## Jobs
 
@@ -55,10 +55,10 @@ A3: the lead asked the Xapiand lead; the reply becomes a PLAN.md decision to cit
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-154010-049d80 (http suite at `http:0549709`); Detent build + suite with http at `http:b931f28`: 261119-145550-cc5355; Xapiand `xapiand` build: 261119-145612-62f648 (0549709 changes docs and drops an uncalled overload only) |
-| A2 | 261119-155820-ab2ecb (queued, `timeouts_test` at `http:0549709`); fails without: 261119-145429-db04cf (buffered), 261119-145430-8ae0a9 (streamed) |
+| A1 | 261119-171647-04581a (http suite at `http:35116b0`); Detent build + suite with http at `http:35116b0`: 261119-171651-1b0234; Xapiand `xapiand` build with http at `http:b931f28`: 261119-145612-62f648 |
+| A2 | 261119-171648-48d8c6 (`timeouts_test` at `http:35116b0`); fails without: 261119-145429-db04cf (buffered), 261119-145430-8ae0a9 (streamed) |
 | A3 | Detent `.campaign/detent/PLAN.md` D127 (Xapiand lead's agreement, msg-124) |
-| A4 | 261119-154010-049d80; CI at `http:0549709` running |
+| A4 | 261119-171647-04581a; CI run 44652427887 green at `http:35116b0` |
 
 Correctness review: accepted at `http:0549709` (D1 confirmed by 049d80; the probe's keep-alive
 failures were the probe's, rerun 261119-155346-bc9393 0 failures).
