@@ -250,7 +250,8 @@ foreach(phase IN ITEMS published receiving building publishing)
   set_tests_properties(test_delivery_relay_delta_shutdown_${phase} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
 endforeach()
 # macOS CI: a detached monitor samples and kills any suite process alive past 300 s (CI tests take at most 90 s), so a hang
-# names its test. Local suites under load run tests for many minutes (test_agent_store_crash 5 to 14), so CI only.
+# names its test; it logs load, memory and the busiest processes every 15 s and ends the suite at 20 min, before the
+# step's cap. Local suites under load run tests for many minutes (test_agent_store_crash 5 to 14), so CI only.
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(APPLE AND Python3_FOUND AND DEFINED ENV{GITHUB_ACTIONS})
   add_test(NAME hang_watchdog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/hang_watchdog.py

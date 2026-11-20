@@ -4,6 +4,8 @@
 ctest waits for a test's output pipe to close, so a daemon that outlives its harness hangs the run
 with no name printed. Killing the stale process lets ctest finish that test and report it failed;
 the monitor's log (stacks, open files, the process table) lands where CI uploads failure artifacts.
+Every poll also logs the machine's load, memory, swap, TCP states and busiest processes, and past
+DEADLINE_S the monitor ends the suite, so a starved runner's step still ends and uploads the log.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ import time
 
 THRESHOLD_S = 300
 POLL_S = 15
-LIFETIME_S = 3600
+DEADLINE_S = 1200  # passing macOS CI suites take 6 to 15 min; the step's cap is 50
 
 
 def elapsed_seconds(etime: str) -> int:
@@ -48,10 +50,53 @@ def run(log, command: list[str], timeout: int = 60) -> None:
 	log.flush()
 
 
+def output(command: list[str]) -> str:
+	try:
+		return subprocess.run(command, capture_output=True, text=True, timeout=30).stdout
+	except (OSError, subprocess.TimeoutExpired) as error:
+		return f"({error})"
+
+
+def resources(log, suite_count: int) -> None:
+	load = " ".join(f"{value:.1f}" for value in os.getloadavg())
+	vm = dict(re.findall(r"^(Pages free|Pages active|Pages wired down|Pageouts|Swapouts):\s+(\d+)", output(["vm_stat"]), re.M))
+	swap = output(["sysctl", "-n", "vm.swapusage"]).strip()
+	tcp: dict[str, int] = {}
+	for line in output(["netstat", "-an", "-p", "tcp"]).splitlines():
+		fields = line.split()
+		if fields and fields[0].startswith("tcp"):
+			tcp[fields[-1]] = tcp.get(fields[-1], 0) + 1
+	log.write(f"\n--- {time.strftime('%H:%M:%S')} load {load}, suite processes {suite_count}, vm {vm}, swap {swap}, tcp {tcp}\n")
+	rows = output(["ps", "-axwwo", "pid=,%cpu=,rss=,state=,etime=,command="]).splitlines()
+	parsed = [row.split(None, 5) for row in rows]
+	parsed = [row for row in parsed if len(row) == 6]
+	for key, name in ((1, "cpu"), (2, "rss")):
+		log.write(f"top {name}:\n")
+		for row in sorted(parsed, key=lambda row: float(row[key]), reverse=True)[:6]:
+			log.write(f"  {row[0]:>7} {row[1]:>5}% {int(row[2]) // 1024:>6} MiB {row[3]:<4} {row[4]:>9} {row[5][:160]}\n")
+	log.flush()
+
+
+def end_suite(ctest: int, suite: list[tuple[int, int, int, str]], log) -> None:
+	log.write(f"\n=== {time.strftime('%H:%M:%S')} past {DEADLINE_S} s: ending the suite ===\n")
+	for pid, ppid, age, command in suite:
+		log.write(f"{pid:>7} {ppid:>7} {age:>6}s {command}\n")
+	for pid, _, _, command in suite[:8]:
+		log.write(f"\n--- pid {pid}: {command}\n")
+		run(log, ["sample", str(pid), "1"] if sys.platform == "darwin" else ["gdb", "-p", str(pid), "-batch", "-ex", "thread apply all bt"])
+	for pid in [row[0] for row in suite] + [ctest]:
+		try:
+			os.kill(pid, signal.SIGKILL)
+		except OSError:
+			pass
+	log.write("killed the suite and ctest\n")
+	log.flush()
+
+
 def monitor(ctest: int, roots: list[str], log) -> None:
 	started = time.monotonic()
 	me = os.getpid()
-	while time.monotonic() - started < LIFETIME_S:
+	while True:
 		try:
 			os.kill(ctest, 0)
 		except OSError:
@@ -59,6 +104,10 @@ def monitor(ctest: int, roots: list[str], log) -> None:
 			return
 		table = processes()
 		suite = [row for row in table if row[0] not in (me, ctest) and any(root in row[3] for root in roots)]
+		resources(log, len(suite))
+		if time.monotonic() - started >= DEADLINE_S:
+			end_suite(ctest, suite, log)
+			return
 		stale = [row for row in suite if row[2] >= THRESHOLD_S]
 		if stale:
 			log.write(f"\n=== {time.strftime('%H:%M:%S')} stale suite processes (>= {THRESHOLD_S} s) ===\n")
