@@ -18316,7 +18316,7 @@
       ],
       "consumes": [],
       "files": [
-        "tests/system/**"
+        "tests/detent_system/**"
       ],
       "history": [
         {
@@ -18357,7 +18357,7 @@
       "risk": "normal",
       "status": "active",
       "title": "relay tests fail together on SSL UNEXPECTED_MESSAGE and an undrained fleet under heavy load",
-      "updated": "2026-11-20T03:07:18",
+      "updated": "2026-11-20T03:29:12",
       "worktree": "../Detent-wt/detent/relay-tls-drain-flake"
     },
     "rename-detentd": {
