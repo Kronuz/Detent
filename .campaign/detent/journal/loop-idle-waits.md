@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261119-103506-5b36b1 (suite), 261119-103509-644510 261119-103509-1f64d3 261119-103509-c4f26f 261119-103509-3937ff 261119-103509-5a6c35 261119-103510-241774 261119-103519-3b65cd (A2 mutants), 261119-103617-426e37 (A2 plain), 261119-103510-a7a809 261119-103520-8e4934 (A1 at 60000 and 250 ms), 261119-103510-0db86e (A3), 261119-103541-50a978 261119-103542-42bdbc 261119-103543-da90b6 261119-103544-4f2621 (test_relay_service under TSan, 4x5 runs); CI 44589259502 at Detent:cc942c46
+State: waiting on jobs 261119-103506-5b36b1 (suite), 261119-103509-644510 261119-103509-1f64d3 261119-103509-c4f26f 261119-103509-3937ff 261119-103509-5a6c35 261119-103510-241774 261119-103519-3b65cd (A2 mutants), 261119-103617-426e37 (A2 plain), 261119-153343-7b0799 261119-153345-8528aa (A1 at 60000 and 250 ms), 261119-103510-0db86e (A3), 261119-103541-50a978 261119-103542-42bdbc 261119-103543-da90b6 261119-103544-4f2621 (test_relay_service under TSan, 4x5 runs); CI 44589259502 at Detent:cc942c46
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -20,7 +20,7 @@ Detent:cc942c46.
 2. F8: test_coordinator_teardown joins the worker pool in a guard declared after the owner, so a
    failing require() cannot leave a job posting to a freed io_context (Detent:91379253).
 3. F9: A1 runs at interval_ms 60000 (stated in the Evidence row); compare.sh takes
-   IDLE_INTERVAL_MS, and 261119-103520-8e4934 adds the 250 ms default (Detent:cc942c46).
+   IDLE_INTERVAL_MS, and 261119-153345-8528aa adds the 250 ms default (Detent:cc942c46).
 
 ## Next
 
@@ -57,7 +57,7 @@ Nothing. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mir
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <queued: 261119-103510-a7a809 (relay interval_ms 60000), 261119-103520-8e4934 (interval_ms 250, the default)> |
+| A1 | <queued: 261119-153343-7b0799 (relay interval_ms 60000), 261119-153345-8528aa (interval_ms 250, the default)> |
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 | A4 | <no evidence yet> |
