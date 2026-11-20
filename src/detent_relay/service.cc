@@ -347,6 +347,8 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 			job.positions.push_back({std::string(position.name), position.cursor});
 		job.all = command.all.has_value();
 		job.compressed = command.compressed;
+		job.pages = command.pages;
+		job.records.assign(command.records.begin(), command.records.end());
 		job.wait_ms = command.wait_ms;
 	}
 	job.principal = admission->credential->principal;
