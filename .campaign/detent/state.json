@@ -1252,6 +1252,23 @@
         ]
       },
       "text": "set reactor-tls-cache-bound: unlocks frees reactor_tls.h, test/tls_test.cc, docs/mechanisms/tls-certificate-cache.md for reactor-tls-cache-bound; frees test/consensus_test.cc, test/retained_state_test.cc for consensus-late-append-tests; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
+    },
+    {
+      "at": "2026-11-19T17:15:14",
+      "by": "campaign",
+      "closed": "Xapiand told the prism landing; -limits waits on Xapiand's http-limits",
+      "id": "msg-134",
+      "items": {
+        "journal-hop-on-task": "frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task",
+        "prism-server-composition-limits": "frees src/**, ARCHITECTURE.md, README.md, CMakeLists.txt for prism-server-composition-limits"
+      },
+      "settles": {
+        "start": [
+          "journal-hop-on-task",
+          "prism-server-composition-limits"
+        ]
+      },
+      "text": "prism-server-composition landed: unlocks frees src/**, ARCHITECTURE.md, README.md, CMakeLists.txt for prism-server-composition-limits; frees include/journal/turn_driver.h, test/**, docs/**, CHANGELOG.md for journal-hop-on-task"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
