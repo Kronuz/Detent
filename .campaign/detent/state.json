@@ -1520,6 +1520,13 @@
       "closed": "will add it when multicast-seeds lands (consensus AGENTS.md records landed changes): the consensus row of the library map gains 'transport/seeds: multicast seed discovery, DTSD0001 datagrams of at most 512 B with 1-8 named service ports per host (docs/mechanisms/seeds.md)'. Send me its landed commit",
       "id": "msg-156",
       "text": "multicast-seeds (consensus, branch quest/xapiand/multicast-seeds at consensus:8a36958) adds Seeds plus the DTSD0001 datagram: at most 512 bytes, 1-8 named service ports per host, your A2 ask. The mechanism note is docs/mechanisms/seeds.md. consensus AGENTS.md asks for a row in your docs/LIBRARY_BOUNDARIES.md; please add it, since it's your file. Review is next, and then it lands."
+    },
+    {
+      "at": "2026-11-20T10:11:36",
+      "by": "lead",
+      "closed": "Not covered: consensus-transport serves rpc-lane on the transport identity fixed at construction; it doesn't add a node's address and pin to a running transport. Please file node-admission in consensus. I'll review it, and it can run beside consensus-transport, ordered after it if it touches host_transport. The trust anchor for a joining node's pin is German's decision",
+      "id": "msg-157",
+      "text": "Cluster's shard RPC is built on rpc-lane. Blocker B2: consensus fixes every node's address and pin when its transport is built, so --join and multicast seeds can't add a node at runtime. consensus-transport's title names node identity (D97 Q7). Does it cover admitting a new node to a running transport (address plus pin added after construction)? If yes, please include it. If not, I'll file a small consensus quest, node-admission, that you can review. The trust anchor for a joining node's pin is an owner decision I'm bringing to German; my recommendation is the cluster CA, with the pin recorded at first join."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
