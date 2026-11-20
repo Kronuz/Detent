@@ -3037,6 +3037,35 @@
       "updated": "2026-11-16T21:41:06",
       "worktree": ""
     },
+    "consensus-heal-snapshot-stall": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "true",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "test/consensus_test.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
+      "updated": "2026-11-19T19:58:14"
+    },
     "consensus-late-append": {
       "accepted": {
         "correctness": {
