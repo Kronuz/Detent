@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-092520-b041d1 (suite, A1) and 261120-092532-58e85e (relay system tests 5x under -j4, D136) and CI (A2) at Detent:b6e0bea7; next: step 7 (DD3), Next 4. Dev build in .scratch/build (Release, suite flags).
+State: DD3 step 1 (pages frame) done at Detent:0e63b069; steps 2-4 next (lead msg: start DD3 now, order 1-4). Waiting on job 261120-092532-58e85e (relay system tests 5x -j4, D136) and CI. Dev build in .scratch/build (Release, suite flags), current at Detent:0e63b069.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -44,6 +44,14 @@ Step 7 (former DD3, then DD4's wiring): the plan is under Next 4.
 - D136 damaged entry: a selected entry's recovery failure (not pressure) calls `DiskStore::fail`
   and requests a repair; test_namespace_coordinator damages every `.owner` and both entries are
   replaced (fails without the fix: local mutant run timed out on the case) (Detent:be42ee82).
+- Suite 261120-092520-b041d1: green at Detent:b6e0bea7.
+- DD3 step 1: W6 `FrameKind::Pages` = 5, header [name, 5, after, cursor, root, chunk count], then
+  bin chunks of 64 KiB (the last 1..64 KiB); the decoder raises the tokenizer's bin bound
+  (`binary_limit`) to a chunk inside the frame only and bounds the transfer by `limits.bytes`;
+  `PagesAnswer` on NamespaceRequest makes the encoder send one; FrameInput holds root and bytes
+  (`root()`, `transfer()`), FramePreparer::Prepared and StagedFrames forward them.
+  test_session_frames' pages_frames case (round trip at 3 feed sizes, zero root, short inner
+  chunk, arity, body bound) (Detent:0e63b069).
 - Agent reads credentials through `detent::internal::read_private_configuration`; README drops
   local_export, bundles and flat-v1; tls-fixture-diagnostics' coordinator mode repeats
   test_namespace_coordinator (Detent:407aed82). Docs link fix for the CI Docs failure at
@@ -55,7 +63,14 @@ Step 7 (former DD3, then DD4's wiring): the plan is under Next 4.
    repair, prepared startup; a W5 fleet load for the measurement arms.
 2. (done, D136) Damaged entries.
 3. `distribution::UpdateCache` is unused; ACTORS.md and RELAY_ARCHITECTURE.md describe bundles.
-4. Step 7 (former DD3): nothing ships a transfer yet; no host uses DD1/DD2/DD4. Map:
+4. Step 7 (former DD3). Lead order: 1 pages frame (done), 2 relay generation and canonical copy,
+   3 agent transfer -> plan with no packer through DD1, 4 fallback to records. Done means a 100K
+   cold agent boots from pages with no packer, as a test job; then suite + CI, "ready for review".
+   Open wiring decisions (mine to make, record under Rulings): the receiver opts in with
+   `"pages":true` on W5 open (relays downstream and old agents get records); a next names
+   `"records":[names]` to fall back after a refusal (D9: one other source, then records). The
+   relay's RingSink (namespace_relay.cc:148) must refuse a pages frame (a relay mirrors records).
+   Map:
    a. Local: a transfer plan builder (friend of PagedPlanState/PagedImage): name by
       `next_generation`, `derive_segment` as TransferSegmentId, `receive_transfer`, fill a
       PagedImage (Root needs records and namespaces counts the receiver does not return), then
