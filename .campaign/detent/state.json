@@ -1492,6 +1492,13 @@
         ]
       },
       "text": "namespace-local-cursor dropped: unlocks frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline; frees test/transport/groups_test.cc for groups-upload-stall-cause; frees test/transport/**, docs/** for transport-admission; frees test/transport/**, CHANGELOG.md for transport-group-bytes; frees test/transport/**, CHANGELOG.md for transport-receive-bound"
+    },
+    {
+      "at": "2026-11-20T09:02:15",
+      "by": "lead",
+      "closed": "consensus-quiescence started now with a strong contributor; A5 (closed-state bytes) first, then A1 (reopen without election, in Core), pushed as soon as tested for your group-core. It lands after consensus-transport, which also started now beside it",
+      "id": "msg-153",
+      "text": "consensus-quiescence is now what blocks our group-core: its A7 (a reopened group's first write takes 5 barriers against 2, because the voter elects again on reopen) needs it. Where is it in your queue? If nothing ahead of it blocks us more, please start it next."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
