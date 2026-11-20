@@ -8879,7 +8879,7 @@
       "files": [
         "include/journal/blocking.h",
         "include/journal/turn_driver.h",
-        "include/journal/hold.h",
+        "include/journal/host.h",
         "test/**",
         "CHANGELOG.md",
         "docs/mechanisms/turn-seal.md"
@@ -8896,7 +8896,7 @@
       "risk": "normal",
       "status": "active",
       "title": "journal Hold takes its loop as required and refuses an empty one (D131)",
-      "updated": "2026-11-19T23:04:55",
+      "updated": "2026-11-19T23:05:17",
       "worktree": "../journal-wt/detent/journal-hold-loop-required"
     },
     "journal-hop-on-task": {
