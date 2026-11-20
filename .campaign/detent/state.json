@@ -10068,6 +10068,42 @@
       "updated": "2026-11-19T04:42:59",
       "worktree": ""
     },
+    "journal-idle-groups": {
+      "accepted": {},
+      "after": [
+        "xapiand:turn-log-parity"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/**",
+        "src/**",
+        "test/**",
+        "docs/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [
+        "journal:idle-park"
+      ],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
+      "updated": "2026-11-20T08:14:07"
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
