@@ -28,8 +28,8 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261119-151549-b76537 (`sh test/deferred_mutant.sh`: slack mutant killed) |
-| A2 | 261119-151551-345463 (suite); 261119-151553-9aeb12 (slack test x50) |
+| A1 | 261119-154335-131ea3 (`sh test/deferred_mutant.sh`: slack mutant killed) |
+| A2 | 261119-154338-cee29b (suite); 261119-154339-a65f58 (slack test x50) |
 
 ## Result
 
