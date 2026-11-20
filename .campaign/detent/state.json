@@ -19129,7 +19129,8 @@
         "loop-idle-waits",
         "rename-detentd",
         "xapiand:task-lifecycle",
-        "xapiand:xapiand-lifecycle"
+        "xapiand:xapiand-lifecycle",
+        "pin-wave"
       ],
       "base": "f47ef2201754b8dae9686d7c784a00d65f04fd20",
       "branch": "quest/detent/server-composition-adoption",
@@ -19157,7 +19158,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-20T03:07:20",
+      "updated": "2026-11-20T03:52:02",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
