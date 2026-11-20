@@ -4129,17 +4129,44 @@
         "docs/perf/delta-plan-scaling.md",
         "tests/detent_local/test_delta_plan_scaling*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-19T21:40:31",
+          "commit": "ee6336ee038a608b982343e2592333d14d622fe3",
+          "criteria": {
+            "A1": "261119-153419-124e73 (passed at 8c5f6f245843; only merges from main since), 261119-153422-107aa3 (passed at 8c5f6f245843; only merges from main since), 261119-153424-6e0a4a (passed at 8c5f6f245843; only merges from main since), 261119-153426-bc9994 (passed at 8c5f6f245843; only merges from main since)",
+            "A2": "`docs/perf/delta-plan-scaling.md`, \"A warm second plan on one mapping\"."
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "bf3a479357fe4f337cf65bf5bcfc90151665b4bc",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-210756-abd858",
+              "level": "light",
+              "seconds": 610.8,
+              "state": "done",
+              "what": "delta-plan-warm check suite at bf3a479357fe"
+            }
+          ],
+          "final": true,
+          "from": "c5411ac9a219bc89bd0c2c198d94e2ea6019a11b",
+          "reason": "",
+          "tested": "6726278cd0c08eec039603beb977cad545b634a9"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "delta plan: measure a warm second plan on one mapping",
-      "updated": "2026-11-19T14:40:41",
-      "worktree": "../Detent-wt/detent/delta-plan-warm"
+      "updated": "2026-11-19T21:40:36",
+      "worktree": ""
     },
     "dense-distribution": {
       "accepted": {
