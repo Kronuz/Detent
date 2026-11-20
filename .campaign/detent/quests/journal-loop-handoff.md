@@ -5,16 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A loop's range table keeps one owner thread, checked in debug builds (journal:0fc8c14). A caller that serializes a loop itself, like strata's turn_sealer under its turn mutex, hands the table to the calling thread explicitly (`Host::adopt_loop(loop)` or the like) before using it from there; the debug check then follows the new owner. No lock-held guessing (msg-168, option a).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 After a handoff, table calls from the new thread pass the debug check and calls from the old thread fail it: tests
+- A2 strata's t6w case (close on a thread other than the first) passes with a handoff and aborts without one in a debug build: a test
+- A3 The suite and CI pass
 
 ## Contracts
 
