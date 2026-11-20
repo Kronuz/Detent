@@ -1,6 +1,6 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-081334-e4f6a8 (A1 suite) and CI (A2) at Detent:501f9c4d
+State: blocked on lead: relay staleness ruling (Blocked on); waiting on jobs 261120-085935-8d23e7 (A1) and CI (A2) at Detent:d9668727
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -9,7 +9,7 @@ DD1/DD2/DD4 write their own journals on their branches; their branches merge in 
 
 ## Doing
 
-Step 6: suite and CI on v2 with namespace-local-cursor merged (Detent:410242d4).
+Step 6: suite and CI at Detent:d9668727; relay staleness awaits the lead.
 
 ## Done
 
@@ -34,6 +34,9 @@ Step 6: suite and CI on v2 with namespace-local-cursor merged (Detent:410242d4).
   failed entry, not a fence; writers.py dropped a field the fakes lack).
 - managed.json examples in the quickstart and guide carry v2 fields only; docs e2e passes
   locally against the build (23 blocks, 0 failed) (Detent:501f9c4d).
+- Authority enables positions once its history is ready; the distribution service test runs W5
+  first (its v1 sequence raced the enabling entry: 5/5 pass after) (Detent:4b0736e5). Relay
+  mirror `reconnect_maximum_ms` and sync-failure logging (Detent:d9668727).
 
 ## Next
 
@@ -62,18 +65,29 @@ builders taking a W1 target is all this branch needs from it. DiskStore's multi-
 
 ## Blocked on
 
-Nothing. For the lead: .github/workflows/tls-fixture-diagnostics.yml (outside this file set) is
-left at main's version, which names `test_delivery_coordinator_subscription-relay-http-500000`,
-a test this branch retires. Options: retarget it to test_namespace_coordinator (recommended), or
-delete the workflow. README.md (outside the set) still lists `detent::local_export`, which
-this branch removes. .github/workflows/ci.yml carries namespace-local-cursor's removal of
-test_local_view from the reader job; it stays, since the test no longer exists.
+Lead ruling, relays and sealed history (the cause of test_system_managed_relay[_ipv6] failing
+under load: 2 of 5 under `-j4`, 0 of 3 alone). The leader now enables positions as it leads, so
+seal 0 is cut before the harness seeds; seals fire only every 2048 transactions (or 1/8 of the
+log), and a relay mirrors sealed history only, so a quiet cluster's later writes never reach a
+relay. Measured: in the failed run every voter cut one seal (seal 0, before `seeded`), and the
+relay mirror stayed empty for 30 s with no sync failure. Before, a relay's first layouts
+request triggered enabling, after the seed, which hid the gap. Options:
+1. The leader proposes a forced seal when positioned changes stay unsealed for an interval
+   (recommended: bounded relay staleness at any write rate; deterministic, as a log entry).
+2. Relays also mirror the unsealed tail from W5 frames (larger; relay design change).
+3. Enable on demand again (a W5 next or layouts request), which hides the gap for tests only.
+
+For the lead, outside this file set: .github/workflows/tls-fixture-diagnostics.yml is left at
+main's version, which names `test_delivery_coordinator_subscription-relay-http-500000`, a test
+this branch retires (retarget it to test_namespace_coordinator, or delete it). README.md still
+lists `detent::local_export`, which this branch removes. .github/workflows/ci.yml carries
+namespace-local-cursor's removal of test_local_view from the reader job; it stays.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
+| A1 | 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
 | A2 | <no evidence yet> |
 
 ## Result
