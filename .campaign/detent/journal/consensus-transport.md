@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261120-144831-38a455 261120-150427-2132c5 261120-150436-28bd0c 261120-150439-44833e and CI at consensus:6462c1e
+State: waiting on jobs 261120-151658-9b66f3 (suite) 261120-151648-8b372d -151648-f83d74 -151648-3bafb4 -151649-90f30f -151649-71c006 -151650-f76654 -151650-a7e706 -151650-11c8e1 -151637-39c1fe -144831-38a455 and CI at consensus:bab6b4d
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -20,8 +20,12 @@ transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
   only for authenticated nodes, each within `handshake`). Kept, not changed: N11's /64 keying and
   N12's per-node hello count are the review's optional options.
 - N13: fd_reuse_reader asserts 1 handler call; mutant deliver-after-end 261120-150436-28bd0c.
-- N14 (A3): connection_test `dead_extends` stalls only the dialer's loop (rehomed to its own
-  thread) 1 s against its 300 ms dead_after; open after. Mutant dead-no-extend 261120-150439-44833e.
+- N14 (A3): connection_test `dead_extends` (consensus:bab6b4d): the dialer, rehomed to its own
+  loop thread, takes a frame (dead-peer wait armed), then its loop alone stalls 3 s against a 1 s
+  dead_after with nothing in its socket (the acceptor sends no keepalives); a frame 100 ms after
+  the wake lands in the extension and both stay open. The first version (a0fa257) let the mutant
+  survive (261120-150439-44833e: queued keepalives completed the read before the expired timer
+  ran); the mutant now ends the dialer dead locally; job 261120-151637-39c1fe.
 - N5: links_test `resolver_outlives` (resolver gated until Links and its loop are gone); ASan job
   261120-150427-2132c5 runs it with churn and N13/N14.
 - N6 dropped: `NodePins::authenticate` refuses a missing or unverified leaf, so the context's
@@ -124,6 +128,10 @@ Step 4 adds `hold`, `release`, `linked`, `drain`, `lanes_drained`, `RpcOptions::
 `fetch_method` (1) and `fetch_missing` (Error 256); `handle(1)` throws when a reader is set.
 
 ## Next
+
+0. Session 2 head consensus:bab6b4d: read the reruns in State; collect three macOS x86_64 CI runs
+   in a row at the final head (A5; `gh run rerun` for the second and third); then "ready for
+   review". groups-upload-stall-cause waits for a CI capture. The timing label is Blocked on.
 
 Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-transport (consensus, branch
 quest/detent/consensus-transport). Local build: `.scratch/build` there (Ninja, Release, transport on).
