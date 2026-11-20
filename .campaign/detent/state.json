@@ -4349,7 +4349,10 @@
     },
     "dd3-full-copy-pages": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "dd1-transfer-receiver",
+        "dd2-canonical-copy"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4358,30 +4361,32 @@
           "name": "suite"
         }
       ],
-      "consumes": [],
+      "consumes": [
+        "paged-transfer"
+      ],
       "files": [
         "src/detent_distribution/framing.cc",
         "src/detent_distribution/protocol.cc",
+        "include/detent_distribution/**",
         "src/detent_relay/host.cc",
         "src/detent_delivery/coordinator.cc",
         "src/detent_agent/managed_host.cc",
-        "tests/detent_system/**"
+        "tests/detent_system/test_full_copy_pages*",
+        "tests/detent_system/full_copy_pages*",
+        "docs/perf/full-copy-pages.md"
       ],
       "landed": [],
       "lenses": [
         "correctness"
       ],
       "milestone": "",
-      "needs": [
-        "dd1-transfer-receiver",
-        "dd2-canonical-copy"
-      ],
+      "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Dense distribution DD3: the full copy ships as pages",
-      "updated": "2026-11-20T04:29:14"
+      "updated": "2026-11-20T04:38:57"
     },
     "dd4-delta-transfers": {
       "accepted": {},
