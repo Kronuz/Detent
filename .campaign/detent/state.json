@@ -16476,7 +16476,9 @@
       "files": [
         "reactor_tls.h",
         "test/tls_test.cc",
-        "docs/mechanisms/tls-certificate-cache.md"
+        "docs/mechanisms/tls-certificate-cache.md",
+        "docs/perf/tls-configure/**",
+        "docs/perf/tls-configure.md"
       ],
       "journal": "../Detent-wt/detent/reactor-tls-cache-bound",
       "landed": [],
@@ -16490,7 +16492,7 @@
       "risk": "high",
       "status": "active",
       "title": "reactor: the TLS parse cache releases entries no context uses",
-      "updated": "2026-11-19T16:56:57",
+      "updated": "2026-11-19T17:04:41",
       "worktree": "../reactor-wt/detent/reactor-tls-cache-bound"
     },
     "reader-acl": {
