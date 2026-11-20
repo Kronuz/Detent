@@ -2221,9 +2221,37 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-blocking-hold-loop",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T03:09:40",
+          "commit": "a5fe5f01b85d64cb78175a1f6f987536e3387035",
+          "criteria": {
+            "A1": "261119-230258-affdb7 (passed at 5fc2ba73a5ca; only merges from main since); fails without: 261119-230259-564331",
+            "A2": "261119-230308-56689f (passed at 5fc2ba73a5ca; only merges from main since), 261119-230309-5599f1 (passed at 5fc2ba73a5ca; only merges from main since)",
+            "A3": "[decision] D131 (Hold's loop required; journal-hold-loop-required)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "69ede368ba04bbf40e327b9bed33fdb3ffabfa0b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-001945-384160",
+              "level": "light",
+              "seconds": 697.7,
+              "state": "done",
+              "what": "consensus-blocking-hold-loop check suite at 69ede368ba04"
+            }
+          ],
+          "final": true,
+          "from": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d",
+          "reason": "",
+          "tested": "a5fe5f01b85d64cb78175a1f6f987536e3387035"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-worker-release"
@@ -2231,10 +2259,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "consensus driver's blocking entry hands its scheduler to Hold, so a cross-thread wake ends its sleep",
-      "updated": "2026-11-20T00:19:32",
-      "worktree": "../consensus-wt/detent/consensus-blocking-hold-loop"
+      "updated": "2026-11-20T03:09:42",
+      "worktree": ""
     },
     "consensus-close-fenced": {
       "accepted": {
