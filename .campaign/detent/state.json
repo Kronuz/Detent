@@ -4926,7 +4926,8 @@
       ],
       "consumes": [],
       "files": [
-        "docs/measurements/dense-sync-stack-20261118/**"
+        "docs/measurements/dense-sync-stack-20261118/**",
+        "docs/perf/dense-sync-stack.md"
       ],
       "landed": [],
       "lenses": [],
@@ -4937,7 +4938,7 @@
       "risk": "low",
       "status": "active",
       "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
-      "updated": "2026-11-19T14:40:45",
+      "updated": "2026-11-19T23:53:41",
       "worktree": "../Detent-wt/detent/dense-sync-stack-5m-times"
     },
     "dense-walkers": {
