@@ -3163,18 +3163,47 @@
         "test/consensus_test.cc",
         "test/retained_state_test.cc"
       ],
-      "journal": "../Detent-wt/detent/consensus-late-append-tests",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T19:43:46",
+          "ci_skipped": "CI run 44653732660 at this exact commit (a292fd0) passed every job; the earlier push run 44650101243 failed only macos-x86_64 at test/transport/peers_test.cc:621 (the reconnect attempts bound), a test this test-only quest does not touch; filed as consensus-peers-attempts-bound",
+          "commit": "a292fd0f6c982ce1db3f670798ed84705f14b7eb",
+          "criteria": {
+            "A1": "261119-165818-4fe4e7; fails without: 261119-165835-4605e6",
+            "A2": "261119-165818-4fe4e7; fails without: 261119-165837-e49853",
+            "A3": "261119-165838-a838b5"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "a292fd0f6c982ce1db3f670798ed84705f14b7eb",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-165838-a838b5",
+              "level": "light",
+              "seconds": 262.1,
+              "state": "done",
+              "what": "consensus-late-append-tests check suite at a292fd0f6c98"
+            }
+          ],
+          "final": true,
+          "from": "5935efae4064a5ee88026e9e4684a50c69fada43",
+          "reason": "",
+          "tested": "a292fd0f6c982ce1db3f670798ed84705f14b7eb"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "consensus: tests for late-success read probe and the snapshot guard",
-      "updated": "2026-11-19T16:56:55",
-      "worktree": "../consensus-wt/detent/consensus-late-append-tests"
+      "updated": "2026-11-19T19:45:09",
+      "worktree": ""
     },
     "consensus-quiescence": {
       "accepted": {},
