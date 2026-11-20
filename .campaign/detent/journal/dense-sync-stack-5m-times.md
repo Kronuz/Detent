@@ -1,6 +1,6 @@
 # dense-sync-stack-5m-times: journal
 
-State: waiting on jobs 261119-155051-8896b4 261119-155053-88d935 261119-155055-bede28 261119-155057-fc4275 261119-155100-6a6707 261119-155102-50abde 261119-155104-b28b3c 261119-155106-5540f0
+State: waiting on jobs 261119-235318-59de0c (check suite), then CI on the pushed head
 Quest: .campaign/detent/quests/dense-sync-stack-5m-times.md (the lead's; never edit it)
 
 ## Doing
