@@ -3473,18 +3473,46 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-peers-attempts-bound",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T01:22:47",
+          "commit": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d",
+          "criteria": {
+            "A1": "test/transport/peers_test.cc outage: comment cites 0bb37f, 2b4b98; the failing side is too few (CI log: 2 lookups in 1341 ms); the stall is inferred, not reproduced (402 runs, none below 4)",
+            "A2": "261119-215755-af2cb5 (passed at 12db7c67f0c4; only merges from main since); fails without: 261119-215756-f6309f",
+            "A3": "261119-215758-f15d0c (passed at 12db7c67f0c4; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-001947-89b145",
+              "level": "light",
+              "seconds": 694.0,
+              "state": "done",
+              "what": "consensus-peers-attempts-bound check suite at 9f14a4598547"
+            }
+          ],
+          "final": true,
+          "from": "a8e867bb01b6767b3180d3751469bb600212ed90",
+          "reason": "",
+          "tested": "9f14a4598547f2dc8fd0d8de0a382dc34fff778d"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "peers_test:621 reconnect attempts bound fails on macos-x86_64",
-      "updated": "2026-11-20T00:19:35",
-      "worktree": "../consensus-wt/detent/consensus-peers-attempts-bound"
+      "updated": "2026-11-20T01:24:02",
+      "worktree": ""
     },
     "consensus-quiescence": {
       "accepted": {},
