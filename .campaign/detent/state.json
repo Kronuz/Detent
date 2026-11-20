@@ -7107,20 +7107,49 @@
         "ARCHITECTURE.md",
         "AGENTS.md"
       ],
-      "journal": "../Detent-wt/detent/http-drop-user-data",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-19T18:32:21",
+          "commit": "35116b04deca7c35072e8b87922e496870fc280f",
+          "criteria": {
+            "A1": "261119-171647-04581a",
+            "A2": "261119-171648-48d8c6; fails without: 261119-145429-db04cf, 261119-145430-8ae0a9",
+            "A3": "Detent `.campaign/detent/PLAN.md` D127 (Xapiand lead's agreement, msg-124)",
+            "A4": "261119-171647-04581a"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "35116b04deca7c35072e8b87922e496870fc280f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-171647-04581a",
+              "level": "light",
+              "seconds": 74.5,
+              "state": "done",
+              "what": "http-drop-user-data check suite at 35116b04deca"
+            }
+          ],
+          "final": true,
+          "from": "d2e1819b8b5065fe69dd1b8ac0f7f5cccf8d82fc",
+          "reason": "",
+          "tested": "35116b04deca7c35072e8b87922e496870fc280f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../http",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "http: remove Request::user_data and DeferredReply, add Request::deadline()",
-      "updated": "2026-11-19T18:31:18",
-      "worktree": "../http-wt/detent/http-drop-user-data"
+      "updated": "2026-11-19T18:32:24",
+      "worktree": ""
     },
     "http-idle-cost": {
       "accepted": {
