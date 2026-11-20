@@ -227,9 +227,9 @@ class ManagedCohort:
             )
 
     def positions(self, writers: Writers) -> dict[str, int]:
-        """The writers' last applied revision in each followed namespace."""
+        """The writers' position in each followed namespace (D3: its own counter)."""
         positions = dict.fromkeys(self.namespaces, 0)
-        for producer, revision in enumerate(writers.revisions):
+        for producer, revision in enumerate(writers.positions):
             name = self.authority.namespace(producer)
             if name in positions:
                 positions[name] = max(positions[name], revision)

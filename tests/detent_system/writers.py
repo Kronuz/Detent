@@ -49,6 +49,8 @@ class Writers:
         self.receipts: list[dict[str, Any] | None] = [None] * producers
         # The revision of each producer's last applied transaction in its namespace.
         self.revisions = [0] * producers
+        # Each producer's namespace position (D3): one per transaction that changed a key.
+        self.positions = [0] * producers
         self.counts: Counter[str] = Counter()
         self.latency_total = 0.0
         self.latency_maximum = 0.0
@@ -129,6 +131,7 @@ class Writers:
         self.receipts[producer] = receipt
         if receipt["status"] == "applied":
             self.revisions[producer] = int(receipt["revision"])
+            self.positions[producer] += 1
         applied = receipt["status"] != "capacity"
         self.counts["acknowledged" if applied else "terminal_capacity_rejections"] += 1
         return applied

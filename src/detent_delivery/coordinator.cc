@@ -760,7 +760,8 @@ struct Coordinator::Impl {
 };
 
 namespace {
-task::task<void> release_session(ClientOptions options, NamespaceSession session) {
+// A malformed close from a pooled source fails closed (`strict`), as any malformed answer does.
+task::task<void> release_session(ClientOptions options, NamespaceSession session, bool strict) {
 	options.timeout = std::min(options.timeout, std::chrono::milliseconds(1000));
 	try {
 		co_await close_namespace_session(std::move(options), session);
@@ -768,6 +769,9 @@ task::task<void> release_session(ClientOptions options, NamespaceSession session
 		throw;
 	} catch (const SessionResetError &error) {
 		if (fatal_source_reset(error.reason()))
+			throw;
+	} catch (const std::invalid_argument &) {
+		if (strict)
 			throw;
 	} catch (...) {
 	}
@@ -811,7 +815,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					throw asio::system_error(asio::error::operation_aborted);
 				if (session.valid() && sources.refresh_due(std::chrono::steady_clock::now())) {
 					revalidating = true;
-					co_await release_session(session_source(), session);
+					co_await release_session(session_source(), session, sources.pooled());
 					session = {};
 				}
 				auto request = options.source;
@@ -875,7 +879,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				fail(failure);
 			if (failure || cancelled()) {
 				if (session.valid())
-					co_await release_session(session_source(), session);
+					co_await release_session(session_source(), session, sources.pooled());
 				session = {};
 			}
 			if (failure) {
@@ -924,7 +928,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 	}
 	try {
 		if (session.valid())
-			co_await release_session(session_source(), session);
+			co_await release_session(session_source(), session, sources.pooled());
 	} catch (...) {
 		if (!fatal)
 			fatal = std::current_exception();

@@ -1582,7 +1582,6 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	// W5/W6 sessions (version 2): their table, the requests on the owner, and the one answer in flight.
 	std::optional<NamespaceSessions> frames_sessions;
 	LayoutExport layout_export;
-	bool history_wanted = false; // a relay asked for layouts before positions were enabled
 	std::vector<std::shared_ptr<Task>> frames_tasks;
 	struct FramesSlot {
 		std::shared_ptr<Task> task;
@@ -2647,15 +2646,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						return {503, "{\"error\":\"admission_full\"}"};
 					}
 				};
-				bool wanted = false; // A next found positions not yet enabled.
 				// The answer for a next: every followed namespace and, with `all`, the directory's
 				// changes and the namespaces they bring; none while nothing changed for it.
 				auto answer = [&](Task &task, std::optional<FramesExport> &out) {
 					const auto &state = node.state();
-					if (!state.positions_enabled()) {
-						wanted = true;
+					if (!state.positions_enabled())
 						return;
-					}
 					auto *files = node.history_files();
 					if (!files || !node.history()->ready() || !node.sealed()) {
 						task.looked = UINT64_MAX; // Looks again once history is ready.
@@ -2756,8 +2752,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						complete(held, {static_cast<int>(failure.status), std::string(failure.body)});
 					}
 				}
-				// The cutover's enabling entry, proposed by the leader once a W5 session needs positions.
-				if ((wanted || history_wanted) && node.worker().role() == kronuz::consensus::Role::Leader &&
+				// The cutover's enabling entry, proposed by the leader as it leads: every consumer is a W5
+				// session, which a follower answers only once positions are enabled.
+				if (node.worker().role() == kronuz::consensus::Role::Leader &&
 					!node.state().positions_enabled() && now >= enabling_at) {
 					enabling_at = now + std::chrono::seconds(1);
 					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
@@ -3019,10 +3016,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				}
 				if (first && (first->kind == Task::Kind::HistoryLayouts || first->kind == Task::Kind::HistoryFile)) {
 					// W8: this voter's own history, by name; immutable files need no quorum read. A
-					// relay's layouts want positions as a W5 next does. A voter that knows no live
-					// leader may be cut off from the quorum: it refuses, and the relay reads another.
-					history_wanted = history_wanted ||
-									 (first->kind == Task::Kind::HistoryLayouts && !node.state().positions_enabled());
+					// voter that knows no live leader may be cut off from the quorum: it refuses, and the
+					// relay reads another.
 					complete(first, serving() ? Service::history_reply(*first, node, layout_export, options_.reply_bytes - 256)
 											: Reply{503, "{\"error\":\"not_ready\"}"});
 					first.reset();
