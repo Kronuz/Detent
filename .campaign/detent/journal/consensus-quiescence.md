@@ -1,9 +1,22 @@
 # consensus-quiescence: journal
 
-State: review fixes F1, F2 at consensus:3b20d96, every job done; waiting on CI 44889402194 (suite `ci:macos-arm64`, A1 A2), then a re-review.
+State: review fix F7 at consensus:818fd0a, pushed; waiting on jobs 261121-014430-84aded 261121-014431-0a5350 261121-014433-a0c0a0 261121-014434-5b7fb2 261121-014435-92f796 and CI (suite `ci:macos-arm64`), then a re-review.
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
+
+Correctness re-review CHANGES at 3b20d96: F7 (blocking). Fix at consensus:818fd0a, pushed:
+- F7: Gone is handled in handle(Receive) before the generic term step, beside PreVoteRequest:
+  a follower whose leader is the sender in that term calls leader_lost(); anything else returns.
+  A Gone never raises a term. receive_message(Gone) is a no-op. quiescence.md says so.
+- Test: simulation_test quiescence `gone` adds Gone{term+1} from a follower at the leader and
+  the other follower (all stay in `term` under the leader), and after the election the old
+  leader's stale Gone{term} at both survivors (term and leader unchanged).
+- Mutant gone-raises-term consensus:23bb114 (818fd0a with core.h from 3b20d96; local tag
+  mutant/consensus-quiescence-f7): 261121-014430-84aded --fails-without. Fix 261121-014431-0a5350
+  (simulation_test), 261121-014433-a0c0a0 (groups_test driver, driver_test fence_tells_peers),
+  TSan 261121-014434-5b7fb2 (A3), review probe G1-G5 261121-014435-92f796.
+- consensus-driver-install told of 818fd0a (its msg-2).
 
 Correctness review CHANGES at a020e14 (Detent .campaign/detent/reviews/consensus-quiescence-correctness.md).
 Fixes at consensus:3b20d96, pushed:
