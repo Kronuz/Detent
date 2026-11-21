@@ -5,16 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The journal-power-silent-loss durability review (F1, probes 261120-212732-0aad27 and 261120-213315-944786) found that a fragment spanning two sectors, damaged in its second sector, in the newest tail, drops an acknowledged turn unreported in 175 of 334 cases (the same at 178030b). The crash model (R7) treats it as a tear, but a fragment that verifies in that second sector proves the sector was written after the damaged one's predecessor, so it is damage. After this quest such damage is reported, and a real tear is still dropped silently.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The review's probe shapes report damage in every case where a later verifying fragment proves the sector was written; no acknowledged turn is dropped unreported: jobs
+- A2 Real tears (the T9 crash points and simulated tears) still report no damage: the 200-seed T9 row on macOS and in the FreeBSD VM: jobs
+- A3 A mutant restoring the tear reading fails A1's probe: a --fails-without job
+- A4 [artifact] The crash model's rule for the newest tail, updated: docs/mechanisms
+- A5 CI passes
 
 ## Contracts
 
