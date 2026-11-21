@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs 261120-144912-403ec3 (suite, forced), -144900-942521 -144901-a60d82 (A1), -144901-8f1b46 (A3), -144914-cf70b6 (F10 fails-without at d7de180b), -144945-3bf17d -144952-b6c0a3 (managed_relay x10, head and main) at Detent:bd01e34f; CI 44831971293 (push); arm64 bisect runs 44831905533 (head), 44831905586 (authority), 44831904570 (relay), 44831905323 (coordinator).
+State: waiting on jobs at Detent:09ce7216/f38c7ed3 (F13 fix): F13 261120-161508-142c88 -161509-1ec0ae -161510-e99216 (stop at 100k, head vs main, strict), -161511-17e350 (fails-without, mutant stop-peers-sleep); mutants -161445-1fefcf (start-stop-sleep) -161446-fa7216 (stop-sleep); suite -161356-9068f1; restart x10 -161417-51299c; A2 -161417-26252d; A4 -161418-a1d709, -161419-51dcc4 -161419-dfc56b -161420-e0acee -161420-340584; A1 -161421-921300 -161421-f507e7; A3 -161422-c2ade3; arm64 bisect runs (Contributor 5).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -130,6 +130,17 @@ reclaim scans ~60 completion ops/s) frames A1.
   -144900-942521 -144901-a60d82, A3 -144901-8f1b46; A2/A4 jobs reused (their inputs unchanged by the merge).
   F10 fails-without: 261120-144914-cf70b6, the bench build at Detent:d7de180b (before the fix).
 - managed_relay locally, x10 each: head 261120-144945-3bf17d, main 6ae09eeb 261120-144952-b6c0a3.
+- Done at Detent:bd01e34f: suite 261120-144912-403ec3 passed; A1 -144900-942521 passed; F10 fails-without
+  -144914-cf70b6 failed as required ("No rule to make target 'detentd'" at Detent:d7de180b). managed_relay x10 passed
+  at head (-144945-3bf17d) and at main (-144952-b6c0a3): the macOS x86_64 CI failure does not reproduce locally.
+- F13 (review round 4, Detent:3550e55a): since 39e5ab7e the stop loop counted `peers` as I/O in flight, so a
+  multi-voter stop slept 1 ms per retirement visit (~32 nodes) where main yields. Fix Detent:09ce7216: the stop loop
+  sleeps only with storage or history I/O in flight, or with peers once retirement is done; a single voter's stop is
+  unchanged. Evidence: bench/idle-wakeups/stop_scale.py via `compare.sh stop` (three voters, 100k keys, SIGTERM to
+  exit, head vs main; fails when head's slowest stop exceeds 2x main's + 0.5 s), one strict round per job
+  (STOP_ROUNDS=1, Detent:f38c7ed3). Mutants: stop-peers-sleep (restores the sleep; must fail the bench), stop-sleep
+  (only the stop loop's pre-39e5ab7e rule; must fail test_restart_wake, replacing the reviewer's r4 "stop" mode,
+  whose text no longer matches), start-stop-sleep (now also mutates the stop condition; replaces r4 "revert").
 - Next: read the jobs; read each bisect run's statuses (`gh api repos/Kronuz/Detent/commits/<sha>/statuses`),
   name the component, fix it with a test; delete bisect/liw-*.
 
