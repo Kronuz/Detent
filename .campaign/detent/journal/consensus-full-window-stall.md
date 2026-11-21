@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261121-082753-d21525 261121-082753-a72cc7 261121-082753-887444 261121-082753-627be6 261121-082754-5ae1d3 261121-082754-676cb7 261121-082754-20565a 261121-082754-8c8b3b 261121-082754-ab5004 261121-082754-412a78 261121-082755-291adf
+State: waiting on jobs 261121-082754-676cb7 261121-082754-8c8b3b 261121-082754-ab5004 261121-082754-412a78 261121-082755-291adf (and CI run 44924678818)
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
