@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261121-082743-5409d8 261121-082744-d960d4 261121-082746-a7137a 261121-082747-2a5648 261121-082748-70569d 261121-082750-49adb8 261121-082751-227a28 261121-082752-d0bd28 261121-082754-42e0e8 261121-082755-54cb92 261121-082757-1392de 261121-082758-511f9b 261121-082800-da051a 261121-082802-6c30d7
+State: waiting on jobs CI run 44924686502 (macos-arm64 at consensus:aafa849); every evidence job reran green there
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -22,8 +22,8 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the reruns at consensus:aafa849 (State) and CI run 44924686502 (macos-arm64); paste
-   `campaign brief`'s table into Evidence.
+1. Read CI run 44924686502 at consensus:aafa849 (macos-arm64); the 14 reruns there all exit 0
+   and are in Evidence.
 2. Merge consensus main again after consensus-full-window-stall and leaving-removal land, rerun
    every job, push.
 3. Merge node-admission (consensus:c669067) when it lands.
@@ -79,12 +79,12 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-225736-8a7fed, 261120-225738-b62375, 261120-225744-fa0a56; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29 |
-| A2 | 261120-225740-b2bdb1; fails without: 261120-191749-bef99d |
-| A3 | 261120-225742-c5e61e; fails without: 261120-191751-b901bb |
-| A4 | 261120-225748-45cc05, 261120-225750-c12778 |
+| A1 | 261121-082744-d960d4, 261121-082746-a7137a, 261121-082754-42e0e8, 261121-082755-54cb92, 261121-082747-2a5648, 261121-082743-5409d8, 261121-082802-6c30d7; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c |
+| A2 | 261121-082748-70569d, 261121-082800-da051a; fails without: 261120-191749-bef99d |
+| A3 | 261121-082750-49adb8, 261121-082758-511f9b; fails without: 261120-191751-b901bb |
+| A4 | 261121-082751-227a28, 261121-082752-d0bd28 |
 | A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:740453b); contract sent to Xapiand as msg-187 |
-| A6 | `ci:macos-arm64` (CI run 44877138480 at consensus:740453b, green on every platform, TSan and ASan included); 261120-225730-f34285; fails without: 261120-225734-b342d4 (worker_test at 017c918: "held ordinary output retains activation completion while reclamation continues") |
+| A6 | `ci:macos-arm64` (CI run 44924686502 at consensus:aafa849, running); 261121-082757-1392de; fails without: 261120-225734-b342d4 (worker_test at 017c918: "held ordinary output retains activation completion while reclamation continues") |
 
 ## Result
 
