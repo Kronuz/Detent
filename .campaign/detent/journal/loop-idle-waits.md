@@ -1,4 +1,4 @@
-State: blocked (F13 not fixed: bisect/liw-fix arm64 x3 all stalled). Waiting on probes 261121-042832-2dfa53 -042834-dc10b1 -043412-7ac777 -043414-c14b6b -044608-6c41ed, suite -041526-85734b, CI 44903029845 (bisect, stalled) and 44902999124 (quest, linux-arm64-gcc failed).
+State: waiting on bisect CI 44907033869 (bisect/liw-fix at Detent:0e6eeae6, arm64 x3: F13's last round), quest CI 44907046261 and jobs at Detent:956a026f: suite 261121-050501-975e09, relay tests -050502-92821b, network x20 -050505-7960c4, pair x8 -050505-ee8739 (vs 219ba475 -050517-46ee38, 2654cd20 -050518-27b861, main -044608-6c41ed), A1 -050502-75f254 -050502-e93ac9, A2 -050502-47940d -050502-3ac5b0, A3 -050502-1804d3, A4 -050503-c8ffc1 -050503-f7c7a8 -050503-6fb9a3 -050503-9060a4 -050503-1cea56.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -230,7 +230,11 @@ reclaim scans ~60 completion ops/s) frames A1.
   connections, and the arm64 runner's network (mbufs; ENOBUFS seen locally only at 4 copies x 500 clients)
   stalls, taking the runner's own link with it.
 - Pair probe at main 3c04e6c1 added (-044608-6c41ed): if pre-fix and head fail the paired relay_network run and
-  main passes, that run is a local proxy for F13. Cancelled the A1/A3/A4 reruns at 219ba475 (code will change). Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
+  main passes, that run is a local proxy for F13. Cancelled the A1/A3/A4 reruns at 219ba475 (code will change).
+- Lead's ruling (a), recorded as R12: Detent:563c5c31 restores main's per-turn shares with the 1 ms pause and adds
+  only the long sleep after an idle round. bisect/liw-fix force-moved to Detent:0e6eeae6 (the four relay files of
+  563c5c31 on 08866e00); CI 44907033869. Cancelled stalled 44903029845 (all three reps silent 16+ min) and the
+  superseded quest CI 44902999124. Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
   table from the reruns and delete bisect/liw-fix.
 
 ## Result
