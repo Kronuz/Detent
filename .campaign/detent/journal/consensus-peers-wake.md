@@ -1,6 +1,6 @@
 # consensus-peers-wake: journal
 
-State: working
+State: waiting on jobs 261121-140831-f20fe2 261121-140921-85a62f 261121-140841-25783f 261121-140844-0c16f8 261121-140848-6433dd 261121-140852-1056ff 261121-140855-706a5f 261121-140858-daa2fb 261121-140901-80707b 261121-140904-b8f618 261121-140907-8c4cb2 261121-140924-7f1c2c
 Quest: .campaign/detent/quests/consensus-peers-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Local dev build of consensus_transport_peers_wake_test at consensus:3576fb5 (quiet light
-peers-wake-dev, .scratch/build in the worktree); then fix what it finds.
+Jobs at consensus:a1855ac (pushed; CI running). Locally (dev build, not evidence) idle, control
+and bulk passed 3 of 3 each.
 
 ## Next
 
-1. Green locally, then jobs: A1 suite (`campaign verify --for A1,A5`), A2 mutants from
-   test/peers_wake_mutants.py (refs/mutants/consensus-peers-wake/<name>), A3 TSan on the
-   transport Peers tests.
-2. Push the quest branch for CI (A5).
+1. Record the jobs below; a red one gets its cause fixed and a rerun.
+2. CI green at the head (A5), then State: ready for review.
 
 ## Blocked on
 
@@ -32,13 +30,18 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261121-140831-f20fe2 (3 repeats), 261121-140921-85a62f (plain) |
+| A2 | --fails-without at refs/mutants/consensus-peers-wake/<name>: control 261121-140841-25783f, bulk-taken 261121-140844-0c16f8, bulk-refused 261121-140848-6433dd, consumed 261121-140852-1056ff, opened 261121-140855-706a5f, lost 261121-140858-daa2fb, timer 261121-140901-80707b, any-lane-opened 261121-140904-b8f618, stop-wakes 261121-140907-8c4cb2 |
+| A3 | 261121-140924-7f1c2c (macOS llvm TSan, peers and peers_wake ctest entries) |
+| A4 | docs/mechanisms/peers-wake.md (consensus:3576fb5) |
+| A5 | campaign verify (CI) at consensus:a1855ac |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+`PeerOptions::wake` (consensus include/consensus/transport/peers.h), contract in
+docs/mechanisms/peers-wake.md, tests test/peers_wake_test.cc (ctest
+consensus_transport_peers_wake_{idle,control,bulk}), mutants test/peers_wake_mutants.py.
+Leaves open: Detent's multi-voter-idle-wake wires it to OwnerWake and pins past it.
 
 ## Rulings I made
 
@@ -57,3 +60,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   into Peers from it (the tests admit and pump from inside it).
 - R6: test/peers_wake_mutants.py reuses test/transport/mutant_commit.py's plumbing by import
   (that file is outside the file set) with its own mutant table.
+- R7: the control case checks `stats.admitted == 4` (each lane authenticated once), not
+  reconnects/rejected: voter 3's handshake bound (2) turns away one of the four simultaneous
+  dials, which counts a reconnect and a rejection on voter 2 but never opens a session.
