@@ -1,9 +1,8 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-141018-363fb4 (suite at Detent:e9937a82), 261120-141019-07be70,
-261120-141024-5b7b19, 261120-141026-8818b0 (D139 mutants), 261120-141028-b54373 / 261120-141032-1ff8f3
-(F2 ASan pair), 261120-134038-4ee64d (F4 5M strict), 261120-131414-94ce66 (F11 fuzz hour), and CI at
-Detent:e9937a82. Not "ready for review" until those pass.
+State: waiting on jobs 261120-161546-ecf083 (suite at Detent:2c0a7101), 261120-161540-0595dc
+(positions-counted mutant), 261120-161518-53890f / 261120-161526-e8d2d5 / 261120-161517-fc6897
+(managed failover x10 at the fix, the pre-fix head, main), and CI at Detent:2c0a7101.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -11,6 +10,19 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Suite failure at Detent:e9937a82 (test_system_managed_authority_failover, "oracle rejected agent
+1"): this branch's harness, not the product (Detent:2c0a7101).
+- Cause: Writers counted one position per applied receipt (Detent:ac278e50), but a write before
+  positions are enabled takes the global revision (State::changed_namespace), so seeded namespaces
+  sit far above the count (kept run managed-failover-J8wVsM: target 7, positions 7-22). The cohort
+  waited for positions long passed and ran the oracle while agent 1 was one publication behind:
+  load1 at 21 vs agent 0 at 22, the only difference key241 (0 vs 1), i.e. position 22's write.
+  The earlier failure (job 261120-092532-58e85e, run bGv4iY, load2:key530) is the same: agent 1
+  published after the oracle ran, and the oracle passes on that kept store now. Only this branch's
+  jobs ever logged "oracle rejected" (main's one failure, 261111-155807-cb02cd, is "did not converge").
+- Fix: positions come from each receipt's namespace_revision; Writers.verify checks them against the
+  authority's read. Mutant tests/detent_system/mutants/positions-counted.patch.
 
 Review-fix round (owner priority):
 - F1 (Detent:7c82da19, Detent:dec05c43): TransferTarget names its namespace; every leaf is 'K' ns 0
@@ -206,7 +218,8 @@ Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125
 | F7 | mutant killed 261120-130731-c646f9 (f7-d5-packing-unchecked) |
 | F10/D139 | 261120-141019-07be70, 261120-141024-5b7b19, 261120-141026-8818b0 |
 | F11 | 261120-131414-94ce66 (one CPU-hour) |
-| Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 at Detent:e9937a82 |
+| Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 failed at Detent:e9937a82 (harness, fixed at Detent:2c0a7101); 261120-161546-ecf083 at Detent:2c0a7101 |
+| Failover | mutant 261120-161540-0595dc; x10: 261120-161518-53890f (fix), 261120-161526-e8d2d5 (pre-fix head), 261120-161517-fc6897 (main) |
 
 ## Result
 
@@ -214,6 +227,8 @@ Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125
 
 ## Rulings I made
 
+- The failover mutant lives at tests/detent_system/mutants/positions-counted.patch, a new file
+  outside the listed file set (beside writers.py, which is in it); lead: add it to the set.
 - (F8) The delta's wait for the build at the head stays on D6 rule 1's root-page bound: that
   build is now incremental over the previous head (63-912 ms at 5M, against 1.2-1.5 s for the full
   build the review priced), and the wait still ends when the head moves.
