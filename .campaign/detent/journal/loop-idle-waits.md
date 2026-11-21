@@ -265,6 +265,13 @@ reclaim scans ~60 completion ops/s) frames A1.
 - R7 (F8): the teardown guard has no fails-without test: only a failing require() reaches the path,
   and only ASan would witness the freed io_context.
 - R9 (spin bound) withdrawn by R11.
+- R12 (F13, the lead's ruling (a), contributor 7): the relay host keeps main's shape, ServiceRuntime::step's
+  per-turn share (32 polls, 8 opens, 8 closes, round robin; 64 sessions), at once on progress, else after 1 ms. One
+  change: once a round over every occupied slot and session (rescan() at a wake, a change or after a long sleep;
+  swept()) changes nothing and no bundle cleanup is pending, the turn sleeps until the next health report or
+  snapshot retry, or a wake. Bundle cleanup runs one step a turn while a publication left it pending (main: one
+  step every turn). The task fingerprint stays the measure of progress, so a visit that moves a task without a
+  frame does not end its round early. 59206705's every-request visit is reverted.
 - R11 (no spin bound): the 64-yield bound (Detent:5f8b0ba1) is removed (Detent:9b27cb95); service.cc is
   Detent:39e5ab7e's again. Wedged 2 s per stop with nothing in flight (instrumented local build, light), the stop
   loop visited 50,709 to 74,605 times per wedge unbounded and ~56,300 bounded: each yield waits its turn on the
