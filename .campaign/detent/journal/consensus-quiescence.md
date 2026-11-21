@@ -1,23 +1,23 @@
 # consensus-quiescence: journal
 
-State: waiting on jobs 261120-144352-fc9628 (suite at consensus:82cefee, --for A1,A2); CI on the push.
+State: waiting on jobs 261120-225122-c34e4e 261120-225122-0760b8 261120-225122-5cedce 261120-225122-eb821c 261120-225123-e76794 261120-225123-8fede5 261120-225123-17e4ea (A3-A6 at consensus:a020e14); CI on the push (suite check, A1 A2).
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
 
-CI red at consensus:2ddf9b2 (run 44815736257): one test, consensus_transport_rpc_host_fetch, SIGPIPE
-on linux-tsan, linux-asan-ubsan, linux-arm64-gcc. Not this quest's and not main's: the case comes
-from consensus-transport (consensus:975c51d, not on main) and fails the same way on its own head
-consensus:50f0a48 (run 44795129569, same three jobs). Cause: rpc_host_test's main did not ignore
-SIGPIPE, the host's duty where SO_NOSIGPIPE is missing (connection.h); main fixed the same gap in
-seeds_test (consensus:8801b99).
-- Merged consensus main: consensus:dc4317e (CHANGELOG Added lists joined).
-- Fix consensus:82cefee (test/transport): main ignores SIGPIPE on Linux; fetch raises one first so
-  a host that stops ignoring it fails at once; rpc_mutants.py sigpipe-default. Fails without: the
-  Linux CI runs above (macOS has SO_NOSIGPIPE, so no local job can show it). Pushed for CI.
-- Out-of-set files the brief lists (CMakeLists.txt, bench/flow_bench.cc, bench/transport_idle.cc):
-  every change is consensus-transport's (3284055, 0a65af1, 1d24b8a, 895b3c6, 975c51d, c2b0133) or
-  main's seeds; this quest changes none. None needed in the set.
+Merged consensus main at consensus:a020e14 (consensus-faultfs, bb961b3): driver_close_test and
+driver_test run on faultlab's faultfs. Loop takes an fl::filesystem and keeps the turns_at
+parameter; reopen_barriers, idle_bytes, idle_cpu, leader_gone and close_crash's closed-state
+check use the faultfs disk and the cut's dead(). Compiled locally (consensus_driver_close_test,
+consensus_driver_test, consensus_driver_idle). Pushed; A3-A6 rerun at a020e14.
+- Suite 261120-144352-fc9628 at consensus:82cefee: exit 0.
+- CI at 82cefee (run 44831328208): Linux green (SIGPIPE fix holds); macos-arm64 consensus_driver
+  entry_wake_threads "9 of 20" (main's 5fc2ba7 test, 50 ms wake budget) and macos-x86_64
+  rpc_host_fetch "16 MiB ... in 6500 ms" (consensus-transport's timing case). Both timing tests
+  this quest does not change; judged on the a020e14 run before any attribution.
+
+Next: msg-1 (drop the rpc_host SIGPIPE ignore and the sigpipe-default mutant) once node-admission
+(consensus:c669067) lands on consensus main; not on main at a020e14.
 
 ## Seed 399 (lead's task, Xapiand's Driver simulation)
 
