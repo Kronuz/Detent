@@ -5,16 +5,14 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Xapiand's placement repair (msg-189) found a leader fencing with "persistence lacks preowned reservation" when Core::drive proposes D3's removal of a committed.leaving member: Worker::submit_retained admits a leader's Tick with no append reservation (`if (leader && Tick) plan.count = 0`), yet drive on that Tick, or on the AppendResponse that commits the promotion, calls propose_membership and emits a Persist, so ingest throws. Seen at consensus b8de3b8 and main bb961b3; repro job 261121-003512-50dacf (strata placement--repair, replace seed 1); probe at consensus fd8d977 (job 261121-004526-522f59). After this quest the core proposes the removal only from an admitted event that reserved one configuration append (the next Tick planned with it when a removal is due, option (b)), and a replacement through the Driver completes.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A Driver-level replacement test (add the new member, promote, remove the leaving one) completes over many seeds with no fence, and the removal is committed: jobs
+- A2 A mutant that proposes the removal from an unreserved event fails A1 with the fence: a --fails-without job
+- A3 Xapiand's repro (strata placement--repair replace seed 1, job 261121-003512-50dacf's command) passes at this commit pinned in: a job
+- A4 CI passes
 
 ## Contracts
 
