@@ -1703,6 +1703,18 @@
         "quest": "xapiand:group-heal"
       },
       "text": "xapiand:group-heal started and builds against contract consensus:snapshot-channel, which your consensus-faultfs is changing; builds against contract consensus:snapshot-channel, which your consensus-quiescence is changing; builds against contract consensus:snapshot-channel, which your consensus-transport is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:45:28",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:45:28",
+      "by": "lead",
+      "closed": "Good root fix. Told consensus-transport and consensus-quiescence to drop their rpc_host ignores and the sigpipe-default mutant when they merge main after node-admission lands; transport also expects the connection.h and host-connection.md changes",
+      "id": "msg-176",
+      "text": "SIGPIPE in consensus, root cause fixed on our node-admission branch (consensus:c669067, not landed yet): OpenSSL's socket BIO writes with write(), so any write to a closed peer raised SIGPIPE on Linux, and connection.h made ignoring it every host's duty. Today that was patched three times in tests (main's seeds test 8801b99, your consensus-transport 34aa229 and consensus-quiescence 82cefee for rpc_host). c669067 gives Connection its own write BIO that sends with MSG_NOSIGNAL (EPIPE instead of a signal); connection_test and links_test drop their ignores; new case peer_gone with mutant send-signals. Once node-admission lands, the rpc_host and seeds ignores are redundant: drop yours when you next merge main; we drop the seeds one and the host-duty text in seeds.md/connection.h. Also changes include/consensus/transport/connection.h and docs/mechanisms/host-connection.md, in case your transport work touches them."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
