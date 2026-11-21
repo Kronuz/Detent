@@ -22,7 +22,9 @@ platform (tsan, asan-ubsan, macos, arm64-gcc), nothing else; CI at 87d4382 is ru
 
 ## Next
 
-1. Debug job 7a0bfd and ci:macos-arm64 (run 44854682137); asan-ubsan, linux-arm64-gcc, freebsd already green there.
+1. Debug job 7a0bfd (running: loop_handoff 7/0 and handoff_close 4/0 failures logged; full host_test
+   still running) and ci:macos-arm64 (run 44854682137); tsan, asan-ubsan, macos-x86_64, linux-arm64-gcc,
+   freebsd green there.
 2. Merge journal main once journal-idle-groups lands (host.h, host_test.cc).
 
 msg-178 (D57): A3 cites ci:macos-arm64 at journal:87d4382; nothing else changed.
