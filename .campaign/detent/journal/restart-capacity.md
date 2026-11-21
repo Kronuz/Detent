@@ -67,3 +67,5 @@ does not do").
    each, run with `--fails-without`.
 
 Cancelled, superseded (not evidence): 261121-134013-9953d2, 261121-134216-f7b3a0, 261121-134612-884a01.
+
+- Lead ruling (2026-11-21) on ruling 1: contract rule 1 in docs/ONLINE_CAPACITY_ARCHITECTURE.md governs. Only keys, state_bytes and image_bytes rise, and only upward; the other seven stay equal. The outcome's "keys and the other nine" names the ten limits each entry carries, not ten raisable ones.
