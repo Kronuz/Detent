@@ -5217,7 +5217,88 @@
       "updated": "2026-11-21T00:05:04"
     },
     "consensus-transport": {
-      "accepted": {},
+      "accepted": {
+        "security": {
+          "at": "2026-11-21T06:15:49",
+          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "blobs": {
+            "CMakeLists.txt": "100644:5b49d5a8f2153dfb315be94691103352377a6e64",
+            "bench/flow_bench.cc": "100644:da40eb105efd49aa5434abbe20e346c2eacbdd67",
+            "bench/transport_idle.cc": "100644:0c14468fbe245459ecd0e774533ed6a6f0b4cb5f",
+            "docs/mechanisms/host-connection.md": "100644:ab09e639a9abc3a9894f17ffa9a0d9cb97cf8981",
+            "docs/mechanisms/host-transport.md": "100644:c144523be25abb1b387565f7ad44e872c8028b49",
+            "docs/mechanisms/rpc-lane.md": "100644:626146a3aad86a399299a3ac9fa7330cb529a05a",
+            "docs/perf/transport-idle-cost.md": "100644:2edeaeee32961d8b0bfc95e529b6a8102e7e35f1",
+            "fuzz/corpus/rpc/seed-past-credit": "100644:8157cebc98f7ea8fa100700012aee0e89e879bf4",
+            "fuzz/rpc_coverage.sh": "100755:791df9bcdefd4226ca12a41bb581f902166dc20f",
+            "fuzz/rpc_fuzz.cc": "100644:57e1f9ec9e50ce35a775306c6c23aac6ba3a0b27",
+            "fuzz/rpc_fuzz.sh": "100755:2c83c41022bbae49d3cb333b18290f1629d41e79",
+            "include/consensus/transport/host_transport.h": "100644:a409f439f44be6b2bc05b1d7a7f0533c50289822",
+            "include/consensus/transport/links.h": "100644:b22897e3e6c4ac814aea964941aaff7a91c57963",
+            "include/consensus/transport/rpc.h": "100644:b2a9563dec245f266a8e53a5f0ac47c77605bded",
+            "test/transport/admission_test.cc": "100644:23aa40b1b3e2dc25894731ad19be700ee0604c0a",
+            "test/transport/connection_test.cc": "100644:3c54e7ed38f6a4336970cfa4507b0156c0d0d67c",
+            "test/transport/groups_test.cc": "100644:bb609708c8e9e4dd304aa41c8dc896ec41d97ac0",
+            "test/transport/links_test.cc": "100644:de0fa9f92008f03b41e64ce75fb59c569b333224",
+            "test/transport/mutant_commit.py": "100755:81a5aacf5e2ae84e99d58b9cd06dd0fd805d3015",
+            "test/transport/rpc_host_test.cc": "100644:81dc5c1d433ae1a730e56130046d0a961014b446",
+            "test/transport/rpc_hosts.h": "100644:4cd78a620b140a12adace4c83b87389dd44f0d62",
+            "test/transport/rpc_mutants.py": "100644:d36d1b9a3255784a74b3b944c1f5223276735a82",
+            "test/transport/rpc_test.cc": "100644:e3a173d0a6745bea3caa15f5484b149eda7d7262"
+          },
+          "by": "review",
+          "commit": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+          "criteria": "ce3e647fa9b25b12",
+          "diffs": {
+            "": "ab989beba181e1b7",
+            "CMakeLists.txt": "873d1697e92782fa",
+            "bench/flow_bench.cc": "1f20b8f8b2e361ed",
+            "bench/transport_idle.cc": "74f98f190f1c25bd",
+            "docs/mechanisms/host-connection.md": "aa29b9eeb67f25d8",
+            "docs/mechanisms/host-transport.md": "2cbff8512a4a5b3b",
+            "docs/mechanisms/rpc-lane.md": "bb7d02876e895f7e",
+            "docs/perf/transport-idle-cost.md": "7c431e3eff898d99",
+            "fuzz/rpc_coverage.sh": "78bda0bd3e6d5e0a",
+            "fuzz/rpc_fuzz.cc": "aeb1f897a8a5e426",
+            "fuzz/rpc_fuzz.sh": "5916df396f7ea858",
+            "include/consensus/transport/host_transport.h": "60dfa151e55da47b",
+            "include/consensus/transport/links.h": "8aa4420d1e489976",
+            "include/consensus/transport/rpc.h": "fb9bb09e41f18848",
+            "test/transport/admission_test.cc": "f6abcd0fc805dd32",
+            "test/transport/connection_test.cc": "d74c0689388fa420",
+            "test/transport/groups_test.cc": "0b34083a412f2f6c",
+            "test/transport/links_test.cc": "badf9d35f0ddb37a",
+            "test/transport/mutant_commit.py": "3ffae7f41fcff720",
+            "test/transport/rpc_host_test.cc": "6aa4ca51179f20a7",
+            "test/transport/rpc_hosts.h": "822c680b845008f0",
+            "test/transport/rpc_mutants.py": "21271d1ce7385405",
+            "test/transport/rpc_test.cc": "ac8de40e255a28bf"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'sh /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-consensus-transport-security/run_probe.sh /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-consensus-transport-security/probe.cc > .scratch/probe.out; cat .scratch/probe.out; for p in refusals errors credits deadline; do grep -q \"^$p: .*ProtocolError\" .scratch/probe.out || { echo \"$p: not closed\"; exit 1; }; done; for p in errors credits deadline; do grep -q \"^$p: another connection'\"'\"'s call queued its Call: yes\" .scratch/probe.out || { echo \"$p: starved\"; exit 1; }; done; ! grep -q AddressSanitizer .scratch/probe.out'",
+                  "commit": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261121-053520-0a9324",
+                  "level": "light",
+                  "seconds": 38.2,
+                  "state": "done",
+                  "what": "F1: the security reviewer's probe at 9bbd632: errors, credits, deadline end in ProtocolError and another connection's call queues"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "4631cdae0e8e654c440cdbbf128bb49ec9f83022",
+          "reviewed": "34881c299ce0a810beb8fe19b8b508fc08d5713f",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "transport-identity",
         "transport-idle-cost",
@@ -5331,7 +5412,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-21T04:46:32",
+      "updated": "2026-11-21T06:15:49",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-transport-budgets": {
