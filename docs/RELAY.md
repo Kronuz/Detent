@@ -72,7 +72,7 @@ Every route is `POST` with a bearer credential, the same at a voter and at a rel
 | --- | --- | --- |
 | `/v2/distribution/session/{open,next,close}` | W5, version 2 | W6 frames in DTDIST01 fragments, exactly as the authority's |
 | `/v2/history/layouts` | `{"namespaces": [name, ...]}`, each granted | `200`, `application/vnd.detent.layouts`: a DTMIRR01 table of the live names' layouts |
-| `/v2/history/file` | `{"namespace": name, "name": file}`, the namespace granted | `200`, `application/octet-stream`: the file's bytes when the namespace's current layout names it; `404` otherwise |
+| `/v2/history/file` | `{"namespace": name, "name": file}`, the namespace granted, optionally with `"offset"` and `"length"` (above 0) together | `200`, `application/octet-stream`: the file's bytes when the namespace's current layout names it, or at most `length` of them from `offset`; `404` otherwise, `416 range_not_satisfiable` at or past the file's end |
 
 A session follows only names the relay mirrors and the credential grants (`403 scope_forbidden` otherwise, `400` for `all`), and a next before the first sync gets `503 source_behind`. A version-1 W5 body gets `400 invalid_request`. An unknown token gets `403 scope_forbidden`. Member routes (`/v2/open`, `/v2/transactions`, `/v2/read`, `/v2/result`, ...) and `/v2/distribution` are `404`.
 
