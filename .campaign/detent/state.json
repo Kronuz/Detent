@@ -5198,7 +5198,7 @@
       "after": [
         "transport-identity",
         "transport-idle-cost",
-        "xapiand:consensus-hello-limits",
+        "xapiand:consensus-rpc-lane",
         "groups-upload-loop-stall"
       ],
       "base": "e1f249d8d9ff64410f87042ba90f4c218d9ec336",
@@ -5308,7 +5308,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-21T02:28:51",
+      "updated": "2026-11-21T04:34:37",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-transport-budgets": {
