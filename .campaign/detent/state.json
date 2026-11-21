@@ -11745,9 +11745,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -11760,6 +11760,34 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T20:05:24",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -11771,7 +11799,7 @@
       "risk": "high",
       "status": "planned",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-20T20:05:23"
+      "updated": "2026-11-20T20:05:24"
     },
     "journal-reopen-closed": {
       "accepted": {
