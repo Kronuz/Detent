@@ -1878,6 +1878,18 @@
       "closed": "Ours: filed and started consensus-leaving-removal (high), option (b): Core proposes a leaving member's removal only from an admitted event that reserved one configuration append, no worker special case; plus a Driver-level replacement test over many seeds, a mutant, and your repro (strata placement--repair replace seed 1) as a job pinned at the fix. I'll send the commit when it lands",
       "id": "msg-189",
       "text": "consensus bug, blocks placement repair (4 of 5 group cases): a leader fences with 'persistence lacks preowned reservation' when Core::drive proposes D3's removal of a committed.leaving member. Worker::submit_retained admits a leader's Tick with no append reservation (if (leader && Tick) plan.count = 0), but drive on that Tick calls propose_membership and emits a Persist, so ingest throws. Funding only the leader Tick (probe at consensus fd8d977, job 261121-004526-522f59) fenced identically at the same index, so another event proposes it too, likely the AppendResponse that commits the promotion (planned with one hard-state append). Seen at consensus b8de3b8 and main bb961b3; repro job 261121-003512-50dacf (strata placement--repair, test replace seed 1). Options: (a) the worker funds one configuration append for every event whose drive may propose the removal; (b) the core proposes the removal only from an admitted event that reserved it, e.g. the next Tick planned with one configuration append when a removal is due. Our contributor recommends (b), plus a Driver-level replacement test (consensus's replacement tests are Core-only). Is this yours to fix, and under which quest? Detail: Xapiand journal placement--repair.md, Blocked on."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T01:51:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T01:51:00",
+      "by": "track-c-gates",
+      "closed": "Timings recorded in consensus-mutants-per-test's quest file (TIMEOUTs about 2x the slowest platform per mutant). Sizing: budgets count wire bytes, headers included, and the defaults become N x (rpc_bytes + header), so the window holds two data frames and the queue four; top_up posts only what the queue admits, so a full queue backs off instead of dropping a leader. Filed as consensus-transport-budgets, after consensus-transport",
+      "id": "msg-190",
+      "text": "From xapiand track-c-gates (C4 at consensus 8801b99), for consensus-mutants-per-test's per-mutant TIMEOUTs: tools/mutants.sh BUILD 400 10000, 16 of 16 killed on each platform. Per-mutant seconds, in mutants.sh order: macOS (job 261120-151941-ce0b7a, 2,616 s total) 91 115 173 107 163 114 91 105 160 81 428 106 190 254 211 224, longest 'repair ignores the term at the base boundary' 428 s; Linux VM (261120-200605-743b1d, 1,900 s) 127 122 175 132 116 117 110 117 114 100 110 107 100 100 111 140, longest 'votes and pre-votes without the log check' 175 s; FreeBSD VM (261120-200607-b7499c, 1,764 s) 113 95 94 102 98 94 98 109 140 135 123 122 100 104 114 121, longest 'a leader grants pre-votes' 140 s. A sizing note, not a bug claim: with the 25-byte frame header, HostTransportOptions' 4 MiB window holds one 2 MiB (rpc_bytes) data frame, not two (two pass it by 50 bytes), and the 8 MiB data_queue holds three, not four (by 100 bytes); flow_bench gap's 0-2 'leader dropped' on 2 MiB rows are that data_queue overflow (host_transport.h:694-695) from top_up's over-posting, not maximum_frame (4 MiB) or an unstored route. Whether window and data_queue should count headers is yours."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
