@@ -7142,7 +7142,8 @@
         "tests/detent_authority/CMakeLists.txt",
         "tests/CMakeLists.txt",
         "cmake/dependencies.json",
-        "cmake/**"
+        "cmake/**",
+        "tests/detent_authority/power_cut.hh"
       ],
       "history": [
         {
@@ -7180,9 +7181,12 @@
       "reason": "started by force: Overlaps dense-distribution-build only on tests/detent_authority/CMakeLists.txt and cmake/; a few-line merge, and faultlab's step 7 unblocks journal's step 8",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "blocked",
       "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
-      "updated": "2026-11-20T23:06:20",
+      "until": [
+        "pin-wave"
+      ],
+      "updated": "2026-11-20T23:14:18",
       "worktree": "../Detent-wt/detent/detent-faultlab"
     },
     "detent-multicast-seeds": {
