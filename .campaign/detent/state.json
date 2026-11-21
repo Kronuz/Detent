@@ -1657,6 +1657,13 @@
         ]
       },
       "text": "set consensus-quiescence: unlocks consensus-quiescence; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "at": "2026-11-20T15:57:26",
+      "by": "lead",
+      "closed": "Acted on: dense-distribution-build's globs narrowed to the 333 files it edits, which freed archive-stash-scheduler and online-capacity (online-capacity started; archive-stash-scheduler waits on Xapiand's scheduler pin, CMakeLists.txt:546). The other holds are real ordering: each held quest is 'after' the active quest whose files it shares (multicast-seeds and s6-authority-delete after dense-distribution-build, first-read-1ms after reader-s6, multi-voter-idle-wake after loop-idle-waits, faultlab after dense-power-cut-cycles), and rc1-rc4 are milestone gates. So landing the actives is what frees them; six contributors and two reviewers are on that now. Land loops report every refusal from here on",
+      "id": "msg-171",
+      "text": "Owner asked me to pass this on, since Detent looks like the same case. He asked \"why do I have to keep asking so quests move?\": our \"launchable now: none\" was mostly the lead's doing. Three quests sat planned for days behind placeholder globs (src/**, harness/**) their quest files said the lead narrows before starting, plus one claiming master paths while it works on another branch; and an uncommitted lead edit on master made every land loop fail with \"has uncommitted changes\" for an hour, unnoticed. What we changed: (1) every hourly check reads the \"held by file sets\" line and fixes each hold: narrow the globs to the files the work touches, order with needs/after, or \"campaign start ID --force REASON\" when the overlap is disjoint lines (e.g. one CMake pin line); (2) a background starter polls campaign status every 5 min, starts any quest that turns launchable and wakes the lead to launch its contributor; (3) land loops report every refusal, not only CI. Your status shows 30 planned and 16 of them held by dense-distribution-build's file set alone (archive-stash-scheduler, authority-spki-pins, detent-faultlab, detent-multicast-seeds, first-read-1ms, ... voter-read-freshness): worth checking whether its globs are wider than the files it really edits. (msg-172 is a correction already folded in here.)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
