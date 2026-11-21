@@ -1,6 +1,6 @@
 # journal-tail-second-sector: journal
 
-State: waiting on jobs 261121-103735-cf5964 261121-103744-ab7d1e 261121-103756-644f6c 261121-103815-c377f1, CI at journal:421011a
+State: waiting on jobs 261121-103735-cf5964 261121-103744-ab7d1e, CI run 44936652808 at journal:421011a
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
@@ -26,10 +26,10 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | 261121-103735-cf5964 (T9 200 seeds, macOS, with the crossing pattern), pending |
-| A2 | 261121-103735-cf5964 (macOS), 261121-103744-ab7d1e (FreeBSD VM), pending; 261121-103815-c377f1 --fails-without at journal:ba19ae0 (the stale-record cases), pending. At journal:72e6ab3 both rows failed: 261121-084910-a2210b, 261121-084913-af37f0 |
-| A3 | 261121-103756-644f6c --fails-without at journal:b9e8c5f, pending (at journal:72e6ab3: 261121-084916-f70fcc passed) |
+| A2 | 261121-103735-cf5964 (macOS), 261121-103744-ab7d1e (FreeBSD VM), pending; 261121-103815-c377f1 passed: --fails-without at journal:ba19ae0, the three stale_record_tears cases fail (3 failures, 1,054 checks). At journal:72e6ab3 both rows failed: 261121-084910-a2210b, 261121-084913-af37f0 |
+| A3 | 261121-103756-644f6c passed: --fails-without at journal:b9e8c5f fails seed 3 @4096 in the crossing pattern ("the damage is reported", "a group not lost keeps") (at journal:72e6ab3: 261121-084916-f70fcc passed) |
 | A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector), rule 2, Limits (journal:8912780, journal:72e6ab3, journal:421011a) |
-| A5 | CI at journal:421011a, queued |
+| A5 | CI run 44936652808 at journal:421011a, queued |
 
 ## Result
 
