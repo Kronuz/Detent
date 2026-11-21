@@ -10,7 +10,7 @@ Owner rule (2026-11-21), written once in cpp-libraries docs/SPLITTING.md (cpp-li
 ## Acceptance criteria
 
 - A1 [artifact] Each flagged file has a verdict, split along named boundaries or kept whole with the coherent unit that justifies it: `docs/dev/splits.md`
-- A2 The split moves code only: tools/split_check.py over the quest's range reports no changed line (or a moved-lines diff until split-check lands): a job
+- A2 The split moves code only: cpp-libraries tools/split_check.py (cpp-libraries:920d1b2 or later) with `--base` at the quest's base passes, warnings listed in the journal: a job
 - A3 [manual] The lead reads the split and confirms each cut follows a recognizable boundary per SPLITTING.md
 - A4 The suite and CI pass
 
