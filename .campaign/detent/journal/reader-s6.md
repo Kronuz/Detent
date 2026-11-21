@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:5957f28` (fix round 1 plus N1): gates f8813d 4b053e 8a8b0e; plain afc86c; mutants b558f2 23f97d 91d1e5 2a7bcc f1d342; probes 14df94 ed843e; 5M cap probes 3eb46b a46cfb; reruns (Doing); CI at the head. Pushed.
+State: waiting on jobs at `Detent:07a77ec` (D143 mapping cap): gates f01043 5021f2 4c4f68; plain ae1873; mutants a5d80c (CAP-1) 9b81e0 (CAP-2) 4552ff (NOMEM-1), with MEMO-1 b558f2, MISS-1 23f97d, ATFORK-1 2a7bcc at their own commits; 5M probes c1450e (2M) 765d93 (600K); probes 778bbf 467e2e; reruns (Doing); CI at the head. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -17,13 +17,21 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
   |---|---|---|---|
   | C1 refresh memo | `Detent:c300e5f`: `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` | plain 261121-133825-4bda7a; mutant MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2; probe rerun 261121-133754-893ca0 |
   | C2 transient miss | `Detent:c300e5f`: `openat` (EMFILE, ENFILE, ENOMEM, EAGAIN, EINTR), `fstat` and `mmap` errno raise `system_error`; `resolve` and the walk rethrow it without setting `failed`; the lookup answers `DETENT_IO` | `transient_miss` (60,000 knobs, 2 packs, descriptors exhausted) | plain 4bda7a; mutant MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d; probe rerun 261121-133754-54b604 |
-  | S1 ledger bounds | `Detent:c300e5f`: heap 8 MiB, mapped 512 MiB per handle (main's client defaults, `view.cc`), test hook `testing::bounds` | `capped`: defaults read back; cap = one pack: cold key refused with the fallback, mapped key answers; heap 1 byte: attach `DETENT_NO_MEMORY` | plain 4bda7a; mutant CAP-1 (`Detent:406256c`) 261121-133836-91d1e5 |
+  | S1 ledger bounds | `Detent:c300e5f`, then D143 at `Detent:07a77ec`: one mapping cap per handle, `detent_open_options.mapping_bytes` (0: 512 MiB), covering mappings and page-table allocations (bitmaps); no heap ledger, no `testing::bounds`; a cap below `DETENT_MINIMUM_MAPPING_BYTES` fails `detent_open` with `DETENT_INVALID_ARGUMENT` | `capped`: default 512 MiB, also for an options struct without the field; minimum - 1 refused at open; cap at the minimum: `t:k10` `DETENT_NO_MEMORY` (charged 379,880), `t:k0` answers; raised cap 1 TiB reads every key (charged 1,435,184). Local run at `Detent:07a77ec` passed | plain 261121-140946-ae1873; mutants CAP-1 (`Detent:0cbff6c`, cap unbounded) 261121-141042-a5d80c, CAP-2 (`Detent:39ef0b1`, no floor) 261121-141044-9b81e0; 5M probes 261121-141059-c1450e (2M, default refuses, 3 GiB reads all), 261121-141102-765d93 (600K, both read all) |
   | S2 atfork abort | `Detent:c300e5f`: `install_atfork` under its own mutex; a refusal fails `detent_open` with `DETENT_NO_MEMORY` and the next open retries; hook `testing::refuse_atfork` | `atfork_refused` (first in `main`) | plain 4bda7a; mutant ATFORK-1 (`Detent:fe39db7`) 261121-133840-2a7bcc |
-  | N1 cap status (lead, msg) | `Detent:5957f28`: `ReadAdmissionRefused` (a `ReadSourceFailure`) for ledger refusals; the core maps it to `DETENT_NO_MEMORY`; client and delivery unchanged | `capped` checks `DETENT_NO_MEMORY` | plain 261121-134700-afc86c; mutant NOMEM-1 (`Detent:6fc2bb1`) 261121-134715-f1d342 |
+  | N1 cap status (lead, msg) | `Detent:5957f28`: `ReadAdmissionRefused` (a `ReadSourceFailure`) for ledger refusals; the core maps it to `DETENT_NO_MEMORY`; client and delivery unchanged | `capped` checks `DETENT_NO_MEMORY` | plain ae1873; mutant NOMEM-1 rebuilt at `Detent:8dc96d0` (head minus the catch) 261121-141047-4552ff |
   | S4 A9 citation | `Detent:96a069c`: reader-core.md gains "Bounds" and "Mapped bytes after verification"; file-admission counts (six shapes of five files) and `RecordTesting` corrected | [artifact] | — |
 
-  - Mutants at `refs/mutants/reader-s6/{MEMO-1,MISS-1,CAP-1,ATFORK-1}`, each the fix head minus
-    that fix.
+  - Mutants at `refs/mutants/reader-s6/{MEMO-1,MISS-1,CAP-1,CAP-2,ATFORK-1,NOMEM-1}`, each its fix
+    head minus that fix; CAP-1, CAP-2 and NOMEM-1 at `Detent:07a77ec`, since `capped` changed. The
+    old CAP-1 91d1e5 was killed (exit 134) before D143; old NOMEM-1 f1d342 cancelled.
+  - D143 at `Detent:07a77ec` (owner, Q5 (a)): reruns of everything at `Detent:5957f28`: probes
+    778bbf 467e2e, asan db1e45, t3-asan cab068, 251480, A7 8b8f2e, dense ASan 96138b, A10 ba1861,
+    A11 aff2cc, A12/A13 e66178, soak ac5058, A14 1dd2b9, A16 exclusive 39c857 1b45ad, counts
+    8dc6f3 b20d9d, f8389b→44e871, 6cdc1f→008a38; gates f01043 5021f2 4c4f68 (`campaign verify`).
+    The 5M probes 3eb46b/a46cfb never ran (cancelled); `tests/detent_reader/reader_capacity_probe.cc`
+    replaces their scratch probe and exits 1 unless the raised cap reads every key.
+    `docs/READER_CAPACITY_ARCHITECTURE.md` names no reader core, so it is unchanged.
   - Stale evidence rerun at `Detent:96a069c`: asan 98673d, t3-asan 016ccc, 0f6416→cc8a4f,
     A7 7af780, dense ASan 136428, A10 c2a20c, A11 ab36b9, A12/A13 ef3805, soak 335e22, A14 84e679;
     A16 (the fix touches the cold-miss path): exclusive 79f55a (stopped), 2a46f5 (running),
@@ -356,8 +364,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the jobs in State; fill Evidence at `Detent:96a069c`; CI 44952617120 green.
-2. Then "ready for review" (correctness re-review of C1, C2; `campaign accept`).
+1. Read the jobs in State; fill Evidence at `Detent:07a77ec`; CI at the head green.
+2. Then "ready for review" (correctness re-review of C1, C2, S1/D143, N1; `campaign accept`).
 
 ## Blocked on
 
@@ -430,6 +438,21 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- D143's open-time check: `detent_open` attaches nothing (D2), so no store-specific bitmap size is
+  known there. The floor is the format's: one full pack and its bitmap, 1,048,576 + 6,560 =
+  1,055,136 bytes, public as `DETENT_MINIMUM_MAPPING_BYTES` and static-asserted against
+  `paged::segment_bytes` and `VerifiedPages`; below it `DETENT_INVALID_ARGUMENT`. An attach whose
+  segment table the cap cannot hold still fails `DETENT_NO_MEMORY` at the first lookup.
+- D143's one ledger: the page table takes the cap as both its heap and its mapping account, so the
+  cap counts mappings, bitmaps, segment objects and the segment table; `lazy_page_access` and
+  main's client unchanged. Field named `mapping_bytes`, as the agent's preset and `ViewLimits`.
+- D143's "2M store" case is `reader_capacity_probe`, run as a job, not a suite case: a 2M-record
+  publish is too slow for the ASan/TSan gates. The suite's `capped` shows the raised cap on the
+  wide store.
+- reader.md D3 and T4 said the bitmaps are 1/640 of mapped bytes (one bit per granule);
+  `VerifiedPages` (main's) keeps a nibble per granule, 1/160, 6,560 bytes a full pack, about
+  9.4 MiB at 5M. Corrected both to the code, as part of the D3 update.
 
 - Review fix round 1: per-handle ledgers, not main's process-wide accounts: `resources::mapping_account`
   builds view.cc's `Defaults`, whose retirement runtime starts a thread (the core starts none), and
