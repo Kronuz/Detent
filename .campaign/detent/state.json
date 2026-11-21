@@ -6286,17 +6286,44 @@
         "docs/measurements/dense-sync-stack-20261118/**",
         "docs/perf/dense-sync-stack.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-20T18:10:37",
+          "commit": "2cd1c7c13227c5cd4ff4d4cc9e719c8ad9901b8f",
+          "criteria": {
+            "A1": "[manual] The lead checked on 2026-11-20 that the eight 5M arm runs listed in `docs/perf/dense-sync-stack.md` are each `done` at level `exclusive`, exit 0, quest-tagged, at its named commit, in `campaign job list`. Each arm ran at its own commit by design, so no run at this head exists.",
+            "A2": "[artifact] `docs/perf/dense-sync-stack.md`: the 5M times table and paired differences beside the 100K table, and the Runs rows."
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "3bc4a0a1cf44647a83e88794733dc2e50ac5ea0b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-235318-59de0c",
+              "level": "light",
+              "seconds": 718.7,
+              "state": "done",
+              "what": "dense-sync-stack-5m-times check suite at 3bc4a0a1cf44"
+            }
+          ],
+          "final": true,
+          "from": "2acabd9131c7b1bbf49ff92b40b7a9c02446c55a",
+          "reason": "",
+          "tested": "2cd1c7c13227c5cd4ff4d4cc9e719c8ad9901b8f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
-      "updated": "2026-11-19T23:53:41",
-      "worktree": "../Detent-wt/detent/dense-sync-stack-5m-times"
+      "updated": "2026-11-20T18:12:27",
+      "worktree": ""
     },
     "dense-walkers": {
       "accepted": {
