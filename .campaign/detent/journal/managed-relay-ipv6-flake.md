@@ -1,6 +1,6 @@
 # managed-relay-ipv6-flake: journal
 
-State: waiting on jobs 261121-131440-d68a15 261121-131903-946009 261121-131904-868125
+State: waiting on jobs 261121-133855-33a40b 261121-133912-8a5eb2
 Quest: .campaign/detent/quests/managed-relay-ipv6-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,7 +17,7 @@ Build + repro jobs queued behind an exclusive hold; stress script /Users/kronuz/
 
 ## Next
 
-1. When 261121-131903-946009 (unloaded x20) and 261121-131904-868125 (4 copies x8 + 4 burners) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
+1. When 261121-133855-33a40b (unloaded x20) and 261121-133912-8a5eb2 (4 copies x8 + 4 burners, after the first) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
 
 ## Blocked on
 
@@ -43,3 +43,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
+
+## Jobs
+
+- 261121-131440-d68a15 failed (stale SDK/libc++ include error on a reused .scratch/build); 261121-131903-946009 and 261121-131904-868125 were skipped. Resubmitted as 261121-133855-33a40b and 261121-133912-8a5eb2, each configuring a fresh build in $JOB_OUT the way CI does (llvm, CMAKE_OSX_SYSROOT).
