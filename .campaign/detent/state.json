@@ -5907,6 +5907,8 @@
       "after": [
         "consensus-driver-install"
       ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-transport-test-flakes",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5947,6 +5949,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-transport-test-flakes",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5954,9 +5957,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T13:32:13"
+      "updated": "2026-11-21T13:32:22",
+      "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
     },
     "consensus-wave-open": {
       "accepted": {
