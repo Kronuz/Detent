@@ -4435,20 +4435,57 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-full-window-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T09:35:11",
+          "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+          "criteria": {
+            "A1": "261121-082753-d21525, 261121-082753-a72cc7; fails without: 261120-183911-97e441, 261120-183913-e37593, 261120-185057-a51736, 261120-185059-a31b7d, 261120-201357-874d17, 261120-201358-1847ef, 261120-225642-33fe0e, 261120-225643-3b255d, 261120-225646-4a2941",
+            "A2": "`docs/mechanisms/append-pacing.md` (consensus:17751bc; netem table consensus:fe0d2dc, both runs per build consensus:90ff878)",
+            "A3": "261121-082754-5ae1d3, 261121-082754-676cb7, 261121-082754-20565a, 261121-082754-8c8b3b, 261121-082754-ab5004, 261121-082754-412a78, 261121-082755-291adf; fails without: 261120-190521-62807e, 261120-201349-112b82",
+            "A4": "261121-082753-887444"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
+          "reason": "",
+          "tested": "5a114dd5836ccac43572f62b729c87fab3d3a1d7"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-20T19:29:33",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "5a114dd5836c",
+          "at": "2026-11-20T19:29:33",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From consensus-transport: consensus_transport_peers late-append failed under a loaded host at -j2 (job 261120-152646-9f3363, '5 ms hog: commits FAILED, slowest 2015 ms, 102 appends superseded'); it also passes 10/10 at main and at transport's head, so it is a load-dependent case of whole-batch resends after rpc_timeout. Check that your append pacing makes this case pass at -j2 on a loaded host (repeat x10 as a job) and cite it in your journal."
+        }
       ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-21T09:08:29",
-      "worktree": "../consensus-wt/detent/consensus-full-window-stall"
+      "updated": "2026-11-21T09:35:19",
+      "worktree": ""
     },
     "consensus-heal-snapshot-stall": {
       "accepted": {
