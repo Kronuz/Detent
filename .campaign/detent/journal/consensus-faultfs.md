@@ -53,6 +53,9 @@ frontier mutant and ack-before-turn-barrier on shared_worker/simulation (survive
 Main baselines use ~/.scratch/detent/consensus-faultfs/mutants/mutate.py (same bytes as
 test/faultfs_mutants.py, which main lacks).
 
+261120-215007-0d9365 exited 1 on a malformed commit test in its own command, before reading
+CI; 261120-215018-4d3283 is the same check without it.
+
 ## Next
 
 1. Review.
