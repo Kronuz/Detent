@@ -3595,6 +3595,42 @@
       "updated": "2026-11-18T02:06:23",
       "worktree": ""
     },
+    "consensus-driver-flow": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-install",
+        "consensus-full-window-stall",
+        "consensus-quiescence"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/driver.h",
+        "test/worker_test.cc",
+        "test/driver_test.cc",
+        "docs/DRIVER.md",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
+      "updated": "2026-11-21T02:12:14"
+    },
     "consensus-driver-install": {
       "accepted": {},
       "after": [
