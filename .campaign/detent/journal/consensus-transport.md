@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs CI at consensus:8ded754 (linux-tsan rpc_host fetch diagnostic; then 3 macOS x86_64 runs in a row)
+State: waiting on jobs 261120-224221-77bfd0 (suite at 34881c2) and CI at consensus:34881c2 (macOS x86_64 run 1 of 3)
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,6 +25,11 @@ Session 3 (2026-11-20 evening), head consensus:8ded754 (pushed).
   runs: SIGPIPE, then cancelled). Local macOS TSan at CI's flags (-O1): 5 of 5 pass, 3.5-4.6 s,
   ~260 MiB beside, gap <= 350 ms (261120-192508-e4243a). consensus:8ded754 prints the fetch's
   error, links, dropped and overrun; CI at 8ded754 says which, then fix or bound it.
+- CI at 8ded754 green (run 44861020835), linux-tsan's fetch included: the 14 s failure did not
+  recur, so nothing was changed in the code; the diagnostic line stays.
+- Merged consensus main bb961b3 (consensus-faultfs) at consensus:34881c2, clean. Suite rerun
+  261120-224221-77bfd0 (--for A1,A2,A4); macOS x86_64 runs in a row from 34881c2's CI on
+  (`gh run rerun --job` for the second and third).
 - msg-1: node-admission has not landed on consensus main (origin/main is 8801b99); when it does,
   the merge drops rpc_host's SIGPIPE ignore (34aa229, 0ce2c1f) and its sigpipe-default mutant.
 
