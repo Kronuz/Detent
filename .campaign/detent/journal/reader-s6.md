@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at the head `Detent:7bcab3a`: native 261121-054345-f65acc, tsan 261121-054345-2603c5, t3-tsan 261121-054345-9e75c5; CI 44910311745 (dispatched at the head). A16 passes D142 in all 4 cells (exclusive 5ee6cc, 0233d1). Pushed.
+State: waiting on jobs at the merged head `Detent:8200f57`: native 261121-083336-07165a, tsan 261121-083336-7d077b, t3-tsan 261121-083336-1342d5; relay ASan attribution 261121-083356-0bfda2 (head), 261121-083359-311725 (main `Detent:4195c4a`); CI 44925224917 at the head. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,24 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Coordinator (2026-11-21): gates at `Detent:283b583` passed (native f65acc, tsan 2603c5,
+  t3-tsan 9e75c5). CI 44910311745 there: linux-asan-ubsan failed `test_relay_service`, linux-tsan
+  and macos-x86_64 cancelled; the rest green.
+  - The failure is no sanitizer report: `test_relay_service.py:786`, "relay C failed a sync on a
+    source that refused" (`sync_failures` 1, `syncs` 1, `ready` 1, 4 files fetched). The relay's
+    health does not print `state.error`, so the cause is not in the log. Not in 8 other recent
+    failed CI runs (dense-distribution-build, loop-idle-waits, journal-idle-groups,
+    reader-s6 d0bdc01).
+  - The relay's sync uses `detent_local_view`, where the branch changes `generation.cc`,
+    `paged_layout.cc`, `change_file.cc` and the lazy page access, so the branch is not excluded by
+    the code. Attribution: ASan+UBSan x20 on macOS at the merged head 0bfda2 and main 311725. If
+    neither reproduces, CI 44925224917 at the head is the Linux check.
+  - Merged main at `Detent:8200f57` (loop-idle-waits and 29 more files, clean). A16's rows stand:
+    the merge changes `owner_loop.hh`, `reply_pump.*`, `detent_relay/*`, `detent_authority/service.cc`,
+    `detent_delivery/coordinator.cc`, bench and tests; the timed binaries link only
+    `detent::local_client` (`detent_local/client_source.cc` over `detent_local_view`) and
+    `detent::reader`, and none of those sources or `docs/perf/first-read-gate.sh` changed.
+    Gates forced at the head (`campaign verify --force`, per the coordinator).
 - Resumed 2026-11-21 (lead: jobs idle). Head `Detent:7bcab3a`; its code equals `Detent:4eeef65`
   plus docs/perf/first-read-gate.{md,sh} (D142); main `Detent:cb97ef5` has no code change since
   the merge base. All jobs at `Detent:4eeef65` passed: native ef4078, tsan cafe29, t3-tsan 74eeff,
@@ -295,9 +313,9 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read gates f65acc, 2603c5, 9e75c5 and CI 44910311745 at the head; the CI's linux-asan-ubsan
-   decides whether `test_local_paged_disk_store` (d0bdc01's failure) recurs.
-2. Green: "ready for review" (questions at the top). Red: attribute against main first.
+1. Read 0bfda2/311725: head fails and main passes, the branch's; else CI 44925224917 at the head.
+2. Read the gates 07165a, 7d077b, 1342d5; fill Evidence at `Detent:8200f57`.
+3. Green: "ready for review" (questions at the top).
 
 ## Blocked on
 
