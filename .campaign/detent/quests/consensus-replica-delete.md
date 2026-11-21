@@ -5,16 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Xapiand's placement drains and replaces replicas (msg-187). journal gains group delete in xapiand:journal-group-delete; this quest gives consensus's Driver the matching step: a replica removed from a group's membership closes, deletes its log and image through the store, and a later add of the same node starts it as a fresh learner. A crash mid-delete leaves the old replica or none.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A node removed from a group and added back rejoins as a fresh learner and catches up by snapshot or log: jobs
+- A2 A crash at every disk operation of the delete recovers the old replica or none, never a half: a faultfs job
+- A3 A mutant that skips the delete fails A1: a --fails-without job
+- A4 [artifact] docs/DRIVER.md states the leave and rejoin contract
+- A5 CI passes
 
 ## Contracts
 
