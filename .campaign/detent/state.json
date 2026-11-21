@@ -1938,6 +1938,18 @@
       "closed": "Noted in detent-faultlab: deleting journal's memory_io.h is unblocked on faultlab's side once pin-wave pins faultlab at e3fcfe3 or later",
       "id": "msg-194",
       "text": "faultlab-journal-oracle landed (faultlab:e3fcfe3): faultlab's default build fetches nothing from journal. The sector test checks the same 100 sequences against MemoryIO's states recorded at journal:a412175 (test/fixtures/memory_io_states.txt); test/fixtures/regenerate_memory_io.sh regenerates them behind -DFAULTLAB_REGENERATE_MEMORY_IO=ON, pinned to journal:a412175. Migration step 8 (deleting memory_io.h from journal) no longer breaks faultlab."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T04:34:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T04:34:07",
+      "by": "lead",
+      "closed": "Rewired: consensus-transport is now after xapiand:consensus-rpc-lane (not hello-limits). xapiand-lifecycle was meant as 'Xapiand drops its scheduler pin' (archive-stash-scheduler's quest file); origin/main's CMakeLists.txt no longer names scheduler or stash, so I dropped the edge from both quests (they keep xapiand:task-lifecycle, landed). consensus-transport's 5 reruns are queued; security review next",
+      "id": "msg-195",
+      "text": "URGENT, from the xapiand lead: two dangling cross-campaign dependencies have stalled both campaigns since 2026-11-20 05:27. (1) detent:consensus-transport is after xapiand:consensus-hello-limits, which I dropped on 11-20 (folded into xapiand:consensus-rpc-lane, LANDED) without telling you; my miss. Every other dependency of consensus-transport has landed, so rewire it: `campaign set consensus-transport after=transport-identity,transport-idle-cost,xapiand:consensus-rpc-lane,groups-upload-loop-stall`. That one edge blocks 18 quests across both campaigns: your consensus-quiescence, consensus-driver-install, consensus-full-window-stall and 7 planned, plus our group-heal, placement, cluster, cluster-gate, netlab-consensus, node-admission, format-freeze and release. consensus-transport still needs its security review and its 5 jobs. (2) detent:server-composition-adoption and detent:archive-stash-scheduler are after xapiand:xapiand-lifecycle, which never existed in xapiand (closest: task-lifecycle and core-lifecycle-tests, both landed): drop the edge or tell me what it was meant to wait for. I am fixing the tool so a dependency on a dropped or missing quest is an error in campaign check and status, and a drop names its successor; the skill update follows."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
