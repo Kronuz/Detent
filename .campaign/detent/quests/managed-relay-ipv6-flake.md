@@ -5,16 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+test_system_managed_relay_ipv6 failed after 51 s on CI's macos-x86_64 on three unrelated quest branches (CI 44877100446 warm-relay-agent-boot, 44877822656 loop-idle-waits, 44869473548 journal-idle-groups) and passes on rerun. After this quest the cause is named (from the test's log and a reproduction) and fixed, in the test if the test is wrong, in the product if the relay is; if the fix is in product code outside this file set, the lead widens it.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause, with the log line or reproduction that shows it, is in the journal's Result: jobs or CI reruns named there
+- A2 A job that reproduces the failure at the pre-fix commit (repeat runs, or the stress that exposes it) and the same job passing at the fix: a --fails-without job and a job
+- A3 Ten macOS x86_64 CI passes of the test in a row at the fix (one run with the test repeated, or reruns): CI run ids
+- A4 CI passes
 
 ## Contracts
 
