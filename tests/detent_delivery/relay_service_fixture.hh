@@ -117,10 +117,11 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 			   ",\"coding\":\"raw\",\"profile\":1,\"force_snapshot\":true}",
 		   open);
 	const auto opening = drain(open);
-	// Idle: a sweep without a rescan ends, and then a turn changes nothing, so the owner may sleep.
-	for (unsigned turn = 0; turn < 1000 && !runtime->swept(); ++turn)
-		runtime->step(r::Sessions::Clock::now(), false);
-	check(runtime->swept() && !runtime->step(r::Sessions::Clock::now(), false));
+	// Idle: once the open settles, a turn changes nothing and the next stays so, so the owner may sleep.
+	unsigned settling = 0;
+	while (settling < 1000 && runtime->step(r::Sessions::Clock::now()))
+		++settling;
+	check(settling < 1000 && !runtime->step(r::Sessions::Clock::now()));
 	rapidjson::Document parsed;
 	parsed.Parse(opening.data(), opening.size());
 	check(!parsed.HasParseError() && parsed.HasMember("session") && parsed["session"].IsString());
