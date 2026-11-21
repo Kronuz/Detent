@@ -24033,6 +24033,8 @@
       "after": [
         "online-capacity"
       ],
+      "base": "1a2bc47bc0a403a56526266355dab1e22dd34a62",
+      "branch": "quest/detent/restart-capacity",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -24092,11 +24094,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: the only overlap with server-composition-adoption is a 5-line hunk in website reference/configuration.md; server-composition-adoption lands after pin-wave, long after",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-21T13:24:16"
+      "updated": "2026-11-21T13:25:13",
+      "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
       "accepted": {},
