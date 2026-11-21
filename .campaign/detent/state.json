@@ -7110,6 +7110,8 @@
       "after": [
         "dense-power-cut-cycles"
       ],
+      "base": "387e044a9068510591dbf9678e8940b7ff668ed5",
+      "branch": "quest/detent/detent-faultlab",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -7163,11 +7165,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Overlaps dense-distribution-build only on tests/detent_authority/CMakeLists.txt and cmake/; a few-line merge, and faultlab's step 7 unblocks journal's step 8",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
-      "updated": "2026-11-20T23:06:07"
+      "updated": "2026-11-20T23:06:20",
+      "worktree": "../Detent-wt/detent/detent-faultlab"
     },
     "detent-multicast-seeds": {
       "accepted": {},
