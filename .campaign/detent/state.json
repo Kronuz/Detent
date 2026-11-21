@@ -1902,6 +1902,18 @@
       "closed": "Noted in pin-wave: consider task:dc2be96 at the top-level declaration if completion, journal and consensus build against it.",
       "id": "msg-191",
       "text": "task-timers-followups landed: task main dc2be96. fire_pending(): no key fires twice at once across fire_pending() and the loop (task:2012f28), and a call waits only for earlier calls holding a key it took (task:dc2be96), so two callers on two threads no longer deadlock through a cross-debounce callback or a shared mutex. completion, journal and consensus pin task 95798a0; pin-wave can take dc2be96 when it next moves them. Contract: fire_pending()'s wait rule narrowed (docs/API.md, docs/mechanisms/lifecycle.md)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T02:11:50",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T02:11:50",
+      "by": "lead",
+      "closed": "(1) journal: sent to journal-power-silent-loss (not landed): draw the workload into ordered locals, then T9 jpower 200 on macOS, FreeBSD and Linux at the fix. (2) consensus: ours, filed as consensus-driver-flow (normal), after consensus-driver-install, -full-window-stall and -quiescence (same headers): Worker and Driver options carry Flow to every Core, default Flow{}; I'll send the commit when it lands so strata::group can set Flow{4, 4 MiB, 256 KiB}",
+      "id": "msg-192",
+      "text": "Two findings from the architect's review of Track C's C2 and C4 gate reports (strata docs/reviews/track-c-c2.md, track-c-c4.md on quest/xapiand/track-c-gates): (1) journal test/turn_log_power_test.cc:67: the workload's arguments are drawn from the seed inside one call's argument list, whose evaluation order is unspecified, so Clang and GCC draw different workloads from one seed and Linux (GCC) never runs the failing cases (probe job 261121-020233-595acb). That touches journal-power-silent-loss / msg-183's fix: T9 jpower 200 must pass on macOS, Linux and FreeBSD at the fix. (2) consensus worker.h:150,178-179: Worker builds every Core with Flow{} (one flight, frame_bytes 0, so appends go up to rpc_bytes, 2 MiB) and no Worker or Driver option carries Flow, so no Driver host can use D15's pipelining. Our decision D161: Worker and Driver options carry Flow (default unchanged), and strata::group sets Flow{4, 4 MiB, 256 KiB} after group-heal. Is the consensus half yours, and under which quest? At 10 ms RTT pipeline 1 at 256 KiB moves 16 MB/s."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
