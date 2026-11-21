@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: fixing R1: waiting on jobs 261121-013727-e388e6 261121-013729-ec46d2 261121-013732-2cca08 261121-013733-6374c5 261121-013810-bf372c 261121-013810-c031ca 261121-013811-92c79d 261121-013811-3be523 261121-013811-05e1ad 261121-013811-df4da1
+State: waiting on jobs 261121-082743-5409d8 261121-082744-d960d4 261121-082746-a7137a 261121-082747-2a5648 261121-082748-70569d 261121-082750-49adb8 261121-082751-227a28 261121-082752-d0bd28 261121-082754-42e0e8 261121-082755-54cb92 261121-082757-1392de 261121-082758-511f9b 261121-082800-da051a 261121-082802-6c30d7
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,6 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+At consensus:aafa849: merge of consensus main 5ebf834 (consensus-transport 9bbd632 and
+consensus-quiescence 5ebf834). Conflicts in CMakeLists.txt and test/transport/groups_test.cc
+were both additions (main's fetch-alongside-consensus case beside this quest's install case);
+kept both, usage line names install. The diff against main is only this quest's file set.
+Built locally. Earlier:
 At consensus:740453b: merge 017c918 of main bb961b3 (consensus-faultfs, clean; the three Sink
 files differ from main only in their Sink definitions), then 740453b, the worker_test fix.
 The quest: driver.h install surface, worker.h snapshot_image + activation wait, host_transport.h
@@ -17,12 +22,11 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the queued jobs at consensus:887a88b (State): rejected, crash, simulation, the reruns;
-   CI macos-arm64 at 887a88b. Then
-   `campaign accept consensus-driver-install correctness --confirm R1=<orphan job> ...`.
-2. When consensus-quiescence lands: merge consensus main into the quest branch (the tool asks),
-   rerun every job and push. Land only from that merge.
-3. Merge consensus-transport and node-admission (consensus:c669067) when they land.
+1. Read the reruns at consensus:aafa849 (State) and CI run 44924686502 (macos-arm64); paste
+   `campaign brief`'s table into Evidence.
+2. Merge consensus main again after consensus-full-window-stall and leaving-removal land, rerun
+   every job, push.
+3. Merge node-admission (consensus:c669067) when it lands.
 
 ## Review (correctness, CHANGES at 740453b)
 
@@ -36,7 +40,7 @@ driver_simulation installs, groups_test install over the real host transport.
   Confirmed at consensus:887a88b: orphan 261121-013716-103b97 passes (76 checks, 0 failures);
   mutant orphan-no-wake (consensus:5acecc2) 261121-013719-2f4f8c fails both checks, as it
   should; lagging 261121-013721-c624b5, stale+restart 261121-013723-a8b6ab, groups install
-  261121-013725-4b7677 pass.
+  261121-013725-4b7677 pass. Orphan rerun at the merge consensus:aafa849: 261121-082743-5409d8.
 - R2 (taken): the crash case counts cuts whose recovery activates a durable, not yet activated
   image. Job 261121-005959-4cf07a: 26 operations, 24 cuts, 19 old, 5 new, 1 activated at
   recovery, 0 failures. The case now requires such a cut (consensus:887a88b).
@@ -51,6 +55,10 @@ driver_simulation installs, groups_test install over the real host transport.
 ## Blocked on
 
 Nothing.
+
+msg-2 (answered): consensus-quiescence's F7 fix (consensus:818fd0a, Gone handled before the
+term step) is an ancestor of consensus main 5ebf834, merged here as consensus:aafa849. No API
+change; nothing in this quest's files matches on Gone.
 
 msg-1 (answered): merged consensus-quiescence 3b20d96 into the quest branch as consensus:8c4a62f
 (tree = the earlier 135a269 resolution plus 3b20d96's own delta, checked by diff), then R1
