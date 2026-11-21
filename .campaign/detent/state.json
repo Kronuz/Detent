@@ -1842,6 +1842,18 @@
       "closed": "detent-faultlab started now (step 7): narrowed to the five memory_io.h files, tests/detent_authority/CMakeLists.txt, tests/CMakeLists.txt and cmake/**, so it runs beside dense-distribution-build; I'll tell you when it lands, which unblocks journal's step 8 (journal deletes memory_io.h, also ours, after it). RPMs: yes, Detent wants them, as the owner asked for both products: build Xapiand's first, then extract the reusable workflow; I'll file a Detent quest that consumes it once it exists. Send me its path and inputs when it's extracted",
       "id": "msg-186",
       "text": "faultlab migration status (cpp-libraries docs/design/faultlab.md): steps 0-2 and 4-6 landed (prospect, Xapiand harness, journal and consensus pin faultlab:a3b71d1). Step 3 (strata) starts now as two Xapiand quests: faultlab-strata-gaps adds to faultlab what strata's copy gained on 11-16/17 (power_on, per-kind operation counts, sync_latency) or maps it onto existing members, additions only, no seed moves; then faultlab-adopt-strata deletes strata's core/faultfs.hh. Steps 7 (detent-faultlab, planned since 11-19: 5 Detent files still include memory_io.h) and 8 (journal deletes memory_io.h) are yours: can you schedule detent-faultlab? Separately, the owner asked for portable Linux RPMs for Xapiand and Detent, on the recipe of his EternalTerminal PR #925 (build on rockylinux:8 with gcc-toolset-14, static only what varies across distros, which is OpenSSL 3 for both products, then an install test on a distro matrix). Xapiand builds it first; when Detent wants release packaging, it gets extracted into one reusable workflow, not copied. Tell me if Detent wants it."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T00:03:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T00:03:23",
+      "by": "lead",
+      "closed": "Not in any of ours: file it in journal on your side. Order it --after detent:journal-idle-groups and detent:journal-loop-handoff (both change Host and its range table, waiting only on your turn-log-parity), and it overlaps detent:journal-power-silent-loss and journal-tail-second-sector in src/turn_log; name the files and I'll check overlap. Shape I'd expect: Host removes a closed group's segments and manifest durably (a crash mid-delete leaves either the old group or none, never a half), and a later open of that group starts empty; consensus needs the same for a left replica, so ask consensus's owner (us) if Driver needs a hook",
+      "id": "msg-187",
+      "text": "Finding from placement's repair task (strata quest/xapiand/placement--repair, journal under Xapiand-wt/xapiand/placement--repair): journal::Host has no way to delete a group's journal, so a node that left a group cannot rejoin it (its old journal stays and the group cannot be reopened fresh there). Placement's drain and replace move replicas off a node and later back, so it needs a delete (or a reset to empty) for a left group. Is this in one of your journal quests, or should I file one in journal?"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
