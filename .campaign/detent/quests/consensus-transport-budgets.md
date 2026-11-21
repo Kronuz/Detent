@@ -32,3 +32,5 @@ everything waits for the review; `land --upto` refuses then.>
 
 <The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
 after T0)`. Each merges into the quest branch on its own tests.>
+
+- From consensus-transport-security.md (Detent:627e8ac8), non-blocking findings folded here by the lead: F2 fetch replies are held whole outside every budget (up to serving x fetch_bytes, 16 GiB per peer): count them in the bulk budget; F3 the receive bound is per group only; F4 the fuzzer models a peer that never reads; F6 `~Lane` asserts `!depth_`. Criteria for F2 and F4 are added when this quest starts.
