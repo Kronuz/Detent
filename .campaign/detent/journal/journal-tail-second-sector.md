@@ -1,19 +1,16 @@
 # journal-tail-second-sector: journal
 
-State: waiting on jobs 261121-103735-cf5964 261121-103744-ab7d1e, CI run 44936652808 at journal:421011a
+State: ready for review
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
 
-The 200-seed rows at journal:72e6ab3 failed (261121-084910-a2210b macOS, 261121-084913-af37f0
-FreeBSD): 3 simulated tears read as damage, all span 2 fill 2. Fix at journal:421011a; jobs at it,
-the A3 mutant journal:b9e8c5f (branch mutant/journal-tail-second-sector/tear-421011a) and the
-fix's mutant journal:ba19ae0 (branch mutant/journal-tail-second-sector/stale-named).
+Nothing: only the durability review remains. Head journal:1ce0043 (docs-only over journal:421011a,
+where the jobs ran).
 
 ## Next
 
-1. When the jobs and CI pass: fill the doc's Evidence numbers (200-seed counts), Evidence table,
-   CI run id; State "ready for review".
+1. Fold in the durability review's findings by id.
 2. Merge main once xapiand:journal-turn-buffers lands (it changes turn_log.h's turn-buffer path;
    mine touch only damaged_fragment and scan_segment).
 
@@ -25,11 +22,11 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-103735-cf5964 (T9 200 seeds, macOS, with the crossing pattern), pending |
-| A2 | 261121-103735-cf5964 (macOS), 261121-103744-ab7d1e (FreeBSD VM), pending; 261121-103815-c377f1 passed: --fails-without at journal:ba19ae0, the three stale_record_tears cases fail (3 failures, 1,054 checks). At journal:72e6ab3 both rows failed: 261121-084910-a2210b, 261121-084913-af37f0 |
-| A3 | 261121-103756-644f6c passed: --fails-without at journal:b9e8c5f fails seed 3 @4096 in the crossing pattern ("the damage is reported", "a group not lost keeps") (at journal:72e6ab3: 261121-084916-f70fcc passed) |
-| A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector), rule 2, Limits (journal:8912780, journal:72e6ab3, journal:421011a) |
-| A5 | CI run 44936652808 at journal:421011a, queued |
+| A1 | 261121-103735-cf5964 (T9 200 seeds, macOS, at journal:421011a: 1,228,757 checks, 0 failures; 18,365 damaged crossing fragments reported) |
+| A2 | 261121-103735-cf5964 (macOS), 261121-103744-ab7d1e (FreeBSD VM), both 1,228,757 checks, 0 failures; fails without: 261121-103815-c377f1 at journal:ba19ae0 (the three stale_record_tears cases fail). At journal:72e6ab3 both rows failed: 261121-084910-a2210b, 261121-084913-af37f0 |
+| A3 | 261121-111814-e34656 (seed 3 @4096 passes at journal:421011a); fails without: 261121-103756-644f6c at journal:b9e8c5f (the crossing pattern fails) |
+| A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector), rule 2, Limits, Evidence (journal:8912780, journal:72e6ab3, journal:421011a, journal:1ce0043) |
+| A5 | ci:macos-arm64 (CI run 44936652808 green at journal:421011a; the run at the docs-only journal:1ce0043 is queued) |
 
 ## Result
 
