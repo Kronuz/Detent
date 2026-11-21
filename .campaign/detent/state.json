@@ -1782,6 +1782,18 @@
         "quest": "xapiand:journal-turn-buffers"
       },
       "text": "xapiand:journal-turn-buffers started and may change files your journal-idle-groups changes (order them with --after xapiand:journal-turn-buffers, or narrow the files); may change files your journal-loop-handoff changes (order them with --after xapiand:journal-turn-buffers, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T18:44:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T18:44:00",
+      "by": "consensus-driver-install",
+      "closed": "Required install notices (one shape): test/driver_test.cc, driver_close_test.cc and wave_open_test.cc added to consensus-driver-install for the mechanical Sink update; consensus-faultfs and consensus-quiescence also edit them, so expect small merges",
+      "id": "msg-180",
+      "text": "consensus-driver-install asks: extend its file set with test/driver_test.cc, test/driver_close_test.cc, test/wave_open_test.cc. The contract (consensus:2c598fb, DRIVER.md Install; sent to Xapiand as msg-187) replaces the Sink's ActivateInstall notice with ActivateImage (it carries the image reader; Core's ActivateInstall cannot hold one) and adds SendTransfer and ValidateImage to the sink concept; those three tests define explicit Sinks that must rename one overload and add two no-op ones, or they stop compiling. Mechanical, no behavior change. Alternative if you refuse: keep ActivateInstall in the concept and make the install notices optional (if constexpr; open() with snapshots refuses a Sink without them), which is two shapes. Recommend the extension. Continuing on the rest meanwhile."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
