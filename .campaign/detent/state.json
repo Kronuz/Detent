@@ -5094,8 +5094,9 @@
       "files": [
         "include/consensus/core.h",
         "test/driver_replace_test.cc",
-        "test/quiescence_test.cc",
-        "docs/mechanisms/quiescence.md"
+        "test/**",
+        "docs/mechanisms/quiescence.md",
+        "CHANGELOG.md"
       ],
       "history": [
         {
@@ -5130,13 +5131,15 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-driver-install"
+      ],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
       "status": "planned",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T11:05:01"
+      "updated": "2026-11-21T11:05:12"
     },
     "consensus-quiescence": {
       "accepted": {
