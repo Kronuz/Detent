@@ -7124,7 +7124,12 @@
         "tests/detent_system/test_writers.py",
         "tests/detent_relay/mutants/compressed-answer-unfitted.patch",
         "website/src/content/docs/reference/http-api/authority.md",
-        "include/detent_distribution/framing.hh"
+        "include/detent_distribution/framing.hh",
+        "src/detent_distribution/frame_encoder.cc",
+        "tests/detent_distribution/test_frame_encoder.cc",
+        "tests/detent_authority/test_frames_export_buffers.cc",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_distribution/CMakeLists.txt"
       ],
       "history": [
         {
@@ -7221,7 +7226,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-21T06:15:30",
+      "updated": "2026-11-21T06:26:44",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
