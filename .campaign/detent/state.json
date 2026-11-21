@@ -10911,9 +10911,9 @@
       ],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T08:14:21",
+      "updated": "2026-11-20T16:05:05",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
