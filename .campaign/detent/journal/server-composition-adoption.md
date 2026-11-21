@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261121-131314-98a5a7 (A2 authority: build all, daemon tests, sigterm), 261121-131321-a5da1a (authority-only build + docs check) and CI at the pushed head (A3)
+State: waiting on jobs 261121-133118-09b34d (build all + unit/daemon/secrets ctest), 261121-133128-18e429 (system: relay, agent and authority SIGTERM, dual stack, managed relay and process), 261121-133143-d866a0 (authority-only and relay-only builds, docs check), 261121-131314-98a5a7 (authority at 26a96e4a); CI at 247d1717 (A3)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -48,9 +48,9 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: 261121-131314-98a5a7; relay and agent: see jobs in State (`test_relay_sigterm.py`, `run_agent_sigterm.py`, ctest daemon|process|sigterm) |
-| A3 | ci:macos-arm64 at the pushed head; pin-check red until pin-wave |
-| A4 | relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
+| A2 | authority: 261121-131314-98a5a7 (26a96e4a) and test_authority_daemon_sigterm in 261121-133118-09b34d; relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-133128-18e429 |
+| A3 | ci:macos-arm64 at 247d1717; 261121-133143-d866a0 (authority-only and relay-only builds, docs check); pin-check red until pin-wave |
+| A4 | jobs 261121-133118-09b34d, 261121-133128-18e429. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
 
 ## Result
 
