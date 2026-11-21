@@ -5,16 +5,15 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus-leaving-removal's correctness review (F5, non-blocking) found that with Timing::quiesce on, replace seeds 1-1079 finish, then seed 1080 elects no leader for 3000 settle steps after the leaving member's removal committed (probe 261121-084426-67006a, trace 261121-084651-05c124; rerun `driver_replace_test 1 1080` with quiesce on). consensus-quiescence (landed, consensus:5ebf834) owns rest and wake; this is a liveness defect in it, not attributed further. After this quest the cause is named and fixed, and a group that loses its leader while followers rest elects one within the election bound in every seed.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 driver_replace_test with quiesce on, seeds 1-3000: every seed elects a leader within the election bound after the removal; the seed-1080 case as a named test: jobs
+- A2 A --fails-without job at the pre-fix commit shows seed 1080 stalling
+- A3 The quiescence suite and TSan pass: jobs
+- A4 [artifact] docs/mechanisms names the wake rule that covers the case
+- A5 CI passes
 
 ## Contracts
 
