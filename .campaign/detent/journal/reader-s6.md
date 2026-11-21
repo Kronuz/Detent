@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs: gates at `Detent:4eeef65` (code of the head `Detent:45db5f7`) native ef4078, tsan cafe29, t3-tsan 74eeff, asan 598ac8, t3-asan 93c07d; reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113, count 3cc4bb; A16 exclusive 5ee6cc (stopped), 0233d1 (running) at the head; CI 44876979057 queued at 4eeef65. Pushed.
+State: waiting on jobs at the head `Detent:7bcab3a`: native 261121-054345-f65acc, tsan 261121-054345-2603c5, t3-tsan 261121-054345-9e75c5; CI 44910311745 (dispatched at the head). A16 passes D142 in all 4 cells (exclusive 5ee6cc, 0233d1). Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,28 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Resumed 2026-11-21 (lead: jobs idle). Head `Detent:7bcab3a`; its code equals `Detent:4eeef65`
+  plus docs/perf/first-read-gate.{md,sh} (D142); main `Detent:cb97ef5` has no code change since
+  the merge base. All jobs at `Detent:4eeef65` passed: native ef4078, tsan cafe29, t3-tsan 74eeff,
+  asan 598ac8, t3-asan 93c07d, reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113,
+  count 3cc4bb. Gates rerun at the head (lead): f65acc, 2603c5, 9e75c5. CI 44876979057 was
+  cancelled; 44910311745 dispatched at the head.
+  - A16 exclusive at `Detent:45db5f7` (same code as the head), BASELINE main `Detent:cb97ef5`,
+    6 runs x 200 reads per arm per cell: 5ee6cc (stopped) and 0233d1 (running) exit 0. Per cell,
+    paired median difference / median floor; branch / main pooled p99; main's run-p99 spread
+    (D142 floor):
+
+    | Cell | Paired diff / floor | Branch p99 | Main p99 | Main p99 spread | Bound |
+    |---|---|---|---|---|---|
+    | stopped, 1 ns | -50.1 / 38.1 us | 0.830 ms | 0.875 ms | 0.186 ms | 1.061 ms |
+    | stopped, 1,000 ns | -54.4 / 34.3 us | 0.890 ms | 1.021 ms | 0.283 ms | 1.304 ms |
+    | running, 1 ns | -50.4 / 43.8 us | 1.109 ms | 1.139 ms | 0.279 ms | 1.418 ms |
+    | running, 1,000 ns | -54.5 / 26.4 us | 1.001 ms | 1.109 ms | 0.380 ms | 1.489 ms |
+
+    The pass does not rest on the floor's size: in every cell the branch's pooled p99 is below
+    main's, and its median 50-55 us faster. One branch run (stopped 1 ns, run 2) had a 1.486 ms
+    p99 with 7 reads over 1 ms; main's runs reach 1.27 ms in the running cells, so it is this
+    host's tail. Same shape as the dc004dc exclusive pair (9f40bf/5fb83e). Not code, no fix.
 - Lead's D142 (2026-11-20): `Detent:45db5f7` gates p99 on main's pooled p99 plus main's run p99
   spread in the cell (max minus min); the paired difference keeps the median floor; timed runs are
   exclusive. Strict bd2b1e/256548 cancelled; exclusive 5ee6cc and 0233d1 queued. Main merged at
@@ -273,11 +295,9 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, reruns, count 3cc4bb, A16 exclusive 5ee6cc/0233d1 and CI
-   44876979057; mark Evidence.
-2. Merge main again if dense-distribution-build's W1 cursor lands; rerun the gates.
-3. When 1-2 close and CI is green: "ready for review" with 3-5 questions per lens; the reviewers should check the
-   freshness argument under Rulings (attach from the refresh's table; first attach from the view's).
+1. Read gates f65acc, 2603c5, 9e75c5 and CI 44910311745 at the head; the CI's linux-asan-ubsan
+   decides whether `test_local_paged_disk_store` (d0bdc01's failure) recurs.
+2. Green: "ready for review" (questions at the top). Red: attribute against main first.
 
 ## Blocked on
 
@@ -285,22 +305,22 @@ Nothing. The p99 floor is ruled: D142 (option a), applied at `Detent:45db5f7`.
 
 ## Evidence
 
-At `Detent:dc004dc` unless named. The A8, A10-A12 mutants stay at `Detent:e77b31d` (the brief does
-not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
+Code at the head `Detent:7bcab3a` = `Detent:4eeef65` + docs. Mutants stay at `Detent:e77b31d`
+(A8, A10-A12) and `Detent:dc004dc` (SEL-1/SEL-2, DROP-1 at `Detent:1136d31`).
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 9d4b5b |
-| A4 | gates at `Detent:d0bdc01` pending (see State); at `Detent:dc004dc` t3-tsan f8389b passed; mutant STATS-1 676367; Linux gcc T3 fix: `unreadable_table` d5b8ee, mutant DROP-1 acc366 killed |
-| A7 | 3d025c |
-| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads edcde5 (pending), BOUND-1 bf6dfc killed |
+| A1-A3, A5, A6, A15 | native f65acc, tsan 2603c5 (head, pending); native ef4078, tsan cafe29, asan 598ac8, t3-asan 93c07d (`Detent:4eeef65`) |
+| A4 | t3-tsan 9e75c5 (head, pending), 74eeff (`Detent:4eeef65`); mutant STATS-1 676367; `unreadable_table` in native, mutant DROP-1 acc366 killed |
+| A7 | cccaca |
+| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads 5dd6f7, BOUND-1 bf6dfc killed |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation" and "Mapped bytes after verification" |
-| A10 | plain 6f34b7; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
-| A11 | plain a4f9cd; mutant SR2 0b8176 |
-| A12 | cold 1628b4; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80; soak 3cdb4e (pending) |
-| A13 | 1628b4 |
-| A14 | caf921 |
-| A16 | D140: strict 29d977, 481c35, count bc7996 (pending, at `Detent:d0bdc01`); exclusive 9f40bf/5fb83e at `Detent:dc004dc` pass D140 on these numbers (branch pooled p99 below main's in every cell); attribution A/B db0806 |
+| A10 | 1187fe; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
+| A11 | 32e96c; mutant SR2 0b8176 |
+| A12 | cold dd95f8, soak e7e113; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80 |
+| A13 | dd95f8 |
+| A14 | 5e46f2 |
+| A16 | D142, exclusive 5ee6cc (stopped), 0233d1 (running), pass in all 4 cells (Doing); count 3cc4bb |
 
 ## Messages
 
