@@ -1,6 +1,6 @@
 # journal-power-silent-loss: journal
 
-State: waiting on jobs 261121-021347-4f85dd 261121-021358-5dfddc 261121-021401-adac93, CI at 3e36940
+State: waiting on jobs CI run 44893311494 (macos-x86_64 rerun)
 Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never edit it)
 
 ## Doing
@@ -8,8 +8,10 @@ Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never e
 msg-192: test/turn_log_power_test.cc drew a record's size and kind inside one call's argument
 list, so Clang and GCC ran different workloads from one seed. journal:3e36940 draws them into
 named locals, size first as Clang did. Clang's workloads are unchanged: the five seeds hit the same
-segments, blocks and checks at the new mutants. The fix is test-only. The 200-seed rows on macOS,
-FreeBSD and Linux at 3e36940 are running.
+segments, blocks and checks at the new mutants. The fix is test-only. The 200-seed rows pass on macOS,
+FreeBSD (clang 19) and Linux (GCC 13.3) at 3e36940, with identical per-geometry counts.
+CI run 44893311494: macos-arm64 green. macos-x86_64 failed to clone the metrics dependency (an
+infrastructure failure), so I reran that job.
 
 ## Next
 
@@ -24,7 +26,7 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/mechanisms/turn-log-damage.md` (journal:0465f24): the rules and the seed that pins each; per-seed diagnosis and old-code replay in Result below |
-| A2 | 261121-021345-4841ea (the five seeds pass at 3e36940); 261121-021347-4f85dd (macOS, 200 seeds), 261121-021358-5dfddc (FreeBSD VM, 200), 261121-021401-adac93 (Linux VM, GCC, 200): pending |
+| A2 | 261121-021345-4841ea (the five seeds pass at 3e36940); 261121-021347-4f85dd (macOS, 200 seeds), 261121-021358-5dfddc (FreeBSD VM, clang 19, 200), 261121-021401-adac93 (Linux VM, GCC 13.3, 200): each 1,036,264 checks, 0 failures |
 | A3 | 261121-021345-4841ea (the five seeds pass at 3e36940); fails without: 261121-021331-c7d5d8, 261121-021333-c493df, 261121-021336-c45179 (seeds 91 and 140 @512, 122 @256 at mutant 3793195, tail fix reverted); 261121-021339-6e1ee1, 261121-021342-6b2ffb (seeds 145 and 199 @2048 at mutant 59c9300, length trial removed). Mutants are kept on the local branches mutant/journal-power-silent-loss/{tail,length} |
 | A4 | `ci:macos-arm64` |
 
