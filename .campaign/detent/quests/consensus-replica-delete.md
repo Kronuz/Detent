@@ -33,3 +33,5 @@ everything waits for the review; `land --upto` refuses then.>
 
 <The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
 after T0)`. Each merges into the quest branch on its own tests.>
+
+- 2026-11-21, Xapiand lead (proposed, final when xapiand:journal-group-delete fixes it): `journal::Host::delete_group(std::uint64_t group)`, synchronous like create/reopen/close_group; refused with a named error unless status(group) is closed and holding(group) is false; durable order: a table record marks it deleted, then segments, manifest and artifacts go; a power cut leaves the whole old group or none, and open() finishes a recorded delete; a later create_group(group) starts empty and other groups keep every acknowledged record. Consensus side: a replica removed from membership closes its group, calls delete_group, and rejoins as a fresh learner.
