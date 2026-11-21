@@ -4387,7 +4387,7 @@
         "include/consensus/core.h",
         "include/consensus/worker.h",
         "include/consensus/driver.h",
-        "src/**",
+        "include/consensus/membership.h",
         "test/core_test.cc",
         "test/worker_test.cc",
         "test/driver_replace_test.cc",
@@ -4432,12 +4432,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: A blocking bug for Xapiand's placement; overlaps the consensus quests in src/, merged at landing",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T00:57:35",
+      "updated": "2026-11-21T00:58:37",
       "worktree": "../consensus-wt/detent/consensus-leaving-removal"
     },
     "consensus-mutants-per-test": {
