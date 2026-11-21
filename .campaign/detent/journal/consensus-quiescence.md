@@ -37,6 +37,9 @@ a regression seed there). Xapiand pins consensus:5923b6c, 167 commits behind mai
 
 ## Messages
 
+- msg-1 (drop the rpc_host SIGPIPE ignore after node-admission): accepted; consensus:c669067 is
+  not on consensus main at a020e14, so 82cefee's ignore and its sigpipe-default mutant stay until
+  it lands and is merged (under Next).
 - Coordinator (consensus:50f0a48 interface, deadline mutants): merged consensus-transport at
   consensus:7cdcc0e (open_of required, store(group, incarnation); groups_test already on it).
   test/transport/mutant_commit.py no-extension, uncapped, twice now match deadline.h's
