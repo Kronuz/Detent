@@ -7100,8 +7100,8 @@
     "dense-distribution-build": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T13:08:44",
-          "base": "40a94560d293e9597015589568e680aa3f22fc65",
+          "at": "2026-11-21T13:10:01",
+          "base": "5688e40d92d754a85635b86cbe35963f4814323b",
           "blobs": {
             ".github/workflows/ci.yml": "100644:9eafbf760f0de33f0e00e8021e0e61e0ffc1a410",
             ".github/workflows/tls-fixture-diagnostics.yml": "100644:e737e9ecc01715ea480a33002c83aa8d4e345e5a",
@@ -7450,7 +7450,7 @@
             "website/src/content/docs/reference/http-api/authority.md": "100644:13713197ec08d5d4c6900a74274521e7162be860"
           },
           "by": "review",
-          "commit": "eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d",
+          "commit": "1b0daf2156b7278b18da5358cf502b1af2031795",
           "criteria": "14aa58350d3290be",
           "diffs": {
             "": "1b8f2c7fc41dd720",
@@ -7801,7 +7801,7 @@
             "website/src/content/docs/reference/http-api/authority.md": "b508da896a13528f"
           },
           "findings": {},
-          "note": "",
+          "note": "read main's change since the review: only docs/design/stash-scheduler-verdict.md (a new design note) and .campaign; no code under the quest",
           "review": "a08e85d9c75669b275e4456b747f603ed768c1a6",
           "reviewed": "eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d",
           "verdict": "APPROVE"
@@ -8264,7 +8264,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-21T13:08:44",
+      "updated": "2026-11-21T13:10:01",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
