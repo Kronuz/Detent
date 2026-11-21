@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-083440-bedfc4 261121-083442-2c1aec 261121-083445-9321a1 261121-083448-2a6b63 261121-083450-f4bdf7 261121-083453-9b1c92 and CI 44925311406 (all at 304bb1e)
+State: waiting on CI 44925311406 at 304bb1e (A4); A1-A3 jobs at 304bb1e passed
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -22,7 +22,7 @@ Jobs at 304bb1e: A1 261121-083440-bedfc4; A2 run 261121-083442-2c1aec, mutants
 
 ## Next
 
-1. Read the jobs at 304bb1e and CI 44925311406; fill Evidence.
+1. Read CI 44925311406 (macos-arm64) at 304bb1e; A4 then cites `ci:macos-arm64`.
 2. When consensus-full-window-stall lands on main, merge main again and rerun the same jobs.
 
 ## Follow-ups (review, non-blocking)
@@ -51,10 +51,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending at 304bb1e: 261121-083440-bedfc4 |
-| A2 | pending at 304bb1e: 261121-083442-2c1aec; fails without: 261121-083445-9321a1, 261121-083448-2a6b63 |
-| A3 | pending at 304bb1e: 261121-083450-f4bdf7 (driver_replace seed 26); fails without: 261121-083453-9b1c92 (removal-unreserved) |
-| A4 | `ci:macos-arm64` |
+| A1 | 261121-083440-bedfc4 |
+| A2 | 261121-083442-2c1aec; fails without: 261121-083445-9321a1, 261121-083448-2a6b63 |
+| A3 | 261121-083450-f4bdf7 (driver_replace seed 26); fails without: 261121-083453-9b1c92 (removal-unreserved) |
+| A4 | `ci:macos-arm64` (CI 44925311406 at 304bb1e, queued) |
 
 ## Result
 
