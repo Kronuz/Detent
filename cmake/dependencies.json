@@ -122,7 +122,7 @@
   {
     "name": "task",
     "repository": "https://github.com/Kronuz/task.git",
-    "revision": "bdafa5f1ca96a2d34b1c5eb0bbb04e4b3ddb88c0",
+    "revision": "95798a02f68c86f070401329a05c78d326ac2579",
     "source_subdir": "."
   },
   {
@@ -152,13 +152,13 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "560c288b40ba55a8d42ff048bcb1c7eaa3624645",
+    "revision": "d8b538c6778f0a1b969e42c8428995d1d29d4731",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "e5f6ff1cfe85d388ee2e243427328f5016508fbd",
+    "revision": "9e11713edbb6e31681e1ae7a3f8f18f15eb7eaac",
     "source_subdir": "."
   },
   {
@@ -170,7 +170,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "a197efba7ac0e2e939cc7833cac07d5793d16522",
+    "revision": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
     "source_subdir": "."
   },
   {
