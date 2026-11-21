@@ -4264,9 +4264,9 @@
       "branch": "quest/detent/consensus-quiescence",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 60,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -4291,6 +4291,46 @@
         "tools/mutants.sh",
         "fuzz/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:12",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-quiescence",
       "landed": [],
       "lenses": [
@@ -4303,7 +4343,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-20T09:36:17",
+      "updated": "2026-11-20T18:25:12",
       "worktree": "../consensus-wt/detent/consensus-quiescence"
     },
     "consensus-transport": {
