@@ -9,15 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1, root cause: a core-level prototype (3 Cores over throttled FIFO links, 32 x 64 KiB in
+flight, scratch ~/.scratch/detent/consensus-full-window-stall/proto.cc) to see whether the stall
+reproduces in Core alone or needs the Worker/Driver/transport.
 
 ## Next
 
-1. <step>
+1. Name the root cause at file:line from the prototype's trace.
+2. Deterministic test (test/full_window_stall_test.cc) failing at main; fix; --fails-without job.
+3. A3 netem bench in the Linux VM; A4 suite, TSan, CI.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
