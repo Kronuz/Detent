@@ -203,7 +203,14 @@ reclaim scans ~60 completion ops/s) frames A1.
   all failed to compile; the arm64 fix was untested). Detent:219ba475 ports it: step until a turn changes nothing
   (bounded at 1000), then check the next turn is idle too, the condition the host sleeps on.
 - bisect/liw-fix now Detent:60353565 (the fixture on 2c48ec1f); CI 44903029845. Quest CI 44902999124.
-- Reruns at 219ba475 queued (State). Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
+- Reruns at 219ba475 queued (State). Relay job 261121-041501-9af980 failed: test_relay_network_100000, "fixture
+  server: coordinator invariant at line 330" (`load.bytes == length * 500 && connections.high_water >= 500`); quest CI
+  44902999124 linux-arm64-gcc failed the same test at the same line. Local instrumented build (not evidence): alone
+  5 of 5 pass at high_water exactly 500 (zero margin); four copies at once, the fixture's high_water fell to 282-414
+  (peak_transfers 211-404) with bytes correct. Reading: each turn now advances every request (main: 32 polls a turn,
+  round robin), so under load early 142 KB replies finish and their connections close before the last of the 500
+  next requests is admitted. A/B probes: x20 alone head -042832-2dfa53 vs pre-fix 2654cd20 -042834-dc10b1; two at
+  once x8 head -043412-7ac777 vs pre-fix -043414-c14b6b. Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
   table from the reruns and delete bisect/liw-fix.
 
 ## Result
