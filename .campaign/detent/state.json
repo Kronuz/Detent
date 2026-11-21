@@ -12234,6 +12234,41 @@
       "updated": "2026-11-18T00:52:38",
       "worktree": ""
     },
+    "journal-tail-second-sector": {
+      "accepted": {},
+      "after": [
+        "journal-power-silent-loss"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "include/journal/framing.h",
+        "include/journal/turn_log.h",
+        "test/**",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
+      "updated": "2026-11-20T21:35:59"
+    },
     "journal-turn-bound": {
       "accepted": {
         "durability": {
