@@ -23924,6 +23924,35 @@
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
       "updated": "2026-11-21T11:42:11"
     },
+    "split-journal": {
+      "accepted": {},
+      "after": [
+        "journal-tail-second-sector"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/**",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in journal is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T11:42:29"
+    },
     "stage-0-architecture": {
       "accepted": {},
       "after": [],
