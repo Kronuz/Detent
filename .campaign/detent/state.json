@@ -4997,13 +4997,29 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-21T02:28:51",
+          "lenses": [
+            [
+              "security",
+              "correctness"
+            ],
+            [
+              "security"
+            ]
+          ],
+          "reason": "one reviewer by default: security is the dominant risk of a wire transport facing untrusted peers; the reviewer carries the correctness questions",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
         }
       ],
       "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
-        "security",
-        "correctness"
+        "security"
       ],
       "milestone": "M1b",
       "needs": [
@@ -5018,7 +5034,7 @@
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-20T18:25:15",
+      "updated": "2026-11-21T02:28:51",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-transport-budgets": {
