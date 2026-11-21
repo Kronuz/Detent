@@ -1,8 +1,8 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-161546-ecf083 (suite at Detent:2c0a7101), 261120-161540-0595dc
-(positions-counted mutant), 261120-161518-53890f / 261120-161526-e8d2d5 / 261120-161517-fc6897
-(managed failover x10 at the fix, the pre-fix head, main), and CI at Detent:2c0a7101.
+State: waiting on jobs 261120-224455-3acb56 (relay-history-default-limits mutant),
+261120-224456-b17d9f (5M row, strict, at Detent:f835a635), and CI at Detent:392a5a39 (the gate
+suite is CI's macos-arm64 job, D57).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -10,6 +10,26 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Round after suite 261120-161546-ecf083 (failed at Detent:2c0a7101):
+- test_system_runner_runtime: the writer unit fakes lacked namespace_revision, which result_json
+  always sends; the fakes carry it and the capacity and retry cases check positions
+  (Detent:8d84cffb; local unittest 55/55). Same failure on every CI job at Detent:2c0a7101.
+- Failover proof: x10 at the pre-fix head failed 1 (261120-161526-e8d2d5, "oracle rejected agent
+  0"), 0 at main (261120-161517-fc6897), 0 at the fix (261120-161518-53890f); mutant killed
+  (261120-161540-0595dc: "producer 8 expects namespace position 14, the authority has 20").
+- Merged history-ranges at Detent:89df216a (Detent:d77be4fc), clean.
+- 5M row 503 (diagnosis 261120-161154-462bce): the relay's mirror threw "history change count"
+  1,190 times. The relay decoded mirrored bases with the authority's default Limits (500K keys);
+  the 5M fixture's four namespaces hold 1.25M each, and mirror_service's catch-all answered 503
+  distribution_unavailable until the agent's preparation deadline. The F4 bench (10 x 500K) sat
+  exactly at the bound. Fix: the relay lifts the change-count bound as its builds lift records
+  (Detent:f835a635); test_relay_pages large_base (500,001 keys, records and pages); mutant
+  tests/detent_relay/mutants/relay-history-default-limits.patch. 5M rerun 261120-224456-b17d9f.
+- CI macos-x86_64 at Detent:2c0a7101: test_system_relay_pages timed out at 300 s after the cold
+  boot (seed 60 s there; the test passes in 9-86 s on every other runner and locally; its first
+  CI run, every earlier one was cancelled). Phase times printed from Detent:392a5a39; cause
+  pending that run.
 
 Suite failure at Detent:e9937a82 (test_system_managed_authority_failover, "oracle rejected agent
 1"): this branch's harness, not the product (Detent:2c0a7101).
@@ -221,7 +241,7 @@ Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125
 | Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 failed at Detent:e9937a82 (harness, fixed at Detent:2c0a7101); 261120-161546-ecf083 at Detent:2c0a7101 |
 | Failover | mutant 261120-161540-0595dc; x10: 261120-161518-53890f (fix), 261120-161526-e8d2d5 (pre-fix head), 261120-161517-fc6897 (main) |
 
-Accept map (ready for accept once suite 261120-161546-ecf083 passes; one confirming job each):
+Accept map (ready for accept once CI macos-arm64 passes at the head; one confirming job each):
 `campaign accept dense-distribution-build correctness --confirm F1=261120-125854-e45912
 F2=261120-141032-1ff8f3 F3=261120-130727-a5032b F4=261120-134038-4ee64d F10=261120-141019-07be70`
 (F1: the review's probe refused at the fix; F2: answer-borrows killed under ASan; F3:
@@ -233,8 +253,12 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 
 ## Rulings I made
 
-- The failover mutant lives at tests/detent_system/mutants/positions-counted.patch, a new file
-  outside the listed file set (beside writers.py, which is in it); lead: add it to the set.
+- New files outside the listed set, each beside a listed one: tests/detent_system/mutants/
+  positions-counted.patch, tests/detent_relay/mutants/relay-history-default-limits.patch,
+  tests/detent_system/test_writers.py (the writers' fakes); history-ranges brought
+  relay-range-refused.patch and relay-range-whole.patch. Lead: add them to the set.
+- The relay lifts only the change-count bound (keys) when decoding mirrored history; the
+  definition bound stays the default, as no fixture raises it.
 - (F8) The delta's wait for the build at the head stays on D6 rule 1's root-page bound: that
   build is now incremental over the previous head (63-912 ms at 5M, against 1.2-1.5 s for the full
   build the review priced), and the wait still ends when the head moves.
