@@ -12582,11 +12582,35 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-idle-groups",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T05:02:45",
+          "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+          "criteria": {
+            "A1": "journal docs/design/idle-groups.md (journal:177814e, through journal:a336c58: D9-D11 the lead's Q1-Q3; review round 1 contract in D2, D9, D11 at journal:b6a7697)",
+            "A2": "261120-210755-f25487, 261120-210625-18c411, 261120-210624-d69943",
+            "A3": "261120-210755-db9a92, 261120-210624-1346c2, 261120-210625-19b6bd, 261120-210625-476ecf, 261120-210624-21f2ec, 261120-210755-913cdd, 261120-210755-6b1c50, 261120-210755-0fdc7b, 261120-210624-71f0cc",
+            "A4": "261120-210755-c4b2c6"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "178030b38f5617337486407e6cc35d70881a0841",
+          "reason": "",
+          "tested": "a76ef25a4b2d7a36f98e13736d0c5724786203a5"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -12594,10 +12618,10 @@
       ],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-21T05:02:28",
-      "worktree": "../journal-wt/detent/journal-idle-groups"
+      "updated": "2026-11-21T05:02:50",
+      "worktree": ""
     },
     "journal-loop-handoff": {
       "accepted": {
