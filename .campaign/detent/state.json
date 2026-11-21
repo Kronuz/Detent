@@ -5667,7 +5667,8 @@
     "consensus-transport-budgets": {
       "accepted": {},
       "after": [
-        "consensus-transport"
+        "consensus-transport",
+        "split-consensus"
       ],
       "checks": [
         {
@@ -5722,7 +5723,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "HostTransport's window and data queue count wire bytes, and the defaults hold the frames they name",
-      "updated": "2026-11-21T01:51:20"
+      "updated": "2026-11-21T11:42:34"
     },
     "consensus-transport-test-flakes": {
       "accepted": {},
