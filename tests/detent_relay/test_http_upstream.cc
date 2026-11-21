@@ -8,7 +8,8 @@
 // the prefix.
 // backoff: a sync that keeps failing waits longer each time up to its bound, and reports its error.
 // chain: relay B mirrors relay A over HTTPS, reading A's base several ranges long in ranges, byte for
-// byte; A answers a range from its offset, fewer bytes at the file's end.
+// byte; A answers a range from its offset, fewer bytes at the file's end. A's mirror answers late
+// (each sync pauses), so a range not lost to a timeout proves the answer woke A's owner.
 //
 //    test_http_upstream CERTIFICATES
 #include "detent/owner_loop.hh"
@@ -18,6 +19,7 @@
 #include "history_format.hh"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
+#include <atomic>
 #include <cstring>
 #include <future>
 #include <http_asio.h>
@@ -437,17 +439,20 @@ class Voter final : public r::Upstream {
 		file = {r::MirrorFile::Kind::Base, "base-ns-" + std::to_string(keys), 0, keys, bytes.size(), sha(bytes)};
 	}
 	r::MirrorTable layouts(std::span<const std::string>) override {
+		std::this_thread::sleep_for(std::chrono::milliseconds(sync_ms.load()));
 		return {0, 2, {{"ns", identity('i'), 2, 2, file.last, "policy-1", {file}}}};
 	}
 	std::string fetch(std::string_view, const r::MirrorFile &) override { return bytes; }
 	std::string frames(std::span<const r::Position>) override { return d::encode_session_frames(std::nullopt, {}); }
 	std::string bytes;
 	r::MirrorFile file;
+	std::atomic<std::chrono::milliseconds::rep> sync_ms{0}; // each sync's pause on the mirror thread
 };
 
 // Relay A as the relay host runs it: its mirror of the voter behind ServiceRuntime and the HTTPS
 // listener, the runtime stepped on its owner loop in the host's turn shape, torn down in the host's
 // phases. It has no health turn: an idle round sleeps until a wake, so a missed wake stalls the chain.
+// Slow syncs hold each answer on the mirror thread past the owner's round, so only its wake ends it.
 class RelayA {
   public:
 	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys) : voter_(new Voter(keys)) {
@@ -528,6 +533,7 @@ class RelayA {
 	}
 	std::uint16_t port() const { return listener_->port(); }
 	r::MirrorStatus status() const { return mirror_->status(); }
+	void slow_syncs(std::chrono::milliseconds pause) { voter_->sync_ms.store(pause.count()); }
 	static constexpr std::string_view token = "0123456789abcdef0123456789abcdef";
 	std::string bytes;
 	r::MirrorFile file;
@@ -556,6 +562,7 @@ void chain(Fixture &f, const std::filesystem::path &root) {
 	RelayA a(f, root / "a", 2000);
 	until([&] { return a.status().ready; }, "relay A's first sync");
 	check(a.file.size > 4 * range);
+	a.slow_syncs(20ms);
 	auto options = [&](std::size_t bytes) {
 		r::HttpUpstreamOptions o;
 		o.endpoints.emplace_back(asio::ip::address_v4::loopback(), a.port());
@@ -572,6 +579,7 @@ void chain(Fixture &f, const std::filesystem::path &root) {
 		check(upstream.fetch("ns", a.file) == a.bytes);
 		const auto stats = upstream.stats();
 		check(stats.ranges == (a.file.size + range - 1) / range && stats.fetched_bytes == a.file.size);
+		check(stats.failures == 0); // a range answered late on A's mirror thread still woke A's owner
 	}
 	// Relay B mirrors A: the file on its disk is the voter's, byte for byte.
 	prepare(root / "b");
