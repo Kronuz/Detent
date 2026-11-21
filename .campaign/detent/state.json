@@ -3569,9 +3569,9 @@
       "branch": "quest/detent/consensus-driver-install",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -3591,6 +3591,34 @@
         "test/driver_close_test.cc",
         "test/wave_open_test.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-21T00:29:14",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57 (msg-178): the suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-driver-install",
       "landed": [],
       "lenses": [
@@ -3605,7 +3633,7 @@
       "risk": "high",
       "status": "active",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-20T19:41:38",
+      "updated": "2026-11-21T00:29:14",
       "worktree": "../consensus-wt/detent/consensus-driver-install"
     },
     "consensus-dual-stack": {
