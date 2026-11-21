@@ -11679,8 +11679,8 @@
       "files": [
         "include/journal/host.h",
         "test/host_test.cc",
-        "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "docs/mechanisms/host-ranges.md"
       ],
       "history": [
         {
@@ -11720,7 +11720,7 @@
       "risk": "normal",
       "status": "active",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-20T18:25:32",
+      "updated": "2026-11-20T19:40:29",
       "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-reopen-closed": {
