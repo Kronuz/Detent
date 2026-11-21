@@ -3646,6 +3646,42 @@
       "updated": "2026-11-16T21:41:06",
       "worktree": ""
     },
+    "consensus-full-window-stall": {
+      "accepted": {},
+      "after": [
+        "consensus-quiescence"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/types.h",
+        "test/core_test.cc",
+        "test/driver_simulation.cc",
+        "test/full_window_stall_test.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
+      "updated": "2026-11-20T17:50:47"
+    },
     "consensus-heal-snapshot-stall": {
       "accepted": {
         "correctness": {
