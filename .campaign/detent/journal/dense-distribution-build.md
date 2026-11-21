@@ -326,7 +326,7 @@ removal of test_local_view, which no longer exists.
 | Criterion | Evidence |
 |---|---|
 | A1 | at Detent:eb3b443e: CI macos-arm64 in 44944355224 (pending), 261121-120503-fef5bb, 261121-120536-71ecd1, mutant 261121-120500-bb7f6a; earlier: 261120-085935-8d23e7: 205/205 at Detent:d9668727; 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
-| A2 | CI 44933674727 green at Detent:be35e33e; CI 44944355224 at Detent:eb3b443e pending |
+| A2 | `ci:macos-arm64` (CI 44944355224 green at Detent:eb3b443e) |
 
 Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2 are void):
 
