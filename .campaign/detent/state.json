@@ -4324,18 +4324,18 @@
     "consensus-full-window-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T02:22:18",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T09:08:29",
+          "base": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
           "blobs": {
-            "CHANGELOG.md": "100644:0e150f66e15f2c8b1bcacb8c1dff462ddefc51aa",
-            "CMakeLists.txt": "100644:e88cb0e2feb14c9e096fc98763e778cb0a3ea006",
+            "CHANGELOG.md": "100644:8ee690c35afbf3fa6977ecc1079366a058f71ad6",
+            "CMakeLists.txt": "100644:b6666c1dcc899b8a939fb02745fe8a64d5bf0754",
             "bench/netlab/full_window_check.py": "100755:cbdde67ecb595788fac1ddbe1595658e1f5a0907",
             "docs/mechanisms/append-pacing.md": "100644:eb0d27cb54ccd61c2763219f9903ae2883cc1b12",
-            "include/consensus/core.h": "100644:cf48029c98449b6d4eab76b549f804ae7606e2d0",
+            "include/consensus/core.h": "100644:e41c4f9ef702c21ddcf4f0d822411fac52243096",
             "test/full_window_stall_test.cc": "100644:fe4e2640fcd7548600d6bb76dfec2c93c8be525d"
           },
           "by": "review",
-          "commit": "8e55060e3a3d105e4d988bd1bd11abc9ce7be570",
+          "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
           "criteria": "01c3c05b23b6feec",
           "diffs": {
             "CHANGELOG.md": "8bfe5f11ca0518be",
@@ -4349,22 +4349,22 @@
             "F1": {
               "jobs": [
                 {
-                  "cmd": "sh -c 'cmake -S . -B build -G Ninja >/dev/null && cmake --build build -j4 --target consensus_full_window_stall_test || exit 127; cd build && ctest -R '\"'\"'^consensus_full_window_stall$'\"'\"' --output-on-failure'",
-                  "commit": "8e55060e3a3d105e4d988bd1bd11abc9ce7be570",
+                  "cmd": "sh -c 'JOB_SRC=$PWD bash /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-consensus-full-window-stall-correctness/probe.sh asis'",
+                  "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-011736-1b0bbb",
+                  "job": "261121-082753-627be6",
                   "level": "light",
-                  "seconds": 9.6,
+                  "seconds": 18.5,
                   "state": "done",
-                  "what": "A1: registered consensus_full_window_stall passes at the fix at 8e55060e3a3d"
+                  "what": "F1: reviewer's big_entry_probe (probe.sh asis) passes at the fixed head at 5a114dd5836c"
                 }
               ],
               "kind": "defect",
               "reproduced": false
             }
           },
-          "note": "main's 12 changed files since review are consensus-faultfs's test migration (test/*, CMakeLists.txt); no core.h or driver change",
+          "note": "re-accepted after merging consensus main 5ebf834 (transport, quiescence); core.h's two conflicts were adjacent additions, both kept",
           "review": "216c0f26bcab9703cf9e8f94198a815dca112f8f",
           "reviewed": "90ff87897ad8930991cbc647bff7e16d820f0553",
           "verdict": "CHANGES"
@@ -4435,7 +4435,7 @@
       "risk": "high",
       "status": "review",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-21T02:22:18",
+      "updated": "2026-11-21T09:08:29",
       "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
