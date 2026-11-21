@@ -6178,7 +6178,25 @@
             "src/detent_relay/upstream*",
             "tests/detent_relay/test_http_upstream*",
             "tests/detent_authority/test_history*",
-            "tests/detent_system/test_relay_large_history*"
+            "tests/detent_system/test_relay_large_history*",
+            "docs/status/namespace-s8.md",
+            "include/detent_relay/http_upstream.hh",
+            "include/detent_relay/mirror_service.hh",
+            "src/detent_authority/service.cc",
+            "src/detent_authority/service.hh",
+            "src/detent_relay/http_upstream.cc",
+            "src/detent_relay/mirror_service.cc",
+            "src/detent_relay/service.cc",
+            "tests/detent_authority/CMakeLists.txt",
+            "tests/detent_authority/test_history_ranges_mutant_unbounded.patch",
+            "tests/detent_authority/test_history_ranges.cc",
+            "tests/detent_relay/CMakeLists.txt",
+            "tests/detent_relay/mutants/relay-range-refused.patch",
+            "tests/detent_relay/mutants/relay-range-whole.patch",
+            "tests/detent_relay/test_http_upstream_mutant_no_backoff.patch",
+            "tests/detent_relay/test_http_upstream_mutant_prefix_dropped.patch",
+            "tests/detent_relay/test_http_upstream_mutant_whole_files.patch",
+            "tests/detent_relay/test_http_upstream.cc"
           ],
           "worktree": "../Detent-wt/detent/dense-distribution-build--history-ranges"
         },
@@ -6194,7 +6212,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T18:54:23",
+      "updated": "2026-11-20T18:54:27",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
