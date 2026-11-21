@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: fixing R1: waiting on jobs 261121-013716-103b97 261121-013719-2f4f8c 261121-013721-c624b5 261121-013723-a8b6ab 261121-013725-4b7677 261121-013727-e388e6 261121-013729-ec46d2 261121-013732-2cca08 261121-013733-6374c5 261121-013810-bf372c 261121-013810-c031ca 261121-013811-92c79d 261121-013811-3be523 261121-013811-05e1ad 261121-013811-df4da1
+State: fixing R1: waiting on jobs 261121-013727-e388e6 261121-013729-ec46d2 261121-013732-2cca08 261121-013733-6374c5 261121-013810-bf372c 261121-013810-c031ca 261121-013811-92c79d 261121-013811-3be523 261121-013811-05e1ad 261121-013811-df4da1
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,9 +17,8 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the jobs at consensus:887a88b (State): orphan 013716-103b97 passes, its mutant
-   orphan-no-wake (5acecc2) 013719-2f4f8c fails, lagging/stale+restart/groups/rejected/crash/
-   simulation and the reruns pass; CI macos-arm64 at 887a88b. Then
+1. Read the queued jobs at consensus:887a88b (State): rejected, crash, simulation, the reruns;
+   CI macos-arm64 at 887a88b. Then
    `campaign accept consensus-driver-install correctness --confirm R1=<orphan job> ...`.
 2. When consensus-quiescence lands: merge consensus main into the quest branch (the tool asks),
    rerun every job and push. Land only from that merge.
@@ -34,6 +33,10 @@ driver_simulation installs, groups_test install over the real host transport.
   the leader's transfer stops after its first chunk and the leader goes; at rest node 3 drops
   the image within snapshot_timeout and repairs at once. Locally, without the wake both "arms its
   receive timeout" and "repairs at once" fail: the reviewer's hold is real.
+  Confirmed at consensus:887a88b: orphan 261121-013716-103b97 passes (76 checks, 0 failures);
+  mutant orphan-no-wake (consensus:5acecc2) 261121-013719-2f4f8c fails both checks, as it
+  should; lagging 261121-013721-c624b5, stale+restart 261121-013723-a8b6ab, groups install
+  261121-013725-4b7677 pass.
 - R2 (taken): the crash case counts cuts whose recovery activates a durable, not yet activated
   image. Job 261121-005959-4cf07a: 26 operations, 24 cuts, 19 old, 5 new, 1 activated at
   recovery, 0 failures. The case now requires such a cut (consensus:887a88b).
