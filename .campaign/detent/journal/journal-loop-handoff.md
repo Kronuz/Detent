@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: waiting on jobs 261120-181331-7a0bfd 261120-181334-f52e5a 261120-181337-a04542
+State: waiting on jobs 261120-181331-7a0bfd 261120-181337-a04542 and CI run 44854682137
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,6 +16,9 @@ macOS). Fixed at journal:87d4382: two live threads probe at once, so one is not 
 host-ranges.md states the limit (the check can miss a stranger, never abort the owner).
 Rerun: Debug 261120-181331-7a0bfd, fails-without 261120-181334-f52e5a at mutant journal:21af69b3
 (refs/mutants/journal-loop-handoff/no-handoff), suite 261120-181337-a04542. Branch pushed.
+Mutant 261120-181334-f52e5a passed: handoff_close aborted on the owner assert (Abort trap 6),
+after the build. CI at ca95301 (run 44850405066) failed the same third-thread check on every
+platform (tsan, asan-ubsan, macos, arm64-gcc), nothing else; CI at 87d4382 is run 44854682137.
 
 ## Next
 
@@ -30,8 +33,8 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending 261120-181331-7a0bfd, 261120-181334-f52e5a |
-| A2 | pending 261120-181331-7a0bfd, 261120-181334-f52e5a |
+| A1 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
+| A2 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
 | A3 | pending 261120-181337-a04542, CI (passed at ca95301: 261120-172817-4dd987) |
 
 ## Result
