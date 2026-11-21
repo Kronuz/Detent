@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-201346-c3e8de 261120-201347-0f5364 261120-201349-112b82 261120-201350-63af72 261120-201357-bc0621 261120-201357-874d17 261120-201358-1847ef 261120-201358-da8c6d 261120-201359-7e393d
+State: waiting on jobs 261120-201347-0f5364 261120-201349-112b82 261120-201350-63af72 261120-201359-7e393d
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -56,10 +56,10 @@ the lead said they'll widen it.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending at fe0d2dc: 261120-201357-bc0621 (pass), 261120-201357-874d17 (--fails-without, main's core.h), 261120-201358-1847ef (--fails-without, no floor reset). At b08f834 (same core.h and test): 185055-ee51e1 passed; 185057-a51736, 185059-a31b7d failed as they should |
+| A1 | at fe0d2dc: 261120-201357-bc0621 passed; 261120-201357-874d17 (--fails-without, main's core.h) and 261120-201358-1847ef (--fails-without, no floor reset) failed as they should (exit 8) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
-| A3 | checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does). Pending at fe0d2dc: fix 261120-201346-c3e8de (loss1%), 261120-201347-0f5364 (reorder5%); main --fails-without 261120-201349-112b82 (loss1%); main comparison 261120-201350-63af72 (reorder5%). At b08f834 core.h: fix loss PASS 190520-a407f0 (0.44 MB/s), fix reorder PASS under fe0d2dc's checker 190522-1d0e1b (2,048-commit cap in 42.6 s, 3.15 MB/s), main loss FAIL 190521-62807e, main reorder PASS 190523-86507a (1.82 MB/s) |
-| A4 | pending at fe0d2dc: TSan 261120-201358-da8c6d (full_window_stall, pipeline, consensus, simulation, liveness); CI macos-arm64 at fe0d2dc |
+| A3 | checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does). At fe0d2dc: fix 261120-201346-c3e8de (loss1%) PASS, 10 windows, 0 role changes. Pending: 261120-201347-0f5364 (reorder5%); main --fails-without 261120-201349-112b82 (loss1%); main comparison 261120-201350-63af72 (reorder5%). At b08f834 core.h: fix loss PASS 190520-a407f0 (0.44 MB/s), fix reorder PASS under fe0d2dc's checker 190522-1d0e1b (2,048-commit cap in 42.6 s, 3.15 MB/s), main loss FAIL 190521-62807e, main reorder PASS 190523-86507a (1.82 MB/s) |
+| A4 | at fe0d2dc: TSan 261120-201358-da8c6d passed (full_window_stall, pipeline, consensus, simulation, liveness); CI macos-arm64 at fe0d2dc pending |
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
 failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s against 6.7).
