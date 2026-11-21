@@ -5711,7 +5711,8 @@
         "website/src/content/docs/quickstart.md",
         "website/src/content/docs/reference/cli/detent-agent.md",
         "website/src/content/docs/reference/cli/detent.md",
-        "website/src/content/docs/reference/configuration.md"
+        "website/src/content/docs/reference/configuration.md",
+        "tests/detent_system/mutants/positions-counted.patch"
       ],
       "landed": [],
       "lenses": [
@@ -5762,7 +5763,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T16:04:26",
+      "updated": "2026-11-20T16:22:07",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
