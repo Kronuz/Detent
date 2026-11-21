@@ -1,11 +1,15 @@
 # journal-power-silent-loss: journal
 
-State: ready for review
+State: waiting on jobs 261121-021347-4f85dd 261121-021358-5dfddc 261121-021401-adac93, CI at 3e36940
 Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: every criterion has its evidence; head journal:0465f24 adds docs/mechanisms/turn-log-damage.md.
+msg-192: test/turn_log_power_test.cc drew a record's size and kind inside one call's argument
+list, so Clang and GCC ran different workloads from one seed. journal:3e36940 draws them into
+named locals, size first as Clang did. Clang's workloads are unchanged: the five seeds hit the same
+segments, blocks and checks at the new mutants. The fix is test-only. The 200-seed rows on macOS,
+FreeBSD and Linux at 3e36940 are running.
 
 ## Next
 
@@ -20,12 +24,13 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/mechanisms/turn-log-damage.md` (journal:0465f24): the rules and the seed that pins each; per-seed diagnosis and old-code replay in Result below |
-| A2 | 261120-201510-15f224 (all five seeds pass at dbab658); 261120-201511-64af67 (200 seeds, macOS: 1,036,264 checks, 0 failures; 241,462 crash points, none read as damage); 261120-203145-d7fbda (FreeBSD VM, 200 seeds at b1bf19a: 1,036,264 checks, 0 failures) |
-| A3 | 261120-213718-c759f2 (seeds 91 @512 and 145 @2048 pass at 0465f24); fails without: 261120-201407-d594b9 (at 4b9166f, test only), 261120-201509-96e66d (at e77d17b, tail fix only) |
+| A2 | 261121-021345-4841ea (the five seeds pass at 3e36940); 261121-021347-4f85dd (macOS, 200 seeds), 261121-021358-5dfddc (FreeBSD VM, 200), 261121-021401-adac93 (Linux VM, GCC, 200): pending |
+| A3 | 261121-021345-4841ea (the five seeds pass at 3e36940); fails without: 261121-021331-c7d5d8, 261121-021333-c493df, 261121-021336-c45179 (seeds 91 and 140 @512, 122 @256 at mutant 3793195, tail fix reverted); 261121-021339-6e1ee1, 261121-021342-6b2ffb (seeds 145 and 199 @2048 at mutant 59c9300, length trial removed). Mutants are kept on the local branches mutant/journal-power-silent-loss/{tail,length} |
 | A4 | `ci:macos-arm64` |
 
 msg-183: the five failing seeds (91, 140, 145, 199, 122; msg-184's 91 included) are diagnosed and
 fixed below.
+msg-192: fixed at journal:3e36940 (test-only); see Doing.
 msg-184: seed 91 @512 was already in the set: same cause as 140 (cause 1).
 
 ## Result
