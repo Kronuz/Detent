@@ -5618,6 +5618,34 @@
       "title": "HostTransport's window and data queue count wire bytes, and the defaults hold the frames they name",
       "updated": "2026-11-21T01:51:20"
     },
+    "consensus-transport-test-flakes": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-install"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
+      "updated": "2026-11-21T09:09:45"
+    },
     "consensus-wave-open": {
       "accepted": {
         "correctness": {
