@@ -1,46 +1,57 @@
 # journal-tail-second-sector: journal
 
-State: ready for review
+State: waiting on jobs 261121-115925-e0216a 261121-115928-e3ca87 261121-115931-e97d8e 261121-115934-0256e0 (fix round 1: durability F1)
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: only the durability review remains. Head journal:1ce0043 (docs-only over journal:421011a,
-where the jobs ran).
+Fix round 1 of the durability review (CHANGES at journal:421011a). F1 fixed at journal:e912a28;
+F2 and F3 are the lead's design quest journal-tail-cut-header-design, left alone.
 
 ## Next
 
-1. Fold in the durability review's findings by id.
-2. Merge main once xapiand:journal-turn-buffers lands (it changes turn_log.h's turn-buffer path;
-   mine touch only damaged_fragment and scan_segment).
+1. When the jobs pass: Evidence rows at journal:e912a28, the 200-seed counts into
+   docs/mechanisms/turn-log-damage.md's Evidence (docs-only commit), CI at the head.
+2. Lead: `campaign accept journal-tail-second-sector durability --confirm F1=261121-115925-e0216a`.
+3. Merge main once xapiand:journal-turn-buffers lands.
 
 ## Blocked on
 
 Nothing.
 
+## Review findings
+
+- F1 (blocking): fixed at journal:e912a28. `verifies_in_sector` scans only offsets whose whole
+  fragment header lies inside the sector (`p + fragment_header <= end`), so damaged_header, rule 1
+  and the next-sector rule all need a header the sector holds whole. T9 `cut_header_tears`: for
+  k = 1..23 bytes of G's cut header left as written in the old sector, the next-sector, same-sector
+  and block-header shapes read as tears (69 checks). `crossing_damage` counts a case whose next
+  fragment's header the boundary cuts as unproven. Mutant journal:409032c
+  (branch mutant/journal-tail-second-sector/cut-header, local) restores the cut-header scan;
+  fails-without job 261121-115934-0256e0. Local 8 seeds at e912a28: 48,308 checks, 0 failures;
+  crossing 680 asserted + 47 unproven (was 696 + 31: 16 cases had a cut next header).
+- F2, F3 (non-blocking): the lead's journal-tail-cut-header-design quest; no change here.
+
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-103735-cf5964 (T9 200 seeds, macOS, at journal:421011a: 1,228,757 checks, 0 failures; 18,365 damaged crossing fragments reported) |
-| A2 | 261121-103735-cf5964 (macOS), 261121-103744-ab7d1e (FreeBSD VM), both 1,228,757 checks, 0 failures; fails without: 261121-103815-c377f1 at journal:ba19ae0 (the three stale_record_tears cases fail). At journal:72e6ab3 both rows failed: 261121-084910-a2210b, 261121-084913-af37f0 |
-| A3 | 261121-111814-e34656 (seed 3 @4096 passes at journal:421011a); fails without: 261121-103756-644f6c at journal:b9e8c5f (the crossing pattern fails) |
-| A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector), rule 2, Limits, Evidence (journal:8912780, journal:72e6ab3, journal:421011a, journal:1ce0043) |
-| A5 | ci:macos-arm64 (CI run 44936652808 green at journal:421011a; the run at the docs-only journal:1ce0043 is queued) |
+| A1 | pending at journal:e912a28: 261121-115925-e0216a (T9 200 seeds, macOS). At journal:421011a: 261121-103735-cf5964 |
+| A2 | pending at journal:e912a28: 261121-115925-e0216a (macOS), 261121-115928-e3ca87 (FreeBSD VM); fails without: 261121-115934-0256e0 at journal:409032c (cut-header proof), 261121-103815-c377f1 at journal:ba19ae0 (stale_record_tears) |
+| A3 | pending at journal:e912a28: 261121-115931-e97d8e (seed 3 @4096); fails without: 261121-103756-644f6c at journal:b9e8c5f |
+| A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector, a cut header proves none), rules 1 and 2, Limits, Evidence (`cut_header_tears` row) |
+| A5 | ci:macos-arm64 at journal:e912a28 (pushed; run pending) |
 
 ## Result
 
-- Rule (docs/mechanisms/turn-log-damage.md): a sector is proven by a later verifying fragment, by
-  the fragment's own header naming segment and epoch, or by a whole header of the fragment's
-  write starting before it in the sector (block header, or a predecessor that does not end its
-  write). A crossing fragment whose first sector is proven, with a verifying fragment of the
-  segment in the next sector, is damage.
-- Code: `damaged_fragment(..., bool written)`; scan_segment tracks where the last
-  same-write header starts (`in_write`).
-- T9 adds `crossing_damage` (P1 shape, every block) and `simulated_tears` (P6 plus old filled
-  sectors with later ones written, and an old first sector). Local 8 seeds: 0 failures, 48,239
-  checks; at 2048 and 4096: 696 crossing cases asserted, 31 with a cut header only counted.
-  The mutant at 30 seeds @2048: 122 failures.
+- Rule (docs/mechanisms/turn-log-damage.md): a sector is proven by a later verifying fragment
+  whose header it holds whole, by the fragment's own header naming segment and epoch after a
+  writer's type and reserved byte, or by a whole header of the fragment's write starting before it
+  in the sector. A crossing fragment whose first sector is proven, with a verifying fragment of the
+  segment whose header the next sector holds whole, is damage.
+- Code: `verifies_in_sector` (whole headers only), `damaged_fragment(..., bool written)`;
+  scan_segment tracks where the last same-write header starts (`in_write`).
+- T9 adds `crossing_damage`, `simulated_tears`, `stale_record_tears`, `cut_header_tears`.
 
 ## Rulings I made
 
@@ -66,6 +77,9 @@ Nothing.
 - A fragment whose header the sector boundary cuts, with no header of its write before it in the
   sector, stays a tear (a crash can leave its first sector old with the next new): stated as a
   limit, counted in T9 ("more with a cut header"), not asserted.
-- The next-sector scan uses `verifies_in_sector`, as rule 2's same-sector case does, so a
-  fragment whose header the next boundary cuts counts, at the same ~2^-32 exposure.
+- (Superseded by F1.) The next-sector scan used `verifies_in_sector` with cut headers counted,
+  assuming ~2^-32 exposure; the review showed a cut header leaves 1-3 checksum bytes (2^-8k).
+- F1 fix: the whole header, not only its checksum, must lie in the sector (the review's stronger
+  option). It matches the stated rule "only a header the sector holds whole", and the 4-byte-CRC
+  variant would still let a sector be proven by 4 checksum bytes with no segment binding.
 - The mutant drops only the next-sector line, so it restores the tear reading exactly.
