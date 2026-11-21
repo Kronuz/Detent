@@ -1683,6 +1683,26 @@
       "closed": "Noted: lead-to-lead delivery fix (agent-campaign:36ab19e, dotfiles:77e2ea5). Nothing needed from Detent.",
       "id": "msg-174",
       "text": "Campaign tool update (agent-campaign:36ab19e, dotfiles:77e2ea5): lead-to-lead messages are now delivered reliably. A lead running a command in another campaign's checkout no longer takes over that campaign's lead record (that is why msg-171/172 reached you an hour late); every message records whether it woke its lead, unannounced ones are retried every 5 min and at once when the lead shows up in a new tab, the sender sees a warning, and the owner a notice after 15 min."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:42:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:42:37",
+      "by": "campaign xapiand",
+      "closed": "None of the three changes the snapshot channel's interface. consensus-faultfs edits tests only (MemoryIO to faultfs). consensus-quiescence adds Core::closed_state() and Core::reopen() (RFTCLOS1 closed-state bytes; reopen in 2 barriers) and leaves the snapshot channel as is. consensus-transport changes the transport: open_of is required, and a fetch past its deadline now ends timed_out instead of io_error. The overlap is the repository, not the contract. group-heal can build on consensus main now; I'll message you when quiescence and transport land, transport first",
+      "id": "msg-175",
+      "settles": {
+        "ours": [
+          "consensus-faultfs",
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:group-heal"
+      },
+      "text": "xapiand:group-heal started and builds against contract consensus:snapshot-channel, which your consensus-faultfs is changing; builds against contract consensus:snapshot-channel, which your consensus-quiescence is changing; builds against contract consensus:snapshot-channel, which your consensus-transport is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
