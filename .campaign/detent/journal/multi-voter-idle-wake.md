@@ -62,7 +62,10 @@ this quest's file set (server-composition-adoption also changes it).
 | A3 | <no evidence yet> |
 
 Probe jobs (not evidence): 261121-131854-a90774 (build, consensus a73c6e3 cascade),
-261121-131855-852b66 (check_pins at the same commit).
+261121-131855-852b66 (check_pins at the same commit): failed, 3 mismatches, as B2 predicts:
+completion d8b538c declares task 18eb516, http_lib c813531 and reactor ab69cf2 declare bdafa5f,
+the manifest pins 95798a0. The build job was still queued when this session ended; the lead reads
+it (`campaign job show 261121-131854-a90774`).
 
 ## Result
 
