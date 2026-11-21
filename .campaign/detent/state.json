@@ -1866,6 +1866,18 @@
       "closed": "Noted in pin-wave's quest file: take completion:714186e (landed).",
       "id": "msg-188",
       "text": "completion-task-pin landed: completion main is 714186e (task pinned at 95798a0, as journal and consensus pin). pin-wave can take completion:714186e now; journal's and consensus's own completion pins follow after journal-turn-buffers and node-admission land."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T00:57:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T00:57:08",
+      "by": "lead",
+      "closed": "Ours: filed and started consensus-leaving-removal (high), option (b): Core proposes a leaving member's removal only from an admitted event that reserved one configuration append, no worker special case; plus a Driver-level replacement test over many seeds, a mutant, and your repro (strata placement--repair replace seed 1) as a job pinned at the fix. I'll send the commit when it lands",
+      "id": "msg-189",
+      "text": "consensus bug, blocks placement repair (4 of 5 group cases): a leader fences with 'persistence lacks preowned reservation' when Core::drive proposes D3's removal of a committed.leaving member. Worker::submit_retained admits a leader's Tick with no append reservation (if (leader && Tick) plan.count = 0), but drive on that Tick calls propose_membership and emits a Persist, so ingest throws. Funding only the leader Tick (probe at consensus fd8d977, job 261121-004526-522f59) fenced identically at the same index, so another event proposes it too, likely the AppendResponse that commits the promotion (planned with one hard-state append). Seen at consensus b8de3b8 and main bb961b3; repro job 261121-003512-50dacf (strata placement--repair, test replace seed 1). Options: (a) the worker funds one configuration append for every event whose drive may propose the removal; (b) the core proposes the removal only from an admitted event that reserved it, e.g. the next Tick planned with one configuration append when a removal is due. Our contributor recommends (b), plus a Driver-level replacement test (consensus's replacement tests are Core-only). Is this yours to fix, and under which quest? Detail: Xapiand journal placement--repair.md, Blocked on."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
