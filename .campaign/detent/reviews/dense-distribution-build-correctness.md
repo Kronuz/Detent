@@ -1,97 +1,125 @@
-# dense-distribution-build review: correctness (with the security questions, D135's one review)
+# dense-distribution-build review: correctness (round 2, with the security questions, D135's one review)
 
-Commit: Detent:a0a435b49d7cfd443537340ae0346b706e6915bc (src, include, tests and CMake identical to Detent:427bdd30)
-Verdict: CHANGES
-Date: 2026-11-20
+Commit: Detent:eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d
+Verdict: APPROVE
+Date: 2026-11-21
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+Round 1 (CHANGES) was at Detent:a0a435b4. This round covers `git log a0a435b4..eb3b443e`: the review
+fixes, the relay page tier (D7.2/D7.4), history ranges, the encoder's take() fit, the merges of main
+(loop-idle-waits' owner wakes) and the chain test's slow syncs. The branch head Detent:06d2a5d3 adds
+journal text only.
+
 ## Evidence I relied on
 
-- Suite `261120-113956-1e73f5` green at Detent:427bdd30 (same code as the head): the receiver's hermetic
-  refusals, test_pages_coordinator (100K cold boot with 0 build hashes, packs equal to the records
-  build, a pages delta, wrong-root full copy and delta falling back to records with equal reads),
-  test_relay_pages (full copy byte for byte, D6 choice, window miss keeps records, off-thread build),
-  test_system_relay_pages (real relay, records agent and pages agent at equal roots).
-- `261120-114005-1bacdc`: forced root mismatch through a real relay is refused, rebuilt from records, same root.
-- `261120-114010-d77302`: the build-on-mirror-thread mutant fails test_relay_pages.
-- DD1 fixtures `261120-053017-1bd05e` (100K model root and packs byte for byte, model counters).
-- CI (A2) and TSan are CI's; not green yet at this head (queued), so concurrency under TSan is not
-  established by any result I could read.
+Each job's log read, not its journal line.
+
+- F1: `261121-095153-93fd64` at the merge Detent:95eab96b, round 1's own probe (the honest transfer
+  of namespace `bad` served as `big`): "received 0, refused 1 ... fell back to records", exit 0
+  (round 1: exit 3, published).
+- F2: `261121-095212-4c9253`, test_relay_pages under ASan+UBSan at the merge, status 0 (answer_owns
+  included); `261120-141032-1ff8f3`, the answer-borrows mutant under ASan: ASan abort in
+  test_relay_pages, killed. answer_owns is round 1's probe ported to the new build path (two
+  namespaces in one answer, the second's build lands a relocated copy that replaces the first's).
+- F3: `261121-095235-fe4798`, f3-cut-prefix-dropped (the agent never holds a cut prefix) killed by
+  test_pages_coordinator at the merge.
+- F4: `261121-095326-f5ccfd`, the 5M relay window bench, after arm, at the merge (numbers below).
+- F10/D139: `261121-095237-6685ff`, d139-agent-publishes-below killed by test_namespace_coordinator.
+- Also read: d1-root-after-write `261121-095239-fbb807` (killed, 8); stopped-relay-unwatched
+  `261121-095309-093a8f` (exit 1 wraps "status 124", the harness hangs under 3.14 without the shim:
+  a kill); relay pages under 3.14 `261121-095306-d80db9` and test_pages_coordinator x10
+  `261121-095301-c6fa2f` passed; 5M row `261121-095330-92f248` passed; forced root
+  `261121-095217-c9cac6` passed; F11 fuzz hour `261120-131414-94ce66` exit 0.
+- At the head: mirror-answer-unwoken `261121-120500-bb7f6a` killed (status 8, the chain's one-reader
+  fetch ends "relay upstream: deadline"); test_http_upstream unmutated `261121-120503-fef5bb` and
+  x5 `261121-120536-71ecd1` passed (2.6 s each).
+- CI 44933674727 green at Detent:be35e33e. CI 44944355224 at the head, when I wrote this:
+  linux-tsan, linux-asan-ubsan, source-checks, pin-check, linux-read-counters and linux-benchmarks
+  green; the macOS jobs (A1's gate, macos-arm64) and the rest still queued. A2 is the lead's gate.
 
 ## What I checked myself
 
-Scripts in `.scratch/detent/review-dense-distribution-build-correctness/` (home checkout); each runs at
-the quest commit as a job.
+Scripts in `.scratch/detent/review-dense-distribution-build-r2/` (home checkout); each runs at the
+head as a job.
 
-- `foreign_namespace_probe.{cc,sh}` (job `261120-120143-1b3c7e`, exit 3 = finding): a source serves
-  namespace `big` the honest, correctly rooted transfer of namespace `bad` under big's cursor. The agent
-  publishes it ("received 1, refused 0"), reads of big differ from the server, and the next records
-  delta of big fails 599 times in 30 s with "delta namespace outside recovered scope": stuck, no repair.
-- `relay_answer_lifetime_probe.{cc,sh}` (job `261120-120448-4c6dcb`, exit 134): ASan
-  heap-use-after-free in the relay's pages answer (F2).
-- `dd1_mutants.sh` with DD1's seven check mutants against the 100K model fixtures (job
-  `261120-120156-0e5cc8`, `--fails-without`, passed): 7 of 7 killed. Under the `canonical` (D5 packing)
-  mutant the suite's hermetic test passes; only the fixture case kills it (F7).
-- `d136_mutants.sh` (job `261120-120600-2910d1`, `--fails-without`, passed; question 5): with the
-  leader's idle seal disabled, test_system_managed_relay fails (agent 0 never converges; note that
-  test_system_relay_pages still passes without it); with a damaged entry's recovery failure no longer
-  failing the entry, test_namespace_coordinator fails. Both D136 fixes are load-bearing and tested.
-- `transfer_fuzz.sh` (job `261120-121316-a7d94a`, exit 0): the libFuzzer build with brew LLVM fails in
-  the compressors dependency (libc++ header search; jobs `261120-120145-7a35c5`, `261120-120645-7a28c5`
-  too), so it fell back to the fuzz target's replay main under Apple clang ASan+UBSan: 200,000
-  deterministic inputs, 4 receives each (raw stream as a full copy and as a delta; damaged and
-  truncated honest transfers, checked byte for byte against the honest result when accepted), nothing
-  found. This is not DD1's coverage-guided CPU-hour (F11).
-- Code read: `receive_transfer` (paged_transfer.cc:258-388), every length and count against its limit
-  (below), the Pages frame grammar (session_frames.cc), FrameInput's admission, the coordinator's
-  pages paths and failure handling, the relay's build, window and answer paths, MirrorService's builder
-  thread, D136's seal entry and failed-entry path.
+- `wake_timings.sh` (job `261121-121609-083729`, exit 0): question 3, below.
+- `delta_owned.sh` (job `261121-121612-944a90`, exit 0 = survived): with `answer()` no longer
+  owning a pages delta's transfer and head (namespace_relay.cc:417-418), test_relay_pages passes
+  under ASan+UBSan (34 s). Only the full-copy half of F2's fix has a test (N1).
 
-Decoder bounds, from the code (security question 1): a stream page needs 12 readable bytes before its
-magic and length are read (paged_transfer.cc:275); length in [79, 65,536] and within the rest of the
-stream (:278); page count and total bytes against `limits.pages` and `limits.bytes` before any
-allocation (:280), segments against `limits.segments` (:289); `decode_page_header` requires the
-stated length to equal the slice and validates externals against it before `content_at` or
-`placement_at` index the page (paged_layout.cc:218-231); node decoding is bounds checked
-(paged_layout.cc:236-268). The walk cannot loop: an external child must precede its parent and is used
-once (:87-92), an in-page slot must be the next preorder offset (:184-186), and recursion depth is
-bounded by the 202-byte key path (:155, :161). Base resolution consumes at least one path byte per
-step (:103-140). The order check cannot read past `order` (its last entry is always the root, so a short
-order mismatches first). The frame bounds chunks by `limits.bytes` (session_frames.cc chunk count and
-running total) and FrameInput admits every byte through the storage account. A wrong root, any D4
-refusal or a short stream leaves nothing written: segments live in memory until publication. Nothing
-I found writes outside its target or allocates past its limits; F1 is what the receiver accepts.
+Code read, per area the lead named:
+
+- F1 at the head: `Receiver::bound` (paged_transfer.cc:148-159) accepts a definition leaf only as
+  'K' name 0 local 0 (longer than n+2 bytes) and a watermark only as exactly 'W' name 0, the shapes
+  `encode_definition_key` and `encode_namespace_key` write (paged_layout.cc:82-101; names hold no
+  NUL, `is_name_char`). A named full copy needs exactly one watermark (:385-386); a delta keeps one
+  (paged_transfer_plan.cc:110-112); base pages a delta reuses are the agent's own. `receive_image`
+  refuses an empty name (:419). The coordinator passes the frame's name on both paths
+  (coordinator.cc:452, :534), and a delta that does not apply (`invalid_argument` after
+  `TransferRefused`, which is caught first) asks a repair (:676-681), so round 1's stuck namespace
+  cannot recur.
+- F2 at the head: `answer()` (namespace_relay.cc:380-438) moves every copy, delta transfer and head
+  a `PagesAnswer` span names into `owned` until `encoder.step` ends; `MirrorHistory` references the
+  ring map and table entry, which `build()`/`collect()` never touch (`MirrorStore::read`,
+  mirror.cc:294, does not change the table).
+- F3: the agent's held prefix (coordinator.cc Response, `~Frame`, `pages(offset)`) resumes only a
+  frame with the same name, after, target and root, and the whole transfer is still checked against
+  the root; the relay resumes only at a chunk boundary of the same root and after
+  (namespace_relay.cc:17-21).
+- Relay page tier: `build()`/`collect()`/`copy()`/`delta()` (namespace_relay.cc:449-641),
+  `build_generation`/`relocate`/`full_copy` (page_copy.cc), `PageWindow` (page_window.cc). A window
+  segment is counted once by id; `retained_bytes` is what older generations alone reach. A wrong
+  diff could only cost a refusal: the agent's receiver checks every page against its own base and
+  the root.
+- Encoder take() (frame_encoder.cc:198-220): a fragment at most half its buffer is copied into a
+  buffer of its own size from the same account; the copy runs while the full buffer is still
+  charged, and a refused copy (StoragePressure, bad_alloc) keeps the full one, so the answer's
+  charge never exceeds round 1's. `view()` is the sealed prefix (buffer.hh:36-56).
+- Coordinator after the merge: every worker job posts its event to the owner with outstanding work
+  tracked (coordinator.cc:277-282); publish()'s admission wait is the candidate timer, which the disk
+  loop cancels after each `advance()` (:560, :930-931). The test race fix (Detent:65458af3) is the test
+  server's: it now writes and sets a frame's root under one lock; the product sends nil roots only
+  when it holds no build at the frame's head (round 1's F5 ruling).
+- Mirror answer wake: `finish()` stores `done` (release) before `answered()` (mirror_service.cc:74-80),
+  and every answer path goes through it or through submit's refusal (:464-477). `handle()` submits
+  the job and fills the slot under `p.mutex` (service.cc:403-411), and `step()` reads slots under the
+  same mutex, so an early answer's wake cannot outrun its slot. `OwnerWake` latches a raise between
+  `begin_turn()` and `arm()` (owner_loop.hh:22-55).
+
+The 20 ms pause (question 3). It sleeps in the test Voter's `layouts()`, the sync relay A's mirror
+thread runs every 10 ms, so a range request often queues behind a sync and is answered after A's
+owner went idle (1 h sleep in this harness, no health turn). It adds delay to a thread that already
+serializes every job; it reorders nothing, and the only interleaving it makes rarer, a raise landing
+between the owner's `begin_turn()` and `arm()`, is closed by `OwnerWake`'s flag by construction.
+`wake_timings.sh` (job `261121-121609-083729`, exit 0) measures it: unmutated test_http_upstream
+with A's pause at 0, 2, 5 and 20 ms passes 3 of 3 at each (12 of 12, `failures == 0` included), so
+the pass needs no particular pause; the mutant at 20 ms fails 5 of 5. The pause makes the kill
+reliable and hides no race.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | The pages receiver never binds a transfer to the frame's namespace. `receive_image` and `receive_delta` take no name, and `check_leaves` checks revisions only, so a source (hostile, or a relay that mixes up namespaces) can publish another namespace's keys, several namespace leaves or none under a namespace's cursor with a root that verifies. The records decoder refuses the same keys ("keys of the frame's namespace"). The namespace is then stuck: every records delta fails ("delta namespace outside recovered scope") and nothing asks a repair. | Job `261120-120143-1b3c7e`; paged_transfer.cc:27-47, :396-425; coordinator.cc:388-413, :454-492 | Pass the frame's name to the receiver: every definition leaf's key in that namespace and exactly one namespace leaf, its name; refuse as `TransferRefusal::Leaf` (records fallback). Same for a delta's new pages. Test: the probe's case in test_pages_coordinator (full copy and delta), refused, then records, reads equal. |
-| F2 | yes | defect | Relay use after free. `answer()` keeps a raw `BuiltCopy*` and a span of its `transfer()` for a full-copy pages frame (namespace_relay.cc:370-373); a later namespace's `copy()` or `delta()` in the same answer calls `build()`, whose `collect()` (:432) can land the first namespace's newer build, replace `held.head` and let the window evict the borrowed build (page_window.cc:121-124). The encoder then reads freed memory (session_frames.cc:272). Needs a session following two namespaces with pages, a build landing mid-answer, and a rewrite that shrinks the namespace. | Job `261120-120448-4c6dcb`: ASan heap-use-after-free, READ of 65,536 B in `SessionFramesEncoder::Impl::chunks`, freed in `~BuiltCopy` from `collect()` via `build()` via `copy()` | Hold a `shared_ptr<const BuiltCopy>` for every borrowed copy until the body is encoded (or collect only between answers). Test: the probe's deterministic runner case in test_relay_pages (CI's ASan job catches a regression; also check the frame's bytes equal the build it names). |
-| F3 | yes | gap | The quest's outcome says "a fetch resumes from its offset" (D8, D9's first row; DD3's done list). Nothing resumes: a lost connection mid-transfer restarts the response, and no test covers it. No ruling records dropping it. | quest file, Outcome bullet 3; no resume path in src/detent_delivery or src/detent_relay; journal Next 4e lists "a resumed fetch" as not done | Build D8's resume, or the owner amends the outcome (a 5M copy is 25.7 MB to refetch). |
-| F4 | yes | gap | The relay deviates from D7 without the measurement and report the quest file asks for first. It runs a full in-memory build at every head a pages reader needs (page_copy.cc:75-111; namespace_relay.cc:402-433), not dense-pages D7 after its cold build (D7.2); DD2's relocation (paged_canonical_copy.cc) has no caller outside its test (D7.4). The window keeps 4 full builds, each with its packs and its whole wire transfer in memory (namespace_relay.cc:16, page_copy.cc:98-109); its byte bound counts only diff bytes (page_window.cc:115-121), so by the design's 5M figures (315.8 MB packs + 315.4 MB transfer per build) one 5M namespace can hold about 2.5 GB plus the build in flight. Delta transfers are recomputed per session answer, not cached by name (D2). | Code as cited; relay-pages journal "Rulings I made" | Owner's call, with a 5M relay RSS and CPU measurement: accept it as measured, or build D7.2/D7.4 (incremental build, DD2 relocation, shared window pages, cached transfers). |
-| F5 | no | gap | D1's records-path root check is not built: Entries, Blocks and FullCopy frames carry no target root, so D6's "what a warm receiver relies on" item 2 (divergence becomes a refusal) does not hold; divergence stays silent, as on main. | session_frames.cc (root only for kind 5) | Owner's call: a root in records frames, or record the limit in the design. |
-| F6 | no | gap | D9's "one other source" before records is not built: `receive_delta` is called with `refused_sources = 1` and a refused full copy goes straight to records. Recorded as a ruling in the agent-pages journal. | coordinator.cc:481, :603-607 | Owner's call; keep as is or build it. |
-| F7 | no | gap | A1 asks the suite to refuse each D4 case; the "tree packed against D5" case is only in the model fixtures, outside the suite. The suite's hermetic test passes under the `canonical` mutant; the fixture case kills it. | Job `261120-120156-0e5cc8` ("hermetic test under canonical: ... pages sent") | Add a hermetic non-canonical-packing case to test_paged_transfer, or check the fixtures into the suite. |
-| F8 | no | nit | A cold reader's next answer waits for a full relay build at the head whenever the records answer is at least a third of the root page (about 1.4 KB), even when the change is scattered and records will be chosen anyway; it converges (a head move answers records), but each change after a pages copy or pages delta costs a full build's latency. | namespace_relay.cc:487-507 | Optional: answer records without waiting below D6 rule 1's bound measured on the window's diff, not the root page. |
-| F9 | no | nit | D136's `damaged()` treats every non-pressure recovery failure as damage, including transient I/O errors and GenerationUnavailable (which is then fatal anyway), so a transient error refetches a full copy. | coordinator.cc:305-330 | Optional: narrow to the store's damage and verification errors. |
-| F10 | no | nit | A repair or D136-failed entry is refilled from the relay's newest build, which may be older than the position the agent had published; a repair over the base is refused until a build at or above it lands, and a failed (unselected) entry publishes the older position. | namespace_relay.cc:472-484; disk_store.cc:401-415 | Owner's call: accept, or ask the relay for a build at or above the agent's last position. |
+| F1 | no | defect | Closed at the head (round 1: yes). A transfer is bound to its frame's namespace on both paths, and an unappliable delta repairs. | `261121-095153-93fd64`; paged_transfer.cc:148-159, :385-386; paged_transfer_plan.cc:110-112; coordinator.cc:676-681 | Done (Detent:7c82da19, Detent:dec05c43). |
+| F2 | no | defect | Closed at the head (round 1: yes). A pages answer owns what its frames name until encoded. | `261121-095212-4c9253`, `261120-141032-1ff8f3`; namespace_relay.cc:385, :408, :417-418 | Done (Detent:7dc5c1f3). |
+| F3 | no | gap | Closed at the head (round 1: yes). A cut response resumes from its whole chunks, on the agent and the relay. | `261121-095235-fe4798`; test_pages_coordinator (resumes from 1,376,256 of 2,888,084 B), test_relay_pages resume_and_roots | Done (Detent:dec05c43, Detent:6680f762). |
+| F4 | no | gap | Closed as built (round 1: yes, owner's call). The relay builds each head over the last (D7.2), serves DD2's canonical copy (D7.4), and its window counts shared segments once. Rerun at the merge beside light holds: cold 10 x 500K 18.6 s CPU, moves 95-1,483 ms, peak resident 1,410 MB, about 1.5x the CPU docs/perf/relay-window.md records (11.4 s cold, 63-912 ms) with no before arm beside it, so the doc's ratios rest on one pair of runs. | `261121-095326-f5ccfd`; docs/perf/relay-window.md | None needed; the lead's 5M round after landing. |
+| F10 | no | defect | Closed (owner's D139). A repair names its published floor; the relay sends no copy below it and the agent skips a frame below it. | `261121-095237-6685ff`; coordinator.cc:656-663; namespace_relay.cc:400-403 | Done (Detent:11c155ce, Detent:e7893553). |
+| N1 | no | gap | F2's delta half has no test: dropping the answer's ownership of a pages delta's transfer and head survives test_relay_pages under ASan+UBSan. The code holds them, and the window clears `answers` when a build lands (namespace_relay.cc:561), which is the same use after free shape answer_owns covers for the copy. | `261121-121612-944a90`; namespace_relay.cc:417-418, :561 | Optional: an answer_owns case with a delta reader of one namespace and a build landing for it while another namespace is answered; `delta_owned.sh` is its mutant. |
+| N2 | no | nit | A pages reader parked for a build waits up to one sync interval (250 ms) more when the build lands while another job's answer runs: `build()` calls `collect()` (namespace_relay.cc:524) and takes the landing, so the loop's `take_built() && relay->collect()` is false and `revisit` waits for the next sync. It converges. | mirror_service.cc:390, :415; namespace_relay.cc:524 | Optional: have `collect()` report a landing to the mirror loop (or revisit after any `collect()` that took a build). |
 
-| F11 | no | gap | DD1's "one CPU-hour of fuzzing finds nothing" has not run anywhere: no fuzz job exists for this quest or its tasks, and the libFuzzer target does not build with brew LLVM 23 on this machine (a dependency's header search). My 200,000-input sanitizer replay found nothing. | Jobs `261120-120645-7a28c5`, `261120-121316-a7d94a` | Fix the fuzz build (or run it in CI's Linux clang), then one CPU-hour on the receiver; seed it with F1's foreign-namespace case once fixed. |
-
-F1 attacker: a relay (or anything on the path the agent trusts as its source). Limit 1 already trusts a
-relay's content within a namespace; F1 lets it break the namespace's shape, which the records path
-refuses, and it leaves the namespace unrecoverable without a manual reset.
+Round 1's non-blocking F5, F7, F8, F9 and F11: F5 and F7 are built and their mutants killed
+(`261120-130729-9a8e6e`, `261120-130731-c646f9`), F11's hour ran (`261120-131414-94ce66`), F8 and F9
+are rulings in the journal.
 
 ## Not run
 
-- CI and TSan at this head (A2): queued when I wrote this; the off-thread build race (question 4) rests on
-  code reading (the builder gets copies of layout, ring and file bytes; results cross under a mutex) and
-  the mutant job above, not on a TSan result.
-- The 5M rounds (DD1's counters at 5M, DD3's 25.7 MB as sent, the cold-boot measurement): the lead's,
-  after landing.
-- DD2's A3 mutant (seal-order sort): DD2 has no production caller (F4).
-- Fuzzing of the W6 Pages frame grammar itself (only the receiver's target was fuzzed).
+- CI 44944355224's macOS jobs at the head (A1's gate, A2): queued when I wrote this. Its linux-tsan
+  job (the coordinator's worker events, the relay's builder thread) is green.
+- History ranges (Detent:b064e7b6, Detent:72429b7c) beyond the ranged fetch's digest check
+  (http_upstream.cc:284-329: a prefix is kept only for the same file and the whole file's SHA-256 is
+  checked before it is returned); their mutants are the contributor's, not rerun here.
+- The 5M rounds and the cold-boot measurement against records: the lead's, after landing.
