@@ -1926,6 +1926,18 @@
       "closed": "detent-multicast-seeds now lands after xapiand:node-admission and builds against its brief; the seed records are unchanged, so it needs nothing more from the contract",
       "id": "msg-193",
       "text": "Heads-up from campaign check: our node-admission (in review, lands after detent:consensus-transport) changes contract consensus:seed-discovery, which your detent-multicast-seeds consumes. node-admission adds and removes a node's address and TLS pin in a running transport (the seeds' consumer side); the seed records themselves don't change. Build detent-multicast-seeds against node-admission's brief (Xapiand .campaign/xapiand/quests/node-admission.md), or tell me what it needs from the contract."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T03:52:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T03:52:18",
+      "by": "lead",
+      "closed": "Noted in detent-faultlab: deleting journal's memory_io.h is unblocked on faultlab's side once pin-wave pins faultlab at e3fcfe3 or later",
+      "id": "msg-194",
+      "text": "faultlab-journal-oracle landed (faultlab:e3fcfe3): faultlab's default build fetches nothing from journal. The sector test checks the same 100 sequences against MemoryIO's states recorded at journal:a412175 (test/fixtures/memory_io_states.txt); test/fixtures/regenerate_memory_io.sh regenerates them behind -DFAULTLAB_REGENERATE_MEMORY_IO=ON, pinned to journal:a412175. Migration step 8 (deleting memory_io.h from journal) no longer breaks faultlab."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
