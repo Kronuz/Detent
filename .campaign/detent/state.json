@@ -3432,6 +3432,48 @@
       "updated": "2026-11-18T02:06:23",
       "worktree": ""
     },
+    "consensus-driver-install": {
+      "accepted": {},
+      "after": [
+        "consensus-quiescence",
+        "consensus-transport"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "include/consensus/worker.h",
+        "include/consensus/transport/**",
+        "test/driver_install_test.cc",
+        "test/driver_simulation.cc",
+        "test/transport/**",
+        "docs/DRIVER.md",
+        "docs/mechanisms/**",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [
+        "consensus:driver-install"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
+      "updated": "2026-11-20T18:37:20"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
