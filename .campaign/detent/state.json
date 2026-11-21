@@ -11627,7 +11627,8 @@
         "src/**",
         "test/**",
         "docs/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "CMakeLists.txt"
       ],
       "history": [
         {
@@ -11671,7 +11672,7 @@
       "risk": "high",
       "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T18:25:30",
+      "updated": "2026-11-20T19:56:34",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
