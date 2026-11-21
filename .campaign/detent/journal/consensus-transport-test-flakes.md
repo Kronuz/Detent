@@ -63,8 +63,7 @@ group-full on macOS x86_64: a runner that pauses the process, not the transport.
   2022 ms", 12.07 s): the runner (3 vCPU, ctest --parallel 2) lost seconds.
 - Cause: the 4 s stall was `sleep_for(4000ms)` and `until(full, 2s)` and `until(done, 5s)` were wall-clock
   budgets, so a pause of the process expired them: the group's frames were delivered before the calls
-  (stalled 100) or a call timed out. Not seen in 144 plain runs on this Mac at 12 and 32 at once (0 failures
-  at the base), so forced: SIGSTOP 5 s at offsets 0.10-1.20 s (test/transport/pause.sh): base failed 16 of
+  (stalled 100) or a call timed out. Not seen in 51 plain runs of the base on this Mac (48 at 12 at once; 0 failures), so forced: SIGSTOP 5 s at offsets 0.10-1.20 s (test/transport/pause.sh): base failed 16 of
   23 offsets, signature "credit full (yes ...); delivered 100 as the calls ended"; fix 0 of 23.
 - Fix: the loop is held until the calls end (released by the test), waits are 30 s limits that are not
   asserted, and the latency bound is 250 ms plus Lag (the longest a 1 ms sleeper thread went without
