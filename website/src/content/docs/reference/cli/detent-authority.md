@@ -4,7 +4,8 @@ title: "detent-authority"
 
 ```text
 detent-authority --authority CONFIG [--daemonize | --status] [--runtime-dir PATH] [--config PATH]
-                 [--port N] [--reactors N] [--system]
+                 [--port N] [--reactors N] [--max-clients N] [--max-in-flight N]
+                 [--idle-timeout-ms MS] [--shutdown-timeout-ms MS] [--upstream-ca FILE] [--system]
 detent-authority --status [--port N]
 ```
 
@@ -21,6 +22,11 @@ authority configuration at `CONFIG` and listens on port `8317` unless
 | `--authority CONFIG` | required | The authority configuration file |
 | `--port N` | `8317` | HTTP port |
 | `--reactors N` | `4` | Network reactor threads |
+| `--max-clients N` | `1024` | Open connections; the process raises its file-descriptor limit to fit |
+| `--max-in-flight N` | `1024` | Admitted requests per reactor |
+| `--idle-timeout-ms MS` | `75000` | Close an idle connection after this long (`0` = never) |
+| `--shutdown-timeout-ms MS` | `35000` | Bound on finishing in-flight requests after SIGTERM |
+| `--upstream-ca FILE` | the publisher's CA | CA the `--status` probe verifies against |
 | `--config PATH` | platform config dir | Use this `detent-authority.json` |
 | `--runtime-dir PATH` | platform runtime dir | Where pid and log files go |
 | `--system` | | System config and runtime directories |
@@ -51,6 +57,11 @@ runtime directory.
   "authority": "/etc/detent/authority.json",
   "port": 8317,
   "reactors": 4,
+  "max_clients": 1024,
+  "max_in_flight": 1024,
+  "idle_timeout_ms": 75000,
+  "shutdown_timeout_ms": 35000,
+  "upstream_ca": "/etc/detent/ca.pem",
   "runtime_dir": "/run/detent",
   "log_level": "info",
   "verbosity": 0,

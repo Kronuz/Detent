@@ -72,8 +72,12 @@ add_library(detent_logging detent_cli/logging.cc)
 target_link_libraries(detent_logging PUBLIC logger::logger)
 target_compile_definitions(detent_logging PUBLIC LOGGER_DEBUG=1)
 
-add_library(detent_cli detent_cli/config.cc detent_cli/daemon.cc)
+add_library(detent_cli detent_cli/config.cc)
 target_link_libraries(detent_cli PUBLIC detent::detent)
+# daemon.hh re-exports task's process.hh (header-only).
+if(TARGET task::asio)
+  target_link_libraries(detent_cli PUBLIC task::asio)
+endif()
 
 ########################################################################
 # detent-agent: the host-local managed agent (see README's "detent-agent"

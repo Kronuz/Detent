@@ -87,6 +87,11 @@ conventional `defaults.json` is skipped.
 | `port` | `8317` | HTTP port |
 | `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detent-authority` serves |
 | `reactors` | `4` | Network reactor threads |
+| `max_clients` | `1024` | Open connections; the process raises its file-descriptor limit to fit |
+| `max_in_flight` | `1024` | Admitted requests per reactor |
+| `idle_timeout_ms` | `75000` | Close an idle connection after this long (`0` = never) |
+| `shutdown_timeout_ms` | `35000` | Bound on finishing in-flight requests after SIGTERM |
+| `upstream_ca` | the publisher's CA | CA the `--status` probe verifies against |
 | `runtime_dir` | runtime directory | PID and log files |
 | `log_level`, `verbosity`, `color` | | [Logging](/Detent/operations/logging/) |
 
