@@ -4892,20 +4892,44 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-leaving-removal",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T11:04:07",
+          "commit": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+          "criteria": {
+            "A1": "261121-094829-84c93b",
+            "A2": "261121-094831-422c49, 261121-094829-84c93b; fails without: 261121-011652-0bbc59, 261121-011653-871e69, 261121-012216-933a9e, 261121-012218-e3e272, 261121-014435-ea9ba4, 261121-014436-34f470, 261121-031034-f6c862, 261121-031035-8662fc, 261121-031817-665bcf, 261121-031819-910be2, 261121-082921-bf944a, 261121-082923-c44295, 261121-083445-9321a1, 261121-083448-2a6b63, 261121-094834-6ef492, 261121-094837-453d12",
+            "A3": "261121-094840-1c44c7; fails without: 261121-083453-9b1c92, 261121-094843-9c9d0d",
+            "A4": "`ci:macos-arm64` (pending at a73c6e3)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+          "reason": "",
+          "tested": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T11:03:56",
-      "worktree": "../consensus-wt/detent/consensus-leaving-removal"
+      "updated": "2026-11-21T11:04:12",
+      "worktree": ""
     },
     "consensus-mutants-per-test": {
       "accepted": {},
