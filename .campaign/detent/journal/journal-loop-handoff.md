@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: working
+State: waiting on jobs 261120-172817-4dd987 261120-172827-391258 261120-172830-714b37
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,32 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Waiting on jobs 261120-172817-4dd987 (Release suite, A3), 261120-172827-391258 (Debug host_test,
+A1/A2), 261120-172830-714b37 (fails-without at mutant d2484f35, adopt_loop a no-op; ref
+refs/mutants/journal-loop-handoff/no-handoff in the journal repo). Branch head journal:ca95301.
 
 ## Next
 
-1. <step>
+1. Read the three jobs' logs; the mutant job must fail on handoff_close's abort, not the build.
+2. CI on the pushed branch; merge journal main once journal-idle-groups lands (host.h, host_test.cc).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending 261120-172827-391258, 261120-172830-714b37 |
+| A2 | pending 261120-172827-391258, 261120-172830-714b37 |
+| A3 | pending 261120-172817-4dd987, CI |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+journal:ca95301 adds `Host::adopt_loop(loop)` (include/journal/host.h): the calling thread
+becomes the loop's range-table owner and the debug check in owned_ranges follows it. Release
+builds keep no owner; the call bounds-checks the loop (`std::out_of_range`). Tests:
+test/host_test.cc `loop_handoff` (A1) and `handoff_close` (A2, strata's t6w), abort checks in
+forked children. Docs: docs/mechanisms/host-ranges.md (rule 6, "The handoff"), CHANGELOG.md.
+strata can drop the t6w workaround (strata:6421d4b3) by calling adopt_loop under its turn mutex.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The handoff is unconditional and unchecked: the caller's own serialization orders it after
+  the old owner's last call; the host cannot see that lock, so it checks nothing (msg-168 option a).
+- `adopt_loop` bounds-checks with `ranges_.at` in every build, so release and debug refuse the
+  same bad loop.
+- The abort checks fork a child (stderr silenced) and expect SIGABRT; under NDEBUG they are
+  skipped with a printed note, and the handoff paths still run.
