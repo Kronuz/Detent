@@ -1,6 +1,6 @@
 # journal-tail-second-sector: journal
 
-State: waiting on jobs 261121-084910-a2210b 261121-084913-af37f0 261121-084916-f70fcc
+State: waiting on jobs 261121-084910-a2210b 261121-084913-af37f0
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
@@ -23,9 +23,9 @@ Nothing.
 |---|---|
 | A1 | 261121-084910-a2210b (T9 200 seeds, macOS, with the crossing pattern), pending |
 | A2 | 261121-084910-a2210b (macOS), 261121-084913-af37f0 (FreeBSD VM), pending |
-| A3 | 261121-084916-f70fcc (--fails-without, mutant journal:3955aad, seed 3 @4096), pending |
+| A3 | 261121-084916-f70fcc passed: mutant journal:3955aad fails seed 3 @4096 with 8 failures, all in the crossing pattern ("the damage is reported", "a group not lost keeps") |
 | A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector), rule 2's new case, Limits (journal:8912780, refined in journal:72e6ab3) |
-| A5 | CI on quest/detent/journal-tail-second-sector, pending |
+| A5 | CI run 44926626010 at journal:72e6ab3, queued |
 
 ## Result
 
