@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: working
+State: waiting on jobs 261120-183909-cb25cf 261120-183911-97e441 261120-183913-e37593 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,36 +9,70 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Step 1, root cause: a core-level prototype (3 Cores over throttled FIFO links, 32 x 64 KiB in
-flight, scratch ~/.scratch/detent/consensus-full-window-stall/proto.cc) to see whether the stall
-reproduces in Core alone or needs the Worker/Driver/transport.
+Fix committed at consensus:17751bc (pushed). Waiting on A1 (pass + two --fails-without), A4 TSan,
+A3 netem bench (one strict job per shape), and CI's macos-arm64 suite.
+
+## Root cause (A2: docs/mechanisms/append-pacing.md)
+
+1. core.h:1183 (at 8801b99): the batch bound is rpc_bytes; a Driver group's Core is built with
+   Flow{} (worker.h:150), so an append carries up to 2 MiB. 32 x 64 KiB fill exactly one.
+2. At ~0.5 MB/s (cubic under 1% loss/5% reorder, 40 ms RTT) that frame holds the Control
+   connection ~4 s; heartbeats and votes queue behind it (send_message puts every Raft message on
+   Control). With a flight out the leader sends no heartbeat anyway (core.h:1122).
+3. Followers hear nothing past election_min and pre-vote (a follower missing the batch can win:
+   the other grants); the leader's CheckQuorum (core.h:1077-1079) steps down at election_max.
+4. core.h:1121 resends the whole batch every rpc_timeout while the first copy still crosses (the
+   bench's 4 copies in 16 s); the copy's answer lands on a superseded flight and paces nothing.
+5. Bench side: committed() of placements a new leader truncated waits until some term commits
+   there, so the closed-loop load stops proposing and the cluster idles on heartbeats. The bench's
+   diag records the leader only at load start, so the elections were invisible (msg-185 to xapiand).
+31 in flight (1.94 MiB) stalls the same in the model: frame transit time, not a 2 MiB edge.
+
+Fix: per-peer append pacing (Peer::frame, core.h pace()/frame_target()): start 64 KiB, double
+on a fast full answer up to rpc_bytes, scale to the target (min(rpc_timeout, election_min)/2) on
+a slow one, back to 64 KiB on a timeout.
 
 ## Next
 
-1. Name the root cause at file:line from the prototype's trace.
-2. Deterministic test (test/full_window_stall_test.cc) failing at main; fix; --fails-without job.
-3. A3 netem bench in the Linux VM; A4 suite, TSan, CI.
+1. Read the jobs; fill Evidence; Result.
+2. Merge consensus main once consensus-quiescence lands (it also edits core.h).
+3. Correctness review (high risk) once A1-A4 have evidence.
 
 ## Blocked on
 
-Nothing.
+Nothing blocking. File set: test registration needs one word in CMakeLists.txt (`full_window_stall`
+in the core test foreach); `campaign status` flags it as outside the file set. Lead: widen the
+file set to CMakeLists.txt, or say where the test should live instead.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending: 261120-183909-cb25cf (pass), 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
+| A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
+| A3 | pending: 261120-183954-d2677d (loss1%), 261120-183957-d8625c (reorder5%) |
+| A4 | pending: 261120-183915-9999fc (TSan, Core tests); CI macos-arm64 at 17751bc |
+
+Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
+failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s against 6.7).
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Root cause fixed in the Core's append sizing, not by changing Flow's default frame_bytes: a
+  fixed 256 KiB cap (R19) would cost pipeline=1 Driver groups ~6x at 12 ms RTT
+  (docs/perf/flow-control.md: 88.1 against 14.8 MB/s) and still stall below ~256 KB/s. Pacing
+  keeps 2 MiB frames on fast paths (scratch model: 752 vs 770 commits at 10,000 B/ms).
+- Target = min(rpc_timeout, election_min)/2: frames answer before a flight times out and before a
+  follower campaigns; capped at 2^32 ms so bytes*target cannot overflow.
+- A timeout drops the frame to the 64 KiB floor (slow start): the late answer to a superseded
+  flight paces nothing, so without it a grown frame stays grown (test: 6.4 vs 15.8 commits/s).
+- Pacing applies to any pipeline depth; under pipelining a flight's time includes queueing behind
+  earlier ones, which only makes frames smaller (conservative).
+- A3 runs Xapiand's bench at e1144c2 (e12ee46 plus --large-inflight and an append trace, same
+  core.h) with 17751bc's core.h, one strict job per shape. The bench's load is 2 s; "steadily for
+  90 s" read as: the large_throughput rows answer (no "no answer in 92 s"), and diag's applied
+  index advances through the load with no stall.
