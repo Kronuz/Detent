@@ -22,13 +22,16 @@ Nothing.
 | A1 | `docs/mechanisms/turn-log-damage.md` (journal:0465f24): the rules and the seed that pins each; per-seed diagnosis and old-code replay in Result below |
 | A2 | 261120-201510-15f224 (all five seeds pass at dbab658); 261120-201511-64af67 (200 seeds, macOS: 1,036,264 checks, 0 failures; 241,462 crash points, none read as damage); 261120-203145-d7fbda (FreeBSD VM, 200 seeds at b1bf19a: 1,036,264 checks, 0 failures) |
 | A3 | 261120-213718-c759f2 (seeds 91 @512 and 145 @2048 pass at 0465f24); fails without: 261120-201407-d594b9 (at 4b9166f, test only), 261120-201509-96e66d (at e77d17b, tail fix only) |
-| A4 | ci:macos-arm64 (run 44865755870 green at b1bf19a; the run at 0465f24, a docs-only change, is pending) |
+| A4 | ci:macos-arm64 |
 
 msg-183: the five failing seeds (91, 140, 145, 199, 122; msg-184's 91 included) are diagnosed and
 fixed below.
 msg-184: seed 91 @512 was already in the set: same cause as 140 (cause 1).
 
 ## Result
+
+CI run 44871736665 is green at journal:0465f24, every job including macos-arm64 (A4).
+
 
 Not a regression from journal-double-damage. 178030b's test added the 'both' and 'last' patterns
 and five geometries; d90797c never ran them. The 178030b test built against d90797c's headers
