@@ -4001,9 +4001,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-20T19:05:59",
+      "updated": "2026-11-20T22:43:32",
       "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
