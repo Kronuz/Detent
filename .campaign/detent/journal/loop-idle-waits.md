@@ -1,6 +1,4 @@
-State: waiting on CI 44894923688 (bisect/liw-fix, arm64 x3), quest CI 44895042075/44895042358 at Detent:b0005104, and jobs 261121-023453-da8346 (relay tests) -023453-51468c (suite) -023454-489b59 -023454-766ae5 -023455-1d7b36 -023455-ebd79f -023455-394538 -023456-970d62 -023456-b739fe -023456-84f176 -023457-51f876 -023457-67181f.
-
-State: waiting on F13 jobs 261120-225535-9724ee -225537-795628 -225539-3cb98d (strict, head vs main at 100k keys) and -225542-b03235 (fails-without, mutant stop-peers-sleep) at Detent:7d1fad45; arm64 bisect branches bisect/liw-relayhost and bisect/liw-relay1ms (CI on push).
+State: waiting on CI 44903029845 (bisect/liw-fix at Detent:60353565, arm64 x3: the F13 proof), quest CI 44902999124 at Detent:219ba475, and jobs at 219ba475: 261121-041526-85734b (suite) -041501-9af980 (relay tests) -041501-52db82 -041501-94a0e4 (A1) -041501-7f0dd2 -041501-bf8808 (A2) -041502-543910 (A3) -041502-5df46b -041502-049684 -041502-7a11c3 -041502-cf8862 -041502-e058e7 (A4).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -197,6 +195,16 @@ reclaim scans ~60 completion ops/s) frames A1.
   (Detent:b0005104). Proof: bisect/liw-fix (the three relay files of 59206705 on the bisect base) CI 44894923688,
   arm64 x3; quest CI at b0005104. Reruns of A1-A4 and the relay tests queued at b0005104 (State).
 - Deleted bisect/liw-r1-poll and -r1-nowake; bisect/liw-fix remains until read.
+
+## Contributor 7 (fixture port, F13 proof)
+
+- Detent:b0005104 did not build: tests/detent_delivery/relay_service_fixture.hh still called `swept()` and
+  `step(now, false)` (suite 261121-023453-51468c, relay -023453-da8346, quest CI 44895042358 and bisect CI 44894923688
+  all failed to compile; the arm64 fix was untested). Detent:219ba475 ports it: step until a turn changes nothing
+  (bounded at 1000), then check the next turn is idle too, the condition the host sleeps on.
+- bisect/liw-fix now Detent:60353565 (the fixture on 2c48ec1f); CI 44903029845. Quest CI 44902999124.
+- Reruns at 219ba475 queued (State). Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
+  table from the reruns and delete bisect/liw-fix.
 
 ## Result
 
