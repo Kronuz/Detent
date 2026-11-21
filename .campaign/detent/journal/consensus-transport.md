@@ -1,0 +1,278 @@
+# consensus-transport: journal
+
+State: fixing F1 (security review round 1): waiting on jobs 261121-053518-5fce38 261121-053520-0a9324 261121-053522-874432 261121-053524-a0ffba 261121-053526-1b7054 261121-053528-7bf16f 261121-053530-6bedb0 261121-053532-372d2f 261121-053629-2fe10d 261121-053631-e1471c and CI 44906921960 attempt 2 at consensus:9bbd632
+Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
+
+Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
+status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
+ready for review, fixing <findings>, blocked on <who>: <what>.
+
+## Doing
+
+Security review round 1 (reviews/consensus-transport-security.md, CHANGES): F1 fixed at
+consensus:9bbd632 (pushed). A served call that ends with its last small frame unsent (its Error
+from stop() or expire(), or a Credit before the peer's Cancel) keeps its serving slot until
+next() takes that frame; so `serving` slots, then `serving` + 1 refusals, close a peer that never
+reads (R12). rpc_test `unread-small` (locally: each path closes at 9 Calls with serving 4, 216,
+248 and 216 bytes unsent, equal to outgoing; a reading peer runs 1,000 Calls with 0 unsent).
+Jobs (the first eight, 261121-0503xx, exited 127: the zsh `$Q` flags became the command;
+resubmitted): mutant small-unbounded (b7dbc4b) 261121-053518-5fce38 (--fails-without);
+reviewer's probe -053520-0a9324; at 9bbd632: lane tests -053522-874432 (A3, A6), ASan
+-053524-a0ffba, fuzz -053526-1b7054, corpus coverage -053528-7bf16f, A5 -053530-6bedb0, suite
+-053532-372d2f.
+CI 44906921960 at 9bbd632: linux-tsan failed in Configure on infra (git clone of Kronuz/task:
+403); macos-x86_64 failed rpc_host group-full (credit never full in 2 s, 3,015,806 uncredited;
+14 of 15 calls) and, beside it at the same minute, groups fetch-alongside-consensus (15 of 16
+exact, a commit 5,432 ms): a runner stall's signature, and neither case's served calls end with
+a small frame unsent (echo and fetch Calls carry their request inline, serving 256). Attribution
+jobs, group-full x20 and fetch-alongside x10 on this x86_64 Mac: 9bbd632 261121-053629-2fe10d,
+34881c2 261121-053631-e1471c. Failed jobs rerun (attempt 2); three x86_64 runs in a row at
+9bbd632 still to collect.
+rpc-lane.md "A peer that never
+reads" and Evidence updated. F2-F4, F6 are consensus-transport-budgets' (lead).
+
+Session 3 (2026-11-20 evening), head consensus:8ded754 (pushed).
+- peers "5 ms hog" (suite 261120-152646-9f3363, late-append: commits FAILED, slowest 2015 ms,
+  102 appends superseded) is not this branch's: Peers, peers_test and core.h are unchanged
+  against main 8801b99 (`git diff --stat 8801b99 HEAD` names none), and the whole peers test x10
+  passes 10 of 10 at both: head 261120-192228-2ea2c9, main 261120-192229-da566a. It ran under -j2
+  beside the suite on a loaded host; the pattern (appends past rpc_timeout re-sent, a commit
+  past 2 s) is consensus-full-window-stall's core.h append pacing. For the lead; not patched.
+- 261120-151650-11c8e1 (ASan links/connection at bab6b4d): exit 143, its runner died during the
+  build (SIGTERM, "recorded after its runner died"), no test ran; superseded by dbdf2b/b2a548 at
+  cdf5016 (passed).
+- CI linux-tsan 44836840151: rpc_host_fetch "16 MiB arrived exact NO in 14000 ms beside 7 MiB of
+  group uploads; heartbeats' longest gap 4151 ms" (deadline 30 s, so the fetch ended with an
+  error at ~14 s; the line did not say which). This case has never passed Linux TSan CI (earlier
+  runs: SIGPIPE, then cancelled). Local macOS TSan at CI's flags (-O1): 5 of 5 pass, 3.5-4.6 s,
+  ~260 MiB beside, gap <= 350 ms (261120-192508-e4243a). consensus:8ded754 prints the fetch's
+  error, links, dropped and overrun; CI at 8ded754 says which, then fix or bound it.
+- CI at 8ded754 green (run 44861020835), linux-tsan's fetch included: the 14 s failure did not
+  recur, so nothing was changed in the code; the diagnostic line stays.
+- Merged consensus main bb961b3 (consensus-faultfs) at consensus:34881c2, clean. Suite rerun
+  261120-224221-77bfd0 (--for A1,A2,A4) exit 0, 63 of 63; macOS x86_64 runs in a row from 34881c2's CI on
+  (`gh run rerun --job` for the second and third).
+- msg-1: node-admission has not landed on consensus main (origin/main is 8801b99); when it does,
+  the merge drops rpc_host's SIGPIPE ignore (34aa229, 0ce2c1f) and its sigpipe-default mutant.
+
+transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
+- N9 (A1): `Links::admit` never lets an address no route names evict a pending handshake from a
+  peer's address (literal, or a name's cached answer); an unknown newcomer to a pool full of peers'
+  is refused. links_test `churn` (node 1 at ::1, flood from 127.0.0.1 with its per-source cap
+  lifted): the pending ::1 handshake outlives 16 arrivals; dials link under ~5,600 connects/s.
+  Mutant no-peer-priority killed: 261120-145942-200902 (exit 134, "the pending one from ::1 EVICTED").
+- N10, N11, N12: written in docs/mechanisms/host-connection.md, Before authentication (rate = pool
+  size per handshake time, WAN tens/s; IPv6 /64 leaves the pool as the only bound; hello phase
+  only for authenticated nodes, each within `handshake`). Kept, not changed: N11's /64 keying and
+  N12's per-node hello count are the review's optional options.
+- N13: fd_reuse_reader asserts 1 handler call; mutant deliver-after-end 261120-150436-28bd0c.
+- N14 (A3): connection_test `dead_extends` (consensus:bab6b4d): the dialer, rehomed to its own
+  loop thread, takes a frame (dead-peer wait armed), then its loop alone stalls 3 s against a 1 s
+  dead_after with nothing in its socket (the acceptor sends no keepalives); a frame 100 ms after
+  the wake lands in the extension and both stay open. The first version (a0fa257) let the mutant
+  survive (261120-150439-44833e: queued keepalives completed the read before the expired timer
+  ran); the mutant now ends the dialer dead: 261120-151637-39c1fe exit 134 ("the dialer ended DEAD"). ASan at a0fa257: 261120-150427-2132c5 exit 0.
+- N5: links_test `resolver_outlives` (resolver gated until Links and its loop are gone); ASan job
+  261120-150427-2132c5 runs it with churn and N13/N14.
+- N6 dropped: `NodePins::authenticate` refuses a missing or unverified leaf, so the context's
+  policy bypasses nothing (the review's own "nothing is bypassed today"); asserting the context's
+  flags would reject callers' contexts for no gain. N7 dropped: two pin matchers until
+  worker-pump-removal deletes Peers (D106), the review's own disposition.
+
+groups-upload-stall-cause: the capture hook is in place (groups-upload-loop-stall's spindump in
+groups_test upload; ci.yml's header names it). No CI failure has carried a capture (macos-x86_64
+passed groups_upload in run 44795129569). A1-A3 wait on a failure; the lead decides (lead's
+message, 2026-11-20).
+
+Lead's ruling on the timing label: option (b). consensus:cdf5016 labels rpc_host group-full,
+call-full, stream and reader `timing` (`ctest -LE timing` skips them); CI runs them, ci.yml is
+unchanged, and rpc-lane.md says so. The two A5 cases carry no label: CI runs them.
+
+A5 results: mutants killed for the stated reason (forget-is-violation "links 1 then 2";
+fetch-deadline-io-error "Input/output error"); 10 of 10 runs each (7f0524): fetch-alongside 16 of
+16 exact in ~2 s, commits slowest 428-445 ms against a quiet baseline of ~370 ms (6462c1e prints
+it). CI: three macOS x86_64 runs in a row still to collect, at the final head.
+
+Session 2 (2026-11-20 afternoon). Head consensus:50c79f2 (pushed). Merged consensus main 8801b99
+(e4f386c, clean). Linux CI red at 50f0a48 (run 44795129569: rpc_host_fetch SIGPIPE on asan-ubsan,
+tsan, arm64-gcc): fixed at 34aa229 + 0ce2c1f (consensus-quiescence's 82cefee ported: ignore in
+main, fetch raises first, mutant sigpipe-default); CI at 0ce2c1f/50c79f2 pending.
+
+A5 at 50c79f2: groups_test `fetch-alongside-consensus` (3 nodes x 2 loops, a group's Drivers over
+the transport; 4 rounds of four 8 MiB lane fetches both ways through 1 MiB budgets beside a commit
+every 50 ms; each exact, each commit within 2 s, leader's term kept) passes locally. rpc_host
+`stop-drain` (F18): host 2 in a posix_spawn'd child raises SIGSTOP in its reader; host 1's fetch
+ends timed_out; after SIGCONT the late reply arrives and is dropped (rule 9), links stay 1, the next
+fetch is exact. It found a defect: a fetch past its deadline after the Call left ended io_error
+(lane Outcome::cancel + deadline_exceeded); fetch now maps it to timed_out (mutant
+fetch-deadline-io-error). Never-drain mutant: forget-is-violation. Jobs: mutants
+261120-145542-e0e075, -145546-4eda6b; 10 runs each -145554-7f0524. Still needed: 3 macOS x86_64 CI
+runs in a row with the port (no skip); the timing label (Blocked on).
+
+Group-bytes A3 rows written in docs/perf/transport-idle-cost.md (idle 180.2 -> 88.4 B, in flight
+4,746.1 -> 594.7 B). Hop CPU: the separate strict jobs disagree with themselves (receive-bound's
+"bound" control same 1,384 ns vs main 676, with hop below same), so they are load, not a verdict;
+one-job A/B main 8801b99 vs branch, base/branch/branch/base: 261120-144831-38a455.
+
+Head consensus:06b9a76 (pushed). Steps 1-4 and A4 coded. Next: A5 (port fetch-alongside-consensus
+onto lane fetch, SIGSTOP inside a drain with a never-drain mutant, `timing` label, three macOS
+x86_64 CI runs), then transport-admission, then groups-upload-stall-cause; when the strict jobs
+finish, write group-bytes' and receive-bound's before/after rows into docs/perf/transport-idle-cost.md;
+re-run every evidence job at the final head before review.
+
+Results in: suite 261120-102515-dc5d23 at 975c51d exit 0 (every consensus_transport_ entry);
+fails-without done: hold-ignored -102022-16b298 (exit 1), rpc-no-drain -102028-2bc70b (exit 1),
+no-credit-on-refuse -100643-062f07, data-unbounded -100637-57c2d3, control-unbounded
+-100640-082b18 (134); coverage -103119-56d7ac: rule 7.6 1, pool waits reached (ticket 6, granted
+5). lane-via-other-loop -102035-9cd55a exited 139 (a dangling Link in the mutant, not the latency
+the case asserts): the mutant now hands frames to the peer's current link
+(consensus:50f0a48), rerun 261120-104122-60d46f.
+
+A4 at consensus:975c51d: `fetch(node, name, done)` is method 1; `RpcOptions::reader` serves it
+(D8 table). Local: rpc_host fetch: 16 MiB exact in 1.1 s beside 131 MiB of group uploads on the
+same Bulk connection, heartbeats' longest gap 210 ms, every D8 row. Jobs: suite
+261120-102515-dc5d23 (--for A1,A2,A4, at 975c51d), TSan -102517-d9c5e8.
+
+A6 N4 at consensus:06b9a76: fuzz job 250bdc reached the pool waits (ticket 427, granted 299,
+roomless 10) but not rule 7.6 (0); seed-past-credit reaches it (replay: "rule 7.6: past credit").
+Coverage job 261120-103119-56d7ac.
+
+Step 4, A1/A2, at consensus:895b3c6: `hold(node)`/`release(node)` (T3), lane_idle on a Bulk
+connection that carried no group frame (`RpcOptions::idle`, 60 s, D7), Drain then graceful close
+from the feed once the table drained (T8; `drain_deadline` 5 s aborts), calls on a drained lane
+wait for the next connection, `drain()`/`lanes_drained()` for shutdown. Local: rpc_host hold
+(closed 302 ms after release), idle-race (5 of 5 not_processed, 0 aborted, next call ok), shutdown
+(4 MiB echo ok, later call not_processed), reader (T5, slowest 0 ms) pass. Jobs: suite
+261120-102012-185754 (--for A1,A2; supersedes -100634-06fa3e); TSan -102043-e1cc69 (supersedes
+-100655-f3cd32); fails-without hold-ignored -102022-16b298, rpc-no-drain -102028-2bc70b,
+lane-via-other-loop -102035-9cd55a. T7 evidence: rpc_test late-deadline (in the suite).
+
+Step 3, transport-receive-bound, at consensus:1d24b8a: Lane::arriving per group; data past the
+window ends the connection (overrun), control past `arriving` (256) refused (flooded). Local:
+receive-bound passes (4 of 8 data delivered, 1 overrun; 256 of 1,000 control, 744 flooded), all
+45 consensus_transport_ ctest entries pass. Jobs: suite 261120-100634-06fa3e (head; covers steps
+2-3); TSan -100655-f3cd32; fails-without data-unbounded -100637-57c2d3, control-unbounded
+-100640-082b18, no-credit-on-refuse (moved) -100643-062f07; hop strict main e1f249d control
+-100645-55c3f1 / data -100647-f05401, head control -100649-2aa87f / data -100652-5c2a3c.
+
+Step 2, transport-group-bytes, at consensus:0a65af1. Local: inflight 10K 594.7 B per group in
+flight (4,746.1 at c2b0133); idle group stored 36.0 B, its frames 52.4. Done: fails-without
+owed-before-control 261120-095127-6b5847, owing-keeps-prefix -095130-ab25d2, closes-unbounded
+-095133-f42ea5 (all exit 134). Queued strict before (c2b0133) / after (0a65af1): inflight
+-095136-7a0672 / -095040-68a827, hop control -095138-5864ca / -095043-dc00e8, hop data
+-095141-7fd45f / -095046-6fe0ef, idle bytes -095143-778a7a / -095049-c97307. Feed-scan N1, N4:
+dispositions written in docs/perf/transport-idle-cost.md (A2: hop CPU).
+
+Step 1 (A3 + A6) at consensus:3284055 + 84e199c: done 0a0f0c (lane suite), ede104 (ASan); fails-
+without 5203e3, f32f32, b70222, 42250f, 8e73c6, 3aaf61 all exit 134/8; 250bdc (fuzz+coverage)
+running. Re-run the evidence at the final head before review.
+
+Pre-existing (main): mutants no-extension, uncapped, twice in test/transport/mutant_commit.py no
+longer apply to deadline.h (changed by consensus:e7d615c on main); for the lead.
+
+Interface change (consensus-quiescence merges this branch): a fetch whose deadline passes after its Call left now ends `timed_out` (was `io_error`); groups_test's `Node`/`Cluster` take `HostTransportOptions` (`Cluster::options_of`). Earlier: `HostTransportOptions::open_of`
+(`std::function<GroupOpen(GroupId)>`) is required beside `member_of`; `store(group, incarnation)`
+drops its open argument; new options `closes` (4096), `arriving` (256) and stats `owed`,
+`unanswered`, `overrun`, `flooded`. Frames on a link its lane replaced are refused in arrived().
+Step 4 adds `hold`, `release`, `linked`, `drain`, `lanes_drained`, `RpcOptions::idle` and
+`drain_deadline`, `LaneStats::drains`/`retired`, and `rpc::Lane::draining()`. A4 adds
+`fetch(node, name, FetchDone)`, `RpcOptions::reader`/`fetches`/`fetch_bytes`/`fetch_deadline`,
+`fetch_method` (1) and `fetch_missing` (Error 256); `handle(1)` throws when a reader is set.
+
+## Next
+
+0. Session 2 head consensus:cdf5016: read the reruns in State; collect three macOS x86_64 CI runs
+   in a row at the final head (A5; `gh run rerun` for the second and third); then "ready for
+   review". groups-upload-stall-cause waits for a CI capture. The timing label is Blocked on.
+
+Code: /Users/kronuz/code/Kronuz/consensus-wt/detent/consensus-transport (consensus, branch
+quest/detent/consensus-transport). Local build: `.scratch/build` there (Ninja, Release, transport on).
+
+1. A6 + A3 in rpc.h: N3 deferred close inside callbacks; N2 `send` past a known total; N1+A3 every
+   queued frame counts toward a per-connection cap (`LaneOptions::queue_bytes`), chunks wait for
+   room before charging `rpc_outgoing_bytes`; N4 fuzz harness pools below two windows, max_len.
+2. transport-group-bytes: control before owed credit (N2), repaid prefix freed (N3), vector FIFO
+   for Active queues, one GroupTable lookup per control frame, bounded closes, idle group <= 64 B
+   via `open_of(group)`; bench before/after.
+3. transport-receive-bound: bound `arrived()` per group per loop (window of data, fixed control).
+4. A1/A2: hold/release, lane-only `lane_idle` with Drain, graceful close (flushed frames, Drain,
+   close_notify), T6.
+5. A4/A5: fetch as lane method 1; fetch-alongside-consensus ported; SIGSTOP inside a drain.
+6. transport-admission: N9 configured-peer priority, N10-N13, N5-N7, N14.
+7. groups-upload-stall-cause: needs a captured CI failure (lead watches).
+
+## Blocked on
+
+Nothing. The timing label is decided (lead, option (b)): done at consensus:cdf5016.
+
+## Evidence
+
+Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
+Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
+checked what), and answer each message by its id (msg-N).
+
+| Criterion | Evidence |
+|---|---|
+| A1 | 261120-224221-77bfd0; fails without: 261120-095127-6b5847, 261120-095130-ab25d2, 261120-095133-f42ea5, 261120-100637-57c2d3, 261120-100640-082b18, 261120-100643-062f07, 261120-102022-16b298, 261120-145942-200902, 261120-150436-28bd0c, 261120-151637-39c1fe |
+| A2 | 261120-224221-77bfd0; fails without: 261120-102028-2bc70b, 261120-102035-9cd55a, 261120-104122-60d46f |
+| A3 | 261121-022848-250e05 (rpc_test queue-cap, rpc_host stalled-peer); fails without (rpc-no-queue-cap): 261120-092630-5203e3, 261120-092632-f32f32 |
+| A4 | 261120-224221-77bfd0 (rpc_host fetch, D8 table) |
+| A5 | 261121-022849-bfd9fe (fetch-alongside-consensus and stop-drain, 10 runs each); fails without: 261120-145542-e0e075 (forget-is-violation, the never-drain mutant), 261120-145546-4eda6b (fetch-deadline-io-error); macOS x86_64 CI three in a row: run 44876805517 at consensus:34881c2 (lead); `timing` label: CMakeLists.txt, rpc-lane.md |
+| A6 | N3: rpc_test `reenter` under ASan 261121-022848-b6c257, mutant close-reenters 261120-092641-3aaf61. N2: rpc_test `overrun` in 261121-022848-250e05, mutant send-past-total 261120-092638-42250f. N1: rpc_test `unread-queue` in 250e05, mutant refusals-unbounded 261120-092635-b70222 (bounded by A3's cap; R1, R2). N4: fuzz 261121-022848-7ccc3f, corpus coverage 261121-022849-49400e (pool waits and rule 7.6, `fuzz/rpc_coverage.sh`, corpus seed `fuzz/corpus/rpc/seed-past-credit`), id-at-call 261120-092649-8e73c6 (R4); docs/mechanisms/rpc-lane.md |
+
+## Result
+
+consensus:34881c2 (main bb961b3 merged). The host transport carries the rpc lane on Bulk:
+- rpc.h: every queued frame charged to `rpc_outgoing_bytes` and capped per connection
+  (`LaneOptions::queue_bytes`, A3/N1), `send` past a known total refused (N2), deferred close
+  inside callbacks (N3), fuzz reaching pool waits and rule 7.6 (N4).
+- host_transport.h: per-group bytes in flight 4,746.1 -> 594.7 B, idle group 36.0 B stored
+  (docs/perf/transport-idle-cost.md); receive bound per group (overrun, flooded); hold/release,
+  lane_idle with Drain and graceful close, drain()/lanes_drained(); fetch as lane method 1
+  (16 MiB exact in ~1 s beside 84-131 MiB of uploads, heartbeats' gap <= 224 ms locally).
+- links.h: a peer's pending handshake never evicted by an unknown address (N9).
+- Docs: docs/mechanisms/rpc-lane.md, host-transport.md, host-connection.md.
+Open: groups-upload-stall-cause waits on a CI capture; peers late-append's hog stall is
+consensus-full-window-stall's (not this branch's: 10 of 10 at head and main).
+
+## Rulings I made
+
+- R1 (A6 N1, A3) Every frame a call table queues is charged to `rpc_outgoing_bytes`, header
+  included. Call and Body frames wait for room (`LaneOptions::queue_bytes`, 4 frames) and then
+  for the pool; small frames (Credit, Cancel, Error, Drain) answer the peer and cannot wait, so
+  they take the charge at once past the limit (`ByteBudget::charge`; `take` gives nothing while
+  `used >= limit`, `renew` keeps its own bytes first). Their bound: one per live call except
+  refusals, and more than `serving` refusals unsent is a ProtocolError (the reviewer's option a).
+- R2 (A3) The per-connection cap is the table's queue, not the connection's: the connection already
+  takes one 64 KiB feed only once its own queue is out, so a stalled peer holds at most
+  `queue_bytes` + the frame in hand of the host pool. The host refuses `outgoing_bytes` below one
+  frame (65,584), since every frame is now charged whole.
+- R3 (A6 N3) Deferred close (option 2): a `Busy` depth guard on every entry point; `close()` inside a
+  callback runs when the outermost returns. `finish` also returns on an unknown handle.
+- R5 (group-bytes A2) D108's 64 B is the stored part, as D112 splits it (fixed + per-peer): an
+  idle group is stored as id, incarnation, serial (24 B minimum, 36.0 measured); per peer it keeps
+  32 B minimum (16 B on the group loop with the last reported source, 16 B on the connection's).
+  The idle bench now fails stored > 64 and a group over `44 + 64P` (was `164 + 52P`).
+- R6 (group-bytes A1-A2) The folded tasks' criteria have no ids in the tool; their jobs carry
+  `--for A1` (the feed criterion) and name the task criterion in `--what`; the Evidence rows below
+  map them. "One lookup per control frame": the feed's pop hands the frame its Active (was a
+  find in pop, then one in settle), and a receive finds the opened group once.
+- R7 (identity N1) Past `closes` owed closed answers a refusal goes unanswered (`unanswered`); the
+  record's credit is kept, and the peer's next frame is refused and answered again.
+- R8 (A1, D7) lane_idle closes only a Bulk connection that has carried no group frame either way
+  (`Lane::grouped`): one that carried a group stays until `stop()`, as Control does, so D108's
+  steady state (both lanes per peer) is unchanged.
+- R9 (A2, T8) Shutdown is `drain()` then `stop()`; `stop()` still aborts. A call made while the
+  loop drains ends `not_processed` (safe to retry elsewhere).
+- R10 (A2, T5) T5's mutant hands lane frames through another loop (`lane-via-other-loop`); the
+  `reader` case holds that loop and fails it.
+- R11 (A4, D8) The fetcher enforces its `fetch_bytes` when the bytes it holds would pass it (a
+  Cancel message_size), not at the first Body's total, which the lane's events do not expose. A
+  fetch a drain refused (`not_processed`) ends `resource_unavailable_try_again`, safe to retry.
+- R12 (F1) Back off, not close: an ended served call's unsent small frame keeps its slot, as
+  rpc-lane.md already has a served response keep its slot, so one rule (`serving` slots, then
+  `serving` + 1 refusals) bounds every frame a peer's Calls cause, and a slow but reading peer
+  gets `overloaded` (safe to retry) instead of a closed connection. Credits need no rule of their
+  own: a peer that never reads sees no new grant, so it sends at most its first window per call.
+- R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
+  charged, an empty request no longer skips the pool's FIFO.

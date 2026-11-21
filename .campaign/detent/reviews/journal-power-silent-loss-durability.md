@@ -1,8 +1,8 @@
 # journal-power-silent-loss review: durability
 
-Commit: journal:b1bf19a19c7a594b06d1a6823955b65707f9b761 (base journal:178030b)
+Commit: journal:3e369404101bc2a0d174022b263699a1bf219660 (base journal:178030b)
 Verdict: APPROVE
-Date: 2026-11-20
+Date: 2026-11-21
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
@@ -10,6 +10,17 @@ REJECT: the approach is wrong; the quest is re-planned.
 
 ## Evidence I relied on
 
+- Re-review at 3e36940 (msg-192), scope `git diff b1bf19a 3e36940`: journal:3e36940 draws the
+  record size, then the kind, into named locals (turn_log_power_test.cc:68-70), Clang's former
+  left-to-right order, and changes nothing else; journal:0465f24 adds only
+  docs/mechanisms/turn-log-damage.md, whose numbers match the jobs. No other draw shares an
+  expression (lines 186, 246, 260-264 draw once each). Proof the seeds keep their meaning:
+  macOS 200 seeds at 3e36940 (261121-021347-4f85dd) prints per-geometry lines identical to
+  261120-201511-64af67 at dbab658, and Linux GCC (261121-021401-adac93) and FreeBSD
+  (261121-021358-5dfddc) now print the same lines, 1,036,264 checks, 0 failures. The five named
+  seeds pass (261121-021345-4841ea), and the mutants, each one commit on 3e36940, fail on their
+  seeds (261121-021331-c7d5d8, -021333-c493df, -021336-c45179, -021339-6e1ee1, -021342-6b2ffb).
+  CI 44893311494: success, head SHA 3e36940.
 - 261120-201511-64af67 (macOS, dbab658) and 261120-203145-d7fbda (FreeBSD VM, b1bf19a): 200 seeds,
   6 geometries, 1,036,264 checks, 0 failures. Every crash point (241,462, a third with a second cut
   during recovery, each followed by a reopen and 5 more turns) asserts `!damaged && lost.empty()`

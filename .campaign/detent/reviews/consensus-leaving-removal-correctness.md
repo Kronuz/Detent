@@ -1,6 +1,6 @@
 # consensus-leaving-removal review: correctness
 
-Commit: consensus:7e83a6b56a2cd8a8b2ccaa7aa66df2ff13ae643c
+Commit: consensus:ebc3b2eb72b8215a93b6e6f33a88b7d09b5d61df
 Verdict: APPROVE
 Date: 2026-11-21
 
@@ -9,6 +9,19 @@ blocking finding's fix and its test pass the suite at the fixed commit; with onl
 REJECT: the approach is wrong; the quest is re-planned.
 
 ## Evidence I relied on
+
+At ebc3b2e. It differs from the first reviewed commit, consensus:7e83a6b, only in tests and build.
+consensus:822aa7c folds the review probe's checks into test/driver_replace_test.cc: the
+`write()` stream is always on, and `settle_and_check()` matches probe_replace.cc. consensus:ebc3b2e
+runs the 1000 ctest seeds as four 250-seed parts (seeds 1-1000, unchanged).
+
+- 261121-031008-0547aa: A1 at ebc3b2e, 3000/3000 seeds with the by-value checks (66502 committed
+  client writes checked, 801 elections between promotion and removal).
+- 261121-031034-f6c862 and 261121-031035-8662fc: both mutants at ebc3b2e fence at seed 1 with
+  "persistence lacks preowned reservation".
+- CI 44895551866 at ebc3b2e: green, as the lead reports.
+
+At 7e83a6b, where the code was reviewed:
 
 - 261121-010545-420472: the test at 170db35 (pre-fix core) fences at seed 1 with "persistence
   lacks preowned reservation"; the test reproduces the bug.
@@ -78,10 +91,10 @@ checkout: `probe_replace.cc` is driver_replace_test with a by-value oracle added
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | no | gap | driver_replace_test checks: no fence, one leader per term, the same entry at each index on every node, and that every final data member applied one removal configuration and a later command. It does not check the final membership by value, that exactly one removal committed, that the removed member stops leading, or any client write made during the replacement. | test/driver_replace_test.cc:300-340; probe 261121-012750-1033ca adds all four checks and passes 20000 seeds | Optional: fold `settle_and_check` and the write stream from `probe_replace.cc` into the test. |
+| F1 | no | gap | Addressed at consensus:822aa7c, which folds in the probe's checks. driver_replace_test at 7e83a6b checked: no fence, one leader per term, the same entry at each index on every node, and that every final data member applied one removal configuration and a later command. It does not check the final membership by value, that exactly one removal committed, that the removed member stops leading, or any client write made during the replacement. | test/driver_replace_test.cc:300-340; probe 261121-012750-1033ca adds all four checks and passes 20000 seeds | Optional: fold `settle_and_check` and the write stream from `probe_replace.cc` into the test. |
 | F2 | no | nit | `removal()` omits two guards that `can_change_membership()` has: `!transfer_` and `!witness_self()`. A leader in mid-transfer, or a witness leader before its handoff, proposes the removal. The old `drive` condition behaved the same, and the transfer-heavy probe runs pass. | include/consensus/core.h:208-215 vs 202-205 | None needed; state it in D3 if it is intended. |
 | F3 | no | nit | A leader Tick with a removal due now reserves two Control appends, so it can return Pressure and skip that Tick's heartbeat and CheckQuorum. Before this change a leader Tick never could. The window is bounded: the promotion already funded the same Control pack, and idle packs are released. The CHANGELOG's "at most a heartbeat" holds only when that Tick is admitted. | include/consensus/worker.h:714-727, 1153 | None needed. |
-| F4 | no | gap | A3 ran at consensus 20198fc (a cherry-pick of 9a2476d onto b8de3b8), not at this commit, because strata pins consensus-quiescence's API. A4 (CI on 7e83a6b) was still running when I reviewed. | 261121-012106-ce07f5; `campaign status consensus-leaving-removal` | The lead's call: rerun A3 at the quest head after consensus-quiescence lands, as the journal plans. |
+| F4 | no | gap | A3 ran at consensus 20198fc (a cherry-pick of 9a2476d onto b8de3b8), not at this commit, because strata pins consensus-quiescence's API. A4 is green at ebc3b2e (CI 44895551866). | 261121-012106-ce07f5; `campaign status consensus-leaving-removal` | The lead's call: rerun A3 at the quest head after consensus-quiescence lands, as the journal plans. |
 
 Blocking: yes or no. Kind: defect (wrong behavior), gap (unproven claim or missing test), nit. A
 finding that would remove or narrow user-visible behavior offers options, including keeping it,
