@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-224220-aca6f7 261120-224222-24810b
+State: waiting on jobs 261120-224640-2fdee7 261120-224642-a80a03 261120-224643-80f23c 261120-224644-bffc97 261120-224646-14180d 261120-224647-241c15 261120-224649-8aa13f 261120-224650-14d36a 261120-224652-17c02f 261120-224653-8e3e56
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-At consensus:4d5b6e2 (5 commits on main 8801b99); 4d5b6e2 changes only the simulation's repair
-check and a DRIVER.md sentence. Built at consensus:c0838ff:
-driver.h install surface, worker.h snapshot_image + activation-wait fix, host_transport.h
+At consensus:740453b: merge 017c918 of main bb961b3 (consensus-faultfs, clean; the three Sink
+files differ from main only in their Sink definitions), then 740453b, the worker_test fix.
+The quest: driver.h install surface, worker.h snapshot_image + activation wait, host_transport.h
 send_transfer/is_transfer, driver_install_test (lagging, rejected, stale, restart, crash),
-driver_simulation installs, groups_test install over the real host transport. Evidence jobs queued.
+driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read job 261120-194220-d581b0 (driver, close, wave-open tests at consensus:5982871) and CI.
-2. Read A4's jobs 261120-193730-660db9, -193735-f56dd7 (at 4d5b6e2). A1-A3 passed at c0838ff.
-3. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
-   land; rerun the jobs (`campaign job rerun`).
-4. Push; CI macos-arm64 + TSan/ASan for A6. After consensus-quiescence merges: a follower's
-   orphaned incoming image ends only when run_one sees time pass; check that a quiescent group
-   still steps (arm a wake while an install is open) so its repair is not held forever. Test it
-   when quiescence merges (the lead's msg-180 ruling keeps this here).
+1. Read the jobs at consensus:740453b (State) and CI there. CI at 5982871 failed on every
+   platform in worker_test, "held ordinary output retains activation completion while
+   reclamation continues"; 740453b restores reclaim under held output (ruling 6). Job
+   261120-224642-a80a03 runs worker_test at 017c918 (the failure, expected to fail).
+2. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
+   land; rerun the jobs.
+3. After consensus-quiescence merges: a follower's orphaned incoming image ends only when
+   run_one sees time pass; check that a quiescent group still steps (arm a wake while an install
+   is open) so its repair is not held forever, and test it (msg-180 ruling keeps this here).
 
 ## Blocked on
 
@@ -72,8 +73,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    or source, and freed at close (Y9: an idle group holds none).
 5. send_transfer takes (node, peer, frame), not the notice, so host_transport.h does not include
    driver.h.
-6. worker.h: an installed image awaiting activation is no longer runnable and no longer runs
-   reclaim maintenance each turn (a hot loop with inline IO; mutant activation-wait-maintains).
+6. worker.h: an installed image awaiting activation is no longer runnable, and its activation
+   branch blocks instead of running reclaim maintenance (a hot loop with inline IO; mutant
+   activation-wait-maintains). Under held ordinary output it still reclaims, as worker_test
+   requires (consensus:740453b; 5982871 had dropped that too and CI failed). The code was fixed,
+   not the test: DRIVER.md says nothing about reclamation while an activation waits.
 7. Mutants live in test/transport/mutant_commit.py (in the file set), with full paths.
 8. Simulation seed 15: node 1's repair waited behind an incoming image whose source (node 2)
    crashed; the Worker answers Repair Busy while it holds a snapshot, and the channel ends the
