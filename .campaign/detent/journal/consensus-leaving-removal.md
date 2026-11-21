@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-012216-933a9e 261121-012218-e3e272 261121-012226-2fe3f5 261121-011657-336f3f 261121-012106-ce07f5, CI on 7e83a6b
+State: waiting on jobs 261121-014433-59d3fa 261121-014435-ea9ba4 261121-014436-34f470, CI 44891006605 (822aa7c)
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,26 +9,33 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Head consensus:27f79b0 (test 170db35, fix 9a2476d, 1000-seed ctest 06621ad, changelog 27f79b0),
-pushed. Reproduced on main's core: 261121-010545-420472 (test at 170db35) fences at seed 1.
-Passed: A1 261121-011140-7b0e14 (3000/3000 seeds); A2 261121-011652-0bbc59 (core gate
-removed) and 261121-011653-871e69 (leader Tick unplanned): both fence.
-A3 at consensus head cannot build: strata 30c3d26 pins consensus b8de3b8, which is on
-consensus-quiescence, not main (Driver::recover's reopen argument). So A3 runs at
-consensus:20198fc = b8de3b8 + cherry-pick of 9a2476d (local branch
-probe/leaving-removal-on-b8de3b8, not pushed): job 261121-012106-ce07f5 (also prints the other
-four group cases). Failed builds: 261121-011227-d616f8, 261121-011658-34495c.
-Head now consensus:7e83a6b: mutants removal-from-any-drive and removal-tick-unplanned in
-test/driver_mutants.py (CONSENSUS_DRIVER_MUTANT builds into consensus_driver_replace_test);
-ARCHITECTURE.md states a leader Tick's removal pack (lead's ruling, file set widened).
-Waiting: A2 from driver_mutants.py 261121-012216-933a9e, 261121-012218-e3e272; A1 at head
-261121-012226-2fe3f5; suite subset 261121-011657-336f3f (27f79b0); A3 probe 261121-012106-ce07f5;
-CI on 7e83a6b (A4).
+Correctness review APPROVED at consensus:7e83a6b. Head consensus:822aa7c folds F1's oracles into
+driver_replace_test (test only).
+Passed at 7e83a6b: A1 261121-012226-2fe3f5 (3000 seeds); A2 261121-012216-933a9e
+(removal-from-any-drive), 261121-012218-e3e272 (removal-tick-unplanned), from driver_mutants.py;
+suite subset 261121-011657-336f3f (27f79b0); A3 probe 261121-012106-ce07f5 at consensus:20198fc
+(b8de3b8 + 9a2476d): replace, replicas, waits, defer, drain seed 1 all pass.
+Waiting at 822aa7c: A1 261121-014433-59d3fa, A2 261121-014435-ea9ba4 (any-drive),
+261121-014436-34f470 (tick-unplanned); CI 44891006605 (A4; 44889262133 on 7e83a6b in progress).
 
 ## Next
 
-1. Read 261121-011657-336f3f, 261121-012106-ce07f5, CI 44888809581; fill Evidence and Result.
+1. Read the jobs at 822aa7c and CI 44891006605; fill Evidence and Result.
 2. When consensus-quiescence lands on main, merge main and rerun A3 at the quest head.
+
+## Follow-ups (review, non-blocking)
+
+- F1 (folded in, test only): driver_replace_test gains the reviewer's oracles from
+  probe_replace.cc (job 261121-012750-1033ca, 20000 seeds): a client write outstanding
+  throughout; after settling, the membership by value on every member, exactly one committed
+  removal of three configurations, the removed member not leading, every committed write's value.
+- F2: `removal()` lacks `can_change_membership()`'s `!transfer_` and `!witness_self()`; a leader
+  mid-transfer or a witness leader before its handoff proposes the removal, as the old drive did.
+  Intended (the removal completes across leader changes); D3's text could say so. No change.
+- F3: a leader Tick with a removal due reserves two Control appends and can return Pressure,
+  skipping that Tick's heartbeat and CheckQuorum; before, a leader Tick never could. Bounded (the
+  promotion funded the same pack; idle packs are released). The CHANGELOG's "at most a
+  heartbeat" holds when that Tick is admitted. No change.
 
 ## Blocked on
 
