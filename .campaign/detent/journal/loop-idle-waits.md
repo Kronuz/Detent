@@ -1,4 +1,4 @@
-State: waiting on job 261121-004553-039208 (relay socket/CPU probe, head vs relayhost) and CI 44886920329 (bisect/liw-r1-poll), 44886919816 (bisect/liw-r1-nowake), macOS arm64 x3 each.
+State: waiting on CI 44894923688 (bisect/liw-fix, arm64 x3), quest CI 44895042075/44895042358 at Detent:b0005104, and jobs 261121-023453-da8346 (relay tests) -023453-51468c (suite) -023454-489b59 -023454-766ae5 -023455-1d7b36 -023455-ebd79f -023455-394538 -023456-970d62 -023456-b739fe -023456-84f176 -023457-51f876 -023457-67181f.
 
 State: waiting on F13 jobs 261120-225535-9724ee -225537-795628 -225539-3cb98d (strict, head vs main at 100k keys) and -225542-b03235 (fails-without, mutant stop-peers-sleep) at Detent:7d1fad45; arm64 bisect branches bisect/liw-relayhost and bisect/liw-relay1ms (CI on push).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
@@ -182,6 +182,21 @@ reclaim scans ~60 completion ops/s) frames A1.
 - Next split, both on relay1ms (3229f617): bisect/liw-r1-poll (continue at once only on progress, rescan every turn:
   main's loop shape with head's wakes), bisect/liw-r1-nowake (no ServiceRuntime or publication-sink wakes). The loser
   names the part. Deleted bisect/liw-head, -relay, -relayhost, -relay1ms (statuses stay on their commits).
+- Split result (msg from the lead): bisect/liw-r1-poll (relay1ms + main's loop shape) 44886920329 passed 3 of 3;
+  bisect/liw-r1-nowake (relay1ms without the service and sink wakes) 44886919816 lost 3 of 3. The culprit is the
+  loop shape: running again at once without progress (unfinished sweep, bundle visit or cleanup) and visiting
+  requests only during a sweep. Not the wakes, not the sleep length.
+- Probe 261121-004553-039208 (x86_64, test_relay_service alone, 2 rounds each): nothing grows. Head vs relayhost:
+  TIME_WAIT peak 4104/3988 vs 4106/3988, network memory 2964-3176 KB both, peak RSS 132-137 vs 139-144 MiB, relay
+  CPU share 0.02-0.06 vs 0.06-0.07; head finishes in 49-53 s vs 77-78 s. The machine loss does not reproduce off
+  macOS arm64, so CI arm64 x3 is the oracle; no local stress shows it (stated, not assumed).
+- Fix Detent:59206705: each turn visits every admitted request (occupied slots gathered under one lock), the whole
+  session table and every bundle; it continues at once only on progress (or stale cache edges left past its
+  32-step share, which is work done), else sleeps until health/snapshot retry or a wake. `rescan`, `swept()`,
+  `unvisited_bundles` and the lane cursor are gone; publication-sink calls mark the cache for cleanup. Merged main
+  (Detent:b0005104). Proof: bisect/liw-fix (the three relay files of 59206705 on the bisect base) CI 44894923688,
+  arm64 x3; quest CI at b0005104. Reruns of A1-A4 and the relay tests queued at b0005104 (State).
+- Deleted bisect/liw-r1-poll and -r1-nowake; bisect/liw-fix remains until read.
 
 ## Result
 
