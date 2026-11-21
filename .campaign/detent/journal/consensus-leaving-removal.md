@@ -50,7 +50,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261121-031008-0547aa |
-| A2 | fails without, from test/driver_mutants.py at ebc3b2e: 261121-031817-665bcf (removal-from-any-drive), 261121-031819-910be2 (removal-tick-unplanned) |
+| A2 | 261121-032753-f69c75; fails without: 261121-031817-665bcf, 261121-031819-910be2 |
 | A3 | pending: rerun at head once consensus-quiescence lands (probe at consensus:20198fc passed: 261121-012106-ce07f5) |
 | A4 | `ci:macos-arm64` |
 
