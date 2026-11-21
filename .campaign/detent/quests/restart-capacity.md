@@ -5,16 +5,16 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Operators raise authority limits (keys and the other nine) by restarting the voters with a raised configuration; nothing on disk or the wire changes, relays and agents keep their generations and stores (D141). Each `DTABAT02` and `DTAADM01` entry replays under the limits it carries; only the equality checks change. Contract: `docs/ONLINE_CAPACITY_ARCHITECTURE.md` rules 1-7.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A group that failed `Capacity` at the old key ceiling replays after the raise with the same result: jobs, `--fails-without` a mutant applying under configured limits
+- A2 An image and an administrative entry recorded under the old profile recover under the raised configuration; a lowered field refuses and names it: jobs
+- A3 A retry of a pre-raise producer sequence returns its original receipt: jobs
+- A4 Three voters restarted with raised `keys` grow past the old ceiling; relays and agents keep their generations and serve the new keys: a system job
+- A5 [artifact] Every `State::limits_` site classified replicated or local: `docs/mechanisms/authority-capacity-raise.md`
+- A6 The suite, sanitizers and CI pass
 
 ## Contracts
 
