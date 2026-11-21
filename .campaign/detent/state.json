@@ -11643,7 +11643,106 @@
       "worktree": ""
     },
     "journal-idle-groups": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-20T21:07:36",
+          "base": "178030b38f5617337486407e6cc35d70881a0841",
+          "blobs": {
+            "CHANGELOG.md": "100644:470920f04d8513540dc115bb2c4769dce66ee5d1",
+            "CMakeLists.txt": "100644:45674402efb314080b73f3d3191e4d400fa0a81a",
+            "docs/design/host-layout.md": "100644:a92128ad8ae5205fd371d5bc0a55547da9fc1843",
+            "docs/design/idle-groups.md": "100644:29ca74ffc7161082e4054da975cfabe10a7021ab",
+            "docs/mechanisms/group-lifetime.md": "100644:f0c20c75eb1ca6fb1e7dad35040c73d33882b999",
+            "include/journal/host.h": "100644:4cac10d898690cd8d46542d8fd7b5d81fa84a176",
+            "include/journal/turn_driver.h": "100644:5719d0338211f4145c06227e7f10235a156ece39",
+            "include/journal/turn_log.h": "100644:6607bd4b561052db35403f5d1893464982079202",
+            "test/host_test.cc": "100644:9950e33fd325d4057a63427a08b49c7ded81e061",
+            "test/journal_test.cc": "100644:e97d995c99e073560a3d7f33e884f350a23b3788",
+            "test/mutants.py": "100644:314ba09eb4bec5c15c8296787b7838ce0941ae4b",
+            "test/sync_seam_test.cc": "100644:31480221a0635747d03714b9f1600f4d3633c3c0"
+          },
+          "by": "review",
+          "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+          "criteria": "b9a17d281fc97f02",
+          "diffs": {
+            "CHANGELOG.md": "e17332714221a560",
+            "CMakeLists.txt": "924496cb86288e8e",
+            "docs/design/host-layout.md": "4c69e7ee3b64605d",
+            "docs/design/idle-groups.md": "84526fdf7e199ee5",
+            "docs/mechanisms/group-lifetime.md": "7945bc97cc9a0ed7",
+            "include/journal/host.h": "58ecaf1ac9285430",
+            "include/journal/turn_driver.h": "933014fe7ebeaeea",
+            "include/journal/turn_log.h": "5cfd471c34978c97",
+            "test/host_test.cc": "960883744436a8a1",
+            "test/journal_test.cc": "6483e1264e282301",
+            "test/mutants.py": "d6bf3443ed9cb2ce",
+            "test/sync_seam_test.cc": "a566ef9f55743ba0"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "python3 test/mutants.py no-orphans",
+                  "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-210624-ced8ca",
+                  "level": "light",
+                  "seconds": 20.3,
+                  "state": "done",
+                  "what": "python3 test/mutants.py no-orphans at a76ef25a4b2d"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "F2": {
+              "jobs": [
+                {
+                  "cmd": "python3 test/mutants.py missing-shard-stale",
+                  "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-210624-cf3c4c",
+                  "level": "light",
+                  "seconds": 20.5,
+                  "state": "done",
+                  "what": "python3 test/mutants.py missing-shard-stale at a76ef25a4b2d"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "F3": {
+              "jobs": [
+                {
+                  "cmd": "python3 test/mutants.py park-skips-opened",
+                  "commit": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-210624-dd37e7",
+                  "level": "light",
+                  "seconds": 20.4,
+                  "state": "done",
+                  "what": "python3 test/mutants.py park-skips-opened at a76ef25a4b2d"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "CMakeLists.txt"
+            ],
+            "reason": "a76ef25 only registers host_test's existing cases as separate ctests (CMakeLists.txt) and makes an unknown case name fail; no mechanism change"
+          },
+          "note": "",
+          "review": "ebe503f7c843f9eed9f6839b2883ea351ed0b80b",
+          "reviewed": "d2ce548c5182f59a8fc6f817061dcf2e041c0c88",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "xapiand:turn-log-parity"
       ],
@@ -11708,7 +11807,7 @@
       "risk": "high",
       "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T19:56:34",
+      "updated": "2026-11-20T21:07:36",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
