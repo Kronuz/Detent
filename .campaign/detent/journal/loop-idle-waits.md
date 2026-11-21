@@ -1,32 +1,14 @@
-State: waiting on bisect CI 44907033869 (bisect/liw-fix at Detent:0e6eeae6, arm64 x3: F13's last round), quest CI 44907046261 and jobs at Detent:956a026f: suite 261121-050501-975e09, relay tests -050502-92821b, network x20 -050505-7960c4, pair x8 -050505-ee8739 (vs 219ba475 -050517-46ee38, 2654cd20 -050518-27b861, main -044608-6c41ed), A1 -050502-75f254 -050502-e93ac9, A2 -050502-47940d -050502-3ac5b0, A3 -050502-1804d3, A4 -050503-c8ffc1 -050503-f7c7a8 -050503-6fb9a3 -050503-9060a4 -050503-1cea56.
+State: ready for review at Detent:956a026f (R12 head; every job and CI below green). Lead: the correctness review (CHANGES at Detent:3550e55a) is the only item `campaign brief` lists; re-review or accept it.
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 2 (review CHANGES at Detent:30391330; the last round before a re-plan). Jobs queued at
-Detent:cc942c46.
-
-1. F7 (blocking): a multi-voter authority missed a stop that landed mid-pass. The absence check
-   measured from max(pass start, end of the 1 ms sleep planned after it), so a stalled pass never
-   counted. The local suite at Detent:30391330 failed the same way (261119-101104-bee765:
-   test_relay_service a5, "voter 2, knowing no leader, answered /v2/history/layouts 200").
-   Fix Detent:d7d4193f: `owner_absence(pass, slept, planned, next)` in owner_loop.hh sums the pass
-   (up to the sleep's start) and the lateness past the planned deadline; the planned sleep never
-   counts. test_owner_absence covers stop mid-pass, stop in the sleep, a long planned sleep, an
-   early wake, no sleep, a split stall and a deadline already past. Mutant absence-merged restores
-   the merged rule (261119-103519-3b65cd). TSan loop of test_relay_service: 4 jobs x 5 runs.
-2. F8: test_coordinator_teardown joins the worker pool in a guard declared after the owner, so a
-   failing require() cannot leave a job posting to a freed io_context (Detent:91379253).
-3. F9: A1 runs at interval_ms 60000 (stated in the Evidence row); compare.sh takes
-   IDLE_INTERVAL_MS, and 261119-153345-8528aa adds the 250 ms default (Detent:cc942c46).
+Nothing: R12 head Detent:956a026f has every job and CI green (Evidence). Review round 4's findings are
+fixed (F13 by R12 and Detent:09ce7216); the lead re-reviews.
 
 ## Next
 
-1. Read the jobs; record the Evidence rows (A1: interrupt_wakeups_per_s and owner_turns_per_s, F6,
-   at interval_ms 60000 and 250). Read CI 44589259502's linux-tsan test_relay_service and
-   test_authority_idle_wake (F4).
-2. rename-detentd had not landed at 3d0571cd; merge main (never rebase) once it does, then
-   `campaign job rerun` the suite and mutants.
+1. Lead: re-review or accept the correctness review (`campaign accept loop-idle-waits correctness`), then land.
 
 ## Design (how it works)
 
@@ -49,31 +31,17 @@ Detent:cc942c46.
 
 ## Blocked on
 
-- macOS arm64 CI hang (lead's call). The runner is lost ~49.4 min into Test in about half the quest's arm64 runs
-  (5 of 9; main 0 of 20), with no log or artifact; the 20-min watchdog end did not fire either, so the machine
-  itself stalls. Options: (a) bisect on arm64 by dispatching CI at quest commits (2 to 3 runs each; the hang predates
-  Detent:39e5ab7e, so the relay host turn, the authority idle sleep and the coordinator events are the suspects);
-  (b) in cpp-libraries, run macOS arm64 Test with `--parallel 1` or a `ulimit -v` / per-test memory cap to see
-  whether it is starvation; (c) land on x86_64 + Linux green and track arm64 as its own quest. Recommendation (a),
-  starting with Detent:0fe9bc6c (relay turn) vs Detent:c75dc35f (authority), since local samplers (x86_64) show
-  no port, memory or CPU difference from main.
-
-- F13 (lead's call, contributor 7): 59206705 did not fix it (above). Options: (a) restore main's per-turn share
-  (32 polls, 8 opens, 8 closes, round robin) with a 1 ms pause between shares while a round is unfinished (r1-poll's
-  pace, never back to back), and the long idle sleep only after a full round without progress; then arm64 x3; (b) cap bytes each turn writes
-  across replies (a pump budget), keeping the every-request visit; (c) take macOS arm64 out of the quest's gate and
-  track F13 as its own quest. Recommendation (a): it is the only shape with 3 of 3 arm64 passes besides main.
-
-Nothing else. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mirror_service.hh).
+Nothing. F13's options were settled by the lead's ruling (a), R12, and proven by bisect/liw-fix 44907033869.
+msg-103 and msg-105 answered earlier (D124 files widened; mirror_service.hh).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <queued: 261119-153343-7b0799 (relay interval_ms 60000), 261119-153345-8528aa (interval_ms 250, the default)> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
+| A1 | 261121-050502-75f254 (relay and authority, interval_ms 60000), 261121-050502-e93ac9 (interval_ms 250, the default), at Detent:956a026f vs main 68531fde; numbers under Result |
+| A2 | 261121-050502-47940d, 261121-050502-3ac5b0; fails without: 261119-072624-8d06ce, 261119-072631-37fc18, 261119-072644-c03c0d, 261119-072651-75ab72, 261119-101125-b77320, 261119-101127-d38033, 261119-101131-0a5215, 261119-101134-5d5c49, 261119-103509-644510, 261119-103509-1f64d3, 261119-103509-c4f26f, 261119-103509-3937ff, 261119-103509-5a6c35, 261119-103510-241774, 261119-103519-3b65cd, 261120-013518-340c44, 261120-021138-336caf, 261120-051932-e37617, 261120-161445-1fefcf, 261120-161446-fa7216 |
+| A3 | 261121-050502-1804d3; fails without: 261120-144914-cf70b6, 261120-161511-17e350, 261120-225542-b03235 |
+| A4 | suite 261121-050501-975e09; relay tests 261121-050502-92821b; 261121-050503-c8ffc1, -f7c7a8, -6fb9a3, -9060a4, -1cea56; CI quest 44907046261 (passed); F13: bisect/liw-fix 44907033869 (Detent:0e6eeae6) macOS arm64 x3 passed |
 
 Messages: msg-103 (widening, ruling A) answered by the lead and done: files widened, multi-voter
 keeps 1 ms behind `wake_by` naming multi-voter-idle-wake. msg-105 (mirror_service.hh) answered and
@@ -239,7 +207,43 @@ reclaim scans ~60 completion ops/s) frames A1.
 
 ## Result
 
-<Not yet.>
+R12 head Detent:956a026f. A1 (strict, 10 s idle, 3 interleaved rounds, head vs main 68531fde; mean of 3,
+rate per second; wakeups are interrupt wakeups):
+
+| interval_ms | process | head wakeups | head turns | main wakeups | main turns | wakeup ratio |
+|---|---|---|---|---|---|---|
+| 60000 | authority | 9.7 | 4.3 | 815.3 | 778.9 | 84x |
+| 60000 | relay | 10.3 | 10.1 | 778.8 | n/a | 76x |
+| 250 | authority | 69.0 | 20.6 | 858.1 | 785.0 | 12x |
+| 250 | relay | 37.1 | 10.1 | 811.0 | n/a | 22x |
+
+Raw rounds: 261121-050502-75f254 (60000) and -e93ac9 (250). CPU of one core, head vs main: authority 0.10% vs 2.8%, relay 0.06% vs
+1.7% at 60000; authority 1.5% vs 4.1%, relay 1.1% vs 2.7% at 250.
+
+Honest size: ~80x fewer wakeups at a long sync interval, 12x to 22x at the 250 ms default, where the
+deadlines themselves are the floor. Head turns sit on them: the relay at 10.1 turns/s (its 100 ms health
+turn), the authority at 4.3 turns/s (its 250 ms health turn) at 60000 and 20.6 at 250 (the sync timer
+adds). I did not measure the earlier (pre-R12) shape in this run, so the shrink from it is not stated;
+only head vs main is. R12's idle sleep keeps the residual at the health turns. Main has no relay turn
+counter.
+
+F13 (macOS arm64 runner loss): fixed by R12. bisect/liw-fix 44907033869 (the four relay files of
+Detent:563c5c31 on the bisect base, Detent:0e6eeae6) passed macOS arm64 three times of three; quest CI
+44907046261 passed. Losers had advanced every request per wake; main's 32-poll share per turn with 1 ms
+pause passes.
+
+test_relay_network_100000: x20 alone at head 261121-050505-7960c4, 20 of 20 pass, high_water 500 in 19
+runs and 501 in one: margin 0 to 1 over the fixture's `>= 500` bound. The check is on the edge but stable
+at R12; the earlier every-request shape fell to 282 to 414 under load.
+
+Local proxy for F13 (two copies at once x8, high_water under load): head 261121-050505-ee8739 passed (8 of
+8, all 500); 219ba475 261121-050517-46ee38 failed 3 of 8 ("coordinator invariant at line 330"); pre-fix
+2654cd20 261121-050518-27b861 passed (one 501); main 3c04e6c1 261121-044608-6c41ed passed. The proxy
+catches the dropped 219ba475 shape but does not separate R12's head from pre-fix, so it cannot stand in
+for F13; CI arm64 x3 is the oracle.
+
+Files: bench/idle-wakeups (A1, A3), tests/detent_delivery/mutants (A2), docs per the quest's file set.
+Throwaway branch bisect/liw-fix deleted.
 
 ## Rulings I made
 
