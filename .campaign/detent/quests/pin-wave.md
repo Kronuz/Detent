@@ -46,3 +46,6 @@ Consumes every Kronuz library at its head; changes no Detent API (per the Xapian
 ## May land early
 
 None.
+
+- 2026-11-20, from xapiand (msg-193): take completion:714186e (task 95798a0, landed 2026-11-21); declare task 95798a0 at Detent top level before completion so one task resolves until journal and consensus move their completion pins; faultlab stops fetching journal (faultlab-journal-oracle) before journal step 8.
+- 2026-11-21, msg-191: task main is task:dc2be96 (fire_pending deadlock fixes; wait rule narrowed in docs/API.md). Consider taking it at the top-level task declaration instead of 95798a0, if completion, journal and consensus compile against it.
