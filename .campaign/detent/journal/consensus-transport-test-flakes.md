@@ -3,39 +3,30 @@
 State: working
 Quest: .campaign/detent/quests/consensus-transport-test-flakes.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Reproducing both flakes locally (macOS x86_64 native, plain and TSan builds in
+~/.scratch/detent/consensus-transport-test-flakes) before any fix.
 
 ## Next
 
-1. <step>
+1. Fetch: time the 16 MiB reader (bytes_at on the loop) and the heartbeat gaps under TSan; decide.
+2. group-full: loop it under load; name why 100 frames were delivered before the 4 s stall began.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. Lead's msg: node-admission edits connection_test.cc, links_test.cc, CMakeLists.txt and lands
+first; I leave them alone and merge consensus main after it lands.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <no evidence yet> |
+| A2 | <no evidence yet> |
+| A3 | <no evidence yet> |
+| A4 | <no evidence yet> |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
-
 ## Rulings I made
-
-<Decisions inside the quest's scope, so the reviewer can check them.>
