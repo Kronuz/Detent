@@ -2114,6 +2114,38 @@
         ]
       },
       "text": "journal-loop-handoff landed: unlocks frees docs/** for journal-drop-memory-io; frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T13:11:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T13:11:55",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-206",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "managed-relay-ipv6-flake": "managed-relay-ipv6-flake",
+        "multi-voter-idle-wake": "frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake",
+        "old-flakes-disposition": "frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition",
+        "restart-capacity": "frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "managed-relay-ipv6-flake",
+          "multi-voter-idle-wake",
+          "old-flakes-disposition",
+          "restart-capacity"
+        ]
+      },
+      "text": "dense-distribution-build landed: unlocks managed-relay-ipv6-flake; frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake; frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition; frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4003,10 +4035,61 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-install",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T13:31:19",
+          "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "criteria": {
+            "A1": "261121-110925-b0b599, 261121-110926-f041dc, 261121-110938-8ae959, 261121-110940-e994fd, 261121-110928-1a6a6f, 261121-110923-8ec58f, 261121-110949-e4ea6d; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c",
+            "A2": "261121-110930-4477d6, 261121-110946-f8053a; fails without: 261120-191749-bef99d",
+            "A3": "261121-110932-9e6ce2, 261121-110944-6ee95d; fails without: 261120-191751-b901bb",
+            "A4": "261121-110934-9f29e7, 261121-110936-37148f",
+            "A5": "[artifact] consensus `docs/DRIVER.md` section \"Install\" (consensus:740453b); contract sent to Xapiand as msg-187",
+            "A6": "261121-110942-ddb5d5; fails without: 261120-225734-b342d4"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+          "reason": "",
+          "tested": "8780e44dd2b3322fd72a53495f386a0680f116af"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-21T01:24:20",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:24:20",
+          "by": "consensus-quiescence",
+          "id": "msg-1",
+          "text": "consensus-quiescence review fixes are at consensus:3b20d96 (quest/detent/consensus-quiescence, pushed). F1: Core::campaign() and lead() now clear resting_, so every role change ends a rest (a TimeoutNow target at rest leads with its timers). F2: new Message Gone{term} (wire tag 9, types.h/codec.h/admission.h): when a group fences, Driver::report_fence sends Gone in the group's term to every other member, and a follower of that replica in that term handles it as LeaderGone (Core::leader_lost). Also heard_from_leader() lost its source parameter (F4). Your R1 (an orphaned incoming image on a resting follower) builds on this branch: merge 3b20d96. Any new exhaustive visitor over Message needs a Gone arm."
+        },
+        {
+          "announced": {
+            "at": "2026-11-21T01:44:44",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:44:44",
+          "by": "consensus-quiescence",
+          "id": "msg-2",
+          "text": "consensus-quiescence fixed review F7 at consensus:818fd0a (pushed to quest/detent/consensus-quiescence, on top of 3b20d96): Gone is handled in handle(Receive) before the term step and never raises a term (core.h; receive_message(Gone) is now a no-op). Merge it into your branch; no API change."
+        }
       ],
       "milestone": "",
       "needs": [],
@@ -4015,10 +4098,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-21T13:31:06",
-      "worktree": "../consensus-wt/detent/consensus-driver-install"
+      "updated": "2026-11-21T13:31:24",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
