@@ -1,18 +1,15 @@
 # journal-power-silent-loss: journal
 
-State: waiting on jobs 261120-202201-5cee1f, CI run 44865755870
+State: ready for review
 Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never edit it)
 
 ## Doing
 
-Fixes built (journal:e77d17b, journal:dbab658); 200-seed macOS row passes; CI run 44865217682
-on the pushed branch.
+Nothing: every criterion has its evidence at journal:b1bf19a.
 
 ## Next
 
-1. Read 261120-202201-5cee1f: the FreeBSD VM row (test/turn_log_power_vm.sh freebsd 200, at
-   journal:b1bf19a, which is dbab658 plus the changelog and the script).
-2. CI green (A4); merge journal-idle-groups when it lands (both edit turn_log.h, different hunks).
+1. Merge journal-idle-groups when it lands; both edit turn_log.h, in different hunks.
 
 ## Blocked on
 
@@ -23,9 +20,9 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | Result below (diagnosis per seed; old-code replay of the five seeds) |
-| A2 | 261120-201510-15f224 (all five seeds pass at dbab658); 261120-201511-64af67 (200 seeds, macOS: 1,036,264 checks, 0 failures; 241,462 crash points, none read as damage); 261120-202201-5cee1f (FreeBSD VM, 200 seeds, pending) |
+| A2 | 261120-201510-15f224 (all five seeds pass at dbab658); 261120-201511-64af67 (200 seeds, macOS: 1,036,264 checks, 0 failures; 241,462 crash points, none read as damage); 261120-203145-d7fbda (FreeBSD VM, 200 seeds at b1bf19a: 1,036,264 checks, 0 failures) |
 | A3 | 261120-201407-d594b9 (seed 91 @512 fails at 4b9166f, test only); 261120-201509-96e66d (seed 145 @2048 fails at e77d17b, tail fix only) |
-| A4 | CI run 44865755870 at b1bf19a (pending; 44865217682 was cancelled by that push) |
+| A4 | CI run 44865755870 at b1bf19a: success (macos-arm64, macos-x86_64, freebsd, linux gcc/clang/arm64, asan-ubsan, tsan) |
 
 msg-183: the five failing seeds (91, 140, 145, 199, 122; msg-184's 91 included) are diagnosed and
 fixed below.
@@ -59,7 +56,7 @@ most of them, and these two causes were left:
      segment and epoch.
 
 Neither cause is F2 or F3. Test: turn_log_power_test takes SEEDS FIRST_SEED BLOCK_BYTES
-(journal:4b9166f). CHANGELOG has entries for both.
+(journal:4b9166f). CHANGELOG has entries for both. test/turn_log_power_vm.sh (journal:b1bf19a) runs the row in a local VM.
 
 ## Rulings I made
 
