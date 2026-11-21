@@ -40,7 +40,7 @@ detent_reader (handle)
 4. **Build.** Keep the installed entry when the table's generation id is unchanged; otherwise attach (A4: a regression within one incarnation is refused). Attach starts from the table step 3 read and takes the generation's lease; a lease already gone reads `selected` again through `detail::read_selected` (the store table; a table naming an image already gone is read again), up to three times; a record whose file a collection unlinked between the open and the check is opened again, up to three times, then reported unavailable. Nothing new: no publish.
 5. **Publish.** Count the new view's members, store the view in the next slot (release), store `current + 1` (seq_cst), then free every other slot whose counters sum to zero.
 
-A failure frees what it built, keeps the installed view and remembers the status at the store word the attempt read; lookups answer from the installed view (or return that status for an unattached namespace) until the store word moves or `detent_refresh` runs. A publish that lands during the attempt has already moved the word, so the lookup retries at once.
+A failure frees what it built, keeps the installed view and remembers the status at the store word the attempt read; lookups answer from the installed view (or return that status for an unattached namespace) until the store word moves or a `detent_refresh` that does not fail; the next first lookup then attaches. A publish that lands during the attempt has already moved the word, so the lookup retries at once.
 
 The Dekker pair: a reader's seq_cst increment and recheck against the publisher's seq_cst `current` store and counter scan. Either the recheck sees the new sequence and the reader backs off without reading the view, or the scan sees the increment and keeps the view. Sequences never repeat, so a reader that pinned a reused slot fails its recheck.
 
@@ -48,9 +48,13 @@ The Dekker pair: a reader's seq_cst increment and recheck against the publisher'
 
 `detent_open` copies the store path and namespace list, takes `refreshing` itself and runs one refresh that attaches nothing: directory trust, `change`, the table. A store with no directory or no `change` yet opens (Q6 (a)); a `selected` without a valid `change` is refused (`DETENT_SOURCE_FAILURE`, D4 rule 5); an untrusted directory is `DETENT_UNTRUSTED`. `detent_close` runs alone (D1 item 7): it unregisters the handle and frees every slot. The core starts no thread and does not use a `RetirementDomain`.
 
+## Bounds
+
+Each handle charges two ledgers, with the defaults of main's client (`src/detent_local/view.cc`): the heap, 8 MiB (each generation's segment table, segment objects and verified bitmaps), and mapped bytes, 512 MiB (each segment mapping, rounded to pages). An attach the heap cannot hold fails with `DETENT_NO_MEMORY`, remembered like any attach failure. A cold miss past the mapped-bytes cap maps nothing and fails that lookup alone with the fallback (`DETENT_SOURCE_FAILURE`, since the page access reports admission as a source failure); the generation keeps answering from the segments it holds. Nothing is evicted: segments leave with their generation. `change` is not charged; it is mapped whole.
+
 ## Fork (D10)
 
-The first open registers `pthread_atfork` handlers. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
+The first open registers `pthread_atfork` handlers; a refused registration fails that open with `DETENT_NO_MEMORY`, and the next open tries again. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
 
 ## Fork and cold preparation
 
@@ -70,14 +74,20 @@ Without the freeze, a fork while one handle is parked at `LazyPageWindow::Publis
 
 `GenerationUnavailable` is `DETENT_UNAVAILABLE`; `bad_alloc` and ledger pressure `DETENT_NO_MEMORY`; `system_error` `DETENT_IO`; a refused directory `DETENT_UNTRUSTED`; everything else from a record, page or `change` check `DETENT_SOURCE_FAILURE`.
 
+A cold segment miss whose open, `fstat` or `mmap` fails for want of a resource (`EMFILE`, `ENFILE`, `ENOMEM`, `EAGAIN`, `EINTR` on open; any `fstat` or `mmap` errno) raises a `system_error`: that lookup answers `DETENT_IO` with the fallback, the generation stays usable, and the next lookup of the key retries the miss. Any other refusal of a page or segment marks the generation failed, and every later lookup in it answers `DETENT_SOURCE_FAILURE` until a new generation is attached.
+
+## Mapped bytes after verification
+
+A page is verified once, at first touch, and later lookups read it in place from the private mapping (reader.md Limit 5). Only the publisher's account or root can write a generation file: packs, leases, records and `change` must be owned by the publisher, have one link, no group or other write, and a mode-only ACL (`generation_file_access.hh`, `change_file.cc`). On Linux a write to the file after first touch shows in the mapping until the page is copied on write; on macOS it does not. Either way the walk stays inside the page: it places a page's nodes end from the raw external count (`paged_read_state.cc`), and `decode_node` and `decode_external` (`paged_layout.cc`) refuse any end or offset past the page's bytes, so damaged bytes give an in-page read or a refusal. `test_dense_reads`' `damaged_counts` checks that under ASan.
+
 ## File admission and replacement
 
-Required regular files (`change`, selected records, leases and packs) open with `O_NONBLOCK` before their descriptor-based shape, ownership, link, extent and ACL checks. A FIFO therefore reaches the regular-file refusal without waiting for a peer. Regular files retain their ordinary reads and mappings; `test_reader_files` checks their value alongside six refused shapes at each of the four entry points, with a two-second alarm per child.
+Required regular files (`change`, selected records, leases and packs) open with `O_NONBLOCK` before their descriptor-based shape, ownership, link, extent and ACL checks. A FIFO therefore reaches the regular-file refusal without waiting for a peer. Regular files retain their ordinary reads and mappings; `test_reader_files` checks their value alongside six refused shapes (FIFO, directory, symlink, hard link, mode, short) of each of five files (`change`, `selected`, image, lease, pack), with a two-second alarm per child.
 
 `ChangeMapping` retains the device and inode from the descriptor it validates and maps. Explicit refresh compares the pathname with this identity. A replacement between mapping inode A and installing its view cannot label A as inode B. `test_reader_core` replaces the file in that window, requires an explicit refresh to remap it, and checks value and revision 2 after the next publication.
 
 ## Test seams
 
-`PreparedReaderTesting` provides a thread-local hook after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.
+`RecordTesting` provides a hook, on the installing thread, after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.
 
-Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, and per-handle stats (live views, publishes, refused, attached, generations, `current`).
+Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, per-handle stats (live views, publishes, refused, attached, generations, `current`, the ledgers and their bounds), `bounds` (the ledger bounds of the next opens) and `refuse_atfork` (a failed fork-handler registration).
