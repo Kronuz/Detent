@@ -1,11 +1,10 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261121-062205-07f121, -062205-1b76ca, -062205-e19581, -062206-965eb3,
--062206-9af706, -062206-a0d98c (5M row, strict), -062207-f59e01, -062220-51144b, -062223-e3ab93,
--062225-f9c3bf, all at Detent:904836b0 (unpushed). Push Detent:904836b0 (and this journal) once CI
-run 44912555777 at Detent:e9bbf379 finishes (lead: don't cancel it); then CI at the new head.
-Next: when the brief shows only the review, write "ready for review"; keep chasing the x86_64
-relay_pages timeout from its rewrite progress prints (CI macos-x86_64 log, job -062206-965eb3).
+State: waiting on jobs 261121-091833-56989c, -091835-316ded, -091838-2d4684, -091841-0a0df1,
+-091907-198f28 (F1), -091907-a37d93 (F2), -091910-ab362b (F3), -091907-e4048a (F4, strict),
+-091910-30e89a (F10), -091908-cfcd93 (forced root), all at Detent:14e9ef82 (pushed; CI on it).
+Next: when they and CI pass, "ready for review". Merge main (lead's order): 6 files conflict, 34
+hunks, loop-idle-waits' owner wakes against the v2 coordinator and relay service.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -13,6 +12,25 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Round at Detent:14e9ef82 (CI run 44923835160 at Detent:ff58b8be failed two jobs):
+1. macos-x86_64, test_system_relay_pages timeout: cause is CPython 3.14 on macOS, not the
+   product. That image runs Python 3.14.7 (arm64 has 3.15.2, local 3.15.2). macOS waitid(WEXITED)
+   also reports a stopped child (si_code CLD_STOPPED); 3.14's _ThreadedChildWatcher takes it as
+   the exit and the loop blocks in waitpid(pid, 0) until the child exits. So the relay's SIGSTOP
+   froze the harness's event loop: no transaction print, no actor output captured, 254 s silent.
+   Reproduced locally with a 20-line probe (3.14.8 hangs at to_thread after SIGSTOP of an asyncio
+   child, faulthandler stack in unix_events._reap; 3.15.2 runs; 3.15's watcher loops past
+   CLD_STOPPED). Fix (Detent:dc5e3247): run_relay_pages.py consumes stop reports before the
+   watcher's wait on Python < 3.15 on macOS, as 3.15 does. Jobs: -091838-2d4684 (under 3.14,
+   must pass), mutant stopped-relay-unwatched -091841-0a0df1 (must hang).
+2. macos-arm64, test_pages_coordinator "timed out waiting for diverged records": the test's race,
+   this branch's. The D1 case pushed the write and set the frame root under two locks; a poll
+   between them answered the new head with no root, the agent published it unchecked, and
+   diverged never counted (the "a leaf outside" error is the F1 refusal earlier in the case). Fix
+   (Detent:65458af3): one lock. Mutant d1-root-after-write (500 ms between write and root)
+   -091833-56989c; x10 -091835-316ded.
+- main merge tried and aborted: conflicts above. Not done here; it changes the reviewed head.
 
 Round at Detent:d589ce42 (resume after the idle hours):
 - Merged the history-ranges task's last commit (journal only, Detent:01389fc7) and main (8 files,
@@ -299,6 +317,12 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 
 ## Rulings I made
 
+- New mutants tests/detent_delivery/mutants/d1-root-after-write.patch and
+  tests/detent_system/mutants/stopped-relay-unwatched.patch, beside listed ones. Lead: add them.
+- The stopped-child shim stays in run_relay_pages.py, the only asyncio harness that SIGSTOPs a
+  child; it wraps the private watcher method only on macOS before 3.15. Kept SIGSTOP rather than
+  an agent restart, which would change what the test proves (a live session's next) and the
+  forced run's D9 check.
 - New file tests/detent_relay/mutants/compressed-answer-unfitted.patch, beside the listed relay
   mutants. Lead: add it to the set.
 - The lead put framing.hh in the set for take(); its body is in src/detent_distribution/
