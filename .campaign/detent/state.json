@@ -4589,9 +4589,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-20T18:25:12",
+      "updated": "2026-11-21T00:40:52",
       "worktree": "../consensus-wt/detent/consensus-quiescence"
     },
     "consensus-replica-delete": {
