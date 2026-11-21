@@ -37,6 +37,33 @@ HASHED = re.compile(rb"hashed \d+ bytes since start: (\d+) to build")
 TRANSFERS = re.compile(rb"page transfers (\d+) received \((\d+) bytes\), (\d+) refused")
 
 
+def survive_stopped_children() -> None:
+    """Keeps the event loop running while the relay is stopped. On macOS, waitid(WEXITED) also
+    reports a stopped child, which CPython before 3.15 takes as its exit: the loop then blocks in
+    waitpid until the child exits. This consumes stop reports first, as 3.15's watcher does."""
+    from asyncio import unix_events
+
+    watcher = getattr(unix_events, "_ThreadedChildWatcher", None)
+    if sys.platform != "darwin" or sys.version_info >= (3, 15) or watcher is None:
+        return
+    original = watcher._do_waitpid
+
+    def do_waitpid(
+        self: object, loop: object, pid: int, callback: object, args: object
+    ) -> None:
+        try:
+            while (
+                os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT).si_code
+                == os.CLD_STOPPED
+            ):
+                os.waitid(os.P_PID, pid, os.WSTOPPED | os.WNOHANG)
+        except ChildProcessError:
+            pass
+        original(self, loop, pid, callback, args)
+
+    watcher._do_waitpid = do_waitpid
+
+
 class Output:
     """Each agent's output, by cohort, and the last counters it logged."""
 
@@ -333,6 +360,7 @@ def main() -> None:
     arguments = parser.parse_args()
     if not 1000 <= arguments.records <= 500000:
         raise SystemExit("records must be 1,000 to 500,000")
+    survive_stopped_children()
     try:
         asyncio.run(run(arguments))
     except Exception as error:
