@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-225643-d183d6 261120-225646-4a2941 261120-230810-7a9077 261120-230812-55a44b
+State: waiting on jobs 261121-082753-d21525 261121-082753-a72cc7 261121-082753-887444 261121-082753-627be6 261121-082754-5ae1d3 261121-082754-676cb7 261121-082754-20565a 261121-082754-8c8b3b 261121-082754-ab5004 261121-082754-412a78 261121-082755-291adf
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fixing review findings (reviews/consensus-full-window-stall-correctness.md, CHANGES at 90ff878).
-F1 fixed at consensus:fb8931f; F2 and F5 at consensus:f178d4e. Waiting on A1 x4, TSan, the
-reviewer's probe, CI. A3's jobs ran fe0d2dc's core.h; F1 does not change a 64 KiB-command batch
-(the old and new guards both stop after one 64 KiB entry at a 64 KiB frame), so A3 needs a rerun
-only if the lead wants evidence at the exact head (submit with H=f178d4e: build and checker both
-name the commit).
+Merged consensus main (consensus-transport 9bbd632, consensus-quiescence 5ebf834) at
+consensus:5a114dd; correctness review accepted at consensus:8e55060. Every evidence job reran at
+5a114dd (State's ids); CI on the pushed branch pending. Lands first, before consensus-leaving-removal
+and consensus-driver-install.
+
+core.h merge: two conflicts, both independent additions beside each other. Peer keeps
+quiescence's `told` (the commit an acknowledged append carried, read by the rest check) and
+pacing's `frame`; a matched append answer runs `pace(peer, *at)` then
+`peer.told = max(told, at->commit)`. Flight auto-merged with both `bytes` and `commit`; the
+timeout's floor reset, the batch bound and `Peer{...}` emplaces (frame defaults to the floor)
+merged clean. A resting leader sends nothing, so pacing keeps its frame across a rest. Local
+build of every target at 5a114dd: clean.
 
 ## Root cause (A2: docs/mechanisms/append-pacing.md)
 
@@ -38,8 +44,7 @@ a slow one, back to 64 KiB on a timeout.
 
 ## Next
 
-1. Correctness review (high risk).
-2. Merge consensus main once consensus-quiescence lands (it also edits core.h).
+1. Jobs at 5a114dd and CI green, then the lead lands.
 
 ## Blocked on
 
@@ -50,10 +55,14 @@ the lead said they'll widen it.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | at f178d4e (F1 fix): 261120-225642-48b0ca passed; 261120-225642-33fe0e (main's core.h) and 261120-225643-3b255d (no floor reset) failed as they should (exit 8); pending 261120-225646-4a2941 (--fails-without, no F1 guard). Reviewer's probe 261120-225650-745988 passed at f178d4e (100 KiB slow: 142 commits, 0 elections, largest 102,400 B; every append <= rpc_bytes) |
+| A1 | at 5a114dd (merged main): 261121-082753-d21525, 261121-082753-a72cc7 (registered ctest); F1 reviewer's probe 261121-082753-627be6. Fails without (mutants, unchanged by the merge): 261120-183911-97e441, 261120-183913-e37593, 261120-185057-a51736, 261120-185059-a31b7d, 261120-201357-874d17, 261120-201358-1847ef, 261120-225642-33fe0e, 261120-225643-3b255d, 261120-225646-4a2941 |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc; netem table consensus:fe0d2dc, both runs per build consensus:90ff878) |
-| A3 | at f178d4e (checker and core.h from f178d4e): pending fix loss1% 261120-230810-7a9077, fix reorder5% 261120-230812-55a44b; main's runs stay (they test main). Earlier, checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does), run from `git show fe0d2dc:` in each job. At fe0d2dc core.h: fix loss1% 261120-201346-c3e8de PASS (10 windows, 0 role changes, 0.49 MB/s); fix reorder5% 261120-201347-0f5364 PASS (2,048-entry cap in 44.4 s, 6 windows, 0 role changes, 2.99 MB/s); main loss1% --fails-without 261120-201349-112b82 FAIL as it should (21 role changes, 63 commits, stalled window); main reorder5% comparison 261120-201350-63af72 PASS (3.62 MB/s). Earlier at b08f834 core.h (same): 190520-a407f0, 190522-1d0e1b (passes under fe0d2dc's checker), 190521-62807e, 190523-86507a |
-| A4 | at f178d4e: TSan pending 261120-225643-d183d6; CI macos-arm64 at f178d4e pending. At fe0d2dc: TSan 201358-da8c6d passed, CI macos-arm64 success (run 44865018670) |
+| A3 | at 5a114dd: 261121-082754-5ae1d3, 261121-082754-676cb7, 261121-082754-20565a, 261121-082754-8c8b3b, 261121-082754-ab5004, 261121-082754-412a78, 261121-082755-291adf; fails without: 261120-190521-62807e, 261120-201349-112b82 (main's core.h) |
+| A4 | at 5a114dd: TSan 261121-082753-887444; CI macos-arm64 on the pushed branch pending |
+
+Earlier, at 8e55060 (all passed): A1 261121-011735-e4cb4a, 261121-011736-1b0bbb; A3
+261121-011735-a92608, -aec8a3, -238091, -f02351, 261121-011736-935bae, -8b633e, -a2dfb0; A4
+261121-011736-781f39. At f178d4e: F1 probe 261120-225650-745988.
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
 failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s against 6.7).
