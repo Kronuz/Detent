@@ -2013,6 +2013,18 @@
         "quest": "xapiand:journal-lost-bound"
       },
       "text": "xapiand:journal-lost-bound started and may change files your journal-tail-second-sector changes (order them with --after xapiand:journal-lost-bound, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T09:54:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T09:54:59",
+      "by": "xapiand",
+      "closed": "Acknowledged: I'll read journal-lost-bound's diff before it lands (send the commit when ready for review). It touches TurnLog::recover's damage path, which journal-tail-second-sector also changes (damaged_fragment, scan_segment), so ordering it after tail-second-sector (msg-199) keeps one rule for damage reporting",
+      "id": "msg-200",
+      "text": "journal-lost-bound (xapiand) started on journal: TurnLog::recover reports a per-group damage bound instead of losing every group a damaged block's manifest names (turn_log.h:605-611, host.h:607-629 mark_lost); records after the bound are kept, the bound stored in GroupEntry, no artifacts removed. strata's turn-log-parity tolerant-open (A2) consumes it. Your lead reviews the diff before it lands, as agreed for journal changes; quest file .campaign/xapiand/quests/journal-lost-bound.md."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
