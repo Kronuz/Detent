@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:4eeef65` (main merged, pushed): gates native ef4078, tsan cafe29, t3-tsan 74eeff, asan 598ac8, t3-asan 93c07d; reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113; A16 strict bd2b1e (running), 256548 (stopped), count 3cc4bb; CI ASan attribution c9dd6e (head) and ac4fc8 (main); CI on the head running. Blocked on the A16 p99 floor (below).
+State: waiting on jobs: gates at `Detent:4eeef65` (code of the head `Detent:45db5f7`) native ef4078, tsan cafe29, t3-tsan 74eeff, asan 598ac8, t3-asan 93c07d; reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113, count 3cc4bb; A16 exclusive 5ee6cc (stopped), 0233d1 (running) at the head; ASan main arm ac4fc8; CI 44876979057 queued at 4eeef65. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,15 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Lead's D142 (2026-11-20): `Detent:45db5f7` gates p99 on main's pooled p99 plus main's run p99
+  spread in the cell (max minus min); the paired difference keeps the median floor; timed runs are
+  exclusive. Strict bd2b1e/256548 cancelled; exclusive 5ee6cc and 0233d1 queued. Main merged at
+  `Detent:782374e` (campaign files only).
+  - On the d0bdc01 strict numbers D142 passes stopped 1 ns (1.162 against 1.135 + main's spread)
+    and fails only the loaded running 1 ns cell; the exclusive runs decide.
+  - ASan `test_local_paged_disk_store`: head c9dd6e passed 40 of 40 on macOS; main ac4fc8 pending.
+    The CI failure is Linux ASan only so far; the head's CI decides whether it recurs. Per the lead:
+    if main fails too, it is pre-existing and goes to the file's owner quest; if only the branch, mine.
 - Resumed 2026-11-20 (lead: jobs at `Detent:d0bdc01` done). Passed there: native 5054f8, tsan
   2c8619, asan e0f54b, t3-asan 952dba, A7 fbc572, dense ASan 6cf066, A12/A13 630328, A10 d86533,
   A11 67abda, A14 0e51eb, soak 69ff23, count bc7996, `unreadable_table` d5b8ee. CI 44834111994: both
@@ -263,22 +272,15 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, reruns, A16 bd2b1e/256548/3cc4bb at `Detent:4eeef65`, the ASan attribution
-   c9dd6e/ac4fc8 and CI on the head; mark Evidence.
+1. Read the gates, reruns, count 3cc4bb, A16 exclusive 5ee6cc/0233d1, ASan main arm ac4fc8 and CI
+   44876979057; mark Evidence.
 2. Merge main again if dense-distribution-build's W1 cursor lands; rerun the gates.
 3. When 1-2 close and CI is green: "ready for review" with 3-5 questions per lens; the reviewers should check the
    freshness argument under Rulings (attach from the refresh's table; first attach from the view's).
 
 ## Blocked on
 
-- A16's p99 floor (D140's "measured noise floor"): the gate uses the floor of the run medians for
-  both comparisons. For p99 it is far below p99's own run-to-run spread (stopped 1 ns: 7 us against
-  116 us), so a 27 us p99 difference fails a cell whose medians favour the branch by 46 us. Options:
-  (a) compare p99 against main's plus p99's own floor (the larger arm's median absolute difference of
-  consecutive run p99s): every exclusive and strict cell so far passes except the loaded running
-  1 ns cell (29.5 against 4.6 + 18.4 ms); (b) keep the median floor and rerun until the strict runs
-  are quiet; (c) run A16 exclusive. Recommendation: (a), which measures each statistic's own noise.
-  Reruns bd2b1e/256548 are queued as is.
+Nothing. The p99 floor is ruled: D142 (option a), applied at `Detent:45db5f7`.
 
 ## Evidence
 
@@ -300,6 +302,9 @@ not flag them); SEL-1/SEL-2 are at `Detent:dc004dc`.
 | A16 | D140: strict 29d977, 481c35, count bc7996 (pending, at `Detent:d0bdc01`); exclusive 9f40bf/5fb83e at `Detent:dc004dc` pass D140 on these numbers (branch pooled p99 below main's in every cell); attribution A/B db0806 |
 
 ## Messages
+
+- Lead (2026-11-20), D142: applied at `Detent:45db5f7`; A16 resubmitted exclusive; alarm change kept;
+  disk store ASan attribution running (head 40/40 passed, main pending).
 
 - Lead (2026-11-20), D140: merged main (`Detent:13f15b7`), gate on D140 (`Detent:f3f76e4`), gates
   requeued; CI dispatched, and on the Linux gcc T3 failure it exposed, fixed at `Detent:d0bdc01`.
