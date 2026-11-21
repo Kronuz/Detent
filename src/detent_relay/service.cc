@@ -99,15 +99,15 @@ struct ServiceRuntime::Impl {
 		d::SubscriptionRequests admission;
 		std::shared_ptr<std::pmr::memory_resource> resource;
 		std::vector<std::shared_ptr<Task>, d::StorageAllocator<std::shared_ptr<Task>>> slots;
-		std::vector<std::size_t, d::StorageAllocator<std::size_t>> free, occupied; // occupied: a step's visits
+		std::vector<std::size_t, d::StorageAllocator<std::size_t>> free;
+		std::size_t cursor = 0, unswept = 0; // unswept: slots this round has yet to visit
 		Lane(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
 			: admission(account, {capacity, capacity, capacity, capacity, capacity}),
 			  resource(d::make_storage_resource(account)),
 			  slots(d::StorageAllocator<std::shared_ptr<Task>>(account)),
-			  free(d::StorageAllocator<std::size_t>(account)), occupied(d::StorageAllocator<std::size_t>(account)) {
+			  free(d::StorageAllocator<std::size_t>(account)) {
 			slots.resize(capacity);
 			free.reserve(capacity);
-			occupied.reserve(capacity);
 			for (std::size_t index = capacity; index; --index)
 				free.push_back(index - 1);
 		}
@@ -124,6 +124,7 @@ struct ServiceRuntime::Impl {
 	std::shared_ptr<const d::OwnedBuffer> health;
 	bool closed_sessions = false;
 	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
+	std::size_t unswept_sessions = 0;
 	std::function<void()> wake;
 	Impl(ServiceAccounts storage, std::shared_ptr<const Registry> authorization,
 		 std::span<const SessionBinding> configured, ServiceLimits bounds, std::shared_ptr<MirrorService> namespaces,
@@ -368,6 +369,18 @@ void ServiceRuntime::close() noexcept {
 		lane->admission.close();
 	impl_->wake();
 }
+void ServiceRuntime::rescan() noexcept {
+	auto &p = *impl_;
+	std::lock_guard lock(p.mutex);
+	for (auto &lane : p.lanes)
+		lane->unswept = lane->free.size() == lane->slots.size() ? 0 : lane->slots.size();
+	p.unswept_sessions = p.sessions.size() ? p.limits.sessions.sessions : 0;
+}
+bool ServiceRuntime::swept() const noexcept {
+	const auto &p = *impl_;
+	return !p.unswept_sessions &&
+		   std::all_of(p.lanes.begin(), p.lanes.end(), [](const auto &lane) { return !lane->unswept; });
+}
 bool ServiceRuntime::step(Clock::time_point now) {
 	auto &p = *impl_;
 	bool progress = false;
@@ -384,15 +397,9 @@ bool ServiceRuntime::step(Clock::time_point now) {
 	};
 	for (auto index : {std::size_t{2}, std::size_t{0}, std::size_t{1}}) {
 		auto &lane = *p.lanes[index];
-		lane.occupied.clear();
-		{
-			std::lock_guard lock(p.mutex);
-			const auto taken = lane.slots.size() - lane.free.size();
-			for (std::size_t slot = 0; slot < lane.slots.size() && lane.occupied.size() < taken; ++slot)
-				if (lane.slots[slot])
-					lane.occupied.push_back(slot);
-		}
-		for (const auto slot : lane.occupied) {
+		for (std::size_t turn = 0; turn < (index == 1 ? 32 : 8); ++turn) {
+			lane.unswept -= lane.unswept != 0;
+			const auto slot = lane.cursor++ % lane.slots.size();
 			std::shared_ptr<Impl::Task> task;
 			{
 				std::lock_guard lock(p.mutex);
@@ -415,11 +422,11 @@ bool ServiceRuntime::step(Clock::time_point now) {
 			progress |= fingerprint(*task) != before;
 		}
 	}
-	if (p.sessions.size()) {
-		d::WorkBudget budget{4096, p.limits.sessions.sessions};
-		p.sessions.collect(budget, now);
-		progress |= !budget.bytes; // a retirement spent the byte budget: the next turn resumes it
-	}
+	d::WorkBudget budget{4096, 64};
+	p.sessions.collect(budget, now);
+	p.unswept_sessions -= std::min<std::size_t>(p.unswept_sessions, 64 - budget.tokens);
+	if (!budget.bytes) // a retirement spent the byte budget; the next turn resumes it
+		p.unswept_sessions = std::max<std::size_t>(p.unswept_sessions, 1);
 	return progress;
 }
 ServiceStatus ServiceRuntime::status() const noexcept {

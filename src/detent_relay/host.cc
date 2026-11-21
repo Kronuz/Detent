@@ -376,11 +376,13 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		if (!error)
 			shutdown();
 	});
-	// Each turn visits every request, session and bundle; it runs again at once while it changes anything,
-	// else sleeps on `tick` until the next health report or snapshot retry, or until a wake: a request, a
-	// reply, a mirror answer, a publication.
+	// Each turn visits a share of the requests and sessions and every bundle; it runs again at once while it
+	// changes anything, else after 1 ms. Once a round over every request and session (from a wake, a change or
+	// a long sleep) changes nothing, it sleeps on `tick` until the next health report or snapshot retry, or
+	// until a wake: a request, a reply, a mirror answer, a publication.
 	asio::steady_timer tick(owner.io());
 	std::uint64_t turns = 0;
+	bool round = true; // the next turn starts a round
 	std::chrono::steady_clock::time_point health_due{};
 	std::function<void()> turn;
 	auto sleep = [&](std::chrono::steady_clock::time_point until) {
@@ -393,9 +395,12 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	turn = [&] {
 		++turns;
 		try {
-			wake.begin_turn();
+			if (wake.begin_turn() || round)
+				runtime->rescan();
+			round = false;
 			const auto now = std::chrono::steady_clock::now();
 			bool progress = runtime->step(now);
+			bool settled = true;
 			for (auto &held : records) {
 				auto &record = *held;
 				const auto state = record.coordinator->status();
@@ -428,11 +433,11 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 						record.snapshot_retry = now + std::chrono::milliseconds(100);
 					progress |= !complete && (work.tokens != 128 || work.bytes != 8192);
 				}
-				for (int steps = 0; record.cleanup_pending && steps < 32; ++steps) {
+				if (record.cleanup_pending) {
 					d::WorkBudget cleanup;
 					record.cleanup_pending = !record.bundle->cleanup_step(cleanup);
 				}
-				progress |= record.cleanup_pending; // stale edges remain past this turn's share
+				settled &= !record.cleanup_pending;
 			}
 			if (mirror && !stop_requested)
 				if (const auto state = mirror->status(); state.failed) {
@@ -470,13 +475,17 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 				return;
 			}
 			if (progress) {
+				round = true;
 				asio::post(owner.io(), turn);
-			} else {
+			} else if (settled && runtime->swept()) {
+				round = true;
 				auto until = health_due;
 				for (const auto &record : records)
 					if (record->snapshot_retry > now)
 						until = std::min(until, record->snapshot_retry);
 				sleep(until);
+			} else {
+				sleep(now + std::chrono::milliseconds(1));
 			}
 		} catch (...) {
 			failure = std::current_exception();
