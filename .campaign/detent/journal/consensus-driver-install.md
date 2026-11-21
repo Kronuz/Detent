@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Building the Driver install surface in driver.h/worker.h on the contract at consensus:2c598fb
+(docs/DRIVER.md "Install"; sent to Xapiand as msg-187).
 
 ## Next
 
-1. <step>
+1. driver.h: per-group SnapshotChannel, transfer(), SendTransfer/ValidateImage/ActivateImage,
+   validated/validation_failed; worker.h: snapshot_image(); host_transport.h: send_transfer, is_transfer.
+2. test/driver_install_test.cc: A1 (lagging follower installs, applies past), A2 (failed/validated).
+3. driver_simulation: installs under seeds (A4), crash at every persisted step (A3) + mutant.
+4. Merge consensus-quiescence / consensus-transport / node-admission when they land.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
