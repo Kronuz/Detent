@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261120-152645-fd04fb 261120-152645-b3af0b 261120-152645-dbdf2b 261120-152646-223e9f 261120-152646-9f3363 261120-152646-ed8449 261120-152647-2fd1e3 261120-152647-b2a548 261120-152647-e654bb 261120-144831-38a455 and CI at consensus:cdf5016 (3 macOS x86_64 runs in a row)
+State: waiting on jobs CI at consensus:8ded754 (linux-tsan rpc_host fetch diagnostic; then 3 macOS x86_64 runs in a row)
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,25 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Session 3 (2026-11-20 evening), head consensus:8ded754 (pushed).
+- peers "5 ms hog" (suite 261120-152646-9f3363, late-append: commits FAILED, slowest 2015 ms,
+  102 appends superseded) is not this branch's: Peers, peers_test and core.h are unchanged
+  against main 8801b99 (`git diff --stat 8801b99 HEAD` names none), and the whole peers test x10
+  passes 10 of 10 at both: head 261120-192228-2ea2c9, main 261120-192229-da566a. It ran under -j2
+  beside the suite on a loaded host; the pattern (appends past rpc_timeout re-sent, a commit
+  past 2 s) is consensus-full-window-stall's core.h append pacing. For the lead; not patched.
+- 261120-151650-11c8e1 (ASan links/connection at bab6b4d): exit 143, its runner died during the
+  build (SIGTERM, "recorded after its runner died"), no test ran; superseded by dbdf2b/b2a548 at
+  cdf5016 (passed).
+- CI linux-tsan 44836840151: rpc_host_fetch "16 MiB arrived exact NO in 14000 ms beside 7 MiB of
+  group uploads; heartbeats' longest gap 4151 ms" (deadline 30 s, so the fetch ended with an
+  error at ~14 s; the line did not say which). This case has never passed Linux TSan CI (earlier
+  runs: SIGPIPE, then cancelled). Local macOS TSan at CI's flags (-O1): 5 of 5 pass, 3.5-4.6 s,
+  ~260 MiB beside, gap <= 350 ms (261120-192508-e4243a). consensus:8ded754 prints the fetch's
+  error, links, dropped and overrun; CI at 8ded754 says which, then fix or bound it.
+- msg-1: node-admission has not landed on consensus main (origin/main is 8801b99); when it does,
+  the merge drops rpc_host's SIGPIPE ignore (34aa229, 0ce2c1f) and its sigpipe-default mutant.
 
 transport-admission at consensus:a0fa257 (head 6462c1e, pushed):
 - N9 (A1): `Links::admit` never lets an address no route names evict a pending handshake from a
