@@ -11738,6 +11738,41 @@
       "updated": "2026-11-20T19:40:29",
       "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
+    "journal-power-silent-loss": {
+      "accepted": {},
+      "after": [
+        "journal-idle-groups"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/**",
+        "include/journal/framing.h",
+        "include/journal/turn_log.h",
+        "test/turn_log_power_test.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "T9 power loss on faultfs never loses an acknowledged record silently",
+      "updated": "2026-11-20T20:05:23"
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
