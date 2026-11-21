@@ -373,6 +373,7 @@ void restart_raise(const std::filesystem::path &directory) {
 		// The image records the old limits; the group that fails stays in the log tail.
 		assert(node.checkpoint());
 		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() == node.state().applied_index());
 		submit(node, 4, keyed(3, "ns:c"));
 		auto full = pump(node);
 		assert(full.size() == 1 && full[0].results[0].status == Status::Capacity && node.state().size() == 2);
@@ -396,6 +397,7 @@ void restart_raise(const std::filesystem::path &directory) {
 		assert(grown.size() == 1 && grown[0].results[0].status == Status::Applied && node.state().size() == 4);
 		assert(node.checkpoint());
 		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() == node.state().applied_index());
 	}
 	// A2: a voter restarted below the recorded limits refuses to start and names the field.
 	auto lowered = raised;
