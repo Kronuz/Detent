@@ -3417,7 +3417,9 @@
         "test/transport/peers_test.cc",
         "test/waiter_test.cc",
         "test/wave_open_test.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/driver_close_test.cc",
+        "test/worker_test.cc"
       ],
       "journal": "../Detent-wt/detent/consensus-faultfs",
       "landed": [],
@@ -3425,12 +3427,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: Overlaps quiescence/transport only in CMakeLists.txt lines and test/driver_test.cc; faultfs adds test cases, merges after them",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-20T17:25:13",
+      "updated": "2026-11-20T17:39:35",
       "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
