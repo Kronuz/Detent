@@ -5170,7 +5170,9 @@
     },
     "consensus-peers-wake": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-driver-install"
+      ],
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5182,8 +5184,10 @@
       "consumes": [],
       "files": [
         "include/consensus/transport/peers.h",
-        "test/**",
-        "docs/mechanisms/**",
+        "test/peers_wake*",
+        "test/CMakeLists.txt",
+        "CMakeLists.txt",
+        "docs/mechanisms/peers-wake.md",
         "CHANGELOG.md"
       ],
       "history": [
@@ -5225,7 +5229,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T13:24:11"
+      "updated": "2026-11-21T13:24:53"
     },
     "consensus-quiesce-election-stall": {
       "accepted": {},
