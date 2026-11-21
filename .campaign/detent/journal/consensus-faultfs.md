@@ -71,7 +71,7 @@ checked what), and answer each message by its id (msg-N).
 |---|---|
 | A1 | `ci:macos-arm64` at bb961b3 (run 44860606419: 91 of 91 tests pass); 261120-214850-8b9fd8 (`git grep memory_io` finds nothing) |
 | A2 | --fails-without at bb961b3, each killed at main 8801b99 too (Doing): close_crash 261120-192034-4f37ea, wave_open cut 261120-192035-7daa7f, shared_worker 261120-192036-407361, driver simulation 261120-192038-fc047f and 261120-192039-713715, driver 261120-192040-608dd4, shared_cluster 261120-192042-ab67ca; the same tests unmutated pass: 261120-214851-3501a7 |
-| A3 | `ci:macos-arm64` at bb961b3: ctest 113.85 s, 1.06x main's 107.19 s (bound 160.8 s); every job of run 44860606419 green, ASan, TSan and FreeBSD included |
+| A3 | 261120-215018-4d3283 (reads run 44860606419: green at bb961b3, macos-arm64 ctest within bound); `ci:macos-arm64` at bb961b3: ctest 113.85 s, 1.06x main's 107.19 s (bound 160.8 s); every job of run 44860606419 green, ASan, TSan and FreeBSD included |
 
 ## Result
 
