@@ -3651,6 +3651,8 @@
       "after": [
         "consensus-quiescence"
       ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-full-window-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3669,6 +3671,7 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-full-window-stall",
       "landed": [],
       "lenses": [
         "correctness"
@@ -3676,11 +3679,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Root-cause work starts now; core.h overlaps consensus-quiescence, and the fix merges after it lands",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-20T17:50:47"
+      "updated": "2026-11-20T17:51:38",
+      "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
       "accepted": {
