@@ -1,6 +1,6 @@
 # consensus-faultfs: journal
 
-State: working
+State: waiting on jobs 261120-172913-b7370e
 Quest: .campaign/detent/quests/consensus-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,27 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Eight in-set test files converted at consensus:5c25430 (faultlab pinned a3b71d1 as journal does;
+Host dir `host` via a per-file host_io(); cut = power_off_after(cut - 1); power_loss() =
+crash(seed, size_pick::sector)). Suite job queued. A1 is not met: driver_close_test.cc and
+worker_test.cc (batch_turn_room) still use memory_io and are outside the quest's file set.
 
 ## Next
 
-1. <step>
+1. Read the suite result; fix compile or behavior differences.
+2. A2 mutant jobs (--fails-without), one per crash-model test: wave_open cut (drop the two
+   `storage fenced outside worker` lines in worker.h), shared_worker and simulation
+   (driver_mutants.py ack-before-turn-barrier), driver (checkpoint-drops-suffix, case
+   checkpoint_keeps_acknowledged), shared_cluster if a mutant reaches it.
+3. When the lead adds driver_close_test.cc and worker_test.cc to the file set: convert them
+   (driver_close_test has FlakyIO over MemoryIO and close_crash), then rerun everything.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Lead: A1 (`git grep memory_io` finds nothing) needs test/driver_close_test.cc and test/worker_test.cc
+in the file set. Option (a) add both (recommended: worker_test is one line; driver_close_test
+has FlakyIO and close_crash over MemoryIO, which faultfs's add_fault sync_directory covers);
+option (b) narrow A1 to the eight files.
 
 ## Evidence
 
