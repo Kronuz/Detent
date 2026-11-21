@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: waiting on jobs 261120-172817-4dd987 261120-172827-391258 261120-172830-714b37
+State: waiting on jobs 261120-181331-7a0bfd 261120-181334-f52e5a 261120-181337-a04542
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on jobs 261120-172817-4dd987 (Release suite, A3), 261120-172827-391258 (Debug host_test,
-A1/A2), 261120-172830-714b37 (fails-without at mutant d2484f35, adopt_loop a no-op; ref
-refs/mutants/journal-loop-handoff/no-handoff in the journal repo). Branch head journal:ca95301.
+Debug job 261120-172827-391258 at journal:ca95301 failed "a third thread's view fails the debug
+check": the test was wrong, not the check. The third thread took the exited adopter's
+std::thread::id (probe 261120-181237-2da023: a thread started after a join reused the id 20/20 on
+macOS). Fixed at journal:87d4382: two live threads probe at once, so one is not the owner;
+host-ranges.md states the limit (the check can miss a stranger, never abort the owner).
+Rerun: Debug 261120-181331-7a0bfd, fails-without 261120-181334-f52e5a at mutant journal:21af69b3
+(refs/mutants/journal-loop-handoff/no-handoff), suite 261120-181337-a04542. Branch pushed.
 
 ## Next
 
-1. Read the three jobs' logs; the mutant job must fail on handoff_close's abort, not the build.
-2. CI on the pushed branch; merge journal main once journal-idle-groups lands (host.h, host_test.cc).
+1. Read the jobs; the mutant must fail on handoff_close's abort (134), not the build. Then CI.
+2. Merge journal main once journal-idle-groups lands (host.h, host_test.cc).
 
 ## Blocked on
 
@@ -26,13 +30,13 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending 261120-172827-391258, 261120-172830-714b37 |
-| A2 | pending 261120-172827-391258, 261120-172830-714b37 |
-| A3 | pending 261120-172817-4dd987, CI |
+| A1 | pending 261120-181331-7a0bfd, 261120-181334-f52e5a |
+| A2 | pending 261120-181331-7a0bfd, 261120-181334-f52e5a |
+| A3 | pending 261120-181337-a04542, CI (passed at ca95301: 261120-172817-4dd987) |
 
 ## Result
 
-journal:ca95301 adds `Host::adopt_loop(loop)` (include/journal/host.h): the calling thread
+journal:ca95301 and 87d4382 add `Host::adopt_loop(loop)` (include/journal/host.h): the calling thread
 becomes the loop's range-table owner and the debug check in owned_ranges follows it. Release
 builds keep no owner; the call bounds-checks the loop (`std::out_of_range`). Tests:
 test/host_test.cc `loop_handoff` (A1) and `handoff_close` (A2, strata's t6w), abort checks in
