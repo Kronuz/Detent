@@ -9,15 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix committed (consensus:9a2476d) on top of the Driver replacement test (consensus:170db35).
-Jobs: 261121-010545-420472 (test at 170db35, main's core: expect the fence), 261121-010603-0d6903
-(A1 at 9a2476d).
+Head consensus:27f79b0 (test 170db35, fix 9a2476d, 1000-seed ctest 06621ad, changelog 27f79b0),
+pushed; CI run 44888389309 (06621ad) and the one for 27f79b0.
+Reproduced on main's core: job 261121-010545-420472 (test at 170db35) fences at seed 1.
+Local: 3000/3000 seeds pass at the fix in 11 s; both mutants fence at seed 1.
+Waiting: A2 261121-011652-0bbc59 (core gate removed), 261121-011653-871e69 (leader Tick
+unplanned), suite subset 261121-011657-336f3f, A3 261121-011227-d616f8 (consensus 06621ad: same
+code as 27f79b0), info 261121-011236-08c6fc (all five strata group cases).
 
 ## Next
 
-1. Read both jobs; fix the test harness if it does not build or does not complete.
-2. A2: --fails-without at head with the `if (tick)` gate mutated away.
-3. Suite (`campaign verify --for A4` / CI macos-arm64), push; A3 Xapiand repro pinned to head.
+1. Read the jobs; CI green on 27f79b0 (A4); fill Evidence and Result; ready for review.
 
 ## Blocked on
 
@@ -48,5 +50,10 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   when `tick` (an admitted Tick; the parameter was `allow_campaign`, same call sites). The Worker
   plans a leader Tick as `plan_event(ChangeMembership{0, removal})` (config append + commit
   hard, exactly the bytes propose_membership writes) or as nothing. One predicate, one place.
+- A2's mutants are sed edits in a --fresh job's command, not test/driver_mutants.py entries
+  (outside the file set); the job passes only if the output names the fence (else exit 126).
+- ARCHITECTURE.md (outside the file set) still says "Idle leader ticks need no campaign
+  pack": true, but a leader Tick with a due removal now reserves that change's pack; the lead
+  may add the clause.
 - The removal now waits for the leader's next Tick after the commit: at most a heartbeat
   (next_deadline is the heartbeat for a leader with peers; a replacement always has one).
