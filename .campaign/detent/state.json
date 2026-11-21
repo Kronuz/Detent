@@ -5394,10 +5394,55 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-transport",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T06:16:10",
+          "commit": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+          "criteria": {
+            "A1": "261121-053532-372d2f; fails without: 261120-095127-6b5847, 261120-095130-ab25d2, 261120-095133-f42ea5, 261120-100637-57c2d3, 261120-100640-082b18, 261120-100643-062f07, 261120-102022-16b298, 261120-145942-200902, 261120-150436-28bd0c, 261120-151637-39c1fe",
+            "A2": "261121-053532-372d2f; fails without: 261120-102028-2bc70b, 261120-102035-9cd55a, 261120-104122-60d46f",
+            "A3": "261121-053522-874432; fails without: 261120-092630-5203e3, 261120-092632-f32f32",
+            "A4": "261121-053532-372d2f",
+            "A5": "261121-053530-6bedb0; fails without: 261120-145542-e0e075, 261120-145546-4eda6b",
+            "A6": "261121-053524-a0ffba, 261121-053526-1b7054, 261121-053528-7bf16f, 261121-053520-0a9324, 261121-053522-874432; fails without: 261120-092635-b70222, 261120-092638-42250f, 261120-092641-3aaf61, 261120-092649-8e73c6, 261121-053518-5fce38"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "reason": "",
+          "tested": "9bbd6327209fa6f176d2d6819666da5dddc57451"
+        }
+      ],
       "lenses": [
         "security"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-20T17:45:47",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "9bbd6327209f",
+          "at": "2026-11-20T17:45:47",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From xapiand (msg-176): node-admission fixes SIGPIPE at the root (consensus:c669067): Connection's own write BIO sends with MSG_NOSIGNAL. When it lands and you merge main, drop rpc_host's SIGPIPE ignore (34aa229, 0ce2c1f) and its sigpipe-default mutant, and expect conflicts in include/consensus/transport/connection.h and docs/mechanisms/host-connection.md."
+        }
       ],
       "milestone": "M1b",
       "needs": [
@@ -5410,10 +5455,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-21T06:15:49",
-      "worktree": "../consensus-wt/detent/consensus-transport"
+      "updated": "2026-11-21T06:17:16",
+      "worktree": ""
     },
     "consensus-transport-budgets": {
       "accepted": {},
