@@ -20732,13 +20732,9 @@
         "docs/status/http-coroutines.md",
         "docs/DEPENDENCY_UPGRADES.md",
         "tests/detent_authority/test_authority_frames_service*",
-        "src/detent_authority/service.cc",
         "tests/detent_system/authority.py",
         "tests/detent_system/test_dual_stack.py",
         "tests/detent_relay/test_relay_service.py",
-        "tests/detent_authority/test_node.cc",
-        "tests/detent_authority/**",
-        "tests/detent_relay/**",
         "tests/docs/**"
       ],
       "history": [
@@ -20788,7 +20784,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-20T18:25:40"
+      "updated": "2026-11-21T13:13:18"
     },
     "one-knob-type": {
       "accepted": {
