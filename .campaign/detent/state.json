@@ -3952,7 +3952,8 @@
         "CMakeLists.txt",
         "test/driver_test.cc",
         "test/driver_close_test.cc",
-        "test/wave_open_test.cc"
+        "test/wave_open_test.cc",
+        "test/driver_replace_test.cc"
       ],
       "history": [
         {
@@ -3996,7 +3997,7 @@
       "risk": "high",
       "status": "review",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-21T02:31:27",
+      "updated": "2026-11-21T11:21:22",
       "worktree": "../consensus-wt/detent/consensus-driver-install"
     },
     "consensus-dual-stack": {
