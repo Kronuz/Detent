@@ -1,6 +1,6 @@
 # consensus-quiescence: journal
 
-State: waiting on jobs 261121-012400-f56485 261121-012401-85a7ab 261121-012403-b34836 (F1/F2 mutants), 261121-012404-fce70e (F2 fix), 261121-012405-a27269 (A3 TSan at 3b20d96), 261121-012405-7903bb (review probe at 3b20d96); CI on the push (suite, A1 A2).
+State: review fixes F1, F2 at consensus:3b20d96, every job done; waiting on CI 44889402194 (suite `ci:macos-arm64`, A1 A2), then a re-review.
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
@@ -19,6 +19,16 @@ Fixes at consensus:3b20d96, pushed:
   local run, a follower elected 1,344 ms after the fence, 0 node-gone reports). Mutant
   fence-tells-nobody consensus:2f0738c: 261121-012401-85a7ab (driver_test), 261121-012403-b34836
   (groups_test) --fails-without; fix 261121-012404-fce70e.
+- Results: F1 mutant 261121-012400-f56485 exit 1 (`transfer` fails, third voter up and down);
+  F2 mutant 261121-012401-85a7ab exit 1 (no Gone sent), 261121-012403-b34836 exit 134 (no
+  election in 10,026 ms, 0 node-gone reports); fix 261121-012404-fce70e exit 0 (a follower
+  elected 1,107 ms after the fence, 0 node-gone reports); TSan 261121-012405-a27269 exit 0
+  (`transfer`, `gone`, 300 seeds, driver simulation, reopen_barriers, leader_gone).
+- Review probe at 3b20d96 261121-012405-7903bb: P1 passes in all four modes (target leads
+  term 2 with its timer, every replica at its last index after 20 units, as the control). P2
+  still "NO": the probe fences a bare Core, and the fix lives in the Driver (a fenced Core
+  sends nothing); the Core half is simulation_test `gone`, the whole path groups_test
+  quiescent_fence. P3 safe as before.
 - F4: heard_from_leader's unreachable rest clause dropped (and its parameter). F5: closed_state
   comments say rest is not required.
 - F3, F6 (non-blocking): not done; F3's thin random coverage is answered by the deterministic
@@ -67,8 +77,8 @@ At consensus:a020e14 (consensus main bb961b3 merged). Mutant jobs ran at their m
 | Criterion | Evidence |
 |---|---|
 | A1 | Suite `ci:macos-arm64` (CI 44877489407); reopen_barriers in 261120-225122-c34e4e (36 checks, 0 failures). Core consensus:b4314e4 simulation_test `closing` cases; Driver consensus:b8de3b8 driver_close_test `reopen_barriers` (a request with the reopening recover: 2 barriers, as an open group; without the record 5; damaged bytes Corruption). Fails without: 261120-095359-890b19 (admission without the hard state) |
-| A2 | Suite `ci:macos-arm64` (CI 44877489407); simulation and leader_gone in 261120-225122-c34e4e: 300 seeds x 10,000 steps, 150 quiescent, 14,768 LeaderGone, 20,375 node-steps at rest; driver_test leader_gone (8 groups, 16 checks); groups_test driver quiescent part (both groups led from one node rest 3 s, node stops, both elect). Fails without: leader-gone-skips-one 261120-105231-8e1e83, leader-gone-ignored 261120-105233-efd55f, node-gone-unreported 261120-110213-1b3000 |
-| A3 | TSan 261120-225122-c34e4e: simulation 300 seeds x 10,000 steps (150 quiescent; 31,340 closes at rest, 16,389 reopens resumed their term, 320 records refused as stale), oracles clean; driver simulation 30 seeds x 3,000 plus the regression seed clean; reopen_barriers, leader_gone |
+| A2 | Review F1, F2 at 3b20d96: TSan 261121-012405-a27269 (`transfer`, `gone`), fix 261121-012404-fce70e (groups_test quiescent_fence, driver_test fence_tells_peers); fails without: 261121-012400-f56485 (F1), 261121-012401-85a7ab, 261121-012403-b34836 (F2). At a020e14: suite `ci:macos-arm64` (CI 44877489407); simulation and leader_gone in 261120-225122-c34e4e: 300 seeds x 10,000 steps, 150 quiescent, 14,768 LeaderGone, 20,375 node-steps at rest; driver_test leader_gone (8 groups, 16 checks); groups_test driver quiescent part (both groups led from one node rest 3 s, node stops, both elect). Fails without: leader-gone-skips-one 261120-105231-8e1e83, leader-gone-ignored 261120-105233-efd55f, node-gone-unreported 261120-110213-1b3000 |
+| A3 | TSan 261121-012405-a27269 at 3b20d96 (300 seeds, oracles clean, quiescence cases with `transfer` and `gone`). At a020e14: TSan 261120-225122-c34e4e: simulation 300 seeds x 10,000 steps (150 quiescent; 31,340 closes at rest, 16,389 reopens resumed their term, 320 records refused as stale), oracles clean; driver simulation 30 seeds x 3,000 plus the regression seed clean; reopen_barriers, leader_gone |
 | A4 | docs/perf/quiescence-idle-cpu.md. Strict 261120-225122-0760b8: 1M groups at rest over 10 s, 0.0 wakes/s, 0 handles/s, CPU 0.000 s per s, 0 group timers armed (8.3 GB peak). Strict baseline 261120-225122-5cedce: 250k with heartbeats, 1,000 wakes/s, 345,294 handles/s, 5,000,000 answers/s, 68.8 CPU-s per s, 275 us per group per s, 250k timers. The doc's 250k row (07d7c2 at 3f3f664) has the same counts and 182.8 us: CPU per group moves with the machine (this run beside 7 light holds), the counts do not. 1M heartbeat row: 261120-113151-e99e39 (167.7 us per group per s) |
 | A5 | docs/mechanisms/quiescence.md (RFTCLOS1 bytes, refusals, close and reopen rules); 261120-225122-eb821c on faultfs: close_crash 8 seeds, 926 power cuts, 1,067 table closes, 1,276 releases, after a cut the last closed state resumed its term 160 times, 464 stale, never a term back; closed_bytes 5,708.5 B open, 11.8 B per row after the range sweep; simulation_test `record_bytes`, `lone_voter`, `three_voters` in the suite |
 | A6 | docs/perf/idle-bytes.md. 261120-225123-e76794: idle row 5,719 B at its checkpoint against Xapiand's 6,984 B; owners 261120-225123-17e4ea (Worker 1,536 B, Core 1,056 B, Journal 845 B largest sites); three-voter leaders 1,306 MB RSS at 100k 261120-225123-8fede5 (deque before: 2,143 MB, 261120-111929-1f3e62 at probe 03e3b99); lone voter before 6,807 B (261120-101850-c631af at probe 7c14f40) |
