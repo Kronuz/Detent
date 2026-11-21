@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/http_upstream.cc b/src/detent_relay/http_upstream.cc
+index 3b66fa65..c8f61b5d 100644
+--- a/src/detent_relay/http_upstream.cc
++++ b/src/detent_relay/http_upstream.cc
+@@ -277,7 +277,7 @@ std::string HttpUpstream::fetch(std::string_view name_space, const MirrorFile &f
+ 			throw std::bad_alloc();
+ 	}
+ 	auto &held = *p.partial;
+-	const bool whole = file.size <= p.options.range_bytes;
++	const bool whole = true;
+ 	const auto named = "{\"namespace\":" + json_string(name_space) + ",\"name\":" + json_string(file.name);
+ 	// A range whose answer is lost (no answer, or a source not ready) is asked of the next source,
+ 	// every source once, before the fetch fails; each range answered starts the count again.

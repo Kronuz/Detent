@@ -21,6 +21,15 @@ if(TARGET detent::relay_mirror)
   set_tests_properties(test_relay_mirror_crash PROPERTIES TIMEOUT 900)
 endif()
 
+# D138: history files read in ranges, resumed after a lost answer, a failing sync's backoff, and a
+# relay chain reading ranges of a relay.
+if(TARGET detent::relay_http)
+  add_executable(test_http_upstream test_http_upstream.cc)
+  target_link_libraries(test_http_upstream PRIVATE detent::relay_http detent::authority hashes::hashes)
+  add_test(NAME test_http_upstream COMMAND test_http_upstream ${PROJECT_BINARY_DIR}/tests/detent_delivery/tls-fixture)
+  set_tests_properties(test_http_upstream PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
+endif()
+
 # The relay's credentials and configuration: a mirror, W13 namespace grants, admission lanes and TLS.
 if(TARGET detent::relay_config AND TARGET detent::relay_http)
   add_executable(test_relay_registry test_relay_registry.cc)

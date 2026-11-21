@@ -5,6 +5,7 @@
 #include <asio/ssl.hpp>
 #include <http_parser.h>
 #include <map>
+#include <openssl/evp.h>
 #include <rapidjson/document.h>
 #include <reactor_tls.h>
 #include <thread>
@@ -55,6 +56,14 @@ struct HttpUpstream::Impl {
 	std::size_t endpoint = 0;
 	std::optional<delivery::NamespaceSession> session;
 	Stats stats;
+	// The file being read in ranges (D138): its verified prefix and the prefix's running SHA-256.
+	struct Partial {
+		std::string name_space;
+		MirrorFile file;
+		std::string bytes;
+		std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> hash{EVP_MD_CTX_new(), EVP_MD_CTX_free};
+	};
+	std::optional<Partial> partial;
 
 	// One request on its own connection, every step bounded by one deadline.
 	Response exchange(std::string_view path, std::string_view body) {
@@ -225,7 +234,8 @@ struct HttpUpstream::Impl {
 HttpUpstream::HttpUpstream(HttpUpstreamOptions options) : impl_(std::make_unique<Impl>()) {
 	if (options.endpoints.empty() || !options.tls || options.hostname.empty() || options.token.empty() ||
 		options.token.find_first_of("\r\n") != std::string::npos ||
-		options.hostname.find_first_of("\r\n") != std::string::npos)
+		options.hostname.find_first_of("\r\n") != std::string::npos || !options.range_bytes ||
+		options.range_bytes > options.maximum_bytes)
 		throw std::invalid_argument("relay upstream options");
 	impl_->options = std::move(options);
 }
@@ -254,12 +264,69 @@ MirrorTable HttpUpstream::layouts(std::span<const std::string> names) {
 }
 
 std::string HttpUpstream::fetch(std::string_view name_space, const MirrorFile &file) {
-	auto response = impl_->expect("/v2/history/file",
-								  "{\"namespace\":" + json_string(name_space) + ",\"name\":" + json_string(file.name) + "}", 200,
-								  "application/octet-stream");
-	++impl_->stats.fetched_files;
-	impl_->stats.fetched_bytes += response.body.size();
-	return std::move(response.body);
+	auto &p = *impl_;
+	if (p.partial && (p.partial->name_space != name_space || p.partial->file != file))
+		p.partial.reset();
+	if (p.partial && !p.partial->bytes.empty())
+		++p.stats.resumed;
+	if (!p.partial) {
+		p.partial.emplace();
+		p.partial->name_space = name_space;
+		p.partial->file = file;
+		if (!p.partial->hash || EVP_DigestInit_ex(p.partial->hash.get(), EVP_sha256(), nullptr) != 1)
+			throw std::bad_alloc();
+	}
+	auto &held = *p.partial;
+	const bool whole = file.size <= p.options.range_bytes;
+	const auto named = "{\"namespace\":" + json_string(name_space) + ",\"name\":" + json_string(file.name);
+	// A range whose answer is lost (no answer, or a source not ready) is asked of the next source,
+	// every source once, before the fetch fails; each range answered starts the count again.
+	for (std::size_t lost = 0; whole ? held.bytes.empty() : held.bytes.size() < file.size;) {
+		const std::uint64_t offset = held.bytes.size();
+		const auto length = std::min<std::uint64_t>(p.options.range_bytes, file.size - offset);
+		const auto body = whole ? named + "}"
+								: named + ",\"offset\":" + std::to_string(offset) + ",\"length\":" +
+									  std::to_string(length) + "}";
+		Response response;
+		try {
+			response = p.exchange("/v2/history/file", body);
+		} catch (const UpstreamUnavailable &) {
+			if (++lost > p.options.endpoints.size())
+				throw;
+			continue;
+		}
+		if (response.status == 503 && ++lost <= p.options.endpoints.size()) {
+			p.rotate();
+			continue;
+		}
+		p.require("/v2/history/file", response, 200, "application/octet-stream");
+		const auto n = response.body.size();
+		if (whole ? n != file.size : !n || n > length) {
+			p.rotate();
+			throw UpstreamUnavailable("relay upstream: /v2/history/file answered " + std::to_string(n) +
+									  " bytes at " + std::to_string(offset) + " of " + std::to_string(file.size));
+		}
+		if (EVP_DigestUpdate(held.hash.get(), response.body.data(), n) != 1)
+			throw std::runtime_error("relay upstream: SHA-256");
+		held.bytes.append(response.body);
+		p.stats.fetched_bytes += n;
+		p.stats.ranges += !whole;
+		lost = 0;
+		if (whole)
+			break;
+	}
+	Digest digest{};
+	unsigned digest_bytes = 0;
+	const bool hashed = EVP_DigestFinal_ex(held.hash.get(), reinterpret_cast<unsigned char *>(digest.data()),
+										   &digest_bytes) == 1 && digest_bytes == digest.size();
+	auto bytes = std::move(held.bytes);
+	p.partial.reset();
+	if (!hashed || digest != file.digest) {
+		p.rotate();
+		throw UpstreamUnavailable("relay upstream: " + file.name + " has another digest; its prefix is dropped");
+	}
+	++p.stats.fetched_files;
+	return bytes;
 }
 
 std::string HttpUpstream::frames(std::span<const Position> positions) {

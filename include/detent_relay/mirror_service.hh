@@ -32,6 +32,8 @@ struct MirrorJob {
 	distribution::Identity session{};
 	std::vector<Position> positions; // Open and Next; Layouts: the names, no cursors
 	std::string name_space, name;    // File
+	// File: a range of it (D138), its offset and length (at least 1); none for the whole file.
+	std::optional<std::pair<std::uint64_t, std::uint64_t>> range;
 	bool all = false, compressed = false;
 	// Open: the session takes pages (`"pages":true`), except for the namespaces in `records`
 	// (`"records":[names]`, strictly increasing), which keep records (dense distribution D9).

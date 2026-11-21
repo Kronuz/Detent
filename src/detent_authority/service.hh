@@ -125,6 +125,8 @@ class Service final : public http::HttpHandler {
 		std::string name_space;
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
+		// HistoryFile: the range asked (D138), an offset and a length; none asks the whole file.
+		std::optional<std::pair<std::uint64_t, std::uint64_t>> range;
 		std::function<void(Reply)> complete;
 		// A command, read or result waits on `done` on the owner; `outcome` is set once, by complete.
 		task::event done;
@@ -174,7 +176,15 @@ class Service final : public http::HttpHandler {
 	void enqueue(const std::shared_ptr<Task> &task);
 	Outcome reply_for(Task &task, task::cancel_reason why);
 	Reply enveloped(Reply reply) const;
-	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum);
+	// The history file a relay reads in ranges (D138), read and checked once: held by name and the
+	// table's seal until its last range is answered, another file or seal is asked, or a range misses.
+	struct HeldFile {
+		std::string name_space, name;
+		std::uint64_t seal = 0;
+		std::string bytes;
+	};
+	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::optional<HeldFile> &held,
+							   std::uint64_t maximum);
 	// Answers a submitted request through an owned stream that keeps the connection (D8).
 	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
 					 std::chrono::steady_clock::time_point outcome_deadline);
