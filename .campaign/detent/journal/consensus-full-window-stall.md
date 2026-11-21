@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: ready for review
+State: waiting on jobs 261120-225642-48b0ca 261120-225642-33fe0e 261120-225643-3b255d 261120-225643-d183d6 261120-225646-4a2941 261120-225650-745988
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Done; ready for review. Reorder "stall" (190522-1d0e1b) was the checker: the bench caps a load at
-128 MiB (2,048 x 64 KiB) and the paced leader committed it in 42.6 s; windows after the load's end
-had nothing to commit. Trace: paced appends 213-794 KiB average (median 576, largest 1,152),
-every 0.5 s sample advanced. consensus:fe0d2dc ends the windows at the load's last sample.
+Fixing review findings (reviews/consensus-full-window-stall-correctness.md, CHANGES at 90ff878).
+F1 fixed at consensus:fb8931f; F2 and F5 at consensus:f178d4e. Waiting on A1 x4, TSan, the
+reviewer's probe, CI. A3's jobs ran fe0d2dc's core.h; F1 does not change a 64 KiB-command batch
+(the old and new guards both stop after one 64 KiB entry at a 64 KiB frame), so A3 needs a rerun
+only if the lead wants evidence at the exact head (submit with H=f178d4e: build and checker both
+name the commit).
 
 ## Root cause (A2: docs/mechanisms/append-pacing.md)
 
@@ -48,10 +50,10 @@ the lead said they'll widen it.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | at fe0d2dc: 261120-201357-bc0621 passed; 261120-201357-874d17 (--fails-without, main's core.h) and 261120-201358-1847ef (--fails-without, no floor reset) failed as they should (exit 8) |
+| A1 | at f178d4e (F1 fix): pending 261120-225642-48b0ca (pass), 261120-225642-33fe0e (--fails-without, main's core.h), 261120-225643-3b255d (--fails-without, no floor reset), 261120-225646-4a2941 (--fails-without, no F1 guard). At fe0d2dc: 201357-bc0621 passed; 201357-874d17, 201358-1847ef failed as they should |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc; netem table consensus:fe0d2dc, both runs per build consensus:90ff878) |
 | A3 | checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does), run from `git show fe0d2dc:` in each job. At fe0d2dc core.h: fix loss1% 261120-201346-c3e8de PASS (10 windows, 0 role changes, 0.49 MB/s); fix reorder5% 261120-201347-0f5364 PASS (2,048-entry cap in 44.4 s, 6 windows, 0 role changes, 2.99 MB/s); main loss1% --fails-without 261120-201349-112b82 FAIL as it should (21 role changes, 63 commits, stalled window); main reorder5% comparison 261120-201350-63af72 PASS (3.62 MB/s). Earlier at b08f834 core.h (same): 190520-a407f0, 190522-1d0e1b (passes under fe0d2dc's checker), 190521-62807e, 190523-86507a |
-| A4 | TSan 261120-201358-da8c6d passed at fe0d2dc; CI macos-arm64 success at fe0d2dc (run 44865018670); 90ff878 is docs-only, its CI queued |
+| A4 | at f178d4e: TSan pending 261120-225643-d183d6; CI macos-arm64 at f178d4e pending. At fe0d2dc: TSan 201358-da8c6d passed, CI macos-arm64 success (run 44865018670) |
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
 failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s against 6.7).
@@ -77,6 +79,27 @@ MB/s). Mechanism and numbers: docs/mechanisms/append-pacing.md (consensus:90ff87
 test/full_window_stall_test.cc (ctest consensus_full_window_stall). Checker:
 bench/netlab/full_window_check.py. The bench's sustained-load patch (a3/sustained.patch) is
 netlab-consensus's to adopt (msg-190).
+
+## Review findings (correctness, 90ff878)
+
+- F1 (blocking): fixed, consensus:fb8931f. replicate()'s batch loop now breaks on
+  `bytes >= rpc_bytes ||` (deliver()'s guard), so an oversized first entry goes alone. Test:
+  full_window_stall_test large_commands(): 100 KiB commands at 600 B/ms (20 s) and 1 MiB at
+  50,000 B/ms. Local: with the guard 0 elections, 4.8 commits/s (path 5.9), largest 100 KiB and
+  2,048 KiB; without it 3 failures (3,200 KiB and 8,192 KiB appends, an election). Jobs:
+  261120-225646-4a2941 (--fails-without, guard reverted), 261120-225642-48b0ca (pass),
+  261120-225650-745988 (reviewer's probe.sh asis at head).
+- F2: taken, consensus:f178d4e. A load that answers before its seconds passes only with the whole
+  cap committed and no failures. On the existing outputs: fix loss/reorder PASS, main loss FAIL
+  (whole=False too), main reorder PASS.
+- F3: follow-up. The sustained-load bench patch belongs to xapiand's netlab-consensus (msg-190
+  asks them to adopt it); until then A3 reruns need ~/.scratch/detent/consensus-full-window-stall/
+  a3/sustained.patch kept (no sweep before this quest lands).
+- F4: no change. The test models TCP's result of drops and reordering (in-order delivery at a
+  reduced byte rate), since every Raft message rides the Control lane's TCP; the netem bench (A3)
+  covers real drops and reordering.
+- F5: taken, consensus:f178d4e: append-pacing.md names the floor's bound (under ~256 KB/s a
+  64 KiB frame misses the 250 ms target; under ~128 KB/s it passes rpc_timeout and is resent).
 
 ## Rulings I made
 
