@@ -6168,6 +6168,8 @@
             "tests/detent_delivery/**",
             "tests/detent_agent/**"
           ],
+          "reason": "Its branch is fully merged into the quest branch (0 commits ahead); the quest's suite and CI cover its code",
+          "status": "dropped",
           "worktree": "../Detent-wt/detent/dense-distribution-build--agent-pages"
         },
         "history-ranges": {
@@ -6198,7 +6200,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T18:54:04",
+      "updated": "2026-11-20T18:54:07",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
