@@ -3849,7 +3849,8 @@
         "test/full_window_stall_test.cc",
         "docs/mechanisms/**",
         "CHANGELOG.md",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "bench/netlab/**"
       ],
       "history": [
         {
@@ -3891,7 +3892,7 @@
       "risk": "high",
       "status": "active",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-20T18:50:16",
+      "updated": "2026-11-20T19:05:59",
       "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
