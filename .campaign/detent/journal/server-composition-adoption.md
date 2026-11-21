@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261120-035209-31475d (d7a901 was cancelled; blocked on the lead for the pin wave and file set)
+State: waiting on jobs 261121-131314-98a5a7 (A2 authority: build all, daemon tests, sigterm), 261121-131321-a5da1a (authority-only build + docs check) and CI at the pushed head (A3)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,44 +18,37 @@ row done; relay and agent rows wait on the files below).
 
 ## Next
 
-1. Read job d7a901; fix failures in main.cc or the sigterm test.
-2. Submit `bash tests/detent_authority/test_daemon_sigterm.sh .scratch/build/src/detent-authority` (--for A2).
-3. Push the branch; run the suite (`campaign verify server-composition-adoption`) once the pin question is ruled.
-4. Relay and agent adoption and D125, once the lead grants the files.
+1. Read 98a5a7 and a5da1a; fix failures. Read CI at 26a96e4a (ci/macos-arm64 gates A3).
+2. Relay and agent adoption and D125 (A4) once the lead widens the file set (Blocked on, 2).
 
 ## Blocked on
 
-Lead, four things; recommendation first.
+Lead; recommendation first.
 
-1. **Pin wave (the quest cannot reach CI green without it).** lifecycle.hh and process.hh exist only at
-   task >= 3ce0f0c; Detent pins task bdafa5f1, and http (c813531c, head aed0314), reactor (ab69cf26,
-   head 6cd8f73), completion (560c288b, head d8b538c) declare task bdafa5f1 / 18eb516, journal and
-   consensus 95798a0. `tools/check_pins.py` with task at f937bc2 reports 3 mismatches (completion,
-   http_lib, reactor). A probe commit (task f937bc2 only, old http and reactor) built all three
-   daemons: job 261120-031230-bdfb17 exit 0. Options: (a) RECOMMENDED: the libraries repin task to
-   f937bc2 (or a later task head) and Detent repins http/reactor/completion/journal/consensus in one
-   `campaign pin` commit, which also brings http `Limits`, `raise_open_files` and
-   `tls::server_context` (the note's C1, C5 and C2) so main stops using setters; (b) relax
-   check_pins for task. My branch carries the single-line task pin (7eac74e0) so jobs build; drop it
-   when the lead's pin commit lands.
-2. **File set.** Needed beyond main.cc x3 and detent_cli: `src/CMakeLists.txt` (drop
-   detent_cli/daemon.cc, now an empty TU); `src/detent_relay/host.cc`, `src/detent_relay/configuration.cc`
-   (relay loop, signals, stop, `connections`, `idle_ms`, `ca`; host.cc and the `turn` poll are also
-   loop-idle-waits'); `src/detent_agent/managed_host.cc`, `src/detent_agent/config.cc` (monitor, stop,
-   agent.json); `src/detent_authority/service.cc` (`load_service_options`, D125's merged file; the leader
-   wake; loop-idle-waits' file); `include/detent/owner_loop.hh` (`run()`, Settled 4);
-   `tests/*/CMakeLists.txt` (register the sigterm test; A2 and A4 tests for relay and agent).
-3. **Order.** The brief says land loop-idle-waits and xapiand:xapiand-lifecycle first; neither has landed.
-   relay and agent adoption touch the files loop-idle-waits holds (host.cc, service.cc).
-4. D125 (A4) is the largest piece and cannot start without 2.
+1. **Pin wave owns cmake/dependencies.json; the branch keeps one line of it.** lifecycle.hh and
+   process.hh exist only at task >= 3ce0f0c; main pins task bdafa5f1. Reverting the line breaks every
+   build of this branch (daemon.hh and main.cc include them), so the branch carries `task` at f937bc2
+   (7eac74e0) only so jobs build. Consequence: CI's pin-check fails here (completion, http_lib, reactor
+   declare task bdafa5f1: `tools/check_pins.py`, 3 mismatches). Drop the line when pin-wave's commit
+   lands (merge main, take its side). Option (b): pin-wave lands first, then I revert it.
+2. **File set must widen for the relay and agent halves and D125.** `src/CMakeLists.txt` (already
+   edited here: detent_cli links task::asio, daemon.cc dropped; reader-s6 and dense-distribution-build
+   also touch this file: a 5-line hunk), `src/detent_relay/host.cc`, `src/detent_relay/configuration.cc`,
+   `src/detent_agent/managed_host.cc`, `src/detent_agent/config.cc`, `src/detent_authority/service.cc`
+   (D125's merged file), `include/detent/owner_loop.hh`, `tests/*/CMakeLists.txt`.
+3. **Other files this branch changes outside the set, kept, each needed:**
+   - `docs/mechanisms/server-composition.md`: the A1 deliverable.
+   - `tests/detent_authority/test_daemon_sigterm.sh`: the A2 test (not yet registered in tests/CMakeLists.txt, which is outside the set; the job runs it by path).
+   - `website/src/content/docs/reference/cli/detent-authority.md` and `.../reference/configuration.md`: the authority's five new flags and keys; tests/docs/check_docs.py (the Docs workflow's check-docs job) fails on any undocumented one.
+   - `src/CMakeLists.txt`: see 2.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (authority row and deviations; relay and agent pending) |
-| A2 | pending: d7a901 (daemon tests), then the sigterm test; authority only |
-| A3 | pending: not run (blocked on the pin wave) |
+| A2 | authority only: job 261121-131314-98a5a7 (build all three daemons, ctest -R "daemon\|process", test_daemon_sigterm.sh); relay and agent pending the file set |
+| A3 | ci:macos-arm64 at the head (pushed 26a96e4a; main merged in de77cc40). Earlier CI failure at a7d0c456 was the branch's: detent_cli lacked task's include path for process.hh (macos-arm64, e2e, all Build steps); fixed in 26a96e4a, checked by job 261121-131321-a5da1a (authority-only build). Docs check-docs: 10 undocumented authority flags/keys, now on the reference pages. pin-check fails until pin-wave (Blocked on, 1) |
 | A4 | not started (blocked on files) |
 
 ## Result
@@ -67,4 +60,5 @@ Not ready for review.
 - Authority exit codes: a bad option value exits EX_USAGE (note step 1); other errors still exit 1.
 - Defaults max_clients 1024, max_in_flight 1024, idle_timeout_ms 75000 (the note's Settled 5): the authority gains a 75 s idle close it did not have.
 - The listening line is logged when http starts, not at ready, because the existing daemon tests read the port from it while the parent still waits.
+- 26a96e4a: detent_cli links task::asio and drops its empty daemon.cc (cause of the CI Build failures); documented the new flags on the website reference pages.
 - Kept the 5 ms leader wait as a `sleep_for` inside `LeaderComponent::start`, recorded as a deviation ending with loop-idle-waits.
