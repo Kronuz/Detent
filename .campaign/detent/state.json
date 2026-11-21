@@ -5905,8 +5905,7 @@
     "consensus-transport-test-flakes": {
       "accepted": {},
       "after": [
-        "consensus-driver-install",
-        "split-consensus"
+        "consensus-driver-install"
       ],
       "checks": [
         {
@@ -5957,7 +5956,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T11:42:38"
+      "updated": "2026-11-21T13:32:13"
     },
     "consensus-wave-open": {
       "accepted": {
