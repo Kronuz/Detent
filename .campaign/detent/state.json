@@ -23970,7 +23970,8 @@
     "split-journal": {
       "accepted": {},
       "after": [
-        "journal-tail-second-sector"
+        "journal-tail-second-sector",
+        "xapiand:journal-lost-bound"
       ],
       "checks": [
         {
@@ -24022,7 +24023,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:42:32"
+      "updated": "2026-11-21T11:45:01"
     },
     "stage-0-architecture": {
       "accepted": {},
