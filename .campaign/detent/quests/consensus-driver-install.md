@@ -5,16 +5,16 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A group run by a consensus Driver installs snapshots end to end (msg-179, option (a); Xapiand's group-heal, then cluster, then release, needs it). Today a Driver group runs no SnapshotChannel, nothing reads Worker::source_chunk or frames RFTXFR01 for it, the host transport carries no transfer frames to or from it, the receiver has no reserve/offer path or application validation hook, and ActivateInstall carries a token and a boundary but not the image (consensus b8de3b8, main 8801b99). After this quest the Driver keeps owning its Workers and exposes one per-group install surface: transfer frames in and out over the host transport, a validation notice the application answers with validated / validation_failed, and the image readable at ActivateInstall. strata stages the whole transfer at validation, before consensus persists the install, so a crash leaves the old replica or the complete new one (strata:0e67dcb7, quest/xapiand/group-heal--install).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A Driver group behind a lagging follower installs a snapshot over the host transport and the follower then applies entries past the boundary: tests
+- A2 The application's validation_failed rejects the install and the follower keeps its old state; validated installs it: tests
+- A3 A crash at every persisted step of an install recovers either the old replica or the complete new one: a simulation job, with a --fails-without mutant
+- A4 driver_simulation runs installs (lagging and restarted followers) under its seeds: jobs
+- A5 [artifact] The contract, frames and calls: `docs/DRIVER.md` install section
+- A6 TSan, ASan and CI pass
 
 ## Contracts
 
