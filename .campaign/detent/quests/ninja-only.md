@@ -5,16 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Owner ruling relayed from Xapiand (their D168, 2026-11-21): German's projects build with CMake and Ninja only. Commands without -G default to Unix Makefiles, and Makefiles and Ninja trees over one .deps break each other at configure in shared job slots. After this quest Detent's top-level CMakeLists.txt refuses a non-Ninja generator at configure with a message naming -G Ninja, and every script and doc that configures Detent passes -G Ninja. The lead updates quest check commands itself.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `cmake -S . -B b -G "Unix Makefiles"` fails at configure with the guard's message; `-G Ninja` configures: a job
+- A2 No script or doc in the repository configures without -G Ninja: a job that greps for cmake -S/-B invocations without it and prints none
+- A3 CI passes
 
 ## Contracts
 
