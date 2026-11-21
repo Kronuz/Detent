@@ -1,6 +1,6 @@
 # restart-capacity: journal
 
-State: working
+State: waiting on jobs (listed under Evidence)
 Quest: .campaign/detent/quests/restart-capacity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Code, tests and docs done (Detent:4a703ede..HEAD). Waiting on the unit, mutant, service, system
+jobs and CI (pushed) at the quest head.
 
 ## Next
 
-1. <step>
+1. Read the jobs: each mutant must fail at its assertion in `restart_raise`, not at build.
+2. Paste `campaign brief`'s table below; set State to ready for review.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. One open question for the lead under Rulings (1): the quest outcome says "keys and the
+other nine"; this follows contract rule 1 (only keys, state_bytes, image_bytes rise).
 
 ## Evidence
 
@@ -28,14 +31,38 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending: unit jobs; mutant `mutant/restart-capacity-a1` (Detent:fc91b0c9, commands under configured limits) --fails-without |
+| A2 | pending: unit and service jobs; mutant `mutant/restart-capacity-a2` (Detent:53faec96, administrative entries under configured limits) --fails-without |
+| A3 | pending: unit, service and system jobs |
+| A4 | pending: system job (`tests/detent_system/test_restart_capacity.sh`) |
+| A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
+| A6 | pending: CI on the pushed branch (suite, ASan/UBSan, TSan) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Each DTABAT02 group, DTAADM01 entry and DTAIMG03 image is read under `admit_limits`: keys,
+state_bytes and image_bytes may have risen, the other seven equal; anything else refuses naming
+the field. Groups decide under their carried limits (`BatchDecoder::limits()` into the
+`ValidatedCommand`), administrative entries under `recorded_limits(payload)`; recovered state runs
+and captures under the configured limits. No format, wire or consensus change. How it works and
+the site classification: `docs/mechanisms/authority-capacity-raise.md`. Operator text:
+`docs/CAPACITY_RUNTIME.md`, `website/.../reference/configuration.md` "Raising authority capacity".
+Open: the in-force layout policy is not re-checked under raised limits (mechanism doc, "What it
+does not do").
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Raisable set is contract rule 1's three (keys, state_bytes, image_bytes), not all ten: the
+   outcome's "keys and the other nine" reads as the ten carried limits. The other seven bound what
+   flows to relays, agents and history decoders and change the command digest (request_bytes,
+   mutations, definition_bytes, overrides), so raising them is not replay-safe for rule 6. Widening
+   is one flag per field in `limit_fields` (state.cc). Lead: confirm.
+2. One table (`limit_fields`) drives write, read and admission; messages name the configuration
+   key (`application_limits.<field>`).
+3. Sync paths (`State::apply`, `apply_batch`, `administer`, `BatchApplication::advance`, the
+   four-argument `AdministrativeApplication`) apply under the state's own limits; only the node's
+   replay passes carried limits. No node.hh change (outside the file set).
+4. Not fixed: the in-force layout policy under raised state_bytes (documented). `Node::checked`
+   still checks the configured layout.
+5. Mutants are commits on local branches `mutant/restart-capacity-a1` and `-a2`, one assertion
+   each, run with `--fails-without`.
