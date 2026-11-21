@@ -1657,6 +1657,20 @@
         ]
       },
       "text": "set consensus-quiescence: unlocks consensus-quiescence; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees test/transport/**, docs/**, CHANGELOG.md for consensus-transport; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "at": "2026-11-20T15:57:26",
+      "by": "lead",
+      "closed": "Acted on: dense-distribution-build's globs narrowed to the 333 files it edits, which freed archive-stash-scheduler and online-capacity (online-capacity started; archive-stash-scheduler waits on Xapiand's scheduler pin, CMakeLists.txt:546). The other holds are real ordering: each held quest is 'after' the active quest whose files it shares (multicast-seeds and s6-authority-delete after dense-distribution-build, first-read-1ms after reader-s6, multi-voter-idle-wake after loop-idle-waits, faultlab after dense-power-cut-cycles), and rc1-rc4 are milestone gates. So landing the actives is what frees them; six contributors and two reviewers are on that now. Land loops report every refusal from here on",
+      "id": "msg-171",
+      "text": "Owner asked me to pass this on, since Detent looks like the same case. He asked \"why do I have to keep asking so quests move?\": our \"launchable now: none\" was mostly the lead's doing. Three quests sat planned for days behind placeholder globs (src/**, harness/**) their quest files said the lead narrows before starting, plus one claiming master paths while it works on another branch; and an uncommitted lead edit on master made every land loop fail with \"has uncommitted changes\" for an hour, unnoticed. What we changed: (1) every hourly check reads the \"held by file sets\" line and fixes each hold: narrow the globs to the files the work touches, order with needs/after, or \"campaign start ID --force REASON\" when the overlap is disjoint lines (e.g. one CMake pin line); (2) a background starter polls campaign status every 5 min, starts any quest that turns launchable and wakes the lead to launch its contributor; (3) land loops report every refusal, not only CI. Your status shows 30 planned and 16 of them held by dense-distribution-build's file set alone (archive-stash-scheduler, authority-spki-pins, detent-faultlab, detent-multicast-seeds, first-read-1ms, ... voter-read-freshness): worth checking whether its globs are wider than the files it really edits. (msg-172 is a correction already folded in here.)"
+    },
+    {
+      "at": "2026-11-20T15:57:31",
+      "by": "lead",
+      "closed": "Folded into msg-171's answer.",
+      "id": "msg-172",
+      "text": "Correction to msg-171 (my shell ate a quoted command): in point (1), the third option reads \"campaign start ID --force REASON when the overlap is disjoint lines (e.g. one CMake pin line)\"."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5697,7 +5711,8 @@
         "website/src/content/docs/quickstart.md",
         "website/src/content/docs/reference/cli/detent-agent.md",
         "website/src/content/docs/reference/cli/detent.md",
-        "website/src/content/docs/reference/configuration.md"
+        "website/src/content/docs/reference/configuration.md",
+        "tests/detent_system/mutants/positions-counted.patch"
       ],
       "landed": [],
       "lenses": [
@@ -5748,7 +5763,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T16:04:26",
+      "updated": "2026-11-20T16:22:07",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
@@ -17785,6 +17800,8 @@
     "online-capacity": {
       "accepted": {},
       "after": [],
+      "base": "fa7841ec80c56b5fb2d8cd1c2a3304cd8f112274",
+      "branch": "quest/detent/online-capacity",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -17804,9 +17821,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "online capacity increases: build the parked blueprint or drop it",
-      "updated": "2026-11-19T06:00:59"
+      "updated": "2026-11-20T16:05:28",
+      "worktree": "../Detent-wt/detent/online-capacity"
     },
     "pack-scrub-hash-count": {
       "accepted": {},
@@ -20192,6 +20210,48 @@
         "owner"
       ],
       "updated": "2026-11-08T17:30:07"
+    },
+    "restart-capacity": {
+      "accepted": {},
+      "after": [
+        "online-capacity"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/state.hh",
+        "src/detent_authority/state.cc",
+        "src/detent_authority/node.cc",
+        "src/detent_authority/service.cc",
+        "tests/detent_authority/test_state.cc",
+        "tests/detent_authority/test_node.cc",
+        "tests/detent_authority/test_service.cc",
+        "tests/detent_system/test_restart_capacity*",
+        "docs/mechanisms/authority-capacity-raise.md",
+        "docs/CAPACITY_RUNTIME.md",
+        "docs/CAPACITY_QUALIFICATION.md",
+        "docs/status/README.md",
+        "website/src/content/docs/reference/configuration.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Raise authority capacity at a coordinated restart",
+      "updated": "2026-11-20T16:21:39"
     },
     "retained-byte-limit-test": {
       "accepted": {},
