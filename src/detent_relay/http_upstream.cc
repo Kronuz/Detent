@@ -49,6 +49,13 @@ d::Identity identity(std::string_view text) {
 	}
 	return out;
 }
+// The file being read in ranges (D138): its verified prefix and the prefix's running SHA-256.
+struct Partial {
+	std::string name_space;
+	MirrorFile file;
+	std::string bytes;
+	std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> hash{EVP_MD_CTX_new(), EVP_MD_CTX_free};
+};
 } // namespace
 
 struct HttpUpstream::Impl {
@@ -56,13 +63,6 @@ struct HttpUpstream::Impl {
 	std::size_t endpoint = 0;
 	std::optional<delivery::NamespaceSession> session;
 	Stats stats;
-	// The file being read in ranges (D138): its verified prefix and the prefix's running SHA-256.
-	struct Partial {
-		std::string name_space;
-		MirrorFile file;
-		std::string bytes;
-		std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> hash{EVP_MD_CTX_new(), EVP_MD_CTX_free};
-	};
 	std::optional<Partial> partial;
 
 	// One request on its own connection, every step bounded by one deadline.
