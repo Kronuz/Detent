@@ -4358,9 +4358,9 @@
       "branch": "quest/detent/consensus-transport",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 60,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -4386,6 +4386,46 @@
         "include/consensus/transport/host_transport.h",
         "test/transport/groups_test.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:15",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
@@ -4401,12 +4441,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: Xapiand blocks on both; consensus-quiescence works in Core first (A1, A3, A5, A6) and adds its per-pair detector on the transport after this lands; both merge main",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-20T09:02:51",
+      "updated": "2026-11-20T18:25:15",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-wave-open": {
