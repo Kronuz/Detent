@@ -12248,7 +12248,8 @@
         "include/journal/turn_log.h",
         "test/**",
         "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/turn_log_power_vm.sh"
       ],
       "history": [
         {
@@ -12276,11 +12277,27 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-20T21:36:18",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk lens; one reviewer by default",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
         }
       ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -12289,7 +12306,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-20T21:36:01"
+      "updated": "2026-11-20T21:36:18"
     },
     "journal-turn-bound": {
       "accepted": {
