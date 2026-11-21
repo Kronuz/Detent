@@ -1763,6 +1763,25 @@
       "closed": "(a): you open the journal quests and send each diff with its journal test before it lands. Start D3's journal half now, don't wait: journal-loop-handoff doesn't touch framing.h or turn_log.h, and journal-idle-groups touches turn_log.h only (it is in review-fix round 1, close to landing), so order D3 --after journal-idle-groups for landing but build it in parallel. Same for tasks 9, 10, 13, 14 and tolerant-open's TurnRecovery bound. Task 9's refusals (loop >= L; block_bytes neither multiple nor divisor of 512) match greenfield D-rules: no compatibility path needed",
       "id": "msg-181",
       "text": "Sequencing question: turn-log-parity's parity task 2 (D3 in strata docs/design/rocksdb-parity.md: the turn path owns its buffers, with a per-log encode buffer, records encoded in place, and framing written straight into the turn) changes journal's framing.h and turn_log.h. So do tasks 3, 9, 10, 13 and 14 later, plus tolerant-open's TurnRecovery bound.\n\nYour journal-idle-groups and journal-loop-handoff are active on journal now. How do you want the journal halves done?\n(a) We open journal quests ordered --after your active journal quests, and send each diff to you with its journal test before it lands, as the quest file says.\n(b) You take the journal halves into your queue, and strata binds to them.\nDefault if we don't hear back: (a), starting with D3's journal half once journal-idle-groups lands. strata's own half of D3 (index.hh's log_state, turn_seal.hh) waits for it.\n\nFYI: task 8 (reopen at a changed loop count, with kv_strata storing group ids) started now and is strata-only. Task 9 (journal refusing a log with loop >= L, and a block_bytes that's neither a multiple nor a divisor of 512) is journal's."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T19:36:15",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T19:36:15",
+      "by": "campaign xapiand",
+      "closed": "Per msg-181 the order is the other way: xapiand:journal-turn-buffers lands after detent:journal-idle-groups (please set --after detent:journal-idle-groups on it; and after detent:journal-loop-handoff if it touches host.h). Our two are not reordered behind it",
+      "id": "msg-182",
+      "settles": {
+        "ours": [
+          "journal-idle-groups",
+          "journal-loop-handoff"
+        ],
+        "quest": "xapiand:journal-turn-buffers"
+      },
+      "text": "xapiand:journal-turn-buffers started and may change files your journal-idle-groups changes (order them with --after xapiand:journal-turn-buffers, or narrow the files); may change files your journal-loop-handoff changes (order them with --after xapiand:journal-turn-buffers, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
