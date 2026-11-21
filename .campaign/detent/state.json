@@ -5173,6 +5173,8 @@
       "after": [
         "consensus-driver-install"
       ],
+      "base": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+      "branch": "quest/detent/consensus-peers-wake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5218,6 +5220,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-peers-wake",
       "landed": [],
       "lenses": [
         "correctness"
@@ -5225,11 +5228,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: consensus-driver-install is accepted and lands on its queued CI; its branch takes no further edits, so the overlap is CMakeLists.txt and CHANGELOG.md hunks resolved at merge",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T13:24:53"
+      "updated": "2026-11-21T13:25:06",
+      "worktree": "../consensus-wt/detent/consensus-peers-wake"
     },
     "consensus-quiesce-election-stall": {
       "accepted": {},
