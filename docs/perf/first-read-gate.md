@@ -1,4 +1,4 @@
-# First-read gate (reader.md T2, D49, D121, D140)
+# First-read gate (reader.md T2, D49, D121, D140, D142)
 
 Checks the first-read bound (D140): fresh-process first reads through the reader core are no slower
 than main's beyond the noise floor, at the median and at p99. A p99 below 1 ms and 200 of 200 below
@@ -40,7 +40,7 @@ Each tree writes its own store with its own writer (`first_read_phases --generat
 
 ## The runs
 
-`first-read-gate.sh measure OUT [stopped|running]` runs under `strict` (D135). Each cell runs six
+`first-read-gate.sh measure OUT [stopped|running]` runs under `exclusive` (D142). Each cell runs six
 main/branch pairs, alternating. Main goes first in even cells and the branch in odd ones.
 
 Each run does the following:
@@ -60,10 +60,12 @@ median. Per cell, it prints one `A16 cell` line with these fields:
 - The median of the six paired differences (branch minus main).
 - The noise floor: the larger of the two arms' median absolute differences between consecutive
   run medians.
+- The p99 floor: main's largest run p99 minus its smallest.
 
 The gate is D140, per cell: the median of the six paired differences (branch minus main) is at
 most the noise floor, and the p99 of the cell's 1,200 pooled branch reads is at most main's pooled
-p99 plus the noise floor. Both are relative to main because on this host main misses 1 ms too: at
+p99 plus p99's floor: the spread of main's six run p99s in the cell, maximum minus minimum (D142),
+since a tail statistic needs a tail floor. Both are relative to main because on this host main misses 1 ms too: at
 p99 in 3 of 4 cells on an exclusive hold (jobs 9f40bf and 5fb83e), and 200 of 200 per run (job
 369849). Both 1 ms figures are reported, not gated. A main read that exits nonzero is counted in its run's `failed` and its
 message in `failures`, and the run goes on: with the publisher running, main's Client refuses a
@@ -76,17 +78,17 @@ and `slow`, every read at or over 1 ms with the same fields, to attribute the mi
 ## How to run it
 
 ```sh
-campaign job submit --quest reader-s6 --for A16 --level strict --minutes 10 --ref BASELINE=main \
+campaign job submit --quest reader-s6 --for A16 --level exclusive --minutes 10 --ref BASELINE=main \
   --build 'bash docs/perf/first-read-gate.sh prepare .scratch/first-read' \
   -- bash docs/perf/first-read-gate.sh measure .scratch/first-read stopped
 ```
 
 Run it once with `stopped` and once with `running`. Each publisher state covers two cells of 2,460
-processes and fits one 10-minute strict hold.
+processes and fits one 10-minute exclusive hold.
 
 `first-read-gate.sh count OUT running` runs the same cells under `light`: it fails only if a branch
 read fails, and its last line totals main's refused reads. Those refusals depend on the publisher's
-collection, not on load, so the strict run is kept for the timing and the slow-read breakdown.
+collection, not on load, so the exclusive run is kept for the timing and the slow-read breakdown.
 
 ## Attribution
 
