@@ -1,6 +1,6 @@
 # loop-idle-waits: journal
 
-State: waiting on jobs at Detent:09ce7216/f38c7ed3 (F13 fix): F13 261120-161508-142c88 -161509-1ec0ae -161510-e99216 (stop at 100k, head vs main, strict), -161511-17e350 (fails-without, mutant stop-peers-sleep); mutants -161445-1fefcf (start-stop-sleep) -161446-fa7216 (stop-sleep); suite -161356-9068f1; restart x10 -161417-51299c; A2 -161417-26252d; A4 -161418-a1d709, -161419-51dcc4 -161419-dfc56b -161420-e0acee -161420-340584; A1 -161421-921300 -161421-f507e7; A3 -161422-c2ade3; arm64 bisect runs (Contributor 5).
+State: waiting on F13 jobs 261120-225535-9724ee -225537-795628 -225539-3cb98d (strict, head vs main at 100k keys) and -225542-b03235 (fails-without, mutant stop-peers-sleep) at Detent:7d1fad45; arm64 bisect branches bisect/liw-relayhost and bisect/liw-relay1ms (CI on push).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -146,6 +146,19 @@ reclaim scans ~60 completion ops/s) frames A1.
   last status (4.1 to 4.8 min into Test, ~261 of 281 tests done, memorystatus 78-79%) shows the same two tests
   running: test_relay_service and test_testing_trusted_restart_*; the machine stops within the next 20 s. Focused
   run bisect/liw-relaysvc (Detent:84bc04a8 code): those tests x8 on arm64 x3, progress every 5 s with process count.
+- At Detent:09ce7216: suite 261120-161356-9068f1 passed; restart x10 -161417-51299c passed; mutants start-stop-sleep
+  -161445-1fefcf and stop-sleep -161446-fa7216 fail test_authority_restart_wake as required; A1 -161421-921300
+  -161421-f507e7, A3 -161422-c2ade3, A2 -161417-26252d, A4 -161418-a1d709 and -161419/-161420 (TSan a5 x20) passed.
+- The first F13 jobs (-161508-142c88, -161509-1ec0ae, -161510-e99216, and mutant -161511-17e350) measured nothing:
+  relative certificate paths kept the voters from starting ("use_certificate_chain_file: No such file"), and the
+  mutant's "failure" was that setup error, not evidence. Detent:7d1fad45 passes absolute paths and seeds with
+  tests/detent_system's Writers, four producers (4,000 keys in 4 s locally; stops 0.05 to 0.21 s). Resubmitted.
+- arm64 bisect, final read of the first four branches (3 runs each): head 3 of 3 lost, coordinator-reverted 1 of 3,
+  authority-reverted 1 of 3, relay-reverted 0 of 3. Four of five losses stop with test_relay_service and
+  test_testing_trusted_restart_* running (one with test_relay_mirror). bisect/liw-relaysvc (those tests x8, 3
+  runs) passed 3 of 3, so the trigger needs the full suite's context. The relay change is implicated. Next split:
+  bisect/liw-relayhost (host.cc as on main) and bisect/liw-relay1ms (head, host sleeps at most 1 ms). Deleted
+  bisect/liw-authority, -coordinator, -relaysvc.
 - Next: read the jobs; read each bisect run's statuses (`gh api repos/Kronuz/Detent/commits/<sha>/statuses`),
   name the component, fix it with a test; delete bisect/liw-*.
 
