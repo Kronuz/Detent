@@ -3438,6 +3438,8 @@
         "consensus-quiescence",
         "consensus-transport"
       ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-driver-install",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -3459,6 +3461,7 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-install",
       "landed": [],
       "lenses": [
         "correctness"
@@ -3468,11 +3471,13 @@
       "provides": [
         "consensus:driver-install"
       ],
+      "reason": "started by force: On Xapiand's critical path; builds now against quiescence and transport, whose files it shares, and merges after both land",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-20T18:37:20"
+      "updated": "2026-11-20T18:37:35",
+      "worktree": "../consensus-wt/detent/consensus-driver-install"
     },
     "consensus-dual-stack": {
       "accepted": {},
