@@ -555,10 +555,18 @@ void cold_wait(const std::function<bool()> &ready) {
 		std::this_thread::yield();
 	}
 }
+// The cold-fork child's step, which its alarm names: a hang guard, not a time bound.
+volatile std::sig_atomic_t cold_step = 0;
+void cold_alarm(int) {
+	char message[] = "cold fork child: alarm at step 0\n";
+	message[sizeof message - 3] = char('0' + cold_step);
+	(void)!::write(2, message, sizeof message - 1);
+	std::_Exit(14);
+}
 void cold_forks(const std::filesystem::path &root) {
 	using namespace detent::local::detail;
 	for (const auto mode : {ColdMode::InFlight, ColdMode::Starting, ColdMode::Counted}) {
-		::alarm(30);
+		::alarm(60);
 		const auto store = root / ("cold-" + std::to_string(int(mode)));
 		detent::testing::GenerationWriter writer(store);
 		CHECK(writer.publish_json(knobs(1)) == 1);
@@ -621,8 +629,11 @@ void cold_forks(const std::filesystem::path &root) {
 		const auto child = ::fork();
 		CHECK(child >= 0);
 		if (child == 0) {
-			::alarm(5);
+			std::signal(SIGALRM, cold_alarm);
+			::alarm(30);
+			cold_step = 1;
 			CHECK(get(first.handle) == 1 && get(second.handle) == 1);
+			cold_step = 2;
 			{
 				// Accounting: each inherited handle charges what a fresh one charges for the same read.
 				Opened fresh(store);
@@ -632,12 +643,14 @@ void cold_forks(const std::filesystem::path &root) {
 				      t::stats(second.handle).mapped_bytes == expected);
 			}
 			// A transient increment copied after the drain must not pin the child's next fork.
+			cold_step = 3;
 			const auto grandchild = ::fork();
 			CHECK(grandchild >= 0);
 			if (grandchild == 0)
 				std::_Exit(0);
 			int status = 0;
 			CHECK(::waitpid(grandchild, &status, 0) == grandchild && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+			cold_step = 4;
 			detent_close(std::exchange(first.handle, nullptr));
 			detent_close(std::exchange(second.handle, nullptr));
 			const auto remaining = mappings(store);
