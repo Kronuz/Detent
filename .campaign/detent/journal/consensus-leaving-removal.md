@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-094829-84c93b 261121-094831-422c49 261121-094834-6ef492 261121-094837-453d12 261121-094840-1c44c7 261121-094843-9c9d0d and CI at a73c6e3
+State: waiting on jobs 261121-094829-84c93b 261121-094831-422c49 261121-094834-6ef492 261121-094837-453d12 261121-094843-9c9d0d and CI 44932044348 at a73c6e3
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,7 +25,12 @@ consensus:a73c6e3, no conflict; 200 seeds and seed 26 pass locally. A1-A3 resubm
 
 ## Next
 
-1. Read the jobs and CI at a73c6e3; fill Evidence.
+1. Read the jobs and CI 44932044348 at a73c6e3; fill Evidence.
+
+CI at 304bb1e (44925311406): macos-arm64 (the D57 gate) and 8 other jobs passed; linux-tsan and
+macos-x86_64 failed only consensus_transport_rpc_host_fetch (a transport test; no membership
+change). Main is red on macos-x86_64 with other transport tests: 5ebf834 (44924240551,
+groups_fetch-alongside-consensus), 9bbd632 (44913051788, transport_tls). Pre-existing, the lead's.
 
 ## Follow-ups (review, non-blocking)
 
