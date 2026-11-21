@@ -10953,6 +10953,8 @@
       "after": [
         "journal-idle-groups"
       ],
+      "base": "178030b38f5617337486407e6cc35d70881a0841",
+      "branch": "quest/detent/journal-loop-handoff",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -10968,16 +10970,19 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-loop-handoff",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Overlaps journal-idle-groups in host.h and host_test.cc at different functions; a small handoff call that merges after idle-groups lands",
       "repo": "../journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-20T14:50:46"
+      "updated": "2026-11-20T17:25:19",
+      "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-reopen-closed": {
       "accepted": {
