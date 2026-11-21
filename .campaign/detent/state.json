@@ -5265,12 +5265,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: consensus-driver-install is accepted and lands on its queued CI; its branch takes no further edits, so the overlap is CMakeLists.txt and CHANGELOG.md hunks resolved at merge",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T13:25:06",
+      "updated": "2026-11-21T14:21:09",
       "worktree": "../consensus-wt/detent/consensus-peers-wake"
     },
     "consensus-quiesce-election-stall": {
