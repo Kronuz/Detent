@@ -1,17 +1,18 @@
-# split-consensus: Every source file in consensus is under 1,000 lines, split by moves only
+# split-consensus: Every source file in consensus is split where it improves maintainability (SPLITTING.md)
 
 Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
 (status, branch, checks, reviews) is in `state.json`: `campaign status split-consensus`.
 
 ## Outcome
 
-Owner rule, relayed by Xapiand's lead (2026-11-21): every source file stays under 1,000 lines; new code never adds a file over it. Files over it in consensus today: host_transport.h 1,608, core.h 1,516, worker.h 1,235, driver.h 1,142 and 7 tests. After this quest each is split into cohesive files by moves only (no behavior change), the build and tests name the new files, and nothing over 1,000 lines remains. Proved with cpp-libraries tools/split_check.py (Xapiand's quest split-check) once it lands, else a diff that shows only moved lines.
+Owner rule (2026-11-21), written once in cpp-libraries docs/SPLITTING.md (cpp-libraries:7cab8ec); this quest follows that page and does not restate it. Size only flags a file for a look: "The split must make sense and improve maintainability. Let's not split for the sake of splitting. A 10K file might be ok if it makes complete sense to keep it that way." Cuts follow recognizable boundaries; a coherent unit (one function, state machine or class) stays whole at any size; nothing is cut inside a function, switch or class body (no .inc fragments). Moves only, no behavior change. Files flagged in consensus today (over 1,000 lines): host_transport.h 1,608, core.h 1,516, worker.h 1,235, driver.h 1,142 and 7 tests.
 
 ## Acceptance criteria
 
-- A1 No source file in the repository is over 1,000 lines: a job that lists every file's line count and prints none over
-- A2 The split moves code only: split_check.py (or a moved-lines diff) over the quest's range reports no changed line: a job
-- A3 The suite and CI pass
+- A1 [artifact] Each flagged file has a verdict, split along named boundaries or kept whole with the coherent unit that justifies it: `docs/dev/splits.md`
+- A2 The split moves code only: tools/split_check.py over the quest's range reports no changed line (or a moved-lines diff until split-check lands): a job
+- A3 [manual] The lead reads the split and confirms each cut follows a recognizable boundary per SPLITTING.md
+- A4 The suite and CI pass
 
 ## Contracts
 
