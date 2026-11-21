@@ -1,6 +1,6 @@
 # consensus-faultfs: journal
 
-State: waiting on jobs 261120-172913-b7370e
+State: waiting on jobs 261120-172913-b7370e 261120-173850-717ff9 261120-173853-926852 261120-173855-a141aa 261120-173858-656e1d 261120-173901-5f8751 261120-173913-d5f4fc 261120-173914-7a4d22 261120-173915-7bb349 261120-173917-e74484
 Quest: .campaign/detent/quests/consensus-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,13 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Jobs at consensus:5c25430 (pushed): suite b7370e. A2 --fails-without mutants: wave_open cut 717ff9
+(worker.h store-fence lines removed), shared_worker 926852 and simulation 656e1d and shared_cluster
+5f8751 (driver_mutants.py ack-before-turn-barrier), driver a141aa (checkpoint-drops-suffix, case
+checkpoint_keeps_acknowledged). Same mutants at main 8801b99 for equivalence (no --for; read the
+exit): d5f4fc, 7a4d22, 7bb349, e74484. A job that printed BUILD FAILED or crashed is not evidence:
+read its output for `reached the test`.
 
 Eight in-set test files converted at consensus:5c25430 (faultlab pinned a3b71d1 as journal does;
 Host dir `host` via a per-file host_io(); cut = power_off_after(cut - 1); power_loss() =
