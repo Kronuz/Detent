@@ -1,6 +1,6 @@
 # dense-distribution-build--history-ranges: journal
 
-State: waiting on jobs 261120-161154-462bce 261120-163145-987bc9 261120-163148-de1079 261120-163151-62ee61 261120-163158-71ef88 261120-163200-f3d566 261120-163203-380025
+State: waiting on jobs 261120-161154-462bce 261120-163549-0dcf85 261120-163554-51c319 261120-163604-d7f783 261120-163556-fb7ed6 261120-163602-5a7ea7 261120-163559-ef4b37
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,7 +14,7 @@ ranges.
 
 ## Next
 
-1. Read the jobs at 27d27d42; the 5M diagnosis job 261120-161154-462bce (53686a6c plus the relay's
+1. Read the jobs at 89df216a; the 5M diagnosis job 261120-161154-462bce (53686a6c plus the relay's
    swallowed answer and build errors printed, .scratch/history-ranges/diag/diag.sh) names the
    exception behind the agent's 503 `distribution_unavailable`.
 
@@ -29,9 +29,9 @@ Nothing.
 | D138.1 ranges, verified, resumed | test_http_upstream (exact, resume) 261120-140658-c98aab, ASan+UBSan 261120-140701-e20960; test_authority_history_ranges 261120-140659-cc116c, ASan+UBSan 261120-140702-b2e24c |
 | D138.2 bounded backoff, reported | test_http_upstream (backoff), same jobs |
 | Mutants killed (--fails-without) | prefix_dropped 261120-140716-764a97, whole_files 261120-140717-ac69d9, no_backoff 261120-140718-121ba1, unbounded 261120-140720-77337a |
-| Lost answer keeps the prefix (prefix_dropped) | test_http_upstream 261120-163145-987bc9; ASan+UBSan 261120-163148-de1079; mutant 261120-163158-71ef88 |
-| Relay chain in ranges | test_http_upstream `chain` (same jobs); mutants relay-range-whole 261120-163200-f3d566, relay-range-refused 261120-163203-380025 |
-| No regression at 27d27d42 | 261120-163151-62ee61 |
+| Lost answer keeps the prefix (prefix_dropped) | test_http_upstream 261120-163549-0dcf85; ASan+UBSan 261120-163554-51c319; mutant 261120-163556-fb7ed6 |
+| Relay chain in ranges | test_http_upstream `chain` (same jobs); mutants relay-range-whole 261120-163602-5a7ea7, relay-range-refused 261120-163559-ef4b37 |
+| No regression at 89df216a | 261120-163604-d7f783 |
 | No regression | ctest -R 'relay\|history\|test_authority_service\|http_upstream' 261120-140704-29b54e |
 | 5M relay mirror (the repro) | dense-distribution-row 5000000-flat-main 261120-140706-39dc89 (strict, 10 min) |
 
