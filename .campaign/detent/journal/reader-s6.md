@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:07a77ec` (D143 mapping cap): gates f01043 5021f2 4c4f68; plain ae1873; mutants a5d80c (CAP-1) 9b81e0 (CAP-2) 4552ff (NOMEM-1), with MEMO-1 b558f2, MISS-1 23f97d, ATFORK-1 2a7bcc at their own commits; 5M probes c1450e (2M) 765d93 (600K); probes 778bbf 467e2e; reruns (Doing); CI at the head. Pushed.
+State: waiting on jobs at `Detent:07a77ec` (D143 mapping cap): gates f01043 5021f2 4c4f68; plain ae1873 and mutants a5d80c 9b81e0 4552ff passed; with MEMO-1 b558f2, MISS-1 23f97d, ATFORK-1 2a7bcc at their own commits; 5M probes c1450e (2M) 765d93 (600K); probes 778bbf 467e2e; reruns (Doing); CI at the head. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -32,6 +32,10 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
     The 5M probes 3eb46b/a46cfb never ran (cancelled); `tests/detent_reader/reader_capacity_probe.cc`
     replaces their scratch probe and exits 1 unless the raised cap reads every key.
     `docs/READER_CAPACITY_ARCHITECTURE.md` names no reader core, so it is unchanged.
+  - Done at `Detent:07a77ec`: plain ae1873 exit 0 (`t:k10` no_memory at 379,880 charged; raised
+    cap reads every key at 1,435,184). Killed, exit 134: CAP-1 a5d80c (line 197, limit not
+    512 MiB), CAP-2 9b81e0 (line 200, minimum - 1 opened), NOMEM-1 4552ff (line 208, `t:k10`
+    source_failure).
   - Stale evidence rerun at `Detent:96a069c`: asan 98673d, t3-asan 016ccc, 0f6416→cc8a4f,
     A7 7af780, dense ASan 136428, A10 c2a20c, A11 ab36b9, A12/A13 ef3805, soak 335e22, A14 84e679;
     A16 (the fix touches the cold-miss path): exclusive 79f55a (stopped), 2a46f5 (running),
