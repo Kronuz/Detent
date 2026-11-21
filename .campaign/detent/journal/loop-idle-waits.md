@@ -1,4 +1,4 @@
-State: F13 done; arm64 hang: hunting the relay host.cc mechanism (probe 261121-004553-039208 queued).
+State: waiting on job 261121-004553-039208 (relay socket/CPU probe, head vs relayhost) and CI 44886920329 (bisect/liw-r1-poll), 44886919816 (bisect/liw-r1-nowake), macOS arm64 x3 each.
 
 State: waiting on F13 jobs 261120-225535-9724ee -225537-795628 -225539-3cb98d (strict, head vs main at 100k keys) and -225542-b03235 (fails-without, mutant stop-peers-sleep) at Detent:7d1fad45; arm64 bisect branches bisect/liw-relayhost and bisect/liw-relay1ms (CI on push).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
@@ -175,6 +175,13 @@ reclaim scans ~60 completion ops/s) frames A1.
 - Probe: bench/idle-wakeups/relay_sample.py + relay_compare.sh (Detent:187c97b7, 33c87b27): test_relay_service
   sampled every 0.25 s (TCP states, queued bytes, kernel network memory, per-process CPU and RSS), head vs
   3aafcf81 (relayhost). Job 261121-004553-039208.
+- Code read of the relay host.cc diff: no lost wakeup found. Every raise() after begin_turn() either makes arm()
+  expire at once or posts a cancel; each turn schedules exactly one continuation (post or one timer wait), so turns
+  neither stall nor multiply; the sweeps are bounded (polls lane 640 slots at 32 a turn, sessions 1024 at 64). A lost
+  wake would cost at most the 100 ms health turn, not a frozen machine, and relay1ms caps it at 1 ms anyway.
+- Next split, both on relay1ms (3229f617): bisect/liw-r1-poll (continue at once only on progress, rescan every turn:
+  main's loop shape with head's wakes), bisect/liw-r1-nowake (no ServiceRuntime or publication-sink wakes). The loser
+  names the part. Deleted bisect/liw-head, -relay, -relayhost, -relay1ms (statuses stay on their commits).
 
 ## Result
 
