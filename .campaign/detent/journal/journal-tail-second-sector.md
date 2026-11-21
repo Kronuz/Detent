@@ -1,6 +1,6 @@
 # journal-tail-second-sector: journal
 
-State: waiting on jobs 261121-115925-e0216a 261121-115928-e3ca87 261121-115931-e97d8e 261121-115934-0256e0 (fix round 1: durability F1)
+State: waiting on jobs 261121-115925-e0216a 261121-115928-e3ca87, CI run 44943792157 (fix round 1: durability F1)
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
@@ -28,7 +28,7 @@ Nothing.
   and block-header shapes read as tears (69 checks). `crossing_damage` counts a case whose next
   fragment's header the boundary cuts as unproven. Mutant journal:409032c
   (branch mutant/journal-tail-second-sector/cut-header, local) restores the cut-header scan;
-  fails-without job 261121-115934-0256e0. Local 8 seeds at e912a28: 48,308 checks, 0 failures;
+  fails-without job 261121-115934-0256e0: 1,146 checks, 69 failures (every cut_header_tears case). Local 8 seeds at e912a28: 48,308 checks, 0 failures;
   crossing 680 asserted + 47 unproven (was 696 + 31: 16 cases had a cut next header).
 - F2, F3 (non-blocking): the lead's journal-tail-cut-header-design quest; no change here.
 
@@ -38,7 +38,7 @@ Nothing.
 |---|---|
 | A1 | pending at journal:e912a28: 261121-115925-e0216a (T9 200 seeds, macOS). At journal:421011a: 261121-103735-cf5964 |
 | A2 | pending at journal:e912a28: 261121-115925-e0216a (macOS), 261121-115928-e3ca87 (FreeBSD VM); fails without: 261121-115934-0256e0 at journal:409032c (cut-header proof), 261121-103815-c377f1 at journal:ba19ae0 (stale_record_tears) |
-| A3 | pending at journal:e912a28: 261121-115931-e97d8e (seed 3 @4096); fails without: 261121-103756-644f6c at journal:b9e8c5f |
+| A3 | 261121-115931-e97d8e (seed 3 @4096 passes at journal:e912a28); fails without: 261121-103756-644f6c at journal:b9e8c5f |
 | A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector, a cut header proves none), rules 1 and 2, Limits, Evidence (`cut_header_tears` row) |
 | A5 | ci:macos-arm64 at journal:e912a28 (pushed; run pending) |
 
