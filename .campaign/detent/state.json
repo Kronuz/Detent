@@ -12978,20 +12978,44 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-power-silent-loss",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T07:20:19",
+          "commit": "c8e7f695b8a47457ff9035f7d991d9b9dbd45f86",
+          "criteria": {
+            "A1": "`docs/mechanisms/turn-log-damage.md` (journal:0465f24): the rules and the seed that pins each; per-seed diagnosis and old-code replay in Result below",
+            "A2": "261121-050405-0d411f, 261121-050409-60ca7c, 261121-050410-f64251, 261121-050407-f79bcf, 261121-050411-6b30d1",
+            "A3": "261121-050406-5f0af4, 261121-050407-f79bcf; fails without: 261120-201407-d594b9, 261120-201509-96e66d, 261121-021331-c7d5d8, 261121-021333-c493df, 261121-021336-c45179, 261121-021339-6e1ee1, 261121-021342-6b2ffb",
+            "A4": "`ci:macos-arm64`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "c8e7f695b8a47457ff9035f7d991d9b9dbd45f86",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a76ef25a4b2d7a36f98e13736d0c5724786203a5",
+          "reason": "",
+          "tested": "c8e7f695b8a47457ff9035f7d991d9b9dbd45f86"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-21T07:20:12",
-      "worktree": "../journal-wt/detent/journal-power-silent-loss"
+      "updated": "2026-11-21T07:20:20",
+      "worktree": ""
     },
     "journal-reopen-closed": {
       "accepted": {
