@@ -1,6 +1,6 @@
 # old-flakes-disposition: journal
 
-State: waiting on jobs (baseline soaks at c7d4921a, forcing and A4 jobs at 5010c15a)
+State: resumed; reading the ended jobs; reruns queued
 Quest: .campaign/detent/quests/old-flakes-disposition.md (the lead's; never edit it)
 
 ## Doing
@@ -11,6 +11,12 @@ Dispositions (draft, results pending in the Jobs table):
 - Flakes 5 and 8 (`test_local_paged_publication_artifacts`, StoragePressure, plain and TSan): fixed by ci-test-flakes (`Detent:9b85fdf6`, landed 5ebea120): the builder's Work owner retired on the RetirementRuntime thread after the pressure admission. Re-measured at main.
 - Catch-up segfault under `-j`: reproduction attempt at main (ctest -j4, 8 rounds); timeouts were ci-test-flakes' causes 10-11.
 - A4: the `agent-empty` wait of the relay isolated test is gone (30c2d65b removed `test_relay_isolated_process`); `test_managed_process.sh`'s remaining waits now share `wait_until`, which names the awaited condition, process liveness and `agent --status` with its exit on timeout (58e519e4).
+
+## Findings from the ended jobs (resume)
+
+- 261121-132218-06a35a, -132220-9aaee5 (flake 4 forced) and -131902-fd8099 (TSan 5/8) never ran their tests: `cp`/`tsan_configure.sh` write under `.scratch/`, absent in a fresh slot. No evidence either way; resubmitted with `mkdir -p .scratch`.
+- 261121-132019-4bf380 (A4 forced) failed by a bad mutation: `sed s/knob_count=0/knob_count=9/` without `g` changed only the description in the `wait_until` line, the pattern kept `knob_count=0`, the test passed. Resubmitted with `g`.
+- 261121-131855-20dfc1 (flake 3 partition x50 at main): 1 of 50. The failing run: agents opened at voter 1 (`managed_initial_source follower=1 leader=0`), the partition isolated voter 1 (`old_leader=1`): the leader moved onto the voter the agents were parked on between `ManagedCohort.start` and the partition; agent 0 stayed at position 1 of 5 for the 30 s. Forcing probe 261121-152400-2cea7c (agents opened at the leader that is then isolated).
 
 ## Next
 

@@ -95,6 +95,7 @@ class ManagedCohort:
         # Actor names carry `label`, so cohorts share one Actors; `observe` sees each agent's output.
         self.label = label
         self.observe = observe
+        self.opened_at: int | None = None
 
     def relay_configuration(
         self, directory: Path, port: int, upstreams: list[dict[str, object]]
@@ -156,6 +157,7 @@ class ManagedCohort:
             }
             for offset in range(3)
         ]
+        self.opened_at = first
         self.actors.evidence.record(
             "managed_initial_source", follower=first, leader=leader
         )
@@ -257,6 +259,20 @@ class ManagedCohort:
                 positions[name] = max(positions[name], revision)
         return positions
 
+    async def voter_states(self) -> dict[int, str]:
+        """Each voter's role, fencing and idle sessions, for a failed convergence."""
+        states: dict[int, str] = {}
+        for index in range(3):
+            try:
+                code, health = await self.authority.request(index, "/v1/health")
+                states[index] = (
+                    f"{code} role={health.get('role')} fenced={health.get('fenced')} "
+                    f"idle={health.get('frames_idle')}"
+                )
+            except Exception as error:  # noqa: BLE001 - a diagnostic never hides the failure
+                states[index] = f"unreachable: {error!r}"
+        return states
+
     async def wait_selected(self, positions: dict[str, int]) -> None:
         """Wait until every agent's entry for each name reaches its position."""
         for index, member in enumerate(self.members):
@@ -283,7 +299,8 @@ class ManagedCohort:
                 if time.monotonic() >= deadline:
                     raise RuntimeError(
                         f"managed agent {index} did not converge: {behind} "
-                        f"of {positions}"
+                        f"of {positions}; agents opened at voter {self.opened_at}; "
+                        f"voters {await self.voter_states()}"
                     )
                 await asyncio.sleep(0.05)
 
