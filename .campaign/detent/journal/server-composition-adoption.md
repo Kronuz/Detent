@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261121-133118-09b34d (build all + unit/daemon/secrets ctest), 261121-133128-18e429 (system: relay, agent and authority SIGTERM, dual stack, managed relay and process), 261121-133143-d866a0 (authority-only and relay-only builds, docs check), 261121-131314-98a5a7 (authority at 26a96e4a); CI at 247d1717 (A3)
+State: waiting on jobs 261121-155450-fdcc66 (build all + daemon/unit ctest), 261121-155458-ba8bec (system SIGTERM, dual stack, managed; after the first), 261121-155502-a74726 (authority-only and relay-only builds, docs check); all at 0cfe0ecd; CI at 0cfe0ecd (A3)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,7 +19,7 @@ secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
 
-1. Read the jobs listed in State; fix failures (a fix gets a test that fails without it).
+1. Read the jobs listed in State; fix failures (a fix gets a test that fails without it). The four earlier jobs failed in the build: src/detent_authority/main.cc used `kMaxDuration`, declared only in detent-relay's main.cc (fixed in 0cfe0ecd; the build itself is the test).
 2. After pin-wave and multi-voter-idle-wake land: merge main, drop the task pin line, apply
    `.scratch/server-composition/d125-authority-service.patch` (service.cc loader: process fields skipped,
    `secrets` file for the credentials; unverified, not compiled) and finish the authority half of D125
@@ -48,9 +48,9 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: 261121-131314-98a5a7 (26a96e4a) and test_authority_daemon_sigterm in 261121-133118-09b34d; relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-133128-18e429 |
-| A3 | ci:macos-arm64 at 247d1717; 261121-133143-d866a0 (authority-only and relay-only builds, docs check); pin-check red until pin-wave |
-| A4 | jobs 261121-133118-09b34d, 261121-133128-18e429. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
+| A2 | authority: test_authority_daemon_sigterm in 261121-155450-fdcc66; relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-155458-ba8bec |
+| A3 | ci:macos-arm64 at 0cfe0ecd; 261121-155502-a74726 (authority-only and relay-only builds, docs check); pin-check red until pin-wave |
+| A4 | jobs 261121-155450-fdcc66, 261121-155458-ba8bec. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
 
 ## Result
 
@@ -62,4 +62,5 @@ Not ready for review.
 - Defaults max_clients 1024, max_in_flight 1024, idle_timeout_ms 75000 (the note's Settled 5): the authority gains a 75 s idle close it did not have.
 - The listening line is logged when http starts, not at ready, because the existing daemon tests read the port from it while the parent still waits.
 - 26a96e4a: detent_cli links task::asio and drops its empty daemon.cc (cause of the CI Build failures); documented the new flags on the website reference pages.
+- The authority's half of A4 (`--authority` to `--config`) stays out: it needs service.cc's loader (not mine) and edits tests/detent_authority/* and authority.py outside the file set; the patch under .scratch has it.
 - Kept the 5 ms leader wait as a `sleep_for` inside `LeaderComponent::start`, recorded as a deviation ending with loop-idle-waits.
