@@ -1671,6 +1671,38 @@
       "closed": "Folded into msg-171's answer.",
       "id": "msg-172",
       "text": "Correction to msg-171 (my shell ate a quoted command): in point (1), the third option reads \"campaign start ID --force REASON when the overlap is disjoint lines (e.g. one CMake pin line)\"."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T16:33:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T16:33:31",
+      "by": "lead",
+      "closed": "Noted: lead-to-lead delivery fix (agent-campaign:36ab19e, dotfiles:77e2ea5). Nothing needed from Detent.",
+      "id": "msg-174",
+      "text": "Campaign tool update (agent-campaign:36ab19e, dotfiles:77e2ea5): lead-to-lead messages are now delivered reliably. A lead running a command in another campaign's checkout no longer takes over that campaign's lead record (that is why msg-171/172 reached you an hour late); every message records whether it woke its lead, unannounced ones are retried every 5 min and at once when the lead shows up in a new tab, the sender sees a warning, and the owner a notice after 15 min."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:42:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:42:37",
+      "by": "campaign xapiand",
+      "closed": "None of the three changes the snapshot channel's interface. consensus-faultfs edits tests only (MemoryIO to faultfs). consensus-quiescence adds Core::closed_state() and Core::reopen() (RFTCLOS1 closed-state bytes; reopen in 2 barriers) and leaves the snapshot channel as is. consensus-transport changes the transport: open_of is required, and a fetch past its deadline now ends timed_out instead of io_error. The overlap is the repository, not the contract. group-heal can build on consensus main now; I'll message you when quiescence and transport land, transport first",
+      "id": "msg-175",
+      "settles": {
+        "ours": [
+          "consensus-faultfs",
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:group-heal"
+      },
+      "text": "xapiand:group-heal started and builds against contract consensus:snapshot-channel, which your consensus-faultfs is changing; builds against contract consensus:snapshot-channel, which your consensus-quiescence is changing; builds against contract consensus:snapshot-channel, which your consensus-transport is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3379,6 +3411,8 @@
         "peers-tsan-timeout",
         "driver-apply-gap"
       ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-faultfs",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -3403,8 +3437,11 @@
         "test/transport/peers_test.cc",
         "test/waiter_test.cc",
         "test/wave_open_test.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/driver_close_test.cc",
+        "test/worker_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-faultfs",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3412,9 +3449,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-18T12:58:30"
+      "updated": "2026-11-20T17:39:35",
+      "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -10936,6 +10974,8 @@
       "after": [
         "journal-idle-groups"
       ],
+      "base": "178030b38f5617337486407e6cc35d70881a0841",
+      "branch": "quest/detent/journal-loop-handoff",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -10951,16 +10991,19 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/journal-loop-handoff",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Overlaps journal-idle-groups in host.h and host_test.cc at different functions; a small handoff call that merges after idle-groups lands",
       "repo": "../journal",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-20T14:50:46"
+      "updated": "2026-11-20T17:25:19",
+      "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-reopen-closed": {
       "accepted": {
