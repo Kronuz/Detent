@@ -1,6 +1,6 @@
 # consensus-quiescence: journal
 
-State: review fix F7 at consensus:818fd0a, pushed; waiting on jobs 261121-014430-84aded 261121-014431-0a5350 261121-014433-a0c0a0 261121-014434-5b7fb2 261121-014435-92f796 and CI (suite `ci:macos-arm64`), then a re-review.
+State: review fix F7 at consensus:818fd0a, pushed; waiting on jobs 261121-014433-a0c0a0 261121-014434-5b7fb2 261121-014435-92f796 and CI 44891001761 (suite `ci:macos-arm64`), then a re-review.
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
@@ -16,6 +16,9 @@ Correctness re-review CHANGES at 3b20d96: F7 (blocking). Fix at consensus:818fd0
   mutant/consensus-quiescence-f7): 261121-014430-84aded --fails-without. Fix 261121-014431-0a5350
   (simulation_test), 261121-014433-a0c0a0 (groups_test driver, driver_test fence_tells_peers),
   TSan 261121-014434-5b7fb2 (A3), review probe G1-G5 261121-014435-92f796.
+- Done: mutant 261121-014430-84aded exit 1 ("a higher-term Gone deposes no one"); fix
+  261121-014431-0a5350 exit 0. The stale-Gone check also passes on the mutant: a regression
+  guard (a lower term never matched), not a mutant kill.
 - consensus-driver-install told of 818fd0a (its msg-2).
 
 Correctness review CHANGES at a020e14 (Detent .campaign/detent/reviews/consensus-quiescence-correctness.md).
