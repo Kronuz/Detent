@@ -36,7 +36,7 @@ Nothing.
 | A2 | 261121-115925-e0216a, 261121-115928-e3ca87; fails without: 261121-103815-c377f1, 261121-115934-0256e0 |
 | A3 | 261121-115931-e97d8e; fails without: 261121-084916-f70fcc, 261121-103756-644f6c |
 | A4 | docs/mechanisms/turn-log-damage.md at e912a28 |
-| A5 | ci:macos-arm64 |
+| A5 | `ci:macos-arm64` |
 
 200-seed T9 at journal:e912a28, identical on macOS (261121-115925-e0216a) and the FreeBSD VM
 (261121-115928-e3ca87): 1,228,209 checks, 0 failures; 242,242 crash points and 155,754 simulated
