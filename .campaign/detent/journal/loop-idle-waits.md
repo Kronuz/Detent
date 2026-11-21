@@ -59,8 +59,8 @@ Detent:cc942c46.
   no port, memory or CPU difference from main.
 
 - F13 (lead's call, contributor 7): 59206705 did not fix it (above). Options: (a) restore main's per-turn share
-  (32 polls, 8 opens, 8 closes, round robin) and keep idle sleeps only when a full round of turns made no progress,
-  i.e. r1-poll's shape plus a bounded "round complete" condition, then arm64 x3; (b) cap bytes each turn writes
+  (32 polls, 8 opens, 8 closes, round robin) with a 1 ms pause between shares while a round is unfinished (r1-poll's
+  pace, never back to back), and the long idle sleep only after a full round without progress; then arm64 x3; (b) cap bytes each turn writes
   across replies (a pump budget), keeping the every-request visit; (c) take macOS arm64 out of the quest's gate and
   track F13 as its own quest. Recommendation (a): it is the only shape with 3 of 3 arm64 passes besides main.
 
