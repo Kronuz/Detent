@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: ready for review
+State: blocked on the lead: the brief still lists "check suite is not green: no job"; D57 makes CI macos-arm64 the suite (green at 740453b, run 44877138480), so run `campaign verify` or rule it covered, then ready for review
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
