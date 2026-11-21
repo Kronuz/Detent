@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-031817-665bcf 261121-031819-910be2 (A2 at ebc3b2e); A3 waits for consensus-quiescence
+State: waiting on jobs 261121-083440-bedfc4 261121-083442-2c1aec 261121-083445-9321a1 261121-083448-2a6b63 261121-083450-f4bdf7 261121-083453-9b1c92 and CI 44925311406 (all at 304bb1e)
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,19 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Correctness review APPROVED at consensus:7e83a6b. Head consensus:822aa7c folds F1's oracles into
-driver_replace_test (test only).
-Passed at 7e83a6b: A1 261121-012226-2fe3f5 (3000 seeds); A2 261121-012216-933a9e
-(removal-from-any-drive), 261121-012218-e3e272 (removal-tick-unplanned), from driver_mutants.py;
-suite subset 261121-011657-336f3f (27f79b0); A3 probe 261121-012106-ce07f5 at consensus:20198fc
-(b8de3b8 + 9a2476d): replace, replicas, waits, defer, drain seed 1 all pass.
-Waiting at 822aa7c: A1 261121-014433-59d3fa, A2 261121-014435-ea9ba4 (any-drive),
-261121-014436-34f470 (tick-unplanned); CI 44891006605 (A4; 44889262133 on 7e83a6b in progress).
+Correctness review APPROVED at consensus:7e83a6b, accepted at ebc3b2e (A1, A2, A4 met there).
+Merged consensus main 5ebf834 (consensus-quiescence) at consensus:c285355: one conflict, Core::drive's
+guard (main's `resting_`, this branch's `tick`); both kept. Build and 300 replace seeds pass.
+A3 now runs in consensus (consensus:e92ab31, 304bb1e): driver_replace seed 26 has strata's
+placement-repair replace seed 1 shape; mutant removal-unreserved (both removal mutants, the
+pre-fix code) fences it as strata did. Test-only changes since the review: driver_replace_test
+reports a fence with the world dump; driver_mutants.py takes a list of edits per mutant.
+Jobs at 304bb1e: A1 261121-083440-bedfc4; A2 run 261121-083442-2c1aec, mutants
+261121-083445-9321a1 (any-drive), 261121-083448-2a6b63 (tick-unplanned); A3 run
+261121-083450-f4bdf7, mutant 261121-083453-9b1c92 (removal-unreserved); gate via verify; CI 44925311406.
 
 ## Next
 
-1. Read the jobs at 822aa7c and CI 44891006605; fill Evidence and Result.
-2. When consensus-quiescence lands on main, merge main and rerun A3 at the quest head.
+1. Read the jobs at 304bb1e and CI 44925311406; fill Evidence.
+2. When consensus-full-window-stall lands on main, merge main again and rerun the same jobs.
 
 ## Follow-ups (review, non-blocking)
 
@@ -49,9 +51,9 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-031008-0547aa |
-| A2 | 261121-032753-f69c75; fails without: 261121-031817-665bcf, 261121-031819-910be2 |
-| A3 | pending: rerun at head once consensus-quiescence lands (probe at consensus:20198fc passed: 261121-012106-ce07f5) |
+| A1 | pending at 304bb1e: 261121-083440-bedfc4 |
+| A2 | pending at 304bb1e: 261121-083442-2c1aec; fails without: 261121-083445-9321a1, 261121-083448-2a6b63 |
+| A3 | pending at 304bb1e: 261121-083450-f4bdf7 (driver_replace seed 26); fails without: 261121-083453-9b1c92 (removal-unreserved) |
 | A4 | `ci:macos-arm64` |
 
 ## Result
@@ -70,5 +72,13 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   plans a leader Tick as `plan_event(ChangeMembership{0, removal})` (config append + commit
   hard, exactly the bytes propose_membership writes) or as nothing. One predicate, one place.
 - A2's jobs pass only if the output names the fence (setup failures exit 126).
+- A3 in consensus, not strata: strata's repro needs strata's harness (journal hosts per replica,
+  faultfs, strata groups, the placement root), which consensus cannot depend on. A seed search on
+  the pre-fix code (removal-unreserved; every seed 1-200 fences) for strata's shape (no witness,
+  leaving voter not the leader, leader in term >= 2) found seed 26: node 2 leads term 2, fences on
+  the removal of leaving voter 3, followers hold `1 2 3 4 leaving 3`; the same as strata's dump.
+  Strata's own replace seed 1 passed on the fix: 261121-012106-ce07f5 (strata, not evidence here).
+- Merge: a leader with a removal due never rests (leader_at_rest requires no leaving member), so
+  quiescence leaves its Ticks, which propose the removal, running.
 - The removal now waits for the leader's next Tick after the commit: at most a heartbeat
   (next_deadline is the heartbeat for a leader with peers; a replacement always has one).
