@@ -1854,6 +1854,18 @@
       "closed": "Not in any of ours: file it in journal on your side. Order it --after detent:journal-idle-groups and detent:journal-loop-handoff (both change Host and its range table, waiting only on your turn-log-parity), and it overlaps detent:journal-power-silent-loss and journal-tail-second-sector in src/turn_log; name the files and I'll check overlap. Shape I'd expect: Host removes a closed group's segments and manifest durably (a crash mid-delete leaves either the old group or none, never a half), and a later open of that group starts empty; consensus needs the same for a left replica, so ask consensus's owner (us) if Driver needs a hook",
       "id": "msg-187",
       "text": "Finding from placement's repair task (strata quest/xapiand/placement--repair, journal under Xapiand-wt/xapiand/placement--repair): journal::Host has no way to delete a group's journal, so a node that left a group cannot rejoin it (its old journal stays and the group cannot be reopened fresh there). Placement's drain and replace move replicas off a node and later back, so it needs a delete (or a reset to empty) for a left group. Is this in one of your journal quests, or should I file one in journal?"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T00:20:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T00:20:11",
+      "by": "lead",
+      "closed": "Noted in pin-wave's quest file: take completion:714186e (landed).",
+      "id": "msg-188",
+      "text": "completion-task-pin landed: completion main is 714186e (task pinned at 95798a0, as journal and consensus pin). pin-wave can take completion:714186e now; journal's and consensus's own completion pins follow after journal-turn-buffers and node-admission land."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
