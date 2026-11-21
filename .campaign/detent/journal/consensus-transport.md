@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: fixing F1 (security review round 1): waiting on jobs 261121-050335-c91945 261121-050336-bf7969 261121-050338-221884 261121-050339-bd562d 261121-050340-3bb279 261121-050341-370777 261121-050343-12b8df 261121-050344-caf802 and CI at consensus:9bbd632
+State: fixing F1 (security review round 1): waiting on jobs 261121-053518-5fce38 261121-053520-0a9324 261121-053522-874432 261121-053524-a0ffba 261121-053526-1b7054 261121-053528-7bf16f 261121-053530-6bedb0 261121-053532-372d2f 261121-053629-2fe10d 261121-053631-e1471c and CI 44906921960 attempt 2 at consensus:9bbd632
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,10 +15,20 @@ from stop() or expire(), or a Credit before the peer's Cancel) keeps its serving
 next() takes that frame; so `serving` slots, then `serving` + 1 refusals, close a peer that never
 reads (R12). rpc_test `unread-small` (locally: each path closes at 9 Calls with serving 4, 216,
 248 and 216 bytes unsent, equal to outgoing; a reading peer runs 1,000 Calls with 0 unsent).
-Jobs: mutant small-unbounded (b7dbc4b) 261121-050335-c91945 (--fails-without); reviewer's probe
-261121-050336-bf7969 (each path ProtocolError, another connection's call queues); reruns at
-9bbd632: lane tests -050338-221884 (A3, A6), ASan -050339-bd562d, fuzz -050340-3bb279, corpus
-coverage -050341-370777, A5 -050343-12b8df, suite -050344-caf802. rpc-lane.md "A peer that never
+Jobs (the first eight, 261121-0503xx, exited 127: the zsh `$Q` flags became the command;
+resubmitted): mutant small-unbounded (b7dbc4b) 261121-053518-5fce38 (--fails-without);
+reviewer's probe -053520-0a9324; at 9bbd632: lane tests -053522-874432 (A3, A6), ASan
+-053524-a0ffba, fuzz -053526-1b7054, corpus coverage -053528-7bf16f, A5 -053530-6bedb0, suite
+-053532-372d2f.
+CI 44906921960 at 9bbd632: linux-tsan failed in Configure on infra (git clone of Kronuz/task:
+403); macos-x86_64 failed rpc_host group-full (credit never full in 2 s, 3,015,806 uncredited;
+14 of 15 calls) and, beside it at the same minute, groups fetch-alongside-consensus (15 of 16
+exact, a commit 5,432 ms): a runner stall's signature, and neither case's served calls end with
+a small frame unsent (echo and fetch Calls carry their request inline, serving 256). Attribution
+jobs, group-full x20 and fetch-alongside x10 on this x86_64 Mac: 9bbd632 261121-053629-2fe10d,
+34881c2 261121-053631-e1471c. Failed jobs rerun (attempt 2); three x86_64 runs in a row at
+9bbd632 still to collect.
+rpc-lane.md "A peer that never
 reads" and Evidence updated. F2-F4, F6 are consensus-transport-budgets' (lead).
 
 Session 3 (2026-11-20 evening), head consensus:8ded754 (pushed).
