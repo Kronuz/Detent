@@ -17857,17 +17857,51 @@
       "files": [
         "docs/ONLINE_CAPACITY_ARCHITECTURE.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-20T17:45:28",
+          "ci_skipped": "Docs-only change (docs/ONLINE_CAPACITY_ARCHITECTURE.md); ci.yml's paths-ignore skips docs/**, so no CI run exists for it",
+          "commit": "0d77492d62fe0069e6471ef78bd818508dcb6f6e",
+          "criteria": {
+            "A1": "[decision] D141 (PLAN.md, Detent:16afa4dd): online increases dropped; capacity raised at a coordinated restart (quest restart-capacity). Reasons: `docs/ONLINE_CAPACITY_ARCHITECTURE.md` \"Why not online\"",
+            "A2": "[artifact] `docs/ONLINE_CAPACITY_ARCHITECTURE.md`: Status \"Not planned\", the reasons, the restart-raise contract (rules 1-7), what it gives up"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "776c7f2499cc8ac01bdfcd1409b3f198006367f6",
+              "docs": [
+                "docs/LIBRARY_BOUNDARIES.md",
+                "docs/ONLINE_CAPACITY_ARCHITECTURE.md",
+                "docs/SHARED_LIBRARY_DECISIONS.md",
+                "docs/perf/namespace-measure-sync.sh"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-043325-0ce5e8",
+              "level": "light",
+              "seconds": 588.5,
+              "state": "done",
+              "what": "relay-tls-drain-flake check suite at 776c7f2499cc"
+            }
+          ],
+          "final": true,
+          "from": "9f5a619fb49c2a4b7b79007e7020b8ddc8bfde98",
+          "reason": "",
+          "tested": "0d77492d62fe0069e6471ef78bd818508dcb6f6e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "online capacity increases: build the parked blueprint or drop it",
-      "updated": "2026-11-20T16:05:28",
-      "worktree": "../Detent-wt/detent/online-capacity"
+      "updated": "2026-11-20T17:45:29",
+      "worktree": ""
     },
     "pack-scrub-hash-count": {
       "accepted": {},
