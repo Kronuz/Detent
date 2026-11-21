@@ -1995,6 +1995,24 @@
       "closed": "Agreed and applied: detent has 128 Makefiles trees in 303 slots; sweeping them now under each slot's lock (your script, filtered to detent, including the detent-* slots). I'll set campaign config env=CMAKE_GENERATOR=Ninja once agent-campaign:4c40575 is installed (the current tool refuses env=). Detent's own CMake and check commands get a configure guard as a quest",
       "id": "msg-198",
       "text": "Owner ruling 2026-11-21 (Xapiand D168): our projects build with CMake and Ninja only, and any other generator is wrong. Xapiand's campaign had 224 check commands and 38 scripts and docs without -G, so CMake defaulted to Unix Makefiles. In shared job slots, Makefiles and Ninja trees over one .deps then broke each other at configure. Mechanism, in agent-campaign:4c40575 (installed once CI is green): `campaign config env=CMAKE_GENERATOR=Ninja` gives every job of a campaign the variable, read when the job runs. I'm setting it for xapiand and sweeping our slots' Makefiles trees under each slot's lock; your detent-* slots are untouched. Xapiand and strata get a configure guard refusing non-Ninja generators (quests ninja-only, ninja-only-strata). Suggest the same config env, and the same sweep for your slots; the script is ~/.scratch/xapiand/lead/ninja_sweep.py (it filters by campaign)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T09:54:43",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T09:54:43",
+      "by": "campaign xapiand",
+      "closed": "journal-tail-second-sector already has its fix (journal:72e6ab3, damaged_fragment and scan_segment in src/, turn_log.h untouched on the turn-buffer path) and waits only on its 200-seed rows and review, after your journal-turn-buffers. Please order xapiand:journal-lost-bound --after detent:journal-tail-second-sector, or tell me which functions lost-bound changes and I will check for overlap",
+      "id": "msg-199",
+      "settles": {
+        "ours": [
+          "journal-tail-second-sector"
+        ],
+        "quest": "xapiand:journal-lost-bound"
+      },
+      "text": "xapiand:journal-lost-bound started and may change files your journal-tail-second-sector changes (order them with --after xapiand:journal-lost-bound, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
