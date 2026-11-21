@@ -1,6 +1,6 @@
 # consensus-faultfs: journal
 
-State: waiting on jobs b02bb6 9a4a70 (probes) and CI run 44859892732 at e4e82ad
+State: waiting on CI run 44860606419 (macos-arm64) at bb961b3
 Quest: .campaign/detent/quests/consensus-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,31 +29,35 @@ ack-before-turn-barrier b4ddf9. Main 8801b99 baselines, no --for, ids 261120-190
 3e84b5; shared_worker sends 2e491d, checkpoint 17bc5d; simulation sends 68dcbc, checkpoint 651de8;
 close_crash loop-throw is 38db6e (killed). A mutant counts only where main's baseline is killed too.
 
-Results (exit 1 = killed; each log shows `reached the test`):
+Lead msg (after e4e82ad): mutants committed as test/faultfs_mutants.py (consensus:a46f110; lead
+widens the file set); shared_cluster baseline at main; on sends-before-durability, find why if no
+branch seed kills it. Answer: the branch's 200-seed probe 9a4a70 kills it at seed 11 ("conflict
+with committed log prefix", the same failure main's seed 399 shows); main over seeds 1-11 (258a4b)
+kills it only at 399. Each crash model's stream reaches the fault at its own seeds; faultfs does
+not miss it. consensus:bb961b3 adds {11, 3000} to driver_simulation's regressions (+0.1 s).
 
-| Test | Mutant | main 8801b99 | branch e4e82ad (--for A2) |
+A2 at bb961b3 (--for A2 --fails-without, all reached the test, all exit 1), main 8801b99 baseline:
+
+| Test | Mutant | main | bb961b3 |
 |---|---|---|---|
-| close_crash | loop-throw-suspends | 38db6e killed | 9023a5 killed (seed 1 cut 53) |
-| wave_open cut | store-fence-unnamed | 3e84b5 killed | ec18f5 killed |
-| shared_worker | checkpoint-drops-suffix | 17bc5d killed | 4facd6 killed |
-| driver simulation | checkpoint-drops-suffix | 651de8 killed | d3c8ff killed (fails at once, not a crash case) |
-| driver | checkpoint-drops-suffix | 7bb349 killed | 54ff3d killed |
-| shared_cluster | ack-before-turn-barrier | none | b4ddf9 killed |
-| shared_worker | sends-before-durability | 2e491d survived | 30d478 survived: dropped |
-| driver simulation | sends-before-durability | 68dcbc killed, only by regression seed 399 | 30a415 survived |
+| close_crash | loop-throw-suspends | 38db6e killed | 4f37ea (seed 1 cut 53) |
+| wave_open cut | store-fence-unnamed | 3e84b5 killed | 7daa7f |
+| shared_worker | checkpoint-drops-suffix | 17bc5d killed | 407361 |
+| driver simulation | sends-before-durability | 68dcbc killed (seed 399) | fc047f (seed 11) |
+| driver simulation | checkpoint-drops-suffix | 651de8 killed | 713715 |
+| driver | checkpoint-drops-suffix | 7bb349 killed | 608dd4 |
+| shared_cluster | ack-before-turn-barrier | e6bcf8 killed | ab67ca |
 
-The simulation's crash detection: main kills sends-before-durability only at seed 399, whose
-schedule follows the old crash model's stream, so faultfs's crash does not replay it. Probes with
-SIM_DRIVER_SEEDS=200 (no --for): main b02bb6, branch 9a4a70, to compare how often each kills it.
+Dropped: shared_worker sends-before-durability (survives at main 2e491d and branch 30d478); the
+frontier mutant and ack-before-turn-barrier on shared_worker/simulation (survive at main).
+Main baselines use ~/.scratch/detent/consensus-faultfs/mutants/mutate.py (same bytes as
+test/faultfs_mutants.py, which main lacks).
 
 ## Next
 
-1. Read b02bb6/9a4a70: if the branch kills sends-before-durability at some seed, submit a --for A2
-   job over that range and add the seed to `regressions` (the 399 entry no longer reproduces); if
-   only main does, report it to the lead with the counts.
-2. A1/A3: `ci:macos-arm64` at e4e82ad (run 44859892732, queued), ctest time <= 160.8 s (1.5 x
-   main's 107.19 s, main run 44829606479); grep memory_io empty.
-3. Fill Evidence, write Result, set ready for review.
+1. A1/A3: `ci:macos-arm64` at bb961b3 (run 44860606419), ctest time <= 160.8 s (1.5 x main's
+   107.19 s, main run 44829606479); `git grep memory_io` empty at bb961b3.
+2. Fill Evidence, write Result, set ready for review.
 
 ## Blocked on
 
@@ -89,3 +93,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - close_crash runs on CutIO, a faultfs directory whose power-off failures throw PowerCut (no
   std::exception), as MemoryIO's PowerLoss did: the case checks callers complete when a throw ends
   the Driver's loop, which only an exception step() does not catch can show.
+- driver_simulation keeps seed 399 and adds seed 11 to its regressions: 11 is where faultfs's
+  crash reaches a leader sending before durability; 399 stays as the record of the old failure.
