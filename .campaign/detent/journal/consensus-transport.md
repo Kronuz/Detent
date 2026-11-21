@@ -200,9 +200,18 @@ checked what), and answer each message by its id (msg-N).
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+consensus:34881c2 (main bb961b3 merged). The host transport carries the rpc lane on Bulk:
+- rpc.h: every queued frame charged to `rpc_outgoing_bytes` and capped per connection
+  (`LaneOptions::queue_bytes`, A3/N1), `send` past a known total refused (N2), deferred close
+  inside callbacks (N3), fuzz reaching pool waits and rule 7.6 (N4).
+- host_transport.h: per-group bytes in flight 4,746.1 -> 594.7 B, idle group 36.0 B stored
+  (docs/perf/transport-idle-cost.md); receive bound per group (overrun, flooded); hold/release,
+  lane_idle with Drain and graceful close, drain()/lanes_drained(); fetch as lane method 1
+  (16 MiB exact in ~1 s beside 84-131 MiB of uploads, heartbeats' gap <= 224 ms locally).
+- links.h: a peer's pending handshake never evicted by an unknown address (N9).
+- Docs: docs/mechanisms/rpc-lane.md, host-transport.md, host-connection.md.
+Open: groups-upload-stall-cause waits on a CI capture; peers late-append's hog stall is
+consensus-full-window-stall's (not this branch's: 10 of 10 at head and main).
 
 ## Rulings I made
 
