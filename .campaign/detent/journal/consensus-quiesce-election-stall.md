@@ -9,15 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1: reproduce seed 1080 and name the stalled state. Local repro: `build/consensus_driver_replace_test 1 1080 quiesce` (the test's new third argument turns Timing::quiesce on) fails as the probe did. Repro job at main: 261121-134216-fb35b7.
 
 ## Next
 
-1. <step>
+1. Name the cause from a per-message trace of seed 1080.
+2. Fix in core.h; named test; sweep 1-3000 quiesced (Release, ASan, TSan).
+3. Mutant commit restoring the stall, `--fails-without`.
+4. docs/mechanisms/quiescence.md, CHANGELOG.md.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing
 
 ## Evidence
 
