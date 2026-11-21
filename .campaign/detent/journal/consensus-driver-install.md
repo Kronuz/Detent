@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-193730-660db9 261120-193735-f56dd7 261120-194220-d581b0
+State: waiting on jobs 261120-224220-aca6f7 261120-224222-24810b
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -47,9 +47,9 @@ checked what), and answer each message by its id (msg-N).
 | A1 | jobs 261120-191737-e1518e (lagging), -191739-f8b0b5 (stale+restart), -191753-7348c5 (groups install over the host transport); fails-without -191744-5b41ef (no-transfer-out), -191746-d10632 (activation-wait-maintains), -191754-1b07f7 (no-transfer-out, groups) |
 | A2 | job 261120-191740-5424de (rejected); fails-without -191749-bef99d (failed-validates) |
 | A3 | job 261120-191742-f0f7eb (crash at every disk op, 24 cuts: 19 old, 5 new locally); fails-without -191751-b901bb (activate-on-validated) |
-| A4 | jobs 261120-193730-660db9, -193735-f56dd7 (32 seeds each, at 4d5b6e2, queued). At c0838ff 261120-191756-1ba6e8 failed seed 15: a repair pending after healing (ruling 8); its summary: 35 SnapshotNeeded, 176 frames, 16 validated (1 refused), 15 activated. Seed 15 passes at 4d5b6e2 locally |
+| A4 | jobs 261120-224220-aca6f7, -224222-24810b (32 seeds each, at merge 017c918, queued); at 4d5b6e2 261120-193730-660db9 and -193735-f56dd7 passed. At c0838ff 261120-191756-1ba6e8 failed seed 15: a repair pending after healing (ruling 8); its summary: 35 SnapshotNeeded, 176 frames, 16 validated (1 refused), 15 activated. Seed 15 passes at 4d5b6e2 locally |
 | A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:c0838ff); contract sent to Xapiand as msg-187 |
-| A6 | pending: CI at consensus:5982871 (the three Sinks compile now) |
+| A6 | pending: CI at consensus:017c918. Job 261120-194220-d581b0 built and passed driver, close and wave-open tests with the new Sinks at 5982871 |
 
 ## Result
 
