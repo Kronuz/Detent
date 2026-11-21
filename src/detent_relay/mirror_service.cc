@@ -64,7 +64,7 @@ struct MirrorService::Impl {
 		MirrorFile file;
 		std::string bytes;
 	};
-	std::optional<HeldFile> held;
+	std::optional<HeldFile> ranged;
 	// The builder thread's tasks, under `mutex`; `built` tells the mirror thread one finished.
 	std::deque<std::function<void()>> builds;
 	std::condition_variable build_wake;
@@ -246,16 +246,16 @@ struct MirrorService::Impl {
 			// past the end.
 			const auto [offset, length] = *job.range;
 			if (offset >= file->size) {
-				held.reset();
+				ranged.reset();
 				control(job, 416, "{\"error\":\"range_not_satisfiable\"}");
 				break;
 			}
-			if (!held || held->name_space != job.name_space || held->file != *file)
-				held = HeldFile{job.name_space, *file, relay->fetch(job.name_space, *file)};
+			if (!ranged || ranged->name_space != job.name_space || ranged->file != *file)
+				ranged = HeldFile{job.name_space, *file, relay->fetch(job.name_space, *file)};
 			const auto count = std::min(length, file->size - offset);
-			stream(job, "application/octet-stream", std::string_view(held->bytes).substr(offset, count));
+			stream(job, "application/octet-stream", std::string_view(ranged->bytes).substr(offset, count));
 			if (offset + count == file->size)
-				held.reset();
+				ranged.reset();
 			break;
 		}
 		}
