@@ -17785,6 +17785,8 @@
     "online-capacity": {
       "accepted": {},
       "after": [],
+      "base": "fa7841ec80c56b5fb2d8cd1c2a3304cd8f112274",
+      "branch": "quest/detent/online-capacity",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -17804,9 +17806,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "online capacity increases: build the parked blueprint or drop it",
-      "updated": "2026-11-19T06:00:59"
+      "updated": "2026-11-20T16:05:28",
+      "worktree": "../Detent-wt/detent/online-capacity"
     },
     "pack-scrub-hash-count": {
       "accepted": {},
