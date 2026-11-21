@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-193730-660db9 261120-193735-f56dd7; blocked on the lead: msg-180
+State: waiting on jobs 261120-193730-660db9 261120-193735-f56dd7 261120-194220-d581b0
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,23 +17,24 @@ driver_simulation installs, groups_test install over the real host transport. Ev
 
 ## Next
 
-1. On the lead's ruling (msg-180): update the Sinks in test/driver_test.cc,
-   test/driver_close_test.cc, test/wave_open_test.cc (rename ActivateInstall, add SendTransfer
-   and ValidateImage); CI does not compile them until then.
+1. Read job 261120-194220-d581b0 (driver, close, wave-open tests at consensus:5982871) and CI.
 2. Read A4's jobs 261120-193730-660db9, -193735-f56dd7 (at 4d5b6e2). A1-A3 passed at c0838ff.
 3. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
    land; rerun the jobs (`campaign job rerun`).
 4. Push; CI macos-arm64 + TSan/ASan for A6. After consensus-quiescence merges: a follower's
    orphaned incoming image ends only when run_one sees time pass; check that a quiescent group
-   still steps (arm a wake while an install is open) so its repair is not held forever.
+   still steps (arm a wake while an install is open) so its repair is not held forever. Test it
+   when quiescence merges (the lead's msg-180 ruling keeps this here).
 
 ## Blocked on
 
-The lead (msg-180): extend the file set with test/driver_test.cc, test/driver_close_test.cc,
-test/wave_open_test.cc. The contract replaces the Sink's ActivateInstall with ActivateImage and
-adds SendTransfer and ValidateImage to the sink concept; those three tests' explicit Sinks stop
-compiling without a mechanical update. Recommended: extend. Alternative: make the install
-notices optional (if constexpr), two shapes.
+Nothing.
+
+msg-180 (answered): the lead ruled required install notices, one shape, and added
+test/driver_test.cc, test/driver_close_test.cc, test/wave_open_test.cc to the file set.
+consensus:5982871 updates only their Sink definitions: SendTransfer and ValidateImage stubs,
+ActivateImage in place of ActivateInstall (driver_test records the boundary, since the notice
+borrows its reader). The quiescent-group risk stays under Next.
 
 ## Evidence
 
@@ -48,7 +49,7 @@ checked what), and answer each message by its id (msg-N).
 | A3 | job 261120-191742-f0f7eb (crash at every disk op, 24 cuts: 19 old, 5 new locally); fails-without -191751-b901bb (activate-on-validated) |
 | A4 | jobs 261120-193730-660db9, -193735-f56dd7 (32 seeds each, at 4d5b6e2, queued). At c0838ff 261120-191756-1ba6e8 failed seed 15: a repair pending after healing (ruling 8); its summary: 35 SnapshotNeeded, 176 frames, 16 validated (1 refused), 15 activated. Seed 15 passes at 4d5b6e2 locally |
 | A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:c0838ff); contract sent to Xapiand as msg-187 |
-| A6 | pending: CI after the msg-180 ruling |
+| A6 | pending: CI at consensus:5982871 (the three Sinks compile now) |
 
 ## Result
 
