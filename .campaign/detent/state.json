@@ -1974,8 +1974,7 @@
     "archive-stash-scheduler": {
       "accepted": {},
       "after": [
-        "xapiand:task-lifecycle",
-        "xapiand:xapiand-lifecycle"
+        "xapiand:task-lifecycle"
       ],
       "checks": [
         {
@@ -2026,7 +2025,7 @@
       "risk": "low",
       "status": "planned",
       "title": "archive the stash and scheduler repositories",
-      "updated": "2026-11-20T18:25:01"
+      "updated": "2026-11-21T04:34:42"
     },
     "async-drivers": {
       "accepted": {},
