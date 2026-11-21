@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs CI run 44924686502 (macos-arm64 at consensus:aafa849); every evidence job reran green there
+State: waiting on jobs 261121-110923-8ec58f 261121-110925-b0b599 261121-110926-f041dc 261121-110928-1a6a6f 261121-110930-4477d6 261121-110932-9e6ce2 261121-110934-9f29e7 261121-110936-37148f 261121-110938-8ae959 261121-110940-e994fd 261121-110942-ddb5d5 261121-110944-6ee95d 261121-110946-f8053a 261121-110949-e4ea6d 261121-111004-bbfce9 and CI at consensus:8780e44
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,6 +9,10 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+At consensus:8780e44: the last merge of consensus main a73c6e3 (consensus-full-window-stall
+5a114dd, consensus-leaving-removal). CMakeLists.txt conflict: both additions (driver_install_test
+and main's driver_replace_test), kept both. core.h, driver.h, worker.h merged clean. Ruling 9.
+Built locally.
 At consensus:aafa849: merge of consensus main 5ebf834 (consensus-transport 9bbd632 and
 consensus-quiescence 5ebf834). Conflicts in CMakeLists.txt and test/transport/groups_test.cc
 were both additions (main's fetch-alongside-consensus case beside this quest's install case);
@@ -22,11 +26,11 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read CI run 44924686502 at consensus:aafa849 (macos-arm64); the 14 reruns there all exit 0
-   and are in Evidence.
-2. Merge consensus main again after consensus-full-window-stall and leaving-removal land, rerun
-   every job, push.
-3. Merge node-admission (consensus:c669067) when it lands.
+1. Read the reruns at consensus:8780e44 (State), driver_replace 261121-111004-bbfce9, and CI at
+   8780e44; paste `campaign brief`'s table into Evidence. A CI failure only in rpc_host_fetch
+   under TSan or group-full on macOS x86_64 is main's known flake
+   (consensus-transport-test-flakes): name it here and rerun that job once.
+2. Merge node-admission (consensus:c669067) if it lands first.
 
 ## Review (correctness, CHANGES at 740453b)
 
@@ -54,7 +58,9 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Blocked on
 
-Nothing.
+Lead: add test/driver_replace_test.cc to the file set (as msg-180 did for the other Driver test
+Sinks). Main added it with a NodeSink taking ActivateInstall; the merge cannot build without
+its Sink taking the install notices (ruling 9). Its 4-line change is the only out-of-set file.
 
 msg-2 (answered): consensus-quiescence's F7 fix (consensus:818fd0a, Gone handled before the
 term step) is an ancestor of consensus main 5ebf834, merged here as consensus:aafa849. No API
@@ -126,3 +132,8 @@ frames, 16 validated, 1 refused, 15 activated). Open: the quiescent-group orphan
    follower's repair and checkpoint wait behind an incoming image until its timeout. Traced with
    temporary dumps of the Worker phase (Application, Incoming) and the channel's receive
    (connected, not final), not committed.
+9. Merge at consensus:8780e44: main's new test/driver_replace_test.cc defines a NodeSink with
+   ActivateInstall, which this quest's Sink concept replaces. It takes SendTransfer,
+   ValidateImage and ActivateImage as empty handlers, as 5982871 did for the other test Sinks;
+   it ignores SnapshotNeeded as before, so it does not install. Job 261121-111004-bbfce9 runs
+   its 1000 seeds at the merge. Outside the file set: asked the lead under Blocked on.
