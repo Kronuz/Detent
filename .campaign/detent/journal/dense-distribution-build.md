@@ -1,7 +1,12 @@
 # dense-distribution-build: journal
 
-State: merging main (loop-idle-waits, Detent:66baa397); jobs at Detent:14e9ef82 cancelled (code moved).
-Next: build, push, rerun every evidence job at the merge head, CI green, "ready for review".
+State: waiting on jobs at Detent:95eab96b (the main merge, pushed; CI 44931812870): F1 -095153-93fd64,
+F2 -095212-4c9253, F3 -095235-fe4798, F4 -095326-f5ccfd (strict), F10 -095237-6685ff, forced root
+-095217-c9cac6, 5M row -095330-92f248 (strict), d1-root-after-write -095239-fbb807, x10 -095301-c6fa2f,
+relay pages under 3.14 -095306-d80db9, stopped-relay-unwatched -095309-093a8f, mirror-answer-unwoken
+-095242-bd3bd7, test_http_upstream -095215-8316bb, loop-idle-waits A1 vs main 68531fde -095335-e3f4ca
+(60000) and -095339-49cad3 (250), all 261121-. A1 is CI macos-arm64.
+Next: when they and CI pass, fill Evidence and write "ready for review".
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -35,6 +40,8 @@ branch's v2 code:
 - Test: test_http_upstream's RelayA runs the host's turn with no health turn (an idle round sleeps 1 h
   or until a wake), so a missed wake stalls the relay chain. Mutant
   tests/detent_relay/mutants/mirror-answer-unwoken.patch drops `job.answered`.
+- Jobs at 14e9ef82 cancelled after the merge (F1 -091907-198f28 and d1 mutant -091833-56989c had
+  passed there). Local build starved (load 50-69 on 16), so CI and the jobs build the merge.
 
 Round at Detent:14e9ef82 (CI run 44923835160 at Detent:ff58b8be failed two jobs):
 1. macos-x86_64, test_system_relay_pages timeout: cause is CPython 3.14 on macOS, not the
@@ -339,6 +346,17 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 <none yet>
 
 ## Rulings I made
+
+- (merge) publish()'s 1 ms wait for store admission becomes a wait on the candidate timer to the
+  admission deadline: the disk loop is the only place publication_ready() changes and it notifies the
+  candidate after every advance, so the poll was loop-idle-waits' pattern on a new source.
+- (merge) The relay keeps main's enqueue wake though every v2 request also wakes on its mirror
+  answer: one shape with main; its loss alone stalls nothing (R5's note), so its mutant is the
+  answer wake's, not the enqueue's. tests/detent_delivery/mutants/loop_idle_waits.sh's relay-enqueue
+  and coordinator-disk cases name v1 tests that this branch removed; the script is main's, outside
+  this quest's set: lead, retarget relay-enqueue to test_http_upstream or drop it.
+- New file tests/detent_relay/mutants/mirror-answer-unwoken.patch, beside the relay mutants. Lead:
+  add it to the set.
 
 - New mutants tests/detent_delivery/mutants/d1-root-after-write.patch and
   tests/detent_system/mutants/stopped-relay-unwatched.patch, beside listed ones. Lead: add them.
