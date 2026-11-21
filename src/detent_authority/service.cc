@@ -726,6 +726,7 @@ void Service::begin_shutdown() noexcept {
 		std::lock_guard lock(mutex_);
 		stopping_ = true;
 	}
+	owner_.wake().raise();
 	stop_.request(task::cancel_reason::shutdown);
 }
 void Service::drain() {
@@ -734,6 +735,7 @@ void Service::drain() {
 		std::lock_guard lock(mutex_);
 		stopping_ = true;
 	}
+	owner_.wake().raise();
 	if (runtime_done_.valid())
 		runtime_done_.wait();
 }
@@ -1015,6 +1017,7 @@ void Service::enqueue(const std::shared_ptr<Task> &task) {
 		}
 		try {
 			queue_.push_back(task);
+			owner_.wake().raise();
 		} catch (...) {
 			if (task->kind == Task::Kind::Command) {
 				busy_producers_.erase(task->command.producer);
@@ -1052,7 +1055,7 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 	stream.reply.request_retention = task->admission;
 	stream.chunk_bytes = distribution::OwnedFragmentEncoder::maximum_wire_bytes();
 	stream.maximum_bytes = (options_.delivery.bytes / distribution::fragment_bytes + 1) * stream.chunk_bytes;
-	distribution_http::OwnedReplyPump::callbacks(stream, delivery);
+	distribution_http::OwnedReplyPump::callbacks(stream, delivery, [wake = owner_.wake()] { wake.raise(); });
 	task->complete = [delivery, account](Reply value) {
 		delivery->send_control(value.status, value.body, account);
 	};
@@ -1079,6 +1082,7 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 	stream_task(response, task);
 	try {
 		queue_.push_back(std::move(task));
+		owner_.wake().raise();
 	} catch (...) {
 		delivery->reply->abandon();
 	}
@@ -1140,6 +1144,7 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 			subscription_close_queue_.push_back(std::move(task));
 		else
 			subscription_queue_.push_back(std::move(task));
+		owner_.wake().raise();
 	} catch (...) {
 		delivery->reply->abandon();
 	}
@@ -1191,6 +1196,7 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 	stream_task(response, task);
 	try {
 		frames_queue_.push_back(std::move(task));
+		owner_.wake().raise();
 	} catch (...) {
 		delivery->reply->abandon();
 	}
@@ -1395,6 +1401,7 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 struct Service::Runtime {
 	asio::io_context &io;
 	task::asio_scheduler &scheduler;
+	detent::OwnerWake wake; // storage and history completions end the owner's sleep
 	bool active = false;
 	std::exception_ptr failure;
 	kronuz::metrics::DurationHistogram<> owner_turn, owner_cpu, wake_lateness, job_settlement,
@@ -1411,7 +1418,8 @@ struct Service::Runtime {
 	using Driver = kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>;
 	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue, history_queue;
 	std::shared_ptr<Driver> driver, history_driver;
-	Runtime(const ServiceOptions &options, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {
+	Runtime(const ServiceOptions &options, detent::OwnerLoop &owner)
+		: io(owner.io()), scheduler(owner.scheduler()), wake(owner.wake()) {
 		for (auto *each : {&queue, &history_queue}) {
 #ifdef __linux__
 			using Policy = kronuz::journal::LinuxCompletionPolicy;
@@ -1429,7 +1437,8 @@ struct Service::Runtime {
 	}
 
 #else
-	Runtime(const ServiceOptions &, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {}
+	Runtime(const ServiceOptions &, detent::OwnerLoop &owner)
+		: io(owner.io()), scheduler(owner.scheduler()), wake(owner.wake()) {}
 #endif
 	void dispatch(const std::shared_ptr<Node> &owner) {
 		auto &node = *owner;
@@ -1463,6 +1472,7 @@ struct Service::Runtime {
 										operation, "authority completion driver failed");
 								}
 								active = false;
+								wake.raise();
 							});
 			} catch (...) {
 				active = false;
@@ -1484,6 +1494,7 @@ struct Service::Runtime {
 									failure = error;
 								}
 								history_active = false;
+								wake.raise();
 							});
 			} catch (...) {
 				history_active = false;
@@ -1498,6 +1509,14 @@ struct Service::Runtime {
 #endif
 	}
 	task::task<void> run(Service &service, std::promise<void> &ready);
+	// Sleeps on `timer` until `until`, or until a wake cancels the wait.
+	task::task<void> sleep(asio::steady_timer &timer, Clock::time_point until) {
+		wake.arm(timer, until);
+		const auto error = co_await task::await_asio<void(asio::error_code)>(
+			[&](auto handler) { timer.async_wait(std::move(handler)); });
+		if (error && error != asio::error::operation_aborted)
+			throw asio::system_error(error);
+	}
 };
 // The runtime's frame lives on the owner; a failure after admission fences the service.
 task::task<void> Service::run(std::promise<void> ready) {
@@ -1535,8 +1554,23 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	auto &health_ = service.health_;
 	auto accounting_ = service.accounting_;
 	asio::steady_timer timer(io);
+	struct ReleaseWake { // the wake forgets `timer` before it is destroyed, however run() ends
+		detent::OwnerWake &wake;
+		~ReleaseWake() { wake.release(); }
+	} release_wake{wake};
 	std::shared_ptr<Node> owned_node;
 	std::shared_ptr<AuthorityPeers> peers;
+	// The latest a sleep may end. A multi-voter authority polls every 1 ms: received peer frames wait in
+	// Peers until admit(), with no wake at consensus a197efb. Quest multi-voter-idle-wake (a consensus
+	// pin past 0acfaff and a Peers input wake) removes this branch.
+	auto wake_by = [&](Clock::time_point deadline) {
+		return peers ? std::min(deadline, Clock::now() + std::chrono::milliseconds(1)) : deadline;
+	};
+	// A start or stop step visits the node again at once: each visit advances budgeted work that no wake
+	// announces. Only while storage or history I/O is in flight does it sleep, until that completion's
+	// wake (250 ms bounds one missed); peers keep 1 ms (wake_by).
+	constexpr auto storage_wait = std::chrono::milliseconds(250);
+	auto in_flight = [&] { return active || history_active || peers; };
 	std::shared_ptr<PeerHistory> peer_history;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
@@ -2057,14 +2091,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			}
 			origin = Clock::now();
 			while (!node.worker().ready()) {
+				wake.begin_turn();
 				node.service({0, election_delay()});
 				dispatch(owned_node);
 				node.take_network_actions();
 				if (node.worker().fenced()) {
 					throw std::runtime_error("authority storage initialization fenced");
 				}
-				timer.expires_after(std::chrono::milliseconds(1));
-				co_await detent::transport::await_timer(timer);
+				if (in_flight())
+					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+				else
+					co_await task::yield();
 			}
 			// Seed the first deadline before Start. Later Tick samples affect future
 			// resets and cannot randomize a deadline that is already in force.
@@ -2073,14 +2110,15 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			// Storage readiness precedes incremental committed application replay.
 			// Finish that replay before admitting live requests.
 			while (node.state().applied_index() < node.worker().committed() || node.application_work_pending()) {
+				wake.begin_turn();
+				const auto applied = node.state().applied_index();
 				node.service({0, election_delay()});
 				dispatch(owned_node);
 				check(!node.worker().fenced(), "authority recovery application fenced");
-				if (node.state().reclamation_pending()) {
-					co_await task::yield();
+				if (in_flight() && !node.state().reclamation_pending() && node.state().applied_index() == applied) {
+					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
 				} else {
-					timer.expires_after(std::chrono::milliseconds(1));
-					co_await detent::transport::await_timer(timer);
+					co_await task::yield();
 				}
 			}
 			check(!node.worker().fenced(), "authority committed application/profile mismatch");
@@ -2097,10 +2135,37 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		started = true;
 		auto scheduled_wakeup = Clock::now();
 		auto last_pass = Clock::now();
+		// The owner sleeps between wakes once nothing can run: every queue and collection is empty but for
+		// session slots holding a parked next (waiting for a change, its poll deadline or its client), as
+		// found by a sweep over every slot since the last change. `parked` is that sweep's record.
+		std::vector<std::uint8_t> parked(session_tasks.size());
+		std::size_t parked_count = 0, sweep = 0;
+		auto parked_until = Clock::time_point::max();
+		// The sleep that ended the pass before, from its start to its planned deadline; min when it ended in none.
+		auto slept_from = Clock::time_point::min(), slept_until = Clock::time_point::min();
+		auto applied_seen = node.state().applied_index();
+		bool rescan = true;
+		const std::size_t sweep_turns =
+			std::max<std::size_t>((options_.subscription_requests.closes + 7) / 8,
+								  (session_tasks.size() - options_.subscription_requests.closes + 7) / 8) + 1;
 		for (;;) {
 			auto owner_started = Clock::now();
-			if (owner_started - last_pass >= std::chrono::milliseconds(options_.node.timing.election_min))
+			if (wake.begin_turn())
+				rescan = true;
+			if (rescan) {
+				std::fill(parked.begin(), parked.end(), std::uint8_t{0});
+				parked_count = 0;
+				parked_until = Clock::time_point::max();
+				sweep = sweep_turns;
+				rescan = false;
+			}
+			if (slept_from == Clock::time_point::min())
+				slept_from = slept_until = owner_started;
+			// The pass before and any lateness past its planned sleep count as an absence; the sleep does not.
+			if (detent::owner_absence(last_pass, slept_from, slept_until, owner_started) >=
+				std::chrono::milliseconds(options_.node.timing.election_min))
 				returned = owner_started;
+			slept_from = slept_until = Clock::time_point::min();
 			last_pass = owner_started;
 			auto cpu_started = owner_cpu_ns();
 			wake_lateness.observe(elapsed_ns(scheduled_wakeup, owner_started));
@@ -2362,6 +2427,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				else
 					session_cursor = (session_cursor + 1) % (session_tasks.size() - close_slots);
 				auto &held = session_tasks[ordinal];
+				if (parked[ordinal]) {
+					parked[ordinal] = 0;
+					--parked_count;
+				}
 				if (!held) {
 					std::lock_guard lock(mutex_);
 					auto &queue =
@@ -2517,6 +2586,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							if (now >= task.poll_deadline) {
 								subscription_idle.add();
 								complete(held, {204, {}});
+							} else {
+								parked[ordinal] = 1;
+								++parked_count;
+								parked_until = std::min({parked_until, task.poll_deadline, task.deadline});
 							}
 							continue;
 						}
@@ -3227,13 +3300,61 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				(reading && (reading->retiring || !reading->quota_blocked)) ||
 				completion_cursor < held_completions.size() ||
 				(preparing && (!preparing->proposal || preparing->cancelling))) {
+				rescan = true;
 				scheduled_wakeup = Clock::now();
 				co_await task::yield();
-			} else {
-				scheduled_wakeup = Clock::now() + std::chrono::milliseconds(1);
-				timer.expires_at(scheduled_wakeup);
-				co_await detent::transport::await_timer(timer);
+				continue;
 			}
+			if (node.state().applied_index() != applied_seen) {
+				applied_seen = node.state().applied_index(); // a change a parked next may answer
+				rescan = true;
+			}
+			bool queued = false;
+			{
+				std::lock_guard lock(mutex_);
+				queued = !queue_.empty() || !service.subscription_queue_.empty() ||
+						 !service.subscription_close_queue_.empty() || !service.frames_queue_.empty();
+			}
+			// Work in flight that this loop advances only by visiting it again; `peers` keeps 1 ms (wake_by).
+			const bool transient = peers || queued || !pending.empty() || !session_pending.empty() || read_count ||
+								   reading || delivering || framing || preparing || carry_task || control_count ||
+								   session_retirement->count || close_authorization->count ||
+								   session_authorization->count || !frames_tasks.empty();
+			const auto occupied = static_cast<std::size_t>(
+				std::count_if(session_tasks.begin(), session_tasks.end(), [](const auto &task) { return !!task; }));
+			if (!transient && rescan) {
+				scheduled_wakeup = Clock::now();
+				co_await task::yield();
+				continue;
+			}
+			if (!transient && occupied != parked_count && sweep) {
+				--sweep;
+				scheduled_wakeup = Clock::now();
+				co_await task::yield();
+				continue;
+			}
+			auto until = Clock::now() + std::chrono::milliseconds(1);
+			if (!transient && occupied == parked_count) {
+				// Session expiry is a sweep of its own; an idle owner runs it whole before sleeping.
+				subscriptions->collect(options_.subscriptions.sessions, now);
+				frames_sessions->collect(now, options_.subscriptions.sessions);
+				until = std::min(last_health + std::chrono::milliseconds(250), parked_until);
+				// A leader's own entries are due at their deadlines: the enabling entry's retry and D136's seal.
+				if (node.worker().role() == kronuz::consensus::Role::Leader &&
+					(!node.history() || node.history()->ready())) {
+					if (!node.state().positions_enabled())
+						until = std::min(until, enabling_at);
+					if (unsealed_since)
+						until = std::min(until, std::max(*unsealed_since + options_.seal_after, sealing_at));
+				}
+			}
+			until = wake_by(until);
+			scheduled_wakeup = until;
+			slept_from = Clock::now();
+			slept_until = until;
+			co_await sleep(timer, until);
+			scheduled_wakeup = std::min(scheduled_wakeup, Clock::now());
+			rescan = true;
 		}
 	} catch (...) {
 		if (!started) {
@@ -3357,17 +3478,18 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 	while (active || history_active || (storage_flight && storage_flight->operation->done()) ||
 		   (owned_node && !owned_node->drained()) ||
 		   (peers && (!peers->drained() || !owned_node->channel().drained()))) {
+		wake.begin_turn();
 		if (owned_node) {
 			CommandWorkBudget budget;
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (owned_node && !owned_node->drained() && !active && !history_active) {
+		// Retirement with no I/O in flight yields, peers or not; peers poll at 1 ms once it is done.
+		const bool retiring = owned_node && !owned_node->drained();
+		if (active || history_active || (peers && !retiring))
+			co_await sleep(timer, wake_by(Clock::now() + storage_wait));
+		else
 			co_await task::yield();
-		} else {
-			timer.expires_after(std::chrono::milliseconds(1));
-			co_await detent::transport::await_timer(timer);
-		}
 	}
 
 	while (!pending.empty()) {

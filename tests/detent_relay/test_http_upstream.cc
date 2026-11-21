@@ -446,7 +446,8 @@ class Voter final : public r::Upstream {
 };
 
 // Relay A as the relay host runs it: its mirror of the voter behind ServiceRuntime and the HTTPS
-// listener, the runtime stepped on its owner loop, torn down in the host's phases.
+// listener, the runtime stepped on its owner loop in the host's turn shape, torn down in the host's
+// phases. It has no health turn: an idle round sleeps until a wake, so a missed wake stalls the chain.
 class RelayA {
   public:
 	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys) : voter_(new Voter(keys)) {
@@ -470,7 +471,7 @@ class RelayA {
 		auto registry = std::make_shared<r::Registry>(ledger(1 << 20), std::span(&credential, 1));
 		runtime_ = std::make_shared<r::ServiceRuntime>(
 			r::ServiceAccounts{ledger(1 << 20), {ledger(1 << 24), ledger(1 << 24), ledger(1 << 20)}}, registry,
-			mirror_);
+			mirror_, r::ServiceLimits{}, [wake = owner_.wake()] { wake.raise(); });
 		facade_ = std::make_unique<r::Service>(runtime_);
 		auto tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*tls,
@@ -483,18 +484,25 @@ class RelayA {
 		listener_->set_bind_options(bind);
 		listener_->start(0);
 		turn_ = [this] {
+			if (owner_.wake().begin_turn() || round_)
+				runtime_->rescan();
+			round_ = false;
 			const bool progress = runtime_->step(Clock::now());
 			if (stopped_ && runtime_->drained()) {
+				owner_.wake().release();
 				drained_.set_value();
 				return;
 			}
 			if (progress) {
+				round_ = true;
 				asio::post(owner_.io(), turn_);
 				return;
 			}
-			tick_.expires_after(1ms);
+			const bool idle = runtime_->swept();
+			round_ = idle;
+			owner_.wake().arm(tick_, Clock::now() + (idle ? std::chrono::milliseconds(1h) : 1ms));
 			tick_.async_wait([this](const asio::error_code &error) {
-				if (!error)
+				if (!error || error == asio::error::operation_aborted)
 					turn_();
 			});
 		};
@@ -504,7 +512,10 @@ class RelayA {
 		runtime_->close();
 		mirror_->close();
 		listener_->stop();
-		asio::post(owner_.io(), [this] { stopped_ = true; });
+		asio::post(owner_.io(), [this] {
+			stopped_ = true;
+			owner_.wake().raise();
+		});
 		drained_.get_future().wait_for(10s);
 		owner_.stop();
 		listener_->close();
@@ -530,7 +541,7 @@ class RelayA {
 	asio::steady_timer tick_{owner_.io()};
 	std::unique_ptr<http::HttpAsioService> listener_;
 	std::function<void()> turn_;
-	bool stopped_ = false;
+	bool stopped_ = false, round_ = true;
 	std::promise<void> drained_;
 };
 

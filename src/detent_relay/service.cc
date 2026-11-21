@@ -4,8 +4,11 @@
 #include "detent_distribution/subscription_admission.hh"
 #include "detent_distribution_http/reply_pump.hh"
 #include "detent_distribution_http/session_request.hh"
+#include <algorithm>
+#include <functional>
 #include <mutex>
 #include <rapidjson/document.h>
+#include <tuple>
 
 namespace detent::relay {
 namespace d = distribution;
@@ -87,7 +90,7 @@ struct ServiceRuntime::Impl {
 		std::shared_ptr<std::pmr::memory_resource> resource;
 		std::vector<std::shared_ptr<Task>, d::StorageAllocator<std::shared_ptr<Task>>> slots;
 		std::vector<std::size_t, d::StorageAllocator<std::size_t>> free;
-		std::size_t cursor = 0;
+		std::size_t cursor = 0, unswept = 0; // unswept: slots this round has yet to visit
 		Lane(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
 			: admission(account, {capacity, capacity, capacity, capacity, capacity}),
 			  resource(d::make_storage_resource(account)),
@@ -106,9 +109,11 @@ struct ServiceRuntime::Impl {
 	mutable std::mutex mutex;
 	std::atomic<bool> closing{false};
 	std::shared_ptr<const d::OwnedBuffer> health;
+	std::function<void()> wake;
 	Impl(ServiceAccounts storage, std::shared_ptr<const Registry> authorization,
-		 std::shared_ptr<MirrorService> namespaces, ServiceLimits limits)
-		: accounts(std::move(storage)), registry(std::move(authorization)), mirror(std::move(namespaces)) {
+		 std::shared_ptr<MirrorService> namespaces, ServiceLimits limits, std::function<void()> owner_wake)
+		: accounts(std::move(storage)), registry(std::move(authorization)), mirror(std::move(namespaces)),
+		  wake(owner_wake ? std::move(owner_wake) : std::function<void()>([] {})) {
 		if (!registry || !mirror)
 			throw std::invalid_argument("relay service registry and mirror");
 		const std::array<std::size_t, 3> capacities{limits.opens, limits.polls, limits.closes};
@@ -197,24 +202,41 @@ struct ServiceRuntime::Impl {
 	}
 };
 ServiceRuntime::ServiceRuntime(ServiceAccounts accounts, std::shared_ptr<const Registry> registry,
-							   std::shared_ptr<MirrorService> mirror, ServiceLimits limits) {
+							   std::shared_ptr<MirrorService> mirror, ServiceLimits limits, std::function<void()> wake) {
 	if (!accounts.metadata)
 		throw std::invalid_argument("relay service metadata account");
 	impl_ = d::make_storage_owner<Impl>(accounts.metadata, std::malloc, std::free, accounts, std::move(registry),
-										std::move(mirror), limits);
+										std::move(mirror), limits, std::move(wake));
 }
 ServiceRuntime::~ServiceRuntime() = default;
 void ServiceRuntime::close() noexcept {
 	impl_->closing.store(true);
 	for (auto &lane : impl_->lanes)
 		lane->admission.close();
+	impl_->wake();
+}
+void ServiceRuntime::rescan() noexcept {
+	auto &p = *impl_;
+	std::lock_guard lock(p.mutex);
+	for (auto &lane : p.lanes)
+		lane->unswept = lane->free.size() == lane->slots.size() ? 0 : lane->slots.size();
+}
+bool ServiceRuntime::swept() const noexcept {
+	const auto &p = *impl_;
+	return std::all_of(p.lanes.begin(), p.lanes.end(), [](const auto &lane) { return !lane->unswept; });
 }
 bool ServiceRuntime::step(Clock::time_point now) {
 	auto &p = *impl_;
 	bool progress = false;
+	// What a visit can change; a task whose fingerprint did not move waits on a wake or a deadline.
+	auto fingerprint = [](const Impl::Task &task) {
+		return std::tuple(task.frame, task.completed, task.started, static_cast<bool>(task.pending),
+						  static_cast<bool>(task.control));
+	};
 	for (auto index : {std::size_t{2}, std::size_t{0}, std::size_t{1}}) {
 		auto &lane = *p.lanes[index];
 		for (std::size_t turn = 0; turn < (index == 1 ? 32 : 8); ++turn) {
+			lane.unswept -= lane.unswept != 0;
 			const auto slot = lane.cursor++ % lane.slots.size();
 			std::shared_ptr<Impl::Task> task;
 			{
@@ -223,7 +245,7 @@ bool ServiceRuntime::step(Clock::time_point now) {
 			}
 			if (!task)
 				continue;
-			const auto frame = task->frame;
+			const auto before = fingerprint(*task);
 			try {
 				if (p.advance(*task, now)) {
 					std::lock_guard lock(p.mutex);
@@ -235,7 +257,7 @@ bool ServiceRuntime::step(Clock::time_point now) {
 				task->reply->abandon();
 				task->completed = true;
 			}
-			progress |= task->frame != frame;
+			progress |= fingerprint(*task) != before;
 		}
 	}
 	return progress;
@@ -365,6 +387,7 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	}
 	job.principal = admission->credential->principal;
 	job.grants = admission->credential->namespaces.get();
+	job.answered = p.wake;
 	task->admission = std::move(admission);
 	http::StreamOptions stream;
 	stream.resource = p.lanes[index]->resource;
@@ -372,17 +395,22 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 	stream.reply.limits = {16, 4096, 4096};
 	stream.reply.request_retention = task->admission;
 	stream.chunk_bytes = d::OwnedFragmentEncoder::maximum_wire_bytes();
-	h::OwnedReplyPump::callbacks(stream, task);
+	h::OwnedReplyPump::callbacks(stream, task, p.wake);
 	task->reply = response.stream(std::move(stream));
 	if (!task->reply)
 		throw std::runtime_error("relay owned streaming unavailable");
-	std::lock_guard lock(p.mutex);
-	auto &lane = *p.lanes[index];
-	if (!p.closing.load() && !lane.free.empty()) {
-		const auto slot = lane.free.back();
-		lane.free.pop_back();
-		p.mirror->submit(task->job);
-		lane.slots[slot] = std::move(task);
+	{
+		std::lock_guard lock(p.mutex);
+		auto &lane = *p.lanes[index];
+		if (!p.closing.load() && !lane.free.empty()) {
+			const auto slot = lane.free.back();
+			lane.free.pop_back();
+			p.mirror->submit(task->job);
+			lane.slots[slot] = std::move(task);
+		}
+	}
+	if (!task) {
+		p.wake();
 		co_return;
 	}
 	task->reply->abandon();

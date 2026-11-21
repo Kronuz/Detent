@@ -274,6 +274,12 @@ struct Coordinator::Impl {
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
+	// A worker job ends by setting its event on the owner, never on the worker: the waiting frame lives on
+	// the owner, so no set() can race its destruction at teardown. The job holds the owner's io_context as
+	// outstanding work until then, so a loop with nothing else queued cannot return under the wait.
+	asio::any_io_executor owner_executor() const {
+		return asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked);
+	}
 	void notify_candidate() noexcept {
 		if (candidate_wake)
 			candidate_wake->cancel();
@@ -290,7 +296,7 @@ struct Coordinator::Impl {
 			throw asio::system_error(error);
 	}
 	// Waits for a worker task; scheduler failure never abandons accepted worker work.
-	task::task<void> settle(WorkerResult &result, bool construction_task) {
+	task::task<void> settle(WorkerResult &result, task::event &worker_done, bool construction_task) {
 		if (construction_task)
 			construction = &result.control;
 		diagnostic.worker_pending = true;
@@ -299,8 +305,7 @@ struct Coordinator::Impl {
 				fail_worker_wait = false;
 				throw std::bad_alloc();
 			}
-			while (!result.ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await worker_done;
 			if (std::exchange(fail_settled_worker_wait, false))
 				throw std::bad_alloc();
 		} catch (...) {
@@ -325,7 +330,9 @@ struct Coordinator::Impl {
 		auto result = domain.make<RecoveryResult>();
 		auto context = l::detail::ManagedRecovery::capture(*store, name);
 		const auto settlement = context;
-		asio::post(worker, [result, directory = options.directory, context = std::move(context),
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), directory = options.directory,
+							context = std::move(context),
 							probe = std::exchange(prepared_probe_pause, {}),
 							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
@@ -340,9 +347,10 @@ struct Coordinator::Impl {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
 		try {
-			co_await settle(*result, false);
+			co_await settle(*result, *worker_done, false);
 		} catch (...) {
 			if (result->failure && settlement.paged.admission)
 				l::detail::ManagedRecovery::settle_failure(*store, settlement, result->failure);
@@ -382,7 +390,8 @@ struct Coordinator::Impl {
 	template <class Work> task::task<d::RetirementHandle<BuildResult>> build(Work work) {
 		auto result = domain.make<BuildResult>();
 		auto injected_build = std::exchange(injected_build_failure, {});
-		asio::post(worker, [result, work = std::move(work),
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), work = std::move(work),
 							injected = injected_build ? injected_build : std::exchange(injected_worker_failure, {})]() mutable {
 			try {
 				if (injected)
@@ -392,10 +401,11 @@ struct Coordinator::Impl {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
 		retains_candidate = true;
 		try {
-			co_await settle(*result, true);
+			co_await settle(*result, *worker_done, true);
 		} catch (...) {
 			retains_candidate = false;
 			throw;
@@ -547,7 +557,7 @@ struct Coordinator::Impl {
 			if (store->status() != l::StoreStatus::Ready)
 				throw std::runtime_error("managed store is not ready");
 			if (!store->publication_ready()) {
-				co_await pause(std::chrono::milliseconds(1));
+				co_await wait_candidate(expires); // the disk loop notifies after every advance
 				continue;
 			}
 			try {
@@ -843,15 +853,17 @@ struct Coordinator::Impl {
 						result->root = std::move(root);
 						result->failure = {};
 						result->ready.store(false, std::memory_order_relaxed);
-						asio::post(worker, [result, now] {
+						auto worker_done = std::make_shared<task::event>();
+						asio::post(worker, [result, worker_done, owner = owner_executor(), now] {
 							try {
 								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);
 							} catch (...) {
 								result->failure = std::current_exception();
 							}
 							result->ready.store(true, std::memory_order_release);
+							asio::post(owner, [worker_done] { worker_done->set(); });
 						});
-						co_await wait_scrub(*result);
+						co_await *worker_done;
 						reported_passes = result->scrub.passes();
 					}
 				}
@@ -859,7 +871,8 @@ struct Coordinator::Impl {
 			if (result->root && result->scrub.running() && !closing) {
 				result->failure = {};
 				result->ready.store(false, std::memory_order_relaxed);
-				asio::post(worker, [result, now, paused = scrub_pause] {
+				auto worker_done = std::make_shared<task::event>();
+				asio::post(worker, [result, worker_done, owner = owner_executor(), now, paused = scrub_pause] {
 					try {
 						const auto passes = result->scrub.passes();
 						result->scrub.step(now, per_tick);
@@ -871,8 +884,9 @@ struct Coordinator::Impl {
 						result->failure = std::current_exception();
 					}
 					result->ready.store(true, std::memory_order_release);
+					asio::post(owner, [worker_done] { worker_done->set(); });
 				});
-				co_await wait_scrub(*result);
+				co_await *worker_done;
 				if (scrub_pause && scrub_pause->reached.load(std::memory_order_acquire))
 					scrub_pause.reset();
 				if (closing)
@@ -903,15 +917,6 @@ struct Coordinator::Impl {
 		}
 		scrub_result.reset();
 	}
-	task::task<void> wait_scrub(ScrubResult &result) {
-		while (!result.ready.load(std::memory_order_acquire)) {
-			scrub_wake->expires_after(std::chrono::milliseconds(1));
-			const auto error = co_await task::await_asio<void(asio::error_code)>(
-				[&](auto handler) { scrub_wake->async_wait(std::move(handler)); });
-			if (error && error != asio::error::operation_aborted)
-				throw asio::system_error(error);
-		}
-	}
 	task::task<void> disk_loop() {
 		try {
 			co_await disk_loop_body();
@@ -926,18 +931,12 @@ struct Coordinator::Impl {
 			notify_candidate();
 			if (auto work = store->work()) {
 				// The worker runs the store's disk work; the owner settles it once the work is done.
-				auto done = std::make_shared<std::atomic<bool>>(false);
-				asio::post(worker, [work, done] {
+				auto worker_done = std::make_shared<task::event>();
+				asio::post(worker, [work, worker_done, owner = owner_executor()] {
 					work->run();
-					done->store(true, std::memory_order_release);
+					asio::post(owner, [worker_done] { worker_done->set(); });
 				});
-				while (!done->load(std::memory_order_acquire)) {
-					disk_wake->expires_after(std::chrono::milliseconds(1));
-					const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
-						[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
-					if (error && error != asio::error::operation_aborted)
-						throw asio::system_error(error);
-				}
+				co_await *worker_done;
 				store->advance();
 				if (store->error() || store->publication_status() == l::DiskPublicationStatus::Fenced)
 					fence(store->error() ? store->error() : store->publication_error());

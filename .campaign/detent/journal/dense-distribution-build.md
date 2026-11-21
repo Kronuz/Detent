@@ -1,10 +1,7 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261121-091833-56989c, -091835-316ded, -091838-2d4684, -091841-0a0df1,
--091907-198f28 (F1), -091907-a37d93 (F2), -091910-ab362b (F3), -091907-e4048a (F4, strict),
--091910-30e89a (F10), -091908-cfcd93 (forced root), all at Detent:14e9ef82 (pushed; CI on it).
-Next: when they and CI pass, "ready for review". Merge main (lead's order): 6 files conflict, 34
-hunks, loop-idle-waits' owner wakes against the v2 coordinator and relay service.
+State: merging main (loop-idle-waits, Detent:66baa397); jobs at Detent:14e9ef82 cancelled (code moved).
+Next: build, push, rerun every evidence job at the merge head, CI green, "ready for review".
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -12,6 +9,32 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Main merge round (lead's order: merge before review, D135). Conflicts: relay service.hh/.cc, host.cc,
+coordinator.cc, tests/detent_delivery/CMakeLists.txt, relay_service_fixture.hh (v1, deleted here).
+Resolution keeps loop-idle-waits' rule (R12: per-turn shares, 1 ms after a turn with no progress, the long
+sleep only after a full round that changed nothing; every work source raises the owner's wake) on this
+branch's v2 code:
+- Relay ServiceRuntime: every request is a mirror job (open, next, close, history routes, ranged files),
+  so one wake covers them all: `MirrorJob::answered` = the owner's wake, set before submit; every mirror
+  answer path goes through `finish()` (mirror thread, builder-thread pages builds included) or submit's
+  refusal, both call it. Enqueue and reply pump writable/settled raise it too (main's). rescan()/swept()
+  cover the three lanes only (no v1 session table). Task fingerprint: frame, completed, started, pending,
+  control (the fields advance() changes).
+- Relay host: main's turn shape on the mirror-only host; sleeps until health_due (100 ms) or a wake;
+  mirror ready/failed/sync error read at the health turn (R3). Health JSON gains `turns`. shutdown and
+  the listener's stop raise the wake.
+- Coordinator: every worker job (recover, build: deltas, full copies, page transfers, compaction; scrub
+  begin and step; disk work) sets a `task::event` posted to the owner (main's R1); `settle()` awaits it;
+  wait_scrub's 1 ms poll goes. publish()'s wait for store admission was a 1 ms pause: it now waits on the
+  candidate timer until the admission deadline, which the disk loop cancels after every advance (the only
+  place publication_ready() changes).
+- Authority: the idle sleep's deadline includes this branch's leader entries: the EnablePositions retry
+  (main keyed it on history_wanted, gone here) and D136's seal at max(unsealed_since + seal_after,
+  sealing_at). W5 frames and history routes enqueue with main's wakes (frames_queue_, queue_).
+- Test: test_http_upstream's RelayA runs the host's turn with no health turn (an idle round sleeps 1 h
+  or until a wake), so a missed wake stalls the relay chain. Mutant
+  tests/detent_relay/mutants/mirror-answer-unwoken.patch drops `job.answered`.
 
 Round at Detent:14e9ef82 (CI run 44923835160 at Detent:ff58b8be failed two jobs):
 1. macos-x86_64, test_system_relay_pages timeout: cause is CPython 3.14 on macOS, not the

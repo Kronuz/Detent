@@ -87,6 +87,14 @@ target_link_libraries(test_reconnect_cancel PRIVATE detent::delivery_coordinator
 add_test(NAME test_reconnect_cancel COMMAND test_reconnect_cancel)
 set_tests_properties(test_reconnect_cancel PROPERTIES TIMEOUT 15)
 if(TARGET detent::owner_loop)
+  add_executable(test_owner_wake test_owner_wake.cc)
+  target_link_libraries(test_owner_wake PRIVATE detent::owner_loop)
+  add_test(NAME test_owner_wake COMMAND test_owner_wake)
+  set_tests_properties(test_owner_wake PROPERTIES TIMEOUT 60)
+  add_executable(test_owner_absence test_owner_absence.cc)
+  target_link_libraries(test_owner_absence PRIVATE detent::owner_loop)
+  add_test(NAME test_owner_absence COMMAND test_owner_absence)
+  set_tests_properties(test_owner_absence PROPERTIES TIMEOUT 10)
   add_executable(test_coordinator_teardown test_coordinator_teardown.cc)
   target_link_libraries(test_coordinator_teardown PRIVATE detent::delivery_coordinator detent::owner_loop)
   add_test(NAME test_coordinator_teardown COMMAND test_coordinator_teardown)
@@ -107,4 +115,13 @@ if(TARGET detent::delivery_delta_transfer AND TARGET detent::relay_page_window)
     detent::local_fullbuild)
   add_test(NAME test_delta_transfer COMMAND test_delta_transfer)
   set_tests_properties(test_delta_transfer PROPERTIES TIMEOUT 300)
+endif()
+# macOS CI: a detached monitor samples and kills any suite process alive past 300 s (CI tests take at most 90 s), so a hang
+# names its test; it logs load, memory and the busiest processes every 15 s and ends the suite at 20 min, before the
+# step's cap. Local suites under load run tests for many minutes (test_agent_store_crash 5 to 14), so CI only.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(APPLE AND Python3_FOUND AND DEFINED ENV{GITHUB_ACTIONS})
+  add_test(NAME hang_watchdog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/hang_watchdog.py
+    ${CMAKE_CURRENT_BINARY_DIR}/.scratch/hang-watchdog/watchdog.log ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+  set_tests_properties(hang_watchdog PROPERTIES TIMEOUT 30 COST 1000000)
 endif()

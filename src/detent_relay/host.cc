@@ -31,7 +31,7 @@ template <class Result, class Function> Result on_worker(asio::thread_pool &work
 }
 std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::StorageLedger> account,
 													const d::StorageLedger &root, ServiceStatus service,
-													const MirrorService &mirror, bool ready) {
+													const MirrorService &mirror, bool ready, std::uint64_t turns) {
 	auto output = d::make_owned_buffer(std::move(account), 4096);
 	auto number = [&](std::uint64_t value) {
 		std::array<char, 32> bytes;
@@ -43,6 +43,7 @@ std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::Storage
 		number(value);
 	};
 	output->append(ready ? "{\"ready\":true" : "{\"ready\":false");
+	field(",\"turns\":", turns);
 	field(",\"heap_used\":", root.used());
 	field(",\"heap_peak\":", root.peak());
 	field(",\"heap_limit\":", root.limit());
@@ -77,6 +78,7 @@ std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::Storage
 } // namespace
 static int run_host_owned(const std::filesystem::path &configuration, const detent_cli::Ready &ready) {
 	OwnerLoop owner;
+	auto &wake = owner.wake();
 	asio::thread_pool startup(1);
 	auto options = on_worker<HostOptions>(startup, [&] { return load_host_options(configuration); });
 	auto root = std::make_shared<d::StorageLedger>(options.heap_bytes);
@@ -116,7 +118,7 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 	auto registry =
 		std::allocate_shared<Registry>(d::StorageAllocator<Registry>(baseline), baseline, options.credentials);
 	auto runtime = std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts,
-														registry, mirror, options.service_limits);
+														registry, mirror, options.service_limits, [wake] { wake.raise(); });
 	auto facade = std::make_unique<Service>(runtime);
 	http::HttpAsioService listener(*facade, 2, options.connections,
 								   http::tls_connection_factory(options.tls_context), options.connections);
@@ -137,18 +139,36 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 		runtime->close();
 		mirror->close();
 		stop.set_value();
+		wake.raise();
 	};
 	asio::signal_set signals(owner.io(), SIGINT, SIGTERM);
 	signals.async_wait([&](const asio::error_code &error, int) {
 		if (!error)
 			shutdown();
 	});
+	// Each turn visits a share of the requests; it runs again at once while it changes anything, else after
+	// 1 ms. Once a round over every request (from a wake, a change or a long sleep) changes nothing, it sleeps
+	// on `tick` until the next health report or a wake: a request, a reply, a mirror answer, the stop.
+	// Mirror readiness and failure are read at the next health turn, at most 100 ms later.
 	asio::steady_timer tick(owner.io());
+	std::uint64_t turns = 0;
+	bool round = true; // the next turn starts a round
 	std::chrono::steady_clock::time_point health_due{};
 	std::string sync_error; // the last sync failure logged; cleared by a successful sync
 	std::function<void()> turn;
+	auto sleep = [&](std::chrono::steady_clock::time_point until) {
+		wake.arm(tick, until);
+		tick.async_wait([&](const asio::error_code &error) {
+			if (!error || error == asio::error::operation_aborted)
+				turn();
+		});
+	};
 	turn = [&] {
+		++turns;
 		try {
+			if (wake.begin_turn() || round)
+				runtime->rescan();
+			round = false;
 			const auto now = std::chrono::steady_clock::now();
 			const bool progress = runtime->step(now);
 			const auto state = mirror->status();
@@ -163,7 +183,7 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 				sync_error = state.error;
 			}
 			if (!announced && !stop_requested && state.ready) {
-				runtime->health(health_snapshot(accounts.metadata, *root, runtime->status(), *mirror, true));
+				runtime->health(health_snapshot(accounts.metadata, *root, runtime->status(), *mirror, true, turns));
 				health_due = now + std::chrono::milliseconds(100);
 				ready();
 				announced = true;
@@ -173,40 +193,41 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 			if (now >= health_due) {
 				try {
 					runtime->health(health_snapshot(accounts.metadata, *root, runtime->status(), *mirror,
-													announced && !stop_requested));
+													announced && !stop_requested, turns));
 				} catch (const d::StoragePressure &) {
 				}
 				health_due = now + std::chrono::milliseconds(100);
 			}
 			if (listener_stopped && runtime->drained()) {
 				signals.cancel();
+				wake.release();
 				owner.io().stop();
 				owner_done.set_value();
 				return;
 			}
-			if (progress)
+			if (progress) {
+				round = true;
 				asio::post(owner.io(), turn);
-			else {
-				tick.expires_after(std::chrono::milliseconds(1));
-				tick.async_wait([&](const asio::error_code &error) {
-					if (!error)
-						turn();
-				});
+			} else if (runtime->swept()) {
+				round = true;
+				sleep(health_due);
+			} else {
+				sleep(now + std::chrono::milliseconds(1));
 			}
 		} catch (...) {
 			failure = std::current_exception();
 			shutdown();
-			tick.expires_after(std::chrono::milliseconds(1));
-			tick.async_wait([&](const asio::error_code &error) {
-				if (!error)
-					turn();
-			});
+			// One retry at once (shutdown raised the wake); a turn that keeps failing retries every 100 ms.
+			sleep(std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
 		}
 	};
 	asio::post(owner.io(), turn);
 	stopping.get();
 	listener.stop();
-	asio::post(owner.io(), [&] { listener_stopped = true; });
+	asio::post(owner.io(), [&] {
+		listener_stopped = true;
+		wake.raise();
+	});
 	// Teardown (D15): the listener's loops are stopped; once the turn finds everything drained
 	// the owner stops (phase 1), both close their schedulers (phase 2) and destroy their roots
 	// with every io_context alive (phase 3), before anything the tasks reference is destroyed.
