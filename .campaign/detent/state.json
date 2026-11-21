@@ -2146,6 +2146,18 @@
         ]
       },
       "text": "dense-distribution-build landed: unlocks managed-relay-ipv6-flake; frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake; frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition; frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T14:12:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T14:12:05",
+      "by": "kronuz",
+      "closed": "453cb47 installed; nothing differs so far.",
+      "id": "msg-208",
+      "text": "installed agent-campaign:453cb47 (CI green on all 7 jobs, run 44950828418; dotfiles:75eec8c; worker restarted, running jobs kept). Moves only, no behavior change: scripts/campaign_tool.py is now the scripts/campaign_tool/ package (24 modules, map in docs/source-layout.md); the big test files are split by topic; references/harness.md has the 'Harness-specific mechanisms' table. If anything you run differs from before, tell me at once. Coming next, each announced before it lands: lead-broadcasts (campaign message --all, skill-change notices), generator-clash (runner clears stale CMake trees), merge-main-when-needed (msg-12), verify-land-agree (msg-13), lead-driver (wait wakes on ready work)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
