@@ -4417,7 +4417,38 @@
       "worktree": ""
     },
     "consensus-leaving-removal": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-21T01:40:26",
+          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:d7b35abb5ccba0c6f78e488e3961643129607d5a",
+            "CHANGELOG.md": "100644:16e3a33bb61be057ab8872945bf8917ae8c9455d",
+            "CMakeLists.txt": "100644:0f2d6bdb2a473381b64169a02668b8485037562c",
+            "include/consensus/core.h": "100644:33e042b49191cc11f0b577cb406bff43ba7b34c8",
+            "include/consensus/worker.h": "100644:4820db7087c4ede807f69abd21adc572151a88d3",
+            "test/driver_mutants.py": "100644:b0581ec7ee709165688f1759ddc9a3520403609f",
+            "test/driver_replace_test.cc": "100644:510db7aca2b0b90497868883f2d4180749a5d011"
+          },
+          "by": "review",
+          "commit": "7e83a6b56a2cd8a8b2ccaa7aa66df2ff13ae643c",
+          "criteria": "3185cbb9ba8e6b0e",
+          "diffs": {
+            "ARCHITECTURE.md": "e4f4109347ac73f6",
+            "CHANGELOG.md": "27b93dbbe0a70ddf",
+            "CMakeLists.txt": "b84f046ebea479f0",
+            "include/consensus/core.h": "b2647592c202ec35",
+            "include/consensus/worker.h": "66b02463aa82c891",
+            "test/driver_mutants.py": "d3c8d98e6f54bc11",
+            "test/driver_replace_test.cc": "405232f675146cfe"
+          },
+          "findings": {},
+          "note": "",
+          "review": "11412bfd1a31eef06616b9ed406d3a559b8fcbed",
+          "reviewed": "7e83a6b56a2cd8a8b2ccaa7aa66df2ff13ae643c",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "bb961b3250b89abce85cd2a99c22529179acc786",
       "branch": "quest/detent/consensus-leaving-removal",
@@ -4485,7 +4516,7 @@
       "risk": "high",
       "status": "active",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T01:21:40",
+      "updated": "2026-11-21T01:40:26",
       "worktree": "../consensus-wt/detent/consensus-leaving-removal"
     },
     "consensus-mutants-per-test": {
