@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-183909-cb25cf 261120-183911-97e441 261120-183913-e37593 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
+State: waiting on jobs 261120-183911-97e441 261120-183913-e37593 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -48,7 +48,7 @@ file set to CMakeLists.txt, or say where the test should live instead.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261120-183909-cb25cf (pass), 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
+| A1 | 261120-183909-cb25cf passed at 17751bc (9 checks, 0 failures; slow path 0 elections 6.7 commits/s); pending: 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
 | A3 | pending: 261120-183954-d2677d (loss1%), 261120-183957-d8625c (reorder5%) |
 | A4 | pending: 261120-183915-9999fc (TSan, Core tests); CI macos-arm64 at 17751bc |
