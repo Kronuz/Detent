@@ -19,11 +19,14 @@ driver_simulation installs, groups_test install over the real host transport.
 
 1. Read the jobs at consensus:b9e9fac (State): orphan passes, orphan at mutant orphan-no-wake
    (2c9ac0cf) fails, crash prints its activated-at-recovery count (R2), the other install cases.
-2. When consensus-quiescence lands: merge consensus main into the quest branch (the local branch
+2. consensus-quiescence is fixing its review (resting_ cleared on campaign/lead; a fenced leader
+   on a live node sends its peers LeaderGone). When its contributor posts that commit, redo
+   wip/install-on-quiescence on it (merge, then b9e9fac) and rerun orphan and its mutant there.
+3. When consensus-quiescence lands: merge consensus main into the quest branch (the local branch
    wip/install-on-quiescence, 135a269, already resolves that merge: Group::notices with install,
    arm's waiting, begin_close, CMake foreach, CHANGELOG, host-transport.md, groups_test), then
    b9e9fac on top; rerun every job and push. Land only from that merge.
-3. Merge consensus-transport and node-admission (consensus:c669067) when they land.
+4. Merge consensus-transport and node-admission (consensus:c669067) when they land.
 
 ## Review (correctness, CHANGES at 740453b)
 
