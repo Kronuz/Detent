@@ -1,6 +1,6 @@
 # journal-tail-cut-header-design: journal
 
-State: working
+State: waiting on jobs 261121-132915-ad7e2d 261121-132624-b0f43f 261121-132629-eaefca 261121-132644-3269e2 261121-132652-7dd3f8 261121-132716-d4b057
 Quest: .campaign/detent/quests/journal-tail-cut-header-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,12 +16,15 @@ Probe test/cut_header_probe.cc (newest-tail Q1 shape + every block, shapes U1-U4
 
 ## Next
 
-1. Build, run probe l0/l1/l2 and T9 l1/l2 as jobs; exclusive turn_bench l0-l3 jobs.
-2. Write docs/design/turn-log-cut-header.md (A1) in the quest worktree.
+1. Fill the doc's TABLE (probe l0 261121-132915-ad7e2d at journal:e0e9c37, l1 261121-132624-b0f43f and
+   l2 261121-132629-eaefca at journal:9b4a5a5), BYTES (same jobs), LATENCY (exclusive 261121-132716-d4b057).
+   Check the doc's claim that outside the newest tail unproven damage is still reported (`blocks` rows).
+2. T9 under layouts 1 and 2 (261121-132644-3269e2, 261121-132652-7dd3f8): tears stay tears.
+3. Recount words, run the revision pass, set "ready for review".
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -42,4 +45,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The prototype is one commit with layouts behind `JOURNAL_LAYOUT`, built per layout, so every
+  option runs the same probe source at one named commit; layout 0 is journal:e912a28's code path.
+- O3's closure is a model (a damaged sector equals none of its versions), its bytes are derived
+  from layout 0's measured fragments, and its write cost is an emulation (layout 3): building the
+  format is the follow-up quest, not this design's.
+- The O1 header-only check that would close F3 is analysed, not prototyped.
