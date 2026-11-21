@@ -3590,7 +3590,8 @@
         "test/wave_open_test.cc",
         "CMakeLists.txt",
         "test/driver_close_test.cc",
-        "test/worker_test.cc"
+        "test/worker_test.cc",
+        "test/faultfs_mutants.py"
       ],
       "history": [
         {
@@ -3642,7 +3643,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-20T18:25:06",
+      "updated": "2026-11-20T19:23:16",
       "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
