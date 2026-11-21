@@ -13202,6 +13202,34 @@
       "updated": "2026-11-18T11:57:38",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
+    "journal-fuzz-decoder-pin": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "fuzz/fuzz_turn_log.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "low",
+      "status": "planned",
+      "title": "A build define pins journal_fuzz to one decoder",
+      "updated": "2026-11-21T15:43:24"
+    },
     "journal-group-io-cost": {
       "accepted": {},
       "after": [],
