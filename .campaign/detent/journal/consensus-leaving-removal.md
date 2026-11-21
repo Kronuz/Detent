@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-014433-59d3fa 261121-014435-ea9ba4 261121-014436-34f470, CI 44891006605 (822aa7c)
+State: waiting on jobs 261121-031817-665bcf 261121-031819-910be2 (A2 at ebc3b2e); A3 waits for consensus-quiescence
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -50,7 +50,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261121-031008-0547aa |
-| A2 | 261121-031008-0547aa; fails without: 261121-031503-0effba, 261121-031505-02d29c |
+| A2 | fails without, from test/driver_mutants.py at ebc3b2e: 261121-031817-665bcf (removal-from-any-drive), 261121-031819-910be2 (removal-tick-unplanned) |
 | A3 | pending: rerun at head once consensus-quiescence lands (probe at consensus:20198fc passed: 261121-012106-ce07f5) |
 | A4 | `ci:macos-arm64` |
 
