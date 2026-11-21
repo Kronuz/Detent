@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs: gates at `Detent:4eeef65` (code of the head `Detent:45db5f7`) native ef4078, tsan cafe29, t3-tsan 74eeff, asan 598ac8, t3-asan 93c07d; reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113, count 3cc4bb; A16 exclusive 5ee6cc (stopped), 0233d1 (running) at the head; ASan main arm ac4fc8; CI 44876979057 queued at 4eeef65. Pushed.
+State: waiting on jobs: gates at `Detent:4eeef65` (code of the head `Detent:45db5f7`) native ef4078, tsan cafe29, t3-tsan 74eeff, asan 598ac8, t3-asan 93c07d; reruns 0f6416 5dd6f7 cccaca dd95f8 32e96c 1187fe 5e46f2 e7e113, count 3cc4bb; A16 exclusive 5ee6cc (stopped), 0233d1 (running) at the head; CI 44876979057 queued at 4eeef65. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -14,7 +14,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
   `Detent:782374e` (campaign files only).
   - On the d0bdc01 strict numbers D142 passes stopped 1 ns (1.162 against 1.135 + main's spread)
     and fails only the loaded running 1 ns cell; the exclusive runs decide.
-  - ASan `test_local_paged_disk_store`: head c9dd6e passed 40 of 40 on macOS; main ac4fc8 pending.
+  - ASan `test_local_paged_disk_store`: head c9dd6e and main ac4fc8 each passed 40 of 40 on macOS,
+    so it does not reproduce here on either.
     The CI failure is Linux ASan only so far; the head's CI decides whether it recurs. Per the lead:
     if main fails too, it is pre-existing and goes to the file's owner quest; if only the branch, mine.
 - Resumed 2026-11-20 (lead: jobs at `Detent:d0bdc01` done). Passed there: native 5054f8, tsan
@@ -272,7 +273,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read the gates, reruns, count 3cc4bb, A16 exclusive 5ee6cc/0233d1, ASan main arm ac4fc8 and CI
+1. Read the gates, reruns, count 3cc4bb, A16 exclusive 5ee6cc/0233d1 and CI
    44876979057; mark Evidence.
 2. Merge main again if dense-distribution-build's W1 cursor lands; rerun the gates.
 3. When 1-2 close and CI is green: "ready for review" with 3-5 questions per lens; the reviewers should check the
