@@ -1,4 +1,5 @@
 #include "deferred_values.hh"
+#include "history_format.hh"
 #include "prepared.hh"
 #include "state.hh"
 #include <cassert>
@@ -918,8 +919,139 @@ void concurrent_cas() {
 	assert(state.checkpoint() == before);
 }
 
+template <class F> std::string refusal(F &&f) {
+	try {
+		f();
+	} catch (const std::exception &error) {
+		return error.what();
+	}
+	return {};
+}
+// Replays one group as a node does: each command decodes and applies under the group's limits.
+BatchResult replay(const State &state, std::uint64_t index, std::string_view group) {
+	BatchDecoder decoder(group, state.limits());
+	BatchApplication application(state, index, 1, decoder.count());
+	while (!application.done()) {
+		if (!application.command_pending()) {
+			CommandDecoder command(decoder.next_bytes(), decoder.limits(), state.context());
+			while (!command.done()) {
+				CommandWorkBudget budget;
+				command.step(budget);
+			}
+			application.start(command.take());
+		}
+		CommandWorkBudget budget;
+		application.step(budget);
+	}
+	return application.finish();
+}
+BatchResult administer(const State &state, std::uint64_t index, std::string_view entry) {
+	AdministrativeApplication application(state, index, 1, decode_administrative(entry, state.limits()),
+										  recorded_limits(entry, state.limits()));
+	while (!application.done()) {
+		CommandWorkBudget budget;
+		application.step(budget);
+	}
+	return application.finish();
+}
+// D141: a raise at a restart keeps every recorded entry's outcome; lowering refuses, naming the field.
+void restart_raise() {
+	Limits old;
+	old.keys = 2;
+	auto raised = old;
+	raised.keys = 4;
+	raised.state_bytes = 192 * 1024 * 1024;
+	raised.image_bytes = 512 * 1024 * 1024;
+	const auto full = transaction(2, {{"ns:c", KnobDef{3}, {}, {}}});
+	const std::vector<std::string> log{
+		encode_batch({open()}, old), encode_batch({transaction(1, {{"ns:a", KnobDef{1}, {}, {}}, {"ns:b", KnobDef{2}, {}, {}}})}, old),
+		encode_batch({full}, old)};
+	auto run = [&](State state) {
+		std::vector<Result> results;
+		std::uint64_t index = 0;
+		for (const auto &group : log) {
+			auto outcome = replay(state, ++index, group);
+			state = std::move(outcome.state);
+			results.push_back(outcome.results.front());
+		}
+		return std::pair{std::move(state), std::move(results)};
+	};
+	auto [recorded, expected] = run(State(context(), old));
+	assert(expected[2].status == Status::Capacity && recorded.size() == 2);
+	// A1: replayed under the raised configuration, the group that failed at the old ceiling fails again.
+	auto [replayed, results] = run(State(context(), raised));
+	assert(results == expected && replayed.size() == 2 && replayed.limits() == raised);
+	assert(replayed.lookup("writer", 1, 2).status == Status::Capacity);
+	// A3: a retry of the pre-raise sequence, now proposed under the raised limits, returns its receipt.
+	assert(digest(full, old) == digest(full, raised));
+	auto retried = replay(replayed, 4, encode_batch({full}, raised));
+	assert(retried.results.front() == expected[2] && retried.state.size() == 2);
+	// New groups carry the raised limits and grow past the old ceiling.
+	auto grown = replay(retried.state, 5, encode_batch({transaction(3, {{"ns:c", KnobDef{3}, {}, {}}})}, raised));
+	assert(grown.results.front().status == Status::Applied && grown.state.size() == 3);
+
+	// A2: an image recorded under the old limits recovers under the raised ones, which it then records.
+	const auto image = recorded.checkpoint();
+	auto restored = State::restore(image, context(), raised);
+	assert(restored.limits() == raised && restored.size() == 2);
+	assert(State::restore(restored.checkpoint(), context(), raised).checkpoint() == restored.checkpoint());
+	assert(replay(restored, 4, encode_batch({full}, raised)).results.front() == expected[2]);
+	// Lowered or changed limits refuse every recorded image, group and administrative entry, naming the field.
+	auto lowered = old;
+	lowered.keys = 1;
+	assert(refusal([&] { State::restore(image, context(), lowered); }) ==
+		   "authority application_limits.keys 1 is below the recorded 2; limits only rise");
+	assert(refusal([&] { State::restore(restored.checkpoint(), context(), old); }) ==
+		   "authority application_limits.keys 2 is below the recorded 4; limits only rise");
+	auto narrower = raised;
+	narrower.image_bytes = old.image_bytes;
+	assert(refusal([&] { State::restore(restored.checkpoint(), context(), narrower); }) ==
+		   "authority application_limits.image_bytes 268435456 is below the recorded 536870912; limits only rise");
+	auto changed = raised;
+	++changed.mutations;
+	assert(refusal([&] { State::restore(image, context(), changed); }) ==
+		   "authority application_limits.mutations 129 differs from the recorded 128; only keys, state_bytes and "
+		   "image_bytes rise at a restart");
+	lowered = raised;
+	lowered.state_bytes = old.state_bytes - 1;
+	assert(refusal([&] { (void)BatchDecoder(log[1], lowered); }).starts_with("authority application_limits.state_bytes"));
+	assert(recorded_limits(log[1], raised) == old);
+	for (auto field : {&Limits::keys, &Limits::state_bytes, &Limits::image_bytes}) {
+		auto raised_one = old;
+		raised_one.*field *= 2;
+		admit_limits(old, raised_one);
+		assert(throws([&] { admit_limits(raised_one, old); }));
+	}
+
+	// A2: an administrative entry decides under the limits it carries. Each policy alone writes
+	// files a fetch carries, but files written across the change outgrow the old image bound.
+	LayoutPolicy previous, next;
+	previous.alpha_num = 4;
+	previous.alpha_den = 1;
+	next.seal_bytes = 200 * 1024 * 1024;
+	assert(history::file_bytes(old, previous) <= history::fetch_bytes(old) &&
+		   history::file_bytes(old, next) <= history::fetch_bytes(old) &&
+		   history::file_bytes(old, next, previous) > history::fetch_bytes(old) &&
+		   history::file_bytes(raised, next, previous) <= history::fetch_bytes(raised));
+	AdministrativeCommand enable{context(), AdministrativeKind::EnablePositions, {}, {}, {}, previous};
+	enable.nonce[0] = 'n';
+	AdministrativeCommand layout{context(), AdministrativeKind::SetLayout, {}, {}, {}, next};
+	State positioned(context(), old);
+	assert(positioned.administer(1, enable).status == Status::Applied);
+	const auto recorded_layout = encode(layout, old);
+	assert(recorded_limits(recorded_layout, raised) == old && decode_administrative(recorded_layout, raised) == layout);
+	const auto at_old = administer(positioned, 2, recorded_layout).results.front();
+	assert(at_old.status == Status::Conflict);
+	auto upgraded = State::restore(positioned.checkpoint(), context(), raised);
+	assert(administer(upgraded, 2, recorded_layout).results.front() == at_old);
+	auto relayout = administer(upgraded, 2, encode(layout, raised));
+	assert(relayout.results.front().status == Status::Applied && relayout.state.pending_policy() == next);
+	assert(refusal([&] { decode_administrative(encode(layout, raised), old); })
+			   .starts_with("authority application_limits.keys 2 is below the recorded 4"));
+}
 } // namespace
 int main() {
+	restart_raise();
 	trees();
 	deferred_values();
 	integer_targeting();

@@ -316,6 +316,99 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		assert(node.worker().applied_index() >= through);
 	}
 }
+// Runs a single-voter node until it leads, or until it fences; returns the fence reason.
+std::string lead(Node &node) {
+	std::string reason;
+	auto turn = [&] {
+		node.service({0, Timing{}.election_min});
+		if (auto job = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*job);
+		for (auto &action : node.take_network_actions())
+			if (auto *fenced = std::get_if<Fenced>(&action))
+				reason = fenced->reason;
+	};
+	for (unsigned i = 0; i < 1000 && !node.worker().ready() && reason.empty(); ++i)
+		turn();
+	if (!reason.empty())
+		return reason;
+	node.start();
+	for (unsigned i = 0; i < 1000 && reason.empty() && node.worker().role() != Role::Leader; ++i)
+		turn();
+	for (unsigned i = 0; i < 200 && reason.empty(); ++i)
+		turn();
+	return reason;
+}
+// D141: voters restarted with raised limits replay every entry under the limits it carries.
+void restart_raise(const std::filesystem::path &directory) {
+	struct Cleanup {
+		std::filesystem::path directory;
+		~Cleanup() { std::filesystem::remove_all(directory); }
+	} cleanup{directory};
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	auto old = options();
+	old.application.keys = 2;
+	auto raised = old;
+	raised.application.keys = 4;
+	raised.application.state_bytes = 3 * 1024 * 1024;
+	auto keyed = [](std::uint64_t sequence, const char *key) {
+		auto command = transaction(sequence, static_cast<int>(sequence));
+		command.mutations.front().key = key;
+		return command;
+	};
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), old);
+		Identity id{};
+		id[0] = 'k';
+		node.create(id);
+		pump(node);
+		node.start();
+		pump(node);
+		submit(node, 1, open());
+		pump(node);
+		submit(node, 2, keyed(1, "ns:a"));
+		pump(node);
+		submit(node, 3, keyed(2, "ns:b"));
+		pump(node);
+		// The image records the old limits; the group that fails stays in the log tail.
+		assert(node.checkpoint());
+		pump(node);
+		submit(node, 4, keyed(3, "ns:c"));
+		auto full = pump(node);
+		assert(full.size() == 1 && full[0].results[0].status == Status::Capacity && node.state().size() == 2);
+	}
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), raised);
+		node.recover();
+		assert(lead(node).empty());
+		assert(node.state().limits() == raised.application);
+		// A1: the group that failed at the old ceiling replays with the same result.
+		assert(node.state().size() == 2 && !node.state().find("ns:c") &&
+			   node.state().lookup("p", 1, 3).status == Status::Capacity);
+		// A3: its retry returns the original receipt; a new sequence grows past the old ceiling.
+		submit(node, 5, keyed(3, "ns:c"));
+		auto retried = pump(node);
+		assert(retried.size() == 1 && retried[0].results[0].status == Status::Capacity && node.state().size() == 2);
+		submit(node, 6, keyed(4, "ns:c"));
+		pump(node);
+		submit(node, 7, keyed(5, "ns:d"));
+		auto grown = pump(node);
+		assert(grown.size() == 1 && grown[0].results[0].status == Status::Applied && node.state().size() == 4);
+		assert(node.checkpoint());
+		pump(node);
+	}
+	// A2: a voter restarted below the recorded limits refuses to start and names the field.
+	auto lowered = raised;
+	lowered.application.keys = 3;
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), lowered);
+	std::string reason;
+	try {
+		node.recover();
+	} catch (const std::invalid_argument &error) {
+		reason = error.what();
+	}
+	assert(reason == "authority application_limits.keys 3 is below the recorded 4; limits only rise");
+}
 } // namespace
 void terminal_state_retirement(const std::filesystem::path &path) {
 	struct Cleanup {
@@ -444,6 +537,7 @@ int main(int argc, char **argv) {
 	retained_application_range(path / "lowered-count-application", false, false, false, 4);
 	retained_application_range(path / "lowered-envelope-application", false, false, false, 5);
 	retained_application_range(path / "backlogged-application", false, false, true);
+	restart_raise(path / "restart-raise");
 	auto prepare = [](const Command &command) {
 		CommandEncoder encoder(command, options().application);
 		while (!encoder.done()) {
@@ -570,6 +664,7 @@ int main(int argc, char **argv) {
 		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), profile);
 		node.recover();
 		std::uint64_t node_clock = 0;
+		std::string reason;
 		for (unsigned i = 0; i < 1000 && !node.worker().ready(); ++i) {
 			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
@@ -584,9 +679,14 @@ int main(int argc, char **argv) {
 			if (auto job = node.worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
-			node.take_network_actions();
+			for (auto &action : node.take_network_actions())
+				if (auto *fenced = std::get_if<Fenced>(&action))
+					reason = fenced->reason;
 		}
 		assert(node.worker().fenced() && node.state().size() == 0);
+		assert(reason == (change_keys ? "authority application_limits.keys 1 is below the recorded 500000; limits only rise"
+									  : "authority application_limits.results 1 differs from the recorded 256; only keys, "
+										"state_bytes and image_bytes rise at a restart"));
 	}
 	std::filesystem::remove_all(plain);
 	std::filesystem::remove_all(path);

@@ -515,7 +515,8 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				if (!application_->administrative)
 					application_->administrative.emplace(
 						state_, entry.index, entry.term,
-						decode_administrative(entry.payload, options_.application));
+						decode_administrative(entry.payload, options_.application),
+						recorded_limits(entry.payload, options_.application));
 				while (!application_->administrative->done()) {
 					if (!budget.updates || budget.bytes < 1024)
 						return;
@@ -541,8 +542,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 								return;
 							--budget.records;
 							budget.bytes -= 128;
+							// Each group applies under the limits it carries (D141).
 							application_->command.emplace(application_->decoder->next_bytes(),
-														  options_.application, options_.context);
+														  application_->decoder->limits(), options_.context);
 						}
 						application_->command->step(budget);
 						if (!application_->command->done())
