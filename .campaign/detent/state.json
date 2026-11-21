@@ -11933,12 +11933,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: Diagnosis starts now; src overlaps journal-idle-groups, and any fix merges after it lands",
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-20T20:05:26",
+      "updated": "2026-11-20T21:22:04",
       "worktree": "../journal-wt/detent/journal-power-silent-loss"
     },
     "journal-reopen-closed": {
