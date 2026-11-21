@@ -15797,6 +15797,8 @@
     "managed-relay-ipv6-flake": {
       "accepted": {},
       "after": [],
+      "base": "ee425e632ddc0b64be459f929ee9ae14d9bcac23",
+      "branch": "quest/detent/managed-relay-ipv6-flake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -15848,9 +15850,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T05:30:26"
+      "updated": "2026-11-21T13:12:29",
+      "worktree": "../Detent-wt/detent/managed-relay-ipv6-flake"
     },
     "msgpack-adoption": {
       "accepted": {},
