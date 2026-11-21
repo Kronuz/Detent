@@ -2,7 +2,10 @@
 #include "detent/config_trust_internal.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
+#include <fcntl.h>
 #include <rapidjson/document.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <reactor_tls.h>
 #include <set>
 #include <sha256.h>
@@ -15,12 +18,18 @@ void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
 }
-void fields(const Value &object, std::initializer_list<std::string_view> allowed) {
+constexpr std::initializer_list<std::string_view> process_fields = {
+	"log_level", "verbosity", "color", "runtime_dir", "max_in_flight", "idle_timeout_ms", "shutdown_timeout_ms"};
+// The process settings the daemon's main reads from the same file (detent_cli::load_config); at the top
+// level this loader accepts and skips them, so one file carries both and a misspelled name of either is refused.
+void fields(const Value &object, std::initializer_list<std::string_view> allowed, bool top = false) {
 	require(object.IsObject(), "relay configuration requires an object");
 	std::set<std::string_view> seen;
 	for (auto it = object.MemberBegin(); it != object.MemberEnd(); ++it) {
 		std::string_view name(it->name.GetString(), it->name.GetStringLength());
-		require(seen.insert(name).second && std::find(allowed.begin(), allowed.end(), name) != allowed.end(),
+		require(seen.insert(name).second &&
+					(std::find(allowed.begin(), allowed.end(), name) != allowed.end() ||
+					 (top && std::find(process_fields.begin(), process_fields.end(), name) != process_fields.end())),
 				"unknown or duplicate relay configuration field");
 	}
 }
@@ -44,6 +53,46 @@ std::uint64_t number(const Value &object, const char *name, std::uint64_t fallba
 			"relay configuration integer out of range");
 	return value.GetUint64();
 }
+// A single-link regular file owned by root or the effective user, readable and writable by no one else than
+// `forbidden` allows: the configuration (no group or other write) and the secrets file (no group or other access).
+std::string read_file(const std::filesystem::path &file, mode_t forbidden, const char *what) {
+	struct File {
+		int descriptor;
+		~File() {
+			if (descriptor >= 0)
+				::close(descriptor);
+		}
+	} opened{::open(file.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)};
+	struct stat info{};
+	require(opened.descriptor >= 0 && ::fstat(opened.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
+				(info.st_uid == 0 || info.st_uid == ::geteuid()) && info.st_nlink == 1 &&
+				!(info.st_mode & forbidden) && detent::internal::mode_only_acl(opened.descriptor) &&
+				info.st_size > 0 && info.st_size <= 1024 * 1024,
+			what);
+	std::string bytes(static_cast<std::size_t>(info.st_size), '\0');
+	std::size_t offset = 0;
+	while (offset != bytes.size()) {
+		const auto count = ::read(opened.descriptor, bytes.data() + offset, bytes.size() - offset);
+		if (count < 0 && errno == EINTR)
+			continue;
+		require(count > 0, "short relay configuration");
+		offset += count;
+	}
+	char extra;
+	ssize_t remaining;
+	do {
+		remaining = ::read(opened.descriptor, &extra, 1);
+	} while (remaining < 0 && errno == EINTR);
+	require(remaining == 0 && detent::internal::mode_only_acl(opened.descriptor), "relay file changed while reading");
+	return bytes;
+}
+rapidjson::Document parse(const std::string &bytes, const char *what) {
+	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16), what);
+	rapidjson::Document object;
+	object.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(), bytes.size());
+	require(!object.HasParseError(), what);
+	return object;
+}
 std::filesystem::path path(const Value &value, const std::filesystem::path &base) {
 	auto result = std::filesystem::path(text(value));
 	return (result.is_absolute() ? result : base / result).lexically_normal();
@@ -63,8 +112,9 @@ distribution::Identity identity(const Value &value) {
 }
 // The relay as a W8 reader: its mirror directory, the names it mirrors and the upstream it reads
 // (the authority's voters or another relay), with a credential and no consensus.
-ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, const std::string &ca) {
-	fields(object, {"directory", "cluster", "namespaces", "upstreams", "hostname", "ca", "token", "interval_ms",
+ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, const std::string &ca,
+						const std::string &token) {
+	fields(object, {"directory", "cluster", "namespaces", "upstreams", "hostname", "ca", "interval_ms",
 					"reconnect_maximum_ms", "timeout_ms", "compression", "sessions", "answer_bytes"});
 	ConfiguredMirror result;
 	auto &service = result.service;
@@ -95,7 +145,7 @@ ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, 
 	}
 	upstream.hostname = object.HasMember("hostname") ? text(object["hostname"], 253) : "localhost";
 	require(upstream.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay upstream hostname");
-	upstream.token = text(field(object, "token"), 128);
+	upstream.token = token;
 	require(upstream.token.find_first_of("\r\n") == std::string::npos, "invalid relay upstream token");
 	upstream.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 10000, 1, 600000));
 	if (object.HasMember("compression")) {
@@ -110,17 +160,13 @@ ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, 
 }
 } // namespace
 HostOptions load_host_options(const std::filesystem::path &configuration) {
-	auto bytes = detent::internal::read_private_configuration(configuration);
-	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16),
-			"relay configuration JSON bound");
-	rapidjson::Document object;
-	object.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
-																						 bytes.size());
-	require(!object.HasParseError(), "invalid relay configuration JSON");
-	fields(object, {"address", "port", "hostname", "certificate", "private_key", "ca", "mirror", "credentials",
-					"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits"});
+	const auto object = parse(read_file(configuration, 0022, "relay configuration ownership, permissions or size"),
+							  "invalid relay configuration JSON");
+	fields(object, {"address", "port", "hostname", "certificate", "private_key", "ca", "mirror", "secrets",
+					"control_bytes", "baseline_bytes", "heap_bytes", "max_clients", "service_limits"},
+		   true);
 	HostOptions result;
-	result.connections = number(object, "connections", result.connections, 1, 65536);
+	result.connections = number(object, "max_clients", result.connections, 1, 65536);
 	if (object.HasMember("service_limits")) {
 		const auto &value = object["service_limits"];
 		fields(value, {"opens", "polls", "closes"});
@@ -141,13 +187,19 @@ HostOptions load_host_options(const std::filesystem::path &configuration) {
 		number(object, "control_bytes", result.control_bytes, 16 * 1024 * 1024, 1ull << 30);
 	result.baseline_bytes = number(object, "baseline_bytes", result.baseline_bytes, 1024 * 1024, 1ull << 30);
 	result.heap_bytes = result.control_bytes + result.baseline_bytes;
-	result.mirror = mirror(field(object, "mirror"), base, result.certificate_authority);
+	// The secrets are one private file named by path: the upstream token and the downstream credentials.
+	const auto secrets = parse(read_file(path(field(object, "secrets"), base), 077,
+										 "relay secrets ownership, permissions or size"),
+							   "invalid relay secrets JSON");
+	fields(secrets, {"upstream_token", "credentials"});
+	result.mirror = mirror(field(object, "mirror"), base, result.certificate_authority,
+						   text(field(secrets, "upstream_token"), 128));
 	require(result.mirror.answer_bytes <= maximum_heap_bytes - result.heap_bytes,
 			"relay aggregate heap funding exceeds host limit");
 	result.heap_bytes += result.mirror.answer_bytes;
 	const auto minimum_heap = result.heap_bytes;
 	result.heap_bytes = number(object, "heap_bytes", minimum_heap, minimum_heap, maximum_heap_bytes);
-	const auto &credentials = field(object, "credentials");
+	const auto &credentials = field(secrets, "credentials");
 	require(credentials.IsArray() && !credentials.Empty() && credentials.Size() <= 10000,
 			"relay credential count");
 	std::set<std::array<unsigned char, 32>> tokens;

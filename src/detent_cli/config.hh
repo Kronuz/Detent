@@ -23,6 +23,9 @@ std::filesystem::path default_agent_state_dir(bool system = false);
 // Options a program no longer has. A flag, an environment variable or a config field that names
 // one fails with an error that says so, instead of "unknown argument".
 void reject_removed_options(const std::string& program, const std::vector<std::string>& args);
-ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema);
+// One file holds process and role settings (D125). With `role_fields` the fields the schema does not name are
+// the role's: they are skipped here and validated by the role's own loader. The path is empty when no file exists.
+ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema,
+	bool role_fields = false);
 
 } // namespace detent_cli

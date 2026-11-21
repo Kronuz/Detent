@@ -31,9 +31,9 @@ A **generation** is one immutable, complete copy of the knob state on disk. An a
 | --- | --- | --- | --- | --- | --- | --- |
 | Producer | Anywhere that reaches the authority | Yours | None | Yours | Its unacknowledged requests | None |
 | Authority | Three machines, one voter each | `detent-authority` | `DETENT_BUILD_AUTHORITY=ON` (the default) | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detent_authority/main.cc` |
-| Relay | Between the authority and agent hosts | `detent-relay` | `DETENT_BUILD_RELAY=ON` | `relay.json` | One directory per bundle | `src/detent_relay/` |
-| Agent | Every application host | `detent-agent` | Always built; managed delivery needs `DETENT_BUILD_MANAGED_AGENT=ON` | `agent.json` (public), `managed.json` (private) | `generation_dir` | `src/detent_agent/`, `src/detent_delivery/`, `src/detent_local/` |
-| Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | `InitOptions` in code; `agent.json` for `detent get` | None | `src/detent/`, `src/detent_local/` |
+| Relay | Between the authority and agent hosts | `detent-relay` | `DETENT_BUILD_RELAY=ON` | `detent-relay.json` | One directory per bundle | `src/detent_relay/` |
+| Agent | Every application host | `detent-agent` | Always built; managed delivery needs `DETENT_BUILD_MANAGED_AGENT=ON` | `detent-agent.json` (public), `managed.json` (private) | `generation_dir` | `src/detent_agent/`, `src/detent_delivery/`, `src/detent_local/` |
+| Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | `InitOptions` in code; `detent-agent.json` for `detent get` | None | `src/detent/`, `src/detent_local/` |
 
 ## Producer
 
@@ -84,7 +84,7 @@ The configuration either omits `voters` (a single voter, for development) or lis
 3. Steady state: each upstream update becomes a new durable generation and a cache entry. A cache miss or gap produces a snapshot for the agent.
 4. Restart: the relay resumes from each bundle's last durable selection.
 
-**Where.** Between the authority and the agent hosts. Build with `-DDETENT_BUILD_RELAY=ON` (off by default; requires OpenSSL 3.0). The configuration is `relay.json` in the user configuration directory, or the system one with `--system`; unlike `agent.json` and `detent-authority.json`, there is no fallback from the user directory to the system directory. System bundle directories go under `/var/lib/detent-relay` (Linux) or `/var/db/detent-relay` (macOS, FreeBSD). The PID file is `relay.pid` in the runtime directory. See [the relay guide](RELAY.md).
+**Where.** Between the authority and the agent hosts. Build with `-DDETENT_BUILD_RELAY=ON` (off by default; requires OpenSSL 3.0). The configuration is `detent-relay.json` in the user configuration directory, or the system one with `--system`; unlike `detent-agent.json` and `detent-authority.json`, there is no fallback from the user directory to the system directory. System bundle directories go under `/var/lib/detent-relay` (Linux) or `/var/db/detent-relay` (macOS, FreeBSD). The PID file is `relay.pid` in the runtime directory. See [the relay guide](RELAY.md).
 
 ## Agent
 
@@ -118,7 +118,7 @@ See [the local image format](LOCAL_IMAGE_FORMAT.md).
 4. Restart: it resumes from the cursor of its selected generation. The upstream sends a delta when its retained history covers that cursor, and a full snapshot otherwise.
 5. Upstream down: it keeps the last selection and retries with backoff.
 
-**Where.** Every application host. `detent-agent` is always built; `--managed` needs `DETENT_BUILD_MANAGED_AGENT=ON`, which is the default. The public `agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
+**Where.** Every application host. `detent-agent` is always built; `--managed` needs `DETENT_BUILD_MANAGED_AGENT=ON`, which is the default. The public `detent-agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
 
 Without `--managed` (or `managed_path`), `detent-agent` exits with `no source configured`.
 
@@ -187,4 +187,4 @@ cmake --build build -j
 | State | `$XDG_STATE_HOME/detent`, else `~/.local/state/detent` | `~/Library/Application Support/Detent/state` | `/var/lib/detent`; macOS and FreeBSD `/var/db/detent` |
 | Runtime (PID, log) | `$XDG_RUNTIME_DIR/detent`, else `detent-<uid>` in the temporary directory | Same | `/run/detent`; macOS and FreeBSD `/var/run/detent` |
 
-`agent.json` and `detent-authority.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.
+`detent-agent.json` and `detent-authority.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.

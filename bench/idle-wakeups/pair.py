@@ -46,6 +46,20 @@ def private(path: Path, value: dict[str, Any]) -> Path:
     return path
 
 
+def private_relay(path: Path, configuration: dict[str, Any]) -> Path:
+    """The relay's detent-relay.json beside its one private secrets file (`secrets`, by path)."""
+    mirror = dict(configuration["mirror"])
+    secrets = {
+        "credentials": configuration["credentials"],
+        "upstream_token": mirror.pop("token"),
+    }
+    secrets_path = private(path.with_name(f"{path.stem}-secrets.json"), secrets)
+    main = {k: v for k, v in configuration.items() if k != "credentials"}
+    main |= {"mirror": mirror, "secrets": secrets_path.name}
+    path.write_text(json.dumps(main))
+    return path
+
+
 class Pair:
     """Starts both processes on enter, writes `transactions` to every name, waits until the relay
     mirrors them, and stops both on exit. The relay syncs every `interval_ms` (its default 250)."""
@@ -237,8 +251,8 @@ class Pair:
         # The history answers a few hundred ms after the last write; a relay started before then
         # fails its first sync and retries one interval later, a minute in the idle count.
         self.wait_history()
-        relay = private(
-            self.root / "relay.json",
+        relay = private_relay(
+            self.root / "detent-relay.json",
             {
                 "address": "127.0.0.1",
                 "port": self.relay_port,

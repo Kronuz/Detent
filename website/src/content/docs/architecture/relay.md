@@ -63,7 +63,7 @@ gets a snapshot. Simultaneous agents borrow the same encoded payload.
 
 **Where.** Between the authority and the agent hosts. Build with
 `-DDETENT_BUILD_RELAY=ON` (off by default; requires OpenSSL 3.0). The
-configuration is `relay.json` in the user configuration directory, or the
+configuration is `detent-relay.json` in the user configuration directory, or the
 system one with `--system`. Bundle directories are private (`0700`, files
 `0600`); system services put them under `/var/lib/detent-relay` on Linux or
 `/var/db/detent-relay` on macOS and FreeBSD. The source is in

@@ -16,5 +16,5 @@ detent_relay_directories() {
 }
 command="/usr/sbin/daemon"
 procname="/usr/local/bin/detent-relay"
-command_args="-r -P ${pidfile} -u detent -o /var/log/detent/relay.log ${procname} --system --config /usr/local/etc/detent/relay.json --runtime-dir /var/run/detent/relay"
+command_args="-r -P ${pidfile} -u detent -o /var/log/detent/relay.log ${procname} --system --config /usr/local/etc/detent/detent-relay.json --runtime-dir /var/run/detent/relay"
 run_rc_command "$1"

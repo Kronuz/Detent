@@ -32,7 +32,7 @@ detent-authority --color never           # plain output even on a terminal
 | `--color auto\|always\|never`, `--no-color` | Color policy; `auto` honors `NO_COLOR` |
 | `--color truecolor\|256\|16` | Force RGB, 256-color or ANSI 16-color output, including when redirected |
 
-The same settings work in `agent.json` and `detent-authority.json`; command-line flags win:
+The same settings work in `detent-agent.json` and `detent-authority.json`; command-line flags win:
 
 ```json
 {"log_level": "info", "verbosity": 0, "color": "auto"}

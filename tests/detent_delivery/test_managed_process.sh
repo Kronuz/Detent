@@ -40,8 +40,8 @@ printf '{%s,"directory":"authority-data","publisher_tls":{"certificate":"%s/one.
 printf '{"cluster":"63000000000000000000000000000000","namespaces":["ns"],"token":"%s","port":0,"ca":"%s/ca.pem","retry_interval_ms":10}\n' \
     "$reader_token" "$certificates" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
-printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","defaults_path":"defaults.json"}\n' > "$root/agent.json"
-"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["reader_validation"]="full"; open(p,"w").write(json.dumps(data))' "$root/agent.json"
+printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","defaults_path":"defaults.json"}\n' > "$root/detent-agent.json"
+"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["reader_validation"]="full"; open(p,"w").write(json.dumps(data))' "$root/detent-agent.json"
 printf '{"schema_version":1,"knobs":{"ns:feature":{"default":7}}}\n' > "$root/defaults.json"
 set_port() {
     local value=$1 name
@@ -67,19 +67,19 @@ done
 grep -q '"generation":1' "$root/open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/first.json"
 first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/first.json")
-"$agent" --config "$root/agent.json" --initialize-managed > "$root/agent.log" 2>&1 &
+"$agent" --config "$root/detent-agent.json" --initialize-managed > "$root/agent.log" 2>&1 &
 agent_pid=$!
 wait_value() {
     local actual=
     deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-        if actual=$("$reader" get ns:feature --system --config "$root/agent.json" 2>"$root/reader-get.log"); then
+        if actual=$("$reader" get ns:feature --system --config "$root/detent-agent.json" 2>"$root/reader-get.log"); then
             if [[ "$actual" == "$1" ]]; then return; fi
         fi
         if ! kill -0 "$agent_pid" 2>/dev/null; then cat "$root/agent.log"; return 1; fi
         sleep 0.02
     done
     printf 'Reader expected=%s actual=%s\n' "$1" "$actual" >&2
-    "$agent" --status --config "$root/agent.json" >&2 || true
+    "$agent" --status --config "$root/detent-agent.json" >&2 || true
     cat "$root/reader-get.log" "$root/agent.log" >&2
     return 1
 }
@@ -102,7 +102,7 @@ wait_agent_failure() {
 }
 wait_value 42
 # Reader limits are independent of private delivery credentials.
-"$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
+"$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/detent-agent.json" "$root/reader-limits.json"
 chmod 644 "$root/reader-limits.json"
 [[ $("$reader" get ns:feature --system --config "$root/reader-limits.json") == 7 ]]
 [[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --system --config "$root/reader-limits.json") == 42 ]]
@@ -111,28 +111,28 @@ check_format "$root/generations" root
 check_format "$root/generations" mark > "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 # A namespace the agent does not follow gets no entry and moves none.
-"$agent" --status --config "$root/agent.json" > "$root/progress-status.txt"
+"$agent" --status --config "$root/detent-agent.json" > "$root/progress-status.txt"
 grep -q "knob_count=1 namespace=ns$" "$root/progress-status.txt"
 ! grep -q 'namespace=other' "$root/progress-status.txt"
-[[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
+[[ $("$reader" get other:hidden --system --config "$root/detent-agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
 # Positions are the namespace's own (W1), so the deletion is found by its effect.
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if "$agent" --status --config "$root/agent.json" > "$root/deleted-status.txt" &&
+    if "$agent" --status --config "$root/detent-agent.json" > "$root/deleted-status.txt" &&
         grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"; then break; fi
     sleep 0.02
 done
 grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"
 wait_value 7
 kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-if "$agent" --status --config "$root/agent.json" > "$root/stopped.txt"; then exit 1; fi
+[[ $("$reader" get ns:feature --system --config "$root/detent-agent.json") == 7 ]]
+if "$agent" --status --config "$root/detent-agent.json" > "$root/stopped.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/stopped.txt"
-if "$agent" --status --config "$root/agent.json" --reader-image-bytes 1 > "$root/reader-low-status.txt"; then exit 1; fi
+if "$agent" --status --config "$root/detent-agent.json" --reader-image-bytes 1 > "$root/reader-low-status.txt"; then exit 1; fi
 grep -q 'local generation unavailable:' "$root/reader-low-status.txt"
-if "$agent" --status --config "$root/agent.json" --reader-image-bytes 3221225472 > "$root/reader-high-status.txt"; then exit 1; fi
+if "$agent" --status --config "$root/detent-agent.json" --reader-image-bytes 3221225472 > "$root/reader-high-status.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/reader-high-status.txt"
-"$agent" --config "$root/agent.json" > "$root/agent-restart.log" 2>&1 &
+"$agent" --config "$root/detent-agent.json" > "$root/agent-restart.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-restart.log"
 check_format "$root/generations" same-store "$root/storage-before"
@@ -141,14 +141,14 @@ kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 cp "$root/generations/selected" "$root/selected-before"
 cp "$root/managed.json" "$root/managed-good.json"
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["token"]="invalid-reader-token-000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
-"$agent" --config "$root/agent.json" > "$root/agent-unauthorized.log" 2>&1 &
+"$agent" --config "$root/detent-agent.json" > "$root/agent-unauthorized.log" 2>&1 &
 agent_pid=$!
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"; then break; fi
     sleep 0.02
 done
 grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
+[[ $("$reader" get ns:feature --system --config "$root/detent-agent.json") == 7 ]]
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
     sleep 0.02
@@ -173,21 +173,21 @@ done
 grep -q '"generation":1' "$root/reset-open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
 reset_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/reset-value.json")
-"$agent" --config "$root/agent.json" > "$root/agent-reset.log" 2>&1 &
+"$agent" --config "$root/detent-agent.json" > "$root/agent-reset.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-reset.log"
 wait_value 84
 check_format "$root/generations" same-store "$root/storage-before"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 84 ]]
-"$agent" --config "$root/agent.json" > "$root/agent-reset-restart.log" 2>&1 &
+[[ $("$reader" get ns:feature --system --config "$root/detent-agent.json") == 84 ]]
+"$agent" --config "$root/detent-agent.json" > "$root/agent-reset-restart.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-reset-restart.log"
 wait_value 84
 check_format "$root/generations" same-store "$root/storage-before"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 # A terminal post-readiness recovery failure must reach the service manager.
-"$agent" --config "$root/agent.json" > "$root/agent-fatal.log" 2>&1 &
+"$agent" --config "$root/detent-agent.json" > "$root/agent-fatal.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-fatal.log"
 mv "$root/generations" "$root/displaced-generations"

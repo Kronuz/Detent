@@ -8,15 +8,19 @@
 #include <asio.hpp>
 #include <cassert>
 #include <charconv>
+#include <atomic>
 #include <future>
 #include <http_asio.h>
 #include <http_asio_tls.h>
+#include <lifecycle.hh>
+#include <sysexits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 namespace detent::relay {
 namespace d = distribution;
 namespace {
+constexpr std::chrono::milliseconds kShutdownGrace{5'000};
 template <class Result, class Function> Result on_worker(asio::thread_pool &worker, Function function) {
 	std::promise<Result> result;
 	auto ready = result.get_future();
@@ -75,8 +79,61 @@ std::shared_ptr<const d::OwnedBuffer> health_snapshot(std::shared_ptr<d::Storage
 	output->seal_prefix();
 	return output;
 }
+// The relay's state on its owner loop. stop() closes the runtime and the mirror on the owner thread, so
+// every owner wait ends with its truthful reply; drain() runs after the listener's, tells the owner no
+// request can arrive, and ends once the owner's turn found every request drained, or at the stop bound's
+// abandon.
+struct StateComponent {
+	OwnerLoop &owner;
+	std::function<void()> shutdown, listener_done;
+	task::event &drained;
+	std::atomic<bool> &finished;
+	task::task<void> start(task::cancel_token) { co_return; }
+	void stop() { asio::post(owner.io(), shutdown); }
+	task::task<std::vector<std::string>> drain(const task::stop_bound &bound) {
+		asio::post(owner.io(), listener_done);
+		task::cancel_callback abandoned(bound.abandon, [this] { drained.set(); });
+		co_await drained;
+		if (!finished.load(std::memory_order_acquire))
+			co_return std::vector<std::string>{"relay: requests still in flight"};
+		co_return std::vector<std::string>{};
+	}
+	void flush() {}
+	std::string name() const { return "relay"; }
+};
+// The http listener: start() binds; drain() runs http's stop, which cancels the requests in flight (their
+// responses are still written), gives them the grace, then forces.
+struct ListenerComponent {
+	http::HttpAsioService &listener;
+	unsigned short port;
+	task::task<void> start(task::cancel_token) {
+		listener.start(port);
+		co_return;
+	}
+	void stop() {}
+	task::task<std::vector<std::string>> drain(const task::stop_bound &) {
+		listener.stop();
+		co_return std::vector<std::string>{};
+	}
+	void flush() {}
+	std::string name() const { return "http"; }
+};
+// Ready once the mirror is: start() waits for the owner's turn to announce it, or for the stop.
+struct ReadyComponent {
+	task::event &mirror_ready;
+	task::task<void> start(task::cancel_token stop) {
+		task::cancel_callback ended(stop, [this] { mirror_ready.set(); });
+		co_await mirror_ready;
+	}
+	void stop() {}
+	task::task<std::vector<std::string>> drain(const task::stop_bound &) { co_return std::vector<std::string>{}; }
+	void flush() {}
+	std::string name() const { return "mirror"; }
+};
 } // namespace
-static int run_host_owned(const std::filesystem::path &configuration, const detent_cli::Ready &ready) {
+static int run_host_owned(const HostSettings &settings, const detent_cli::Ready &ready,
+						  task::stop_signals &signals) {
+	const auto &configuration = settings.configuration;
 	OwnerLoop owner;
 	auto &wake = owner.wake();
 	asio::thread_pool startup(1);
@@ -119,33 +176,28 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 		std::allocate_shared<Registry>(d::StorageAllocator<Registry>(baseline), baseline, options.credentials);
 	auto runtime = std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts,
 														registry, mirror, options.service_limits, [wake] { wake.raise(); });
+	if (settings.max_clients)
+		options.connections = *settings.max_clients;
 	auto facade = std::make_unique<Service>(runtime);
-	http::HttpAsioService listener(*facade, 2, options.connections,
+	http::HttpAsioService listener(*facade, settings.reactors, settings.max_in_flight.value_or(options.connections),
 								   http::tls_connection_factory(options.tls_context), options.connections);
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
 	listener.set_bind_options(bind);
 	listener.set_request_timeout(std::chrono::seconds(65));
-	listener.start(options.endpoint.port());
-	std::promise<void> stop, owner_done;
-	auto stopping = stop.get_future();
-	auto owner_drained = owner_done.get_future();
+	listener.set_idle_timeout(settings.idle_timeout);
+	listener.set_shutdown_grace(std::min(kShutdownGrace, settings.shutdown_timeout));
+	task::event owner_drained, mirror_ready;
+	std::atomic<bool> owner_finished{false};
 	bool stop_requested = false, listener_stopped = false, announced = false;
-	std::exception_ptr failure;
 	auto shutdown = [&] {
 		if (stop_requested)
 			return;
 		stop_requested = true;
 		runtime->close();
 		mirror->close();
-		stop.set_value();
 		wake.raise();
 	};
-	asio::signal_set signals(owner.io(), SIGINT, SIGTERM);
-	signals.async_wait([&](const asio::error_code &error, int) {
-		if (!error)
-			shutdown();
-	});
 	// Each turn visits a share of the requests; it runs again at once while it changes anything, else after
 	// 1 ms. Once a round over every request (from a wake, a change or a long sleep) changes nothing, it sleeps
 	// on `tick` until the next health report or a wake: a request, a reply, a mirror answer, the stop.
@@ -174,7 +226,7 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 			const auto state = mirror->status();
 			if (state.failed && !stop_requested) {
 				L_WARNING("detent-relay: namespace mirror stopped: {}", state.error);
-				failure = std::make_exception_ptr(std::runtime_error("relay mirror: " + state.error));
+				signals.fail(std::make_exception_ptr(std::runtime_error("relay mirror: " + state.error)));
 				shutdown();
 			}
 			if (!state.failed && state.error != sync_error) {
@@ -185,8 +237,8 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 			if (!announced && !stop_requested && state.ready) {
 				runtime->health(health_snapshot(accounts.metadata, *root, runtime->status(), *mirror, true, turns));
 				health_due = now + std::chrono::milliseconds(100);
-				ready();
 				announced = true;
+				mirror_ready.set();
 				L_INFO("detent-relay: the namespace mirror is ready on {}:{}", options.endpoint.address().to_string(),
 					   listener.port());
 			}
@@ -199,10 +251,10 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 				health_due = now + std::chrono::milliseconds(100);
 			}
 			if (listener_stopped && runtime->drained()) {
-				signals.cancel();
 				wake.release();
 				owner.io().stop();
-				owner_done.set_value();
+				owner_finished.store(true, std::memory_order_release);
+				owner_drained.set();
 				return;
 			}
 			if (progress) {
@@ -215,44 +267,66 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 				sleep(now + std::chrono::milliseconds(1));
 			}
 		} catch (...) {
-			failure = std::current_exception();
+			signals.fail(std::current_exception());
 			shutdown();
 			// One retry at once (shutdown raised the wake); a turn that keeps failing retries every 100 ms.
 			sleep(std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
 		}
 	};
 	asio::post(owner.io(), turn);
-	stopping.get();
-	listener.stop();
-	asio::post(owner.io(), [&] {
-		listener_stopped = true;
-		wake.raise();
-	});
-	// Teardown (D15): the listener's loops are stopped; once the turn finds everything drained
-	// the owner stops (phase 1), both close their schedulers (phase 2) and destroy their roots
-	// with every io_context alive (phase 3), before anything the tasks reference is destroyed.
-	owner_drained.get();
+	// The control loop runs on this thread; the owner keeps its own.
+	asio::io_context control_io(1);
+	task::asio_scheduler loop(control_io.get_executor());
+	StateComponent state{owner,
+						 shutdown,
+						 [&] {
+							 listener_stopped = true;
+							 wake.raise();
+						 },
+						 owner_drained,
+						 owner_finished};
+	ListenerComponent http_component{listener, options.endpoint.port()};
+	ReadyComponent ready_component{mirror_ready};
+	const task::stop_timing timing{settings.shutdown_timeout,
+								   std::min<std::chrono::nanoseconds>(kShutdownGrace, settings.shutdown_timeout)};
+	task::stopped result;
+	task::spawn(task::scheduler_ref::of(loop),
+				task::lifecycle(loop, signals, timing, ready, state, http_component, ready_component),
+				[&](std::exception_ptr error, std::optional<task::stopped> stopped) {
+					result = stopped ? std::move(*stopped) : task::stopped{error};
+					control_io.stop();
+				});
+	control_io.run(); // the lifecycle holds the loop's work guard until every flush returned
+	// Teardown (D15): the lifecycle stopped and drained the components; the owner stops (phase 1), every
+	// scheduler closes (phase 2) and destroys its roots (phase 3) with every io_context alive, before
+	// anything the tasks reference is destroyed.
 	owner.stop();
 	listener.close();
 	owner.close();
+	loop.close();
 	listener.destroy_roots();
 	owner.destroy_roots();
+	loop.destroy_roots();
 	startup.join();
 	facade.reset();
 	runtime.reset();
 	mirror.reset();
 	registry.reset();
+	for (const auto &line : result.unfinished)
+		L_WARNING("detent-relay: unfinished: {}", line);
 	L_NOTICE("detent-relay: drained; admitted heap peak {} bytes, configured {}", root->peak(),
 			 root->limit());
-	if (failure)
-		std::rethrow_exception(failure);
-	return 0;
+	if (result.failure)
+		std::rethrow_exception(result.failure);
+	if (!result.ready && settings.detach)
+		throw std::runtime_error("stopped before startup completed");
+	return result.unfinished.empty() ? 0 : EX_TEMPFAIL;
 }
-int run_host(const std::filesystem::path &configuration, const detent_cli::Ready &ready) {
+int run_host(const HostSettings &settings, const detent_cli::Ready &ready, task::stop_signals &signals) {
 	// The io_context may hold a cancelled deadline's handler until it is destroyed, so the check
 	// follows the owned run (T13).
 	[[maybe_unused]] const auto frames = task::detail::live_frames();
-	const int result = run_host_owned(configuration, ready);
+	const int result = run_host_owned(settings, ready, signals);
 	assert(task::detail::live_frames() == frames && "a task frame outlived the relay host (T13)");
 	return result;
 }

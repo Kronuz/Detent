@@ -52,7 +52,7 @@ const char* kUsage =
 	"\n"
 	"With no --port: port 8317 (0 binds a free port and logs it).\n"
 	"--system selects the system config and runtime directories.\n"
-	"Config: detent-authority.json in the same platform directories as agent.json.\n"
+	"Config: detent-authority.json in the same platform directories as detent-agent.json.\n"
 	"Fields: authority, port, reactors, max_clients, max_in_flight, idle_timeout_ms,\n"
 	"shutdown_timeout_ms, upstream_ca, runtime_dir, log_level, verbosity, color. Paths are config-relative.\n"
 	"Flags override DETENT_AUTHORITY_PORT, DETENT_AUTHORITY_REACTORS, DETENT_AUTHORITY_RUNTIME_DIR, which override config.\n"

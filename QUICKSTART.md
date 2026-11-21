@@ -247,7 +247,7 @@ The durable store and the generations live in `build/quickstart`, so removing it
 
 ## Next steps
 
-1. [Usage guide](docs/USAGE.md): managed agent configuration, `agent.json`, and library examples.
+1. [Usage guide](docs/USAGE.md): managed agent configuration, `detent-agent.json`, and library examples.
 2. [Authority guide](docs/AUTHORITY_ARCHITECTURE.md): credentials, sessions, retries and namespace compare-and-set.
 3. [System services](docs/SERVICES.md): Linux, FreeBSD, and macOS deployment.
 4. [README](README.md): architecture, bindings, and validation.

@@ -174,7 +174,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 path = directory / "managed.json"
                 path.write_text(json.dumps(source))
                 path.chmod(0o600)
-                config = directory / "agent.json"
+                config = directory / "detent-agent.json"
                 config.write_text(
                     json.dumps(
                         {

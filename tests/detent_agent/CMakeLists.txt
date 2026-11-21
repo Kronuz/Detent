@@ -1,6 +1,10 @@
 add_test(NAME test_agent_cli COMMAND ${CMAKE_COMMAND}
   -DAGENT=$<TARGET_FILE:detent-agent> -DREADER=$<TARGET_FILE:detent-reader> -P ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_cli.cmake)
 set_tests_properties(test_agent_cli PROPERTIES TIMEOUT 60)
+if(DETENT_BUILD_MANAGED_AGENT)
+  add_test(NAME test_agent_secrets_mode COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_secrets_mode.sh $<TARGET_FILE:detent-agent>)
+  set_tests_properties(test_agent_secrets_mode PROPERTIES TIMEOUT 60)
+endif()
 
 add_executable(test_logging test_logging.cc)
 target_link_libraries(test_logging PRIVATE detent_logging)

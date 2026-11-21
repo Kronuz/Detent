@@ -54,7 +54,7 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 ---
 
-## `agent.json`
+## `detent-agent.json`
 
 ```json
 {
@@ -86,7 +86,7 @@ conventional `defaults.json` is skipped.
 | `port` | `8317` | HTTP port |
 | `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detent-authority` serves |
 | `reactors` | `4` | Network reactor threads |
-| `max_clients` | `1024` | Open connections; the process raises its file-descriptor limit to fit |
+| `max_clients` | `1024` | Open connections; raising it needs the same descriptor capacity |
 | `max_in_flight` | `1024` | Admitted requests per reactor |
 | `idle_timeout_ms` | `75000` | Close an idle connection after this long (`0` = never) |
 | `shutdown_timeout_ms` | `35000` | Bound on finishing in-flight requests after SIGTERM |
@@ -165,7 +165,7 @@ The private managed agent configuration names the followed `namespaces` (every g
 
 | File | Owner | Mode |
 | --- | --- | --- |
-| `agent.json`, `detent-authority.json` | root | readable by the service account |
+| `detent-agent.json`, `detent-authority.json` | root | readable by the service account |
 | `managed.json`, `authority.json` | root or service account | `0600`, or controlled `0640` |
 | Authority state | service account | `0700` |
 | System agent runtime directory | service account | `0755`, with `0644` pid and snapshot |
@@ -176,7 +176,11 @@ or group/other write permission; Detent refuses it otherwise.
 
 ## Relay admission
 
-The private relay host configuration accepts `connections` (default 1,024) and `service_limits` with the requests in flight per lane: `opens` (16; the history routes share it), `polls` (640) and `closes` (16), each 1 to 65,536. See the [relay guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity) for the heap budget and a complete example.
+The relay configuration accepts `max_clients` (default 1,024) and `service_limits` with the requests in flight per lane: `opens` (16; the history routes share it), `polls` (640) and `closes` (16), each 1 to 65,536. See the [relay guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity) for the heap budget and a complete example.
+
+## Relay secrets
+
+`detent-relay.json` holds no secret. Its `secrets` field names the one private file (a regular, single-link file with no group or other access; Detent refuses it otherwise) that holds the relay's secrets: `upstream_token`, the relay's credential at its upstream, and `credentials`, the downstream credentials, each with a `token`, a `principal`, an optional `policy_epoch` and `namespaces` patterns. The process settings (`log_level`, `verbosity`, `color`, `runtime_dir`, `max_clients`, `max_in_flight`, `idle_timeout_ms`, `shutdown_timeout_ms`) share the file with the role's.
 
 ## Relay namespace mirror
 
@@ -188,7 +192,6 @@ A relay configuration requires a `mirror` object: the relay mirrors namespace hi
 | `cluster` | required | The authority's cluster identity, 32 hex digits |
 | `namespaces` | required | The names mirrored, in increasing order, at most 4,096 |
 | `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure, or an answer older than the mirror, moves to the next |
-| `token` | required | The relay's credential at its upstream |
 | `hostname`, `ca` | `localhost`, the relay's `ca` | How the relay verifies its upstream |
 | `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to `reconnect_maximum_ms` |
 | `reconnect_maximum_ms` | 30,000, or the interval when larger | The longest wait after failed syncs, from the interval to 86,400,000 |

@@ -22,7 +22,7 @@ authority configuration at `CONFIG` and listens on port `8317` unless
 | `--authority CONFIG` | required | The authority configuration file |
 | `--port N` | `8317` | HTTP port |
 | `--reactors N` | `4` | Network reactor threads |
-| `--max-clients N` | `1024` | Open connections; the process raises its file-descriptor limit to fit |
+| `--max-clients N` | `1024` | Open connections; raising it needs the same descriptor capacity |
 | `--max-in-flight N` | `1024` | Admitted requests per reactor |
 | `--idle-timeout-ms MS` | `75000` | Close an idle connection after this long (`0` = never) |
 | `--shutdown-timeout-ms MS` | `35000` | Bound on finishing in-flight requests after SIGTERM |
@@ -50,7 +50,7 @@ runtime directory.
 
 ## Configuration
 
-`detent-authority.json` lives in the same directories as `agent.json`:
+`detent-authority.json` lives in the same directories as `detent-agent.json`:
 
 ```json
 {

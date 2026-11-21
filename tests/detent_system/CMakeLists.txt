@@ -84,6 +84,15 @@ if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET 
         ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_system_relay_pages PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 300)
+    add_test(NAME test_system_relay_sigterm
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_sigterm.py
+        $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-relay> ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
+    set_tests_properties(test_system_relay_sigterm PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 120)
+    add_test(NAME test_system_agent_sigterm
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_sigterm.sh
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+    set_tests_properties(test_system_agent_sigterm PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 240)
     add_test(NAME test_system_dual_stack
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_dual_stack.py
         $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-relay> ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)

@@ -43,7 +43,7 @@ detent get payments:new_processor --hash user-2 --switch employees
 # 1
 ```
 
-With `--managed PRIVATE_CONFIG` (or `managed_path` in `agent.json`), the first
+With `--managed PRIVATE_CONFIG` (or `managed_path` in `detent-agent.json`), the first
 `get` starts the agent if no generation is present and waits for the first one.
 With neither `--managed` nor `--generation-dir` configured, `get` fails with
 `no source configured`; `--default` doesn't mask that.
@@ -66,14 +66,14 @@ fi
 
 ## Pointing the Agent at the Authority
 
-Write `agent.json` in your config directory:
+Write `detent-agent.json` in your config directory:
 
 | Platform | User config directory |
 | --- | --- |
 | Linux, FreeBSD | `$XDG_CONFIG_HOME/detent`, otherwise `~/.config/detent` |
 | macOS | `~/Library/Application Support/Detent` |
 
-```json title="agent.json"
+```json title="detent-agent.json"
 {
   "managed_path": "managed.json",
   "generation_dir": "agent-state"
@@ -88,7 +88,7 @@ covers `managed.json`.
 
 ### Local Defaults
 
-An optional `defaults.json` next to `agent.json` gives `detent get`
+An optional `defaults.json` next to `detent-agent.json` gives `detent get`
 fallback knobs while no generation has arrived, and for knobs a generation
 doesn't contain:
 

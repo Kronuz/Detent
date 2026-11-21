@@ -14,7 +14,7 @@ Build with `-DDETENT_BUILD_RELAY=ON`. A relay-only build can disable the authori
 
 ## Configuration and services
 
-The default private configuration is `relay.json` in the standard user configuration directory. `--system` selects system locations, and `--config PATH` selects an explicit file. TLS listens on loopback port `8318` unless configured otherwise. Each configured bundle uses its own private upstream credential and durable directory; downstream credentials grant exact bundle access. See the [complete relay configuration guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md) for the JSON schema and initialization procedure.
+The default configuration is `detent-relay.json` in the standard user configuration directory. `--system` selects system locations, and `--config PATH` selects an explicit file. TLS listens on loopback port `8318` unless configured otherwise. Each configured bundle uses its own private upstream credential and durable directory; downstream credentials grant exact bundle access. See the [complete relay configuration guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md) for the JSON schema and initialization procedure.
 
 Run in the foreground under the supplied systemd, launchd or rc.d template. `--status` queries local health without starting a daemon; unmanaged runs also support `--daemonize`. Durable roots require service ownership and mode `0700`, with artifacts remaining `0600` in system mode. Readiness requires recovery and fresh upstream authentication for every required bundle.
 
@@ -26,6 +26,6 @@ The relay retains cached encoded frames across downstream delivery, so simultane
 
 For system services, use absolute bundle directories under `/var/lib/detent-relay` on Linux or `/var/db/detent-relay` on macOS and FreeBSD. Relative bundle directories resolve beside the host configuration; placing them below `/etc` is incompatible with the Linux unit’s filesystem protection. Durable state belongs outside runtime directories, which are cleared at boot.
 
-Relay admission is configurable through `connections` and `service_limits` in the private host configuration. Defaults admit 1,024 connections and sessions, with 640 polls. Raising these ceilings also requires heap and descriptor capacity. See the [capacity settings](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for ranges and relationships.
+Relay admission is configurable through `max_clients` and `service_limits` in the private host configuration. Defaults admit 1,024 connections and sessions, with 640 polls. Raising these ceilings also requires heap and descriptor capacity. See the [capacity settings](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for ranges and relationships.
 
 A relay upstream source can configure an authority endpoint pool as described in [managed delivery](managed-delivery.md). Downstream agents use a single relay endpoint and must explicitly set `"delivery_mode":"subscription"`. Relay Open establishes access to its recovered bundle; it does not prove a fresh authority quorum, so authority endpoint pools must not contain relay addresses.

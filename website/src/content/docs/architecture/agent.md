@@ -11,7 +11,7 @@ authority or a [relay](/Detent/architecture/relay/) over verified TLS and
 publishes immutable generations, described in
 [Delivery and Local Images](/Detent/architecture/delivery/). `detent get` and
 the C++ managed source read those generations. Without `--managed` (or
-`managed_path` in `agent.json`) the agent exits with `no source configured`.
+`managed_path` in `detent-agent.json`) the agent exits with `no source configured`.
 
 | | Managed agent |
 | --- | --- |

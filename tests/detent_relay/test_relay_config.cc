@@ -38,17 +38,21 @@ int main(int argc, char **argv) {
 			std::filesystem::current_path() / ".scratch" / ("relay-config-" + std::to_string(::getpid()));
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-		rapidjson::Document host;
+		// One file of process and role settings, and the one private file named by `secrets`.
+		rapidjson::Document host, secrets;
 		host.Parse(R"({"mirror":{"directory":"mirror","cluster":"63636363636363636363636363636363",
-"namespaces":["app","app.one"],"upstreams":[{"address":"127.0.0.1","port":8317}],
-"token":"upstream-token-0123456789abcdef0123456789"},
+"namespaces":["app","app.one"],"upstreams":[{"address":"127.0.0.1","port":8317}]},
+"secrets":"secrets.json","log_level":"info","max_in_flight":64,"idle_timeout_ms":1000,
+"shutdown_timeout_ms":2000})");
+		secrets.Parse(R"({"upstream_token":"upstream-token-0123456789abcdef0123456789",
 "credentials":[{"token":"downstream-token-0123456789abcdef0123456789","principal":"reader",
 "namespaces":["app.*"]}]})");
 		add_path(host, "certificate", tls / "one.pem");
 		add_path(host, "private_key", tls / "one.key");
 		add_path(host, "ca", tls / "ca.pem");
-		const auto configuration = directory / "relay.json";
+		const auto configuration = directory / "detent-relay.json";
 		auto load = [&] {
+			write(directory / "secrets.json", secrets);
 			write(configuration, host);
 			return detent::relay::load_host_options(configuration);
 		};
@@ -87,30 +91,30 @@ int main(int argc, char **argv) {
 		host.AddMember("bundles", rapidjson::Value(rapidjson::kArrayType), host.GetAllocator());
 		rejected();
 		host.RemoveMember("bundles");
-		host["credentials"][0].AddMember("bundles", rapidjson::Value(rapidjson::kArrayType), host.GetAllocator());
+		secrets["credentials"][0].AddMember("bundles", rapidjson::Value(rapidjson::kArrayType), host.GetAllocator());
 		rejected();
-		host["credentials"][0].RemoveMember("bundles");
+		secrets["credentials"][0].RemoveMember("bundles");
 		// A credential grants W13 namespace patterns, at least one, each well formed.
-		rapidjson::Value patterns(host["credentials"][0]["namespaces"], host.GetAllocator());
-		host["credentials"][0].RemoveMember("namespaces");
+		rapidjson::Value patterns(secrets["credentials"][0]["namespaces"], host.GetAllocator());
+		secrets["credentials"][0].RemoveMember("namespaces");
 		rejected();
-		host["credentials"][0].AddMember("namespaces", rapidjson::Value(rapidjson::kArrayType),
+		secrets["credentials"][0].AddMember("namespaces", rapidjson::Value(rapidjson::kArrayType),
 										 host.GetAllocator());
 		rejected();
-		host["credentials"][0]["namespaces"].PushBack("app*", host.GetAllocator());
+		secrets["credentials"][0]["namespaces"].PushBack("app*", host.GetAllocator());
 		rejected();
-		host["credentials"][0]["namespaces"] = patterns;
-		host["credentials"][0].AddMember("policy_epoch", 2, host.GetAllocator());
+		secrets["credentials"][0]["namespaces"] = patterns;
+		secrets["credentials"][0].AddMember("policy_epoch", 2, host.GetAllocator());
 		check(load().credentials[0].principal.policy_epoch == 2);
-		host["credentials"][0]["policy_epoch"].SetUint(0);
+		secrets["credentials"][0]["policy_epoch"].SetUint(0);
 		rejected();
-		host["credentials"][0].RemoveMember("policy_epoch");
-		rapidjson::Value duplicate(host["credentials"][0], host.GetAllocator());
-		host["credentials"].PushBack(duplicate, host.GetAllocator());
+		secrets["credentials"][0].RemoveMember("policy_epoch");
+		rapidjson::Value duplicate(secrets["credentials"][0], host.GetAllocator());
+		secrets["credentials"].PushBack(duplicate, host.GetAllocator());
 		rejected();
-		host["credentials"].PopBack();
+		secrets["credentials"].PopBack();
 		// Admission lanes, connections and the heap.
-		host.AddMember("connections", 16384, host.GetAllocator());
+		host.AddMember("max_clients", 16384, host.GetAllocator());
 		rapidjson::Value limits(rapidjson::kObjectType);
 		limits.AddMember("opens", 4, host.GetAllocator());
 		limits.AddMember("polls", 10000, host.GetAllocator());
@@ -119,11 +123,11 @@ int main(int argc, char **argv) {
 		auto scaled = load();
 		check(scaled.connections == 16384 && scaled.service_limits.opens == 4 &&
 			  scaled.service_limits.polls == 10000 && scaled.service_limits.closes == 4);
-		host["connections"].SetUint(0);
+		host["max_clients"].SetUint(0);
 		rejected();
-		host["connections"].SetUint(65537);
+		host["max_clients"].SetUint(65537);
 		rejected();
-		host.RemoveMember("connections");
+		host.RemoveMember("max_clients");
 		auto &configured_limits = host["service_limits"];
 		configured_limits["polls"].SetUint(0);
 		rejected();
@@ -152,17 +156,65 @@ int main(int argc, char **argv) {
 		rejected();
 		host["mirror"]["upstreams"][0].AddMember("address", "127.0.0.1", host.GetAllocator());
 		host["mirror"]["upstreams"][0].AddMember("port", 8317, host.GetAllocator());
-		host["mirror"].RemoveMember("token");
-		rejected();
-		host["mirror"].AddMember("token", "upstream-token-0123456789abcdef0123456789", host.GetAllocator());
+		// The upstream token is a secret: required in the secrets file, refused in the configuration.
 		check(load().mirror.upstream.token == "upstream-token-0123456789abcdef0123456789");
+		secrets.RemoveMember("upstream_token");
+		rejected();
+		secrets.AddMember("upstream_token", "upstream-token-0123456789abcdef0123456789", secrets.GetAllocator());
+		host["mirror"].AddMember("token", "upstream-token-0123456789abcdef0123456789", host.GetAllocator());
+		rejected();
+		host["mirror"].RemoveMember("token");
 		host.AddMember("port", 65536, host.GetAllocator());
 		rejected();
 		host["port"].SetInt(0); // binds a free port
 		check(load().endpoint.port() == 0);
 		host.RemoveMember("port");
-		host["credentials"].SetArray();
+		rapidjson::Value saved_credentials(secrets["credentials"], secrets.GetAllocator());
+		secrets["credentials"].SetArray();
 		rejected();
+		// The secrets file is private: group or other access, a link or a missing file is refused; the
+		// configuration may be group-readable but not writable by others.
+		secrets["credentials"] = saved_credentials;
+		check(bool(load().credentials.size()));
+		for (const auto mode : {std::filesystem::perms::group_read, std::filesystem::perms::others_read,
+								std::filesystem::perms::group_write}) {
+			std::filesystem::permissions(directory / "secrets.json", std::filesystem::perms::owner_read |
+																		 std::filesystem::perms::owner_write | mode);
+			bool failed = false;
+			try {
+				detent::relay::load_host_options(configuration);
+			} catch (const std::invalid_argument &) {
+				failed = true;
+			}
+			check(failed);
+		}
+		std::filesystem::permissions(directory / "secrets.json",
+									 std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+		check(bool(load().credentials.size()));
+		std::filesystem::permissions(configuration, std::filesystem::perms::owner_read |
+														std::filesystem::perms::owner_write |
+														std::filesystem::perms::group_read |
+														std::filesystem::perms::others_read);
+		detent::relay::load_host_options(configuration);
+		std::filesystem::permissions(configuration, std::filesystem::perms::owner_read |
+														std::filesystem::perms::owner_write |
+														std::filesystem::perms::group_write);
+		bool writable = false;
+		try {
+			detent::relay::load_host_options(configuration);
+		} catch (const std::invalid_argument &) {
+			writable = true;
+		}
+		check(writable);
+		write(configuration, host);
+		std::filesystem::remove(directory / "secrets.json");
+		bool missing = false;
+		try {
+			detent::relay::load_host_options(configuration);
+		} catch (const std::invalid_argument &) {
+			missing = true;
+		}
+		check(missing);
 		std::filesystem::remove_all(directory);
 		std::cout << "mirror-only relay, namespace grants, TLS and budget configuration passed\n";
 	} catch (const std::exception &error) {

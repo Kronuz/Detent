@@ -51,6 +51,7 @@ Config load_config(const std::vector<std::string>& args) {
 											{"defaults_path", {"--defaults", Path}},
 											{"runtime_dir", {"--runtime-dir", Path}},
 											{"managed_path", {"--managed", Path}},
+											{"shutdown_timeout_ms", {"--shutdown-timeout-ms", PositiveInt}},
 											{"generation_dir", {"--generation-dir", Path}},
 											{"publisher_user", {"--publisher-user", StringOrUint64, true}},
 											{"reader_validation", {"--reader-validation", String, true}},
@@ -61,7 +62,7 @@ Config load_config(const std::vector<std::string>& args) {
 		schema.emplace("reader_" + std::string(field), detent_cli::ConfigField{
 			"--reader-" + suffix, field == "overrides" ? NonnegativeUint64 : PositiveUint64, true});
 	}
-	auto file = detent_cli::load_config(args, "agent.json", schema);
+	auto file = detent_cli::load_config(args, "detent-agent.json", schema);
 	auto& settings = file.values;
 	if (!settings.contains("--defaults")) {
 		auto directories = file.path.empty()

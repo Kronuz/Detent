@@ -16,7 +16,7 @@ Detent installs three programs.
 
 1. **Precedence.** Command-line flags override environment variables, which
    override configuration-file values, which override built-in defaults.
-2. **Configuration files.** `agent.json` and `detent-authority.json` live in the
+2. **Configuration files.** `detent-agent.json` and `detent-authority.json` live in the
    platform's Detent config directory; `--config PATH` selects one explicitly.
    Relative paths inside a config file are resolved against the file's
    directory. See [Configuration](/Detent/reference/configuration/).

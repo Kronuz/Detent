@@ -177,6 +177,20 @@ def private(path: Path, value: dict[str, Any]) -> Path:
     return path
 
 
+def private_relay(path: Path, configuration: dict[str, Any]) -> Path:
+    """The relay's detent-relay.json beside its one private secrets file (`secrets`, by path)."""
+    mirror = dict(configuration["mirror"])
+    secrets = {
+        "credentials": configuration["credentials"],
+        "upstream_token": mirror.pop("token"),
+    }
+    secrets_path = private(path.with_name(f"{path.stem}-secrets.json"), secrets)
+    main = {k: v for k, v in configuration.items() if k != "credentials"}
+    main |= {"mirror": mirror, "secrets": secrets_path.name}
+    path.write_text(json.dumps(main))
+    return path
+
+
 class Run:
     def __init__(
         self, authority: Path, relay: Path, probe: Path, certificates: Path
@@ -319,7 +333,7 @@ class Run:
                 }
             ],
         } | extra
-        return private(self.directory / f"relay-{name}.json", configuration)
+        return private_relay(self.directory / f"relay-{name}.json", configuration)
 
     def start_relay(self, name: str) -> None:
         path = self.relay_configuration(name, *self.upstreams[name])

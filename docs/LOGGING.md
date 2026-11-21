@@ -29,7 +29,7 @@ detent-authority --color truecolor -v >detent.log 2>&1
 
 Authority and relay HTTP access logging is pending a [shared transport completion observer](HTTP_LOGGING_ARCHITECTURE.md). Their deferred/owned-stream replies outlive `handle()`; wrapping them with the synchronous middleware would report premature statuses. Daemon lifecycle tinting already applies to both.
 
-Both `agent.json` and `detent-authority.json` accept these fields:
+Both `detent-agent.json` and `detent-authority.json` accept these fields:
 
 ```json
 {"log_level":"info","verbosity":0,"color":"auto"}

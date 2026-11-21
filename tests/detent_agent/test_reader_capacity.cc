@@ -15,7 +15,7 @@ static_assert(!std::is_move_constructible_v<ReaderCapacity>);
 static_assert(!std::is_copy_constructible_v<ReaderCapacity>);
 int main(int argc, char **argv) {
 	assert(argc == 2);
-	const std::filesystem::path root(argv[1]), path = root / "agent.json";
+	const std::filesystem::path root(argv[1]), path = root / "detent-agent.json";
 	std::filesystem::remove_all(root);
 	std::filesystem::create_directories(root);
 	auto write = [&](std::string_view value) {

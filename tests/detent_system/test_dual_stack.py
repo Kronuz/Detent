@@ -128,16 +128,20 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
             "cluster": CONTEXT["cluster"],
             "namespaces": ["ns"],
             "upstreams": [{"address": "::1", "port": free_port()}],
-            "token": TOKEN,
             "timeout_ms": 2000,
         },
+        "secrets": "relay-secrets.json",
+    }
+    secrets = {
+        "upstream_token": TOKEN,
         "credentials": [
             {"token": "cd" * 16, "principal": "reader", "namespaces": ["ns"]}
         ],
     }
-    path = directory / "relay.json"
+    (directory / "relay-secrets.json").write_text(json.dumps(secrets))
+    (directory / "relay-secrets.json").chmod(0o600)
+    path = directory / "detent-relay.json"
     path.write_text(json.dumps(configuration))
-    path.chmod(0o600)
     return path
 
 

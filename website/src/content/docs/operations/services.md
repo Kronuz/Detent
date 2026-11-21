@@ -27,7 +27,7 @@ The units pass explicit configuration files, so create them first. Create the au
 
 ```sh
 echo '{"authority": "/etc/detent/authority.json"}' | sudo tee /etc/detent/detent-authority.json
-echo '{"managed_path": "/etc/detent/managed.json"}' | sudo tee /etc/detent/agent.json
+echo '{"managed_path": "/etc/detent/managed.json"}' | sudo tee /etc/detent/detent-agent.json
 ```
 
 The agent exits with `no source configured` unless `managed_path` (or
@@ -131,8 +131,8 @@ Managed generations are persistent state, separate from runtime files: the
 systemd template provisions `StateDirectory=detent-agent` (`/var/lib/detent-agent`,
 mode `0755`). On macOS and FreeBSD, provision `/var/db/detent-agent` owned by
 the service account. Keep `managed.json` private (`0600`) and distribute the
-public `agent.json` separately.
+public `detent-agent.json` separately.
 
 ## Durable relay
 
-The optional [durable relay](/Detent/guides/durable-relay/) has matching systemd, launchd and rc.d templates. It uses `relay.json`, private durable roots and authenticated TLS on loopback port `8318` by default. Run it in the foreground under the service manager. Hosting remains under Stage 5B qualification.
+The optional [durable relay](/Detent/guides/durable-relay/) has matching systemd, launchd and rc.d templates. It uses `detent-relay.json`, private durable roots and authenticated TLS on loopback port `8318` by default. Run it in the foreground under the service manager. Hosting remains under Stage 5B qualification.

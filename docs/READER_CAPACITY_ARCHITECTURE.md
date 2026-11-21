@@ -2,7 +2,7 @@
 
 **Status:** Source review and focused native/process qualification passed; real CLI at 1M remains open.
 
-The reader and status commands currently open managed generations under default limits. Startup daemon capacity does not establish capacity for those independent consumers. Extend the existing public `agent.json` schema with typed unsigned reader settings; preserve flag, environment and configuration precedence. Keep signed legacy fields unchanged.
+The reader and status commands currently open managed generations under default limits. Startup daemon capacity does not establish capacity for those independent consumers. Extend the existing public `detent-agent.json` schema with typed unsigned reader settings; preserve flag, environment and configuration precedence. Keep signed legacy fields unchanged.
 
 Configured reader admission requires a checked, root/effective-user-owned regular file without group/other write permission or a final symlink. Inspect the same descriptor used for the bounded read and reject an altered extent. Legacy files without reader settings retain their current behavior. Never read capacity authority from image metadata or private delivery credentials.
 

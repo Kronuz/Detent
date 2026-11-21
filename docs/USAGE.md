@@ -139,11 +139,11 @@ A managed `detent-agent` receives authenticated deliveries from a durable author
 
 `get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies a fallback for that read, and `--defaults PATH` supplies baked defaults for knobs the generation omits.
 
-With no `--managed` and no `--generation-dir` (or `managed_path` and `generation_dir` in `agent.json`), both `detent get` and `detent-agent` exit with `no source configured`.
+With no `--managed` and no `--generation-dir` (or `managed_path` and `generation_dir` in `detent-agent.json`), both `detent get` and `detent-agent` exit with `no source configured`.
 
 ### Persistent agent configuration
 
-Write `agent.json` in the user config directory:
+Write `detent-agent.json` in the user config directory:
 
 | Platform | User config directory | System fallback |
 | --- | --- | --- |
@@ -151,7 +151,7 @@ Write `agent.json` in the user config directory:
 | FreeBSD | `$XDG_CONFIG_HOME/detent`, otherwise `~/.config/detent` | `/usr/local/etc/detent` |
 | macOS | `~/Library/Application Support/Detent` | `/Library/Application Support/Detent` |
 
-An absolute `XDG_CONFIG_HOME` overrides the native user location on macOS too. The first existing `agent.json` wins (user before system); `--config PATH` selects a file explicitly. Config files contain JSON:
+An absolute `XDG_CONFIG_HOME` overrides the native user location on macOS too. The first existing `detent-agent.json` wins (user before system); `--config PATH` selects a file explicitly. Config files contain JSON:
 
 ```json
 {
@@ -164,7 +164,7 @@ Then use plain `detent get NAME` from any directory.
 
 ### Optional local defaults and runtime files
 
-A delivered generation already contains knob definitions. `defaults.json` is optional and supplies local fallback knobs when no generation is present yet or a generation omits a knob. Place it beside `agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped.
+A delivered generation already contains knob definitions. `defaults.json` is optional and supplies local fallback knobs when no generation is present yet or a generation omits a knob. Place it beside `detent-agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped.
 
 Runtime files (`agent.pid`, `agent.log`) go in `$XDG_RUNTIME_DIR/detent` when an absolute XDG runtime directory is set. Otherwise the agent uses a private `detent-<uid>` directory under the system temporary directory (`TMPDIR` when set, normally `/tmp` on Linux/FreeBSD and a per-user temporary directory on macOS). It creates the runtime directory with mode `0700`. `runtime_dir` in config or `--runtime-dir PATH` overrides it.
 
@@ -197,7 +197,7 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 
 The managed profile connects the agent to the authenticated authority endpoint and publishes durable immutable generations. Select the managed profile with `detent-agent --managed managed.json --generation-dir ./agent-state`; readers use the public generation directory and never open its credential configuration.
 
-Provision `managed.json` as a regular, single-link file owned by root or the service account, with mode `0600` or controlled group-readable `0640`. Its required fields are:
+Provision `managed.json` as a regular, single-link file owned by root or the service account, with mode `0600`: the agent refuses a file that any group or other can access. It is the secrets file `detent-agent.json` names by `managed_path`. Its required fields are:
 
 ```json
 {
@@ -221,7 +221,7 @@ Initialize an empty directory explicitly once. Missing directory components are 
 
 Later starts omit `--initialize-managed` and require an existing managed store. A start never silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
 
-A public `agent.json` can select `managed_path` and `generation_dir`. A shell read attaches to its knob's namespace entry.
+A public `detent-agent.json` can select `managed_path` and `generation_dir`. A shell read attaches to its knob's namespace entry.
 
 `detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
 
@@ -253,7 +253,7 @@ The trusted `publisher_user` setting accepts an account name or numeric UID. Its
 
 C++ applications select the same prepared path with `detent::local::make_managed_read_source(directory, publisher_uid, limits, identity)`. Limits default to `ViewLimits::prepared()` and identity is optional. Keep the resulting `Client` alive across lookups: it retains mapped pages, polls the protected selection for new generations, and gives existing read views a stable leased generation. Each client currently owns its source; shared source contexts remain a separate qualification item.
 
-Public `agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
+Public `detent-agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
 
 | Setting | Default | Bound |
 | --- | --- | --- |

@@ -4,14 +4,14 @@ title: "detent-agent"
 
 ```text
 detent-agent --managed PRIVATE_CONFIG [--daemonize] [--generation-dir PATH]
-             [--initialize-managed]
+             [--initialize-managed] [--shutdown-timeout-ms MS]
 detent-agent --status
 detent-agent --help | -h
 ```
 
 The host-local agent. It receives authenticated deliveries from the durable
 authority (or a relay) and publishes immutable generations on disk. Without
-`--managed` (or `managed_path` in `agent.json`) it exits with status 1 and
+`--managed` (or `managed_path` in `detent-agent.json`) it exits with status 1 and
 `no source configured`.
 
 ---
@@ -23,6 +23,7 @@ authority (or a relay) and publishes immutable generations on disk. Without
 | `--managed PRIVATE_CONFIG` | The private credential file, `managed.json` |
 | `--generation-dir PATH` | Durable generation directory |
 | `--initialize-managed` | Provision an empty generation directory (first start only) |
+| `--shutdown-timeout-ms MS` | Bound on draining after SIGINT or SIGTERM (default `35000`; `shutdown_timeout_ms` in `detent-agent.json`) |
 
 See [Managed Delivery](/Detent/guides/managed-delivery/) for `managed.json`.
 
@@ -30,13 +31,17 @@ See [Managed Delivery](/Detent/guides/managed-delivery/) for `managed.json`.
 
 | Option | Meaning |
 | --- | --- |
-| `--config PATH` | Use this `agent.json` |
+| `--config PATH` | Use this `detent-agent.json` |
 | `--runtime-dir PATH` | Directory for `agent.pid` and `agent.log` |
 | `--system` | Use system configuration and runtime locations |
 | `--daemonize` | Run in the background (user operation only) |
 | `--status` | Report the running agent and its durable generation, then exit |
 
 `--system --daemonize` and `--status --daemonize` are rejected.
+
+SIGINT or SIGTERM closes delivery and drains within `--shutdown-timeout-ms`, then
+exits 0 (`75` when work was left). A second signal changes nothing yet; a third
+flushes and dies.
 
 ---
 
@@ -69,7 +74,7 @@ agent is running and 1 otherwise.
 
 | File | Location | Purpose |
 | --- | --- | --- |
-| `agent.json` | Config directory | Optional configuration |
+| `detent-agent.json` | Config directory | Optional configuration |
 | `agent.pid` | Runtime directory | Lock and PID |
 | `agent.log` | Runtime directory | Background (`--daemonize`) logs |
 

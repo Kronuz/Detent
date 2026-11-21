@@ -1,7 +1,7 @@
 // Shared CLI entry point for detent-agent lifecycle and detent reads.
 // DETENT_READER excludes daemon and HTTP code from the reader binary.
 //
-// Configuration: flags override environment variables, then agent.json.
+// Configuration: flags override environment variables, then detent-agent.json.
 // Baked defaults are optional; source-only agents start with an empty snapshot.
 #ifndef DETENT_READER
 #include "../detent_cli/logging.hh"
@@ -101,17 +101,28 @@ int run_agent(const std::vector<std::string> &args) {
 	if (!g_managed_config)
 		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or set managed_path");
 #ifdef DETENT_WITH_MANAGED_AGENT
+	detent_agent::ManagedSettings managed;
+	managed.detach = detach;
+	if (const auto timeout = setting(args, "--shutdown-timeout-ms", nullptr)) {
+		std::uint64_t milliseconds = 0;
+		const auto [end, error] = std::from_chars(timeout->data(), timeout->data() + timeout->size(), milliseconds);
+		if (error != std::errc{} || end != timeout->data() + timeout->size() || milliseconds < 1 ||
+			milliseconds > 365ull * 24 * 3600 * 1000)
+			throw std::invalid_argument("shutdown_timeout_ms must be an integer between 1 and 31536000000");
+		managed.shutdown_timeout = std::chrono::milliseconds(milliseconds);
+	}
 	return detent_cli::run_daemon(
 		detach, runtime_dir() / "agent.log", [&](const detent_cli::Ready &ready) {
 			detent_cli::ProcessLock lock(pid_path(), g_system);
 			if (!lock.acquired())
 				return 0;
+			task::stop_signals signals; // the first thread after the fork; SIGINT and SIGTERM stop
 			detent_logging::Session logging(g_logging_settings);
 			return detent_agent::run_managed(
 				*g_managed_config, *g_generation_dir,
 				has_flag(args, "--initialize-managed") ? detent::local::StoreOpenMode::FreshEmpty
 													   : detent::local::StoreOpenMode::ExistingManaged,
-				g_system, ready);
+				g_system, managed, ready, signals);
 		}, detent_agent::managed_startup_timeout);
 #else
 	throw std::runtime_error("managed agent support is disabled in this build");
@@ -307,7 +318,7 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "A user read starts the managed detent-agent when no durable generation is present;\n"
 					 "system reads attach to the managed service. Without --managed or --generation-dir\n"
 					 "(or managed_path or generation_dir in the config) the read fails: no source configured.\n"
-					 "Config: agent.json in the standard Detent config directory.\n"
+					 "Config: detent-agent.json in the standard Detent config directory.\n"
 					 "Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
 					 "Reader capacity: --reader-records N, --reader-image-bytes N, --reader-heap-bytes N,\n"
 					 "--reader-mapping-bytes N; see USAGE.md for all reader_* settings.\n"
@@ -325,17 +336,19 @@ const char *kUsage =
 	"\n"
 	"Without --managed (or managed_path in the config) it fails: no source configured.\n"
 	"Runs in the foreground unless --daemonize is supplied.\n"
+	"SIGINT or SIGTERM stops: delivery closes and drains within --shutdown-timeout-ms (default 35000).\n"
+	"A second signal changes nothing yet; a third flushes and dies.\n"
 	"Use signals or the service manager to stop/restart.\n"
 	"Use detent get NAME to read or auto-start a user agent.\n"
 	"\n"
-	"Configuration: --config PATH, else $XDG_CONFIG_HOME/detent/agent.json\n"
+	"Configuration: --config PATH, else $XDG_CONFIG_HOME/detent/detent-agent.json\n"
 	"(Linux/FreeBSD: ~/.config/detent; macOS: ~/Library/Application Support/Detent).\n"
 	"System fallback: /etc/detent (FreeBSD: /usr/local/etc/detent; macOS: /Library/Application "
 	"Support/Detent).\n"
 	"JSON fields:\n"
-	"defaults_path, runtime_dir, managed_path, generation_dir, publisher_user.\n"
+	"defaults_path, runtime_dir, managed_path, generation_dir, publisher_user, shutdown_timeout_ms.\n"
 	"managed_path and generation_dir select durable authority delivery.\n"
-	"Paths in config are relative to the config file. defaults.json beside agent.json\n"
+	"Paths in config are relative to the config file. defaults.json beside detent-agent.json\n"
 	"is discovered automatically by detent get.\n"
 	"Flags override environment variables, which override config settings.\n"
 	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
@@ -385,7 +398,7 @@ int main(int argc, char** argv) {
 				continue;
 			if (detent_agent::is_reader_option(arg) || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
-				arg == "--publisher-user" || arg == "--reader-validation") {
+				arg == "--publisher-user" || arg == "--reader-validation" || arg == "--shutdown-timeout-ms") {
 				if (++i == args.size() || args[i].starts_with('-')) throw std::runtime_error(arg + " requires a value");
 				continue;
 			}

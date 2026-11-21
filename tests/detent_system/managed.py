@@ -38,6 +38,21 @@ def table_positions(table: bytes) -> dict[str, int] | None:
     return positions
 
 
+def relay_files(path: Path, configuration: dict[str, object]) -> None:
+    """The relay's detent-relay.json beside its one private secrets file (`secrets`, by path)."""
+    mirror = dict(configuration["mirror"])  # type: ignore[call-overload]
+    secrets = {
+        "credentials": configuration["credentials"],
+        "upstream_token": mirror.pop("token"),
+    }
+    secrets_path = path.with_name(f"{path.stem}-secrets.json")
+    secrets_path.write_text(json.dumps(secrets))
+    secrets_path.chmod(0o600)
+    main = {k: v for k, v in configuration.items() if k != "credentials"}
+    main |= {"mirror": mirror, "secrets": secrets_path.name}
+    path.write_text(json.dumps(main))
+
+
 class ManagedCohort:
     def __init__(
         self,
@@ -59,7 +74,9 @@ class ManagedCohort:
         relay_count: int = 2,
         label: str = "",
         observe: Callable[[int, bytes], None] | None = None,
+        shutdown_timeout_ms: int | None = None,
     ) -> None:
+        self.shutdown_timeout_ms = shutdown_timeout_ms
         self.authority = authority
         self.capacity = capacity
         if relay_count not in (1, 2):
@@ -136,7 +153,7 @@ class ManagedCohort:
                 + 32,
             )
             configuration.update(
-                connections=active + 128,
+                max_clients=active + 128,
                 control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),
                 service_limits={
                     "opens": min(256, active + 64),
@@ -170,11 +187,10 @@ class ManagedCohort:
                     reservation.bind((self.authority.address, 0))
                     port = reservation.getsockname()[1]
                 relay_ports.append(port)
-                config = directory / "relay.json"
-                config.write_text(
-                    json.dumps(self.relay_configuration(directory, port, endpoints))
+                config = directory / "detent-relay.json"
+                relay_files(
+                    config, self.relay_configuration(directory, port, endpoints)
                 )
-                config.chmod(0o600)
                 self.relays.append(
                     await self.actors.start(
                         f"{self.label}relay-{index}",
@@ -217,19 +233,21 @@ class ManagedCohort:
             managed.write_text(json.dumps(source))
             managed.chmod(0o600)
             self.source_paths.append(managed)
-            configuration = {
+            configuration: dict[str, object] = {
                 "managed_path": str(managed),
                 "generation_dir": str(directory / "generations"),
                 "runtime_dir": str(directory / "run"),
             }
-            config = directory / "agent.json"
+            if self.shutdown_timeout_ms is not None:
+                configuration["shutdown_timeout_ms"] = self.shutdown_timeout_ms
+            config = directory / "detent-agent.json"
             config.write_text(json.dumps(configuration))
             config.chmod(0o644)
             self.members.append(await self.start_agent(index, initialize=True))
 
     async def start_agent(self, index: int, *, initialize: bool) -> Actor:
         """Agent `index` on its configuration; a restart opens the store it holds."""
-        config = self.directory / f"agent-{index}" / "agent.json"
+        config = self.directory / f"agent-{index}" / "detent-agent.json"
         observe = self.observe
 
         def output(payload: bytes) -> None:

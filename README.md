@@ -266,7 +266,7 @@ Most of the difference comes from RapidJSON and ordinary C++ runtime support.
 ./build/src/detent-authority --authority authority.json
 ```
 
-`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](website/src/content/docs/reference/cli/detent-authority.md).
+`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `detent-agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](website/src/content/docs/reference/cli/detent-authority.md).
 
 ### Running detent-agent
 
@@ -278,7 +278,7 @@ With a managed configuration (see [managed authority delivery](docs/USAGE.md#man
 kill -TERM "$(./build/src/detent-agent --status --managed managed.json | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
-`get` starts the agent when no durable generation is present. With neither `--managed` nor `--generation-dir` (or `managed_path` and `generation_dir` in `agent.json`), `detent get` and `detent-agent` exit with `no source configured`. For persistent settings, put `agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
+`get` starts the agent when no durable generation is present. With neither `--managed` nor `--generation-dir` (or `managed_path` and `generation_dir` in `detent-agent.json`), `detent get` and `detent-agent` exit with `no source configured`. For persistent settings, put `detent-agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
 
 ```json
 {"managed_path": "managed.json", "generation_dir": "agent-state"}

@@ -9,7 +9,7 @@
 		<string>/usr/local/bin/detent-relay</string>
 		<string>--system</string>
 		<string>--config</string>
-		<string>/Library/Application Support/Detent/relay.json</string>
+		<string>/Library/Application Support/Detent/detent-relay.json</string>
 		<string>--runtime-dir</string>
 		<string>/var/run/detent/relay</string>
 	</array>

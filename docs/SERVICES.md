@@ -10,7 +10,7 @@ Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivi
 
 Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid file is `0644` so other users can inspect status. Any local account that can read the generation directory can read every published knob. Keep secrets out of knobs.
 
-Use `agent.json` and `detent-authority.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. `detent-authority.json` names the authority configuration:
+Use `detent-agent.json` and `detent-authority.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. `detent-authority.json` names the authority configuration:
 
 ```json
 {"authority": "/etc/detent/authority.json"}
@@ -75,7 +75,7 @@ Both `detent-agent` and `detent-authority` run directly in the foreground. They 
 
 Managed agent generations are persistent state, separate from authority data and runtime PID files. System defaults are `/var/lib/detent-agent` on Linux and `/var/db/detent-agent` on macOS and FreeBSD. The systemd template provisions `StateDirectory=detent-agent` with mode `0755`; the FreeBSD template provisions the matching directory. Provision the macOS directory with the service-account owner and mode `0755` before loading its job.
 
-Keep the managed credential file private (`0600` or controlled `0640`), and distribute public `agent.json` configuration separately. System artifacts default to `0644` so application accounts can read and lease generations; private deployment can select `0640` and a shared group. Directory traversal permission must match the intended readers. Authority storage remains private. Journald, launchd, or the configured rc logging owns supervised logs; runtime PID paths remain temporary.
+Keep the managed credential file private (`0600` or controlled `0640`), and distribute public `detent-agent.json` configuration separately. System artifacts default to `0644` so application accounts can read and lease generations; private deployment can select `0640` and a shared group. Directory traversal permission must match the intended readers. Authority storage remains private. Journald, launchd, or the configured rc logging owns supervised logs; runtime PID paths remain temporary.
 
 ## Durable relay service
 
@@ -85,6 +85,6 @@ The relay's mirror directory requires service ownership and mode `0700`. Readers
 
 ### Reader capacity and service credentials
 
-Set public `publisher_user` to the numeric UID of the configured agent service account (`id -u detent`, or `id -u _detent` on macOS) when provisioning `agent.json`. Keep it synchronized with service-manager user overrides. Without this setting, system readers resolve the platform's default service account; they never infer trust from a generation directory's owner. Public reader configuration contains no delivery credentials. Managed startup and automatic reads allow up to 180 seconds for preparation, covering the measured approximately 60-second 5M full recovery with additional publication and drainage headroom; this allowance is not a certified recovery-time bound.
+Set public `publisher_user` to the numeric UID of the configured agent service account (`id -u detent`, or `id -u _detent` on macOS) when provisioning `detent-agent.json`. Keep it synchronized with service-manager user overrides. Without this setting, system readers resolve the platform's default service account; they never infer trust from a generation directory's owner. Public reader configuration contains no delivery credentials. Managed startup and automatic reads allow up to 180 seconds for preparation, covering the measured approximately 60-second 5M full recovery with additional publication and drainage headroom; this allowance is not a certified recovery-time bound.
 
-Applications and service status checks use the public `agent.json` reader settings described in [usage](USAGE.md#managed-reader-capacity). Configure `reader_records`, image bounds and reader heap/mapping budgets for the admitted deployment size; the private daemon capacity does not automatically authorize a reader increase. A root-owned `0644` public file is valid when its ACL does not add access rules. Keep TLS material and tokens in the existing private managed configuration.
+Applications and service status checks use the public `detent-agent.json` reader settings described in [usage](USAGE.md#managed-reader-capacity). Configure `reader_records`, image bounds and reader heap/mapping budgets for the admitted deployment size; the private daemon capacity does not automatically authorize a reader increase. A root-owned `0644` public file is valid when its ACL does not add access rules. Keep TLS material and tokens in the existing private managed configuration.

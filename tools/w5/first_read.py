@@ -61,7 +61,7 @@ def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> N
         managed["port"] = unavailable.getsockname()[1]
         (arm / "managed.json").write_text(json.dumps(managed, indent=2) + "\n")
         (arm / "managed.json").chmod(0o600)
-        (arm / "agent.json").write_text(
+        (arm / "detent-agent.json").write_text(
             json.dumps(
                 {
                     "managed_path": "managed.json",
@@ -76,7 +76,7 @@ def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> N
         started = time.monotonic()
         with log.open("wb") as stream:
             process = subprocess.Popen(
-                [str(build / AGENT), "--config", str(arm / "agent.json")],
+                [str(build / AGENT), "--config", str(arm / "detent-agent.json")],
                 stdin=subprocess.DEVNULL,
                 stdout=stream,
                 stderr=subprocess.STDOUT,

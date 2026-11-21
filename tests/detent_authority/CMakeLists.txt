@@ -114,6 +114,8 @@ if(DETENT_BUILD_AUTHORITY)
   set_tests_properties(test_authority_daemon_ready PROPERTIES TIMEOUT 90)
   add_test(NAME test_authority_daemon_stop COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon_stop.sh $<TARGET_FILE:detent-authority>)
   set_tests_properties(test_authority_daemon_stop PROPERTIES TIMEOUT 90)
+  add_test(NAME test_authority_daemon_sigterm COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon_sigterm.sh $<TARGET_FILE:detent-authority>)
+  set_tests_properties(test_authority_daemon_sigterm PROPERTIES TIMEOUT 90)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)

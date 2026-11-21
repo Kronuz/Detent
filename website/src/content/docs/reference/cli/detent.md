@@ -13,7 +13,7 @@ detent help | --help
 integer. It maps the managed agent's published generation read-only and
 evaluates locally; it doesn't send a request to the agent. With neither
 `--managed` nor `--generation-dir` (or `managed_path` and `generation_dir` in
-`agent.json`), it fails with `no source configured`.
+`detent-agent.json`), it fails with `no source configured`.
 
 ---
 
@@ -24,7 +24,7 @@ evaluates locally; it doesn't send a request to the agent. With neither
 | `--hash VAL` | Hash value for rollouts (a stable user, account or host ID) |
 | `--switch VAL` | Switch value for group overrides |
 | `--default VAL` | Fallback printed if the knob can't be read; publishes nothing |
-| `--config PATH` | Use this `agent.json` |
+| `--config PATH` | Use this `detent-agent.json` |
 | `--defaults PATH` | Typed fallback knobs when no generation is present or one omits a knob |
 | `--runtime-dir PATH` | Runtime directory holding the agent's pid and log |
 | `--system` | Attach to the system agent; never start one |

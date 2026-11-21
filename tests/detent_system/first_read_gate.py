@@ -115,7 +115,7 @@ def publisher(
         (arm / "managed.json").write_text(json.dumps(managed, indent=2) + "\n")
         (arm / "managed.json").chmod(0o600)
         (arm / "runtime").mkdir(mode=0o700, exist_ok=True)
-        config = arm / "agent.json"
+        config = arm / "detent-agent.json"
         config.write_text(
             json.dumps(
                 {

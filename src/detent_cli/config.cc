@@ -124,7 +124,8 @@ void reject_removed_options(const std::string& program, const std::vector<std::s
 	}
 }
 
-ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema) {
+ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema,
+	bool role_fields) {
 	bool explicit_path = false;
 	auto path = config_path(args, filename, explicit_path);
 	if (!explicit_path && !std::filesystem::exists(path)) return {};
@@ -169,6 +170,7 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		std::string key(it->name.GetString(), it->name.GetStringLength());
 		auto field = schema.find(key);
 		if (field == schema.end()) {
+			if (role_fields) continue;
 			for (const auto& removed : kRemoved)
 				if (removed.field == key && filename == std::string(removed.program) + ".json")
 					fail(std::string(removed.field) + " was removed: " + std::string(removed.reason));
