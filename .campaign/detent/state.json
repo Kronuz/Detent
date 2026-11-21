@@ -3714,18 +3714,47 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-faultfs",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-20T21:51:06",
+          "commit": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "criteria": {
+            "A1": "261120-214850-8b9fd8",
+            "A2": "261120-214851-3501a7; fails without: 261120-174610-8e01d0, 261120-174615-845289, 261120-191233-9023a5, 261120-191234-ec18f5, 261120-191239-4facd6, 261120-191243-d3c8ff, 261120-191245-54ff3d, 261120-191247-b4ddf9, 261120-192034-4f37ea, 261120-192035-7daa7f, 261120-192036-407361, 261120-192038-fc047f, 261120-192039-713715, 261120-192040-608dd4, 261120-192042-ab67ca",
+            "A3": "261120-215018-4d3283"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "bb961b3250b89abce85cd2a99c22529179acc786",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "bb961b3250b89abce85cd2a99c22529179acc786",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+          "reason": "",
+          "tested": "bb961b3250b89abce85cd2a99c22529179acc786"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-20T19:23:16",
-      "worktree": "../consensus-wt/detent/consensus-faultfs"
+      "updated": "2026-11-20T21:51:09",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
