@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-224640-2fdee7 261120-224642-a80a03 261120-224643-80f23c 261120-224644-bffc97 261120-224646-14180d 261120-224647-241c15 261120-224649-8aa13f 261120-224650-14d36a 261120-224652-17c02f 261120-224653-8e3e56
+State: waiting on jobs 261120-225730-f34285 261120-225734-b342d4 261120-225736-8a7fed 261120-225738-b62375 261120-225740-b2bdb1 261120-225742-c5e61e 261120-225744-fa0a56 261120-225747-e54d29 261120-225748-45cc05 261120-225750-c12778
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -20,7 +20,8 @@ driver_simulation installs, groups_test install over the real host transport.
 1. Read the jobs at consensus:740453b (State) and CI there. CI at 5982871 failed on every
    platform in worker_test, "held ordinary output retains activation completion while
    reclamation continues"; 740453b restores reclaim under held output (ruling 6). Job
-   261120-224642-a80a03 runs worker_test at 017c918 (the failure, expected to fail).
+   261120-225734-b342d4 runs worker_test at 017c918 (the failure, expected to fail). The
+   224640..224653 jobs were malformed (zsh kept an unquoted flag string whole) and are cancelled.
 2. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
    land; rerun the jobs.
 3. After consensus-quiescence merges: a follower's orphaned incoming image ends only when
