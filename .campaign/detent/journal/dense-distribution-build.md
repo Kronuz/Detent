@@ -1,8 +1,8 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261120-224455-3acb56 (relay-history-default-limits mutant),
-261120-224456-b17d9f (5M row, strict, at Detent:f835a635), and CI at Detent:392a5a39 (the gate
-suite is CI's macos-arm64 job, D57).
+State: waiting on jobs 261121-054949-76d987 (5M diagnosis), 261121-055507-72276e,
+261121-055537-32a95e, 261121-055539-91854b, 261121-055552-cb3744, 261121-055552-de53f9, and CI at
+Detent:d589ce42.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -10,6 +10,33 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Round at Detent:d589ce42 (resume after the idle hours):
+- Merged the history-ranges task's last commit (journal only, Detent:01389fc7) and main (8 files,
+  clean, Detent:02b7faa4).
+- CI at Detent:392a5a39 failed on this branch's code, the same on every job:
+  1. GCC/libstdc++ 14 refused `std::optional<Partial>::emplace()` for a struct nested in
+     HttpUpstream::Impl (NSDMI not parsed when the trait is first checked): every Linux build.
+     Partial moves to namespace scope (Detent:97ba7188).
+  2. test_http_upstream chain: the test's relay credential had no policy epoch, which the registry
+     refuses ("empty relay registry grant"). This is also why history-ranges' unmutated job
+     261120-163549-0dcf85 (and 261120-163554-51c319, 261120-163604-d7f783) failed at Detent:89df216a.
+  3. test_relay_pages large_base: the test decoded with the default 500K records bound below the
+     500,001 keys it sends ("session frames record bound"), so mutant job 261120-224455-3acb56 is
+     void (the unmutated test fails too). Fixes in Detent:fa12b348.
+  4. Docs check: `range_not_satisfiable` undocumented; the ranged file route is documented in the
+     HTTP API reference and RELAY.md (Detent:d589ce42).
+- test_system_relay_pages on macOS x86_64 CI (2 of 2 runs, 300 s timeout): seed 43 s, cold boot
+  1.64 s, then nothing printed while the relay is SIGSTOPped for the 55,555-key rewrite (CI artifact
+  events: no authority output, no actor stops). ARM 24.8 s, Linux 9-12 s. Each rewrite transaction
+  now prints its time and position, and a failure prints before teardown (Detent:5ee61b56); a local
+  x3 under load is in 261121-055539-91854b. Cause pending those prints.
+- 5M row 261120-224456-b17d9f: the pages agent booted (4 transfers of 30.9 MB, 0 hashed to build,
+  16.2 s), then the priming records agent got 58 "session reset: admission_full" (any 503/429 from
+  the relay) in 60 s and timed out preparing. Diagnosis 261121-054949-76d987 prints the relay's
+  pressure catches, answer sizes and the agent's reset statuses.
+- Void: 261120-164331-e1c84f and 261120-164333-a12679 ran at task journal heads that predate
+  tests/ctest_mutant.sh (exit 127).
 
 Round after suite 261120-161546-ecf083 (failed at Detent:2c0a7101):
 - test_system_runner_runtime: the writer unit fakes lacked namespace_revision, which result_json
@@ -253,6 +280,9 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 
 ## Rulings I made
 
+- website/src/content/docs/reference/http-api/authority.md is outside the file set; the docs check
+  reads only the site, and the ranged route this quest added is public API, so it is documented
+  there. Lead: add it to the set.
 - New files outside the listed set, each beside a listed one: tests/detent_system/mutants/
   positions-counted.patch, tests/detent_relay/mutants/relay-history-default-limits.patch,
   tests/detent_system/test_writers.py (the writers' fakes); history-ranges brought
