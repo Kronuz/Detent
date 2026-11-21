@@ -1,19 +1,15 @@
 # journal-tail-second-sector: journal
 
-State: waiting on jobs 261121-115925-e0216a 261121-115928-e3ca87, CI run 44943792157 (fix round 1: durability F1)
+State: ready to land (durability review accepted, F1=261121-115925-e0216a)
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round 1 of the durability review (CHANGES at journal:421011a). F1 fixed at journal:e912a28;
-F2 and F3 are the lead's design quest journal-tail-cut-header-design, left alone.
+Nothing: F1 fixed and accepted at journal:e912a28; F2 and F3 are journal-tail-cut-header-design's.
 
 ## Next
 
-1. When the jobs pass: Evidence rows at journal:e912a28, the 200-seed counts into
-   docs/mechanisms/turn-log-damage.md's Evidence (docs-only commit), CI at the head.
-2. Lead: `campaign accept journal-tail-second-sector durability --confirm F1=261121-115925-e0216a`.
-3. Merge main once xapiand:journal-turn-buffers lands.
+1. Merge main once xapiand:journal-turn-buffers lands.
 
 ## Blocked on
 
@@ -36,11 +32,17 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending at journal:e912a28: 261121-115925-e0216a (T9 200 seeds, macOS). At journal:421011a: 261121-103735-cf5964 |
-| A2 | pending at journal:e912a28: 261121-115925-e0216a (macOS), 261121-115928-e3ca87 (FreeBSD VM); fails without: 261121-115934-0256e0 at journal:409032c (cut-header proof), 261121-103815-c377f1 at journal:ba19ae0 (stale_record_tears) |
-| A3 | 261121-115931-e97d8e (seed 3 @4096 passes at journal:e912a28); fails without: 261121-103756-644f6c at journal:b9e8c5f |
-| A4 | journal docs/mechanisms/turn-log-damage.md: crash model (what proves a sector, a cut header proves none), rules 1 and 2, Limits, Evidence (`cut_header_tears` row) |
-| A5 | ci:macos-arm64 at journal:e912a28 (pushed; run pending) |
+| A1 | 261121-115925-e0216a |
+| A2 | 261121-115925-e0216a, 261121-115928-e3ca87; fails without: 261121-103815-c377f1, 261121-115934-0256e0 |
+| A3 | 261121-115931-e97d8e; fails without: 261121-084916-f70fcc, 261121-103756-644f6c |
+| A4 | docs/mechanisms/turn-log-damage.md at e912a28 |
+| A5 | ci:macos-arm64 |
+
+200-seed T9 at journal:e912a28, identical on macOS (261121-115925-e0216a) and the FreeBSD VM
+(261121-115928-e3ca87): 1,228,209 checks, 0 failures; 242,242 crash points and 155,754 simulated
+tears report no damage; 18,045 damaged crossing fragments reported (9,632 @4096, 8,413 @2048),
+996 more with a cut header only counted (564, 432). CI 44943792157 green at journal:e912a28. The
+doc's Evidence paragraph keeps the journal:421011a counts; the landed code stays journal:e912a28.
 
 ## Result
 
