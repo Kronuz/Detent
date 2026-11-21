@@ -15927,6 +15927,8 @@
       "after": [
         "loop-idle-waits"
       ],
+      "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
+      "branch": "quest/detent/multi-voter-idle-wake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -15978,9 +15980,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-20T18:25:36"
+      "updated": "2026-11-21T13:12:33",
+      "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
       "accepted": {},
