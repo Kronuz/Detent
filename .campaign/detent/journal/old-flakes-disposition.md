@@ -1,6 +1,6 @@
 # old-flakes-disposition: journal
 
-State: resumed; reading the ended jobs; reruns queued
+State: waiting on jobs 261121-152400-2cea7c 261121-153510-7f1905 261121-153523-37854b 261121-153524-08d011 261121-153526-d94ed9 261121-153527-140682 261121-153555-ce8385 261121-153557-8e000d 261121-153558-fea7be 261121-153600-ce6a7a 261121-153606-ffac65
 Quest: .campaign/detent/quests/old-flakes-disposition.md (the lead's; never edit it)
 
 ## Doing
@@ -20,6 +20,7 @@ Dispositions (draft, results pending in the Jobs table):
 
 ## Next
 
+0. Resume plan: read 2cea7c (partition forced). If the agents never leave the isolated voter, name it: the leader moving onto the agents' source voter is a fixture assumption; fix is `run_partition.py` choosing/pinning `old` away from `cohort.opened_at` (not in my file set: write under Blocked on) unless the agent should fail over (product: service.cc / coordinator, not mine). Then rerun failover and partition x50 at the final commit.
 1. Read the jobs below; set each flake's disposition from them.
 2. Write the dispositions in docs/DEPENDENCY_UPGRADES.md and docs/status/http-coroutines.md; run the tests/docs check.
 3. Push the branch once a round of code is done and only jobs remain.
@@ -37,6 +38,8 @@ At c7d4921a (main's code):
 - catch-up segfault: ctest -j4 x8 rounds 261121-131908-86e23b
 At 58e519e4 (A4): forced 261121-132019-4bf380; mutant 261121-132020-e89451; x20 at the fix 261121-132022-8ee8f6
 At 5010c15a (flake 4 forcing): fixed 261121-132218-06a35a; mutant 261121-132220-9aaee5
+
+At 87f69a56 (resume reruns; the 4 harness failures fixed with `mkdir -p .scratch`, `g` in the sed): flake 4 plain 7f1905, ASan 37854b... see ids in State; submitter script: ~/.scratch/detent/ofd/submit.py.
 
 ## Evidence
 
