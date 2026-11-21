@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-183911-97e441 261120-183913-e37593 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
+State: waiting on jobs 261120-185055-ee51e1 261120-185057-a51736 261120-185059-a31b7d 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,15 +40,13 @@ a slow one, back to 64 KiB on a timeout.
 
 ## Blocked on
 
-Nothing blocking. File set: test registration needs one word in CMakeLists.txt (`full_window_stall`
-in the core test foreach); `campaign status` flags it as outside the file set. Lead: widen the
-file set to CMakeLists.txt, or say where the test should live instead.
+Nothing.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-183909-cb25cf passed at 17751bc (9 checks, 0 failures; slow path 0 elections 6.7 commits/s); pending: 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
+| A1 | at b08f834 (registered ctest consensus_full_window_stall): 261120-185055-ee51e1 (pass), 261120-185057-a51736 (--fails-without, main's core.h), 261120-185059-a31b7d (--fails-without, no floor reset); earlier: 261120-183909-cb25cf passed at 17751bc (9 checks, 0 failures; slow path 0 elections 6.7 commits/s); pending: 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
 | A3 | pending: 261120-183954-d2677d (loss1%), 261120-183957-d8625c (reorder5%) |
 | A4 | pending: 261120-183915-9999fc (TSan, Core tests); CI macos-arm64 at 17751bc |
@@ -61,6 +59,10 @@ failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s
 <pending>
 
 ## Rulings I made
+
+- msg from lead (CMakeLists.txt joins the file set): consensus:b08f834 registers the test with four
+  added lines after the simulation's, none modified, so it merges beside other quests' edits to the
+  core test foreach.
 
 - Root cause fixed in the Core's append sizing, not by changing Flow's default frame_bytes: a
   fixed 256 KiB cap (R19) would cost pipeline=1 Driver groups ~6x at 12 ms RTT
