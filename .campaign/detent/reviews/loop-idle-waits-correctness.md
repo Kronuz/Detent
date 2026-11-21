@@ -1,93 +1,121 @@
 # loop-idle-waits review: correctness
 
-Commit: Detent:dbea4a53faf43a404668ac7d6e5184f186068ad0
-Verdict: CHANGES
-Date: 2026-11-20
+Commit: Detent:956a026f6a414daa8ae2e4f7b0004558b76761eb
+Verdict: APPROVE
+Date: 2026-11-21
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-Round 4, a delta review from a fresh context. Since round 3 (Detent:d7de180b), three commits touch
-the quest's code: Detent:8d56b21a (bench naming, F10's fix), Detent:39e5ab7e (start, replay and stop
-visit the node again at once unless I/O is in flight) and Detent:9b27cb95 (removes Detent:5f8b0ba1's
-64-yield bound, so service.cc again equals 39e5ab7e's). The rest is journal, watchdog, samplers and
-merges of main with no src or include change in the quest's files.
+Round 5, a delta review of Detent:dbea4a53..956a026f from a fresh context. Main's merges are ignored
+except where they meet the quest. The range has two code changes. Detent:09ce7216 fixes F13 in the
+authority's stop loop. Detent:563c5c31 (R12) replaces the relay host's sweep with main's per-turn
+shares plus one sleep after an idle round. It supersedes Detent:59206705, which is reverted. The rest
+is benches, the fixture port (Detent:219ba475, reworked by 563c5c31) and the journal. Authority code is
+the same from 09ce7216 to 956a026f (`git diff --stat 09ce7216 956a026f -- src/detent_authority` is
+empty). The four relay files at 956a026f are the same as on the bisect commit Detent:0e6eeae6.
 
-The single-voter change is right, and its test fails without it. One new blocking defect: `in_flight()`
-counts `peers`, so a multi-voter stop now sleeps 1 ms after every budgeted retirement visit. Main and
-the pre-39e5ab7e code yield there (F13).
+F13 is fixed, and its fails-without bench fails. R12's round is complete, and I found no path that
+makes work without either counting as progress or raising a wake, apart from F2's snapshot install
+(carried, bounded at 100 ms). No new blocking finding.
 
 ## Evidence I relied on
 
-- 261120-051929-b61395: the suite at Detent:9b27cb95 (= dbea4a53's quest code), 288/288, exit 0.
-- 261120-051929-26bcd0: test_authority_restart_wake x10 at 9b27cb95, exit 0. Starts 23-235 ms, stops
-  0-10 ms.
-- 261120-013518-340c44, -021138-336caf, -051932-e37617: the start-stop-sleep mutant (`in_flight` always
-  true) fails the test, exit 8. Starts 1.8-5.0 s, stops 250-501 ms.
-- 261120-054330-7de7d0, -054343-67cb93, -054345-f92c9a, -054347-5f3f0d: test_relay_service a5 under
-  TSan, 20/20 (F7's end-to-end witness).
+- 261120-225535-9724ee, -225537-795628, -225539-3cb98d: three voters, 100k keys, SIGTERM to exit, at
+  Detent:7d1fad45 (same authority code as head). The slowest stop is 1.252/0.227/0.569 s at head
+  against 1.039/0.936/0.684 s at main, so all pass.
+- 261120-225542-b03235: mutant stop-peers-sleep (the dbea4a53 condition). Head is 9.494 s against main
+  0.523 s, so the job FAILs as required. This is F13's fails-without.
+- 261120-161445-1fefcf, -161446-fa7216: the start-stop-sleep and stop-sleep mutants fail
+  test_authority_restart_wake. The single-voter stop is still covered.
+- 261121-050501-975e09: suite at 956a026f, exit 0. 261121-050502-92821b: relay tests, 43/43.
+- 261121-050505-7960c4: test_relay_network_100000 x20 at head, 20/20, peak_connections 500 (one 501).
+  261121-044608-6c41ed: the same test at main 3c04e6c1, passed, peak 500.
+- CI 44907046261 at 956a026f: every job green, macos-arm64 included. CI 44907033869 at 0e6eeae6:
+  macos-arm64 passed 3 of 3.
 
 ## What I checked myself
 
-Scripts are under `.scratch/detent/review-loop-idle-waits-correctness/` (`r4_probe.sh`,
-`r4_stop_scale.py`, `r4_39e5ab7e_service.patch`).
+All of this is code reading at 956a026f. Copies are under
+`.scratch/detent/review-loop-idle-waits-correctness/` (`r5_service_head.cc`, `r5_service_main.cc`,
+`r5_relay_service.cc`, `r5_coordinator.cc`). I submitted no new job: the existing jobs and CI answer the
+machine questions.
 
-- 261120-150702-7fe4aa (`r4_probe.sh revert`): 39e5ab7e's service.cc hunks are reverted exactly
-  (`patch -R`). test_authority_restart_wake fails, exit 8: starts 461/1775/3278/5037 ms, stops 250 ms.
-- 261120-150709-8ed582 (`r4_probe.sh stop`): only the stop loop goes back to its pre-39e5ab7e rule.
-  The test fails, exit 8: every stop is 250-252 ms and every start is 24-193 ms. So the stop half is
-  covered on its own, not only through the start half.
-- 261120-160911-3db6fb (`r4_probe.sh scale 50000`): a three-voter SIGTERM-to-exit time at 50k keys,
-  at head and with the pre-39e5ab7e stop rule. It was queued (load 74) when I wrote this, so F13
-  rests on the code reading below. Its result settles F13's magnitude.
+### Risk 1: F13's fix and other loops with peers
 
-### Q1: a missed wake or an endless spin?
+The stop loop (service.cc:3421-3436) yields when `!active && !history_active && (!peers || retiring)`.
+With peers, that is exactly main's rule `owned_node && !drained() && !active && !history_active`
+(r5_service_main.cc:3314). Without peers, it yields whenever no I/O is in flight, which is
+39e5ab7e's single-voter rule. Measured stops match main (above). Nothing with peers sleeps long:
+`wake_by` caps every authority sleep at 1 ms when `peers` is set (service.cc:1533-1535, 3294). Start
+and replay with peers sleep at most 1 ms per visit, as main does at every visit (main 2030-2031,
+2043-2048). Replay yields whenever main does (reclamation pending) and also when the applied index
+moved.
 
-No lost wake. The three loops sleep only when `active || history_active || peers` (service.cc:1540).
-`active` and `history_active` are cleared by the driver's completion callback, which then calls
-`wake.raise()` (service.cc:1441-1442, 1463-1464). That callback runs on the owner. `raise()` is
-sticky, and `arm()` expires at once if a raise came since `begin_turn()` (owner_loop.hh:31-47). So a
-completion before the sleep, or during it, ends the sleep. With peers, `wake_by` caps every sleep at
-1 ms. The set of sleeping states is no larger than before the fix, except in the multi-voter stop
-(F13). A visit that has budgeted work while I/O is in flight waits for that completion (start, stop),
-or yields if the applied index moved (replay). That wait is bounded by one I/O, so it is a wait, not
-a lost wake.
+### Risk 2: can a round end short?
 
-No new endless spin. The yield path runs only with nothing in flight. `task::yield` reposts through
-`asio::post` (task_asio.hh:77-81), so io handlers still run between visits. Each visit advances
-budgeted work: the worker's `run_one`, `State::collect` (32 receipts) and `retire_actions`. I found no
-time-gated wait in start, replay or stop (`WorkerLimits` is budgeted, not timed). A state that never
-advances would hang main too, because main's loops have the same exit conditions. The yield bound
-only priced such a hang (a 1 ms poll against a core), and 9b27cb95's measurement shows the bound did
-not change the visit rate under load. Removing it is sound.
+Not for requests. `rescan()` sets each lane's `unswept` to its whole `slots.size()` when any slot is
+occupied (service.cc:372-378). Every one of the 8 or 32 visits a turn makes debits one
+(service.cc:401) while the cursor moves by one, modulo `slots.size()`. So a round covers every index
+once, whatever the cursor's start. A lane that is empty at the rescan gets 0. A request that fills it
+later raises the wake after storing the slot under the mutex (service.cc:588-601). The next
+`begin_turn()` returns true and rescans (host.cc:398-400). A raise during a turn is not lost:
+`arm()` expires at once (owner_loop.hh:44-47), and a post-path turn sees it in `begin_turn()`. A turn
+with progress sets `round` and rescans (host.cc:477-479). So a long sleep needs every turn since the
+last rescan to have no progress, every slot visited, and no bundle cleanup pending (host.cc:480-486).
+That is the condition R12 states. Sessions can end short, slightly (F16).
 
-### Q2: does test_restart_wake fail without 39e5ab7e?
+### Risk 3: paths that make work
 
-Yes. The exact revert fails (7fe4aa), the stop-only revert fails (8ed582), and the contributor's
-broader mutant fails (e37617).
+- A new request raises the wake (service.cc:600).
+- Reply pump writable or settled events and mirror answers raise the wake (service.cc:575, 584).
+- A slot freed or any fingerprint move counts as progress (service.cc:409-422).
+- Every sink call marks `cleanup_pending` and raises (host.cc:96-99). The sink calls run on the owner,
+  in the coordinator's coroutine, not in its worker lambdas (r5_coordinator.cc:158, 521-528,
+  1058-1106). Only `select_publication`'s `gap()` and `fence()` make stale edges
+  (update_cache.cc:12-18, 128). Both reach the host through the sink. `install_snapshot` leaves the
+  lineage alone, so dropping main's every-turn cleanup loses nothing.
+- Session open and close are requests in lanes 0 and 2. Their completion is progress, so the round
+  over sessions that retires a closed session starts after it.
+- A snapshot install is the exception. It is neither progress nor a wake (F2).
+- Deadlines (poll waits, session expiry) are time-gated and seen at the next round, at most one
+  health turn later (R3).
 
-### Q3: are earlier findings reopened?
+### Risk 4: the fixture's idle round
 
-No. 8d56b21a closes F10: `git grep -i detentd dbea4a53 -- bench` is empty. The only remaining hits
-are the dated revert scripts in tests/detent_authority, and those name BASE's paths on purpose. The
-F10 fails-without job is 261120-144914-cf70b6 (queued). 39e5ab7e and 9b27cb95 leave alone the
-absence wiring (F7, F11), the service loop's sleep (F1), the relay host (F2, F3), the coordinator
-and every `raise()` site.
+relay_service_fixture.hh:121-126 rescans, steps until `swept()`, and rescans again on any progress.
+Then it requires `swept() && !step()`. Its exit condition is the host's sleep condition for
+ServiceRuntime: a full round with no progress, plus one more idle step, which is stricter. It cannot
+pass while a visited task still changes. It leaves out host-level state (bundle cleanup, snapshot), and
+no test runs host.cc's turn (F3).
+
+### Risk 5: `high_water >= 500`
+
+Not introduced by the quest, and not blocking. test_relay_network_100000 drives `runtime->step()`
+itself every 1 ms (relay_network_fixture.hh:274-290), not the host. `step()` visits the same lanes, in
+the same order and with the same shares as main. Against merge base 647c71d8, the diff only adds
+progress accounting. The fixture is unchanged from main, and main also sits at 500 (6c41ed). 500 is
+the subscriber count, so the check asserts that all 500 connections are open at once. That is a
+timing property of main's test under load (F18).
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F13 | yes | defect | A multi-voter stop sleeps 1 ms after every retirement visit. `in_flight()` includes `peers` (service.cc:1540), and `peers` stays set through the stop loop (service.cc:3421-3434), so `wake_by` caps each sleep at 1 ms and no peer frame raises a wake. Retirement frees about 32 arena nodes per visit (`CommandWorkBudget` receipts 32, state.hh:134; `State::collect`, state.cc:846-889), so the stop costs about N/32 ms for N retained nodes: seconds at 100k keys, and about 30 s at 1M, against a timeout's SIGKILL. Main (and this quest before 39e5ab7e) yields while `owned_node && !drained() && !active && !history_active`. This was introduced by 39e5ab7e. Single-voter stops are unaffected. | service.cc:1540, 3421-3434; probe 261120-160911-3db6fb (queued) | In the stop loop, yield while the node has retirement work and no storage or history I/O is in flight, and sleep for peers only once the node is drained, for example `active \|\| history_active \|\| (peers && (!owned_node \|\| owned_node->drained()))`. Keep the drained-node case yielding when there are no peers, because test_restart_wake's 250 ms stop depends on it. Test: a three-voter SIGTERM-to-exit bound at a sizable state (r4_stop_scale.py is a starting point), failing at dbea4a53. |
-| F14 | no | nit | The comment at service.cc:1536-1538 says only storage or history I/O sleeps, but `peers` also sleeps (1 ms). It should say so, or F13's fix should make it true for stop. | service.cc:1536-1540 | Reword with F13's fix. |
-| F10 | no | defect | Closed by Detent:8d56b21a. The bench builds and runs detent-authority. | `git grep -i detentd dbea4a53 -- bench` | Read 261120-144914-cf70b6 when it ends. |
-| F11 | no | gap | Carried: test_owner_absence pins the rule but not its wiring; only a5 sees the wiring, by timing. | service.cc absence wiring | Optional, as in round 3. |
-| F12 | no | nit | Carried: the A1 Evidence row should carry both intervals' numbers. | journal Evidence | As in round 3. |
+| F13 | no | defect | Closed by Detent:09ce7216. A multi-voter stop yields through retirement as main does, and its stops match main's. | service.cc:3430-3436; 9724ee, 795628, 3cb98d; fails without: b03235 | None. |
+| F14 | no | nit | Closed. The comments at service.cc:1536-1538 and 3430 now name the peers poll. | service.cc:1536-1538, 3430 | None. |
+| F15 | no | gap | F13's guard is a bench (`compare.sh stop`, 100k keys, minutes per round), not a suite test. A regression of the stop rule is silent unless someone runs it. test_authority_restart_wake covers only single-voter stops. | tests/detent_delivery/mutants/loop_idle_waits.sh stop-peers-sleep | Optional, owner's call: a small multi-voter ctest that counts stop-loop sleeps against retirement visits, which needs no timing. Or keep the bench. |
+| F16 | no | nit | A round over sessions can end before it visits every slot. While a retirement resumes on the same slot, `collect` spends one token a turn without moving the cursor, and `unswept_sessions` is debited for it. So a multi-turn retirement shortens the lap. The unvisited sessions wait for the next round, one health turn (100 ms) at most, for their expiry. Nothing is lost. | service.cc:426-429; session_table.hh:337-372 | Debit only the slots the cursor passed. Or leave it. |
+| F17 | no | nit | The journal reuses "F13" for the macOS arm64 runner loss ("F13 NOT fixed by 59206705", "F13 ... fixed by R12", Blocked on). This review's F13 is the multi-voter stop, fixed by 09ce7216. R12 answers the arm64 hang (F4's CI read). | journal lines 34, 188, 230 | Name the hang by its own label in the journal. |
+| F18 | no | gap | test_relay_network_100000's `high_water >= 500` asserts that all 500 subscribers are connected at once. That is a timing property, not a value of the code under test. It is main's test, and the quest leaves `step()`'s visiting and the fixture as main's. | relay_network_fixture.hh:330; 7960c4, 6c41ed | Owner's call: keep it, or print the peak and assert only bytes (review.md: a timing-dependent check reports and never fails). |
+| F2 | no | defect | Carried, sharpened. A completed snapshot step installs the snapshot but counts as no progress (`progress \|= !complete && ...`), and nothing raises. A request waiting on it is seen after the round ends and the long sleep, 100 ms at most. | host.cc:426-434 | `progress \|= work.tokens != 128 \|\| work.bytes != 8192;`. |
+| F3 | no | gap | Carried. The fixture's idle round matches ServiceRuntime's sleep condition (risk 4), but no relay test runs host.cc's sleeping turn: the bundle settle, the wake-to-rescan path or F2. | relay_service_fixture.hh:121-126 | As in round 1. |
+| F4 | no | gap | Closed. CI 44907046261 at 956a026f is green on every platform. bisect/liw-fix 44907033869, with the same relay files, passed macos-arm64 3 of 3. | CI | None. |
+| F10 | no | defect | Closed by Detent:8d56b21a. cf70b6 fails at d7de180b as required. | cf70b6 | None. |
+| F11 | no | gap | Carried: test_owner_absence pins the rule but not its wiring. | service.cc absence wiring | Optional, as in round 3. |
+| F12 | no | nit | Closed. The A1 Result row carries both intervals (75f254 and e93ac9). | journal Result | None. |
 | F1 | no | defect | Carried, unchanged: a lone voter's first election can wait for the 250 ms health sleep. | service.cc service loop | As in round 1. |
-| F2 | no | defect | Carried, unchanged: a snapshot install is not counted as relay turn progress (up to 100 ms). | host.cc | As in round 1. |
-| F3 | no | gap | Carried: no relay test runs host.cc's sleeping turn. | relay_service_fixture.hh | As in round 1. |
-| F4 | no | gap | Carried: read test_authority_idle_wake (and now test_authority_restart_wake) in CI at the landing commit. CI at dbea4a53 is running, and macOS arm64 runs keep losing their runner. That predates 39e5ab7e (first loss at 8d56b21a), so it is not attributed to these commits. | CI | As before. |
 | F6 | no | nit | Carried: read "no wakeups" from `interrupt_wakeups_per_s`. | idle_loops.py | As in round 1. |
 | F7 | no | defect | Closed (round 3). | 3b65cd | None. |
 | F8 | no | nit | Closed (round 3). | test_coordinator_teardown.cc | None. |
@@ -95,10 +123,9 @@ and every `raise()` site.
 
 ## Not run
 
-- 261120-160911-3db6fb (the three-voter stop-time probe) was queued when I wrote this. Read its head
-  against prefix-stop lines. It measures F13 and does not decide it.
-- The suite at dbea4a53 (261120-144912-403ec3), A1 and A3 at bd01e34f, and CI at dbea4a53: all
-  were running or queued.
-- I did not audit the consensus Worker's initialization path beyond its budgeted limits. Q1's "no
-  endless spin" rests on main having the same exit conditions.
-- The arm64 runner losses: not investigated (the contributor's bisect is running).
+- No new probe job. Every risk was answered from code and the existing job records. F16 and F18 are
+  timing questions that need no machine to settle.
+- A3 and A1 at head (1804d3, 75f254, e93ac9) and the TSan jobs: I read them only through
+  `campaign status`, which lists them as met. I did not re-derive their numbers.
+- The arm64 hang's mechanism (an advance rate that fills socket buffers, per the journal) is still a
+  hypothesis. R12 avoids it by restoring main's rate, and CI is the oracle. I did not investigate it.
