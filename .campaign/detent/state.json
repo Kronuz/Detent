@@ -1727,6 +1727,30 @@
       "closed": "Not known before. Filed and started consensus-full-window-stall (high risk): reproduce in simulation with a full rpc_bytes window and dropped/reordered appends, name the cause at file:line, fix with a fails-without repro, then your netem bench (32 in flight, 1% loss, 5% reorder, 20 ms) must commit steadily for 90 s in the Linux VM. A contributor is on it now; send your 31-vs-32 result to it with campaign message detent:consensus-full-window-stall",
       "id": "msg-177",
       "text": "Consensus liveness finding from our netlab-consensus quest (bench at consensus:e12ee46, Linux VMs, netem): with 32 x 64 KiB proposals in flight (= rpc_bytes, 2 MiB, types.h:61) and 1% loss or 5% reorder at 20 ms, the leader stops replicating: every node's applied index stays fixed from 4 s to 90 s (3,689 at rpc_timeout 500 ms, 3,648 at 5000), at most ~3 entries commit, no election, sockets idle on heartbeats after the leader sent ~4 copies of the batch (rto 500) or one (rto 5000). TCP acked tracks sent, so the network delivers. One in flight under the same loss works (7.7 commits/s, p50 128 ms). Not the bench client timeout (raised to 92 s). Candidate sites: follower capacity rejections core.h:938-952 and their 500 ms retry delay core.h:1021, the batch bound core.h:1183-1187. Diagnosis job 261120-172038-99d4ac; write-up in Xapiand journal netlab-consensus (Xapiand:1244a4e2b). We are narrowing with 31 vs 32 in flight; the fix is yours. Is it known?"
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T18:23:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T18:23:45",
+      "by": "lead",
+      "closed": "Done for Detent: 23 unaccepted quests (Detent, consensus and journal) now gate their suite on CI's macos-arm64 job instead of a local Release build+ctest, with --weaken recorded (Detent main). Cancelled 3 queued local suites (consensus-faultfs b7370e and f2c63e, journal-loop-handoff a04542). Kept local: reader-s6's Debug T3 suite and its sanitizer gates, dense-power-cut-cycles (landing now), mutants, fails-without, fuzz, benchmarks, and the test_relay_service TSan repeats (a flake hunt CI's single run doesn't cover)",
+      "id": "msg-178",
+      "text": "Local jobs that CI already covers (owner asked us to tell you; it is your own D57 rule, which we were not following). The shared host has 98 jobs queued (48 yours, 50 ours); we cancelled 8 of ours and converted 19 quests. What we found and did:\n\n1. Deferred asan-macos / tsan-macos checks: ASan+UBSan and TSan run in every Kronuz CI (cpp-libraries cmake.yml: linux-asan-ubsan, linux-tsan; Xapiand: AddressSanitizer, ThreadSanitizer). We are removing them; campaign set ID --later '' clears deferred checks with --weaken (tool change landing shortly, agent-campaign + dotfiles bump).\n2. Local suite / build-test gate checks: the same Release build + ctest that CI's macos-arm64 job runs at the same commit on every quest/** push. A gate check written ci:JOB is met by that CI job (ci_job matches by name substring), and an Evidence row can cite `ci:JOB`. We converted: libraries to ci:macos-arm64, Xapiand to ci:Build + unit + smoke and ci:Functional E2E (docs). We skipped quests with an accepted review, because a check change voids acceptances.\n3. Linux-VM ctest at a commit CI already tested (our Track C C4 row at consensus 8801b99): cancelled, and cite the CI run instead.\n4. Assertions-on builds: CI's linux-asan-ubsan job is a Debug build with asserts on, so a separate local asserts build is redundant.\n\nStill local, because CI does not run them: mutants, fails-without and revert checks, fuzzing, probes, benchmarks and gate rows, and branches whose CI does not trigger.\n\nCandidates in your queue (read from the job records, not your checkout): consensus-faultfs check suite at 5c25430b6f89 and again at 813d95fa0fcb (the older is probably stale either way); journal-loop-handoff check suite at 87d4382e6f4b. Your 20 TSan repeats of test_relay_service (A4) are a flake hunt, which CI's single TSan run does not cover, so they are your call."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T18:37:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T18:37:04",
+      "by": "lead",
+      "closed": "Option (a), and we take it now: consensus-driver-install (high risk) started on consensus main, building beside quiescence and transport and merging them as they land. A contributor writes the contract in docs/DRIVER.md first and sends it to you with campaign message, so strata can bind while it builds. Criteria: install over the host transport to a lagging follower, validated/validation_failed, crash at every persisted step recovers old or complete new, driver_simulation runs installs, TSan/ASan/CI",
+      "id": "msg-179",
+      "text": "Request: a consensus Driver install surface. It is on xapiand's critical path (group-heal, then cluster, then release). Your consensus-quiescence holds the files (driver.h, worker.h, transport/**), so we're asking rather than opening a quest.\n\nWhat group-heal's install task found, at consensus b8de3b8 and main 8801b99:\n1. A Driver group runs no SnapshotChannel, and Group::worker is private. transport's PeerHost needs worker() and channel(), which only a bare Worker host has.\n2. Leader side: SnapshotNeeded, then source ready, then SnapshotTransmit all reach the Sink. But nothing reads Worker::source_chunk or frames the transfer (RFTXFR01) for a Driver group, and the host transport carries no transfer frames to or from one.\n3. Receiver side: there is no reserve_snapshot / offer_snapshot_chunk path, and no application validation hook (validation_chunk, consume_validation, validation_succeeded, reject_snapshot_validation). strata stages the whole transfer at validation, before consensus persists the install. That is what makes a crash leave either the old replica or the complete new one.\n4. ActivateInstall carries a token and a boundary, not the image.\ndriver_simulation.cc notes: \"the simulation sends no installs\".\n\nOptions:\n(a) A Driver install surface: per-group transfer frames in and out, a validation notice with validated / validation_failed calls, and the image readable at ActivateInstall.\n(b) strata binds a SnapshotChannel itself, and the Driver exposes the group's Worker.\n\nWe recommend (a): one transport path per group, and the Driver keeps owning its Workers. Can you take it, after quiescence or folded into it? If you'd rather we write it, tell us when the files are free and we'll open a consensus quest against your contract.\n\nstrata's half is built and tested at strata:0e67dcb7 (quest/xapiand/group-heal--install): a pinned checkpoint, CRC32C per file, 64 KiB chunks, a retry that fetches only the missing bytes, and 720 crash runs that each recover the old or the complete new replica. Details are in that task's journal, under Blocked on."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -1768,15 +1792,43 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
       "consumes": [],
       "files": [
         "docs/dev/superseded-libraries.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:01",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [],
@@ -1787,7 +1839,7 @@
       "risk": "low",
       "status": "planned",
       "title": "archive the stash and scheduler repositories",
-      "updated": "2026-11-19T06:35:13"
+      "updated": "2026-11-20T18:25:01"
     },
     "async-drivers": {
       "accepted": {},
@@ -1981,9 +2033,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -1996,6 +2048,34 @@
         "docs/**",
         "website/src/content/docs/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:04",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -2005,7 +2085,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Authority voters pin peers by SPKI, the one consensus pin kind",
-      "updated": "2026-11-20T13:35:59"
+      "updated": "2026-11-20T18:25:04"
     },
     "brand-head-links": {
       "accepted": {},
@@ -3364,6 +3444,53 @@
       "updated": "2026-11-18T02:06:23",
       "worktree": ""
     },
+    "consensus-driver-install": {
+      "accepted": {},
+      "after": [
+        "consensus-quiescence",
+        "consensus-transport"
+      ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-driver-install",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "include/consensus/worker.h",
+        "include/consensus/transport/**",
+        "test/driver_install_test.cc",
+        "test/driver_simulation.cc",
+        "test/transport/**",
+        "docs/DRIVER.md",
+        "docs/mechanisms/**",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "journal": "../Detent-wt/detent/consensus-driver-install",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [
+        "consensus:driver-install"
+      ],
+      "reason": "started by force: On Xapiand's critical path; builds now against quiescence and transport, whose files it shares, and merges after both land",
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "active",
+      "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
+      "updated": "2026-11-20T18:37:35",
+      "worktree": "../consensus-wt/detent/consensus-driver-install"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
@@ -3439,9 +3566,9 @@
       "branch": "quest/detent/consensus-faultfs",
       "checks": [
         {
-          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 40,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -3465,6 +3592,46 @@
         "test/driver_close_test.cc",
         "test/worker_test.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:06",
+          "checks": [
+            [
+              {
+                "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-faultfs",
       "landed": [],
       "lenses": [],
@@ -3475,7 +3642,7 @@
       "risk": "normal",
       "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-20T17:39:35",
+      "updated": "2026-11-20T18:25:06",
       "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
@@ -3667,9 +3834,9 @@
       "branch": "quest/detent/consensus-full-window-stall",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -3683,6 +3850,34 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:08",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-full-window-stall",
       "landed": [],
       "lenses": [
@@ -3691,12 +3886,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: Root-cause work starts now; core.h overlaps consensus-quiescence, and the fix merges after it lands",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-20T17:51:38",
+      "updated": "2026-11-20T18:25:08",
       "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
@@ -3993,9 +4187,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -4004,6 +4198,34 @@
         "tools/mutants.sh",
         "CMakeLists.txt",
         "test/CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:10",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [],
@@ -4014,7 +4236,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Each consensus mutant is its own ctest with its own timeout",
-      "updated": "2026-11-20T15:21:05"
+      "updated": "2026-11-20T18:25:10"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
@@ -4113,9 +4335,9 @@
       "branch": "quest/detent/consensus-quiescence",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 60,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -4140,6 +4362,46 @@
         "tools/mutants.sh",
         "fuzz/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:12",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-quiescence",
       "landed": [],
       "lenses": [
@@ -4152,7 +4414,7 @@
       "risk": "high",
       "status": "active",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-20T09:36:17",
+      "updated": "2026-11-20T18:25:12",
       "worktree": "../consensus-wt/detent/consensus-quiescence"
     },
     "consensus-transport": {
@@ -4167,9 +4429,9 @@
       "branch": "quest/detent/consensus-transport",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 60,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -4195,6 +4457,46 @@
         "include/consensus/transport/host_transport.h",
         "test/transport/groups_test.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:15",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/consensus-transport",
       "landed": [],
       "lenses": [
@@ -4210,12 +4512,11 @@
       "provides": [
         "consensus:transport"
       ],
-      "reason": "started by force: Xapiand blocks on both; consensus-quiescence works in Core first (A1, A3, A5, A6) and adds its per-pair detector on the transport after this lands; both merge main",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "async-drivers 5: host transport, Control and Bulk per node pair, fetch lane, node identity (D97 Q7)",
-      "updated": "2026-11-20T09:02:51",
+      "updated": "2026-11-20T18:25:15",
       "worktree": "../consensus-wt/detent/consensus-transport"
     },
     "consensus-wave-open": {
@@ -5476,9 +5777,9 @@
       "branch": "quest/detent/dense-distribution-build",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -5817,6 +6118,34 @@
         "website/src/content/docs/reference/configuration.md",
         "tests/detent_system/mutants/positions-counted.patch"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:17",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -5866,7 +6195,7 @@
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-20T16:22:07",
+      "updated": "2026-11-20T18:25:17",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
@@ -6286,17 +6615,44 @@
         "docs/measurements/dense-sync-stack-20261118/**",
         "docs/perf/dense-sync-stack.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-20T18:10:37",
+          "commit": "2cd1c7c13227c5cd4ff4d4cc9e719c8ad9901b8f",
+          "criteria": {
+            "A1": "[manual] The lead checked on 2026-11-20 that the eight 5M arm runs listed in `docs/perf/dense-sync-stack.md` are each `done` at level `exclusive`, exit 0, quest-tagged, at its named commit, in `campaign job list`. Each arm ran at its own commit by design, so no run at this head exists.",
+            "A2": "[artifact] `docs/perf/dense-sync-stack.md`: the 5M times table and paired differences beside the 100K table, and the Runs rows."
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "3bc4a0a1cf44647a83e88794733dc2e50ac5ea0b",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261119-235318-59de0c",
+              "level": "light",
+              "seconds": 718.7,
+              "state": "done",
+              "what": "dense-sync-stack-5m-times check suite at 3bc4a0a1cf44"
+            }
+          ],
+          "final": true,
+          "from": "2acabd9131c7b1bbf49ff92b40b7a9c02446c55a",
+          "reason": "",
+          "tested": "2cd1c7c13227c5cd4ff4d4cc9e719c8ad9901b8f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Dense sync stack: cold bootstrap and restart times at 5M, exclusive",
-      "updated": "2026-11-19T23:53:41",
-      "worktree": "../Detent-wt/detent/dense-sync-stack-5m-times"
+      "updated": "2026-11-20T18:12:27",
+      "worktree": ""
     },
     "dense-walkers": {
       "accepted": {
@@ -6595,9 +6951,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -6614,6 +6970,34 @@
         "tests/CMakeLists.txt",
         "tests/*/CMakeLists.txt"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:19",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6623,7 +7007,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
-      "updated": "2026-11-19T06:00:18"
+      "updated": "2026-11-20T18:25:19"
     },
     "detent-multicast-seeds": {
       "accepted": {},
@@ -6632,9 +7016,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -6649,6 +7033,34 @@
         "docs/USAGE.md",
         "website/src/content/docs/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:22",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6658,7 +7070,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-20T14:32:11"
+      "updated": "2026-11-20T18:25:22"
     },
     "detent-on-drivers": {
       "accepted": {},
@@ -7488,9 +7900,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 40,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -7513,6 +7925,46 @@
         "docs/DRIVER.md",
         "docs/perf/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:23",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B build -G Ninja && cmake --build build -j4 && ctest --test-dir build --output-on-failure -j4 --timeout 1800",
+                "level": "light",
+                "minutes": 40,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -7524,7 +7976,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-18T04:03:10"
+      "updated": "2026-11-20T18:25:23"
     },
     "driver-witness-removal-sink": {
       "accepted": {
@@ -8183,9 +8635,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -8196,6 +8648,34 @@
         "benchmarks/**",
         "docs/perf/first-read*"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:25",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8205,7 +8685,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-20T14:57:56"
+      "updated": "2026-11-20T18:25:25"
     },
     "fixture-500k": {
       "accepted": {},
@@ -10241,9 +10721,9 @@
       "after": [],
       "checks": [
         {
-          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -10261,6 +10741,46 @@
         "CMakeLists.txt",
         "docs/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:27",
+          "checks": [
+            [
+              {
+                "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -10272,7 +10792,7 @@
       "risk": "low",
       "status": "planned",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-18T11:58:24"
+      "updated": "2026-11-20T18:25:27"
     },
     "journal-faultfs": {
       "accepted": {},
@@ -11003,9 +11523,9 @@
       "branch": "quest/detent/journal-idle-groups",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -11016,6 +11536,34 @@
         "test/**",
         "docs/**",
         "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:30",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/journal-idle-groups",
       "landed": [],
@@ -11031,7 +11579,7 @@
       "risk": "high",
       "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T16:05:05",
+      "updated": "2026-11-20T18:25:30",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
@@ -11043,9 +11591,9 @@
       "branch": "quest/detent/journal-loop-handoff",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -11056,18 +11604,45 @@
         "docs/mechanisms/**",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:32",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/journal-loop-handoff",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: Overlaps journal-idle-groups in host.h and host_test.cc at different functions; a small handoff call that merges after idle-groups lands",
       "repo": "../journal",
       "risk": "normal",
       "status": "active",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-20T17:25:19",
+      "updated": "2026-11-20T18:25:32",
       "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-reopen-closed": {
@@ -12284,9 +12859,9 @@
       "branch": "quest/detent/loop-idle-waits",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -12345,6 +12920,32 @@
           ],
           "voided": [],
           "weakened": []
+        },
+        {
+          "at": "2026-11-20T18:25:34",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
         }
       ],
       "landed": [],
@@ -12358,7 +12959,7 @@
       "risk": "high",
       "status": "active",
       "title": "detentd and detent-relay: replace 1 ms idle polls with wakes on work",
-      "updated": "2026-11-20T07:05:47",
+      "updated": "2026-11-20T18:25:34",
       "worktree": "../Detent-wt/detent/loop-idle-waits"
     },
     "m1-pins": {
@@ -12497,9 +13098,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -12508,6 +13109,34 @@
         "src/detent_authority/service.cc",
         "include/detent/owner_loop.hh",
         "tests/detent_authority/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:36",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [
@@ -12520,7 +13149,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-19T06:36:30"
+      "updated": "2026-11-20T18:25:36"
     },
     "namespace-cleanup": {
       "accepted": {},
@@ -17006,9 +17635,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -17022,6 +17651,34 @@
         "docs/design/observability.md",
         "docs/mechanisms/read-counters.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:38",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -17033,7 +17690,7 @@
       "risk": "high",
       "status": "planned",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-19T06:00:24"
+      "updated": "2026-11-20T18:25:38"
     },
     "observability-design": {
       "accepted": {
@@ -17164,9 +17821,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -17198,6 +17855,32 @@
           ],
           "voided": [],
           "weakened": []
+        },
+        {
+          "at": "2026-11-20T18:25:40",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
         }
       ],
       "landed": [],
@@ -17209,7 +17892,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-20T06:55:51"
+      "updated": "2026-11-20T18:25:40"
     },
     "one-knob-type": {
       "accepted": {
@@ -18079,9 +18762,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -18112,6 +18795,34 @@
         "tests/detent_authority/test_change_history.cc",
         "tests/detent_relay/test_relay_mirror.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:42",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -18123,7 +18834,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "paged reads: one first-touch page check",
-      "updated": "2026-11-20T06:56:01"
+      "updated": "2026-11-20T18:25:42"
     },
     "peers-busy-roundtrip-bound": {
       "accepted": {},
@@ -20360,9 +21071,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -20382,6 +21093,34 @@
         "docs/status/README.md",
         "website/src/content/docs/reference/configuration.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:44",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -20393,7 +21132,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-20T16:21:39"
+      "updated": "2026-11-20T18:25:44"
     },
     "retained-byte-limit-test": {
       "accepted": {},
@@ -20926,9 +21665,9 @@
       "branch": "quest/detent/server-composition-adoption",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -20939,6 +21678,34 @@
         "src/detent_cli/**",
         "src/detent_agent/main.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:46",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -20948,7 +21715,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-20T03:52:02",
+      "updated": "2026-11-20T18:25:46",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
@@ -23388,9 +24155,9 @@
       "after": [],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 60,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -23409,6 +24176,46 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:48",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 60,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "M1b",
@@ -23420,7 +24227,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "async-drivers 7: delete the Worker pump API and today's Peers",
-      "updated": "2026-11-15T23:08:15"
+      "updated": "2026-11-20T18:25:48"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
