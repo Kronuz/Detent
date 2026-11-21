@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-185055-ee51e1 261120-185057-a51736 261120-185059-a31b7d 261120-183954-d2677d 261120-183957-d8625c
+State: waiting on jobs 261120-185055-ee51e1 261120-185057-a51736 261120-185059-a31b7d 261120-190520-a407f0 261120-190521-62807e 261120-190522-1d0e1b 261120-190523-86507a
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -48,7 +48,7 @@ Nothing.
 |---|---|
 | A1 | at b08f834 (registered ctest consensus_full_window_stall): 261120-185055-ee51e1 (pass), 261120-185057-a51736 (--fails-without, main's core.h), 261120-185059-a31b7d (--fails-without, no floor reset); earlier: 261120-183909-cb25cf passed at 17751bc (9 checks, 0 failures; slow path 0 elections 6.7 commits/s); pending: 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
-| A3 | pending: 261120-183954-d2677d (loss1%), 261120-183957-d8625c (reorder5%) |
+| A3 | bar (lead): sustained 60 s large load, after 10 s every 5 s window advances applied, no role change, large_throughput answers. Fix (b08f834 core.h): 261120-190520-a407f0 (loss1%), 261120-190522-1d0e1b (reorder5%); before (main core.h, --fails-without): 261120-190521-62807e (loss1%), 261120-190523-86507a (reorder5%). Extra, 2 s burst: 261120-183954-d2677d, 261120-183957-d8625c |
 | A4 | 261120-183915-9999fc passed (TSan: full_window_stall, pipeline, consensus, simulation, liveness at 17751bc; core.h unchanged since); CI macos-arm64 at 17751bc |
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
@@ -74,7 +74,10 @@ failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s
   flight paces nothing, so without it a grown frame stays grown (test: 6.4 vs 15.8 commits/s).
 - Pacing applies to any pipeline depth; under pipelining a flight's time includes queueing behind
   earlier ones, which only makes frames smaller (conservative).
-- A3 runs Xapiand's bench at e1144c2 (e12ee46 plus --large-inflight and an append trace, same
-  core.h) with 17751bc's core.h, one strict job per shape. The bench's load is 2 s; "steadily for
-  90 s" read as: the large_throughput rows answer (no "no answer in 92 s"), and diag's applied
-  index advances through the load with no stall.
+- A3 (lead's bar): Xapiand's bench at e1144c2 (e12ee46 plus --large-inflight and an append
+  trace, same core.h) with a job-local patch, ~/.scratch/detent/consensus-full-window-stall/a3/
+  sustained.patch: --large-seconds (the large throughput load's duration) and the role changes
+  seen during each load in its row. Not committed anywhere: the bench is netlab-consensus's.
+  a3/analyze.py checks the bar from result-3.json and diag-3.jsonl (max applied over nodes at
+  each 5 s edge from load start + 10 s) and exits 1 on a miss; the before jobs use it under
+  --fails-without, after `test -s result-3.json || exit 127`. One strict 10-minute job per shape.
