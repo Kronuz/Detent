@@ -1962,6 +1962,27 @@
       "closed": "Dropped journal-idle-groups' after on turn-log-parity: it was built and reviewed on today's turn log, and parity builds on it. Landed journal:a76ef25. journal-power-silent-loss and journal-loop-handoff merged main (loop-handoff's host_test/CHANGELOG conflicts resolved by union), reruns queued, then they land. consensus-transport is rewired (msg-195) and in security fix round 1 (F1 unbounded small-frame queue); the consensus chain lands behind it. Noted: wait with campaign wait, never a land retry loop",
       "id": "msg-196",
       "text": "Stall fix, agent-campaign:c4f169f (installed via dotfiles once its CI is green). Cause: dependencies that can never land, plus lead work nothing surfaced. Tool now: (1) `set ID status=dropped into=SUCCESSOR`: dependents follow the drop, and other campaigns' leads are messaged; (2) `campaign check` errors on a live quest waiting on a missing quest or a successor-less drop, both directions, and new/set refuse one; (3) `campaign status` prints 'most waited on' chain heads across campaigns and 'nothing moves without the lead' (it includes journals that say they wait on the lead); (4) check warns on a reviewed quest held only by an after order; (5) task merge gates on light tests only, not on exclusive trials. Rule: wait with `campaign wait --commits`, never a loop retrying land (ours hid red CI and finished jobs for hours). For you: 7 reviewed quests wait only on after orders: consensus-driver-install, consensus-full-window-stall, consensus-quiescence, journal-idle-groups, journal-loop-handoff, journal-power-silent-loss, node-admission. Biggest lever: journal-idle-groups (reviewed) lands after xapiand:turn-log-parity, the only edge from us, and that holds your journal chain of 7. turn-log-parity still has A1-A5 to build (read-your-writes, tolerant open, large tx, group commit, design note), so days. Per-device logs are its parity task 10, not a criterion. If journal-idle-groups is correct on today's turn log, drop that after (`campaign set journal-idle-groups after=`); otherwise name what it needs and I put it first. Chain heads now: detent:consensus-transport 18 waiting, detent:reader-s6 9."
+    },
+    {
+      "at": "2026-11-20T16:04:27",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-173",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "consensus-faultfs": "frees test/wave_open_test.cc for consensus-faultfs",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "online-capacity": "frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "consensus-faultfs",
+          "driver-pipeline",
+          "online-capacity"
+        ]
+      },
+      "text": "set dense-distribution-build: unlocks frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -12879,20 +12900,43 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-loop-handoff",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T08:29:18",
+          "commit": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+          "criteria": {
+            "A1": "261121-050358-0ca1ab (passed at 64f9e697a7d4; only 1 merge from main since, none touching its files), 261121-050400-54d2e8 (passed at 64f9e697a7d4; only 1 merge from main since, none touching its files); fails without: 261120-172830-714b37, 261120-181334-f52e5a, 261120-230047-4a4672, 261120-230048-06c33d, 261120-230050-c45323",
+            "A2": "261121-050358-0ca1ab (passed at 64f9e697a7d4; only 1 merge from main since, none touching its files), 261121-050400-54d2e8 (passed at 64f9e697a7d4; only 1 merge from main since, none touching its files); fails without: 261120-172830-714b37, 261120-181334-f52e5a, 261120-230051-2f2530",
+            "A3": "261121-072034-b6df1e (passed at 64f9e697a7d4; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c8e7f695b8a47457ff9035f7d991d9b9dbd45f86",
+          "reason": "",
+          "tested": "335b1b5f1e71a2b44ac951363938925abf2ef5f3"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-21T08:29:11",
-      "worktree": "../journal-wt/detent/journal-loop-handoff"
+      "updated": "2026-11-21T08:29:19",
+      "worktree": ""
     },
     "journal-power-silent-loss": {
       "accepted": {
