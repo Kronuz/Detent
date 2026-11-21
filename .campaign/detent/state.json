@@ -4441,7 +4441,9 @@
         "test/driver_simulation.cc",
         "CMakeLists.txt",
         "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "ARCHITECTURE.md",
+        "test/driver_mutants.py"
       ],
       "history": [
         {
@@ -4483,7 +4485,7 @@
       "risk": "high",
       "status": "active",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T00:58:37",
+      "updated": "2026-11-21T01:21:40",
       "worktree": "../consensus-wt/detent/consensus-leaving-removal"
     },
     "consensus-mutants-per-test": {
