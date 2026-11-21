@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,7 +19,7 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Push; CI macos-arm64 (D57 gate) green at the head, then ready for review.
+1. Review of docs/perf/warm-relay-agent-boot.md (A2) and the harness.
 
 ## Blocked on
 
@@ -35,7 +35,7 @@ checked what), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261120-144419-5e7242, 261120-144420-73a018, 261120-144420-48ab68, 261120-144420-f0a573, 261120-144421-d16a3a, 261120-144421-5a223a (all exit 0, exclusive, at 131bde6; no "ran beside" record) |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
-| Suite | 261120-144425-4edf28 (exit 0 at 131bde6); gate CI macos-arm64 |
+| Suite | 261120-144425-4edf28 (exit 0 at 131bde6); CI run 44831410902 at 131bde6, all jobs green incl. macos-arm64 (D57); later commits are docs-only, paths-ignored by CI |
 
 ## Result
 
