@@ -3502,7 +3502,10 @@
         "docs/DRIVER.md",
         "docs/mechanisms/**",
         "CHANGELOG.md",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/driver_test.cc",
+        "test/driver_close_test.cc",
+        "test/wave_open_test.cc"
       ],
       "journal": "../Detent-wt/detent/consensus-driver-install",
       "landed": [],
@@ -3514,12 +3517,11 @@
       "provides": [
         "consensus:driver-install"
       ],
-      "reason": "started by force: On Xapiand's critical path; builds now against quiescence and transport, whose files it shares, and merges after both land",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-20T18:37:35",
+      "updated": "2026-11-20T19:41:38",
       "worktree": "../consensus-wt/detent/consensus-driver-install"
     },
     "consensus-dual-stack": {
