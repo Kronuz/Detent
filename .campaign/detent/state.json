@@ -5942,7 +5942,8 @@
       ],
       "consumes": [],
       "files": [
-        "test/transport/**"
+        "test/transport/**",
+        "docs/mechanisms/rpc-lane.md"
       ],
       "history": [
         {
@@ -5982,7 +5983,7 @@
       "risk": "normal",
       "status": "active",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T13:32:22",
+      "updated": "2026-11-21T14:42:27",
       "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
     },
     "consensus-wave-open": {
