@@ -5,16 +5,12 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+journal-tail-second-sector's durability review (F2, non-blocking; probe 261121-115044-fd4e5e) found that in the newest tail 36 of 210 crossing-fragment damages still drop the acknowledged turn without a report. All are the documented Limit: a fragment whose header the sector boundary cuts, with no whole header of its write before it, cannot be told from a tear under the sector model. F3 adds that the Limit's argument does not cover a host-chosen group id before a record's sequence and payload. This quest designs whether a format change closes it (for example a per-sector marker or a header that never straddles a sector), with the bytes and write cost per turn measured on the turn log's benchmarks, and recommends a change or accepting the Limit. Greenfield: no format compatibility is needed (D-greenfield).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] `docs/design/turn-log-cut-header.md`: the options, each with its space and write cost per turn measured at named commits, which of the 36 cases each closes, and a recommendation
+- A2 A probe job showing each option's effect on the 210-case shape (prototype or model): jobs
 
 ## Contracts
 
