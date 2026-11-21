@@ -13604,9 +13604,27 @@
       "files": [
         "docs/design/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-21T11:54:25",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "design quest; durability is its dominant risk, one durability review of the design covers it",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -13615,7 +13633,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-21T11:53:49"
+      "updated": "2026-11-21T11:54:25"
     },
     "journal-tail-second-sector": {
       "accepted": {},
