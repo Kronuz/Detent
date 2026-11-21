@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-185055-ee51e1 261120-185057-a51736 261120-185059-a31b7d 261120-183915-9999fc 261120-183954-d2677d 261120-183957-d8625c
+State: waiting on jobs 261120-185055-ee51e1 261120-185057-a51736 261120-185059-a31b7d 261120-183954-d2677d 261120-183957-d8625c
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -49,7 +49,7 @@ Nothing.
 | A1 | at b08f834 (registered ctest consensus_full_window_stall): 261120-185055-ee51e1 (pass), 261120-185057-a51736 (--fails-without, main's core.h), 261120-185059-a31b7d (--fails-without, no floor reset); earlier: 261120-183909-cb25cf passed at 17751bc (9 checks, 0 failures; slow path 0 elections 6.7 commits/s); pending: 261120-183911-97e441 (--fails-without, main's core.h), 261120-183913-e37593 (--fails-without, no timeout floor reset) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc) |
 | A3 | pending: 261120-183954-d2677d (loss1%), 261120-183957-d8625c (reorder5%) |
-| A4 | pending: 261120-183915-9999fc (TSan, Core tests); CI macos-arm64 at 17751bc |
+| A4 | 261120-183915-9999fc passed (TSan: full_window_stall, pipeline, consensus, simulation, liveness at 17751bc; core.h unchanged since); CI macos-arm64 at 17751bc |
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
 failures; with 8801b99's core.h 4 failures (slow path 4 elections, 2.3 commits/s against 6.7).
