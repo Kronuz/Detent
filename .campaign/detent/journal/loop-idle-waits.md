@@ -1,4 +1,4 @@
-# loop-idle-waits: journal
+State: F13 done; arm64 hang: hunting the relay host.cc mechanism (probe 261121-004553-039208 queued).
 
 State: waiting on F13 jobs 261120-225535-9724ee -225537-795628 -225539-3cb98d (strict, head vs main at 100k keys) and -225542-b03235 (fails-without, mutant stop-peers-sleep) at Detent:7d1fad45; arm64 bisect branches bisect/liw-relayhost and bisect/liw-relay1ms (CI on push).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
@@ -161,6 +161,20 @@ reclaim scans ~60 completion ops/s) frames A1.
   bisect/liw-authority, -coordinator, -relaysvc.
 - Next: read the jobs; read each bisect run's statuses (`gh api repos/Kronuz/Detent/commits/<sha>/statuses`),
   name the component, fix it with a test; delete bisect/liw-*.
+
+## Contributor 6 (F13 evidence, relay host.cc hang mechanism)
+
+- F13 done at Detent:7d1fad45 (three voters, 100k keys, SIGTERM to exit, strict, head vs main 6ae09eeb; slowest stop):
+  261120-225535-9724ee head 1.252 s vs main 1.039 s, -225537-795628 0.227 vs 0.936, -225539-3cb98d 0.569 vs 0.684,
+  all pass (bound 2x main + 0.5 s). Fails without: -225542-b03235, mutant stop-peers-sleep, head 9.494 s vs main
+  0.523 s, FAIL as required. F14's comment rewording rides on 09ce7216.
+- arm64 split, final: bisect/liw-relayhost (host.cc as on main) 44877136940 passed 3 of 3; bisect/liw-relay1ms (head,
+  host sleeps at most 1 ms) 44877136979 lost 3 of 3. The hang is in host.cc and not the sleep length. Last statuses of
+  the lost runs: test_relay_service alive in all three (with relay_mirror_crash, pack_scrub or local_change_file),
+  load 3.6 to 7, memorystatus 77 to 79%, nothing hot: the machine or its network stops within 20 s, not a slow climb.
+- Probe: bench/idle-wakeups/relay_sample.py + relay_compare.sh (Detent:187c97b7, 33c87b27): test_relay_service
+  sampled every 0.25 s (TCP states, queued bytes, kernel network memory, per-process CPU and RSS), head vs
+  3aafcf81 (relayhost). Job 261121-004553-039208.
 
 ## Result
 
