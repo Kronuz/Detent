@@ -1,6 +1,6 @@
 # journal-power-silent-loss: journal
 
-State: waiting on jobs CI run 44893311494 (macos-x86_64 rerun)
+State: ready for review
 Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never edit it)
 
 ## Doing
@@ -11,7 +11,7 @@ named locals, size first as Clang did. Clang's workloads are unchanged: the five
 segments, blocks and checks at the new mutants. The fix is test-only. The 200-seed rows pass on macOS,
 FreeBSD (clang 19) and Linux (GCC 13.3) at 3e36940, with identical per-geometry counts.
 CI run 44893311494: macos-arm64 green. macos-x86_64 failed to clone the metrics dependency (an
-infrastructure failure), so I reran that job.
+infrastructure failure); its rerun is green, so the whole run is green.
 
 ## Next
 
@@ -37,7 +37,7 @@ msg-184: seed 91 @512 was already in the set: same cause as 140 (cause 1).
 
 ## Result
 
-CI run 44871736665 is green at journal:0465f24, every job including macos-arm64 (A4).
+CI run 44893311494 is green at journal:3e36940, every job including macos-arm64 (A4).
 
 
 Not a regression from journal-double-damage. 178030b's test added the 'both' and 'last' patterns
