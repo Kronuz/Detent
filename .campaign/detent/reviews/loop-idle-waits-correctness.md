@@ -1,114 +1,104 @@
 # loop-idle-waits review: correctness
 
-Commit: Detent:d7de180bc026 (Detent:cc942c46 plus a merge of main bringing rename-detentd)
+Commit: Detent:dbea4a53faf43a404668ac7d6e5184f186068ad0
 Verdict: CHANGES
-Date: 2026-11-19
+Date: 2026-11-20
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-Round 3, from a fresh context, reviewing fix round 2. The F7 fix is right: `owner_absence` catches
-every case the last review named, and it never marks a return that main's rule would not. F8 and F9
-are closed. One new blocking defect comes from the merge, not from the fix: the A1/A3 bench still
-builds and runs `detentd`, which no longer exists at this commit, so A1 and A3 cannot be re-proved
-at the head (F10).
+Round 4, a delta review from a fresh context. Since round 3 (Detent:d7de180b), three commits touch
+the quest's code: Detent:8d56b21a (bench naming, F10's fix), Detent:39e5ab7e (start, replay and stop
+visit the node again at once unless I/O is in flight) and Detent:9b27cb95 (removes Detent:5f8b0ba1's
+64-yield bound, so service.cc again equals 39e5ab7e's). The rest is journal, watchdog, samplers and
+merges of main with no src or include change in the quest's files.
+
+The single-voter change is right, and its test fails without it. One new blocking defect: `in_flight()`
+counts `peers`, so a multi-voter stop now sleeps 1 ms after every budgeted retirement visit. Main and
+the pre-39e5ab7e code yield there (F13).
 
 ## Evidence I relied on
 
-All at Detent:cc942c46, whose quest code equals d7de180b's except the rename (`git diff cc942c46
-d7de180b -- src include` is the detentd move and its include paths only).
-
-- 261119-103519-3b65cd, exit 8: absence-merged (the round-2 rule) fails test_owner_absence (log:
-  test 163 failed). The other five A2 mutants (644510, c4f26f, 3937ff, 5a6c35, 241774) exit 8.
-- 261119-103506-5b36b1 (suite) and 261119-103617-426e37 (wake and absence tests, 20 repeats), exit 0.
-- 261119-103541-50a978, -42bdbc, -da90b6, -4f2621: test_relay_service a5 under TSan, 20 runs,
-  exit 0. That is the end-to-end witness of the absence wiring (F7's failure was this test).
-- 261119-103510-a7a809 and 261119-103520-8e4934 (A1), 261119-103510-0db86e (A3), exit 0.
+- 261120-051929-b61395: the suite at Detent:9b27cb95 (= dbea4a53's quest code), 288/288, exit 0.
+- 261120-051929-26bcd0: test_authority_restart_wake x10 at 9b27cb95, exit 0. Starts 23-235 ms, stops
+  0-10 ms.
+- 261120-013518-340c44, -021138-336caf, -051932-e37617: the start-stop-sleep mutant (`in_flight` always
+  true) fails the test, exit 8. Starts 1.8-5.0 s, stops 250-501 ms.
+- 261120-054330-7de7d0, -054343-67cb93, -054345-f92c9a, -054347-5f3f0d: test_relay_service a5 under
+  TSan, 20/20 (F7's end-to-end witness).
 
 ## What I checked myself
 
-Script: `.scratch/detent/review-loop-idle-waits-correctness/r3_absence_variants.sh`. It compiles
-test_owner_absence.cc verbatim against the real `owner_absence` and nine wrong variants, and it
-checks the real rule exhaustively (slept 0-40 ms, next up to 60 ms, planned 0-70 ms) against main's
-whole gap. Job 261119-125800-b7d5e4 was queued (load 65 on 16 CPUs) when I wrote this. It is the
-confirming job, and the conclusions below do not rest on it.
+Scripts are under `.scratch/detent/review-loop-idle-waits-correctness/` (`r4_probe.sh`,
+`r4_stop_scale.py`, `r4_39e5ab7e_service.patch`).
 
-### Q1: the rule (owner_loop.hh:63-67, wired at service.cc:2120-2127, 3290-3292)
+- 261120-150702-7fe4aa (`r4_probe.sh revert`): 39e5ab7e's service.cc hunks are reverted exactly
+  (`patch -R`). test_authority_restart_wake fails, exit 8: starts 461/1775/3278/5037 ms, stops 250 ms.
+- 261120-150709-8ed582 (`r4_probe.sh stop`): only the stop loop goes back to its pre-39e5ab7e rule.
+  The test fails, exit 8: every stop is 250-252 ms and every start is 24-193 ms. So the stop half is
+  covered on its own, not only through the start half.
+- 261120-160911-3db6fb (`r4_probe.sh scale 50000`): a three-voter SIGTERM-to-exit time at 50k keys,
+  at head and with the pre-39e5ab7e stop rule. It was queued (load 74) when I wrote this, so F13
+  rests on the code reading below. Its result settles F13's magnitude.
 
-`absence = (slept - pass) + max(0, next - max(planned, slept))`. Given pass <= slept <= next (both
-are `Clock::now()`, a steady_clock, service.cc:42), `gap - absence = min(next, max(planned, slept)) - slept`.
-That is exactly the part of the planned sleep slept through, so 0 <= absence <= gap.
+### Q1: a missed wake or an endless spin?
 
-1. Stopped mid-pass: the stop is in `slept - pass`. It is caught.
-2. Stopped during the sleep: the lateness is the stop minus whatever planned sleep was left. It is
-   caught.
-3. A stall split across the pass and the sleep: the parts are summed (60 + 60 = 120 ms). It is
-   caught. The last review's "either part alone" would have missed this case, so the sum is stricter.
-4. A long planned sleep: it is not counted (R4).
-5. Never more lenient than main? Not literally. It is more lenient by the planned sleep slept
-   through. With peers, `wake_by` caps that at 1 ms (service.cc:1533-1535), and main's own gap
-   included the same 1 ms poll. Without peers the window can be up to 250 ms, but a lone voter has
-   no peer frames waiting in its sockets, and that is what `returned` guards against. It never marks
-   a return that main would not (absence <= gap).
-6. Yields (3248, 3270, 3276) leave `slept_from` at min, so the whole gap counts, as on main. The
-   first pass measures from `last_pass` (2095), about 0.
+No lost wake. The three loops sleep only when `active || history_active || peers` (service.cc:1540).
+`active` and `history_active` are cleared by the driver's completion callback, which then calls
+`wake.raise()` (service.cc:1441-1442, 1463-1464). That callback runs on the owner. `raise()` is
+sticky, and `arm()` expires at once if a raise came since `begin_turn()` (owner_loop.hh:31-47). So a
+completion before the sleep, or during it, ends the sleep. With peers, `wake_by` caps every sleep at
+1 ms. The set of sleeping states is no larger than before the fix, except in the multi-voter stop
+(F13). A visit that has budgeted work while I/O is in flight waits for that completion (start, stop),
+or yields if the applied index moved (replay). That wait is bounded by one I/O, so it is a wait, not
+a lost wake.
 
-### Q2: coverage
+No new endless spin. The yield path runs only with nothing in flight. `task::yield` reposts through
+`asio::post` (task_asio.hh:77-81), so io handlers still run between visits. Each visit advances
+budgeted work: the worker's `run_one`, `State::collect` (32 receipts) and `retire_actions`. I found no
+time-gated wait in start, replay or stop (`WorkerLimits` is budgeted, not timed). A state that never
+advances would hang main too, because main's loops have the same exit conditions. The yield bound
+only priced such a hang (a 1 ms poll against a core), and 9b27cb95's measurement shows the bound did
+not change the visit rate under load. Removing it is sound.
 
-By hand, each variant is killed. The probe confirms it.
+### Q2: does test_restart_wake fail without 39e5ab7e?
 
-1. Counting the planned sleep, or measuring the pass to the deadline: (c) gives 251 ms, want 2 ms.
-2. Dropping the pass part: (a) gives 0.1 ms, want 2500.1 ms.
-3. Dropping the lateness: (b).
-4. The merged rule: (a). Job 3b65cd proves this one.
-5. Measuring lateness from the deadline only: (g) gives 16 ms, want 11 ms.
-6. Taking the max instead of the sum: (f).
-7. Dropping the clamp: (d) goes negative.
+Yes. The exact revert fails (7fe4aa), the stop-only revert fails (8ed582), and the contributor's
+broader mutant fails (e37617).
 
-"Wrong clock" cannot be written in the function: the signature fixes steady_clock. It can be
-written in the wiring, though. For example, `slept_until = Clock::now()` after the `co_await`
-zeroes the lateness. test_owner_absence does not see the wiring, and only a5 does, by timing (F11).
+### Q3: are earlier findings reopened?
 
-### Q3: F8 and F9
-
-1. F8: `Join` is declared after `owner`, `coordinator` and `driver`
-   (test_coordinator_teardown.cc:68-72), so a throwing `require` joins the pool before those three
-   are destroyed. A second `join()` after line 106's is what the pool's own destructor already does.
-   It is closed.
-2. F9: every A1 result line records `interval_ms`. a7a809 ran at 60000. 8e4934 ran at 250 with
-   `IDLE_INTERVAL_MS=250`, which is configuration.cc:80's default. The journal's pending row names
-   both. The row should carry the 250 ms numbers too: detentd 68-70 interrupt wakeups/s and 20 owner
-   turns/s, against 10 and 4 at 60000, with main at about 850 (nit F12).
-
-### Q4: round-1 semantics
-
-Fix round 2 touches only the absence lines in service.cc, a pure function in owner_loop.hh, the
-teardown test and the bench. `wake.begin_turn()`, the post-`co_await` `scheduled_wakeup` clamp,
-`rescan = true`, every `raise()` site and the coordinator's tracked executors (the guard) are
-unchanged, and the merge does not touch them. No lost wake is reintroduced, and the round-1 guard
-analysis stands.
+No. 8d56b21a closes F10: `git grep -i detentd dbea4a53 -- bench` is empty. The only remaining hits
+are the dated revert scripts in tests/detent_authority, and those name BASE's paths on purpose. The
+F10 fails-without job is 261120-144914-cf70b6 (queued). 39e5ab7e and 9b27cb95 leave alone the
+absence wiring (F7, F11), the service loop's sleep (F1), the relay host (F2, F3), the coordinator
+and every `raise()` site.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F10 | yes | defect | After the merge, the A1/A3 bench still names the renamed daemon. compare.sh builds target `detentd`, which no longer exists (the target is now `detent-authority`, src/CMakeLists.txt:118), and pair.py runs `build/src/detentd`. A1 and A3 reruns at d7de180b fail in the build, at head and at the main baseline alike, so these criteria cannot have evidence at the landing commit. It also breaks rename-detentd's A1 rule (`git grep detentd` finds only dated records) once this lands. | bench/idle-wakeups/compare.sh:3,16; pair.py:1,57,126,208-219; idle_loops.py:1,46,62,71; paths.py:3,5 (`git grep -i detentd d7de180b`) | Rename to `detent-authority` in compare.sh and pair.py, and in the labels and docstrings. Test: `campaign job rerun` a7a809, 8e4934 and 0db86e at the fixed commit, all exit 0. |
-| F11 | no | gap | test_owner_absence pins the rule but not its wiring in service.cc. A wiring slip, such as `slept_until` taken after the sleep or `slept_from` not reset, survives the unit test. It shows only in test_relay_service a5, by timing. | service.cc:2120-2127, 3290-3292 | Optional: a wiring mutant run against a5 in Release, where a stop usually lands in the 1 ms sleep. |
-| F12 | no | nit | The A1 Evidence row should carry both intervals' numbers, and the 250 ms row should read detentd's 68 interrupt wakeups/s against its real deadlines (relay syncs at 4/s). | 8e4934 log | State them in the row. |
-| F1 | no | defect | Carried, unchanged: a lone voter's first election can wait for the 250 ms health sleep. | service.cc:3279-3283 | As in round 1. |
-| F2 | no | defect | Carried, unchanged: a snapshot install is not counted as relay turn progress (up to 100 ms). | host.cc:428-432 | As in round 1. |
-| F3 | no | gap | Carried: no relay test runs host.cc's sleeping turn; each lost relay wake is bounded by the 100 ms health turn. | relay_service_fixture.hh:129-132 | As in round 1. |
-| F4 | no | gap | Carried: read test_authority_idle_wake in CI at the landing commit. | CI | As before. |
+| F13 | yes | defect | A multi-voter stop sleeps 1 ms after every retirement visit. `in_flight()` includes `peers` (service.cc:1540), and `peers` stays set through the stop loop (service.cc:3421-3434), so `wake_by` caps each sleep at 1 ms and no peer frame raises a wake. Retirement frees about 32 arena nodes per visit (`CommandWorkBudget` receipts 32, state.hh:134; `State::collect`, state.cc:846-889), so the stop costs about N/32 ms for N retained nodes: seconds at 100k keys, and about 30 s at 1M, against a timeout's SIGKILL. Main (and this quest before 39e5ab7e) yields while `owned_node && !drained() && !active && !history_active`. This was introduced by 39e5ab7e. Single-voter stops are unaffected. | service.cc:1540, 3421-3434; probe 261120-160911-3db6fb (queued) | In the stop loop, yield while the node has retirement work and no storage or history I/O is in flight, and sleep for peers only once the node is drained, for example `active \|\| history_active \|\| (peers && (!owned_node \|\| owned_node->drained()))`. Keep the drained-node case yielding when there are no peers, because test_restart_wake's 250 ms stop depends on it. Test: a three-voter SIGTERM-to-exit bound at a sizable state (r4_stop_scale.py is a starting point), failing at dbea4a53. |
+| F14 | no | nit | The comment at service.cc:1536-1538 says only storage or history I/O sleeps, but `peers` also sleeps (1 ms). It should say so, or F13's fix should make it true for stop. | service.cc:1536-1540 | Reword with F13's fix. |
+| F10 | no | defect | Closed by Detent:8d56b21a. The bench builds and runs detent-authority. | `git grep -i detentd dbea4a53 -- bench` | Read 261120-144914-cf70b6 when it ends. |
+| F11 | no | gap | Carried: test_owner_absence pins the rule but not its wiring; only a5 sees the wiring, by timing. | service.cc absence wiring | Optional, as in round 3. |
+| F12 | no | nit | Carried: the A1 Evidence row should carry both intervals' numbers. | journal Evidence | As in round 3. |
+| F1 | no | defect | Carried, unchanged: a lone voter's first election can wait for the 250 ms health sleep. | service.cc service loop | As in round 1. |
+| F2 | no | defect | Carried, unchanged: a snapshot install is not counted as relay turn progress (up to 100 ms). | host.cc | As in round 1. |
+| F3 | no | gap | Carried: no relay test runs host.cc's sleeping turn. | relay_service_fixture.hh | As in round 1. |
+| F4 | no | gap | Carried: read test_authority_idle_wake (and now test_authority_restart_wake) in CI at the landing commit. CI at dbea4a53 is running, and macOS arm64 runs keep losing their runner. That predates 39e5ab7e (first loss at 8d56b21a), so it is not attributed to these commits. | CI | As before. |
 | F6 | no | nit | Carried: read "no wakeups" from `interrupt_wakeups_per_s`. | idle_loops.py | As in round 1. |
-| F7 | no | defect | Closed: `owner_absence` catches a stop mid-pass, in the sleep, and split across both, and never exceeds main's gap. | 3b65cd; Q1 above | None. |
-| F8 | no | nit | Closed. | test_coordinator_teardown.cc:68-72 | None. |
-| F9 | no | gap | Closed: 8e4934 runs at the 250 ms default, and the interval is recorded. | 8e4934 | None. |
+| F7 | no | defect | Closed (round 3). | 3b65cd | None. |
+| F8 | no | nit | Closed (round 3). | test_coordinator_teardown.cc | None. |
+| F9 | no | gap | Closed (round 3). | 8e4934 | None. |
 
 ## Not run
 
-- 261119-125800-b7d5e4 (the variant and property probe) was queued when I wrote this. Confirm it
-  exits 0.
-- The suite at d7de180b (261119-125133-46bdc3, queued) and CI at d7de180b (running).
-- A Release a5 run against a wiring mutant (F11).
-- The seven formerly hung tests under load (261119-102322-12a601, from round 2): I did not reread it.
+- 261120-160911-3db6fb (the three-voter stop-time probe) was queued when I wrote this. Read its head
+  against prefix-stop lines. It measures F13 and does not decide it.
+- The suite at dbea4a53 (261120-144912-403ec3), A1 and A3 at bd01e34f, and CI at dbea4a53: all
+  were running or queued.
+- I did not audit the consensus Worker's initialization path beyond its budgeted limits. Q1's "no
+  endless spin" rests on main having the same exit conditions.
+- The arm64 runner losses: not investigated (the contributor's bisect is running).
