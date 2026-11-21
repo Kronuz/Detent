@@ -113,9 +113,13 @@ async def seed(writers: Writers) -> None:
     await rewrite(writers, list(range(writers.records)), 0)
 
 
-async def rewrite(writers: Writers, ordinals: list[int], step: int = 1) -> None:
-    """Each key in `ordinals` set to its value plus `step`, BATCH keys a transaction."""
+async def rewrite(
+    writers: Writers, ordinals: list[int], step: int = 1, progress: bool = False
+) -> None:
+    """Each key in `ordinals` set to its value plus `step`, BATCH keys a transaction; with
+    `progress`, each transaction's time and position printed as it ends."""
     for offset in range(0, len(ordinals), BATCH):
+        began = time.monotonic()
         batch = ordinals[offset : offset + BATCH]
         operations = [
             {
@@ -128,6 +132,24 @@ async def rewrite(writers: Writers, ordinals: list[int], step: int = 1) -> None:
             raise RuntimeError("authority capacity refused the write")
         for ordinal in batch:
             writers.values[ordinal] += step
+        if progress:
+            phase(
+                began,
+                f"transaction at {offset + len(batch)} of {len(ordinals)}, position {writers.positions[0]},",
+            )
+
+
+class Reported:
+    """Prints a failure as it happens, before the actors' teardown can outlast the test's timeout."""
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(
+        self, kind: object, error: BaseException | None, trace: object
+    ) -> None:
+        if error is not None:
+            print(f"run_relay_pages: stopping the actors after {error!r}", flush=True)
 
 
 def phase(began: float, what: str) -> None:
@@ -147,7 +169,7 @@ async def run(arguments: argparse.Namespace) -> None:
     certificates = arguments.certificates.resolve()
     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
     logs = Output()
-    async with Actors(evidence, 30) as actors:
+    async with Actors(evidence, 30) as actors, Reported():
         authority = Authority(
             arguments.binary.resolve(), certificates, output, actors, 1
         )
@@ -245,7 +267,7 @@ async def run(arguments: argparse.Namespace) -> None:
         os.kill(relay_process.pid, signal.SIGSTOP)
         try:
             began = time.monotonic()
-            await rewrite(writers, ordinals)
+            await rewrite(writers, ordinals, progress=True)
             phase(began, "rewritten")
             await direct.wait_selected(direct.positions(writers))
             phase(began, "direct agent selected")
