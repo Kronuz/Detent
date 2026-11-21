@@ -1,6 +1,6 @@
 # restart-capacity: journal
 
-State: waiting on jobs (listed under Evidence)
+State: waiting on jobs 261121-135043-e4073f 261121-134615-70d30f 261121-134017-55739f 261121-134021-7685c2
 Quest: .campaign/detent/quests/restart-capacity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -31,12 +31,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: unit jobs; mutant `mutant/restart-capacity-a1` (Detent:fc91b0c9, commands under configured limits) --fails-without |
-| A2 | pending: unit and service jobs; mutant `mutant/restart-capacity-a2` (Detent:53faec96, administrative entries under configured limits) --fails-without |
-| A3 | pending: unit, service and system jobs |
-| A4 | pending: system job (`tests/detent_system/test_restart_capacity.sh`) |
+| A1 | pending: unit job 261121-135043-e4073f (at Detent:e3f48e0b); mutant job 261121-134017-55739f on `mutant/restart-capacity-a1` (Detent:fc91b0c9, commands under configured limits) --fails-without |
+| A2 | pending: 261121-135043-e4073f; mutant job 261121-134021-7685c2 on `mutant/restart-capacity-a2` (Detent:53faec96, administrative entries under configured limits) --fails-without |
+| A3 | pending: 261121-135043-e4073f, 261121-134615-70d30f |
+| A4 | pending: system job 261121-134615-70d30f (`tests/detent_system/test_restart_capacity.sh`, at Detent:702fe5f9; inputs unchanged since) |
 | A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
-| A6 | pending: CI on the pushed branch (suite, ASan/UBSan, TSan) |
+| A6 | pending: CI at Detent:e3f48e0b (pushed; suite, ASan/UBSan, TSan) |
 
 ## Result
 
@@ -65,3 +65,5 @@ does not do").
    still checks the configured layout.
 5. Mutants are commits on local branches `mutant/restart-capacity-a1` and `-a2`, one assertion
    each, run with `--fails-without`.
+
+Cancelled, superseded (not evidence): 261121-134013-9953d2, 261121-134216-f7b3a0, 261121-134612-884a01.
