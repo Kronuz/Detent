@@ -12689,27 +12689,29 @@
     "journal-power-silent-loss": {
       "accepted": {
         "durability": {
-          "at": "2026-11-20T21:36:29",
+          "at": "2026-11-21T03:25:33",
           "base": "178030b38f5617337486407e6cc35d70881a0841",
           "blobs": {
             "CHANGELOG.md": "100644:5e1cde0259ae1365625faafc342501439a18605e",
+            "docs/mechanisms/turn-log-damage.md": "100644:d98c43ba05f88c38cb0b9922852dfe8f824c593e",
             "include/journal/turn_log.h": "100644:c15555cacf94bb2dd988d53b8abcc0fb76330a75",
-            "test/turn_log_power_test.cc": "100644:71f805bc037d1d907e5470a1cf4e89cef15be94c",
+            "test/turn_log_power_test.cc": "100644:e9062e0765e8da738e68286ef703c107155b7a5f",
             "test/turn_log_power_vm.sh": "100755:c3fe32434b413a5c70112d8ddb7ae2659bc7aa47"
           },
           "by": "review",
-          "commit": "b1bf19a19c7a594b06d1a6823955b65707f9b761",
+          "commit": "3e369404101bc2a0d174022b263699a1bf219660",
           "criteria": "897f2ddc54ec0498",
           "diffs": {
             "CHANGELOG.md": "85ec8453097d55fb",
+            "docs/mechanisms/turn-log-damage.md": "11694351bf55e511",
             "include/journal/turn_log.h": "846a63719d211473",
-            "test/turn_log_power_test.cc": "2b3939f897a0c63c",
+            "test/turn_log_power_test.cc": "da530e556bcc58ed",
             "test/turn_log_power_vm.sh": "64e77d4bc43ac795"
           },
           "findings": {},
           "note": "",
-          "review": "5272e555eb19858902ac7ccffa1097c248395940",
-          "reviewed": "b1bf19a19c7a594b06d1a6823955b65707f9b761",
+          "review": "047aaa2ca2f9428aed17348f1ffa60adb98e86cf",
+          "reviewed": "3e369404101bc2a0d174022b263699a1bf219660",
           "verdict": "APPROVE"
         }
       },
@@ -12795,7 +12797,7 @@
       "risk": "high",
       "status": "review",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-20T21:36:29",
+      "updated": "2026-11-21T03:25:33",
       "worktree": "../journal-wt/detent/journal-power-silent-loss"
     },
     "journal-reopen-closed": {
