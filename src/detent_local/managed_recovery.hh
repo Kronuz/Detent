@@ -5,14 +5,15 @@ class DiskStore;
 namespace detail {
 struct StoreCore;
 struct ManagedRecoveryContext {
-	RecoveryContext legacy, paged;
+	RecoveryContext paged;
 	std::weak_ptr<StoreCore> owner;
 	DirectoryIdentity directory;
 };
 class ManagedRecovery {
   public:
 	// Capture on the store executor; immutable capabilities may run on a worker.
-	static ManagedRecoveryContext capture(const DiskStore &);
+	// `name`: the namespace's entry; empty: the table's only entry.
+	static ManagedRecoveryContext capture(const DiskStore &, std::string_view name = {});
 	static RecoveredGeneration recover(const std::filesystem::path &, ManagedRecoveryContext);
 	static void settle_failure(DiskStore &, const ManagedRecoveryContext &, std::exception_ptr);
 };

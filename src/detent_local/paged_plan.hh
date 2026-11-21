@@ -66,14 +66,15 @@ class PagedPlanState final : public distribution::RetirementNode {
 	std::size_t copied_ = 0, hashed_ = 0;
 	class SHA256 hash_;
 	bool sealed_ = false;
-    void copy_root(std::shared_ptr<distribution::StorageLedger>, distribution::Cursor);
-	void derive(const distribution::Cursor &, const distribution::Profile &);
+    void copy_root(std::shared_ptr<distribution::StorageLedger>, distribution::NamespaceCursor);
+	void derive(const distribution::NamespaceCursor &, const distribution::Profile &);
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class SparsePlanFinalizer;
 	friend class PagedMaintenanceBuilder;
 	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
+	friend class PagedTransferPlanBuilder;
 };
 // Move-only exact-base publication authority; retirement never runs on its caller.
 class PagedPlan {
@@ -118,5 +119,6 @@ class PagedPlan {
 	friend class PagedMaintenanceBuilder;
 	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
+	friend class PagedTransferPlanBuilder;
 };
 } // namespace detent::local::detail

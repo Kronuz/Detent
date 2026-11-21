@@ -150,7 +150,7 @@ void agent_store(const std::filesystem::path &root) {
 	    [](void *context) noexcept {
 		    auto &seen = *static_cast<Order *>(context);
 		    // Every increment follows the rename of `selected` it announces (reader.md D4 rule 3).
-		    seen.selected.push_back(x::PreparedReader::selection(seen.store, ::getuid()).descriptor.cursor.revision);
+		    seen.selected.push_back(x::PreparedReader::selection(seen.store, ::getuid()).descriptor.cursor.position);
 		    seen.store_word.push_back(seen.mapping ? seen.mapping->store().load() : 0);
 	    },
 	    &order);

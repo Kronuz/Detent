@@ -74,7 +74,6 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 | `runtime_dir` | Runtime directory |
 | `managed_path` | Private managed credential file |
 | `generation_dir` | Managed generation directory |
-| `generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope` | Expected managed identity; all four or none |
 | `log_level`, `verbosity`, `color` | [Logging](/Detent/operations/logging/) |
 
 An explicitly configured defaults file must exist and be valid; an absent
@@ -100,8 +99,6 @@ conventional `defaults.json` is skipped.
 The managed agent's private credential file. See
 [Managed Delivery](/Detent/guides/managed-delivery/) for every field and its
 resource bounds.
-
-The managed source accepts `image_format` as `"flat-v1"` (default) or `"paged-v2"`. The same option applies to relay bundle sources. Recovery reads either format; the preference controls subsequent publication. Changing to `flat-v1` leaves an unchanged paged selection in place until a forward update publishes a flat image. Deploy compatible readers before selecting paged writing.
 
 `compaction_interval_ms` defaults to 60,000. Zero disables periodic compaction; enabled values range from 1,000 to 86,400,000. Checks run between upstream exchanges, and admission pressure skips an optional attempt. Reader leases and durable collection determine when old storage can be reclaimed.
 
@@ -145,7 +142,7 @@ Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime
 | `alpha_num`, `alpha_den` | 1 and 8 | The block limit, as a fraction of a namespace's live bytes |
 | `cap` | 2 | Disk cap, in units of the block limit |
 
-The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `poll_interval_ms` and capped by `reconnect_maximum_ms` (default 30,000, or the poll interval when larger). The cap must cover the poll interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
+The private managed agent configuration names the followed `namespaces` (every granted namespace when absent) and follows them over one W5 session; the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `retry_interval_ms` (default 200) and capped by `reconnect_maximum_ms` (default 30,000, or the retry interval when larger). The cap must cover the retry interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
 
 ---
 
@@ -179,11 +176,11 @@ or group/other write permission; Detent refuses it otherwise.
 
 ## Relay admission
 
-The private relay host configuration accepts `connections` (default 1,024) and `service_limits` for Open, Next, Close, sessions and transfers. Counts range from 1 to 65,536; transfer counts cannot exceed polls, and per-principal sessions cannot exceed total sessions. Idle and maximum session lifetimes are bounded to 24 hours. See the [relay configuration](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for defaults and a complete example.
+The private relay host configuration accepts `connections` (default 1,024) and `service_limits` with the requests in flight per lane: `opens` (16; the history routes share it), `polls` (640) and `closes` (16), each 1 to 65,536. See the [relay guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity) for the heap budget and a complete example.
 
 ## Relay namespace mirror
 
-A relay configuration may carry a `mirror` object. The relay then mirrors namespace history from the authority's voters, or from another relay, and serves it to version 2 sessions and to downstream relays. A relay with a mirror may have no bundles, and its credentials may grant `namespaces` patterns.
+A relay configuration requires a `mirror` object: the relay mirrors namespace history from the authority's voters, or from another relay, and serves it to version 2 sessions and to downstream relays. Each of its credentials grants `namespaces` patterns.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -193,10 +190,11 @@ A relay configuration may carry a `mirror` object. The relay then mirrors namesp
 | `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure, or an answer older than the mirror, moves to the next |
 | `token` | required | The relay's credential at its upstream |
 | `hostname`, `ca` | `localhost`, the relay's `ca` | How the relay verifies its upstream |
-| `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to 30 seconds or one interval |
+| `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to `reconnect_maximum_ms` |
+| `reconnect_maximum_ms` | 30,000, or the interval when larger | The longest wait after failed syncs, from the interval to 86,400,000 |
 | `timeout_ms` | 10,000 | Deadline for each upstream request |
 | `compression` | `false` | Read W6 answers in zstd |
-| `sessions` | 1,024 | Version 2 sessions the relay holds |
+| `sessions` | 1,024 | Sessions the relay holds |
 | `answer_bytes` | 67,108,864 | Memory for answers in flight, 1 MiB to 4 GiB |
 
 ## Managed authority endpoint pools

@@ -79,9 +79,9 @@ Keep the managed credential file private (`0600` or controlled `0640`), and dist
 
 ## Durable relay service
 
-Build `detent-relay` with `DETENT_BUILD_RELAY=ON` and install the matching systemd, launchd or rc.d template. It follows foreground supervision, `--system`, `--config`, `--status`, logging and unmanaged `--daemonize` conventions. The default private configuration is `relay.json`; TLS listens on loopback port `8318` unless configured otherwise. Configure all upstream bundle credentials and exact downstream grants before startup; see [the relay guide](RELAY.md).
+Build `detent-relay` with `DETENT_BUILD_RELAY=ON` and install the matching systemd, launchd or rc.d template. It follows foreground supervision, `--system`, `--config`, `--status`, logging and unmanaged `--daemonize` conventions. The default private configuration is `relay.json`; TLS listens on loopback port `8318` unless configured otherwise. Configure the mirror's upstream credential and the downstream namespace grants before startup; see [the relay guide](RELAY.md).
 
-Relay durable roots require service ownership and mode `0700`, and their artifacts remain `0600` even in system mode. Agents consume the relay through authenticated TLS; application readers access their own agent generations. Readiness requires durable recovery and fresh authentication for every configured bundle. The daemon drains listener originals and shared disk completions before retiring stores and workers. Hosting has Stage 5B component acceptance; system-service templates do not establish sustained fleet acceptance.
+The relay's mirror directory requires service ownership and mode `0700`. Readers consume the relay through authenticated TLS; application readers access their own agent generations. The relay is ready after the mirror's first sync, and it drains requests in flight before stopping the mirror thread.
 
 ### Reader capacity and service credentials
 

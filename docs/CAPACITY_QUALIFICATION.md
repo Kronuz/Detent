@@ -63,7 +63,7 @@ The 5M logical snapshot count is not compressed traffic. The complete per-hop bu
 
 ## Validated architectural blueprint
 
-The review covers scalability, edge cases, dependency/state ownership and security. Implement startup runtime capacity first: one explicit envelope forwards into existing limit types, preserves defaults and validates checked size arithmetic and overlapping resource funding before service admission. Use paged-v2. The 1.1M default page limit and hard uses of default segment/byte bounds must be included; exposing only the authority key setting is insufficient.
+The review covers scalability, edge cases, dependency/state ownership and security. Implement startup runtime capacity first: one explicit envelope forwards into existing limit types, preserves defaults and validates checked size arithmetic and overlapping resource funding before service admission. The 1.1M default page limit and hard uses of default segment/byte bounds must be included; exposing only the authority key setting is insufficient.
 
 Qualify a fresh group configured for the complete 5M envelope, growing its contents through the matrix without recompiling or recreating it. This closes startup capacity only. Keep the application semantic profile in peer admission, batch framing and checkpoint validation unchanged during this stage.
 

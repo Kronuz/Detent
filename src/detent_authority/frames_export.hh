@@ -16,6 +16,7 @@ struct FramesRequest {
 	std::unique_ptr<AuthorityHistory> history; // null for a dropped namespace
 	std::optional<distribution::NamespaceCursor> store;
 	std::optional<distribution::NamespaceCursor> dropped; // the dropped incarnation's cursor
+	bool repair = false;
 };
 // A live namespace the voter cannot freeze yet (its layout is not at the sealed state): no answer
 // is better than one that omits it, so the session's next fails and the client keeps its cursors.
@@ -34,7 +35,12 @@ struct FramesPlan {
 	std::vector<FramesRequest> requests; // in name order
 	std::optional<distribution::DirectoryUpdate> directory;
 };
-using Followed = std::pair<std::string, std::optional<distribution::NamespaceCursor>>;
+// A followed namespace, its store, and whether `store` is a repair's floor instead (D139).
+struct Followed {
+	std::string name;
+	std::optional<distribution::NamespaceCursor> store;
+	bool repair = false;
+};
 // What a next answers: a frame for each followed namespace (a drop for one the session stores and
 // the voter has dropped), and with `all` the directory's changes the grants allow and a full copy of
 // each live granted namespace they bring. Throws FramesBehind, and HistoryFailure for a history

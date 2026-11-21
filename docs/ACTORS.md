@@ -102,19 +102,19 @@ Each update carries a cursor (authority identity, scope and revision). The agent
 | File | Content |
 | --- | --- |
 | `selected` | The 176-byte `DTSELECT` descriptor naming the active generation, its length, SHA-256 and cursor |
-| `generation-<id>.image` | The image; for `paged-v2`, a root that references packs |
+| `generation-<id>.image` | The generation's root, which references packs |
 | `generation-<id>.descriptor` | That generation's own descriptor |
 | `generation-<id>.lease` | The lock file readers hold so cleanup cannot delete a generation in use |
-| `generation-<id>.read` | `paged-v2` prepared metadata: a 192-byte record that lets clients attach without a full scan |
-| `segment-<id>.pack`, `segment-<id>.owner` | `paged-v2` page packs and their ownership records |
+| `generation-<id>.read` | Prepared metadata: a 192-byte record that lets clients attach without a full scan |
+| `segment-<id>.pack`, `segment-<id>.owner` | Page packs and their ownership records |
 
-`image_format` chooses `paged-v2` (the default) or `flat-v1` (one self-contained image). Readers handle both. See [the local image format](LOCAL_IMAGE_FORMAT.md).
+See [the local image format](LOCAL_IMAGE_FORMAT.md).
 
 **When.**
 
 1. First start: run once with `--initialize-managed` on an empty directory. The first update is a full snapshot.
-2. Startup: the agent opens the existing store, recovers the selected generation and, for `paged-v2`, its prepared metadata, then reports ready. Recovery has 180 seconds.
-3. Steady state: it asks for updates, publishes each one, and compacts `paged-v2` packs every 60 seconds (`compaction_interval_ms`).
+2. Startup: the agent opens the existing store, recovers the selected generation and its prepared metadata, then reports ready. Recovery has 180 seconds.
+3. Steady state: it asks for updates, publishes each one, and compacts packs every 60 seconds (`compaction_interval_ms`).
 4. Restart: it resumes from the cursor of its selected generation. The upstream sends a delta when its retained history covers that cursor, and a full snapshot otherwise.
 5. Upstream down: it keeps the last selection and retries with backoff.
 

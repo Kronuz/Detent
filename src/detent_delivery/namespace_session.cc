@@ -78,8 +78,11 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 			body += ',';
 		previous = followed.name;
 		body += "[\"" + followed.name + '"';
-		if (const auto &at = followed.cursor; at && at->cluster == cluster && at->incarnation != d::Identity{})
+		if (const auto &at = followed.cursor; at && at->cluster == cluster && at->incarnation != d::Identity{}) {
 			body += ",\"" + hex(at->incarnation) + "\"," + std::to_string(at->position);
+			if (followed.repair)
+				body += ",true";
+		}
 		body += ']';
 	}
 	body += ']';
@@ -87,8 +90,29 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 	if (following.all)
 		body += ",\"all\":" +
 				std::to_string(following.all->cluster == cluster ? following.all->position : std::uint64_t{0});
-	if (purpose == SessionResponsePurpose::Next)
+	if (purpose == SessionResponsePurpose::Next) {
 		body += ",\"wait_ms\":" + std::to_string(wait.count());
+		if (const auto &resume = following.resume) {
+			require(d::valid_namespace_name(resume->name) && resume->offset, "a resumed transfer is named");
+			body += ",\"resume\":[\"" + resume->name + "\",\"" + hex(resume->root) + "\"," +
+					std::to_string(resume->after) + ',' + std::to_string(resume->offset) + ']';
+		}
+	}
+	else if (following.pages)
+		body += ",\"pages\":true";
+	if (purpose == SessionResponsePurpose::Open && !following.records.empty()) {
+		body += ",\"records\":[";
+		previous = {};
+		for (const auto &name : following.records) {
+			require(d::valid_namespace_name(name) && (previous.empty() || previous < name),
+					"records namespaces are not valid names in order");
+			if (!previous.empty())
+				body += ',';
+			previous = name;
+			body += '"' + name + '"';
+		}
+		body += ']';
+	}
 	return body + '}';
 }
 
@@ -401,6 +425,12 @@ class StagedFrames final : public d::FrameSink {
 	}
 	void record(std::string_view key, std::uint64_t revision, const KnobDef *value) override {
 		frames_.back()->record(key, revision, value);
+		charge();
+	}
+	void root(const d::RootDigest &root) override { frames_.back()->root(root); }
+	void pages(std::uint64_t offset) override { frames_.back()->pages(offset); }
+	void chunk(std::string_view bytes) override {
+		frames_.back()->chunk(bytes);
 		charge();
 	}
 	void publish() {

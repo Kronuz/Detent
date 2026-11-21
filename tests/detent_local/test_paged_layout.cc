@@ -41,13 +41,13 @@ int main() {
 		rejects([&] { p::validate(bad); });
 	}
 	auto root = empty_root();
-	auto exact_root = unhex("4454524f4f543033 00000003 00000140 "
+	auto exact_root = unhex("4454524f4f543034 00000004 00000140 "
 							"0000000000000000 00000000 00000000 0000000000000000 "
 							"0000000000000000 0000000000000000 "
 							"0000000000000011 63636363636363636363636363636363 "
-							"67676767676767676767676767676767 "
-							"65656565656565656565656565656565 "
-							"7373737373737373737373737373737373737373737373737373737373737373 "
+							"69696969696969696969696969696969 "
+							"00000000000000000000000000000000 "
+							"0000000000000000000000000000000000000000000000000000000000000000 "
 							"00000001 00000000 0000000000000001");
 	exact_root.resize(320);
 	require(std::ranges::equal(p::encode_root(root, p::Limits{}), exact_root));
@@ -93,7 +93,7 @@ int main() {
 				p::state_commitment(decoded) == p::state_commitment(state));
 	}
 	for (std::size_t i = 0; i < 320; ++i) {
-		if ((i >= 48 && i < 56) || (i >= 148 && i < 152) || (i >= 205 && i < 208) || i >= 228) {
+		if ((i >= 48 && i < 56) || (i >= 96 && i < 144) || (i >= 148 && i < 152) || (i >= 205 && i < 208) || i >= 228) {
 			for (const auto &seed : {exact_root, nonempty}) {
 				auto bad = seed;
 				bad[i] = 1;
@@ -136,7 +136,7 @@ int main() {
 		rejects([&] { p::verify_page(bad, ref, p::Limits{}); });
 	}
 	// A root or page in any other format is invalid input, whatever its version says.
-	for (const char version : {'2', '4', '9'}) {
+	for (const char version : {'2', '5', '9'}) {
 		auto other = nonempty;
 		other[7] = version;
 		rejects([&] { p::decode_root(other, p::Limits{}); });

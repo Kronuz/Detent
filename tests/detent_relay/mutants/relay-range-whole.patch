@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/mirror_service.cc b/src/detent_relay/mirror_service.cc
+index e35301c8..92dfe2d1 100644
+--- a/src/detent_relay/mirror_service.cc
++++ b/src/detent_relay/mirror_service.cc
+@@ -238,7 +238,7 @@ struct MirrorService::Impl {
+ 				control(job, 404, "{\"error\":\"not_found\"}");
+ 				break;
+ 			}
+-			if (!job.range) {
++			if (true) {
+ 				stream(job, "application/octet-stream", relay->fetch(job.name_space, *file));
+ 				break;
+ 			}

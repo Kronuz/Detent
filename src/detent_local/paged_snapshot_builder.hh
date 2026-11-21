@@ -49,6 +49,11 @@ class PagedImage {
 	distribution::StorageOwner<Impl> impl_;
 	friend class PagedSnapshotBuilder;
 	friend class OverlayAssembler;
+	friend class PagedTransferPlanBuilder;
+	friend PagedImage receive_image(std::shared_ptr<distribution::StorageLedger>, std::span<const char>,
+									std::string_view, const paged::Digest &, const distribution::NamespaceCursor &,
+									const distribution::Profile &, const DerivedGeneration &, paged::Limits,
+									std::uint32_t);
 };
 // Construction buffers leave owner executors through the cleanup runtime.
 class PagedImageOwner final : public distribution::RetirementNode {

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <condition_variable>
 #include <deque>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <openssl/rand.h>
@@ -12,7 +13,6 @@ namespace detent::relay {
 namespace d = distribution;
 namespace {
 using Clock = std::chrono::steady_clock;
-constexpr std::chrono::milliseconds backoff_limit{30000}; // or one interval, when that is longer
 std::string hex(std::span<const char> bytes) {
 	std::string out;
 	for (unsigned char byte : bytes) {
@@ -48,6 +48,8 @@ struct MirrorService::Impl {
 		d::SubscriptionPrincipal principal;
 		bool compressed = false, busy = false;
 		Clock::time_point used;
+		bool pages = false;
+		std::vector<std::string> records;
 	};
 	std::map<d::Identity, Session> sessions;
 	struct Parked {
@@ -55,7 +57,19 @@ struct MirrorService::Impl {
 		Clock::time_point deadline;
 	};
 	std::vector<Parked> parked;
-	std::thread thread;
+	// The file a downstream reads in ranges (D138), read once and held until its last range or
+	// another file is asked.
+	struct HeldFile {
+		std::string name_space;
+		MirrorFile file;
+		std::string bytes;
+	};
+	std::optional<HeldFile> ranged;
+	// The builder thread's tasks, under `mutex`; `built` tells the mirror thread one finished.
+	std::deque<std::function<void()>> builds;
+	std::condition_variable build_wake;
+	bool built = false;
+	std::thread thread, builder;
 
 	void finish(MirrorJob &job) {
 		job.done.store(true, std::memory_order_release);
@@ -137,7 +151,11 @@ struct MirrorService::Impl {
 	}
 	// A next's answer now, or false while every followed namespace is current (it waits).
 	bool answer(MirrorJob &job, Session &session) {
-		auto body = relay->changes(job.positions);
+		auto positions = job.positions;
+		for (auto &position : positions)
+			position.pages = session.pages &&
+							 !std::binary_search(session.records.begin(), session.records.end(), position.name);
+		auto body = relay->changes(positions);
 		if (!body)
 			return false;
 		frames(job, session, *body);
@@ -153,8 +171,13 @@ struct MirrorService::Impl {
 				control(job, 503, "{\"error\":\"admission_full\"}");
 				break;
 			}
+			if (!std::is_sorted(job.records.begin(), job.records.end()) ||
+				std::adjacent_find(job.records.begin(), job.records.end()) != job.records.end()) {
+				control(job, 400, "{\"error\":\"invalid_request\"}");
+				break;
+			}
 			auto id = random_identity();
-			sessions[id] = {job.principal, job.compressed, false, now};
+			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records};
 			control(job, 200, "{\"version\":2,\"session\":\"" + hex(id) +
 								  "\",\"wait_ms\":" + std::to_string(options.maximum_wait_ms) + "}");
 			break;
@@ -217,7 +240,24 @@ struct MirrorService::Impl {
 				control(job, 404, "{\"error\":\"not_found\"}");
 				break;
 			}
-			stream(job, "application/octet-stream", relay->fetch(job.name_space, *file));
+			if (!job.range) {
+				stream(job, "application/octet-stream", relay->fetch(job.name_space, *file));
+				break;
+			}
+			// A range answers at most its length from its offset, fewer at the file's end; 416 at or
+			// past the end.
+			const auto [offset, length] = *job.range;
+			if (offset >= file->size) {
+				ranged.reset();
+				control(job, 416, "{\"error\":\"range_not_satisfiable\"}");
+				break;
+			}
+			if (!ranged || ranged->name_space != job.name_space || ranged->file != *file)
+				ranged = HeldFile{job.name_space, *file, relay->fetch(job.name_space, *file)};
+			const auto count = std::min(length, file->size - offset);
+			stream(job, "application/octet-stream", std::string_view(ranged->bytes).substr(offset, count));
+			if (offset + count == file->size)
+				ranged.reset();
 			break;
 		}
 		}
@@ -301,17 +341,40 @@ struct MirrorService::Impl {
 			parked.pop_back();
 		}
 	}
+	void build_loop() {
+		for (;;) {
+			std::function<void()> task;
+			{
+				std::unique_lock lock(mutex);
+				build_wake.wait(lock, [&] { return stopping || !builds.empty(); });
+				if (stopping)
+					return;
+				task = std::move(builds.front());
+				builds.pop_front();
+			}
+			task();
+			std::lock_guard lock(mutex);
+			built = true;
+			wake.notify_one();
+		}
+	}
 	void run() {
+		builder = std::thread([this] { build_loop(); });
 		try {
 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
-			relay.emplace(std::move(io), options.cluster, *upstream);
+			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
+						  [this](std::function<void()> task) {
+							  std::lock_guard lock(mutex);
+							  builds.push_back(std::move(task));
+							  build_wake.notify_one();
+						  });
 		} catch (const std::exception &error) {
 			std::lock_guard lock(mutex);
 			state.failed = true;
 			state.error = std::string("relay mirror: ") + error.what();
 		}
 		auto next_sync = Clock::now();
-		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to backoff_limit
+		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to reconnect_maximum
 		for (;;) {
 			std::deque<std::shared_ptr<MirrorJob>> jobs;
 			{
@@ -319,11 +382,12 @@ struct MirrorService::Impl {
 				auto until = next_sync;
 				for (const auto &each : parked)
 					until = std::min(until, each.deadline);
-				wake.wait_until(lock, until, [&] { return stopping || !incoming.empty() || state.failed; });
+				wake.wait_until(lock, until, [&] { return stopping || !incoming.empty() || state.failed || built; });
 				if (stopping || state.failed)
 					break;
 				jobs.swap(incoming);
 			}
+			const bool landed = take_built() && relay->collect();
 			auto now = Clock::now();
 			for (auto &job : jobs) {
 				try {
@@ -343,12 +407,14 @@ struct MirrorService::Impl {
 				failing = sync() ? 0 : std::min(failing + 1, 16u);
 				now = Clock::now();
 				next_sync = now + std::min(options.interval * (1u << failing),
-										   std::max<std::chrono::milliseconds>(options.interval, backoff_limit));
+										   options.reconnect_maximum);
 				std::erase_if(sessions, [&](const auto &entry) {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});
 			}
-			revisit(now, synced);
+			revisit(now, synced || landed);
+			std::lock_guard lock(mutex);
+			state.pages = relay->pages();
 		}
 		// Stopping, or the mirror failed: every waiting request is answered.
 		std::deque<std::shared_ptr<MirrorJob>> left;
@@ -364,7 +430,18 @@ struct MirrorService::Impl {
 			control(*job, 503, "{\"error\":\"source_behind\"}");
 			finish(*job);
 		}
-		relay.reset();
+		relay.reset(); // cancels a build in flight
+		{
+			std::lock_guard lock(mutex);
+			stopping = true;
+			builds.clear();
+			build_wake.notify_one();
+		}
+		builder.join();
+	}
+	bool take_built() {
+		std::lock_guard lock(mutex);
+		return std::exchange(built, false);
 	}
 };
 

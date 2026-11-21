@@ -102,7 +102,6 @@ def publisher(
 ) -> Generator[float, None, None]:
     """The real detent-agent over the arm's store, its upstream bound but never listening."""
     managed = dict(template)
-    managed.pop("image_format", None)
     managed.update(
         namespaces=namespaces(count),
         ca=str(ca),

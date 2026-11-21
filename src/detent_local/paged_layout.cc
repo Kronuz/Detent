@@ -37,10 +37,7 @@ void validate(const PageHeader &h, Limits limits) {
 			h.nodes <= (h.length - page_header_bytes - child_bytes * h.externals) / 4);
 }
 void validate(const Root &root, Limits limits) {
-	Header context;
-	context.cursor = root.cursor;
-	context.profile = root.profile;
-	encode_header(context);
+	validate_identity(root.cursor, root.profile);
 	require(root.records <= limits.records && root.namespaces <= limits.namespaces &&
 			root.pages <= limits.pages && root.segments <= limits.segments &&
 			root.bytes <= limits.bytes);
@@ -332,8 +329,7 @@ void verify_page(std::span<const char> bytes, const Reference &reference, Limits
 std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	validate(root, limits);
 	std::array<char, root_bytes> bytes{};
-	constexpr std::string_view magic = "DTROOT03";
-	std::copy(magic.begin(), magic.end(), bytes.begin());
+	std::copy(root_magic.begin(), root_magic.end(), bytes.begin());
 	write_integer(bytes, 8, format_version, 4);
 	write_integer(bytes, 12, root_bytes, 4);
 	write_integer(bytes, 16, root.bytes, 8);
@@ -341,11 +337,9 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	write_integer(bytes, 28, root.namespaces, 4);
 	write_integer(bytes, 32, root.pages, 8);
 	write_integer(bytes, 40, root.segments, 8);
-	write_integer(bytes, 56, root.cursor.revision, 8);
+	write_integer(bytes, 56, root.cursor.position, 8);
 	put(bytes, 64, root.cursor.cluster);
-	put(bytes, 80, root.cursor.group);
-	put(bytes, 96, root.cursor.restore_epoch);
-	put(bytes, 112, root.cursor.scope);
+	put(bytes, 80, root.cursor.incarnation);
 	write_integer(bytes, 144, root.profile.semantic_id, 4);
 	write_integer(bytes, 152, root.profile.required_capabilities, 8);
 	if (root.tree != Reference{}) {
@@ -355,20 +349,19 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	return bytes;
 }
 Root decode_root(std::span<const char> bytes, Limits limits) {
-	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
+	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == root_magic &&
 			read_integer(bytes, 8, 4) == format_version && read_integer(bytes, 12, 4) == root_bytes &&
-			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(160 + child_bytes)));
+			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(96, 48)) && zero(bytes.subspan(148, 4)) &&
+			zero(bytes.subspan(160 + child_bytes)));
 	Root root;
 	root.bytes = read_integer(bytes, 16, 8);
 	root.records = read_integer(bytes, 24, 4);
 	root.namespaces = read_integer(bytes, 28, 4);
 	root.pages = read_integer(bytes, 32, 8);
 	root.segments = read_integer(bytes, 40, 8);
-	root.cursor.revision = read_integer(bytes, 56, 8);
+	root.cursor.position = read_integer(bytes, 56, 8);
 	copy(bytes, 64, root.cursor.cluster);
-	copy(bytes, 80, root.cursor.group);
-	copy(bytes, 96, root.cursor.restore_epoch);
-	copy(bytes, 112, root.cursor.scope);
+	copy(bytes, 80, root.cursor.incarnation);
 	root.profile.semantic_id = read_integer(bytes, 144, 4);
 	root.profile.required_capabilities = read_integer(bytes, 152, 8);
 	root.tree = decode_child(bytes.subspan(160, content_bytes),

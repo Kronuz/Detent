@@ -49,6 +49,16 @@ struct Collect final : d::FrameSink {
 			std::string(key), Held{revision, value ? std::optional<KnobDef>(*value) : std::nullopt});
 	}
 	void end_frame() override { frames.back().ended = true; }
+	void root(const d::RootDigest &value) override { roots.push_back(value); }
+	void pages(std::uint64_t at) override { offset = at; }
+	void chunk(std::string_view bytes) override {
+		transfer.append(bytes);
+		++chunks;
+	}
+	std::vector<d::RootDigest> roots;
+	std::string transfer;
+	std::size_t chunks = 0;
+	std::uint64_t offset = 0;
 };
 Collect decode(std::string_view body, std::size_t chunk = 1 << 20) {
 	Collect sink;
@@ -128,11 +138,11 @@ void golden() {
 	const std::string ids = "c410" + std::string(32, '0').replace(0, 32, "01010101010101010101010101010101") +
 							"c410" + "02020202020202020202020202020202";
 	const auto expected = "9301c001"						   // version 1, no directory, one frame
-						  "95a1610201" "93" + ids + "03" "02"   // "a", blocks, after 1, to 3, two pieces
+						  "96a1610201" "93" + ids + "03" "c0" "02" // "a", blocks, after 1, to 3, no root, two pieces
 						  "93030102" "93a3613a7902" "9402c0c090" "c0" // span [1, 2] above 1: y at 2
 						  "93010303" "93a3613a7803" "c0" "c0";	// entry 3: x deleted
 	require(hex(body) == expected, "golden blocks answer bytes: " + hex(body));
-	require(body.size() == 76, "golden answer is 76 bytes");
+	require(body.size() == 77, "golden answer is 77 bytes");
 	auto decoded = decode(body);
 	require(decoded.frames.size() == 1 && decoded.frames[0].ended && decoded.frames[0].kind == d::FrameKind::Blocks,
 			"golden decodes to one blocks frame");
@@ -205,7 +215,7 @@ void tiers() {
 	}
 	std::cout << "bytes/records per R: " << table.str() << '\n';
 	// Pinned sizes, one per tier (the frames grammar and this churn fix them).
-	require(bytes[0] == 545 && bytes[8] == 835 && bytes[24] == 528 && bytes[30] == 414 && bytes[39] == 73,
+	require(bytes[0] == 546 && bytes[8] == 836 && bytes[24] == 529 && bytes[30] == 415 && bytes[39] == 74,
 			"pinned bytes per answer changed: " + table.str());
 	// A foreign incarnation or no store gets the full copy; another cluster too.
 	for (const auto &store : {std::optional<d::NamespaceCursor>{}, std::optional(d::NamespaceCursor{id(1), id(9), 35}),
@@ -230,6 +240,12 @@ void other_incarnation() {
 		// Another cluster's positions say nothing about this one: always a full copy.
 		require(d::select_answer(history, d::NamespaceCursor{id(4), id(2), r}).kind == d::AnswerKind::FullCopy,
 				"another cluster at R = " + std::to_string(r));
+		// D139: a repair's floor at R, of this incarnation or another, gets a full copy, or nothing
+		// while head is below it.
+		for (const auto incarnation : {id(2), id(3)})
+			require(d::select_answer(history, d::NamespaceCursor{id(1), incarnation, r}, true).kind ==
+						 (r > 40 ? d::AnswerKind::Ahead : d::AnswerKind::FullCopy),
+					"a repair's floor at R = " + std::to_string(r));
 	}
 }
 
@@ -270,6 +286,7 @@ struct Body {
 	Body &array(std::uint32_t n) { return m::array(out, n), *this; }
 	Body &u(std::uint64_t v) { return m::unsigned_integer(out, v), *this; }
 	Body &s(std::string_view v) { return m::string(out, v), *this; }
+	Body &bin(std::string_view v) { return m::string(out, v, true), *this; }
 	Body &id(char c) {
 		auto value = history_fixture::id(c);
 		return m::string(out, {value.data(), value.size()}, true), *this;
@@ -278,7 +295,8 @@ struct Body {
 	Body &def(std::int64_t v) { return array(4).u(static_cast<std::uint64_t>(v)).nil().nil().array(0); }
 	Body &frame(std::string_view name, unsigned kind, std::uint64_t after, std::uint64_t to, std::uint64_t pieces,
 				char cluster = 1) {
-		return array(5).s(name).u(kind).u(after).array(3).id(cluster).id(2).u(to).u(pieces);
+		array(kind == 4 ? 5 : 6).s(name).u(kind).u(after).array(3).id(cluster).id(2).u(to);
+		return kind == 4 ? u(pieces) : nil().u(pieces);
 	}
 	Body &piece(unsigned kind, std::uint64_t first, std::uint64_t last) { return array(3).u(kind).u(first).u(last); }
 	Body &record(std::string_view key, std::uint64_t revision, std::optional<std::int64_t> value) {
@@ -306,6 +324,12 @@ void refusals() {
 			"a span reaching 2^64-1 decodes");
 	auto checks = std::vector<std::pair<std::string, std::string>>{
 		{"trailing byte", good + "\xc0"},
+		{"records frame without its root field",
+		 Body{}.array(3).u(1).nil().u(1).array(5).s("a").u(1).u(1).array(3).id(1).id(2).u(2).u(1).piece(1, 2, 2)
+			 .record("a:x", 2, 1).nil().out},
+		{"records frame with a zero root",
+		 Body{}.array(3).u(1).nil().u(1).array(6).s("a").u(1).u(1).array(3).id(1).id(2).u(2)
+			 .bin(std::string(32, '\0')).u(1).piece(1, 2, 2).record("a:x", 2, 1).nil().out},
 		{"truncated", good.substr(0, good.size() - 1)},
 		{"version 2", Body{}.array(3).u(2).nil().u(0).out},
 		{"entry skips a position", head(1).frame("a", 1, 1, 3, 1).piece(1, 3, 3).record("a:x", 3, 1).nil().out},
@@ -536,8 +560,97 @@ void ledger_bound() {
 }
 } // namespace
 
+// A pages frame carries a transfer of any size in whole 64 KiB chunks, beside record frames.
+void pages_frames() {
+	d::NamespaceCursor to{};
+	to.cluster.fill('\x01');
+	to.incarnation.fill('\x02');
+	to.position = 9;
+	std::string transfer(2 * d::transfer_chunk_bytes + 77, '\0');
+	for (std::size_t i = 0; i < transfer.size(); ++i)
+		transfer[i] = static_cast<char>(i * 31);
+	d::PagesAnswer answer{{}, 0, to, {transfer.data(), transfer.size()}};
+	answer.root.fill('\x07');
+	const std::vector<d::NamespaceRequest> requests{{"app", nullptr, {}, {}, &answer}};
+	const auto body = d::encode_session_frames(std::nullopt, requests);
+	for (const std::size_t chunk : {std::size_t{1}, std::size_t{4096}, std::size_t{1} << 20}) {
+		const auto got = decode(body, chunk);
+		require(got.frames.size() == 1 && got.frames[0].kind == d::FrameKind::Pages && got.frames[0].after == 0 &&
+					got.frames[0].to == to && got.frames[0].ended && got.frames[0].pieces.empty(),
+				"pages frame header");
+		require(got.roots == std::vector{answer.root} && got.transfer == transfer && got.chunks == 3 && !got.offset,
+				"pages frame transfer");
+	}
+	// D8: a frame resumed at a whole chunk carries the rest; any other offset is refused.
+	answer.offset = d::transfer_chunk_bytes;
+	const auto resumed = decode(d::encode_session_frames(std::nullopt, requests));
+	require(resumed.offset == d::transfer_chunk_bytes && resumed.chunks == 2 &&
+				resumed.transfer == transfer.substr(d::transfer_chunk_bytes),
+			"a resumed pages frame");
+	answer.offset = 77;
+	bool unaligned = false;
+	try {
+		d::encode_session_frames(std::nullopt, requests);
+	} catch (const std::invalid_argument &) {
+		unaligned = true;
+	}
+	require(unaligned, "the encoder refuses an offset inside a chunk");
+	answer.offset = 0;
+	// D1: a records frame names its target's root when the sender built it, nil otherwise.
+	std::vector<Transaction> txs{{{"app:x", def(1, 0)}}};
+	TestHistory history(txs, 0, {}, 0);
+	d::NamespaceRequest built{"app", &history, std::nullopt};
+	require(decode(d::encode_session_frames(std::nullopt, std::span(&built, 1))).roots.empty(), "records without a root");
+	built.root.fill('\x09');
+	require(decode(d::encode_session_frames(std::nullopt, std::span(&built, 1))).roots == std::vector{built.root},
+			"records with their root");
+	// A delta's pages follow the receiver's position; refusals: a zero root, a short inner chunk,
+	// a pages frame with records' arity, and a transfer above the body's bound.
+	answer.after = 4;
+	require(decode(d::encode_session_frames(std::nullopt, requests)).frames[0].after == 4, "pages delta");
+	answer.after = 0;
+	auto zero = body;
+	const auto root_at = zero.find(std::string(32, '\x07'));
+	require(root_at != std::string::npos, "root on the wire");
+	std::fill(zero.begin() + root_at, zero.begin() + root_at + 32, '\0');
+	require(rejected(zero), "a zero root digest is refused");
+	std::string short_body = body;
+	const auto length = root_at + 32 + 3; // after the offset, the chunk count and the bin32 marker
+	short_body[length + 1] = '\x00';	   // 0x00010000 becomes 0x0000ff00
+	short_body[length + 2] = '\xff';
+	require(rejected(short_body), "an inner chunk short of 64 KiB is refused");
+	auto arity = body;
+	const auto frame_at = arity.find('\x97');
+	require(frame_at != std::string::npos, "frame arity on the wire");
+	arity[frame_at] = '\x96';
+	require(rejected(arity), "a pages frame with records' six fields is refused");
+	Collect sink;
+	d::Limits small;
+	small.bytes = d::transfer_chunk_bytes;
+	d::SessionFramesDecoder bounded(sink, small);
+	bool refused = false;
+	try {
+		auto input = std::span<const char>(body.data(), body.size());
+		std::size_t budget = body.size();
+		bounded.feed(input, budget);
+		bounded.finish();
+	} catch (const std::exception &) {
+		refused = true;
+	}
+	require(refused, "a transfer above the body bound is refused");
+	bool invalid = false;
+	try {
+		answer.root = {};
+		d::encode_session_frames(std::nullopt, requests);
+	} catch (const std::invalid_argument &) {
+		invalid = true;
+	}
+	require(invalid, "the encoder refuses a zero root");
+}
+
 int main() {
 	try {
+		pages_frames();
 		golden();
 		tiers();
 		other_incarnation();

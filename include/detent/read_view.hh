@@ -33,7 +33,7 @@ class EvaluationView {
 	virtual ~EvaluationView() = default;
 	virtual Result<std::int64_t, KnobError> get(std::string_view, std::optional<std::string_view>,
 												std::optional<std::string_view>) const = 0;
-	virtual std::optional<distribution::Cursor> cursor() const noexcept = 0;
+	virtual std::optional<distribution::NamespaceCursor> cursor() const noexcept = 0;
 };
 class ClientReadView {
   public:
@@ -53,7 +53,7 @@ class ClientReadView {
 			return *value;
 		return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
 	}
-	std::optional<distribution::Cursor> cursor() const noexcept;
+	std::optional<distribution::NamespaceCursor> cursor() const noexcept;
 
   private:
 	std::shared_ptr<const Snapshot> snapshot_;
@@ -61,7 +61,7 @@ class ClientReadView {
 	std::shared_ptr<const EvaluationView> evaluator_;
 };
 struct ReadSourceStatus {
-	std::optional<distribution::Cursor> cursor;
+	std::optional<distribution::NamespaceCursor> cursor;
 	std::chrono::steady_clock::time_point last_success;
 	std::size_t knobs = 0;
 	bool connected = false;

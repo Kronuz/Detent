@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_local/disk_store.hh"
 // Test support: installs a hand-built generation as the store's one namespace, the files a publication
 // leaves (docs/status/namespace-s7.md). A paged generation's `.read` and `.live` come from one full
 // recovery of what was installed, the way a publication derives them from its plan.
@@ -61,7 +62,7 @@ inline std::array<char, 32> sha(std::span<const char> bytes) {
 	return out;
 }
 // Writes the table naming `descriptor` as the one namespace, replaced by rename so a reader sees the old
-// table or the new one. The entry binds `read`'s digest (empty for a flat image or a staged generation).
+// table or the new one. The entry binds `read`'s digest (empty for a staged generation).
 inline void select(const std::filesystem::path &directory, const detent::local::Descriptor &descriptor,
 				   std::span<const char> read = {}) {
 	namespace l = detent::local;
@@ -69,8 +70,8 @@ inline void select(const std::filesystem::path &directory, const detent::local::
 	table.sequence = 1;
 	table.profile = descriptor.profile;
 	l::TableEntry entry;
-	entry.name = l::namespace_name(descriptor.cursor);
-	entry.cursor = l::namespace_cursor(descriptor.cursor);
+	entry.name = l::disk_store_entry;
+	entry.cursor = descriptor.cursor;
 	entry.generation = descriptor.generation;
 	entry.ordinal = descriptor.ordinal;
 	entry.root_length = descriptor.length;
@@ -145,19 +146,6 @@ inline void install(const std::filesystem::path &directory, const detent::local:
 		throw std::runtime_error("cannot chmod " + directory.string());
 	put(directory / "owner.lock", {});
 	stage(directory, descriptor, image, segments);
-	if (image.size() < 8 || std::memcmp(image.data(), "DTROOT03", 8) != 0) {
-		// A flat image: an empty `.read` and a `.live` without rows.
-		x::LiveRecord live;
-		live.generation = descriptor.generation;
-		live.root_checksum = descriptor.checksum;
-		live.read_digest = sha({});
-		std::vector<char> bytes(x::live_record_size(0));
-		x::encode_live_record(live, bytes);
-		const auto id = descriptor.generation;
-		put(directory / std::string(x::GenerationName(id, x::GenerationFile::ReaderMetadata).view()), {});
-		put(directory / std::string(x::GenerationName(id, x::GenerationFile::Live).view()), bytes);
-		return;
-	}
 	try {
 		derive(directory, descriptor, limits);
 	} catch (const std::exception &error) {
@@ -172,5 +160,26 @@ inline void install(const std::filesystem::path &directory, const detent::local:
 	for (const auto &s : image.segments())
 		segments.push_back({s.ownership, s.bytes->view()});
 	install(directory, image.descriptor(), image.bytes()->view(), segments, limits);
+}
+// A full copy of `source` as a paged image, named as a publication over no base names it.
+inline detent::local::detail::PagedImage build(std::shared_ptr<const detent::distribution::ValidatedSnapshot> source,
+											   detent::local::paged::Limits limits = {}) {
+	namespace l = detent::local;
+	l::detail::PagedSnapshotBuilder builder(
+		source, l::next_generation(std::nullopt, source->namespace_cursor(), source->profile(), true), limits);
+	while (!builder.done()) {
+		l::ValidationBudget budget;
+		builder.step(budget);
+	}
+	return builder.take();
+}
+// The page-rounded bytes a recovery of `image` maps: its root and every pack.
+inline std::uint64_t mapped_bytes(const detent::local::detail::PagedImage &image) {
+	const auto page = static_cast<std::uint64_t>(::sysconf(_SC_PAGESIZE));
+	auto round = [&](std::uint64_t bytes) { return (bytes + page - 1) / page * page; };
+	auto total = round(image.bytes()->size());
+	for (const auto &segment : image.segments())
+		total += round(segment.bytes->size());
+	return total;
 }
 } // namespace trusted_records

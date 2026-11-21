@@ -147,7 +147,7 @@ int main() {
 			check(plan.descriptor().generation == l::next_generation(recovered.descriptor(), plan.descriptor().cursor,
 																   plan.descriptor().profile, false)
 															  .id &&
-					plan.descriptor().cursor.revision == 43 + transactions);
+					plan.descriptor().cursor.position == 43 + transactions);
 			check(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
 			check(plan.new_reachability(0).pages == plan.root().pages &&
 					plan.override_histogram()[0] == plan.root().records);

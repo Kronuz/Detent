@@ -2088,6 +2088,32 @@
       "closed": "Heads-up on lead-driver noted; fine for detent. Tell me before it lands.",
       "id": "msg-205",
       "text": "From campaign-v3, heads-up on a behavior change both campaigns will get (quest lead-driver, next after the split; I'll tell you again before it lands): campaign wait --commits will also return when the lead's to-do list gains an item (a quest becomes launchable, a task's jobs pass, a quest crosses the nothing-moving bound, idle slots beside ready work), re-fire for an item left undone after 30 min, return at once if started with a non-empty list, and end every return (and status/brief) with the list as exact commands instead of 'wait again'. Plus an owner alarm when a lead sits on one tool call (a permission prompt) over 10 min. Root cause: wait_events returns only on branch moves, job ends and messages. Evidence: xapiand at 13:00 had 18 quests under 'nothing moves without the lead'; 140 min on one Bash call 06:20-08:41."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T08:29:19",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T08:29:19",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-197",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "journal-tail-second-sector": "frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "journal-tail-second-sector"
+        ]
+      },
+      "text": "journal-loop-handoff landed: unlocks frees docs/** for journal-drop-memory-io; frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7100,8 +7126,8 @@
     "dense-distribution-build": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T13:08:44",
-          "base": "40a94560d293e9597015589568e680aa3f22fc65",
+          "at": "2026-11-21T13:10:01",
+          "base": "5688e40d92d754a85635b86cbe35963f4814323b",
           "blobs": {
             ".github/workflows/ci.yml": "100644:9eafbf760f0de33f0e00e8021e0e61e0ffc1a410",
             ".github/workflows/tls-fixture-diagnostics.yml": "100644:e737e9ecc01715ea480a33002c83aa8d4e345e5a",
@@ -7450,7 +7476,7 @@
             "website/src/content/docs/reference/http-api/authority.md": "100644:13713197ec08d5d4c6900a74274521e7162be860"
           },
           "by": "review",
-          "commit": "eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d",
+          "commit": "1b0daf2156b7278b18da5358cf502b1af2031795",
           "criteria": "14aa58350d3290be",
           "diffs": {
             "": "1b8f2c7fc41dd720",
@@ -7801,7 +7827,7 @@
             "website/src/content/docs/reference/http-api/authority.md": "b508da896a13528f"
           },
           "findings": {},
-          "note": "",
+          "note": "read main's change since the review: only docs/design/stash-scheduler-verdict.md (a new design note) and .campaign; no code under the quest",
           "review": "a08e85d9c75669b275e4456b747f603ed768c1a6",
           "reviewed": "eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d",
           "verdict": "APPROVE"
@@ -8197,16 +8223,46 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-21T13:10:33",
+          "commit": "1dcb82930e62d213fa97eacc2dbc15853b3fdbd1",
+          "criteria": {
+            "A1": "261121-120503-fef5bb (passed at 353ff12f3096; only 1 merge from main since, none touching its files), 261121-120536-71ecd1 (passed at 353ff12f3096; only 1 merge from main since, none touching its files); fails without: 261120-114010-d77302, 261120-120156-0e5cc8, 261120-120600-2910d1, 261120-125856-673c7a, 261120-125858-c2aa42, 261120-125901-306a49, 261120-125903-d6cacc, 261120-125906-d531ac, 261120-125908-7185f2, 261120-130720-4e5da1, 261120-130722-c1de00, 261120-130724-33d8ce, 261120-130727-a5032b, 261120-130729-9a8e6e, 261120-130731-c646f9, 261120-140717-ac69d9, 261120-140718-121ba1, 261120-140720-77337a, 261120-141019-07be70, 261120-141024-5b7b19, 261120-141026-8818b0, 261120-141032-1ff8f3, 261120-161540-0595dc, 261120-163556-fb7ed6, 261120-163559-ef4b37, 261120-163602-5a7ea7, 261120-224455-3acb56, 261121-062205-e19581, 261121-062207-f59e01, 261121-062223-e3ab93, 261121-062225-f9c3bf, 261121-091833-56989c, 261121-095235-fe4798, 261121-095237-6685ff, 261121-095239-fbb807, 261121-095309-093a8f, 261121-100630-8d1935, 261121-100633-2da50f, 261121-120500-bb7f6a",
+            "A2": "`ci:macos-arm64` (CI 44944355224 green at Detent:eb3b443e)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "1b0daf2156b7278b18da5358cf502b1af2031795",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a196e97b9c006376b14a181c7f49e104f0f8b878",
+          "reason": "",
+          "tested": "1b0daf2156b7278b18da5358cf502b1af2031795"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "1dcb82930e62",
+          "at": "2026-11-20T05:10:50",
+          "by": "dense-distribution-build/v2-sessions",
+          "id": "msg-1",
+          "text": "To the namespace-local-cursor writer (relay via the lead if needed): (1) commit and push the flat-v1 removal as soon as it builds; I merge it before editing src/detent_local/disk_store.cc and coordinator.cc. (2) The coordinator moves to W5/W6 and speaks W1 natively: skip the coordinator's v1<->W1 boundary mapping; builders taking the W1 target from the caller is all I need. (3) The D8 multi-entry DiskStore (N named plans per cycle, selection and recovery by name) is mine; skip 'DiskStore's one entry named scope'. (4) Interim bridge until W1 types land: namespace_cursor(v1) becomes {cluster, group as incarnation, revision}, and distribution::frame_cursor maps W1 to v1 as {cluster, incarnation as group, 0, sha(name) as scope, position}; your W1 change deletes both. Plan: my journal on quest/detent/dense-distribution-build."
+        }
       ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "tasks": {
         "agent-pages": {
           "base": "237779e855fb254ba9f76267e04d4dc00ded4c34",
@@ -8216,7 +8272,7 @@
           ],
           "reason": "Its branch is fully merged into the quest branch (0 commits ahead); the quest's suite and CI cover its code",
           "status": "dropped",
-          "worktree": "../Detent-wt/detent/dense-distribution-build--agent-pages"
+          "worktree": ""
         },
         "history-ranges": {
           "base": "0bf7d61c747630211a5a1a5b24d92efce3119eaa",
@@ -8260,11 +8316,11 @@
           ],
           "reason": "Its branch is fully merged into the quest branch (0 commits ahead); the quest's suite and CI cover its code",
           "status": "dropped",
-          "worktree": "../Detent-wt/detent/dense-distribution-build--relay-pages"
+          "worktree": ""
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-21T13:08:44",
+      "updated": "2026-11-21T13:11:55",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
@@ -15741,6 +15797,8 @@
     "managed-relay-ipv6-flake": {
       "accepted": {},
       "after": [],
+      "base": "ee425e632ddc0b64be459f929ee9ae14d9bcac23",
+      "branch": "quest/detent/managed-relay-ipv6-flake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -15792,9 +15850,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T05:30:26"
+      "updated": "2026-11-21T13:12:29",
+      "worktree": "../Detent-wt/detent/managed-relay-ipv6-flake"
     },
     "msgpack-adoption": {
       "accepted": {},
@@ -15868,6 +15927,8 @@
       "after": [
         "loop-idle-waits"
       ],
+      "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
+      "branch": "quest/detent/multi-voter-idle-wake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -15919,9 +15980,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-20T18:25:36"
+      "updated": "2026-11-21T13:12:33",
+      "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
       "accepted": {},
@@ -20653,6 +20715,8 @@
         "loop-idle-waits",
         "relay-tls-drain-flake"
       ],
+      "base": "0df333edd453bec1a0b319e405d3a8f4b910e0fe",
+      "branch": "quest/detent/old-flakes-disposition",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -20670,13 +20734,9 @@
         "docs/status/http-coroutines.md",
         "docs/DEPENDENCY_UPGRADES.md",
         "tests/detent_authority/test_authority_frames_service*",
-        "src/detent_authority/service.cc",
         "tests/detent_system/authority.py",
         "tests/detent_system/test_dual_stack.py",
         "tests/detent_relay/test_relay_service.py",
-        "tests/detent_authority/test_node.cc",
-        "tests/detent_authority/**",
-        "tests/detent_relay/**",
         "tests/docs/**"
       ],
       "history": [
@@ -20722,11 +20782,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: only test_transport_https.cc and test_authority_frames_service* sit under multi-voter-idle-wake's tests/detent_authority/** glob; that quest's outcome (owner loop wake) edits neither",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-20T18:25:40"
+      "updated": "2026-11-21T13:13:33",
+      "worktree": "../Detent-wt/detent/old-flakes-disposition"
     },
     "one-knob-type": {
       "accepted": {
@@ -23960,13 +24022,15 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "multi-voter-idle-wake"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-20T18:25:44"
+      "updated": "2026-11-21T13:13:21"
     },
     "retained-byte-limit-test": {
       "accepted": {},
@@ -24492,7 +24556,8 @@
         "loop-idle-waits",
         "rename-detentd",
         "xapiand:task-lifecycle",
-        "pin-wave"
+        "pin-wave",
+        "multi-voter-idle-wake"
       ],
       "base": "f47ef2201754b8dae9686d7c784a00d65f04fd20",
       "branch": "quest/detent/server-composition-adoption",
@@ -24509,7 +24574,15 @@
         "src/detent_authority/main.cc",
         "src/detent_relay/main.cc",
         "src/detent_cli/**",
-        "src/detent_agent/main.cc"
+        "src/detent_agent/main.cc",
+        "src/CMakeLists.txt",
+        "src/detent_relay/host.cc",
+        "src/detent_relay/configuration.cc",
+        "src/detent_agent/managed_host.cc",
+        "src/detent_agent/config.cc",
+        "tests/*/CMakeLists.txt",
+        "docs/mechanisms/server-composition.md",
+        "website/src/content/docs/reference/**"
       ],
       "history": [
         {
@@ -24548,7 +24621,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-21T04:34:39",
+      "updated": "2026-11-21T13:14:25",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
