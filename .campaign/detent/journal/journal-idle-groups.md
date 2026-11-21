@@ -1,17 +1,31 @@
 # journal-idle-groups: journal
 
-State: waiting on jobs 261120-144342-00de69 (suite) 261120-144344-ae3714 (A3) and CI at journal:d2ce548; then ready for review
+State: correctness review round 1 fixed at journal:b6a7697; waiting on jobs 261120-184647-8c0c61 (A3) 261120-184649-b2db56 261120-184652-47309a 261120-184654-9e1272 261120-184656-0e1021 261120-184658-120ecc 261120-184700-17fc0d (review mutants) 261120-184703-1235cc 261120-184706-b4561c 261120-184709-f6a0ca 261120-184712-0c6212 261120-184715-dc11a8 261120-184717-ef077e 261120-184720-f6328d (quest mutants rerun) 261120-184737-1c0e6e (A2 1M) and CI run 44857689442 (macos-arm64 suite gate)
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
 
-Merged journal main (journal-double-damage, journal:178030b) at journal:d2ce548; CHANGELOG.md was
-the only conflict. idle_unmanifested is a default case and passes locally (host_test 62,996
-checks, 0 failures). Forward scan at 1M: 0.02 records per turn (261120-113445-21c05a).
+Correctness review round 1 (Detent:ca65d7c2, CHANGES at journal:d2ce548) fixed at journal:b6a7697.
+Locally (Debug): host_test 80,599 checks, 0 failures; journal_test park_count 13 checks, 0 failures.
+
+- F1: `host_test split_orphan` (review's probe_orphan as a case); mutant `no-orphans` 261120-184649-b2db56.
+- F2: only a stored node splits (a slot's first commit writes its root whole), so open reads paths
+  under no stored node and no cover as a missing shard: lost, siblings kept, never `none`.
+  `host_test missing_shard`, `first_split_crash` (47 cuts); mutants `missing-shard-stale`
+  261120-184652-47309a, `split-unstored` 261120-184654-9e1272.
+- F3: `Host::park` takes every idle group no consumer has open (no hold, no sealer);
+  `close_into_table` erases `opened_`. One contract in D2/D10/Contracts. `host_test park_unheld`;
+  mutants `park-skips-opened` 261120-184656-0e1021, `close-keeps-opened` 261120-184658-120ecc,
+  `park-ignores-sealer` 261120-184700-17fc0d. Xapiand told: msg-188.
+- Tests whose "open" groups were open only by create_group now hold them (idle_crash, split_run,
+  split_stale_node, table_damage, park_mid_turn, idle_damage, idle_unmanifested, park_count's anchor).
+- F4-F6 (non-blocking): not taken; F6 relayed to Xapiand in msg-188.
 
 ## Next
 
-1. When 261120-144342-00de69 and 261120-144344-ae3714 pass and CI at d2ce548 is green: State: ready for review (durability review of the whole feature).
+1. When every job above passes and CI 44857689442 is green, write here:
+   `campaign accept journal-idle-groups correctness --confirm F1=261120-184649-b2db56 --confirm F2=261120-184652-47309a --confirm F3=261120-184656-0e1021`
+   (F2 also 261120-184654-9e1272; F3 also 261120-184658-120ecc, 261120-184700-17fc0d).
 
 ## Blocked on
 
@@ -62,6 +76,13 @@ durable table state (Host::park, Host::close_group; on disk the `closed` entry s
   journal-double-damage lands; then it joins the cases list.
 
 ## Rulings I made
+
+- R14. Review F2: option (a), never split an unstored node; a slot's first file may pass 4 KiB until
+  its next commit splits it. Option (b) would turn a crash in a slot's first commit into lost groups.
+- R15. Review F3: park's skip is "a consumer has it open" = hold or sealer; `opened_` stays only for
+  `status()` of a created group with no records. Tests keep open groups open with a live hold.
+- R16. The reviewer's probe.sh no longer applies (it patches host_test's case list); its three
+  probes are host_test cases now, so the fix jobs are the cases and their mutants.
 
 - R1. Parked is the existing closed state (D1), not a new table state: same bytes, same exemption.
 - R2. turn-log-parity's one-log-per-device shape is not on journal main: designed against its quest
