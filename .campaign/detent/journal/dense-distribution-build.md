@@ -1,14 +1,8 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs at Detent:95eab96b (the main merge, pushed; CI 44931812870): F1 -095153-93fd64,
-F2 -095212-4c9253, F3 -095235-fe4798, F4 -095326-f5ccfd (strict), F10 -095237-6685ff, forced root
--095217-c9cac6, 5M row -095330-92f248 (strict), d1-root-after-write -095239-fbb807, x10 -095301-c6fa2f,
-relay pages under 3.14 -095306-d80db9, stopped-relay-unwatched -095309-093a8f, mirror-answer-unwoken
--095242-bd3bd7, test_http_upstream -095215-8316bb, loop-idle-waits A1 vs main 68531fde -095335-e3f4ca
-(60000) and -095339-49cad3 (250); at Detent:2c026d59 (mutant script only) loop-idle-waits mutants
-relay-enqueue -100630-8d1935 and coordinator-disk -100633-2da50f; all 261121-. A1 is CI macos-arm64
-(run at Detent:2c026d59 now; 44931812870 at the merge).
-Next: when they and CI pass, fill Evidence and write "ready for review".
+State: ready for review at Detent:eb3b443e (fix evidence below); A1/A2 wait on CI 44944355224 and
+jobs 261121-120500-bb7f6a (mirror-answer-unwoken), -120503-fef5bb, -120536-71ecd1 (test_http_upstream, x5).
+Next: when they pass, cite them under A1/A2; the lead runs the correctness re-review and accept.
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -16,6 +10,18 @@ the full copy as a page transfer (former DD3). The local layer (namespace-local-
 DD1/DD2/DD4 write their own journals on their branches; their branches merge in here.
 
 ## Doing
+
+Evidence round at Detent:eb3b443e (only test_http_upstream changed after the merge):
+- stopped-relay-unwatched -095309-093a8f exit 1 is a kill: its command exits 1 on any nonzero test
+  status (ctest_mutant.sh exits the ctest status, 8); the log ends "relay pages under 3.14 without
+  the fix: status 124", the harness frozen at the SIGSTOP after the cold boot. No rerun.
+- mirror-answer-unwoken -095242-bd3bd7 survived (test passed, 7.9 s): A's mirror answered each range
+  within the owner's 1 ms round (the opens lane's 16 slots sweep in 2 turns), so the owner never
+  slept through an answer. Fix (Detent:eb3b443e): each of A's syncs pauses 20 ms on the mirror
+  thread, so a range queued behind a sync lands after the round went idle, and the one-reader fetch
+  checks stats.failures == 0 (a missed wake costs a 5 s timeout and a retry). Jobs above.
+- loop_idle_waits relay-enqueue (-100630-8d1935) and coordinator-disk (-100633-2da50f) killed (8) at
+  Detent:2c026d59.
 
 Main merge round (lead's order: merge before review, D135). Conflicts: relay service.hh/.cc, host.cc,
 coordinator.cc, tests/detent_delivery/CMakeLists.txt, relay_service_fixture.hh (v1, deleted here).
@@ -319,29 +325,43 @@ removal of test_local_view, which no longer exists.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-085935-8d23e7: 205/205 at Detent:d9668727; 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
-| A2 | <no evidence yet> |
+| A1 | at Detent:eb3b443e: CI macos-arm64 in 44944355224 (pending), 261121-120503-fef5bb, 261121-120536-71ecd1, mutant 261121-120500-bb7f6a; earlier: 261120-085935-8d23e7: 205/205 at Detent:d9668727; 261120-081334-e4f6a8: 205/205 at Detent:501f9c4d (relay system tests flaky under load: see Blocked on; 261120-080129-538d87 failed them at Detent:410242d4) |
+| A2 | CI 44933674727 green at Detent:be35e33e; CI 44944355224 at Detent:eb3b443e pending |
 
 Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125908-7185f2 are void):
 
 | Finding | Evidence |
 |---|---|
-| F1 | probe rerun 261120-125854-e45912 (refused); mutants killed: 261120-130720-4e5da1, 261120-130722-c1de00 (f1-unbound-transfer), 261120-130724-33d8ce (f1-stuck-delta-not-repaired) |
-| F2 | 261120-141028-b54373 (test_relay_pages under ASan+UBSan), 261120-141032-1ff8f3 (answer-borrows mutant under ASan); the review's probe is ported as answer_owns |
-| F3 | mutant killed 261120-130727-a5032b (f3-cut-prefix-dropped); relay resume in test_relay_pages |
-| F4 | 261120-134038-4ee64d (5M strict, after arm); local before/after in docs/perf/relay-window.md |
+| F1 | probe at the merge 261121-095153-93fd64 (refused); mutants killed: 261120-130720-4e5da1, 261120-130722-c1de00 (f1-unbound-transfer), 261120-130724-33d8ce (f1-stuck-delta-not-repaired) |
+| F2 | 261121-095212-4c9253 (test_relay_pages under ASan+UBSan, at the merge), 261120-141032-1ff8f3 (answer-borrows mutant under ASan); the review's probe is ported as answer_owns |
+| F3 | mutant killed 261121-095235-fe4798 (f3-cut-prefix-dropped, at the merge); relay resume in test_relay_pages |
+| F4 | 261121-095326-f5ccfd (5M strict, after arm, at the merge); local before/after in docs/perf/relay-window.md |
 | F5 | mutant killed 261120-130729-9a8e6e (f5-records-root-unchecked) |
 | F7 | mutant killed 261120-130731-c646f9 (f7-d5-packing-unchecked) |
-| F10/D139 | 261120-141019-07be70, 261120-141024-5b7b19, 261120-141026-8818b0 |
+| F10/D139 | 261121-095237-6685ff (d139-agent-publishes-below killed, at the merge), 261120-141024-5b7b19, 261120-141026-8818b0 |
 | F11 | 261120-131414-94ce66 (one CPU-hour) |
 | Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 failed at Detent:e9937a82 (harness, fixed at Detent:2c0a7101); 261120-161546-ecf083 at Detent:2c0a7101 |
 | Failover | mutant 261120-161540-0595dc; x10: 261120-161518-53890f (fix), 261120-161526-e8d2d5 (pre-fix head), 261120-161517-fc6897 (main) |
 
 Accept map (ready for accept once CI macos-arm64 passes at the head; one confirming job each):
-`campaign accept dense-distribution-build correctness --confirm F1=261120-125854-e45912
-F2=261120-141032-1ff8f3 F3=261120-130727-a5032b F4=261120-134038-4ee64d F10=261120-141019-07be70`
-(F1: the review's probe refused at the fix; F2: answer-borrows killed under ASan; F3:
-cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-below killed).
+`campaign accept dense-distribution-build correctness --confirm F1=261121-095153-93fd64
+F2=261121-095212-4c9253 F3=261121-095235-fe4798 F4=261121-095326-f5ccfd F10=261121-095237-6685ff`
+
+Fixes since the review (blocking F1-F4; F10 the owner's D139 call; every job at the merge Detent:95eab96b):
+
+| Finding | Fix | Confirming job |
+|---|---|---|
+| F1 namespace binding | Detent:7c82da19, Detent:dec05c43 (stuck delta repaired) | 261121-095153-93fd64: the review's foreign-namespace probe refused |
+| F2 relay use after free | Detent:7dc5c1f3 (answer owns its builds), via Detent:b66d073b | 261121-095212-4c9253: test_relay_pages answer_owns under ASan+UBSan |
+| F3 resume from offset | Detent:dec05c43 (agent), Detent:6680f762 (relay) | 261121-095235-fe4798: f3-cut-prefix-dropped killed |
+| F4 relay D7 measured | Detent:7dc5c1f3, Detent:09991514; numbers Detent:5f792250 (docs/perf/relay-window.md) | 261121-095326-f5ccfd: 5M pages tier, after arm, strict |
+| F10/D139 repair floor | Detent:11c155ce, Detent:e7893553 | 261121-095237-6685ff: d139-agent-publishes-below killed |
+
+Also at the merge: forced root -095217-c9cac6, 5M row -095330-92f248, d1-root-after-write killed
+-095239-fbb807, test_pages_coordinator x10 -095301-c6fa2f, relay pages under 3.14 -095306-d80db9 and
+its mutant -095309-093a8f (status 124), loop-idle-waits A1 vs main -095335-e3f4ca, -095339-49cad3.
+
+Ready for review.
 
 ## Result
 
@@ -355,6 +375,8 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 - (merge) The relay keeps main's enqueue wake though every v2 request also wakes on its mirror
   answer: one shape with main; its loss alone stalls nothing (R5's note), so its mutant is the
   answer wake's, not the enqueue's.
+- (evidence) mirror-answer-unwoken survived, so the chain test's relay A gets slow syncs (20 ms)
+  rather than dropping the mutant: the answer wake is the one a v2 request's answer depends on.
 - Lead ruling (retarget, don't drop): loop_idle_waits.sh relay-enqueue drops both wakes of a v2 mirror
   job (enqueue and `job.answered`), killed by test_http_upstream; coordinator-disk keeps its mutation,
   killed by test_namespace_coordinator (Detent:2c026d59). The other cases' anchors and tests exist here.

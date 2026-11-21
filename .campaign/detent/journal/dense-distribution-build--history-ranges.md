@@ -29,7 +29,7 @@ Nothing.
 | D138.1 ranges, verified, resumed | test_http_upstream (exact, resume) 261120-140658-c98aab, ASan+UBSan 261120-140701-e20960; test_authority_history_ranges 261120-140659-cc116c, ASan+UBSan 261120-140702-b2e24c |
 | D138.2 bounded backoff, reported | test_http_upstream (backoff), same jobs |
 | Mutants killed (--fails-without) | prefix_dropped 261120-140716-764a97, whole_files 261120-140717-ac69d9, no_backoff 261120-140718-121ba1, unbounded 261120-140720-77337a |
-| Lost answer keeps the prefix (prefix_dropped) | test_http_upstream 261120-163549-0dcf85; ASan+UBSan 261120-163554-51c319; mutant 261120-163556-fb7ed6 |
+| Lost answer keeps the prefix (prefix_dropped) | test_http_upstream 261121-095215-8316bb (at Detent:95eab96b); ASan+UBSan 261120-163554-51c319; mutant 261120-163556-fb7ed6 |
 | Relay chain in ranges | test_http_upstream `chain` (same jobs); mutants relay-range-whole 261120-163602-5a7ea7, relay-range-refused 261120-163559-ef4b37 |
 | No regression at 89df216a | 261120-163604-d7f783 |
 | No regression | ctest -R 'relay\|history\|test_authority_service\|http_upstream' 261120-140704-29b54e |
