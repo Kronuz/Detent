@@ -35,7 +35,8 @@ template <class Test> void eventually(Test test) {
 // tests/detent_agent/test_agent_store_crash.cc. A power cut or a kill after every primitive of a store's
 // startup, a Dense publication and its collection must leave a store that opens Ready, selects the base or
 // the published generation (the published one once served), reads its exact state, and publishes again;
-// each restart's publication over a cut's leftovers is itself cut at every step.
+// each restart's publication over a cut's or a kill's leftovers is itself cut at every step, and a cut
+// after a kill drops whatever the kill left unsynced.
 namespace power_cut {
 namespace c = kronuz::io::completion;
 namespace x = l::detail;
@@ -212,6 +213,24 @@ void materialize(const std::filesystem::path &root, const std::map<std::string, 
 	for (const auto &[name, bytes] : files)
 		put(root / name, bytes);
 }
+// Materializes a kill's disk for a restart and returns its model: what was unsynced stays unsynced. Names
+// linked to one inode become copies, each with that inode's sync state.
+Disk materialize_killed(const std::filesystem::path &root, Disk disk) {
+	materialize(root, after_kill(disk));
+	std::set<int> taken;
+	for (auto &[name, entry] : disk.live) {
+		if (taken.insert(entry.first).second)
+			continue;
+		auto inode = disk.inodes[entry.first];
+		disk.inodes.push_back(std::move(inode));
+		const int copy = int(disk.inodes.size()) - 1;
+		for (auto *entries : {&disk.staged, &disk.durable})
+			if (const auto at = entries->find(name); at != entries->end() && at->second == entry.first)
+				at->second = copy;
+		entry.first = copy;
+	}
+	return disk;
+}
 std::string fingerprint(const std::map<std::string, std::string> &files) {
 	std::string out;
 	for (const auto &[name, bytes] : files) {
@@ -222,6 +241,21 @@ std::string fingerprint(const std::map<std::string, std::string> &files) {
 		out.append(sum.data(), sum.size());
 	}
 	return out;
+}
+// A kill's disk up to `.tmp-` names, which startup removes unread: its names, and what is staged and
+// durable of each.
+std::string kill_key(const Disk &disk) {
+	std::map<std::string, std::string> live, staged, durable, inodes;
+	for (const auto &[name, entry] : disk.live) {
+		live[name] = entry.second;
+		inodes[name] = disk.inodes[entry.first].staged + "|" + disk.inodes[entry.first].durable;
+	}
+	for (const auto &[name, id] : disk.staged)
+		staged[name] = disk.inodes[id].staged;
+	for (const auto &[name, id] : disk.durable)
+		durable[name] = disk.inodes[id].durable;
+	return fingerprint(live) + "#" + fingerprint(staged) + "#" + fingerprint(durable) + "#" + fingerprint(inodes) +
+		   (disk.directory_staged ? "#s" : "#");
 }
 
 // One store's world: its account, retirement runtime and options; settled empty when it ends.
@@ -326,16 +360,29 @@ void grouped(const std::vector<std::string> &trace, const std::set<std::string> 
 #endif
 }
 
+struct Counted {
+	l::SyncCounters counters;
+	Seam seam;
+	std::uint64_t groups = 0;
+};
 struct Run {
 	std::vector<Disk> events;
 	std::vector<std::string> labels, trace;
 	std::set<std::string> owners, payloads; // the publication's two groups
 	Lineage lineage;
-	void check_order() const { grouped(trace, owners, payloads); }
+	std::vector<Counted> synced; // startup's and the publication's counters, and the seam's
+	l::SyncCounters total;
+	Seam seam;
+	// The counters and the order, checked after the run's cuts so a durability defect meets T7 first.
+	void check() const {
+		for (const auto &each : synced)
+			matches(each.counters, each.seam, each.groups);
+		require(total.files == seam.files && total.directory_syncs == seam.directories);
+		grouped(trace, owners, payloads);
+	}
 };
 // Records a store opening `root` (whose files `start` models), publishing the next generation and
-// collecting its base; checks the counters against the seam. The order is checked after the cuts, so a
-// durability defect meets T7 first.
+// collecting its base, with the counters `Run::check` compares against the seam.
 Run record(const std::filesystem::path &root, Disk start, bool progress) {
 	Recorder recorder;
 	recorder.root = root;
@@ -364,7 +411,7 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 		auto before = recorder.seam;
 		auto store = open(world, root);
 		require(store->status() == l::StoreStatus::Ready);
-		matches(store->sync_stats().startup, recorder.seam - before, 0);
+		run.synced.push_back({store->sync_stats().startup, recorder.seam - before, 0});
 		Planned planned;
 		plan(planned, world, root, *store, progress);
 		run.lineage = {planned.base->descriptor(), planned.plan->descriptor(), {}, {}, progress};
@@ -387,7 +434,7 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 		drive(store);
 		require(store->publication_status() == l::DiskPublicationStatus::Published &&
 				store->selection().descriptor == run.lineage.wanted);
-		matches(store->sync_stats().publication, recorder.seam - before, 2);
+		run.synced.push_back({store->sync_stats().publication, recorder.seam - before, 2});
 		recorder.disk.served = true;
 		note("published");
 		// Confirmed, the store collects what the new table no longer reaches.
@@ -395,10 +442,10 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 		store->confirm_recovered(recovered);
 		drive(store);
 		require(store->status() == l::StoreStatus::Ready);
-		const auto total = store->sync_stats().total;
+		run.total = store->sync_stats().total;
 		close(store);
 		note("closed");
-		require(total.files == recorder.seam.files && total.directory_syncs == recorder.seam.directories);
+		run.seam = recorder.seam;
 	}
 	world.settle();
 	run.events = std::move(recorder.events);
@@ -408,17 +455,22 @@ Run record(const std::filesystem::path &root, Disk start, bool progress) {
 }
 
 struct Counts {
-	std::size_t cases = 0, distinct = 0, republished = 0, nested = 0;
+	std::size_t cases = 0, distinct = 0, republished = 0, nested = 0, killed = 0;
 } counts;
-std::set<std::string> seen;
+std::map<std::string, bool> seen; // each distinct case, and whether it selected the base
+struct Outcome {
+	bool fresh = false, base = false;
+};
 // A cut left `files`: the store opens Ready on the base or the published generation (the published one
 // once `served`) and reads its state; on the base, it publishes the next generation again. Returns
-// whether the cut was new and selected the base.
-bool recovered(const std::filesystem::path &root, const std::map<std::string, std::string> &files, bool served,
-			   const Lineage &lineage, bool republish, const std::string &where) {
+// whether the case was new and whether it selected the base.
+Outcome recovered(const std::filesystem::path &root, const std::map<std::string, std::string> &files, bool served,
+				  const Lineage &lineage, bool republish, const std::string &where) {
 	++counts.cases;
-	if (!seen.insert(fingerprint(files) + (lineage.progress ? "|p" : "|d") + (republish ? "|r" : "")).second)
-		return false;
+	const auto [at, fresh] =
+		seen.try_emplace(fingerprint(files) + (lineage.progress ? "|p" : "|d") + (republish ? "|r" : ""), false);
+	if (!fresh)
+		return {false, at->second};
 	++counts.distinct;
 	try {
 		materialize(root, files);
@@ -456,7 +508,8 @@ bool recovered(const std::filesystem::path &root, const std::map<std::string, st
 			world.settle();
 			++counts.republished;
 		}
-		return base;
+		at->second = base;
+		return {true, base};
 	} catch (const std::exception &error) {
 		throw std::runtime_error(where + ": " + error.what());
 	}
@@ -476,34 +529,47 @@ Disk durable(const std::filesystem::path &root) {
 	disk.directory_staged = true;
 	return disk;
 }
-// Cuts after every event of `run`; a new cut on the base restarts, republishes, and that run is cut too.
+// A restart over a cut's or a kill's leftovers (`start` models them) republishes the same generation; that
+// run is cut at every step.
+void restart(const std::filesystem::path &scratch, const Run &run, const Disk &start, const std::string &where) {
+	Run inner;
+	try {
+		inner = record(scratch / "restart", start, run.lineage.progress);
+	} catch (const std::exception &error) {
+		throw std::runtime_error(where + ", restart: " + error.what());
+	}
+	require(inner.lineage.base == run.lineage.base && inner.lineage.wanted == run.lineage.wanted);
+	for (std::size_t j = 0; j < inner.events.size(); ++j)
+		for (auto entries : {Entries::Durable, Entries::All})
+			recovered(scratch / "cut", after_power_cut(inner.events[j], entries, Data::Zeros), inner.events[j].served,
+					  inner.lineage, false,
+					  where + ", restart, power cut after event " + std::to_string(j) + " (" + inner.labels[j] + ")");
+	inner.check();
+}
+// Cuts and kills after every event of `run`; a new cut or kill on the base restarts and republishes.
 void matrix(const std::filesystem::path &scratch, const Run &run, const std::string &name) {
+	std::set<std::string> kills;
 	for (std::size_t i = 0; i < run.events.size(); ++i) {
 		const auto where = name + " after event " + std::to_string(i) + " (" + run.labels[i] + ")";
 		const auto &event = run.events[i];
-		recovered(scratch / "cut", after_kill(event), event.served, run.lineage, true, where + ", kill");
+		const auto killed = after_kill(event);
+		const auto kill = recovered(scratch / "cut", killed, event.served, run.lineage, true, where + ", kill");
+		// A kill whose bytes are all durable restarts as the cuts below do; any other carries its unsynced
+		// bytes into the restart, and the restart's cuts drop them.
+		const bool unsynced = fingerprint(killed) != fingerprint(after_power_cut(event, Entries::Durable, Data::Truncate));
+		if (kill.base && unsynced && kills.insert(kill_key(event)).second) {
+			++counts.killed;
+			restart(scratch, run, materialize_killed(scratch / "restart", event), where + ", kill");
+		}
 		for (auto entries : {Entries::Durable, Entries::All})
 			for (auto data : {Data::Truncate, Data::Zeros}) {
 				const auto files = after_power_cut(event, entries, data);
-				if (!recovered(scratch / "cut", files, event.served, run.lineage, true, where + ", power cut"))
+				const auto cut = recovered(scratch / "cut", files, event.served, run.lineage, true, where + ", power cut");
+				if (!cut.fresh || !cut.base)
 					continue;
-				// Restart then republish over the cut's leftovers, cut at every step.
 				++counts.nested;
 				materialize(scratch / "restart", files);
-				Run inner;
-				try {
-					inner = record(scratch / "restart", durable(scratch / "restart"), run.lineage.progress);
-				} catch (const std::exception &error) {
-					throw std::runtime_error(where + ", power cut, restart: " + error.what());
-				}
-				require(inner.lineage.base == run.lineage.base && inner.lineage.wanted == run.lineage.wanted);
-				for (std::size_t j = 0; j < inner.events.size(); ++j)
-					for (auto inner_entries : {Entries::Durable, Entries::All})
-						recovered(scratch / "cut", after_power_cut(inner.events[j], inner_entries, Data::Zeros),
-								  inner.events[j].served, inner.lineage, false,
-								  where + ", power cut, restart, power cut after event " + std::to_string(j) + " (" +
-									  inner.labels[j] + ")");
-				inner.check_order();
+				restart(scratch, run, durable(scratch / "restart"), where + ", power cut");
 			}
 	}
 }
@@ -519,12 +585,14 @@ void run(const std::filesystem::path &scratch, const x::PagedImage &image) {
 		install(root, image);
 		const auto recorded = record(root, durable(root), progress);
 		matrix(scratch, recorded, progress ? "progress" : "delta");
-		recorded.check_order();
+		recorded.check();
 	}
-	std::fprintf(stderr, "T7 over DTPAGE03: %zu cases, %zu distinct, %zu republished, %zu nested runs, %.1f s\n",
-				 counts.cases, counts.distinct, counts.republished, counts.nested,
+	std::fprintf(stderr,
+				 "T7 over DTPAGE03: %zu cases, %zu distinct, %zu republished, %zu nested runs after cuts, %zu after "
+				 "kills, %.1f s\n",
+				 counts.cases, counts.distinct, counts.republished, counts.nested, counts.killed,
 				 std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
-	require(counts.republished > 0 && counts.nested > 0);
+	require(counts.republished > 0 && counts.nested > 0 && counts.killed > 0);
 }
 } // namespace power_cut
 

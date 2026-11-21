@@ -10,11 +10,11 @@ Fresh client reads hold the sub-millisecond resident-data first read repeatably,
 
 ## Acceptance criteria
 
-- A1 First-read repeatability: resident-data first reads below 1 ms, 200/200, under `exclusive`, on `main`; the measured limits recorded (RC-2 closure; M3 validation): exclusive jobs
+- A1 First-read repeatability: resident-data first reads below 1 ms, 200/200, under `strict`, on `main`; the measured limits recorded (RC-2 closure; M3 validation): strict jobs (D135: strict, not exclusive)
 - A2 Incremental refresh qualified (RC-2): jobs
 - A3 Retained-reader behavior qualified (RC-2): jobs
 - A4 Cold-storage and source-sharing qualification retained (release plan, Final client attachment): jobs
-- A5 Daemon startup attribution: the dataset-wide daemon preparation profiled and measured separately from client attachment (RC-2): exclusive jobs
+- A5 Daemon startup attribution: the dataset-wide daemon preparation profiled and measured separately from client attachment (RC-2): strict jobs (D135: strict, not exclusive)
 - A6 [decision] The parked reader metadata capsule (D27; `track/reader-capsule`, `track/resource-capsule`) adopted or retired on its 5M acceptance (lead plan M3): a Decisions row
 - A7 Every optimization claimed for RC-2 has an attributed cost and a controlled comparison (RC-2 closure): jobs
 

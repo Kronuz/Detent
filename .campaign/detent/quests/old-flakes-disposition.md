@@ -17,3 +17,11 @@ N2 shows done in MAP, but its flake dispositions are owed (PLAN Not quests yet 1
 ## Notes
 
 Filed 2026-11-19 from the untracked-commitment audit (U9, J14).
+
+## Folded tasks (one feature, owner msg-145/147)
+
+This quest is one feature; each former quest below is a task, its file kept as the task's spec and its criteria folded into this quest's:
+- `frames-session-busy-flake`: .campaign/detent/quests/frames-session-busy-flake.md
+- `fixtures-port-zero`: .campaign/detent/quests/fixtures-port-zero.md
+- `retained-byte-limit-test`: .campaign/detent/quests/retained-byte-limit-test.md
+- `localhost-dial-everywhere`: .campaign/detent/quests/localhost-dial-everywhere.md

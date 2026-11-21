@@ -16,7 +16,7 @@ job can show it.
 
 - A1 `GroupOptions` carries the flow settings, and a driver group at depth N has up to N proposals in flight: a test.
 - A2 Safety holds at depth > 1: the simulation's linearizability and log-matching oracles pass with 2-4 loops per host at depth 1, 4 and 16 over 10,000 seeds, plus TSan: jobs.
-- A3 Commits per second per group at depth 1, 4 and 16 on Linux (the VM, real fdatasync) and macOS, before and after, exclusive for the deciding numbers: jobs and `docs/perf/`.
+- A3 Commits per second per group at depth 1, 4 and 16 on Linux (the VM, real fdatasync) and macOS, before and after, strict for the deciding numbers: jobs and `docs/perf/`. (D135: strict, not exclusive)
 - A4 The suite passes, plus CI.
 
 ## Contracts

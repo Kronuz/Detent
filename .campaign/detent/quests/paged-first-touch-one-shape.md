@@ -16,3 +16,10 @@ Two first-touch page checks exist, `LazyPageAccess::resolve` and `checked_page_b
 ## Notes
 
 Filed 2026-11-19 from the untracked-commitment audit (U6).
+
+## Folded tasks (one feature, owner msg-145/147)
+
+This quest is one feature; each former quest below is a task, its file kept as the task's spec and its criteria folded into this quest's:
+- `paged-decode-one-shape`: .campaign/detent/quests/paged-decode-one-shape.md
+- `w2-leftovers`: .campaign/detent/quests/w2-leftovers.md
+- `detent-review-nits`: .campaign/detent/quests/detent-review-nits.md
