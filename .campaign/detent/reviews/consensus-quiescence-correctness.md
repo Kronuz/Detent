@@ -1,6 +1,6 @@
 # consensus-quiescence review: correctness
 
-Commit: consensus:a020e144f9f13bb3578a3428b23fe462a1a721e1
+Commit: consensus:3b20d96888a990dda8e5123672a7c173d245f98d
 Verdict: CHANGES
 Date: 2026-11-21
 
@@ -8,87 +8,110 @@ APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: 
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-Safety holds. Rest never lets a deposed leader commit or serve a read, and a reopen resumes only
-the exact durable hard state, so it can never fall behind a ballot it cast. Liveness has two
-holes, which my probes reproduce:
+This is a re-review of the fixes for F1 and F2 from the review at consensus:a020e14.
 
-1. A leadership transfer to a follower at rest leaves the new leader at rest, with its term
-   entry unsent.
-2. A leader whose group fences while its node stays up is never replaced: no LeaderGone fires,
-   and no follower at rest has a timer.
+- F1 is fixed. `campaign()` and `lead()` clear `resting_`, and `follower()` already did, so every
+  role change into Follower, Candidate or Leader ends a rest.
+- F2 is fixed as the lead ruled. A fenced group's Driver sends `Gone{term}` to its other members,
+  and a follower of that replica in that term elects within its timeout.
+- One new defect blocks. `Gone` takes the generic higher-term path in `handle(Receive)`, so a
+  `Gone` from a non-leader one term ahead deposes a live leader at rest and forces an election
+  (G1). The doc says such a `Gone` changes nothing. It also gets around the D7 leader-contact
+  guard, which the same term carried by a `VoteRequest` cannot.
 
 ## Evidence I relied on
 
-- 261120-225122-c34e4e (TSan, a020e14): `closing` and `quiescence` cases ok; simulation 300 seeds
-  x 10,000 steps, oracles clean (31,340 closes, 16,389 resumed, 320 stale, 14,768 LeaderGone);
-  driver simulation 30 seeds; `reopen_barriers` 36 checks, `leader_gone` 16 checks. Log read.
-- A2 mutants killed at their mutant commits: 261120-105231-8e1e83, -105233-efd55f,
-  -110213-1b3000. A1 fails-without 261120-095359-890b19.
-- A4 0760b8 / 5cedce, A5 eb821c, A6 e76794 / 17e4ea / 8fede5, accepted as they are stated. Xapiand's
-  6,984 B is also a lone voter (Xapiand:d5b84cdf4 journal, "0 for an idle lone voter"), so A6
-  compares like with like.
-- CI 44877489407 at a020e14: every job is green except linux-tsan, which was still running its
-  rerun when I checked. That is the lead's gate, not a finding here.
+- 261121-012400-f56485: the mutant rest-survives-campaign (consensus:37a7a69) fails simulation_test.
+  F1's test is live.
+- 261121-012401-85a7ab and 261121-012403-b34836: the mutant fence-tells-nobody (consensus:2f0738c)
+  fails `driver_test fence_tells_peers` and `groups_test driver`. The send side of F2 is live.
+- 261121-012404-fce70e (3b20d96): `groups_test driver` passes. `quiescent fence: a follower
+  elected 1107 ms after the fence: yes; node-gone reports 0`. `driver_test fence_tells_peers`
+  passes 10 checks. Log read.
+- 261121-012405-7903bb (3b20d96): my earlier probe. P1 passes in all four modes. P2 still prints
+  NO, as it must: it is a Core-only probe with no Driver, so nothing sends `Gone`. The job's
+  exit 1 is that expected P2 line.
+- 261121-012405-a27269 (TSan, 3b20d96): `quiescence: at rest, LeaderGone, restarts, transfer and
+  Gone: ok`, 300 seeds x 10,000 steps clean, `reopen_barriers` and `leader_gone` clean.
+  `fence_tells_peers` and `groups_test` did not run under TSan. The new code runs on one loop,
+  so I accept that.
 
 ## What I checked myself
 
-Probe 261121-005139-cd50f8 at a020e14 (light). The scripts are in
-`.scratch/detent/review-consensus-quiescence-correctness/`: run `run.sh probe.cc`. They use
-simulation_test's `closing::Group` harness and compare each scenario against the same scenario
-without `quiesce`.
+Probe 261121-014000-f97fcf at 3b20d96 (light). The script is
+`.scratch/detent/review-consensus-quiescence-correctness/probe2.cc`; rerun it with
+`run.sh probe2.cc`.
 
-- P1, transfer at rest. With all three voters up, the new leader's term entry reaches the
-  followers one tick late (control: within the settle). With the third voter down, the target
-  leads term 2 with `resting 1, timer none`. Its entry reaches the old leader only after 780
-  units, when that leader's own election timer wakes it (control: at once).
-- P2, leader fenced at rest. The followers never elect in 19,400 units (16 x election_max).
-  Control: they elect after 970.
-- P3, leader at rest partitioned, followers elect term 2 on LeaderGone. A Read and a Propose wake
-  the old leader. It serves no read, commits nothing, and steps down 300 units after the wake.
-  This one is safe.
+- G1, a higher-term `Gone` from a follower:
+  - A `Gone{2}` from follower 3 reached leader 1 at rest in term 1 and follower 2. The leader
+    stepped down to term 2, and so did follower 2.
+  - The group re-elected in term 3. Before the fix, a fenced replica sent nothing, so the leader
+    was left undisturbed.
+- G2, a stale `Gone`. After a transfer to node 2 (term 2), the old leader's `Gone{1}` and
+  `Gone{2}` at node 3 left node 3 unchanged: following 2 in term 2.
+- G3, `Gone` at awake followers. Both followers were awake (after a `Wake`) and both heard the
+  fenced leader's `Gone`, one of them twice. There was one election, 900 units after the fence
+  (election_max 1200), and one leader in term 2. One follower sent 4 vote messages and the
+  other none. There was no term storm and no second election.
+- G4, a same-term `Gone` naming a live leader (a delayed or forged one). The follower drops its
+  leader, and its pre-vote wakes the leader. It is back at rest under the same leader in the same
+  term after 920 units, with no election.
+- G5, rest across role changes:
+  - A follower at rest that hears a higher-term transfer vote ends up in term 2 with
+    `resting 0`.
+  - A leader at rest that fences keeps `resting 1`. `fence()` (core.h:616-619) does not clear
+    it (N2).
 - Code reading:
-  - `wakes()`, `wake()`, `leader_at_rest()` and the `told` bookkeeping. A follower that missed
-    the commit-carrying append keeps the leader awake.
-  - `reopen()`: exact match against `durable_`. `closed_state()` takes `durable_`, and when the
-    Core is not busy its in-memory hard state equals it.
-  - Driver `step()`: `run_one(tick)` steps a fresh Tick before `admit()` submits frames, notices
-    or calls, so `now_` is current when a group wakes.
-  - `leader_gone()`: it reaches only followers of a leader on that node.
-  - Transport: the only timers are per-peer (`RpcPeer::timer`, host_transport.h:808). There is
-    no per-group timer.
+  - Who can send `Gone`. The source is `Receive::authenticated_peer`. The transport's per-frame
+    rule (`member_of`) admits only members of the group, and the Core acts only when
+    `leader_ == source`. A non-member cannot send one.
+  - Tag 9. The decoder rejects an unknown kind with Corruption (codec.h, `default:`), and
+    `receive_message` (host_transport.h:1597-1604) turns that into nullopt, a dropped frame. The
+    connection is not aborted, so an older peer drops `Gone` cleanly. codec_test round-trips
+    `Gone{7}` and rejects every truncation and a trailing byte.
+  - Fenced node with no network. Its Control connection ends, so `on_node_gone` raises
+    LeaderGone, unchanged from a020e14 (host_transport.h:1110-1113).
+  - A4/A6. `report_fence` runs only when a group fences, and it is guarded by the existing
+    `fence_seen` flag. The Group struct is unchanged. `step()` and `wakes()` are unchanged on
+    the rest path, so the new send path adds no wake and no bytes at rest.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | `resting_` survives TimeoutNow. `receive_message(TimeoutNow)` does not go through `follower()`, and `campaign()` and `lead()` never clear `resting_`. The follower at rest campaigns and becomes leader still at rest: `drive()` returns early (core.h:1241), and `next_deadline()` is maximum. Its no-op stays unsent until some frame arrives. With one voter down, that is the old leader's election timeout (780 units). If every vote request is lost, the candidate never retries. | 261121-005139-cd50f8 P1 "quiesce, third down": `resting 1 timer none`, 780 units; core.h:1012 (TimeoutNow campaigns), 1311 campaign(), 1332 lead() | Clear `resting_` in `campaign()` (and in `lead()`). Add simulation_test `quiescence` case: transfer at rest with the third voter down, and the target's term entry is on the old leader within the settle. |
-| F2 | yes | gap | A fenced (or otherwise stopped) leader group on a live node is never replaced. Followers at rest arm no timer, and the node-pair detector sees a live connection. The doc's premise, "a follower at rest under a leader it cannot reach elects only on LeaderGone", leaves group-level loss undetected. Before quiescence, the followers elected within a timeout. | 261121-005139-cd50f8 P2: quiesce NO in 19,400 units, control 970 | Owner's call. Options: (a) on a fence, the leader's host tells its peers per group (for example the transport's `closed` frame raising `Wake` there), so the followers elect; (b) the host contract is to restart or close a fenced group at once, documented in quiescence.md and tested through the Driver; (c) a long backstop timer per follower at rest, costed in A4. Add the P2 case to the suite with the chosen fix. |
-| F3 | no | gap | Random coverage of rest is thin: 20,375 node-steps at rest of about 5.5M in the quiescent seeds (about 0.4%). Transfers, fences and membership changes rarely meet a group at rest, which is how F1 got through. | c34e4e log | A rest-heavy seed mode (quiet stretches before faults), or deterministic cases per wake source. |
-| F4 | no | nit | `heard_from_leader`'s `resting_ && source != leader_` clause is unreachable. `step()` wakes a follower on any (pre-)vote from a non-leader before `handle()`, and `wake()` sets `leader_contact_ = now_`, so the time clause already refuses. A mutant removing the clause survives. | core.h:391, 529-538 wake(), 1025-1027 | Drop the clause, or make the comment describe the mechanism that actually refuses. |
-| F5 | no | nit | The `Driver::closed_state` comment says "at rest", but neither it nor `Core::closed_state` checks `resting_`. Closing a non-resting group is safe (the reopen only costs an election). | driver.h:259-263, core.h:297-301 | Fix the comment, or require rest. |
-| F6 | no | gap | A4 counts only the leader's side. Follower groups at rest are shown to arm no timer in tests (`quiescence::rest`, groups_test `quiescent`), but not counted at 1M. LeaderGone staying silent through a long rest (past `dead_after` or the 60 s Bulk idle) is shown only for 3 s in groups_test. | quiescence-idle-cpu.md "What is not counted"; groups_test.cc:1321 | Optional: a follower-side idle row, and a longer rest with `stats().gone == 0`. |
+| F7 | yes | defect | **A higher-term `Gone` deposes a live leader.** `Gone` goes through `handle(Receive)`'s generic term step (`changed`, `hard_.term = incoming_term; follower(0)`) before `receive_message(Gone)` checks the source and term. Any member's `Gone{T+1}` steps a leader at rest down and starts an election. That leader ignores a `VoteRequest{T+1}` from the same member under D7. The sender is a fenced replica whose in-memory term ran ahead, for example one that fenced while persisting its own campaign. Before this commit, a fenced replica sent nothing, so its higher term never reached the group. This contradicts quiescence.md ("from anyone else it changes nothing"). It costs liveness, not safety. | 261121-014000-f97fcf G1: leader 1 term 1 → stepped down, group re-elected in term 3; core.h:993-998, 1065-1067 | Handle `Gone` before the term step, as PreVoteRequest is handled: act only if Follower, `leader_ == source` and `term == hard_.term`, then return. Add to simulation_test `gone`: `Gone{term+1}` from a follower leaves the leader leading in `term`, and a stale `Gone{term-1}` from the old leader changes nothing. |
+| F3 | no | gap | Carried, open. Random coverage of rest is thin: 18,594 node-steps at rest in the 150 quiescent seeds at 3b20d96 (20,375 at a020e14). Deterministic cases now cover transfer and `Gone`. | a27269 log | A rest-heavy seed mode, or deterministic cases per wake source. |
+| F6 | no | gap | Carried, open. A4 counts only the leader's side. Follower rest at 1M groups, and a long rest with `stats().gone == 0`, are not counted. | quiescence-idle-cpu.md "What is not counted" | Optional: a follower-side idle row and a longer rest. |
+| N1 | no | gap | `report_fence` notifies the Sink of `Fenced` before it sends the `Gone`s (driver.h:581-594). A host that forgets the group in its `Fenced` handler drops every `Gone`, because `HostTransport::send` drops frames for a group it does not store (host_transport.h:484-487). F2 then returns silently. `groups_test`'s sink ignores `Fenced`, so nothing tests this. | driver.h:581-594 | Send the `Gone`s before `Fenced`, or state the order in the Sink contract. |
+| N2 | no | nit | `fence()` keeps `resting_`, so `GroupState::resting` reports a fenced former leader as resting. | f97fcf G5; core.h:616-619 | Clear `resting_` in `fence()`. |
+| N3 | no | nit | No `Gone` seed in the checked-in decoder corpus. seed.cc writes one, but `fuzz/corpus/decoders` was not regenerated: its control seeds hold kinds 1-8 only, and the inserted seed shifts every later `seed-N`. codec_test covers the decoder. | corpus scan of 3b20d96 `fuzz/corpus/decoders` | Regenerate the seeds. |
+| N4 | no | nit | `Gone` is sent once. It is lost to a full Driver inbox (driver.h:197) or a full control queue (host_transport.h:941), and then the followers stay at rest. A follower group closed at that moment is fine: it reopens with its election timer running. | code reading | None needed now. Name the limit in quiescence.md if it matters. |
+
+F1 and F2 are closed (fixed, with mutant-killing tests). F4 is closed: the unreachable clause was
+removed. F5 is closed: the comments now say rest is not required.
 
 ## Answers to the lead's questions
 
-1. Safety: yes. A deposed leader at rest commits nothing and serves no read (P3). A follower that
-   missed the quiesce keeps the leader awake through `told`. The reopen's term and ballot are the
-   recovered durable ones, used only on an exact match, so they can never be behind a cast vote.
-2. Liveness: proposals, reads, membership changes, PeerLimits, Repair and frames wake a leader,
-   and LeaderGone and (pre-)votes wake a follower. There is no lost wakeup in the Core or Driver
-   ordering. The exceptions are TimeoutNow (F1) and a group lost without its node (F2). The
-   install-sender-crash case is consensus-driver-install's code (not at a020e14). Here the
-   receiver is not at rest during an install, because every append, keepalive or refused, goes
-   through `follower()` and clears `resting_`.
-3. LeaderGone fires only when a Control connection ends, and only at followers of a leader on
-   that node. A normal rest ends no connection.
-4. Yes for what they claim: no per-group timer in the transport, and A6 is a lone voter against a
-   lone-voter figure. The scope limits are in F6.
-5. Mostly. The mutants that matter for A2 are killed. F1 and F2 needed deterministic cases, and
-   the random sim rarely reaches them (F3).
+1. **Authentication.** Partly. The source is authenticated and must be this follower's leader.
+   A stale lower-term `Gone`, or one from a non-leader in the same term, changes nothing (G2,
+   simulation_test `gone`). A higher-term `Gone` from any member does depose (F7, blocking). A
+   same-term forged or delayed `Gone` naming a live leader costs one pre-vote round and no
+   election (G4). A fenced node with no network still produces LeaderGone through its
+   Control connection's end.
+2. **`Gone` while not at rest.** It behaves correctly: one election, one term step (pre-vote),
+   and a duplicate `Gone` is harmless (G3). A candidate or leader ignores a same-term `Gone`.
+3. **Tag 9.** An old decoder rejects it as Corruption, and the transport drops the frame without
+   aborting the connection. codec_test round-trips `Gone` and rejects its truncations. The fuzz
+   corpus lacks the seed (N3).
+4. **F1.** Covered: `follower()`, `campaign()` and `lead()` all clear `resting_`, including a
+   follower at rest stepping to a higher term (G5). Only `fence()` keeps the flag (N2,
+   cosmetic).
+5. **A4.** No regression: the send path runs only on a fence. The A4/A6 jobs ran at a020e14.
+   `campaign status` lists them for a rerun at the head, which is the lead's gate.
 
 ## Not run
 
-- No probe for a witness group's rest. I did not establish whether a leader with a witness ever
-  rests.
-- No real-socket test of long rests, a partition without RST, or Linux. No rerun of A4/A6, and
-  no TSan on the probes (they are single-threaded Core cases).
+- No real-socket test of a host that tears down a group on `Fenced` (N1). No Linux run.
+- No rerun of A4/A6 at 3b20d96, and no TSan of `fence_tells_peers` or `groups_test`.
+- Witness groups at rest remain unprobed, as before.
+- CI 44889402194 at 3b20d96 was still running when I checked.
