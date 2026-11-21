@@ -5,16 +5,14 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+With 32 x 64 KiB proposals in flight (rpc_bytes, 2 MiB, types.h:61) and 1% loss or 5% reorder at 20 ms, the leader stops replicating: applied stays fixed from 4 s to 90 s, no election, sockets idle on heartbeats (msg-177; xapiand netlab-consensus, consensus:e12ee46, job 261120-172038-99d4ac). One in flight under the same loss works. After this quest a full window under loss and reorder keeps committing. Candidate sites: follower capacity rejections (core.h:938-952) and their 500 ms retry (core.h:1021), the batch bound (core.h:1183-1187). Root cause first, from a deterministic reproduction.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A deterministic simulation (driver_simulation or a core test) with a full rpc_bytes window and dropped or reordered appends reproduces the stall at main and commits at the fix: jobs, one --fails-without
+- A2 [artifact] The root cause, named at file and line, with the interleaving: `docs/mechanisms/` note
+- A3 Xapiand's netem bench (consensus:e12ee46 bench, 32 in flight, 1% loss and 5% reorder at 20 ms) commits steadily for 90 s: a strict job in the Linux VM
+- A4 The suite, TSan and CI pass
 
 ## Contracts
 
