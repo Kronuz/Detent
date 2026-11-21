@@ -1,6 +1,6 @@
 # journal-idle-groups: journal
 
-State: waiting on jobs 261120-184654-9e1272 261120-184656-0e1021 261120-184658-120ecc 261120-184700-17fc0d (review mutants) 261120-184703-1235cc 261120-184706-b4561c 261120-184709-f6a0ca 261120-184712-0c6212 261120-184715-dc11a8 261120-184717-ef077e 261120-184720-f6328d (quest mutants) 261120-184737-1c0e6e 261120-185138-a67843 (A2 1M) 261120-185136-bfc3fb 261120-185136-5f0c8e 261120-185137-5bb25a 261120-185138-5e17c0 (A3 reruns) 261120-185137-aeefff (suite) and CI run 44857689442 (macos-arm64 gate), all at journal:b6a7697. Passed: 261120-184647-8c0c61 (A3 with F1-F3 cases), 261120-184649-b2db56 (no-orphans killed), 261120-184652-47309a (missing-shard-stale killed)
+State: waiting on CI run 44863560566 at journal:a76ef25 (host_test split into one ctest per case after linux-asan-ubsan timed out journal_host at b6a7697, run 44857689442). All jobs at b6a7697 passed (coordinator): F1 261120-184649-b2db56; F2 261120-184652-47309a, 261120-184654-9e1272; F3 261120-184656-0e1021, 261120-184658-120ecc, 261120-184700-17fc0d; A3 261120-184647-8c0c61; A2 1M; the seven quest mutants
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -81,6 +81,9 @@ durable table state (Host::park, Host::close_group; on disk the `closed` entry s
   its next commit splits it. Option (b) would turn a crash in a slot's first commit into lost groups.
 - R15. Review F3: park's skip is "a consumer has it open" = hold or sealer; `opened_` stays only for
   `status()` of a created group with no records. Tests keep open groups open with a live hold.
+- R17. CMakeLists.txt (outside the file set; the coordinator directed it): host_test registers one
+  ctest per case, parsed from host_test.cc's case list (configure depends on it), TIMEOUT 600 each;
+  an unknown case name now fails. Locally 29 ctests, 11.9 s at -j4 (Debug).
 - R16. The reviewer's probe.sh no longer applies (it patches host_test's case list); its three
   probes are host_test cases now, so the fix jobs are the cases and their mutants.
 
