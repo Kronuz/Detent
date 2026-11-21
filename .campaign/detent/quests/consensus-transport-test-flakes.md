@@ -32,3 +32,5 @@ everything waits for the review; `land --upto` refuses then.>
 
 <The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
 after T0)`. Each merges into the quest branch on its own tests.>
+
+- 2026-11-21, Xapiand lead: rpc_host_fetch failed linux-tsan on quest/xapiand/node-admission at consensus:de51801 (run 44940676266, job 136956946787): heartbeats worst gap 1358 ms vs the 1000 ms bound, 16 MiB fetch took 28,600 ms of 30 s beside 49 MiB of group uploads, dropped 4529, overrun 0. Same shape as this quest's TSan case; decide whether TSan gets its own bound or the fetch starves heartbeats on a slow host.
