@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at the fix head `Detent:96a069c` (review fix round 1): gates native 261121-133730-92f6a4, tsan 261121-133730-cc5f5d, t3-tsan 261121-133731-03aa72; plain and mutants 4bda7a b558f2 23f97d 91d1e5 2a7bcc; probes 893ca0 54b604; reruns (Evidence); CI 44952617120. Pushed.
+State: waiting on jobs at `Detent:5957f28` (fix round 1 plus N1): gates f8813d 4b053e 8a8b0e; plain afc86c; mutants b558f2 23f97d 91d1e5 2a7bcc f1d342; probes 14df94 ed843e; 5M cap probes 3eb46b a46cfb; reruns (Doing); CI at the head. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -19,6 +19,7 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
   | C2 transient miss | `Detent:c300e5f`: `openat` (EMFILE, ENFILE, ENOMEM, EAGAIN, EINTR), `fstat` and `mmap` errno raise `system_error`; `resolve` and the walk rethrow it without setting `failed`; the lookup answers `DETENT_IO` | `transient_miss` (60,000 knobs, 2 packs, descriptors exhausted) | plain 4bda7a; mutant MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d; probe rerun 261121-133754-54b604 |
   | S1 ledger bounds | `Detent:c300e5f`: heap 8 MiB, mapped 512 MiB per handle (main's client defaults, `view.cc`), test hook `testing::bounds` | `capped`: defaults read back; cap = one pack: cold key refused with the fallback, mapped key answers; heap 1 byte: attach `DETENT_NO_MEMORY` | plain 4bda7a; mutant CAP-1 (`Detent:406256c`) 261121-133836-91d1e5 |
   | S2 atfork abort | `Detent:c300e5f`: `install_atfork` under its own mutex; a refusal fails `detent_open` with `DETENT_NO_MEMORY` and the next open retries; hook `testing::refuse_atfork` | `atfork_refused` (first in `main`) | plain 4bda7a; mutant ATFORK-1 (`Detent:fe39db7`) 261121-133840-2a7bcc |
+  | N1 cap status (lead, msg) | `Detent:5957f28`: `ReadAdmissionRefused` (a `ReadSourceFailure`) for ledger refusals; the core maps it to `DETENT_NO_MEMORY`; client and delivery unchanged | `capped` checks `DETENT_NO_MEMORY` | plain 261121-134700-afc86c; mutant NOMEM-1 (`Detent:6fc2bb1`) 261121-134715-f1d342 |
   | S4 A9 citation | `Detent:96a069c`: reader-core.md gains "Bounds" and "Mapped bytes after verification"; file-admission counts (six shapes of five files) and `RecordTesting` corrected | [artifact] | — |
 
   - Mutants at `refs/mutants/reader-s6/{MEMO-1,MISS-1,CAP-1,ATFORK-1}`, each the fix head minus
@@ -28,7 +29,23 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
     A16 (the fix touches the cold-miss path): exclusive 79f55a (stopped), 2a46f5 (running),
     counts 8870f6, 150e4e. CI 44952617120 at the head; 44925224917 at `Detent:8200f57` still runs
     (the relay ASan attribution's Linux check), left alone.
-  - For the lead: S1 makes N1 reachable. A lookup refused by the mapped-bytes cap answers
+  - Reruns moved to `Detent:5957f28` (N1 touches `lazy_page_access.cc`): probes 14df94 ed843e,
+    asan eedf6e, t3-asan 7471fd, 432553, A7 134472, dense ASan 10c10f, A10 cca438, A11 3216f4,
+    A12/A13 0d3d32, soak fca7ec, A14 719374, A16 exclusive 75f7c2 (stopped) 1bf4b0 (running),
+    counts 660e6d ddca74; gates f8813d 4b053e 8a8b0e.
+  - Lead's 5M question (S1 cap at 512 MiB): the cap refuses, it does not evict, and so does main.
+    Main `Detent:13148dc`: `view.cc:31-32` default account 512 MiB, `:47` used when
+    `ViewLimits::mapping_account` is unset (the library client, `client_source.cc:158`);
+    `lazy_page_access.cc:129` maps through `SegmentMapping`, which admits at
+    `segment_mapping.cc:28`; the `StoragePressure` becomes `ReadSourceFailure` at
+    `lazy_page_access.cc:223-224`. No eviction anywhere in the page access. Main's 5M runs set the
+    account: `tests/detent_system/presets/capacity-5000000.json` has `mapping_bytes` 3 GiB
+    (`managed_host.cc:153-154`, `reader_capacity.cc:60`); delivery's default is 512 MiB
+    (`configuration.hh:9`). So main's default client has the same 5M problem; the reader core,
+    with no capacity option, cannot take the 3 GiB the preset gives the agent's readers.
+    Probes 3eb46b (2M records) and a46cfb (600K) read every key with the core at default bounds and
+    the client view at default `ViewLimits`, and give mapped bytes per record for 5M.
+  - (Superseded by N1 above.) S1 makes N1 reachable. A lookup refused by the mapped-bytes cap answers
     `DETENT_SOURCE_FAILURE` (the page access reports admission as `ReadSourceFailure`), where
     reader.md D3 says `DETENT_NO_MEMORY`; reader-core.md "Bounds" states what the code does. A
     reader-only fix is a `ReadSourceFailure` subclass for admission that `classify` maps to
