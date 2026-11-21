@@ -4360,6 +4360,8 @@
     "consensus-leaving-removal": {
       "accepted": {},
       "after": [],
+      "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+      "branch": "quest/detent/consensus-leaving-removal",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -4410,6 +4412,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-leaving-removal",
       "landed": [],
       "lenses": [
         "correctness"
@@ -4417,11 +4420,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: A blocking bug for Xapiand's placement; overlaps the consensus quests in src/, merged at landing",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T00:57:29"
+      "updated": "2026-11-21T00:57:35",
+      "worktree": "../consensus-wt/detent/consensus-leaving-removal"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
