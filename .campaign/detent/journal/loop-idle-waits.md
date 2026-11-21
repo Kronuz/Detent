@@ -141,6 +141,11 @@ reclaim scans ~60 completion ops/s) frames A1.
   (STOP_ROUNDS=1, Detent:f38c7ed3). Mutants: stop-peers-sleep (restores the sleep; must fail the bench), stop-sleep
   (only the stop loop's pre-39e5ab7e rule; must fail test_restart_wake, replacing the reviewer's r4 "stop" mode,
   whose text no longer matches), start-stop-sleep (now also mutates the stop condition; replaces r4 "revert").
+- arm64 bisect, first read (00:15 UTC): head 1 lost + 1 stalled (of 3), coordinator-reverted 1 lost of 3,
+  authority-reverted 2 of 2 passed, relay-reverted 2 of 2 passed (one each still queued). Every lost or stalled run's
+  last status (4.1 to 4.8 min into Test, ~261 of 281 tests done, memorystatus 78-79%) shows the same two tests
+  running: test_relay_service and test_testing_trusted_restart_*; the machine stops within the next 20 s. Focused
+  run bisect/liw-relaysvc (Detent:84bc04a8 code): those tests x8 on arm64 x3, progress every 5 s with process count.
 - Next: read the jobs; read each bisect run's statuses (`gh api repos/Kronuz/Detent/commits/<sha>/statuses`),
   name the component, fix it with a test; delete bisect/liw-*.
 
