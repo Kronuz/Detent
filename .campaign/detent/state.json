@@ -7895,7 +7895,8 @@
     "detent-multicast-seeds": {
       "accepted": {},
       "after": [
-        "dense-distribution-build"
+        "dense-distribution-build",
+        "xapiand:node-admission"
       ],
       "checks": [
         {
@@ -7953,7 +7954,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-20T18:25:22"
+      "updated": "2026-11-21T03:24:13"
     },
     "detent-on-drivers": {
       "accepted": {},
