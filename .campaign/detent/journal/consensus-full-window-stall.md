@@ -1,6 +1,6 @@
 # consensus-full-window-stall: journal
 
-State: waiting on jobs 261120-225643-d183d6 261120-225646-4a2941
+State: waiting on jobs 261120-225643-d183d6 261120-225646-4a2941 261120-230810-7a9077 261120-230812-55a44b
 Quest: .campaign/detent/quests/consensus-full-window-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -52,7 +52,7 @@ the lead said they'll widen it.
 |---|---|
 | A1 | at f178d4e (F1 fix): 261120-225642-48b0ca passed; 261120-225642-33fe0e (main's core.h) and 261120-225643-3b255d (no floor reset) failed as they should (exit 8); pending 261120-225646-4a2941 (--fails-without, no F1 guard). Reviewer's probe 261120-225650-745988 passed at f178d4e (100 KiB slow: 142 commits, 0 elections, largest 102,400 B; every append <= rpc_bytes) |
 | A2 | `docs/mechanisms/append-pacing.md` (consensus:17751bc; netem table consensus:fe0d2dc, both runs per build consensus:90ff878) |
-| A3 | checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does), run from `git show fe0d2dc:` in each job. At fe0d2dc core.h: fix loss1% 261120-201346-c3e8de PASS (10 windows, 0 role changes, 0.49 MB/s); fix reorder5% 261120-201347-0f5364 PASS (2,048-entry cap in 44.4 s, 6 windows, 0 role changes, 2.99 MB/s); main loss1% --fails-without 261120-201349-112b82 FAIL as it should (21 role changes, 63 commits, stalled window); main reorder5% comparison 261120-201350-63af72 PASS (3.62 MB/s). Earlier at b08f834 core.h (same): 190520-a407f0, 190522-1d0e1b (passes under fe0d2dc's checker), 190521-62807e, 190523-86507a |
+| A3 | at f178d4e (checker and core.h from f178d4e): pending fix loss1% 261120-230810-7a9077, fix reorder5% 261120-230812-55a44b; main's runs stay (they test main). Earlier, checker bench/netlab/full_window_check.py (consensus:fe0d2dc; windows end where the load does), run from `git show fe0d2dc:` in each job. At fe0d2dc core.h: fix loss1% 261120-201346-c3e8de PASS (10 windows, 0 role changes, 0.49 MB/s); fix reorder5% 261120-201347-0f5364 PASS (2,048-entry cap in 44.4 s, 6 windows, 0 role changes, 2.99 MB/s); main loss1% --fails-without 261120-201349-112b82 FAIL as it should (21 role changes, 63 commits, stalled window); main reorder5% comparison 261120-201350-63af72 PASS (3.62 MB/s). Earlier at b08f834 core.h (same): 190520-a407f0, 190522-1d0e1b (passes under fe0d2dc's checker), 190521-62807e, 190523-86507a |
 | A4 | at f178d4e: TSan pending 261120-225643-d183d6; CI macos-arm64 at f178d4e pending. At fe0d2dc: TSan 201358-da8c6d passed, CI macos-arm64 success (run 44865018670) |
 
 Local runs (scratch, -O0, before campaign jobs): full_window_stall_test at 17751bc 9 checks 0
