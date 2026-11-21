@@ -221,6 +221,12 @@ Review fixes (confirm with these; mutant jobs 261120-125856-673c7a .. 261120-125
 | Suite | 261120-134027-875c2b passed at Detent:820c6a8e; 261120-141018-363fb4 failed at Detent:e9937a82 (harness, fixed at Detent:2c0a7101); 261120-161546-ecf083 at Detent:2c0a7101 |
 | Failover | mutant 261120-161540-0595dc; x10: 261120-161518-53890f (fix), 261120-161526-e8d2d5 (pre-fix head), 261120-161517-fc6897 (main) |
 
+Accept map (ready for accept once suite 261120-161546-ecf083 passes; one confirming job each):
+`campaign accept dense-distribution-build correctness --confirm F1=261120-125854-e45912
+F2=261120-141032-1ff8f3 F3=261120-130727-a5032b F4=261120-134038-4ee64d F10=261120-141019-07be70`
+(F1: the review's probe refused at the fix; F2: answer-borrows killed under ASan; F3:
+cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-below killed).
+
 ## Result
 
 <none yet>
