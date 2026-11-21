@@ -4357,6 +4357,44 @@
       "updated": "2026-11-19T19:45:09",
       "worktree": ""
     },
+    "consensus-leaving-removal": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/worker.h",
+        "include/consensus/driver.h",
+        "src/**",
+        "test/core_test.cc",
+        "test/worker_test.cc",
+        "test/driver_replace_test.cc",
+        "test/driver_simulation.cc",
+        "CMakeLists.txt",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
+      "updated": "2026-11-21T00:57:26"
+    },
     "consensus-mutants-per-test": {
       "accepted": {},
       "after": [
