@@ -33,7 +33,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-224611-67dc23, 261120-224611-aedadf, 261120-224611-82350f, 261120-224612-141e56, 261120-144421-d16a3a, 261120-144421-5a223a (all exit 0, exclusive, at 131bde6; no "ran beside" record) |
+| A1 | 261120-224611-67dc23, 261120-224611-aedadf, 261120-224611-82350f, 261120-224612-141e56, 261120-224612-0b90b3, 261120-224612-ebc964 (all exit 0, exclusive, at 131bde6; no "ran beside" record) |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
 | Suite | 261120-144425-4edf28 (exit 0 at 131bde6); CI run 44831410902 at 131bde6, all jobs green incl. macos-arm64 (D57); later commits are docs-only, paths-ignored by CI |
 
