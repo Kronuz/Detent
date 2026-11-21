@@ -1,4 +1,4 @@
-State: waiting on CI 44903029845 (bisect/liw-fix at Detent:60353565, arm64 x3: the F13 proof), quest CI 44902999124 at Detent:219ba475, and jobs at 219ba475: 261121-041526-85734b (suite) -041501-9af980 (relay tests) -041501-52db82 -041501-94a0e4 (A1) -041501-7f0dd2 -041501-bf8808 (A2) -041502-543910 (A3) -041502-5df46b -041502-049684 -041502-7a11c3 -041502-cf8862 -041502-e058e7 (A4).
+State: blocked (F13 not fixed: bisect/liw-fix arm64 x3 all stalled). Waiting on probes 261121-042832-2dfa53 -042834-dc10b1 -043412-7ac777 -043414-c14b6b -044608-6c41ed, suite -041526-85734b, CI 44903029845 (bisect, stalled) and 44902999124 (quest, linux-arm64-gcc failed).
 Quest: .campaign/detent/quests/loop-idle-waits.md (the lead's; never edit it)
 
 ## Doing
@@ -57,6 +57,12 @@ Detent:cc942c46.
   whether it is starvation; (c) land on x86_64 + Linux green and track arm64 as its own quest. Recommendation (a),
   starting with Detent:0fe9bc6c (relay turn) vs Detent:c75dc35f (authority), since local samplers (x86_64) show
   no port, memory or CPU difference from main.
+
+- F13 (lead's call, contributor 7): 59206705 did not fix it (above). Options: (a) restore main's per-turn share
+  (32 polls, 8 opens, 8 closes, round robin) and keep idle sleeps only when a full round of turns made no progress,
+  i.e. r1-poll's shape plus a bounded "round complete" condition, then arm64 x3; (b) cap bytes each turn writes
+  across replies (a pump budget), keeping the every-request visit; (c) take macOS arm64 out of the quest's gate and
+  track F13 as its own quest. Recommendation (a): it is the only shape with 3 of 3 arm64 passes besides main.
 
 Nothing else. msg-103 answered (D124, files widened, ruling A); msg-105 answered (mirror_service.hh).
 
@@ -210,7 +216,21 @@ reclaim scans ~60 completion ops/s) frames A1.
   (peak_transfers 211-404) with bytes correct. Reading: each turn now advances every request (main: 32 polls a turn,
   round robin), so under load early 142 KB replies finish and their connections close before the last of the 500
   next requests is admitted. A/B probes: x20 alone head -042832-2dfa53 vs pre-fix 2654cd20 -042834-dc10b1; two at
-  once x8 head -043412-7ac777 vs pre-fix -043414-c14b6b. Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
+  once x8 head -043412-7ac777 vs pre-fix -043414-c14b6b.
+- F13 NOT fixed by 59206705. bisect/liw-fix CI 44903029845 (Detent:60353565): all three arm64 reps stopped posting
+  progress at 4.1-4.8 min into Test (last 12:24, 12:29, 12:28 UTC; silent past 12:45), each with test_relay_service
+  running (with testing_trusted_restart_ or testing_pack_scrub), load 3.4-12.3, memorystatus 77-79%: the same
+  signature as every earlier loss. The runners will be lost at ~49 min.
+- What the bisect now says: lost = head's sweep (continues at once over unvisited slots), relay1ms, nowake, and
+  59206705 (every request each turn); passed = main's host and r1-poll (main's step: 32 polls + 8 + 8 a turn,
+  round robin, sleep when no progress). The common factor of the losers is the advance rate: every admitted
+  request advanced back to back within one wake, instead of a 32-slot share per turn. The relay_network_100000
+  failure (above) is the same rate seen from the client side: replies finish before 500 connections are open.
+  Hypothesis (unproven): pumping every reply at once fills kernel socket buffers across hundreds of loopback
+  connections, and the arm64 runner's network (mbufs; ENOBUFS seen locally only at 4 copies x 500 clients)
+  stalls, taking the runner's own link with it.
+- Pair probe at main 3c04e6c1 added (-044608-6c41ed): if pre-fix and head fail the paired relay_network run and
+  main passes, that run is a local proxy for F13. Cancelled the A1/A3/A4 reruns at 219ba475 (code will change). Next: three arm64 passes on 44903029845 and quest CI green, then the Evidence
   table from the reruns and delete bisect/liw-fix.
 
 ## Result
