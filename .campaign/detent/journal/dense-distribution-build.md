@@ -5,7 +5,9 @@ F2 -095212-4c9253, F3 -095235-fe4798, F4 -095326-f5ccfd (strict), F10 -095237-66
 -095217-c9cac6, 5M row -095330-92f248 (strict), d1-root-after-write -095239-fbb807, x10 -095301-c6fa2f,
 relay pages under 3.14 -095306-d80db9, stopped-relay-unwatched -095309-093a8f, mirror-answer-unwoken
 -095242-bd3bd7, test_http_upstream -095215-8316bb, loop-idle-waits A1 vs main 68531fde -095335-e3f4ca
-(60000) and -095339-49cad3 (250), all 261121-. A1 is CI macos-arm64.
+(60000) and -095339-49cad3 (250); at Detent:2c026d59 (mutant script only) loop-idle-waits mutants
+relay-enqueue -100630-8d1935 and coordinator-disk -100633-2da50f; all 261121-. A1 is CI macos-arm64
+(run at Detent:2c026d59 now; 44931812870 at the merge).
 Next: when they and CI pass, fill Evidence and write "ready for review".
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
@@ -352,11 +354,12 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
   candidate after every advance, so the poll was loop-idle-waits' pattern on a new source.
 - (merge) The relay keeps main's enqueue wake though every v2 request also wakes on its mirror
   answer: one shape with main; its loss alone stalls nothing (R5's note), so its mutant is the
-  answer wake's, not the enqueue's. tests/detent_delivery/mutants/loop_idle_waits.sh's relay-enqueue
-  and coordinator-disk cases name v1 tests that this branch removed; the script is main's, outside
-  this quest's set: lead, retarget relay-enqueue to test_http_upstream or drop it.
-- New file tests/detent_relay/mutants/mirror-answer-unwoken.patch, beside the relay mutants. Lead:
-  add it to the set.
+  answer wake's, not the enqueue's.
+- Lead ruling (retarget, don't drop): loop_idle_waits.sh relay-enqueue drops both wakes of a v2 mirror
+  job (enqueue and `job.answered`), killed by test_http_upstream; coordinator-disk keeps its mutation,
+  killed by test_namespace_coordinator (Detent:2c026d59). The other cases' anchors and tests exist here.
+- New file tests/detent_relay/mutants/mirror-answer-unwoken.patch (lead added it and
+  loop_idle_waits.sh to the set).
 
 - New mutants tests/detent_delivery/mutants/d1-root-after-write.patch and
   tests/detent_system/mutants/stopped-relay-unwatched.patch, beside listed ones. Lead: add them.
