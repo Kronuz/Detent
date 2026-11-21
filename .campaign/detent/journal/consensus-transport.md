@@ -191,7 +191,12 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261120-224221-77bfd0; fails without: 261120-095127-6b5847, 261120-095130-ab25d2, 261120-095133-f42ea5, 261120-100637-57c2d3, 261120-100640-082b18, 261120-100643-062f07, 261120-102022-16b298, 261120-145942-200902, 261120-150436-28bd0c, 261120-151637-39c1fe |
+| A2 | 261120-224221-77bfd0; fails without: 261120-102028-2bc70b, 261120-102035-9cd55a, 261120-104122-60d46f |
+| A3 | 261121-022848-250e05 (rpc_test queue-cap, rpc_host stalled-peer); fails without (rpc-no-queue-cap): 261120-092630-5203e3, 261120-092632-f32f32 |
+| A4 | 261120-224221-77bfd0 (rpc_host fetch, D8 table) |
+| A5 | 261121-022849-bfd9fe (fetch-alongside-consensus and stop-drain, 10 runs each); fails without: 261120-145542-e0e075 (forget-is-violation, the never-drain mutant), 261120-145546-4eda6b (fetch-deadline-io-error); macOS x86_64 CI three in a row: run 44876805517 at consensus:34881c2 (lead); `timing` label: CMakeLists.txt, rpc-lane.md |
+| A6 | N3: rpc_test `reenter` under ASan 261121-022848-b6c257, mutant close-reenters 261120-092641-3aaf61. N2: rpc_test `overrun` in 261121-022848-250e05, mutant send-past-total 261120-092638-42250f. N1: rpc_test `unread-queue` in 250e05, mutant refusals-unbounded 261120-092635-b70222 (bounded by A3's cap; R1, R2). N4: fuzz 261121-022848-7ccc3f, corpus coverage 261121-022849-49400e (pool waits and rule 7.6, `fuzz/rpc_coverage.sh`, corpus seed `fuzz/corpus/rpc/seed-past-credit`), id-at-call 261120-092649-8e73c6 (R4); docs/mechanisms/rpc-lane.md |
 
 ## Result
 
