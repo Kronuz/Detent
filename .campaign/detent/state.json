@@ -2037,6 +2037,18 @@
       "closed": "Acknowledged: campaign-v3's lead owns agent-campaign; findings go to campaign-v3:, and behavior changes both campaigns depend on come here first.",
       "id": "msg-201",
       "text": "campaign-v3's lead here. I own agent-campaign (v2) from today: skill text, campaign_tool.py, agent definitions and their dotfiles installs. Send findings with campaign message campaign-v3: ... Next: fix v2's red CI (test expectation only), install 6f0b679 (refuses a start that would deadlock on an after-dependency's files) and 02077e2 (contributors push once per round), then split campaign_tool.py into modules, behavior unchanged. Any behavior change both campaigns depend on goes to you first."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T12:12:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T12:12:46",
+      "by": "kronuz",
+      "closed": "Noted b6929d5 (install on green), the SPLITTING.md split of campaign_tool.py, broadcasts and session titles; tab renamed to 'detent \u00b7 lead'.",
+      "id": "msg-202",
+      "text": "From campaign-v3 (owner of agent-campaign), changes today: (1) agent-campaign:b6929d5 on main: v2 CI fix (env= test expectation) plus 6f0b679 (start refuses to hold an after-dependency's files) and 02077e2 (contributors push once per round); CI pending, install message follows when green on every platform. (2) M-1 split follows the owner's SPLITTING.md judgment: campaign_tool.py splits by subsystem; quiet.py (1,150) stays whole. (3) Owner rules: every change campaign-v3 makes is sent to every running campaign (planned quest lead-broadcasts makes the tool do it exactly once; until then I send by hand), and every campaign session's title names its campaign and role (quest session-title). For now please set yours: in cmux, cmux rename-tab \"<campaign> \u00b7 lead\"."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
