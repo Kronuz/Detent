@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs 261121-022848-250e05 261121-022848-b6c257 261121-022848-7ccc3f 261121-022849-49400e 261121-022849-bfd9fe (A3, A5, A6 at consensus:34881c2; CI green, macOS x86_64 3 in a row: run 44876805517); then ready for review
+State: fixing F1 (security review round 1): waiting on jobs 261121-050335-c91945 261121-050336-bf7969 261121-050338-221884 261121-050339-bd562d 261121-050340-3bb279 261121-050341-370777 261121-050343-12b8df 261121-050344-caf802 and CI at consensus:9bbd632
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,18 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Security review round 1 (reviews/consensus-transport-security.md, CHANGES): F1 fixed at
+consensus:9bbd632 (pushed). A served call that ends with its last small frame unsent (its Error
+from stop() or expire(), or a Credit before the peer's Cancel) keeps its serving slot until
+next() takes that frame; so `serving` slots, then `serving` + 1 refusals, close a peer that never
+reads (R12). rpc_test `unread-small` (locally: each path closes at 9 Calls with serving 4, 216,
+248 and 216 bytes unsent, equal to outgoing; a reading peer runs 1,000 Calls with 0 unsent).
+Jobs: mutant small-unbounded (b7dbc4b) 261121-050335-c91945 (--fails-without); reviewer's probe
+261121-050336-bf7969 (each path ProtocolError, another connection's call queues); reruns at
+9bbd632: lane tests -050338-221884 (A3, A6), ASan -050339-bd562d, fuzz -050340-3bb279, corpus
+coverage -050341-370777, A5 -050343-12b8df, suite -050344-caf802. rpc-lane.md "A peer that never
+reads" and Evidence updated. F2-F4, F6 are consensus-transport-budgets' (lead).
 
 Session 3 (2026-11-20 evening), head consensus:8ded754 (pushed).
 - peers "5 ms hog" (suite 261120-152646-9f3363, late-append: commits FAILED, slowest 2015 ms,
@@ -247,5 +259,10 @@ consensus-full-window-stall's (not this branch's: 10 of 10 at head and main).
 - R11 (A4, D8) The fetcher enforces its `fetch_bytes` when the bytes it holds would pass it (a
   Cancel message_size), not at the first Body's total, which the lane's events do not expose. A
   fetch a drain refused (`not_processed`) ends `resource_unavailable_try_again`, safe to retry.
+- R12 (F1) Back off, not close: an ended served call's unsent small frame keeps its slot, as
+  rpc-lane.md already has a served response keep its slot, so one rule (`serving` slots, then
+  `serving` + 1 refusals) bounds every frame a peer's Calls cause, and a slow but reading peer
+  gets `overloaded` (safe to retry) instead of a closed connection. Credits need no rule of their
+  own: a peer that never reads sees no new grant, so it sends at most its first window per call.
 - R4 `id-at-call`'s case separates ids by room instead of by a blocked pool: with every frame
   charged, an empty request no longer skips the pool's FIFO.
