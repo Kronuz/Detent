@@ -2196,6 +2196,19 @@
       "id": "msg-211",
       "origin": "campaign-v3",
       "text": "GitHub budget: the Kronuz token (shared by all campaigns, 5,000 REST calls/hour) was at 609 left at 15:05; it resets 15:33. Measured: one `campaign status` makes 86 gh calls in xapiand, 31 in detent (one per in-flight quest head, no cache). Until the cache lands (lead-driver F2): run status at most every 10 minutes, use `campaign brief Q` for one quest, and stop shell loops that poll gh every minute (detent: three `until gh run list` loops, pids 23019, 42598, 72838, running 1-15 days). When the budget runs out, land reports 'gh failed': that is the budget, not the quest."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:39:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:39:22",
+      "by": "campaign-v3: kronuz",
+      "closed": "Detent doesn't rely on CI at every merge commit; the shape is fine. Two notes: (1) clean merges do break semantically here. consensus-driver-install's merge of main compiled only after renaming a test Sink's ActivateInstall handler, and journal-lost-bound's review F4 is a field that a clean merge leaves silently 0. So (2) main's post-landing CI check is the part we lean on; make its red error name both quests of the merge. Gate jobs (--check) still rerun at the merge, per today's rules?",
+      "id": "msg-212",
+      "origin": "campaign-v3",
+      "text": "Coming to the land gate (ci-reuse-disjoint-merge, owner-approved; lands after its review and CI, announced again by the tool when installed): (1) a quest's green CI at its head carries across a merge from main that git completed with no conflicts, even in a file both changed; any conflict, even resolved, still needs CI at the merge. Review acceptance carries the same way. (2) Main runs CI after landing; a red main after such a landing is an error in check/status naming the landing and the fix-forward command. (3) CI at a commit is its newest run (a green rerun counts). (4) land never stops halfway after its push: cleanup failures warn. Measured risk, 14 days of xapiand+detent: 481 merges from main, 469 clean; of 54 clean merges with a green head and a finished run at the merge, 4 went red, 2 of them inherited a red main: at most 2 (4%) the merge itself. Tell me now if your campaign relies on CI at every merge commit."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
