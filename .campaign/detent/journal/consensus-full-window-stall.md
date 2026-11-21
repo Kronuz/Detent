@@ -11,7 +11,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Merged consensus main (consensus-transport 9bbd632, consensus-quiescence 5ebf834) at
 consensus:5a114dd; correctness review accepted at consensus:8e55060. Every evidence job reran at
-5a114dd (State's ids); CI on the pushed branch pending. Lands first, before consensus-leaving-removal
+5a114dd. Passed: A1 d21525, a72cc7; F1 probe 627be6; TSan 887444; A3 5ae1d3,
+20565a. Pending: State's five A3 VM jobs and CI run 44924678818. Lands first, before consensus-leaving-removal
 and consensus-driver-install.
 
 core.h merge: two conflicts, both independent additions beside each other. Peer keeps
