@@ -5266,7 +5266,8 @@
       "files": [
         "include/consensus/core.h",
         "test/driver_replace_test.cc",
-        "test/**",
+        "test/quiescence*",
+        "test/driver_*",
         "docs/mechanisms/quiescence.md",
         "CHANGELOG.md"
       ],
@@ -5311,7 +5312,7 @@
       "risk": "high",
       "status": "planned",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T11:05:12"
+      "updated": "2026-11-21T13:31:49"
     },
     "consensus-quiescence": {
       "accepted": {
