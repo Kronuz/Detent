@@ -9,7 +9,7 @@ Xapiand's track C (strata docs/reviews/track-c-c2.md, C2 condition 2) needs one 
 
 ## Acceptance criteria
 
-- A1 With JOURNAL_FUZZ=ON, each of the three settings builds and runs 60 s of fuzzing clean, and the pinned builds reach only their decoder: a job
+- A1 With JOURNAL_FUZZ=ON, each of the three settings builds and runs 60 s of fuzzing clean, and any other value fails configure: a job
 - A2 The suite and CI pass
 
 ## Contracts
