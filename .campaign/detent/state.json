@@ -13349,6 +13349,8 @@
       "after": [
         "journal-power-silent-loss"
       ],
+      "base": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+      "branch": "quest/detent/journal-tail-second-sector",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -13411,6 +13413,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-tail-second-sector",
       "landed": [],
       "lenses": [
         "durability"
@@ -13420,9 +13423,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-20T21:36:18"
+      "updated": "2026-11-21T08:29:41",
+      "worktree": "../journal-wt/detent/journal-tail-second-sector"
     },
     "journal-turn-bound": {
       "accepted": {
