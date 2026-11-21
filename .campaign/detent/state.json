@@ -24018,13 +24018,15 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "multi-voter-idle-wake"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-20T18:25:44"
+      "updated": "2026-11-21T13:13:21"
     },
     "retained-byte-limit-test": {
       "accepted": {},
