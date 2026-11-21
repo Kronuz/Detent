@@ -658,6 +658,48 @@ void service_builds_aside(const std::filesystem::path &scratch, std::size_t keys
 				 keys, static_cast<long long>(duration_cast<milliseconds>(answered - started).count()),
 				 static_cast<long long>(duration_cast<milliseconds>(built - started).count()));
 }
+
+// A compressed records answer holds the bytes it sends: one whose raw body is twice the answer
+// account is answered, its fragments within the account (the 5M row's four 32 MB full copies).
+void compressed_answer(const std::filesystem::path &scratch) {
+	constexpr std::size_t keys = 200000;
+	Upstream up;
+	up.create("app", keys);
+	const std::vector<std::string> names{"app"};
+	prepare(scratch / "uncompressed");
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "uncompressed", 0644), cluster, up);
+	relay.sync(names);
+	const auto raw = answer(relay, {{"app", std::nullopt, false}}).size();
+	prepare(scratch / "compressed");
+	r::MirrorServiceOptions options;
+	options.directory = scratch / "compressed";
+	options.cluster = cluster;
+	options.namespaces = names;
+	options.interval = std::chrono::milliseconds(10);
+	r::MirrorService service(options, std::make_unique<Forward>(up), std::make_shared<d::StorageLedger>(raw / 2));
+	until([&] { return service.status().ready; }, "the first sync");
+	const std::string_view patterns[]{"app"};
+	const d::NamespaceGrants grants(patterns);
+	auto submit = [&](r::MirrorJob::Kind kind, d::Identity session, std::vector<r::Position> positions) {
+		auto job = std::make_shared<r::MirrorJob>();
+		job->kind = kind;
+		job->grants = &grants;
+		job->session = session;
+		job->positions = std::move(positions);
+		job->compressed = true;
+		job->wait_ms = 30000;
+		service.submit(job);
+		until([&] { return job->done.load(); }, "an answer");
+		return job;
+	};
+	const auto opened = submit(r::MirrorJob::Kind::Open, {}, {});
+	const auto next = submit(r::MirrorJob::Kind::Next, session_of(*opened), {{"app", std::nullopt, false}});
+	std::size_t sent = 0;
+	for (const auto &chunk : next->reply.chunks)
+		sent += chunk->size();
+	check(next->reply.status == 200 && sent && sent < raw / 2);
+	std::fprintf(stderr, "compressed answer: %zu raw bytes as %zu, within an account of %zu\n", raw, sent, raw / 2);
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -675,6 +717,7 @@ int main(int argc, char **argv) {
 		large_base(scratch);
 		mirror_refuses(scratch);
 		service_builds_aside(scratch, 100000);
+		compressed_answer(scratch);
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_relay_pages: %s\n", error.what());
 		return 1;

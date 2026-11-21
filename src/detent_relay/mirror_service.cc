@@ -137,7 +137,15 @@ struct MirrorService::Impl {
 				d::WorkBudget budget{d::fragment_bytes * 4, 64};
 				encoder.step(budget);
 			}
-			job.reply.chunks.push_back(encoder.take());
+			auto fragment = encoder.take();
+			if (session.compressed) {
+				// The encoder's buffer fits an incompressible fragment: the answer holds the bytes it sends.
+				auto fitted = d::make_owned_buffer(account, fragment->size());
+				fitted->append(fragment->view());
+				fitted->seal();
+				fragment = std::move(fitted);
+			}
+			job.reply.chunks.push_back(std::move(fragment));
 		}
 		job.reply.status = 200;
 		job.reply.content_type = "application/vnd.detent.frames";
