@@ -1,6 +1,6 @@
 # consensus-faultfs: journal
 
-State: waiting on CI run 44860606419 (macos-arm64) at bb961b3
+State: ready for review
 Quest: .campaign/detent/quests/consensus-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -55,9 +55,7 @@ test/faultfs_mutants.py, which main lacks).
 
 ## Next
 
-1. A1/A3: `ci:macos-arm64` at bb961b3 (run 44860606419), ctest time <= 160.8 s (1.5 x main's
-   107.19 s, main run 44829606479); `git grep memory_io` empty at bb961b3.
-2. Fill Evidence, write Result, set ready for review.
+1. Review.
 
 ## Blocked on
 
@@ -71,13 +69,22 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | `ci:macos-arm64` at bb961b3 (run 44860606419: 91 of 91 tests pass); 261120-214850-8b9fd8 (`git grep memory_io` finds nothing) |
+| A2 | --fails-without at bb961b3, each killed at main 8801b99 too (Doing): close_crash 261120-192034-4f37ea, wave_open cut 261120-192035-7daa7f, shared_worker 261120-192036-407361, driver simulation 261120-192038-fc047f and 261120-192039-713715, driver 261120-192040-608dd4, shared_cluster 261120-192042-ab67ca; the same tests unmutated pass: 261120-214851-3501a7 |
+| A3 | `ci:macos-arm64` at bb961b3: ctest 113.85 s, 1.06x main's 107.19 s (bound 160.8 s); every job of run 44860606419 green, ASan, TSan and FreeBSD included |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+consensus:813d95f..bb961b3 (5 commits): the ten test files that built a journal on MemoryIO
+(blocking_entry, driver_simulation, driver, driver_close, shared_cluster, shared_worker,
+transport/peers, waiter, wave_open, worker) run on faultlab's faultfs (faultlab:a3b71d1); no file
+includes journal/memory_io.h. Power cuts are `power_off_after` plus `crash(seed, sector_cut)`.
+close_crash runs on CutIO (consensus:e4e82ad), which throws PowerCut at a power-off failure so a
+throw can still end the Driver's loop; test/faultfs_mutants.py (consensus:a46f110) holds the A2
+mutants; driver_simulation replays seed 11 (consensus:bb961b3). Suite time on macos-arm64: 113.85
+s against main's 107.19 s (+6%). Left open: shared_cluster's mutant is the only one main never had
+a pre-existing baseline for (now e6bcf8, killed); seed 399 no longer reproduces its old schedule
+on faultfs and stays only as a record.
 
 ## Rulings I made
 
