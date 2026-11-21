@@ -49,7 +49,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261121-031008-0547aa |
+| A2 | 261121-031008-0547aa; fails without: 261121-031034-f6c862, 261121-031035-8662fc |
+| A3 | pending: rerun at head once consensus-quiescence lands (probe at consensus:20198fc passed: 261121-012106-ce07f5) |
+| A4 | `ci:macos-arm64` |
 
 ## Result
 
