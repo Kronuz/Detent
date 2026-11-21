@@ -1,13 +1,39 @@
 # reader-s6: journal
 
-State: waiting on jobs at the merged head `Detent:8200f57`: native 261121-083336-07165a, tsan 261121-083336-7d077b, t3-tsan 261121-083336-1342d5; relay ASan attribution 261121-083356-0bfda2 (head), 261121-083359-311725 (main `Detent:4195c4a`); CI 44925224917 at the head. Pushed.
-Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification").
+State: waiting on jobs at the fix head `Detent:96a069c` (review fix round 1): gates native 261121-133730-92f6a4, tsan 261121-133730-cc5f5d, t3-tsan 261121-133731-03aa72; plain and mutants 4bda7a b558f2 23f97d 91d1e5 2a7bcc; probes 893ca0 54b604; reruns (Evidence); CI 44952617120. Pushed.
+Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
 - Correctness: (1) Ring and one freer: can a view be freed while a pin holds it (D5's seq_cst reload; STATS-1 58fade shows the hook now pins)? (2) Is a page's verified bit published only after `verify_page` and the first-touch walk complete, and read with acquire? (3) Q6 (a): is the empty-store reopen at most once per 200 ms under 16 concurrent readers? (4) Does the merge of main's format refusal (`Detent:c9eac84`) leave the reader refusing old formats the same way as main? (5) A16's split: does `count` plus a short exclusive `measure` still test D49's bound?
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Review fix round 1 (2026-11-21, lead): correctness CHANGES, security APPROVE with notes, both at
+  `Detent:d8c0182`. Fixed C1, C2, S1, S2, S4 in one batch; S3, S5, N1-N4 left (lead).
+
+  Fixes since the reviews:
+
+  | Finding | Fix | Test | Confirming jobs |
+  |---|---|---|---|
+  | C1 refresh memo | `Detent:c300e5f`: `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` | plain 261121-133825-4bda7a; mutant MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2; probe rerun 261121-133754-893ca0 |
+  | C2 transient miss | `Detent:c300e5f`: `openat` (EMFILE, ENFILE, ENOMEM, EAGAIN, EINTR), `fstat` and `mmap` errno raise `system_error`; `resolve` and the walk rethrow it without setting `failed`; the lookup answers `DETENT_IO` | `transient_miss` (60,000 knobs, 2 packs, descriptors exhausted) | plain 4bda7a; mutant MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d; probe rerun 261121-133754-54b604 |
+  | S1 ledger bounds | `Detent:c300e5f`: heap 8 MiB, mapped 512 MiB per handle (main's client defaults, `view.cc`), test hook `testing::bounds` | `capped`: defaults read back; cap = one pack: cold key refused with the fallback, mapped key answers; heap 1 byte: attach `DETENT_NO_MEMORY` | plain 4bda7a; mutant CAP-1 (`Detent:406256c`) 261121-133836-91d1e5 |
+  | S2 atfork abort | `Detent:c300e5f`: `install_atfork` under its own mutex; a refusal fails `detent_open` with `DETENT_NO_MEMORY` and the next open retries; hook `testing::refuse_atfork` | `atfork_refused` (first in `main`) | plain 4bda7a; mutant ATFORK-1 (`Detent:fe39db7`) 261121-133840-2a7bcc |
+  | S4 A9 citation | `Detent:96a069c`: reader-core.md gains "Bounds" and "Mapped bytes after verification"; file-admission counts (six shapes of five files) and `RecordTesting` corrected | [artifact] | — |
+
+  - Mutants at `refs/mutants/reader-s6/{MEMO-1,MISS-1,CAP-1,ATFORK-1}`, each the fix head minus
+    that fix.
+  - Stale evidence rerun at `Detent:96a069c`: asan 98673d, t3-asan 016ccc, 0f6416→cc8a4f,
+    A7 7af780, dense ASan 136428, A10 c2a20c, A11 ab36b9, A12/A13 ef3805, soak 335e22, A14 84e679;
+    A16 (the fix touches the cold-miss path): exclusive 79f55a (stopped), 2a46f5 (running),
+    counts 8870f6, 150e4e. CI 44952617120 at the head; 44925224917 at `Detent:8200f57` still runs
+    (the relay ASan attribution's Linux check), left alone.
+  - For the lead: S1 makes N1 reachable. A lookup refused by the mapped-bytes cap answers
+    `DETENT_SOURCE_FAILURE` (the page access reports admission as `ReadSourceFailure`), where
+    reader.md D3 says `DETENT_NO_MEMORY`; reader-core.md "Bounds" states what the code does. A
+    reader-only fix is a `ReadSourceFailure` subclass for admission that `classify` maps to
+    `DETENT_NO_MEMORY` (client and delivery unchanged). Also: reader.md D3 sizes the 5M store at
+    1.51 GB mapped, above the 512 MiB cap; main's client default has the same cap.
 - Coordinator (2026-11-21): gates at `Detent:283b583` passed (native f65acc, tsan 2603c5,
   t3-tsan 9e75c5). CI 44910311745 there: linux-asan-ubsan failed `test_relay_service`, linux-tsan
   and macos-x86_64 cancelled; the rest green.
@@ -313,9 +339,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-1. Read 0bfda2/311725: head fails and main passes, the branch's; else CI 44925224917 at the head.
-2. Read the gates 07165a, 7d077b, 1342d5; fill Evidence at `Detent:8200f57`.
-3. Green: "ready for review" (questions at the top).
+1. Read the jobs in State; fill Evidence at `Detent:96a069c`; CI 44952617120 green.
+2. Then "ready for review" (correctness re-review of C1, C2; `campaign accept`).
 
 ## Blocked on
 
@@ -332,7 +357,7 @@ Code at the head `Detent:7bcab3a` = `Detent:4eeef65` + docs. Mutants stay at `De
 | A4 | t3-tsan 9e75c5 (head, pending), 74eeff (`Detent:4eeef65`); mutant STATS-1 676367; `unreadable_table` in native, mutant DROP-1 acc366 killed |
 | A7 | cccaca |
 | A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads 5dd6f7, BOUND-1 bf6dfc killed |
-| A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation" and "Mapped bytes after verification" |
+| A9 | [artifact] `docs/mechanisms/reader-core.md` at `Detent:96a069c`, sections "Fork (D10)", "Fork and cold preparation", "Bounds" and "Mapped bytes after verification" |
 | A10 | 1187fe; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
 | A11 | 32e96c; mutant SR2 0b8176 |
 | A12 | cold dd95f8, soak e7e113; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80 |
@@ -388,6 +413,17 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- Review fix round 1: per-handle ledgers, not main's process-wide accounts: `resources::mapping_account`
+  builds view.cc's `Defaults`, whose retirement runtime starts a thread (the core starts none), and
+  `test_reader_switch` compares per-handle mapped bytes. The bounds are main's numbers.
+- C2's transient set: only resource errnos on `openat` (a missing, symlinked or refused pack stays a
+  source failure); every `fstat` or `mmap` errno on a checked descriptor. The walk's catch-all in
+  `paged_read_state.cc` rethrows `system_error`, so the client's lookup gets `SourceFailure` for that
+  call only and delivery's scrub no longer requests a repair for a descriptor shortage.
+- C1: `Refused` clears the memo too (the caller asked for a retry; the next lookup backs off as
+  usual).
+- The cap test uses a test hook (`testing::bounds`) set to one pack's mapped bytes, not a 513 MiB store.
 
 - A table read that fails while a namespace is attached fails the refresh (`Detent:d0bdc01`) rather
   than install a view without it: D4 answers stale and never drops an answer it had. Without an entry
