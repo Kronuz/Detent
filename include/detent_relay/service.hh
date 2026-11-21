@@ -26,10 +26,9 @@ class ServiceRuntime {
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;
-	// One turn's share of the requests and sessions; true when it changed anything. `rescan` starts a
-	// sweep over every occupied slot and session; swept() is true once the sweep has visited them all.
-	bool step(Sessions::Clock::time_point, bool rescan = true);
-	bool swept() const noexcept;
+	// Visits every admitted request and session once; true when it changed anything, so a turn that
+	// returns false has nothing to do until a wake or a deadline.
+	bool step(Sessions::Clock::time_point);
 	ServiceStatus status() const noexcept;
 	void health(std::shared_ptr<const distribution::OwnedBuffer>);
 	bool drained() const noexcept;
