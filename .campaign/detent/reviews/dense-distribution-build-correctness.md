@@ -36,15 +36,19 @@ Each job's log read, not its journal line.
 - At the head: mirror-answer-unwoken `261121-120500-bb7f6a` killed (status 8, the chain's one-reader
   fetch ends "relay upstream: deadline"); test_http_upstream unmutated `261121-120503-fef5bb` and
   x5 `261121-120536-71ecd1` passed (2.6 s each).
-- CI 44933674727 green at Detent:be35e33e. CI 44944355224 at the head was queued when I wrote this
-  (only linux-benchmarks done, green): A2 is the lead's gate, not established here.
+- CI 44933674727 green at Detent:be35e33e. CI 44944355224 at the head, when I wrote this:
+  linux-tsan, linux-asan-ubsan, source-checks, pin-check, linux-read-counters and linux-benchmarks
+  green; the macOS jobs (A1's gate, macos-arm64) and the rest still queued. A2 is the lead's gate.
 
 ## What I checked myself
 
 Scripts in `.scratch/detent/review-dense-distribution-build-r2/` (home checkout); each runs at the
 head as a job.
 
-PROBES
+- `wake_timings.sh` (job `261121-121609-083729`, exit 0): question 3, below.
+- `delta_owned.sh` (job `261121-121612-944a90`, exit 0 = survived): with `answer()` no longer
+  owning a pages delta's transfer and head (namespace_relay.cc:417-418), test_relay_pages passes
+  under ASan+UBSan (34 s). Only the full-copy half of F2's fix has a test (N1).
 
 Code read, per area the lead named:
 
@@ -90,29 +94,31 @@ thread runs every 10 ms, so a range request often queues behind a sync and is an
 owner went idle (1 h sleep in this harness, no health turn). It adds delay to a thread that already
 serializes every job; it reorders nothing, and the only interleaving it makes rarer, a raise landing
 between the owner's `begin_turn()` and `arm()`, is closed by `OwnerWake`'s flag by construction.
-WAKE_PROBE
+`wake_timings.sh` (job `261121-121609-083729`, exit 0) measures it: unmutated test_http_upstream
+with A's pause at 0, 2, 5 and 20 ms passes 3 of 3 at each (12 of 12, `failures == 0` included), so
+the pass needs no particular pause; the mutant at 20 ms fails 5 of 5. The pause makes the kill
+reliable and hides no race.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | no | defect | Closed at the head (round 1: yes). A transfer is bound to its frame's namespace on both paths, and an unappliable delta repairs. | `261121-095153-93fd64`; paged_transfer.cc:148-159, :384-386; paged_transfer_plan.cc:110-112; coordinator.cc:676-681 | Done (Detent:7c82da19, Detent:dec05c43). |
+| F1 | no | defect | Closed at the head (round 1: yes). A transfer is bound to its frame's namespace on both paths, and an unappliable delta repairs. | `261121-095153-93fd64`; paged_transfer.cc:148-159, :385-386; paged_transfer_plan.cc:110-112; coordinator.cc:676-681 | Done (Detent:7c82da19, Detent:dec05c43). |
 | F2 | no | defect | Closed at the head (round 1: yes). A pages answer owns what its frames name until encoded. | `261121-095212-4c9253`, `261120-141032-1ff8f3`; namespace_relay.cc:385, :408, :417-418 | Done (Detent:7dc5c1f3). |
 | F3 | no | gap | Closed at the head (round 1: yes). A cut response resumes from its whole chunks, on the agent and the relay. | `261121-095235-fe4798`; test_pages_coordinator (resumes from 1,376,256 of 2,888,084 B), test_relay_pages resume_and_roots | Done (Detent:dec05c43, Detent:6680f762). |
 | F4 | no | gap | Closed as built (round 1: yes, owner's call). The relay builds each head over the last (D7.2), serves DD2's canonical copy (D7.4), and its window counts shared segments once. Rerun at the merge beside light holds: cold 10 x 500K 18.6 s CPU, moves 95-1,483 ms, peak resident 1,410 MB, about 1.5x the CPU docs/perf/relay-window.md records (11.4 s cold, 63-912 ms) with no before arm beside it, so the doc's ratios rest on one pair of runs. | `261121-095326-f5ccfd`; docs/perf/relay-window.md | None needed; the lead's 5M round after landing. |
 | F10 | no | defect | Closed (owner's D139). A repair names its published floor; the relay sends no copy below it and the agent skips a frame below it. | `261121-095237-6685ff`; coordinator.cc:656-663; namespace_relay.cc:400-403 | Done (Detent:11c155ce, Detent:e7893553). |
-DELTA_ROW
-| R3 | no | nit | A pages reader parked for a build waits up to one sync interval (250 ms) more when the build lands while another job's answer runs: `build()` calls `collect()` (namespace_relay.cc:524) and takes the landing, so the loop's `take_built() && relay->collect()` is false and `revisit` waits for the next sync. It converges. | mirror_service.cc:390, :415; namespace_relay.cc:524 | Optional: have `collect()` report a landing to the mirror loop (or revisit after any `collect()` that took a build). |
+| N1 | no | gap | F2's delta half has no test: dropping the answer's ownership of a pages delta's transfer and head survives test_relay_pages under ASan+UBSan. The code holds them, and the window clears `answers` when a build lands (namespace_relay.cc:561), which is the same use after free shape answer_owns covers for the copy. | `261121-121612-944a90`; namespace_relay.cc:417-418, :561 | Optional: an answer_owns case with a delta reader of one namespace and a build landing for it while another namespace is answered; `delta_owned.sh` is its mutant. |
+| N2 | no | nit | A pages reader parked for a build waits up to one sync interval (250 ms) more when the build lands while another job's answer runs: `build()` calls `collect()` (namespace_relay.cc:524) and takes the landing, so the loop's `take_built() && relay->collect()` is false and `revisit` waits for the next sync. It converges. | mirror_service.cc:390, :415; namespace_relay.cc:524 | Optional: have `collect()` report a landing to the mirror loop (or revisit after any `collect()` that took a build). |
 
-Round 1's F5, F7, F8, F9 and F11 stand as recorded there: F5 and F7 are built and their mutants killed
+Round 1's non-blocking F5, F7, F8, F9 and F11: F5 and F7 are built and their mutants killed
 (`261120-130729-9a8e6e`, `261120-130731-c646f9`), F11's hour ran (`261120-131414-94ce66`), F8 and F9
 are rulings in the journal.
 
 ## Not run
 
-- CI 44944355224 at the head (A2, and A1's gate): queued when I wrote this.
-- TSan for the coordinator's worker events and the relay's builder thread: CI's linux-tsan job at the
-  head, queued.
+- CI 44944355224's macOS jobs at the head (A1's gate, A2): queued when I wrote this. Its linux-tsan
+  job (the coordinator's worker events, the relay's builder thread) is green.
 - History ranges (Detent:b064e7b6, Detent:72429b7c) beyond the ranged fetch's digest check
   (http_upstream.cc:284-329: a prefix is kept only for the same file and the whole file's SHA-256 is
   checked before it is returned); their mutants are the contributor's, not rerun here.
