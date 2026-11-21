@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: waiting on jobs 261120-230045-01aa40 261120-230047-4a4672 261120-230048-06c33d 261120-230050-c45323 261120-230051-2f2530 and CI at journal:4748481
+State: waiting on CI run 44878210211 at journal:4748481
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,7 +23,9 @@ Review correctness CHANGES at 87d4382 (reviews/journal-loop-handoff-correctness.
 
 ## Next
 
-1. Read the five jobs (mutants must fail on the test, not the build) and CI at 4748481; then
+1. All five jobs done: 01aa40 passed (1031 host checks, 0 failures); every mutant built and
+   failed its test (clear: old owner's loop-1 view passed; every-loop, loop-zero: loop-0 view
+   aborted / loop-1 view passed; no-handoff: close aborted). Wait for CI run 44878210211, then
    ready for review. Land after journal-idle-groups, merging journal main first.
 
 msg-178 (D57): A3 cites ci:macos-arm64 at journal:87d4382; nothing else changed.
@@ -36,9 +38,9 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
-| A2 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
-| A3 | 261120-224307-bc6241, `ci:macos-arm64` (job 136696384237), run 44854682137 at journal:87d4382, all CI jobs green (D57/msg-178) |
+| A1 | 261120-230045-01aa40; fails without: 261120-230047-4a4672 (clear), 261120-230048-06c33d (every-loop), 261120-230050-c45323 (loop-zero) |
+| A2 | 261120-230045-01aa40; fails without: 261120-230051-2f2530 (no-handoff) |
+| A3 | ci:macos-arm64, run 44878210211 at journal:4748481 (pending; green at 87d4382 in run 44854682137) |
 
 ## Result
 
