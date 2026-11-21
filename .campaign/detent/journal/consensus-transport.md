@@ -1,6 +1,6 @@
 # consensus-transport: journal
 
-State: waiting on jobs CI run 44876805517 at consensus:34881c2 (macOS x86_64 run 1 of 3; reruns 2 and 3 with `gh run rerun --job`)
+State: waiting on jobs 261121-022848-250e05 261121-022848-b6c257 261121-022848-7ccc3f 261121-022849-49400e 261121-022849-bfd9fe (A3, A5, A6 at consensus:34881c2; CI green, macOS x86_64 3 in a row: run 44876805517); then ready for review
 Quest: .campaign/detent/quests/consensus-transport.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
