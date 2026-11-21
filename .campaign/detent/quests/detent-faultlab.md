@@ -11,9 +11,12 @@ Faultlab's step 7 (cpp-libraries `docs/design/faultlab.md:357`; D117, D119) has 
 
 - A1 Nothing in Detent includes `memory_io.h` (`git grep` empty) and the converted tests pass: jobs.
 - A2 One shared power-cut model drives both power-cut tests, and each still fails at its durability mutant (--fails-without): jobs.
-- A3 Every faultlab test target sets `FAULTLAB_CHECK_COUNTS`, and faultlab's suite passes: jobs.
+- A3 Every Detent test target that links faultlab sets `FAULTLAB_CHECK_COUNTS` (faultlab's own targets are faultlab's): jobs.
 - A4 Detent's suite and CI pass: jobs.
 
 ## Notes
 
+Starts after pin-wave (2026-11-20): faultlab:a3b71d1's faultfs needs completion past Detent's pin 560c288 (preallocate, map_shared, link), and a consistent move also takes journal and consensus forward, which is pin-wave's job.
+
 Filed 2026-11-19 from the untracked-commitment audit (U3, J8).
+- 2026-11-21, msg-194: faultlab:e3fcfe3 (faultlab-journal-oracle) removes faultlab's fetch of journal; the sector test checks recorded MemoryIO states (journal:a412175). Deleting memory_io.h from journal no longer breaks faultlab, so this quest can delete it once pin-wave moves faultlab to e3fcfe3 or later.

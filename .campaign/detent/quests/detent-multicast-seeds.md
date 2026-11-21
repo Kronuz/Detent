@@ -5,16 +5,15 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Detent nodes on one network find each other with no flags, through consensus's shared seed source (`transport/seeds`, consensus:8801b99; docs/mechanisms/seeds.md). Authority voters advertise and seek the voter service; relays advertise the relay service and seek voters and relays; agents seek relays. Discovery only finds candidates: every join still authenticates over TLS with SPKI pins as usual. Configured seeds and DNS seeds keep working beside it, and multicast can be switched off.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Three voters, one relay and one agent on loopback start with no seed flags and reach a working cluster: a system test
+- A2 A node advertising the wrong service, or one whose pin doesn't match, is never joined: tests
+- A3 With multicast off, no datagram is sent or read: a test
+- A4 The quickstart docs show the no-flags start
+- A5 The suite and CI pass
 
 ## Contracts
 
