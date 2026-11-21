@@ -20,4 +20,10 @@ if(TARGET detent::testing_store)
   add_executable(test_reader_syscalls test_reader_syscalls.cc)
   target_link_libraries(test_reader_syscalls PRIVATE detent::reader detent::testing_store)
   add_test(NAME test_reader_syscalls COMMAND test_reader_syscalls)
+
+  # The mapping cap at store sizes too large for the suite (reader-core.md, Bounds); run as a job.
+  add_executable(reader_capacity_probe reader_capacity_probe.cc)
+  target_include_directories(reader_capacity_probe PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(reader_capacity_probe PRIVATE detent_reader_hooked detent::testing_store
+                        detent::local_publication)
 endif()

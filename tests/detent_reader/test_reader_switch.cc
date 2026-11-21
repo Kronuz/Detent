@@ -687,8 +687,8 @@ void cold_forks(const std::filesystem::path &root) {
 		std::cout << "cold fork mode " << int(mode) << ": parent/child values, nested fork and cleanup pass\n";
 	}
 }
-// Security review pending 3: `change` size and the handle ledgers under stress. `change` is mapped
-// whole; the ledgers have main's client bounds (reader-core.md, Bounds) and follow the live views.
+// Security review pending 3: `change` size and the mapping cap under stress. `change` is mapped
+// whole; the mapping cap has main's client default (reader-core.md, Bounds) and follows the live views.
 void capacity(const std::filesystem::path &root) {
 	const auto store = root / "capacity";
 	detent::testing::GenerationWriter writer(store);
@@ -710,27 +710,24 @@ void capacity(const std::filesystem::path &root) {
 		}
 		CHECK(mappings(store) == baseline && descriptors() == fds);
 	}
-	// The ledgers follow the live views, not the publishes: equal after 10 and after 40. A fresh store,
-	// since the writer's census counts `change`, now at its 1 GiB disk limit, and refuses to publish.
+	// The mapping cap's charge follows the live views, not the publishes: equal after 10 and after 40.
+	// A fresh store, since the writer's census counts `change`, now at its 1 GiB disk limit.
 	const auto ledgers = root / "capacity-ledgers";
 	detent::testing::GenerationWriter ledger_writer(ledgers);
 	CHECK(ledger_writer.publish_json(knobs(1)) == 1);
 	Opened r(ledgers);
-	std::uint64_t heap = 0, mapped = 0;
+	std::uint64_t mapped = 0;
 	for (std::int64_t rev = 2; rev <= 41; ++rev) {
 		CHECK(ledger_writer.publish_json(knobs(rev)) == std::uint64_t(rev));
 		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
 		CHECK(detent_refresh(r.handle) == DETENT_OK); // frees the unpinned older views
 		const auto stats = t::stats(r.handle);
 		CHECK(stats.live_views <= 4 && stats.generations == 1);
-		if (rev == 11) {
-			heap = stats.heap_bytes;
+		if (rev == 11)
 			mapped = stats.mapped_bytes;
-		}
 		if (rev == 41) {
-			std::cout << "ledgers after 10 publishes: heap " << heap << ", mapped " << mapped
-			          << "; after 40: heap " << stats.heap_bytes << ", mapped " << stats.mapped_bytes << "\n";
-			CHECK(stats.heap_bytes == heap && stats.mapped_bytes == mapped && mapped > 0);
+			std::cout << "mapped after 10 publishes " << mapped << ", after 40 " << stats.mapped_bytes << "\n";
+			CHECK(stats.mapped_bytes == mapped && mapped > 0);
 		}
 	}
 }

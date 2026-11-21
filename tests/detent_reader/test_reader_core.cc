@@ -42,9 +42,10 @@ std::string knobs(std::int64_t rev) {
 struct Opened {
 	detent_reader *handle = nullptr;
 	detent_status status;
-	Opened(const std::filesystem::path &store, std::vector<detent_str> namespaces = {}, uid_t uid = ::getuid()) {
+	Opened(const std::filesystem::path &store, std::vector<detent_str> namespaces = {}, uid_t uid = ::getuid(),
+	       std::uint64_t mapping_bytes = 0, std::size_t size = sizeof(detent_open_options)) {
 		const auto path = store.string();
-		detent_open_options options{sizeof options, S(path), namespaces.data(), namespaces.size(), uint32_t(uid)};
+		detent_open_options options{size, S(path), namespaces.data(), namespaces.size(), uint32_t(uid), mapping_bytes};
 		status = detent_open(&options, &handle);
 	}
 	~Opened() { detent_close(handle); }
@@ -187,28 +188,29 @@ void transient_miss(const std::filesystem::path &store) {
 	CHECK(get(r.handle, wide_name(cold), DETENT_OK) == 3 * cold + 1);
 	CHECK(first_refused(r.handle).first < 0 && detent_refresh(r.handle) == DETENT_OK);
 }
-// The handle's ledgers have main's client bounds; past them a lookup or an attach is refused with
-// the fallback, never aborted, and the segments already mapped keep answering.
+// The mapping cap (detent_open_options): 512 MiB by default, also for options without the field;
+// below one pack and its bitmap the open fails. Past the cap a cold miss is refused with the fallback
+// and the mapped segments keep answering; a raised cap reads every key.
 void capped(const std::filesystem::path &store) {
-	Opened unbounded(store);
-	CHECK(unbounded.status == DETENT_OK && get(unbounded.handle, "t:k0", DETENT_OK) == 1);
-	const auto defaults = t::stats(unbounded.handle);
-	CHECK(defaults.heap_limit == 8u << 20 && defaults.mapped_limit == 512u << 20);
-	const auto one_pack = defaults.mapped_bytes;
-	CHECK(one_pack > 0);
-	t::bounds(0, one_pack);
-	Opened mapped(store);
-	t::bounds(0, 0);
-	CHECK(mapped.status == DETENT_OK && get(mapped.handle, "t:k0", DETENT_OK) == 1);
-	const auto [cold, status] = first_refused(mapped.handle);
-	std::cout << "mapped-bytes cap " << one_pack << ": " << wide_name(cold) << " " << detent_status_name(status) << "\n";
-	CHECK(cold > 0 && status == DETENT_NO_MEMORY && t::stats(mapped.handle).mapped_bytes == one_pack);
+	constexpr std::uint64_t minimum = DETENT_MINIMUM_MAPPING_BYTES;
+	const auto uid = ::getuid();
+	CHECK(t::stats(Opened(store).handle).mapped_limit == 512u << 20);
+	const Opened old(store, {}, uid, minimum, offsetof(detent_open_options, mapping_bytes));
+	CHECK(old.status == DETENT_OK && t::stats(old.handle).mapped_limit == 512u << 20);
+	CHECK(Opened(store, {}, uid, minimum - 1).status == DETENT_INVALID_ARGUMENT);
+	Opened mapped(store, {}, uid, minimum);
+	CHECK(mapped.status == DETENT_OK && t::stats(mapped.handle).mapped_limit == minimum);
 	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
-	t::bounds(1, 0);
-	Opened heap(store);
-	t::bounds(0, 0);
-	CHECK(heap.status == DETENT_OK && get(heap.handle, "t:k0", DETENT_NO_MEMORY) == -7);
-	CHECK(t::stats(heap.handle).heap_bytes == 0 && t::stats(heap.handle).generations == 0);
+	const auto [cold, status] = first_refused(mapped.handle);
+	const auto charged = t::stats(mapped.handle).mapped_bytes;
+	std::cout << "mapping cap " << minimum << ": " << wide_name(cold) << " " << detent_status_name(status)
+	          << ", charged " << charged << "\n";
+	CHECK(cold > 0 && status == DETENT_NO_MEMORY && charged > 0 && charged <= minimum);
+	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
+	Opened raised(store, {}, uid, std::uint64_t(1) << 40);
+	CHECK(raised.status == DETENT_OK && t::stats(raised.handle).mapped_limit == std::uint64_t(1) << 40);
+	CHECK(get(raised.handle, "t:k0", DETENT_OK) == 1 && first_refused(raised.handle).first < 0);
+	std::cout << "raised cap: every key, charged " << t::stats(raised.handle).mapped_bytes << "\n";
 }
 // A refused fork-handler registration fails the open; the next open registers them.
 void atfork_refused(const std::filesystem::path &root) {

@@ -9,6 +9,7 @@
 #include "lazy_page_access.hh"
 #include "paged_read_state.hh"
 #include "prepared_reader.hh"
+#include "verified_pages.hh"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -52,13 +53,13 @@ thread_local std::string failure_text;
 #endif
 
 constexpr std::size_t ring_size = 4, stripes = 64;
-// Main's client defaults (view.cc): the default domain's heap account and the mapping account.
-constexpr std::size_t default_heap_bytes = std::size_t(8) << 20, default_mapped_bytes = std::size_t(512) << 20;
+// Main's client mapping account (view.cc). The cap also covers each page table's allocations.
+constexpr std::uint64_t default_mapping_bytes = std::uint64_t(512) << 20;
+static_assert(DETENT_MINIMUM_MAPPING_BYTES ==
+              l::paged::segment_bytes + (l::paged::segment_bytes / x::VerifiedPages::granule_bytes + 16) / 16 * 8);
 #ifdef DETENT_READER_TEST_HOOKS
-std::size_t heap_bound = default_heap_bytes, mapped_bound = default_mapped_bytes;
 bool atfork_refused = false;
 #else
-constexpr std::size_t heap_bound = default_heap_bytes, mapped_bound = default_mapped_bytes;
 constexpr bool atfork_refused = false;
 #endif
 constexpr std::uint64_t millisecond = 1'000'000;
@@ -112,9 +113,9 @@ struct Generation {
 	x::PagedReadState state;
 	std::size_t views = 0; // views holding it; changed only by the holder of `refreshing`
 	Generation(x::AttachedGeneration generation, int directory, uid_t publisher,
-	           const std::shared_ptr<d::StorageLedger> &heap, const std::shared_ptr<d::StorageLedger> &mappings)
+	           const std::shared_ptr<d::StorageLedger> &mappings)
 	    : attached(std::move(generation)),
-	      pages(directory, publisher, attached.root, attached.limits, heap, mappings),
+	      pages(directory, publisher, attached.root, attached.limits, mappings, mappings),
 	      state{attached.root, {}, std::shared_ptr<const x::PagedPageAccess>(std::shared_ptr<void>(), &pages)} {}
 };
 // One mapping of `change`, a member of every view built over it (reader.md D4 rule 4).
@@ -162,7 +163,7 @@ struct detent_reader {
 	std::vector<std::string> namespaces; // sorted; empty: all
 	uid_t publisher = 0;
 	int directory = -1; // the trusted store directory, opened once
-	std::shared_ptr<d::StorageLedger> heap, mappings;
+	std::shared_ptr<d::StorageLedger> mappings; // the mapping cap: packs, bitmaps and page tables
 	std::array<Slot, ring_size> ring;
 	alignas(64) std::atomic<std::uint64_t> current{0};
 	alignas(64) std::atomic<bool> refreshing{false};
@@ -455,8 +456,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 					if (previous.same_identity(cursor) && cursor.revision < previous.revision)
 						throw Failure{DETENT_SOURCE_FAILURE};
 				}
-				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.heap,
-				                       handle.mappings);
+				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.mappings);
 				generation = fresh;
 			}
 			built->entries.push_back({generation, sequence, seen});
@@ -625,6 +625,12 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 	    view_of(options->store).find('\0') != std::string_view::npos ||
 	    (options->namespace_count && !options->namespaces))
 		return DETENT_INVALID_ARGUMENT;
+	// An options struct from before `mapping_bytes` gets the default cap.
+	constexpr auto with_cap = offsetof(detent_open_options, mapping_bytes) + sizeof(uint64_t);
+	auto cap = options->size >= with_cap && options->mapping_bytes ? options->mapping_bytes : default_mapping_bytes;
+	if (cap < DETENT_MINIMUM_MAPPING_BYTES)
+		return DETENT_INVALID_ARGUMENT;
+	cap = std::min<std::uint64_t>(cap, SIZE_MAX);
 	if (!install_atfork())
 		return DETENT_NO_MEMORY;
 	detent_reader *handle = nullptr;
@@ -643,8 +649,7 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 		std::sort(handle->namespaces.begin(), handle->namespaces.end());
 		handle->namespaces.erase(std::unique(handle->namespaces.begin(), handle->namespaces.end()),
 		                         handle->namespaces.end());
-		handle->heap = std::make_shared<d::StorageLedger>(heap_bound);
-		handle->mappings = std::make_shared<d::StorageLedger>(mapped_bound);
+		handle->mappings = std::make_shared<d::StorageLedger>(std::size_t(cap));
 	} catch (...) {
 		delete handle;
 		return DETENT_NO_MEMORY;
@@ -740,10 +745,6 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_hook = hook;
 }
 const char *last_failure() noexcept { return failure_text.c_str(); }
-void bounds(std::size_t heap_bytes, std::size_t mapped_bytes) noexcept {
-	heap_bound = heap_bytes ? heap_bytes : default_heap_bytes;
-	mapped_bound = mapped_bytes ? mapped_bytes : default_mapped_bytes;
-}
 void refuse_atfork(bool refused) noexcept { atfork_refused = refused; }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;
@@ -752,9 +753,7 @@ Stats stats(detent_reader *handle) noexcept {
 	static_assert(std::size(Stats{}.pins) == ring_size);
 	for (std::size_t k = 0; k != ring_size; ++k)
 		stats.pins[k] = handle->ring[k].sum();
-	stats.heap_bytes = handle->heap->used();
 	stats.mapped_bytes = handle->mappings->used();
-	stats.heap_limit = handle->heap->limit();
 	stats.mapped_limit = handle->mappings->limit();
 	// Pinned as a lookup is, so the view is published to this thread and not freed under it.
 	const char frame = 0;

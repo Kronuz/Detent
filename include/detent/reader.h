@@ -25,7 +25,11 @@ typedef struct {
   detent_str store;                                     /* store directory */
   const detent_str *namespaces; size_t namespace_count; /* 0: all, including later ones */
   uint32_t publisher_uid;
+  /* Cap on the bytes of mapped packs and their verified bitmaps; 0: 512 MiB. Below one full pack and
+   * its bitmap (DETENT_MINIMUM_MAPPING_BYTES) the open fails with DETENT_INVALID_ARGUMENT. */
+  uint64_t mapping_bytes;
 } detent_open_options;
+#define DETENT_MINIMUM_MAPPING_BYTES 1055136u /* 1 MiB of pack and its 6,560-byte bitmap */
 
 uint32_t detent_abi_version(void);
 detent_status detent_open(const detent_open_options *, detent_reader **out);

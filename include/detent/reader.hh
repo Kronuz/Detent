@@ -31,8 +31,9 @@ struct Lookup {
 class Reader {
   public:
 	// Throws ReaderError when the library's ABI differs from this header's or the open fails.
+	// `mapping_bytes` caps mapped packs and their bitmaps (detent_open_options); 0: 512 MiB.
 	explicit Reader(std::string_view store, std::uint32_t publisher_uid,
-	                const std::vector<std::string_view> &namespaces = {}) {
+	                const std::vector<std::string_view> &namespaces = {}, std::uint64_t mapping_bytes = 0) {
 		if (detent_abi_version() != DETENT_ABI_VERSION)
 			throw ReaderError(DETENT_INVALID_ARGUMENT, "libdetent_reader ABI version differs from its header");
 		std::vector<detent_str> names;
@@ -40,7 +41,7 @@ class Reader {
 		for (const auto ns : namespaces)
 			names.push_back(str(ns));
 		detent_open_options options{sizeof(detent_open_options), str(store), names.data(), names.size(),
-		                            publisher_uid};
+		                            publisher_uid, mapping_bytes};
 		const auto status = detent_open(&options, &handle_);
 		if (status != DETENT_OK)
 			throw ReaderError(status, std::string("detent_open: ") + detent_status_name(status));
