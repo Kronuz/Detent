@@ -3848,7 +3848,8 @@
         "test/driver_simulation.cc",
         "test/full_window_stall_test.cc",
         "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "CMakeLists.txt"
       ],
       "history": [
         {
@@ -3890,7 +3891,7 @@
       "risk": "high",
       "status": "active",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-20T18:25:08",
+      "updated": "2026-11-20T18:50:16",
       "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
