@@ -1,6 +1,6 @@
 # dense-distribution-build--history-ranges: journal
 
-State: waiting on jobs 261120-140658-c98aab 261120-140659-cc116c 261120-140701-e20960 261120-140702-b2e24c 261120-140704-29b54e 261120-140706-39dc89 261120-140716-764a97 261120-140717-ac69d9 261120-140718-121ba1 261120-140720-77337a
+State: waiting on jobs 261120-161154-462bce 261120-163145-987bc9 261120-163148-de1079 261120-163151-62ee61 261120-163158-71ef88 261120-163200-f3d566 261120-163203-380025
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,9 +14,9 @@ ranges.
 
 ## Next
 
-1. Syntax-check, commit, then jobs: test_http_upstream (plain, ASan+UBSan), prefix_dropped mutant,
-   the relay-ranges mutant, regression set.
-2. Read the 5M diagnosis job 261120-161154-462bce (the relay's swallowed answer errors printed).
+1. Read the jobs at 27d27d42; the 5M diagnosis job 261120-161154-462bce (53686a6c plus the relay's
+   swallowed answer and build errors printed, .scratch/history-ranges/diag/diag.sh) names the
+   exception behind the agent's 503 `distribution_unavailable`.
 
 ## Blocked on
 
@@ -29,6 +29,9 @@ Nothing.
 | D138.1 ranges, verified, resumed | test_http_upstream (exact, resume) 261120-140658-c98aab, ASan+UBSan 261120-140701-e20960; test_authority_history_ranges 261120-140659-cc116c, ASan+UBSan 261120-140702-b2e24c |
 | D138.2 bounded backoff, reported | test_http_upstream (backoff), same jobs |
 | Mutants killed (--fails-without) | prefix_dropped 261120-140716-764a97, whole_files 261120-140717-ac69d9, no_backoff 261120-140718-121ba1, unbounded 261120-140720-77337a |
+| Lost answer keeps the prefix (prefix_dropped) | test_http_upstream 261120-163145-987bc9; ASan+UBSan 261120-163148-de1079; mutant 261120-163158-71ef88 |
+| Relay chain in ranges | test_http_upstream `chain` (same jobs); mutants relay-range-whole 261120-163200-f3d566, relay-range-refused 261120-163203-380025 |
+| No regression at 27d27d42 | 261120-163151-62ee61 |
 | No regression | ctest -R 'relay\|history\|test_authority_service\|http_upstream' 261120-140704-29b54e |
 | 5M relay mirror (the repro) | dense-distribution-row 5000000-flat-main 261120-140706-39dc89 (strict, 10 min) |
 
@@ -58,7 +61,24 @@ bound, against 300 at the 5 ms interval with no backoff.
 
 Docs: docs/status/namespace-s8.md, "The service" (the route row and the paragraph after it).
 
+## 5M row (261120-140706-39dc89)
+
+The relay now mirrors 5M (ready in 14.8 s, 4 files, 203,889,102 bytes, where it failed 413 at
+560 s). The cold pages agent then got `503 distribution_unavailable` 1,258 times in 3 min (its
+`distribution session reset: unavailable`) and exited at its preparation deadline. That 503 is
+mirror_service.cc's catch-all around `answer()` (`NamespaceRelay::changes`), which drops the
+exception's message; the relay never logs it. Not this task's code path (answers, builds), first
+reached at 5M because the mirror never got that far before. Cause pending the diagnosis job.
+
 ## Rulings I made
+
+- A relay's range answers at most the length asked from the offset (no reply bound of its own, as
+  its whole-file answer has none; the answer account bounds both), and holds the file read once
+  until its last range, as the voter does: n ranges cost one read, not n.
+- `MirrorJob::range` in include/detent_relay/mirror_service.hh: the job's half of the route.
+- The chain test lives in test_http_upstream.cc (relay A in-process behind ServiceRuntime and the
+  HTTPS listener, torn down in the host's phases), so it links detent::relay_http and
+  detent::authority (history files A's answers decode).
 
 - A range answers fewer bytes than asked at the voter's bound (read(2) semantics) rather than 413:
   the relay need not know the bound, so a voter configured below 4 MiB still serves it.
