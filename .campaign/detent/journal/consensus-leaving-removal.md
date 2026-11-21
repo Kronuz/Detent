@@ -1,6 +1,6 @@
 # consensus-leaving-removal: journal
 
-State: waiting on jobs 261121-011657-336f3f 261121-012106-ce07f5, CI 44888809581
+State: waiting on jobs 261121-012216-933a9e 261121-012218-e3e272 261121-012226-2fe3f5 261121-011657-336f3f 261121-012106-ce07f5, CI on 7e83a6b
 Quest: .campaign/detent/quests/consensus-leaving-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,7 +18,12 @@ consensus-quiescence, not main (Driver::recover's reopen argument). So A3 runs a
 consensus:20198fc = b8de3b8 + cherry-pick of 9a2476d (local branch
 probe/leaving-removal-on-b8de3b8, not pushed): job 261121-012106-ce07f5 (also prints the other
 four group cases). Failed builds: 261121-011227-d616f8, 261121-011658-34495c.
-Waiting: suite subset 261121-011657-336f3f; CI run 44888809581 on 27f79b0 (A4).
+Head now consensus:7e83a6b: mutants removal-from-any-drive and removal-tick-unplanned in
+test/driver_mutants.py (CONSENSUS_DRIVER_MUTANT builds into consensus_driver_replace_test);
+ARCHITECTURE.md states a leader Tick's removal pack (lead's ruling, file set widened).
+Waiting: A2 from driver_mutants.py 261121-012216-933a9e, 261121-012218-e3e272; A1 at head
+261121-012226-2fe3f5; suite subset 261121-011657-336f3f (27f79b0); A3 probe 261121-012106-ce07f5;
+CI on 7e83a6b (A4).
 
 ## Next
 
@@ -54,10 +59,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   when `tick` (an admitted Tick; the parameter was `allow_campaign`, same call sites). The Worker
   plans a leader Tick as `plan_event(ChangeMembership{0, removal})` (config append + commit
   hard, exactly the bytes propose_membership writes) or as nothing. One predicate, one place.
-- A2's mutants are sed edits in a --fresh job's command, not test/driver_mutants.py entries
-  (outside the file set); the job passes only if the output names the fence (else exit 126).
-- ARCHITECTURE.md (outside the file set) still says "Idle leader ticks need no campaign
-  pack": true, but a leader Tick with a due removal now reserves that change's pack; the lead
-  may add the clause.
+- A2's jobs pass only if the output names the fence (setup failures exit 126).
 - The removal now waits for the leader's next Tick after the commit: at most a heartbeat
   (next_deadline is the heartbeat for a leader with peers; a replacement always has one).
