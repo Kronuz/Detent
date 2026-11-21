@@ -36,6 +36,7 @@ struct usage_error : std::runtime_error { using std::runtime_error::runtime_erro
 // The shared option defaults (server-composition note, Options).
 constexpr std::size_t kDefaultMaxClients = 1024, kDefaultMaxInFlight = 1024;
 constexpr std::chrono::milliseconds kDefaultIdleTimeout{75'000}, kDefaultShutdownTimeout{35'000};
+constexpr std::chrono::milliseconds kMaxDuration{std::chrono::hours(24 * 365)};
 constexpr std::chrono::milliseconds kShutdownGrace{5'000}; // fixed
 
 const char* kUsage =
