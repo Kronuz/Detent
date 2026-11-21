@@ -5,8 +5,9 @@
 #   idle  (A1, strict): idle_loops.py, three rounds alternating head and baseline, with the relay's
 #         sync interval IDLE_INTERVAL_MS (default 60000; the configuration's default is 250).
 #   paths (A3, strict): paths.py, five rounds alternating head and baseline.
-#   stop  (F13, light): stop_scale.py, three-voter stop times at STOP_KEYS (default 100000) keys, three
-#         rounds alternating head and baseline; fails when head's slowest stop exceeds 2x main's + 0.5 s.
+#   stop  (F13, strict): stop_scale.py, three-voter stop times at STOP_KEYS (default 100000) keys,
+#         STOP_ROUNDS (default 3) rounds alternating head and baseline; fails when head's slowest stop
+#         exceeds twice main's plus 0.5 s.
 set -eu
 mode=${1:?build, idle or paths}
 shift
@@ -34,7 +35,7 @@ paths)
 	rounds=5
 	run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2"; } ;;
 stop)
-	rounds=3
+	rounds=${STOP_ROUNDS:-3}
 	rm -rf .scratch/stop-scale
 	run() { /usr/local/bin/python3 "$here/stop_scale.py" --build "$1" --label "$2" --out .scratch/stop-scale \
 		--keys "${STOP_KEYS:-100000}"; } ;;
