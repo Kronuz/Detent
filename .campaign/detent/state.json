@@ -3631,9 +3631,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-21T00:29:14",
+      "updated": "2026-11-21T00:29:17",
       "worktree": "../consensus-wt/detent/consensus-driver-install"
     },
     "consensus-dual-stack": {
