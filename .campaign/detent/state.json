@@ -14329,7 +14329,9 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_system/**"
+        "tests/detent_system/run_writers.py",
+        "tests/detent_system/test_managed_case.sh",
+        "tests/detent_system/CMakeLists.txt"
       ],
       "history": [
         {
@@ -14362,13 +14364,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "dense-distribution-build"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T05:29:47"
+      "updated": "2026-11-21T05:30:26"
     },
     "msgpack-adoption": {
       "accepted": {},
