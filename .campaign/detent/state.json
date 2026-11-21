@@ -12534,9 +12534,7 @@
           "verdict": "CHANGES"
         }
       },
-      "after": [
-        "xapiand:turn-log-parity"
-      ],
+      "after": [],
       "base": "1222e3b33f12f6f97a168d37de03b2c0b17b45fd",
       "branch": "quest/detent/journal-idle-groups",
       "checks": [
@@ -12598,7 +12596,7 @@
       "risk": "high",
       "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T21:07:36",
+      "updated": "2026-11-21T05:02:28",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
