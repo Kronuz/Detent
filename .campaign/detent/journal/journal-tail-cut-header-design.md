@@ -9,11 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Prototype on journal branch `scratch/cut-header-proto` (worktree ~/.scratch/detent/journal-tail-cut-header-design/proto,
+off journal:e912a28): framing.h `JOURNAL_LAYOUT` 0 as written, 1 fragment headers never straddle a
+sector, 2 a turn's write ends at a sector, 3 cost emulation of per-sector checks (turn_bench only).
+Probe test/cut_header_probe.cc (newest-tail Q1 shape + every block, shapes U1-U4, per-sector-check model, F3 case).
 
 ## Next
 
-1. <step>
+1. Build, run probe l0/l1/l2 and T9 l1/l2 as jobs; exclusive turn_bench l0-l3 jobs.
+2. Write docs/design/turn-log-cut-header.md (A1) in the quest worktree.
 
 ## Blocked on
 
