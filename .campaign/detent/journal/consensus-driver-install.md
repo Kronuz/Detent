@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261121-110923-8ec58f 261121-110925-b0b599 261121-110926-f041dc 261121-110928-1a6a6f 261121-110930-4477d6 261121-110932-9e6ce2 261121-110934-9f29e7 261121-110936-37148f 261121-110938-8ae959 261121-110940-e994fd 261121-110942-ddb5d5 261121-110944-6ee95d 261121-110946-f8053a 261121-110949-e4ea6d 261121-111004-bbfce9 and CI at consensus:8780e44
+State: waiting on jobs 261121-111004-bbfce9 and CI run 44939391593 at consensus:8780e44; the 14 evidence reruns there all exit 0
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -26,8 +26,8 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the reruns at consensus:8780e44 (State), driver_replace 261121-111004-bbfce9, and CI at
-   8780e44; paste `campaign brief`'s table into Evidence. A CI failure only in rpc_host_fetch
+1. Read driver_replace 261121-111004-bbfce9 and CI run 44939391593 at consensus:8780e44 (the
+   reruns are in Evidence; CI 44924686502 at aafa849 was green). A CI failure only in rpc_host_fetch
    under TSan or group-full on macOS x86_64 is main's known flake
    (consensus-transport-test-flakes): name it here and rerun that job once.
 2. Merge node-admission (consensus:c669067) if it lands first.
@@ -44,7 +44,7 @@ driver_simulation installs, groups_test install over the real host transport.
   Confirmed at consensus:887a88b: orphan 261121-013716-103b97 passes (76 checks, 0 failures);
   mutant orphan-no-wake (consensus:5acecc2) 261121-013719-2f4f8c fails both checks, as it
   should; lagging 261121-013721-c624b5, stale+restart 261121-013723-a8b6ab, groups install
-  261121-013725-4b7677 pass. Orphan rerun at the merge consensus:aafa849: 261121-082743-5409d8.
+  261121-013725-4b7677 pass. Orphan rerun at the merge consensus:8780e44: 261121-110923-8ec58f.
 - R2 (taken): the crash case counts cuts whose recovery activates a durable, not yet activated
   image. Job 261121-005959-4cf07a: 26 operations, 24 cuts, 19 old, 5 new, 1 activated at
   recovery, 0 failures. The case now requires such a cut (consensus:887a88b).
@@ -85,12 +85,12 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-082744-d960d4, 261121-082746-a7137a, 261121-082754-42e0e8, 261121-082755-54cb92, 261121-082747-2a5648, 261121-082743-5409d8, 261121-082802-6c30d7; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c |
-| A2 | 261121-082748-70569d, 261121-082800-da051a; fails without: 261120-191749-bef99d |
-| A3 | 261121-082750-49adb8, 261121-082758-511f9b; fails without: 261120-191751-b901bb |
-| A4 | 261121-082751-227a28, 261121-082752-d0bd28 |
+| A1 | 261121-110925-b0b599, 261121-110926-f041dc, 261121-110938-8ae959, 261121-110940-e994fd, 261121-110928-1a6a6f, 261121-110923-8ec58f, 261121-110949-e4ea6d; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c |
+| A2 | 261121-110930-4477d6, 261121-110946-f8053a; fails without: 261120-191749-bef99d |
+| A3 | 261121-110932-9e6ce2, 261121-110944-6ee95d; fails without: 261120-191751-b901bb |
+| A4 | 261121-110934-9f29e7, 261121-110936-37148f |
 | A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:740453b); contract sent to Xapiand as msg-187 |
-| A6 | `ci:macos-arm64` (CI run 44924686502 at consensus:aafa849, running); 261121-082757-1392de; fails without: 261120-225734-b342d4 (worker_test at 017c918: "held ordinary output retains activation completion while reclamation continues") |
+| A6 | `ci:macos-arm64` (CI run 44939391593 at consensus:8780e44, queued; 44924686502 at aafa849 green); 261121-110942-ddb5d5; fails without: 261120-225734-b342d4 (worker_test at 017c918: "held ordinary output retains activation completion while reclamation continues") |
 
 ## Result
 
