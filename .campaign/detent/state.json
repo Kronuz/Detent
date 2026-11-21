@@ -10650,9 +10650,9 @@
       "after": [],
       "checks": [
         {
-          "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         },
         {
@@ -10670,6 +10670,46 @@
         "CMakeLists.txt",
         "docs/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:27",
+          "checks": [
+            [
+              {
+                "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:ci",
+                "level": "light",
+                "minutes": 30,
+                "name": "ci"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -10681,7 +10721,7 @@
       "risk": "low",
       "status": "planned",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-18T11:58:24"
+      "updated": "2026-11-20T18:25:27"
     },
     "journal-faultfs": {
       "accepted": {},
