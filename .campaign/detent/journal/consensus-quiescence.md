@@ -1,24 +1,32 @@
 # consensus-quiescence: journal
 
-State: ready for review at consensus:a020e14. Remaining: the correctness review, ordering after consensus-transport, and the lead's rerun of CI 44877489407 linux-tsan (rpc_host_fetch, consensus-transport's TSan fetch case).
+State: waiting on jobs 261121-012400-f56485 261121-012401-85a7ab 261121-012403-b34836 (F1/F2 mutants), 261121-012404-fce70e (F2 fix), 261121-012405-a27269 (A3 TSan at 3b20d96), 261121-012405-7903bb (review probe at 3b20d96); CI on the push (suite, A1 A2).
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
 
-Merged consensus main at consensus:a020e14 (consensus-faultfs, bb961b3): driver_close_test and
-driver_test run on faultlab's faultfs. Loop takes an fl::filesystem and keeps the turns_at
-parameter; reopen_barriers, idle_bytes, idle_cpu, leader_gone and close_crash's closed-state
-check use the faultfs disk and the cut's dead(). Compiled locally (consensus_driver_close_test,
-consensus_driver_test, consensus_driver_idle). Pushed; A3-A6 rerun at a020e14.
-- Suite 261120-144352-fc9628 at consensus:82cefee: exit 0.
-- CI at 82cefee (run 44831328208): Linux green (SIGPIPE fix holds); macos-arm64 consensus_driver
-  entry_wake_threads "9 of 20" (main's 5fc2ba7 test, 50 ms wake budget) and macos-x86_64
-  rpc_host_fetch "16 MiB ... in 6500 ms" (consensus-transport's timing case). Both timing tests
-  this quest does not change; At a020e14 (CI 44877489407) both macOS jobs pass; linux-tsan fails
-  rpc_host_fetch (16 MiB in 14,500 ms, consensus-transport's TSan fetch case), rerun by the lead.
+Correctness review CHANGES at a020e14 (Detent .campaign/detent/reviews/consensus-quiescence-correctness.md).
+Fixes at consensus:3b20d96, pushed:
+- F1: Core::campaign() and lead() clear resting_ (every role change ends a rest, as follower()
+  did). Test simulation_test quiescence `transfer` (third voter up and down). Mutant
+  rest-survives-campaign consensus:37a7a69: 261121-012400-f56485 --fails-without.
+- F2 (lead's ruling: notify peers per group): new Message Gone{term}, wire tag 9 (types.h,
+  codec.h, admission.h with the hard-state plan). Driver::report_fence, the one place a fence is
+  first reported, sends Gone in the group's term to every other member; Core::receive_message
+  (Gone) from its leader in its term calls leader_lost(), LeaderGone's own path. Tests:
+  simulation_test quiescence `gone`; driver_test fence_tells_peers; groups_test driver
+  quiescent_fence (leader's application holds a command, followers rest, the application fails:
+  local run, a follower elected 1,344 ms after the fence, 0 node-gone reports). Mutant
+  fence-tells-nobody consensus:2f0738c: 261121-012401-85a7ab (driver_test), 261121-012403-b34836
+  (groups_test) --fails-without; fix 261121-012404-fce70e.
+- F4: heard_from_leader's unreachable rest clause dropped (and its parameter). F5: closed_state
+  comments say rest is not required.
+- F3, F6 (non-blocking): not done; F3's thin random coverage is answered by the deterministic
+  `transfer` and `gone` cases.
+- consensus-driver-install told of 3b20d96 (its msg-1).
 
 Next: msg-1 (drop the rpc_host SIGPIPE ignore and the sigpipe-default mutant) once node-admission
-(consensus:c669067) lands on consensus main; not on main at a020e14.
+(consensus:c669067) lands on consensus main.
 
 ## Seed 399 (lead's task, Xapiand's Driver simulation)
 
@@ -118,6 +126,8 @@ At consensus:a020e14 (consensus main bb961b3 merged). Mutant jobs ran at their m
   synthesized; the peers' own Driver cost is not counted. Setup uses 256 MiB turn-log segments:
   journal's TurnLog::forward_slice scans every live group per turn once past retain_segments,
   quadratic setup at 20k groups with 16 KiB segments (journal's, reported, not fixed here).
+- R16 F2: Gone goes to every other member on any fence, not only a leader's (the fenced Core's
+  role is Fenced, and a receiver acts only when the sender is its leader in that term).
 - R15 A6: Peer::flights deque to vector (libc++ deque keeps a 4 KiB block per idle peer).
 - R6 Term record: the first storage batch after a reopen carries the hard state (Core::persist),
   so the reopen adds no barrier. Mutant without it fails `lone_voter` (local).
