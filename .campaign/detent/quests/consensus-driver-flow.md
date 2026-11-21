@@ -5,16 +5,14 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+msg-192 (Xapiand's architect, their D161): worker.h:150,178-179 builds every Core with Flow{} (one flight, frame_bytes 0, so appends go up to rpc_bytes, 2 MiB) and no Worker or Driver option carries Flow, so no Driver host can use D15's pipelining (at 10 ms RTT one flight of 256 KiB moves 16 MB/s). After this quest Worker and Driver options carry a Flow that reaches every Core they build; the default stays Flow{}; Xapiand's strata::group then sets Flow{4, 4 MiB, 256 KiB}. The per-peer append pacing from consensus-full-window-stall applies within whatever Flow the host sets.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A Driver built with Flow{4, 4 MiB, 256 KiB} keeps up to four appends in flight of at most 256 KiB each, checked by value; the default Driver is unchanged: jobs
+- A2 A mutant that drops the option on the way to Core fails A1: a --fails-without job
+- A3 [artifact] docs/DRIVER.md names the option and its default
+- A4 CI passes
 
 ## Contracts
 
