@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: waiting on jobs 261120-181331-7a0bfd 261120-181337-a04542 and CI run 44854682137
+State: waiting on jobs 261120-181331-7a0bfd and CI run 44854682137 (ci:macos-arm64)
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -22,8 +22,10 @@ platform (tsan, asan-ubsan, macos, arm64-gcc), nothing else; CI at 87d4382 is ru
 
 ## Next
 
-1. Read the jobs; the mutant must fail on handoff_close's abort (134), not the build. Then CI.
+1. Debug job 7a0bfd and ci:macos-arm64 (run 44854682137); asan-ubsan, linux-arm64-gcc, freebsd already green there.
 2. Merge journal main once journal-idle-groups lands (host.h, host_test.cc).
+
+msg-178 (D57): A3 cites ci:macos-arm64 at journal:87d4382; nothing else changed.
 
 ## Blocked on
 
@@ -35,7 +37,7 @@ Nothing.
 |---|---|
 | A1 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
 | A2 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
-| A3 | pending 261120-181337-a04542, CI (passed at ca95301: 261120-172817-4dd987) |
+| A3 | ci:macos-arm64, run 44854682137 at journal:87d4382 (pending; D57/msg-178 makes it the suite check, local suite a04542 cancelled) |
 
 ## Result
 
