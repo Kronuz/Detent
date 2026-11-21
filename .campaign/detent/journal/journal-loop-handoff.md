@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: waiting on jobs 261120-181331-7a0bfd and CI run 44854682137 (ci:macos-arm64)
+State: ready for review
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,23 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Debug job 261120-172827-391258 at journal:ca95301 failed "a third thread's view fails the debug
-check": the test was wrong, not the check. The third thread took the exited adopter's
-std::thread::id (probe 261120-181237-2da023: a thread started after a join reused the id 20/20 on
-macOS). Fixed at journal:87d4382: two live threads probe at once, so one is not the owner;
-host-ranges.md states the limit (the check can miss a stranger, never abort the owner).
-Rerun: Debug 261120-181331-7a0bfd, fails-without 261120-181334-f52e5a at mutant journal:21af69b3
-(refs/mutants/journal-loop-handoff/no-handoff), suite 261120-181337-a04542. Branch pushed.
-Mutant 261120-181334-f52e5a passed: handoff_close aborted on the owner assert (Abort trap 6),
-after the build. CI at ca95301 (run 44850405066) failed the same third-thread check on every
-platform (tsan, asan-ubsan, macos, arm64-gcc), nothing else; CI at 87d4382 is run 44854682137.
+Nothing. Debug host_test 261120-181331-7a0bfd passed at journal:87d4382 (loop_handoff 7/0,
+handoff_close 4/0, full host_test 1028 checks/0 failures). CI run 44854682137 at journal:87d4382
+green on every job (macos-arm64, macos-x86_64, linux tsan, asan-ubsan, x86_64 clang and gcc,
+arm64-gcc, freebsd). History: at ca95301 the third-thread probe failed because a new thread took
+the exited adopter's std::thread::id (probe 261120-181237-2da023, 20/20 reuse); 87d4382 probes
+from two live threads.
 
 ## Next
 
-1. Debug job 7a0bfd (running: loop_handoff 7/0 and handoff_close 4/0 failures logged; full host_test
-   still running) and ci:macos-arm64 (run 44854682137); tsan, asan-ubsan, macos-x86_64, linux-arm64-gcc,
-   freebsd green there.
-2. Merge journal main once journal-idle-groups lands (host.h, host_test.cc).
+1. Review; land after journal-idle-groups, merging journal main first (host.h, host_test.cc).
 
 msg-178 (D57): A3 cites ci:macos-arm64 at journal:87d4382; nothing else changed.
 
@@ -37,9 +30,9 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
-| A2 | 261120-181334-f52e5a passed; pending 261120-181331-7a0bfd |
-| A3 | ci:macos-arm64, run 44854682137 at journal:87d4382 (pending; D57/msg-178 makes it the suite check, local suite a04542 cancelled) |
+| A1 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
+| A2 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
+| A3 | ci:macos-arm64 (job 136696384237), run 44854682137 at journal:87d4382, all CI jobs green (D57/msg-178) |
 
 ## Result
 
