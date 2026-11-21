@@ -23839,9 +23839,9 @@
       ],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -23850,6 +23850,34 @@
         "include/consensus/**",
         "test/**",
         "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T11:42:31",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [],
@@ -23860,7 +23888,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:42:27"
+      "updated": "2026-11-21T11:42:31"
     },
     "split-detent": {
       "accepted": {},
