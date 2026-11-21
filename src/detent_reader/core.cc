@@ -15,7 +15,6 @@
 #include <cstring>
 #include <exception>
 #include <iterator>
-#include <limits>
 #include <mutex>
 #include <new>
 #include <optional>
@@ -53,6 +52,15 @@ thread_local std::string failure_text;
 #endif
 
 constexpr std::size_t ring_size = 4, stripes = 64;
+// Main's client defaults (view.cc): the default domain's heap account and the mapping account.
+constexpr std::size_t default_heap_bytes = std::size_t(8) << 20, default_mapped_bytes = std::size_t(512) << 20;
+#ifdef DETENT_READER_TEST_HOOKS
+std::size_t heap_bound = default_heap_bytes, mapped_bound = default_mapped_bytes;
+bool atfork_refused = false;
+#else
+constexpr std::size_t heap_bound = default_heap_bytes, mapped_bound = default_mapped_bytes;
+constexpr bool atfork_refused = false;
+#endif
 constexpr std::uint64_t millisecond = 1'000'000;
 constexpr std::uint64_t store_retry_ns = 200 * millisecond, backoff_min_ns = millisecond,
                         backoff_max_ns = 200 * millisecond;
@@ -201,7 +209,8 @@ namespace {
 // Fork (reader.md D10): live handles under one mutex; the handlers take every `refreshing`.
 std::mutex registry_mutex;
 detent_reader *registry = nullptr;
-pthread_once_t atfork_once = PTHREAD_ONCE_INIT;
+std::mutex atfork_mutex; // never held with `registry_mutex`, which the fork handlers take
+bool atfork_installed = false;
 void fork_prepare() noexcept {
 	registry_mutex.lock();
 	for (auto *handle = registry; handle; handle = handle->next)
@@ -239,11 +248,14 @@ void fork_child() noexcept {
 	}
 	registry_mutex.unlock();
 }
-void register_handle(detent_reader *handle) {
-	pthread_once(&atfork_once, [] {
-		if (pthread_atfork(fork_prepare, fork_parent, fork_child) != 0)
-			std::abort();
-	});
+// Registers the fork handlers once; a refusal (ENOMEM) is retried by the next open.
+bool install_atfork() noexcept {
+	std::lock_guard lock(atfork_mutex);
+	if (!atfork_installed)
+		atfork_installed = !atfork_refused && pthread_atfork(fork_prepare, fork_parent, fork_child) == 0;
+	return atfork_installed;
+}
+void register_handle(detent_reader *handle) noexcept {
 	std::lock_guard lock(registry_mutex);
 	handle->next = registry;
 	registry = handle;
@@ -611,6 +623,8 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 	    view_of(options->store).find('\0') != std::string_view::npos ||
 	    (options->namespace_count && !options->namespaces))
 		return DETENT_INVALID_ARGUMENT;
+	if (!install_atfork())
+		return DETENT_NO_MEMORY;
 	detent_reader *handle = nullptr;
 	try {
 		handle = new detent_reader;
@@ -627,9 +641,8 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 		std::sort(handle->namespaces.begin(), handle->namespaces.end());
 		handle->namespaces.erase(std::unique(handle->namespaces.begin(), handle->namespaces.end()),
 		                         handle->namespaces.end());
-		constexpr auto unbounded = std::numeric_limits<std::size_t>::max() / 4;
-		handle->heap = std::make_shared<d::StorageLedger>(unbounded);
-		handle->mappings = std::make_shared<d::StorageLedger>(unbounded);
+		handle->heap = std::make_shared<d::StorageLedger>(heap_bound);
+		handle->mappings = std::make_shared<d::StorageLedger>(mapped_bound);
 	} catch (...) {
 		delete handle;
 		return DETENT_NO_MEMORY;
@@ -646,12 +659,7 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 		}
 		handle->store_try_at.store(now_ns() + store_retry_ns, std::memory_order_relaxed);
 	}
-	try {
-		register_handle(handle);
-	} catch (...) {
-		delete handle;
-		return DETENT_NO_MEMORY;
-	}
+	register_handle(handle);
 	*out = handle;
 	return DETENT_OK;
 }
@@ -708,6 +716,9 @@ detent_status detent_refresh(detent_reader *handle) {
 	const auto status = outcome == Outcome::Failed
 	                        ? detent_status(handle->failed_status.load(std::memory_order_relaxed))
 	                        : DETENT_OK;
+	// A refresh that does not fail forgets a remembered failure, so the next first lookup attaches (D4).
+	if (outcome != Outcome::Failed)
+		handle->failed_store.store(UINT64_MAX, std::memory_order_relaxed);
 	handle->release_refreshing();
 	return status;
 }
@@ -727,6 +738,11 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_hook = hook;
 }
 const char *last_failure() noexcept { return failure_text.c_str(); }
+void bounds(std::size_t heap_bytes, std::size_t mapped_bytes) noexcept {
+	heap_bound = heap_bytes ? heap_bytes : default_heap_bytes;
+	mapped_bound = mapped_bytes ? mapped_bytes : default_mapped_bytes;
+}
+void refuse_atfork(bool refused) noexcept { atfork_refused = refused; }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;
 	Stats stats{handle->live_views(), handle->publishes.load(relaxed), handle->refused.load(relaxed),
@@ -736,6 +752,8 @@ Stats stats(detent_reader *handle) noexcept {
 		stats.pins[k] = handle->ring[k].sum();
 	stats.heap_bytes = handle->heap->used();
 	stats.mapped_bytes = handle->mappings->used();
+	stats.heap_limit = handle->heap->limit();
+	stats.mapped_limit = handle->mappings->limit();
 	// Pinned as a lookup is, so the view is published to this thread and not freed under it.
 	const char frame = 0;
 	Pin pin(stripe_of(&frame));

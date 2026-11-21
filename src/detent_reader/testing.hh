@@ -2,6 +2,7 @@
 // Test-only seams of the reader core (reader.md T3, T6), compiled only with DETENT_READER_TEST_HOOKS.
 // The release library has neither the hooks nor these symbols.
 #include "detent/reader.h"
+#include <cstddef>
 #include <cstdint>
 
 namespace detent::reader::testing {
@@ -22,9 +23,14 @@ struct Stats {
 	std::uint64_t current = 0;
 	std::uint64_t pins[4] = {}; // each ring slot's pin count
 	std::uint64_t heap_bytes = 0, mapped_bytes = 0; // the handle's ledgers, charged now
+	std::uint64_t heap_limit = 0, mapped_limit = 0; // and their bounds
 	std::uint64_t change_bytes = 0;                 // the installed view's `change` mapping
 };
 Stats stats(detent_reader *) noexcept;
 // What the calling thread's last failed refresh raised.
 const char *last_failure() noexcept;
+// Heap and mapped-bytes bounds for handles opened after this call; 0 restores the default.
+void bounds(std::size_t heap_bytes, std::size_t mapped_bytes) noexcept;
+// Makes the fork-handler registration fail as with ENOMEM, until called with false.
+void refuse_atfork(bool) noexcept;
 } // namespace detent::reader::testing

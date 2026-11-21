@@ -687,8 +687,8 @@ void cold_forks(const std::filesystem::path &root) {
 		std::cout << "cold fork mode " << int(mode) << ": parent/child values, nested fork and cleanup pass\n";
 	}
 }
-// Security review pending 3: `change` size and the handle ledgers under stress. Nothing caps them
-// (Q5, reader S7, is the owner's); the stress checks they stay bounded by what the store holds.
+// Security review pending 3: `change` size and the handle ledgers under stress. `change` is mapped
+// whole; the ledgers have main's client bounds (reader-core.md, Bounds) and follow the live views.
 void capacity(const std::filesystem::path &root) {
 	const auto store = root / "capacity";
 	detent::testing::GenerationWriter writer(store);

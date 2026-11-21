@@ -9,6 +9,7 @@
 #include "segment_names.hh"
 #include "verified_pages.hh"
 #include <atomic>
+#include <cerrno>
 #include <bit>
 #include <cstring>
 #include <sys/mman.h>
@@ -28,6 +29,11 @@ void window(LazyPageWindow at) noexcept {
 }
 std::size_t slot_count(std::uint64_t segments) {
 	return std::bit_ceil(std::max<std::size_t>(2, std::size_t(std::min<std::uint64_t>(segments, 1u << 20)) * 2));
+}
+// A resource the process lacks now (descriptors, memory), not a damaged file: raised as a
+// `system_error`, which leaves the generation usable so a later lookup retries the miss.
+bool transient(int error) noexcept {
+	return error == EMFILE || error == ENFILE || error == ENOMEM || error == EAGAIN || error == EINTR;
 }
 std::size_t identity_hash(const SegmentId &identity) noexcept {
 	std::uint64_t low, high;
@@ -144,8 +150,12 @@ struct PageTable::State {
 		const SegmentNames names(identity);
 		DETENT_COUNT(segment_opens, 1);
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
+		if (payload.fd < 0 && transient(errno))
+			throw std::system_error(errno, std::generic_category(), "segment payload open");
 		struct stat held{};
-		if (payload.fd < 0 || ::fstat(payload.fd, &held) != 0 || held.st_size < p::minimum_page_bytes ||
+		if (payload.fd >= 0 && ::fstat(payload.fd, &held) != 0)
+			throw std::system_error(errno, std::generic_category(), "segment payload fstat");
+		if (payload.fd < 0 || held.st_size < p::minimum_page_bytes ||
 		    std::uint64_t(held.st_size) > p::segment_bytes)
 			throw ReadSourceFailure("local pack has an invalid extent");
 		const auto length = static_cast<std::size_t>(held.st_size);
@@ -158,7 +168,7 @@ struct PageTable::State {
 		mapped.ticket = mapping_account->admit(rounded_mapping_bytes(length));
 		const auto address = ::mmap(nullptr, length, PROT_READ, MAP_PRIVATE, payload.fd, 0);
 		if (address == MAP_FAILED)
-			throw std::runtime_error("immutable segment mmap failed");
+			throw std::system_error(errno, std::generic_category(), "segment payload mmap");
 		mapped.bytes = {static_cast<const char *>(address), length};
 		struct stat named{};
 		if (::fstatat(directory, names.payload.data(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
@@ -248,6 +258,8 @@ struct PageTable::State {
 			throw ReadSourceFailure("local reader admission exhausted");
 		} catch (const std::bad_alloc &) {
 			throw ReadSourceFailure("local reader allocation failed");
+		} catch (const std::system_error &) {
+			throw;
 		} catch (...) {
 			failed.store(true, std::memory_order_relaxed);
 			throw ReadSourceFailure("local page failed verification");

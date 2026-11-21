@@ -4,14 +4,19 @@
 #include "generation_file_access.hh"
 #include "prepared_reader.hh"
 #include "testing.hh"
+#include <algorithm>
 #include <climits>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <fcntl.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 namespace x = detent::local::detail;
 namespace t = detent::reader::testing;
@@ -115,6 +120,109 @@ void unreadable_table(const std::filesystem::path &root) {
 	CHECK(detent_refresh(r.handle) == DETENT_UNAVAILABLE && get(r.handle, "t:rev", DETENT_OK) == 1);
 	std::filesystem::rename(store / "held-selected", store / "selected");
 	CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 2);
+}
+// A failure remembered by a namespace's first attach lasts until the store word moves or a
+// detent_refresh that does not fail (D4), then the next lookup attaches.
+void refresh_memo(const std::filesystem::path &root) {
+	const auto store = root / "refresh-memo";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK);
+	const auto selected = x::PreparedReader::selection(store, ::getuid()).descriptor.generation;
+	const auto metadata = store / (detent::local::generation_name(selected) + ".read");
+	std::filesystem::rename(metadata, root / "memo-hidden.read");
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7);
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // remembered
+	std::filesystem::rename(root / "memo-hidden.read", metadata);
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // still remembered: the word holds
+	CHECK(detent_refresh(r.handle) == DETENT_OK);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1 && t::stats(r.handle).attached == 1);
+}
+// A store of two packs: the first lookup maps one, and some key lives only in the other.
+constexpr int wide_knobs = 60000;
+std::string wide_name(int i) { return "t:k" + std::to_string(i); }
+std::filesystem::path wide_store(const std::filesystem::path &root) {
+	const auto store = root / "wide";
+	detent::testing::GenerationWriter writer(store);
+	std::string json = R"({"schema_version":1,"knobs":{)";
+	for (int i = 0; i != wide_knobs; ++i)
+		json += (i ? ",\"" : "\"") + wide_name(i) + R"(":{"default":)" + std::to_string(3 * i + 1) + "}";
+	CHECK(writer.publish_json(json + "}}") == 1);
+	return store;
+}
+// The first key past k0 whose lookup does not answer, and its status.
+std::pair<int, detent_status> first_refused(detent_reader *h) {
+	for (int i = 1; i != wide_knobs; ++i) {
+		std::int64_t out = 0;
+		const auto name = wide_name(i);
+		if (const auto status = detent_get(h, S(name), none, none, -7, &out); status != DETENT_OK) {
+			CHECK(out == -7);
+			return {i, status};
+		}
+		CHECK(out == 3 * i + 1);
+	}
+	return {-1, DETENT_OK};
+}
+// A cold miss that fails for want of a descriptor is DETENT_IO for that lookup alone: the generation
+// keeps answering, and the same key answers once descriptors return.
+void transient_miss(const std::filesystem::path &store) {
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:k0", DETENT_OK) == 1);
+	rlimit saved{};
+	CHECK(::getrlimit(RLIMIT_NOFILE, &saved) == 0);
+	auto lowered = saved;
+	lowered.rlim_cur = std::min<rlim_t>(saved.rlim_cur, 256);
+	CHECK(::setrlimit(RLIMIT_NOFILE, &lowered) == 0);
+	std::vector<int> held{::open("/dev/null", O_RDONLY)};
+	CHECK(held.front() >= 0);
+	for (int fd; (fd = ::dup(held.front())) >= 0;)
+		held.push_back(fd);
+	const auto [cold, status] = first_refused(r.handle);
+	for (const int fd : held)
+		::close(fd);
+	CHECK(::setrlimit(RLIMIT_NOFILE, &saved) == 0);
+	CHECK(cold > 0 && status == DETENT_IO);
+	CHECK(get(r.handle, "t:k0", DETENT_OK) == 1);
+	CHECK(get(r.handle, wide_name(cold), DETENT_OK) == 3 * cold + 1);
+	CHECK(first_refused(r.handle).first < 0 && detent_refresh(r.handle) == DETENT_OK);
+}
+// The handle's ledgers have main's client bounds; past them a lookup or an attach is refused with
+// the fallback, never aborted, and the segments already mapped keep answering.
+void capped(const std::filesystem::path &store) {
+	Opened unbounded(store);
+	CHECK(unbounded.status == DETENT_OK && get(unbounded.handle, "t:k0", DETENT_OK) == 1);
+	const auto defaults = t::stats(unbounded.handle);
+	CHECK(defaults.heap_limit == 8u << 20 && defaults.mapped_limit == 512u << 20);
+	const auto one_pack = defaults.mapped_bytes;
+	CHECK(one_pack > 0);
+	t::bounds(0, one_pack);
+	Opened mapped(store);
+	t::bounds(0, 0);
+	CHECK(mapped.status == DETENT_OK && get(mapped.handle, "t:k0", DETENT_OK) == 1);
+	const auto [cold, status] = first_refused(mapped.handle);
+	std::cout << "mapped-bytes cap " << one_pack << ": " << wide_name(cold) << " " << detent_status_name(status) << "\n";
+	CHECK(cold > 0 && t::stats(mapped.handle).mapped_bytes == one_pack);
+	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
+	t::bounds(1, 0);
+	Opened heap(store);
+	t::bounds(0, 0);
+	CHECK(heap.status == DETENT_OK && get(heap.handle, "t:k0", DETENT_NO_MEMORY) == -7);
+	CHECK(t::stats(heap.handle).heap_bytes == 0 && t::stats(heap.handle).generations == 0);
+}
+// A refused fork-handler registration fails the open; the next open registers them.
+void atfork_refused(const std::filesystem::path &root) {
+	const auto store = root / "atfork";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	t::refuse_atfork(true);
+	{
+		Opened refused(store);
+		CHECK(refused.status == DETENT_NO_MEMORY && refused.handle == nullptr);
+	}
+	t::refuse_atfork(false);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
 }
 void replaced_change(const std::filesystem::path &root) {
 	const auto store = root / "replaced-change";
@@ -379,10 +487,15 @@ int main() {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
+	atfork_refused(root); // first: the fork handlers register at the first open that succeeds
 	replaced_selected(root);
 	selected_reads(root);
 	unreadable_table(root);
+	refresh_memo(root);
 	replaced_change(root);
+	const auto wide = wide_store(root);
+	transient_miss(wide);
+	capped(wide);
 	values(root);
 	wrapper(root);
 	opens(root);

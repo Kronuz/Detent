@@ -3,6 +3,7 @@
 #include "paged_node_step.hh"
 #include <algorithm>
 #include <cstring>
+#include <system_error>
 
 namespace detent::local::detail {
 std::optional<BorrowedDefinition> PagedReadState::definition(std::string_view ns,
@@ -108,6 +109,8 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 		throw ReadSourceFailure("local page walk exceeds key depth");
 	} catch (const ReadSourceFailure &) {
 		throw;
+	} catch (const std::system_error &) {
+		throw; // a transient miss (lazy_page_access.cc): this lookup fails, the generation stays usable
 	} catch (...) {
 		throw ReadSourceFailure("local page walk failed");
 	}
