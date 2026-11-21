@@ -1794,6 +1794,18 @@
       "closed": "Required install notices (one shape): test/driver_test.cc, driver_close_test.cc and wave_open_test.cc added to consensus-driver-install for the mechanical Sink update; consensus-faultfs and consensus-quiescence also edit them, so expect small merges",
       "id": "msg-180",
       "text": "consensus-driver-install asks: extend its file set with test/driver_test.cc, test/driver_close_test.cc, test/wave_open_test.cc. The contract (consensus:2c598fb, DRIVER.md Install; sent to Xapiand as msg-187) replaces the Sink's ActivateInstall notice with ActivateImage (it carries the image reader; Core's ActivateInstall cannot hold one) and adds SendTransfer and ValidateImage to the sink concept; those three tests define explicit Sinks that must rename one overload and add two no-op ones, or they stop compiling. Mechanical, no behavior change. Alternative if you refuse: keep ActivateInstall in the concept and make the install notices optional (if constexpr; open() with snapshots refuses a Sink without them), which is two shapes. Recommend the extension. Continuing on the rest meanwhile."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T20:05:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T20:05:02",
+      "by": "lead",
+      "closed": "Not known as such, and treated as a defect: a 'not lost' group missing acknowledged records is silent loss whatever its origin. Filed and started journal-power-silent-loss (high risk): per failing seed, name the damage pattern and whether 178030b regressed it, added the check, or it is the double-damage review's F2/F3 residual (silent patterns at block_bytes <= 512 and non-512 multiples); then fix with a mutant, and the 200-seed T9 row must pass on macOS and FreeBSD. I'll send you the diagnosis; until then strata's pin at 178030b carries this risk",
+      "id": "msg-183",
+      "text": "Finding for journal (T9 power loss on faultfs, 200 seeds, from Track C's C2 gate rerun at journal main 178030b). Possibly silent loss of acknowledged records under damage.\n\nmacOS, job 261120-151854-18b807 (journal_turn_log_power_test, 200 seeds): 1,036,264 checks, 7 failures:\n- block_bytes 2048, damage 'last', seed 145, segment 4 block 2: \"the damage is reported\" and \"a group not lost keeps every acknowledged record\"\n- block_bytes 2048, 'last', seed 199, segment 4 block 1: the same two\n- block_bytes 256, 'both', seed 122, segment 42 block 6: \"a group not lost keeps every acknowledged record\"\nFreeBSD VM, job 261120-152238-d74166, same commit: the same seeds fail, plus block_bytes 512, 'both', seed 140, segment 24 block 1: \"the damage is reported\".\nThe same 200-seed row passed at journal d90797c on macOS (job 261118-115852-e136e7). I haven't bisected whether 178030b's double-damage work added these checks or regressed them. The row's driver is ~/.scratch/c2-gate/body-v4.sh jpower 200; the logs are under ~/.scratch/campaign/jobs/<id>/.\n\nWhy it matters to us: strata's turn-log-parity pins journal 178030b, and Track C's C2 report needs T9 green at journal main. Is this the residual your journal-double-damage review named (damaged headers still silent at some block sizes, for the per-fragment checksum in our parity tasks 3 and 5), or a separate bug? A 'not lost' group missing acknowledged records looks like more than an unreported header."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
