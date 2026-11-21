@@ -1,6 +1,6 @@
 # consensus-faultfs: journal
 
-State: waiting on jobs f2c63e 805b3a a0cfb7 eb9284 94af61 8e01d0 0ea5f5 845289 (baselines at main: d5f4fc 7a4d22 7bb349 e74484 38db6e d5d909)
+State: waiting on jobs 805b3a a0cfb7 eb9284 94af61 8e01d0 0ea5f5 845289 and CI run 44852156981 (macos-arm64 queued) at 813d95f
 Quest: .campaign/detent/quests/consensus-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -22,6 +22,11 @@ converted test compiles (peers_test not checked).
 
 ## Next
 
+0. D57/msg-178: the suite check is CI's `macos-arm64` job; local suite jobs cancelled. A1 and A3
+   cite `ci:macos-arm64` at the head, plus the grep for A1 (empty at 813d95f). A3's bound: that
+   job's `Total Test time (real)` at the head <= 1.5 x main's 107.19 s (main run 44829606479,
+   job 136616496277; so <= 160.8 s). At 813d95f, other jobs of run 44852156981 passed (freebsd,
+   asan, tsan, linux gcc/clang/arm64); macos-arm64 and macos-x86_64 were queued.
 1. Read the suite (time within 1.5x of main's: need main's suite time) and mutant results; push
    triggers CI, read it.
 2. Fix differences; fill the Evidence table; write Result; set ready for review.
