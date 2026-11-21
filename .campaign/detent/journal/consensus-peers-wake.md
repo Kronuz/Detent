@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs at consensus:a1855ac (pushed; CI running). Locally (dev build, not evidence) idle, control
+Jobs at consensus:a1855ac, all 12 still queued after one 600 s wait; CI run 44955269607 queued. Locally (dev build, not evidence) idle, control
 and bulk passed 3 of 3 each.
 
 ## Next
