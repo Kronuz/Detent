@@ -32,7 +32,7 @@ Nothing.
 |---|---|
 | A1 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
 | A2 | 261120-181331-7a0bfd; fails without: 261120-172830-714b37, 261120-181334-f52e5a |
-| A3 | `ci:macos-arm64` (job 136696384237), run 44854682137 at journal:87d4382, all CI jobs green (D57/msg-178) |
+| A3 | 261120-224307-bc6241, `ci:macos-arm64` (job 136696384237), run 44854682137 at journal:87d4382, all CI jobs green (D57/msg-178) |
 
 ## Result
 
