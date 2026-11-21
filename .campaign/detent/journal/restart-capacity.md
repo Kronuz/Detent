@@ -54,9 +54,8 @@ does not do").
 
 1. Raisable set is contract rule 1's three (keys, state_bytes, image_bytes), not all ten: the
    outcome's "keys and the other nine" reads as the ten carried limits. The other seven bound what
-   flows to relays, agents and history decoders and change the command digest (request_bytes,
-   mutations, definition_bytes, overrides), so raising them is not replay-safe for rule 6. Widening
-   is one flag per field in `limit_fields` (state.cc). Lead: confirm.
+   relays, agents and history and wire decoders accept, which rule 1 keeps equal. Widening is one
+   flag per field in `limit_fields` (state.cc). Lead: confirm.
 2. One table (`limit_fields`) drives write, read and admission; messages name the configuration
    key (`application_limits.<field>`).
 3. Sync paths (`State::apply`, `apply_batch`, `administer`, `BatchApplication::advance`, the
