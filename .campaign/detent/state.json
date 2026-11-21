@@ -23831,6 +23831,40 @@
       "title": "sha256 AVX2 kernel for x86_64 without SHA-NI",
       "updated": "2026-11-08T15:38:38"
     },
+    "split-detent": {
+      "accepted": {},
+      "after": [
+        "dense-distribution-build",
+        "reader-s6"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "src/detent_delivery/**",
+        "tests/detent_delivery/**",
+        "docs/design/*.py",
+        "src/CMakeLists.txt",
+        "tests/detent_delivery/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in Detent is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T11:42:09"
+    },
     "stage-0-architecture": {
       "accepted": {},
       "after": [],
