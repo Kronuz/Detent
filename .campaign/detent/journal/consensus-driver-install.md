@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-191737-e1518e 261120-191739-f8b0b5 261120-191740-5424de 261120-191742-f0f7eb 261120-191744-5b41ef 261120-191746-d10632 261120-191749-bef99d 261120-191751-b901bb 261120-191753-7348c5 261120-191754-1b07f7 261120-191756-1ba6e8 261120-191758-3475cc
+State: waiting on jobs 261120-193730-660db9 261120-193735-f56dd7; blocked on the lead: msg-180
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Built at consensus:c0838ff (branch quest/detent/consensus-driver-install, 4 commits on main 8801b99):
+At consensus:4d5b6e2 (5 commits on main 8801b99); 4d5b6e2 changes only the simulation's repair
+check and a DRIVER.md sentence. Built at consensus:c0838ff:
 driver.h install surface, worker.h snapshot_image + activation-wait fix, host_transport.h
 send_transfer/is_transfer, driver_install_test (lagging, rejected, stale, restart, crash),
 driver_simulation installs, groups_test install over the real host transport. Evidence jobs queued.
@@ -19,10 +20,12 @@ driver_simulation installs, groups_test install over the real host transport. Ev
 1. On the lead's ruling (msg-180): update the Sinks in test/driver_test.cc,
    test/driver_close_test.cc, test/wave_open_test.cc (rename ActivateInstall, add SendTransfer
    and ValidateImage); CI does not compile them until then.
-2. Read the queued jobs (below); fold failures.
+2. Read A4's jobs 261120-193730-660db9, -193735-f56dd7 (at 4d5b6e2). A1-A3 passed at c0838ff.
 3. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
    land; rerun the jobs (`campaign job rerun`).
-4. Push; CI macos-arm64 + TSan/ASan for A6.
+4. Push; CI macos-arm64 + TSan/ASan for A6. After consensus-quiescence merges: a follower's
+   orphaned incoming image ends only when run_one sees time pass; check that a quiescent group
+   still steps (arm a wake while an install is open) so its repair is not held forever.
 
 ## Blocked on
 
@@ -43,7 +46,7 @@ checked what), and answer each message by its id (msg-N).
 | A1 | jobs 261120-191737-e1518e (lagging), -191739-f8b0b5 (stale+restart), -191753-7348c5 (groups install over the host transport); fails-without -191744-5b41ef (no-transfer-out), -191746-d10632 (activation-wait-maintains), -191754-1b07f7 (no-transfer-out, groups) |
 | A2 | job 261120-191740-5424de (rejected); fails-without -191749-bef99d (failed-validates) |
 | A3 | job 261120-191742-f0f7eb (crash at every disk op, 24 cuts: 19 old, 5 new locally); fails-without -191751-b901bb (activate-on-validated) |
-| A4 | jobs 261120-191756-1ba6e8, -191758-3475cc (32 seeds each); locally 8 seeds: 22 SnapshotNeeded, 11 validated (1 refused), 10 installs |
+| A4 | jobs 261120-193730-660db9, -193735-f56dd7 (32 seeds each, at 4d5b6e2, queued). At c0838ff 261120-191756-1ba6e8 failed seed 15: a repair pending after healing (ruling 8); its summary: 35 SnapshotNeeded, 176 frames, 16 validated (1 refused), 15 activated. Seed 15 passes at 4d5b6e2 locally |
 | A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:c0838ff); contract sent to Xapiand as msg-187 |
 | A6 | pending: CI after the msg-180 ruling |
 
@@ -71,3 +74,10 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 6. worker.h: an installed image awaiting activation is no longer runnable and no longer runs
    reclaim maintenance each turn (a hot loop with inline IO; mutant activation-wait-maintains).
 7. Mutants live in test/transport/mutant_commit.py (in the file set), with full paths.
+8. Simulation seed 15: node 1's repair waited behind an incoming image whose source (node 2)
+   crashed; the Worker answers Repair Busy while it holds a snapshot, and the channel ends the
+   receive at snapshot_timeout (60 s there), longer than the 1000-round repair check. The check
+   now runs 1000 + 2 x snapshot_timeout / 4 rounds, as healing does; DRIVER.md states that a
+   follower's repair and checkpoint wait behind an incoming image until its timeout. Traced with
+   temporary dumps of the Worker phase (Application, Incoming) and the channel's receive
+   (connected, not final), not committed.
