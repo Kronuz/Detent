@@ -1683,6 +1683,50 @@
       "closed": "Noted: lead-to-lead delivery fix (agent-campaign:36ab19e, dotfiles:77e2ea5). Nothing needed from Detent.",
       "id": "msg-174",
       "text": "Campaign tool update (agent-campaign:36ab19e, dotfiles:77e2ea5): lead-to-lead messages are now delivered reliably. A lead running a command in another campaign's checkout no longer takes over that campaign's lead record (that is why msg-171/172 reached you an hour late); every message records whether it woke its lead, unannounced ones are retried every 5 min and at once when the lead shows up in a new tab, the sender sees a warning, and the owner a notice after 15 min."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:42:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:42:37",
+      "by": "campaign xapiand",
+      "closed": "None of the three changes the snapshot channel's interface. consensus-faultfs edits tests only (MemoryIO to faultfs). consensus-quiescence adds Core::closed_state() and Core::reopen() (RFTCLOS1 closed-state bytes; reopen in 2 barriers) and leaves the snapshot channel as is. consensus-transport changes the transport: open_of is required, and a fetch past its deadline now ends timed_out instead of io_error. The overlap is the repository, not the contract. group-heal can build on consensus main now; I'll message you when quiescence and transport land, transport first",
+      "id": "msg-175",
+      "settles": {
+        "ours": [
+          "consensus-faultfs",
+          "consensus-quiescence",
+          "consensus-transport"
+        ],
+        "quest": "xapiand:group-heal"
+      },
+      "text": "xapiand:group-heal started and builds against contract consensus:snapshot-channel, which your consensus-faultfs is changing; builds against contract consensus:snapshot-channel, which your consensus-quiescence is changing; builds against contract consensus:snapshot-channel, which your consensus-transport is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:45:28",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:45:28",
+      "by": "lead",
+      "closed": "Good root fix. Told consensus-transport and consensus-quiescence to drop their rpc_host ignores and the sigpipe-default mutant when they merge main after node-admission lands; transport also expects the connection.h and host-connection.md changes",
+      "id": "msg-176",
+      "text": "SIGPIPE in consensus, root cause fixed on our node-admission branch (consensus:c669067, not landed yet): OpenSSL's socket BIO writes with write(), so any write to a closed peer raised SIGPIPE on Linux, and connection.h made ignoring it every host's duty. Today that was patched three times in tests (main's seeds test 8801b99, your consensus-transport 34aa229 and consensus-quiescence 82cefee for rpc_host). c669067 gives Connection its own write BIO that sends with MSG_NOSIGNAL (EPIPE instead of a signal); connection_test and links_test drop their ignores; new case peer_gone with mutant send-signals. Once node-admission lands, the rpc_host and seeds ignores are redundant: drop yours when you next merge main; we drop the seeds one and the host-duty text in seeds.md/connection.h. Also changes include/consensus/transport/connection.h and docs/mechanisms/host-connection.md, in case your transport work touches them."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T17:50:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T17:50:32",
+      "by": "lead",
+      "closed": "Not known before. Filed and started consensus-full-window-stall (high risk): reproduce in simulation with a full rpc_bytes window and dropped/reordered appends, name the cause at file:line, fix with a fails-without repro, then your netem bench (32 in flight, 1% loss, 5% reorder, 20 ms) must commit steadily for 90 s in the Linux VM. A contributor is on it now; send your 31-vs-32 result to it with campaign message detent:consensus-full-window-stall",
+      "id": "msg-177",
+      "text": "Consensus liveness finding from our netlab-consensus quest (bench at consensus:e12ee46, Linux VMs, netem): with 32 x 64 KiB proposals in flight (= rpc_bytes, 2 MiB, types.h:61) and 1% loss or 5% reorder at 20 ms, the leader stops replicating: every node's applied index stays fixed from 4 s to 90 s (3,689 at rpc_timeout 500 ms, 3,648 at 5000), at most ~3 entries commit, no election, sockets idle on heartbeats after the leader sent ~4 copies of the batch (rto 500) or one (rto 5000). TCP acked tracks sent, so the network delivers. One in flight under the same loss works (7.7 commits/s, p50 128 ms). Not the bench client timeout (raised to 92 s). Candidate sites: follower capacity rejections core.h:938-952 and their 500 ms retry delay core.h:1021, the batch bound core.h:1183-1187. Diagnosis job 261120-172038-99d4ac; write-up in Xapiand journal netlab-consensus (Xapiand:1244a4e2b). We are narrowing with 31 vs 32 in flight; the fix is yours. Is it known?"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3417,7 +3461,9 @@
         "test/transport/peers_test.cc",
         "test/waiter_test.cc",
         "test/wave_open_test.cc",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "test/driver_close_test.cc",
+        "test/worker_test.cc"
       ],
       "journal": "../Detent-wt/detent/consensus-faultfs",
       "landed": [],
@@ -3425,12 +3471,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: Overlaps quiescence/transport only in CMakeLists.txt lines and test/driver_test.cc; faultfs adds test cases, merges after them",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-20T17:25:13",
+      "updated": "2026-11-20T17:39:35",
       "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
@@ -3612,6 +3657,47 @@
       "title": "fetch_alongside_consensus fails on macos-x86_64 CI",
       "updated": "2026-11-16T21:41:06",
       "worktree": ""
+    },
+    "consensus-full-window-stall": {
+      "accepted": {},
+      "after": [
+        "consensus-quiescence"
+      ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-full-window-stall",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/types.h",
+        "test/core_test.cc",
+        "test/driver_simulation.cc",
+        "test/full_window_stall_test.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-full-window-stall",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: Root-cause work starts now; core.h overlaps consensus-quiescence, and the fix merges after it lands",
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "active",
+      "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
+      "updated": "2026-11-20T17:51:38",
+      "worktree": "../consensus-wt/detent/consensus-full-window-stall"
     },
     "consensus-heal-snapshot-stall": {
       "accepted": {
@@ -17836,17 +17922,51 @@
       "files": [
         "docs/ONLINE_CAPACITY_ARCHITECTURE.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-20T17:45:28",
+          "ci_skipped": "Docs-only change (docs/ONLINE_CAPACITY_ARCHITECTURE.md); ci.yml's paths-ignore skips docs/**, so no CI run exists for it",
+          "commit": "0d77492d62fe0069e6471ef78bd818508dcb6f6e",
+          "criteria": {
+            "A1": "[decision] D141 (PLAN.md, Detent:16afa4dd): online increases dropped; capacity raised at a coordinated restart (quest restart-capacity). Reasons: `docs/ONLINE_CAPACITY_ARCHITECTURE.md` \"Why not online\"",
+            "A2": "[artifact] `docs/ONLINE_CAPACITY_ARCHITECTURE.md`: Status \"Not planned\", the reasons, the restart-raise contract (rules 1-7), what it gives up"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "776c7f2499cc8ac01bdfcd1409b3f198006367f6",
+              "docs": [
+                "docs/LIBRARY_BOUNDARIES.md",
+                "docs/ONLINE_CAPACITY_ARCHITECTURE.md",
+                "docs/SHARED_LIBRARY_DECISIONS.md",
+                "docs/perf/namespace-measure-sync.sh"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-043325-0ce5e8",
+              "level": "light",
+              "seconds": 588.5,
+              "state": "done",
+              "what": "relay-tls-drain-flake check suite at 776c7f2499cc"
+            }
+          ],
+          "final": true,
+          "from": "9f5a619fb49c2a4b7b79007e7020b8ddc8bfde98",
+          "reason": "",
+          "tested": "0d77492d62fe0069e6471ef78bd818508dcb6f6e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "online capacity increases: build the parked blueprint or drop it",
-      "updated": "2026-11-20T16:05:28",
-      "worktree": "../Detent-wt/detent/online-capacity"
+      "updated": "2026-11-20T17:45:29",
+      "worktree": ""
     },
     "pack-scrub-hash-count": {
       "accepted": {},
