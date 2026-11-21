@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: fixing R1: waiting on jobs 261121-005956-35b60d 261121-005958-f4db38 261121-010000-fbfdbf
+State: fixing R1: waiting on jobs 261121-013716-103b97 261121-013719-2f4f8c 261121-013721-c624b5 261121-013723-a8b6ab 261121-013725-4b7677 261121-013727-e388e6 261121-013729-ec46d2 261121-013732-2cca08 261121-013733-6374c5 261121-013810-bf372c 261121-013810-c031ca 261121-013811-92c79d 261121-013811-3be523 261121-013811-05e1ad 261121-013811-df4da1
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,21 +17,18 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the jobs at consensus:b9e9fac (State): orphan passes, orphan at mutant orphan-no-wake
-   (2c9ac0cf) fails, crash prints its activated-at-recovery count (R2), the other install cases.
-2. consensus-quiescence is fixing its review (resting_ cleared on campaign/lead; a fenced leader
-   on a live node sends its peers LeaderGone). When its contributor posts that commit, redo
-   wip/install-on-quiescence on it (merge, then b9e9fac) and rerun orphan and its mutant there.
-3. When consensus-quiescence lands: merge consensus main into the quest branch (the local branch
-   wip/install-on-quiescence, 135a269, already resolves that merge: Group::notices with install,
-   arm's waiting, begin_close, CMake foreach, CHANGELOG, host-transport.md, groups_test), then
-   b9e9fac on top; rerun every job and push. Land only from that merge.
-4. Merge consensus-transport and node-admission (consensus:c669067) when they land.
+1. Read the jobs at consensus:887a88b (State): orphan 013716-103b97 passes, its mutant
+   orphan-no-wake (5acecc2) 013719-2f4f8c fails, lagging/stale+restart/groups/rejected/crash/
+   simulation and the reruns pass; CI macos-arm64 at 887a88b. Then
+   `campaign accept consensus-driver-install correctness --confirm R1=<orphan job> ...`.
+2. When consensus-quiescence lands: merge consensus main into the quest branch (the tool asks),
+   rerun every job and push. Land only from that merge.
+3. Merge consensus-transport and node-admission (consensus:c669067) when they land.
 
 ## Review (correctness, CHANGES at 740453b)
 
-- R1 (blocking, taken): consensus:b9e9fac on wip/install-on-quiescence (not pushed; it needs
-  quiescence's Timing::quiesce and Driver::leader_gone). Driver::arm wakes a group holding an
+- R1 (blocking, taken): consensus:b695665 on the quest branch, after 8c4a62f merges
+  consensus-quiescence at 3b20d96 (the earlier b9e9fac on wip/install-on-quiescence is superseded). Driver::arm wakes a group holding an
   incoming image at the channel's deadline (last frame taken + snapshot_timeout), and a timeout
   later while a whole image waits on its answer. Test `driver_install_test orphan`: quiescent,
   the leader's transfer stops after its first chunk and the leader goes; at rest node 3 drops
@@ -39,7 +36,7 @@ driver_simulation installs, groups_test install over the real host transport.
   receive timeout" and "repairs at once" fail: the reviewer's hold is real.
 - R2 (taken): the crash case counts cuts whose recovery activates a durable, not yet activated
   image. Job 261121-005959-4cf07a: 26 operations, 24 cuts, 19 old, 5 new, 1 activated at
-  recovery, 0 failures. The case now requires such a cut (wip commit after b9e9fac).
+  recovery, 0 failures. The case now requires such a cut (consensus:887a88b).
 - R3 (taken): DRIVER.md says a whole image waits for its answer however long, and that a resting
   group wakes for the receive deadline.
 - R4 (follow-up): validation and activation tokens restart per Worker; an answer for a closed
@@ -51,6 +48,11 @@ driver_simulation installs, groups_test install over the real host transport.
 ## Blocked on
 
 Nothing.
+
+msg-1 (answered): merged consensus-quiescence 3b20d96 into the quest branch as consensus:8c4a62f
+(tree = the earlier 135a269 resolution plus 3b20d96's own delta, checked by diff), then R1
+(b695665) and R2 (887a88b) on top; pushed. No visitor in this quest's files is exhaustive over
+Message, so Gone needs no arm here.
 
 msg-180 (answered): the lead ruled required install notices, one shape, and added
 test/driver_test.cc, test/driver_close_test.cc, test/wave_open_test.cc to the file set.
