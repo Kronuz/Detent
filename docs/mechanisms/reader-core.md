@@ -50,7 +50,7 @@ The Dekker pair: a reader's seq_cst increment and recheck against the publisher'
 
 ## Bounds
 
-Each handle charges two ledgers, with the defaults of main's client (`src/detent_local/view.cc`): the heap, 8 MiB (each generation's segment table, segment objects and verified bitmaps), and mapped bytes, 512 MiB (each segment mapping, rounded to pages). An attach the heap cannot hold fails with `DETENT_NO_MEMORY`, remembered like any attach failure. A cold miss past the mapped-bytes cap maps nothing and fails that lookup alone with the fallback (`DETENT_SOURCE_FAILURE`, since the page access reports admission as a source failure); the generation keeps answering from the segments it holds. Nothing is evicted: segments leave with their generation. `change` is not charged; it is mapped whole.
+Each handle charges two ledgers, with the defaults of main's client (`src/detent_local/view.cc`): the heap, 8 MiB (each generation's segment table, segment objects and verified bitmaps), and mapped bytes, 512 MiB (each segment mapping, rounded to pages). An attach the heap cannot hold fails with `DETENT_NO_MEMORY`, remembered like any attach failure. A cold miss past the mapped-bytes cap maps nothing and fails that lookup alone with the fallback and `DETENT_NO_MEMORY` (the page access raises `ReadAdmissionRefused`, a `ReadSourceFailure` to its other callers); the generation keeps answering from the segments it holds. Nothing is evicted: segments leave with their generation, as on main's client, whose default account refuses the same way. `change` is not charged; it is mapped whole.
 
 ## Fork (D10)
 

@@ -7,6 +7,12 @@
 #include <sys/types.h>
 
 namespace detent::local::detail {
+// A miss refused by the heap or mapped-bytes ledger: a source failure to every caller but the reader
+// core, which reports it as DETENT_NO_MEMORY. The generation stays usable.
+class ReadAdmissionRefused final : public ReadSourceFailure {
+  public:
+	using ReadSourceFailure::ReadSourceFailure;
+};
 enum class LazyPageWindow { BeforePreparation, PreparationCounted, PreparationBlocked, ForkWaiting, Miss, Publish, Mark };
 // Qualification hook: runs after a segment miss, before its publish and before a page's bit is set.
 // Install before any lookup, never concurrently with one.

@@ -255,9 +255,9 @@ struct PageTable::State {
 			    });
 			return bytes;
 		} catch (const d::StoragePressure &) {
-			throw ReadSourceFailure("local reader admission exhausted");
+			throw ReadAdmissionRefused("local reader admission exhausted");
 		} catch (const std::bad_alloc &) {
-			throw ReadSourceFailure("local reader allocation failed");
+			throw ReadAdmissionRefused("local reader allocation failed");
 		} catch (const std::system_error &) {
 			throw;
 		} catch (...) {

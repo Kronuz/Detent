@@ -96,6 +96,8 @@ detent_status classify(std::exception_ptr error) noexcept {
 		return DETENT_NO_MEMORY;
 	} catch (const d::StoragePressure &) {
 		return DETENT_NO_MEMORY;
+	} catch (const x::ReadAdmissionRefused &) {
+		return DETENT_NO_MEMORY;
 	} catch (const std::system_error &) {
 		return DETENT_IO;
 	} catch (...) {

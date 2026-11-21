@@ -202,7 +202,7 @@ void capped(const std::filesystem::path &store) {
 	CHECK(mapped.status == DETENT_OK && get(mapped.handle, "t:k0", DETENT_OK) == 1);
 	const auto [cold, status] = first_refused(mapped.handle);
 	std::cout << "mapped-bytes cap " << one_pack << ": " << wide_name(cold) << " " << detent_status_name(status) << "\n";
-	CHECK(cold > 0 && t::stats(mapped.handle).mapped_bytes == one_pack);
+	CHECK(cold > 0 && status == DETENT_NO_MEMORY && t::stats(mapped.handle).mapped_bytes == one_pack);
 	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
 	t::bounds(1, 0);
 	Opened heap(store);
