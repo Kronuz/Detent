@@ -960,6 +960,8 @@ bool State::close_entry(std::uint64_t payload_bytes) {
 		if (!due)
 			return false;
 		++c.ordinal;
+	} else if (c.index) {
+		++c.ordinal; // A seal entry; the enabling entry's seal 0 has no previous seal.
 	}
 	// A new policy takes effect here; a new period only where the old one divides the ordinal.
 	if (pending_) {
@@ -1784,6 +1786,9 @@ BatchResult BatchApplication::finish() {
 }
 
 namespace {
+bool carries_policy(AdministrativeKind kind) {
+	return kind == AdministrativeKind::EnablePositions || kind == AdministrativeKind::SetLayout;
+}
 void validate_administrative(const AdministrativeCommand &c, const Limits &l) {
 	require(c.context.cluster != Identity{} && c.context.group != Identity{} && c.context.epoch != Identity{},
 			"missing authority identity");
@@ -1793,6 +1798,10 @@ void validate_administrative(const AdministrativeCommand &c, const Limits &l) {
 	else if (c.kind == AdministrativeKind::SetLayout)
 		require(c.nonce == Identity{} && c.name_space.empty() && c.incarnation == Identity{},
 				"invalid layout entry");
+	else if (c.kind == AdministrativeKind::Seal)
+		require(c.nonce == Identity{} && c.name_space.empty() && c.incarnation == Identity{} &&
+					c.policy == LayoutPolicy{},
+				"invalid seal entry");
 	else
 		require(c.kind == AdministrativeKind::DropNamespace && c.nonce == Identity{} &&
 					c.incarnation != Identity{} && !c.name_space.empty() &&
@@ -1800,10 +1809,9 @@ void validate_administrative(const AdministrativeCommand &c, const Limits &l) {
 					c.policy == LayoutPolicy{},
 				"invalid namespace drop");
 	validate(c.policy);
-	require(c.kind == AdministrativeKind::DropNamespace || history::file_bytes(l, c.policy) <= history::fetch_bytes(l),
+	require(!carries_policy(c.kind) || history::file_bytes(l, c.policy) <= history::fetch_bytes(l),
 			"layout policy writes history files above a peer fetch");
 }
-bool carries_policy(AdministrativeKind kind) { return kind != AdministrativeKind::DropNamespace; }
 } // namespace
 bool is_administrative(std::string_view payload) noexcept { return payload.starts_with("DTAADM01"); }
 std::string encode(const AdministrativeCommand &c, Limits l) {
@@ -1829,7 +1837,7 @@ AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
 	AdministrativeCommand c;
 	c.context = decode_context(r);
 	auto kind = r.number();
-	require(kind >= 1 && kind <= 3, "unknown administrative kind");
+	require(kind >= 1 && kind <= 4, "unknown administrative kind");
 	c.kind = static_cast<AdministrativeKind>(kind);
 	c.nonce = r.identity();
 	c.name_space = r.text(199);
@@ -1889,6 +1897,14 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 				result_.status = Status::Conflict; // Files written across the change would outgrow a fetch.
 			else
 				candidate_.pending_ = command_.policy;
+			return complete();
+		} else if (command_.kind == AdministrativeKind::Seal) {
+			if (!source_.positions_enabled())
+				result_.status = Status::Conflict;
+			else if (!source_.seal_.transactions)
+				result_.status = Status::NoChange; // A seal applied first, or nothing changed.
+			else
+				candidate_.seal_.forced = true;
 			return complete();
 		} else {
 			auto entry = source_.namespaces_.find(name);
@@ -2136,7 +2152,7 @@ struct ImageDecoder::Impl {
 				*n = r.number();
 			c.forced = r.flag();
 			require(c.index <= applied && (s.positions_enabled() || c == SealCounters{}) &&
-						(!c.forced || !c.ordinal),
+						(c.index || !c.ordinal),
 					"invalid seal counters");
 			s.applied_ = applied;
 			s.applied_term_ = term;

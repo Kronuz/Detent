@@ -4,9 +4,9 @@
 # --fails-without, the test must fail. A build that fails exits 126, which proves nothing.
 #   owner-wake       OwnerWake::raise sets its flag but never ends a sleep    test_owner_wake
 #   authority-enqueue  Service::enqueue queues a task without a wake          test_authority_idle_wake
-#   relay-enqueue    the relay's Service::handle slots a task without a wake  test_delivery_coordinator_subscription-relay-http
+#   relay-enqueue    a slotted mirror job wakes the owner neither at enqueue nor at its answer  test_http_upstream
 #   reply-writable   OwnedReplyPump's writable callback skips the wake        test_distribution_reply_pump
-#   coordinator-disk the disk worker never settles its event on the owner     test_delivery_coordinator
+#   coordinator-disk the disk worker never settles its event on the owner     test_namespace_coordinator
 #   coordinator-work a worker job does not hold the owner's io_context as work test_delivery_worker_lifetime
 #   absence-merged   owner_absence counts from the later of the pass and the planned deadline test_owner_absence
 #   start-stop-sleep start, replay and stop sleep with no I/O in flight      test_authority_restart_wake
@@ -34,13 +34,14 @@ authority-enqueue)
 	target=test_authority_idle_wake ;;
 relay-enqueue)
 	mutate src/detent_relay/service.cc $'\tif (!task) {\n\t\tp.wake();' $'\tif (!task) {'
-	target=test_delivery_coordinator test=test_delivery_coordinator_subscription-relay-http ;;
+	mutate src/detent_relay/service.cc $'\tjob.answered = p.wake;\n' ''
+	target=test_http_upstream ;;
 reply-writable)
 	mutate src/detent_distribution_http/reply_pump.cc $'held->writable.store(true);\n\t\t\tchanged();' 'held->writable.store(true);'
 	target=test_distribution_reply_pump ;;
 coordinator-disk)
 	mutate src/detent_delivery/coordinator.cc $'work->run();\n\t\t\t\t\tasio::post(owner, [worker_done] { worker_done->set(); });' 'work->run();'
-	target=test_delivery_coordinator ;;
+	target=test_namespace_coordinator ;;
 coordinator-work)
 	mutate src/detent_delivery/coordinator.cc \
 		'asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked)' \

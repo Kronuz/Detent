@@ -1,0 +1,15 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 2959b0a2..abf2ecc2 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -402,7 +402,9 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
+ 					full->at.position < position.cursor->position)
+ 					full = nullptr;
+ 				if (full) {
+-					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
++					auto forced = full->root;
++					forced[0] ^= 1; // forced: a full copy names a root its pages do not hash to
++					auto &sent = transfers.emplace_back(d::PagesAnswer{forced, 0, full->at, full->transfer});
+ 					resume(sent, position.resume);
+ 					request.pages = &sent;
+ 					owned.push_back(std::move(full));

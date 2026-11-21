@@ -31,12 +31,12 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 void ordinals() {
 	l::Descriptor selected{};
 	selected.generation.fill('g');
-	selected.cursor.revision = 7;
+	selected.cursor.position = 7;
 	selected.ordinal = 4;
 	check(l::build_ordinal(std::nullopt, selected.cursor) == 0);
 	check(l::build_ordinal(selected, selected.cursor) == 5);
 	auto forward = selected.cursor;
-	++forward.revision;
+	++forward.position;
 	check(l::build_ordinal(selected, forward) == 0);
 	const auto again = l::next_generation(selected, selected.cursor, selected.profile, true);
 	auto next = selected;

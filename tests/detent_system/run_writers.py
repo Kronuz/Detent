@@ -185,16 +185,9 @@ async def run(arguments: argparse.Namespace) -> None:
                     relay=arguments.relays.resolve()
                     if arguments.relays is not None
                     else None,
-                    delivery_mode=arguments.delivery_mode,
                 )
                 await cohort.start()
-                await cohort.wait_selected(
-                    max(
-                        int(receipt["revision"])
-                        for receipt in writers.receipts
-                        if receipt is not None
-                    )
-                )
+                await cohort.wait_selected(cohort.positions(writers))
             baseline = writers.counts.copy()
             began = time.monotonic()
             http_initial = authority.http_activity.snapshot(reset=True)
@@ -274,15 +267,14 @@ def main() -> None:
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--agents", type=Path)
     parser.add_argument("--relays", type=Path)
-    parser.add_argument(
-        "--delivery-mode", choices=("poll", "subscription"), default="subscription"
-    )
     parser.add_argument("--local-oracle", type=Path)
     parser.add_argument("--build", type=Path, default=Path("build"))
     parser.add_argument("--certificates", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
-        "--address", default="127.0.0.1", help="IP literal every process binds and dials"
+        "--address",
+        default="127.0.0.1",
+        help="IP literal every process binds and dials",
     )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--http-workers", type=int)

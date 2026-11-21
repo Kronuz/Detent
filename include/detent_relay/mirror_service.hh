@@ -12,13 +12,16 @@
 // The relay's namespace service (W8; docs/status/namespace-s8.md, "The service"): one thread owns the
 // NamespaceRelay, so its single-thread rule holds by construction. It syncs the configured names from
 // the upstream every interval and answers the relay's HTTP routes from the mirror: W5 sessions with
-// W6 frames, and the layouts and files a downstream relay reads.
+// W6 frames, and the layouts and files a downstream relay reads. Full builds (dense distribution D7)
+// run on a second thread, one at a time, so answers keep flowing while one runs.
 namespace detent::relay {
 struct MirrorServiceOptions {
 	std::filesystem::path directory;  // the mirror's own, mode 0700
 	distribution::Identity cluster{}; // the authority's, as its cursors carry it
 	std::vector<std::string> namespaces; // the names mirrored, strictly increasing
 	std::chrono::milliseconds interval{250}, idle{60000};
+	// The longest wait after failed syncs in a row; at least `interval`.
+	std::chrono::milliseconds reconnect_maximum{30000};
 	std::uint64_t maximum_wait_ms = 30000;
 	std::size_t sessions = 1024;
 };
@@ -30,7 +33,13 @@ struct MirrorJob {
 	distribution::Identity session{};
 	std::vector<Position> positions; // Open and Next; Layouts: the names, no cursors
 	std::string name_space, name;    // File
+	// File: a range of it (D138), its offset and length (at least 1); none for the whole file.
+	std::optional<std::pair<std::uint64_t, std::uint64_t>> range;
 	bool all = false, compressed = false;
+	// Open: the session takes pages (`"pages":true`), except for the namespaces in `records`
+	// (`"records":[names]`, strictly increasing), which keep records (dense distribution D9).
+	bool pages = false;
+	std::vector<std::string> records;
 	std::uint64_t wait_ms = 0;
 	// The answer, set by the mirror thread before `done`: a JSON control body, or chunks.
 	struct Reply {
@@ -50,6 +59,7 @@ struct MirrorStatus {
 	std::uint64_t fetched_files = 0, fetched_bytes = 0, reused_files = 0, collected_files = 0;
 	std::uint64_t answers = 0, idle = 0;
 	std::size_t sessions = 0, failed_namespaces = 0;
+	PagesStats pages;
 	std::string error;
 };
 class MirrorService {

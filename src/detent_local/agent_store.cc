@@ -258,6 +258,13 @@ AgentStore::AgentStore(std::shared_ptr<c::PosixIO> io, Options options) : impl_(
 AgentStore::~AgentStore() = default;
 const StoreTable &AgentStore::table() const noexcept { return impl_->table; }
 std::span<const std::string> AgentStore::failed() const noexcept { return impl_->failed; }
+void AgentStore::fail(std::string_view name) {
+	const auto &entries = impl_->table.entries;
+	if (std::none_of(entries.begin(), entries.end(), [&](const auto &entry) { return entry.name == name; }))
+		throw std::invalid_argument("agent store has no entry to fail");
+	if (std::find(impl_->failed.begin(), impl_->failed.end(), name) == impl_->failed.end())
+		impl_->failed.emplace_back(name);
+}
 std::uint64_t AgentStore::change_word(std::size_t index) const noexcept { return impl_->change->word(index); }
 StoreUsage AgentStore::usage() const noexcept { return impl_->usage; }
 void AgentStore::adopt(const distribution::Profile &profile) { impl_->options.profile = profile; }
@@ -297,8 +304,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		b.entry.name = generation.name;
 		b.entry.cursor = generation.cursor;
 		b.entry.ordinal = generation.ordinal;
-		b.entry.generation = derive_generation(s.options.profile, generation.cursor.incarnation,
-											   generation.cursor.position, generation.base, generation.ordinal);
+		b.entry.generation = derive_generation(s.options.profile, generation.cursor, generation.base, generation.ordinal);
 		b.entry.root_length = generation.image.size();
 		b.entry.root = digest(generation.image);
 		b.entry.read = digest(generation.read);

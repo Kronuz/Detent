@@ -5,6 +5,7 @@
 #include "detent_distribution/grants.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
+#include "frames_export.hh"
 #include "namespace_sessions.hh"
 #include "node.hh"
 #include "subscription.hh"
@@ -50,6 +51,9 @@ struct ServiceOptions {
 	SubscriptionLimits subscriptions;
 	SubscriptionRequestLimits subscription_requests;
 	std::chrono::milliseconds subscription_wait{30000};
+	// The leader's idle seal (D136): changes unsealed this long get a seal entry, so a relay
+	// mirrors a quiet cluster's writes within it.
+	std::chrono::milliseconds seal_after{1000};
 	std::chrono::milliseconds timeout{5000};
 	std::optional<std::chrono::milliseconds> delivery_timeout;
 };
@@ -121,6 +125,8 @@ class Service final : public http::HttpHandler {
 		std::string name_space;
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
+		// HistoryFile: the range asked (D138), an offset and a length; none asks the whole file.
+		std::optional<std::pair<std::uint64_t, std::uint64_t>> range;
 		std::function<void(Reply)> complete;
 		// A command, read or result waits on `done` on the owner; `outcome` is set once, by complete.
 		task::event done;
@@ -130,7 +136,7 @@ class Service final : public http::HttpHandler {
 		// W5 (version 2): the followed namespaces and their stores, `all`'s directory cursor, and
 		// the group revision of the last look for changes.
 		bool frames = false, bound = false, compressed = false;
-		std::vector<std::pair<std::string, std::optional<distribution::NamespaceCursor>>> follows;
+		std::vector<Followed> follows;
 		std::optional<distribution::DirectoryCursor> all;
 		std::uint64_t looked = UINT64_MAX;
 		SessionPrincipal frames_principal;
@@ -170,7 +176,15 @@ class Service final : public http::HttpHandler {
 	void enqueue(const std::shared_ptr<Task> &task);
 	Outcome reply_for(Task &task, task::cancel_reason why);
 	Reply enveloped(Reply reply) const;
-	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::uint64_t maximum);
+	// The history file a relay reads in ranges (D138), read and checked once: held by name and the
+	// table's seal until its last range is answered, another file or seal is asked, or a range misses.
+	struct HeldFile {
+		std::string name_space, name;
+		std::uint64_t seal = 0;
+		std::string bytes;
+	};
+	static Reply history_reply(const Task &task, Node &node, LayoutExport &exporter, std::optional<HeldFile> &held,
+							   std::uint64_t maximum);
 	// Answers a submitted request through an owned stream that keeps the connection (D8).
 	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
 					 std::chrono::steady_clock::time_point outcome_deadline);

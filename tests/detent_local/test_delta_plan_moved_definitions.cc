@@ -107,8 +107,8 @@ struct Delta {
 			++changed;
 		}
 		overlay.seal();
-		auto target = cursor();
-		target.revision = 43;
+		auto target = local_cursor();
+		target.position = 43;
 		x::OverlayAssembler assembler(account, overlay, segments, live, image->root(), next, target,
 									 paged_limits);
 		while (!assembler.done()) {

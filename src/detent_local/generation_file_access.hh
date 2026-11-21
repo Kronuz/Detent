@@ -37,9 +37,9 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 // nullopt when the image it names is gone, so the table moved on and the caller reads it again.
 struct Selected {
 	Descriptor descriptor;
-	bool paged = false; // a paged root, else a flat image
 };
-std::optional<Selected> read_selected(int directory, uid_t owner);
+// The table entry `name` (D8), or the table's only entry when `name` is empty.
+std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
 	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)

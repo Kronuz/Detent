@@ -1,0 +1,13 @@
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -72,8 +72,8 @@
+ h::Changes decode_changes(const NamespaceLayout &layout, const MirrorFile &file, std::string_view bytes) {
+ 	static const auto limits = history_limits();
+ 	auto block = file.kind == MirrorFile::Kind::Block || file.kind == MirrorFile::Kind::Section
+-					 ? h::decode_block(bytes, limits)
+-					 : h::decode_base(bytes, limits);
++					 ? h::decode_block(bytes, {})
++					 : h::decode_base(bytes, {});
+ 	if (block.name_space != layout.name || block.incarnation != layout.incarnation || block.first != file.first ||
+ 		block.last != file.last)
+ 		throw d::HistoryFailure("relay mirror: a file holds another range: " + file.name);

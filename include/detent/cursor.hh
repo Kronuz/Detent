@@ -30,6 +30,9 @@ struct DirectoryCursor {
 	std::uint64_t position = 0;
 	bool operator==(const DirectoryCursor &) const = default;
 };
+// D88: a v1 cursor as a namespace cursor, until v2 sessions carry W1 cursors. The incarnation digests
+// the cluster, group, restore epoch and scope, so a reset changing any of them is a new incarnation.
+NamespaceCursor namespace_cursor(const Cursor &);
 struct Profile {
 	std::uint32_t semantic_id = 1;
 	std::uint64_t required_capabilities = 1;

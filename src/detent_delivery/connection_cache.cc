@@ -15,10 +15,6 @@ std::array<unsigned char, 32> binding(const ClientOptions &options) {
 	};
 	add(options.hostname);
 	add(options.token);
-	add({options.configured.cluster.data(), options.configured.cluster.size()});
-	add({options.configured.group.data(), options.configured.group.size()});
-	add({options.configured.restore_epoch.data(), options.configured.restore_epoch.size()});
-	add({options.configured.scope.data(), options.configured.scope.size()});
 	std::array<unsigned char, 32> result{};
 	hash.getHash(result.data());
 	return result;

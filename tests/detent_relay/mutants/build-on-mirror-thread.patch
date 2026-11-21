@@ -1,0 +1,15 @@
+diff --git a/src/detent_relay/mirror_service.cc b/src/detent_relay/mirror_service.cc
+--- a/src/detent_relay/mirror_service.cc
++++ b/src/detent_relay/mirror_service.cc
+@@ -337,9 +337,9 @@
+ 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
+ 			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
+ 						  [this](std::function<void()> task) {
++							  task(); // mutant: the build runs on the mirror thread
+ 							  std::lock_guard lock(mutex);
+-							  builds.push_back(std::move(task));
+-							  build_wake.notify_one();
++							  built = true;
+ 						  });
+ 		} catch (const std::exception &error) {
+ 			std::lock_guard lock(mutex);

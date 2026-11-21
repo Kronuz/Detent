@@ -1,79 +1,23 @@
 #include "borrowed_definition.hh"
-#include <bit>
-#include <stdexcept>
 
 namespace detent::local::detail {
-namespace {
-void require(bool ok) {
-	if (!ok)
-		throw std::runtime_error("invalid validated definition region");
-}
-} // namespace
 BorrowedDefinition BorrowedDefinition::from_paged(std::span<const char> body) {
-	return {body, {}, nullptr, paged::decode_definition_header(body, UINT64_MAX)};
+	return {body, paged::decode_definition_header(body, UINT64_MAX)};
 }
-std::int64_t BorrowedDefinition::default_value() const {
-	if (!flat_layout)
-		return paged_header.default_value;
-	return std::bit_cast<std::int64_t>(read_integer(record, 24, 8));
-}
-std::optional<std::uint8_t> BorrowedDefinition::rollout() const {
-	if (!flat_layout)
-		return paged_header.rollout;
-	if (!(read_integer(record, 44, 1) & 1))
-		return {};
-	return static_cast<std::uint8_t>(read_integer(record, 45, 1));
-}
+std::int64_t BorrowedDefinition::default_value() const { return paged_header.default_value; }
+std::optional<std::uint8_t> BorrowedDefinition::rollout() const { return paged_header.rollout; }
 std::int64_t BorrowedDefinition::rollout_value() const {
-	if (!flat_layout)
-		return paged_header.rollout_value.value_or(paged_header.default_value);
-	return std::bit_cast<std::int64_t>(read_integer(record, (read_integer(record, 44, 1) & 2) ? 48 : 24, 8));
-}
-std::string_view BorrowedDefinition::qualified_key() const {
-	if (!flat_layout)
-		return {};
-	const auto offset = read_integer(record, 0, 8), size = read_integer(record, 8, 4);
-	require(offset <= flat_layout->strings && size <= flat_layout->strings - offset);
-	const auto strings = flat_image.subspan(flat_layout->string_offset, flat_layout->strings);
-	return {strings.data() + offset, static_cast<std::size_t>(size)};
+	return paged_header.rollout_value.value_or(paged_header.default_value);
 }
 std::optional<GroupOverride> BorrowedDefinition::override_for(std::string_view key) const {
-	if (!flat_layout) {
-		std::size_t offset = paged::header_size(paged_header);
-		for (std::uint32_t i = 0; i < paged_header.overrides; ++i) {
-			const auto row = paged::read_override(record, offset);
-			if (row.key == key)
-				return row.value;
-			if (row.key > key)
-				return {};
-		}
-		return {};
+	std::size_t offset = paged::header_size(paged_header);
+	for (std::uint32_t i = 0; i < paged_header.overrides; ++i) {
+		const auto row = paged::read_override(record, offset);
+		if (row.key == key)
+			return row.value;
+		if (row.key > key)
+			return {};
 	}
-	const auto start = read_integer(record, 32, 8), count = read_integer(record, 40, 4);
-	require(start <= flat_layout->overrides && count <= flat_layout->overrides - start);
-	const auto overrides =
-		flat_image.subspan(flat_layout->override_offset + start * override_bytes, count * override_bytes);
-	const auto strings = flat_image.subspan(flat_layout->string_offset, flat_layout->strings);
-	auto name = [&](std::uint32_t ordinal) {
-		const auto row = std::uint64_t(ordinal) * override_bytes;
-		const auto start = read_integer(overrides, row, 8), size = read_integer(overrides, row + 8, 4);
-		require(start <= strings.size() && size <= strings.size() - start);
-		return std::string_view(strings.data() + start, size);
-	};
-	std::uint32_t low = 0, high = static_cast<std::uint32_t>(count);
-	while (low < high) {
-		const auto middle = low + (high - low) / 2;
-		if (name(middle) < key)
-			low = middle + 1;
-		else
-			high = middle;
-	}
-	if (low == count || name(low) != key)
-		return {};
-	const auto row = std::uint64_t(low) * override_bytes;
-	const auto kind = read_integer(overrides, row + 12, 1), value = read_integer(overrides, row + 16, 8);
-	require(kind <= 1 && (!kind || value <= 100));
-	return kind ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(value)})
-				: GroupOverride(std::bit_cast<std::int64_t>(value));
+	return {};
 }
 } // namespace detent::local::detail

@@ -1,9 +1,22 @@
 #pragma once
+#include "detent/model.hh"
 #include "paged_cursor.hh"
-#include "pinned_source.hh"
-#include "validated_flat_state.hh"
 #include "validated_paged_state.hh"
 namespace detent::local::detail {
+struct SourceNamespace {
+	std::string_view name;
+	std::uint64_t revision = 0;
+};
+struct SourceDefinition {
+	std::int64_t default_value = 0;
+	std::optional<std::uint8_t> rollout_pct;
+	std::optional<std::int64_t> rollout_value;
+	std::uint64_t override_start = 0, override_count = 0;
+};
+struct SourceOverride {
+	std::string_view name;
+	GroupOverride value;
+};
 struct StateRecord {
 	std::string_view name_space, key;
 	std::uint64_t revision = 0;
@@ -13,7 +26,6 @@ struct StateRecord {
 class StateCursor {
   public:
 	StateCursor(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
-	StateCursor(ValidatedFlatState, std::shared_ptr<distribution::StorageLedger>);
 	StateCursor(ValidatedPagedState, std::shared_ptr<distribution::StorageLedger>);
 	std::uint32_t namespace_count() const;
 	std::uint32_t record_count() const;
@@ -28,18 +40,16 @@ class StateCursor {
 	SourceOverride override_value() const;
 	void reset();
 	const Descriptor &descriptor() const noexcept { return descriptor_; }
-	static std::optional<paged::Digest> state_commitment(const RecoveredGeneration &);
-	std::optional<paged::Digest> state_commitment() const;
+	static paged::Digest state_commitment(const RecoveredGeneration &);
+	paged::Digest state_commitment() const;
 	std::optional<DirectoryIdentity> directory_identity() const;
 
   private:
 	std::optional<RecoveredGeneration> generation_;
 	Descriptor descriptor_;
-	std::optional<FlatStateRows> flat_;
 	std::optional<paged::Root> candidate_root_;
 	std::optional<PagedCursor> namespaces_, records_;
-	std::uint32_t namespace_ordinal_ = 0, record_ordinal_ = 0;
-	std::uint64_t flat_override_ = 0, remaining_overrides_ = 0;
+	std::uint64_t remaining_overrides_ = 0;
 	std::span<const char> override_bytes_;
 	std::size_t override_offset_ = 0, charge_ = 0;
 	SourceNamespace namespace_row_;

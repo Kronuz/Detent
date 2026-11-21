@@ -109,8 +109,10 @@ int main(int argc, char **argv) {
 		l::GenerationId generation{};
 		generation.fill('g');
 		l::Descriptor original;
+		d::Cursor configured; // the corpus's v1 cursor, which its deltas name
 		{
 			auto corpus = detent::bench::local_corpus(count);
+			configured = corpus.cursor;
 			d::SnapshotDecoder decoder(corpus.cursor, {"app"});
 			auto input = std::span<const char>(corpus.wire);
 			while (!input.empty()) {
@@ -141,12 +143,12 @@ int main(int argc, char **argv) {
 			limits.mapping_account = mappings;
 			auto base = l::recover_generation(directory, limits);
 			l::detail::StoreCore core(heap, {}, domain.factory());
-			core.retain_recovered(base);
+			core.retain_recovered("", base);
 			const auto mapping_baseline = mappings->used();
 			for (const unsigned changes : {0, 1, 10, 1000}) {
 				if (changes && std::uint64_t(changes - 1) * 4 >= count)
 					continue;
-				auto update = delta(original.cursor, changes, heap);
+				auto update = delta(configured, changes, heap);
 				std::optional<l::detail::PagedPlan> plan;
 				if (changes) {
 					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), domain);
@@ -166,7 +168,7 @@ int main(int argc, char **argv) {
 				}
 				auto admission =
 					domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, domain.factory());
-				admission->populate(*plan, core.verified_paged);
+				admission->populate(*plan, core.namespaces[""].verified);
 				const auto reserved = admission->reserved_bytes();
 				std::uint64_t fresh_bytes = 0;
 				std::vector<trusted_records::Segment> segments;
@@ -184,7 +186,7 @@ int main(int argc, char **argv) {
 						heap,
 						mappings,
 						limits,
-						reuse ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
+						reuse ? core.namespaces[""].verified : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						reuse ? admission : d::RetirementHandle<l::detail::MappedRecoveryAdmission>{}};
 					context.metrics = metrics;
 					const auto heap_before = heap->used(), mapped_before = mappings->used();

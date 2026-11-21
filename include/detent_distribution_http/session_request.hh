@@ -2,6 +2,7 @@
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution/retirement.hh"
+#include <array>
 #include <optional>
 
 namespace detent::distribution_http {
@@ -14,9 +15,20 @@ struct RequestLimits {
 };
 // W5: a namespace the client follows and, when it holds a store of it, where that store is
 // (under the request's cluster). No cursor: no store, or one of another cluster.
+// A followed namespace: [name], [name, incarnation, position] for a store at that cursor, or
+// [name, incarnation, position, true] for a repair, a full copy at or above that cursor (D139).
 struct NamespacePosition {
 	std::string_view name;
 	std::optional<distribution::NamespaceCursor> cursor;
+	bool repair = false;
+};
+// Dense distribution D8, next only: the page transfer the client holds a prefix of, named by its
+// namespace, root digest and `after`, and the prefix's length, a whole number of chunks. A source
+// whose answer is that transfer sends it from `offset`.
+struct TransferResume {
+	std::string_view name;
+	std::array<char, 32> root{};
+	std::uint64_t after = 0, offset = 0;
 };
 struct SessionRequest {
 	RequestKind kind;
@@ -32,6 +44,11 @@ struct SessionRequest {
 	// namespace too, with the client's directory cursor.
 	std::span<const NamespacePosition> positions;
 	std::optional<distribution::DirectoryCursor> all;
+	// Dense distribution DD3, open only: `"pages":true` lets a full copy come as a page transfer;
+	// `"records"` names, strictly increasing, are answered with records regardless.
+	bool pages = false;
+	std::span<const std::string_view> records;
+	std::optional<TransferResume> resume;
 };
 // The admitted parser arena owns every returned view until worker retirement.
 class ParsedSessionRequest final : public distribution::RetirementNode {

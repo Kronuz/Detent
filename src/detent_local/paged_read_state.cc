@@ -26,7 +26,7 @@ std::optional<BorrowedDefinition> PagedReadState::definition(std::string_view ns
 		if (!watermark || watermark->size() != 8)
 			throw ReadSourceFailure("definition namespace watermark is missing");
 		const auto revision = read_integer(*watermark, 0, 8);
-		if (revision > root.cursor.revision)
+		if (revision > root.cursor.position)
 			throw ReadSourceFailure("namespace watermark exceeds selected revision");
 		try {
 			paged::decode_definition_header(*body, revision, access->maximum_overrides());
