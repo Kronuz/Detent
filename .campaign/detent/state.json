@@ -23831,6 +23831,37 @@
       "title": "sha256 AVX2 kernel for x86_64 without SHA-NI",
       "updated": "2026-11-08T15:38:38"
     },
+    "split-consensus": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-install",
+        "consensus-quiesce-election-stall"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/**",
+        "test/**",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in consensus is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T11:42:27"
+    },
     "split-detent": {
       "accepted": {},
       "after": [
