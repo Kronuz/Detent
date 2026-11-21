@@ -137,6 +137,10 @@ Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime
 | `alpha_num`, `alpha_den` | 1 and 8 | The block limit, as a fraction of a namespace's live bytes |
 | `cap` | 2 | Disk cap, in units of the block limit |
 
+## Raising authority capacity
+
+`application_limits.keys`, `state_bytes` and `image_bytes` rise at a coordinated restart: stop every voter, set the same larger values in each one's configuration, then start them all. Recorded entries keep the limits they were written under, and relays and agents keep serving throughout; publication resumes once a quorum runs the new values. The other limits never change and no limit falls: a voter configured below what its store records refuses to start and names the field.
+
 The private managed agent configuration names the followed `namespaces` (every granted namespace when absent) and follows them over one W5 session; the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `retry_interval_ms` (default 200) and capped by `reconnect_maximum_ms` (default 30,000, or the retry interval when larger). The cap must cover the retry interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
 
 ---

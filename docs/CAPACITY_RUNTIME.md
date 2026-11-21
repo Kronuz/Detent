@@ -6,7 +6,7 @@ Authority and managed delivery configuration can set capacity without recompilin
 
 ## Authority
 
-Merge the following settings into each voter's existing private authority configuration. All voters must have identical `application_limits`; those limits participate in the replicated semantic profile.
+Merge the following settings into each voter's existing private authority configuration. All voters must have identical `application_limits`; those limits participate in the replicated semantic profile and rise only at a coordinated restart (below).
 
 ```json
 {
@@ -29,7 +29,7 @@ Merge the following settings into each voter's existing private authority config
 
 Larger application images can require more journal funding. Optional `journal_limits` forwards `hard_bytes`, `hard_entries`, `control_bytes`, `control_entries`, `replacement_bytes` and `replacement_entries` into the existing library admission pools. A replacement must fund the application image, the encoded retained suffix (`retained_state`, by default the operating defaults) and the 4096-byte publication allowance; a node that cannot refuses to start and names the shortfall. Checks use subtraction to avoid overflow. Journal admission still validates the protected pools against the hard budget; configuring a larger logical allowance does not reserve physical disk space or certify available storage.
 
-Existing groups retain their semantic-profile checks. Changing their `application_limits` remains unsupported until the versioned online capacity-transition component is implemented. Do not bypass equality checks, delete state or reinterpret old batches under new limits. Updating the executable with unchanged settings preserves existing profiles and bytes.
+An existing group raises `keys`, `state_bytes` and `image_bytes` at a coordinated restart: stop every voter, set the same larger values in each configuration, and start them all ([capacity raise](mechanisms/authority-capacity-raise.md), D141). Every recorded group, administrative entry and image keeps deciding under the limits it records, so nothing is rewritten. The other seven limits stay equal, and no limit falls: a voter configured below, or different from, what its store records refuses to start and names the field. A larger `image_bytes` needs the replacement pool to fund it (above). Voters with different limits refuse each other, so publication pauses until a quorum runs the new values; relays and agents keep serving. Updating the executable with unchanged settings preserves existing profiles and bytes.
 
 ## Managed relay and agent
 
