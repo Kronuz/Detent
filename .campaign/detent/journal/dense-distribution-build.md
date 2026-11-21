@@ -1,8 +1,11 @@
 # dense-distribution-build: journal
 
-State: waiting on jobs 261121-061035-fc6da1, 261121-061035-95aa1b, 261121-061036-4e054f,
-261121-061036-3b540f, 261121-061036-6cee8e, 261121-061036-64b5ad (5M row, strict),
-261121-061038-1ee6e6, and CI at Detent:e9bbf379.
+State: waiting on jobs 261121-062205-07f121, -062205-1b76ca, -062205-e19581, -062206-965eb3,
+-062206-9af706, -062206-a0d98c (5M row, strict), -062207-f59e01, -062220-51144b, -062223-e3ab93,
+-062225-f9c3bf, all at Detent:904836b0 (unpushed). Push Detent:904836b0 (and this journal) once CI
+run 44912555777 at Detent:e9bbf379 finishes (lead: don't cancel it); then CI at the new head.
+Next: when the brief shows only the review, write "ready for review"; keep chasing the x86_64
+relay_pages timeout from its rewrite progress prints (CI macos-x86_64 log, job -062206-965eb3).
 Quest: .campaign/detent/quests/dense-distribution-build.md (the lead's; never edit it)
 
 This journal is the v2-sessions part (former namespace-s6-v1-removal, P4 of D94) and, after it,
@@ -41,6 +44,14 @@ Round at Detent:d589ce42 (resume after the idle hours):
   compressed_answer (200K keys through an account of half the raw body); mutant
   tests/detent_relay/mutants/compressed-answer-unfitted.patch (job 261121-061038-1ee6e6). 5M rerun
   261121-061036-64b5ad. The authority's answers use the same encoder; not changed here.
+- Lead ruling (fit in one place): the fitting moved into OwnedFragmentEncoder::take()
+  (Detent:031868c1); the relay's copy is gone. take() holds a fragment that fills at most half its
+  buffer (compressed, or a short last one) at its own size and keeps the full buffer if the account
+  refuses the copy. Full raw fragments and incompressible pages are not copied. Tests by value:
+  test_frame_encoder (each fragment's held bytes) and new test_authority_frames_export_buffers (a
+  voter's 20,000-name directory answer, raw and compressed); test_relay_pages compressed_answer
+  stays. The mutant now reverts take() (Detent:904836b0); jobs -062207-f59e01 (relay),
+  -062223-e3ab93 (encoder), -062225-f9c3bf (authority); unmutated -062220-51144b, -062205-1b76ca.
 - relay-root-forced.patch no longer applied (rerun 261121-055552-cb3744 failed at `git apply`);
   rebased onto the D139 answer (Detent:ade2eeef), rerun 261121-061036-3b540f.
 - Void: 261120-164331-e1c84f and 261120-164333-a12679 ran at task journal heads that predate
@@ -290,10 +301,9 @@ cut-prefix-dropped killed; F4: 5M strict after arm; F10: d139-agent-publishes-be
 
 - New file tests/detent_relay/mutants/compressed-answer-unfitted.patch, beside the listed relay
   mutants. Lead: add it to the set.
-- The relay fits compressed fragments itself rather than OwnedFragmentEncoder shrinking its output
-  (src/detent_distribution/frame_encoder.cc is outside the set and shared with the authority). One
-  place would be better; lead: move it into the encoder's take() if the authority's answers should
-  hold compressed bytes too.
+- The lead put framing.hh in the set for take(); its body is in src/detent_distribution/
+  frame_encoder.cc, edited there, and tests/detent_distribution/test_frame_encoder.cc checks it.
+  New tests/detent_authority/test_frames_export_buffers.cc. Lead: add the three to the set.
 - website/src/content/docs/reference/http-api/authority.md is outside the file set; the docs check
   reads only the site, and the ranged route this quest added is public API, so it is documented
   there. Lead: add it to the set.
