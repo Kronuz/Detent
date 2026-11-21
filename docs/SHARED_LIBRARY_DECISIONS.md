@@ -230,9 +230,7 @@ CRC-32C compatibility names must forward to one engine immediately. Shared direc
 
 ## Online capacity snapshot admission, October 23
 
-Detent's [validated online-capacity blueprint](ONLINE_CAPACITY_ARCHITECTURE.md) needs explicit durable activation metadata and old/new application-image admission. Consensus main `61149a2` currently accepts one application format; current strata branches do not implement a compatible-format policy. Detent agrees to a minimal additive extension of the existing Worker and capture metadata, preserving current defaults, existing descriptors and old-format sourcing. The exact API and consumer/platform qualification are pending; no library behavior or production pin changes with this record.
-
-Use the finalized transport's existing authenticated per-voter state, with a bounded public readiness query only if needed. First activation requires every fixed voter under the versioned contract, not merely a quorum. Keep durable replies behind the existing synced barrier. Align the contract change with the already-approved finalized-v2 restart, with no second flag day. New image bytes require a new application-format tag; old logs retain exact profile semantics. Record each additive library commit's immutable consumer closure and test results in `LIBRARY_BOUNDARIES.md`.
+Withdrawn (D141): Detent raises capacity at a coordinated restart instead of online, so consensus needs no old/new application-image admission. See [ONLINE_CAPACITY_ARCHITECTURE.md](ONLINE_CAPACITY_ARCHITECTURE.md).
 
 ## Grouped image preparation proposal, October 25
 
