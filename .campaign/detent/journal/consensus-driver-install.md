@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: blocked on the lead: the brief still lists "check suite is not green: no job"; D57 makes CI macos-arm64 the suite (green at 740453b, run 44877138480), so run `campaign verify` or rule it covered, then ready for review
+State: fixing R1 R2 R3: waiting on jobs 261121-005956-35b60d 261121-005958-f4db38 261121-005959-4cf07a 261121-010000-fbfdbf
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,13 +17,33 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Correctness review (the lead launches it). Land after consensus-quiescence and
-   consensus-transport.
-2. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
-   land; rerun the jobs.
-3. After consensus-quiescence merges: a follower's orphaned incoming image ends only when
-   run_one sees time pass; check that a quiescent group still steps (arm a wake while an install
-   is open) so its repair is not held forever, and test it (msg-180 ruling keeps this here).
+1. Read the jobs at consensus:b9e9fac (State): orphan passes, orphan at mutant orphan-no-wake
+   (2c9ac0cf) fails, crash prints its activated-at-recovery count (R2), the other install cases.
+2. When consensus-quiescence lands: merge consensus main into the quest branch (the local branch
+   wip/install-on-quiescence, 135a269, already resolves that merge: Group::notices with install,
+   arm's waiting, begin_close, CMake foreach, CHANGELOG, host-transport.md, groups_test), then
+   b9e9fac on top; rerun every job and push. Land only from that merge.
+3. Merge consensus-transport and node-admission (consensus:c669067) when they land.
+
+## Review (correctness, CHANGES at 740453b)
+
+- R1 (blocking, taken): consensus:b9e9fac on wip/install-on-quiescence (not pushed; it needs
+  quiescence's Timing::quiesce and Driver::leader_gone). Driver::arm wakes a group holding an
+  incoming image at the channel's deadline (last frame taken + snapshot_timeout), and a timeout
+  later while a whole image waits on its answer. Test `driver_install_test orphan`: quiescent,
+  the leader's transfer stops after its first chunk and the leader goes; at rest node 3 drops
+  the image within snapshot_timeout and repairs at once. Locally, without the wake both "arms its
+  receive timeout" and "repairs at once" fail: the reviewer's hold is real.
+- R2 (taken): the crash case counts cuts whose recovery activates a durable, not yet activated
+  image ("activated at recovery"); the job reports it. If it is 0, a cut that holds activated()
+  across the restart follows.
+- R3 (taken): DRIVER.md says a whole image waits for its answer however long, and that a resting
+  group wakes for the receive deadline.
+- R4 (follow-up): validation and activation tokens restart per Worker; an answer for a closed
+  group delivered after the same id reopens could match. Needs a contract ruling (state it, or
+  salt tokens per incarnation); not a trivial change.
+- R5 (follow-up): one frame queue per group, so a second sender's Busy Begin holds the current
+  sender's Chunks until the receive timeout. Needs two concurrent leaders; per-peer queues.
 
 ## Blocked on
 
