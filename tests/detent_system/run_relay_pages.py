@@ -130,6 +130,11 @@ async def rewrite(writers: Writers, ordinals: list[int], step: int = 1) -> None:
             writers.values[ordinal] += step
 
 
+def phase(began: float, what: str) -> None:
+    """A step's elapsed time, printed as it ends, so a timed-out run shows where it stood."""
+    print(f"{what} in {time.monotonic() - began:.2f} s", flush=True)
+
+
 def check(condition: bool, what: str) -> None:
     if not condition:
         raise RuntimeError(what)
@@ -241,11 +246,15 @@ async def run(arguments: argparse.Namespace) -> None:
         try:
             began = time.monotonic()
             await rewrite(writers, ordinals)
+            phase(began, "rewritten")
             await direct.wait_selected(direct.positions(writers))
+            phase(began, "direct agent selected")
             written = time.monotonic() - began
         finally:
             os.kill(relay_process.pid, signal.SIGCONT)
+        began = time.monotonic()
         await relayed.verify(writers)
+        phase(began, "relayed agent verified")
         after = health(context, authority.address, port)["mirror"]["pages"]
         moved = logs.transfers("relayed-0")
         position, relayed_root = root(
