@@ -11874,32 +11874,7 @@
       "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-power-silent-loss": {
-      "accepted": {
-        "durability": {
-          "at": "2026-11-20T21:35:57",
-          "base": "178030b38f5617337486407e6cc35d70881a0841",
-          "blobs": {
-            "CHANGELOG.md": "100644:5e1cde0259ae1365625faafc342501439a18605e",
-            "include/journal/turn_log.h": "100644:c15555cacf94bb2dd988d53b8abcc0fb76330a75",
-            "test/turn_log_power_test.cc": "100644:71f805bc037d1d907e5470a1cf4e89cef15be94c",
-            "test/turn_log_power_vm.sh": "100755:c3fe32434b413a5c70112d8ddb7ae2659bc7aa47"
-          },
-          "by": "review",
-          "commit": "b1bf19a19c7a594b06d1a6823955b65707f9b761",
-          "criteria": "897f2ddc54ec0498",
-          "diffs": {
-            "CHANGELOG.md": "85ec8453097d55fb",
-            "include/journal/turn_log.h": "846a63719d211473",
-            "test/turn_log_power_test.cc": "2b3939f897a0c63c",
-            "test/turn_log_power_vm.sh": "64e77d4bc43ac795"
-          },
-          "findings": {},
-          "note": "",
-          "review": "5272e555eb19858902ac7ccffa1097c248395940",
-          "reviewed": "b1bf19a19c7a594b06d1a6823955b65707f9b761",
-          "verdict": "APPROVE"
-        }
-      },
+      "accepted": {},
       "after": [
         "journal-idle-groups"
       ],
@@ -11920,7 +11895,8 @@
         "include/journal/turn_log.h",
         "test/turn_log_power_test.cc",
         "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/turn_log_power_vm.sh"
       ],
       "history": [
         {
@@ -11948,12 +11924,30 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-20T21:36:16",
+          "lenses": [
+            [
+              "correctness",
+              "durability"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "durability is this quest's dominant risk lens; one reviewer by default",
+          "voided": [
+            "durability"
+          ],
+          "weakened": [
+            "lens correctness removed"
+          ]
         }
       ],
       "journal": "../Detent-wt/detent/journal-power-silent-loss",
       "landed": [],
       "lenses": [
-        "correctness",
         "durability"
       ],
       "milestone": "",
@@ -11963,7 +11957,7 @@
       "risk": "high",
       "status": "review",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-20T21:35:57",
+      "updated": "2026-11-20T21:36:16",
       "worktree": "../journal-wt/detent/journal-power-silent-loss"
     },
     "journal-reopen-closed": {
