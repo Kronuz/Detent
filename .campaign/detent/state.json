@@ -22486,9 +22486,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-19T14:07:09",
+      "updated": "2026-11-21T11:38:43",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
