@@ -4728,19 +4728,19 @@
     "consensus-leaving-removal": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T03:14:41",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T08:50:02",
+          "base": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
           "blobs": {
             "ARCHITECTURE.md": "100644:d7b35abb5ccba0c6f78e488e3961643129607d5a",
-            "CHANGELOG.md": "100644:16e3a33bb61be057ab8872945bf8917ae8c9455d",
-            "CMakeLists.txt": "100644:fc5359987bfc7f020f5bb66c6d9251ba4f179139",
-            "include/consensus/core.h": "100644:33e042b49191cc11f0b577cb406bff43ba7b34c8",
-            "include/consensus/worker.h": "100644:4820db7087c4ede807f69abd21adc572151a88d3",
-            "test/driver_mutants.py": "100644:b0581ec7ee709165688f1759ddc9a3520403609f",
-            "test/driver_replace_test.cc": "100644:29d65fc3a28e221ced97b29414f8a2ecfc954659"
+            "CHANGELOG.md": "100644:43db67a2efa4aa45c5bf4adbe45b5edbb8b2ece9",
+            "CMakeLists.txt": "100644:592b87dd98c8d0e10a63c13588f76cc875ad57c0",
+            "include/consensus/core.h": "100644:f8ac040aa2416e2733d9a49e911bc4b6744d873d",
+            "include/consensus/worker.h": "100644:807a94b1f47100f58e64d8eb5537c3a390fbc252",
+            "test/driver_mutants.py": "100644:3818f5ee980c3953081bdb6e5463425261a653e4",
+            "test/driver_replace_test.cc": "100644:3123bc643aac50d71c45f9e5ed6b89cadc9a1d45"
           },
           "by": "review",
-          "commit": "ebc3b2eb72b8215a93b6e6f33a88b7d09b5d61df",
+          "commit": "304bb1ee8e74ae373d4a728546e909ff09f15335",
           "criteria": "3185cbb9ba8e6b0e",
           "diffs": {
             "ARCHITECTURE.md": "e4f4109347ac73f6",
@@ -4748,13 +4748,13 @@
             "CMakeLists.txt": "87c13120f5a1afa9",
             "include/consensus/core.h": "b2647592c202ec35",
             "include/consensus/worker.h": "66b02463aa82c891",
-            "test/driver_mutants.py": "d3c8d98e6f54bc11",
-            "test/driver_replace_test.cc": "887e9d56f990379f"
+            "test/driver_mutants.py": "898ceca6e82e9858",
+            "test/driver_replace_test.cc": "96bd468d2f5203a4"
           },
           "findings": {},
           "note": "",
-          "review": "2a2ce093ac1a0d3d942911c1aa73c621230f2add",
-          "reviewed": "ebc3b2eb72b8215a93b6e6f33a88b7d09b5d61df",
+          "review": "684582cfb5e9a153fe7dd1cdba4dd6f6df9c7dc5",
+          "reviewed": "304bb1ee8e74ae373d4a728546e909ff09f15335",
           "verdict": "APPROVE"
         }
       },
@@ -4825,7 +4825,7 @@
       "risk": "high",
       "status": "active",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T03:14:41",
+      "updated": "2026-11-21T08:50:02",
       "worktree": "../consensus-wt/detent/consensus-leaving-removal"
     },
     "consensus-mutants-per-test": {
