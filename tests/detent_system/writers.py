@@ -47,7 +47,8 @@ class Writers:
         self.values = array("q", [0]) * records
         self.sequences = [0] * producers
         self.receipts: list[dict[str, Any] | None] = [None] * producers
-        # Each producer's namespace position (D3): one per transaction that changed a key.
+        # Each producer's namespace position (D3), as its receipts name it: a write
+        # before positions are enabled takes the global revision, not the next count.
         self.positions = [0] * producers
         self.counts: Counter[str] = Counter()
         self.latency_total = 0.0
@@ -127,8 +128,10 @@ class Writers:
         self.latency_maximum = max(self.latency_maximum, elapsed)
         self.sequences[producer] = sequence
         self.receipts[producer] = receipt
-        if receipt["status"] == "applied":
-            self.positions[producer] += 1
+        position = receipt.get("namespace_revision")
+        if type(position) is not int or position < self.positions[producer]:
+            raise RuntimeError(f"invalid producer namespace position: {receipt}")
+        self.positions[producer] = position
         applied = receipt["status"] != "capacity"
         self.counts["acknowledged" if applied else "terminal_capacity_rejections"] += 1
         return applied
@@ -196,6 +199,12 @@ class Writers:
             reply = await self.successful(
                 producer, "/v2/read", {"namespace": f"load{producer}", "keys": keys}
             )
+            if reply.get("namespace_revision") != self.positions[producer]:
+                raise RuntimeError(
+                    f"producer {producer} expects namespace position "
+                    f"{self.positions[producer]}, the authority has "
+                    f"{reply.get('namespace_revision')}"
+                )
             expected = {
                 key: {"default": self.values[ordinal]}
                 for key, ordinal in zip(keys, batch, strict=True)

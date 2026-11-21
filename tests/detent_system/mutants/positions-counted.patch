@@ -1,0 +1,15 @@
+--- a/tests/detent_system/writers.py
++++ b/tests/detent_system/writers.py
+@@ -128,10 +128,8 @@
+         self.latency_maximum = max(self.latency_maximum, elapsed)
+         self.sequences[producer] = sequence
+         self.receipts[producer] = receipt
+-        position = receipt.get("namespace_revision")
+-        if type(position) is not int or position < self.positions[producer]:
+-            raise RuntimeError(f"invalid producer namespace position: {receipt}")
+-        self.positions[producer] = position
++        if receipt["status"] == "applied":
++            self.positions[producer] += 1
+         applied = receipt["status"] != "capacity"
+         self.counts["acknowledged" if applied else "terminal_capacity_rejections"] += 1
+         return applied
