@@ -10,6 +10,8 @@
 #   coordinator-work a worker job does not hold the owner's io_context as work test_delivery_worker_lifetime
 #   absence-merged   owner_absence counts from the later of the pass and the planned deadline test_owner_absence
 #   start-stop-sleep start, replay and stop sleep with no I/O in flight      test_authority_restart_wake
+#   stop-sleep       only stop: its pre-39e5ab7e rule (sleep once retired)    test_authority_restart_wake
+#   stop-peers-sleep a multi-voter stop sleeps 1 ms per retirement visit    compare.sh stop (100k keys vs main)
 set -u
 mutant=${1:?mutant}
 build=.scratch/loop-idle-waits-mutant
@@ -52,7 +54,17 @@ absence-merged)
 start-stop-sleep)
 	mutate src/detent_authority/service.cc 'auto in_flight = [&] { return active || history_active || peers; };' \
 		'auto in_flight = [&] { return true; };'
+	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' 'if (true)'
 	target=test_authority_restart_wake ;;
+stop-sleep)
+	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' \
+		'if (!retiring || active || history_active)'
+	target=test_authority_restart_wake ;;
+stop-peers-sleep)
+	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' \
+		'if (active || history_active || peers)'
+	bench/idle-wakeups/compare.sh build "${JOB_REF_MAIN:?the baseline checkout}" || exit 126
+	exec bench/idle-wakeups/compare.sh stop "$JOB_REF_MAIN" ;;
 *)
 	echo "unknown mutant $mutant" >&2
 	exit 126 ;;

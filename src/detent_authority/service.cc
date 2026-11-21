@@ -3427,7 +3427,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			owned_node->retirement_step(budget);
 			dispatch(owned_node);
 		}
-		if (in_flight())
+		// Retirement with no I/O in flight yields, peers or not; peers poll at 1 ms once it is done.
+		const bool retiring = owned_node && !owned_node->drained();
+		if (active || history_active || (peers && !retiring))
 			co_await sleep(timer, wake_by(Clock::now() + storage_wait));
 		else
 			co_await task::yield();
