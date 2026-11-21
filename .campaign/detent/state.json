@@ -15984,7 +15984,9 @@
     "multi-voter-idle-wake": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "pin-wave",
+        "consensus-peers-wake",
+        "restart-capacity"
       ],
       "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
       "branch": "quest/detent/multi-voter-idle-wake",
@@ -15998,9 +16000,7 @@
       ],
       "consumes": [],
       "files": [
-        "src/detent_authority/service.cc",
-        "include/detent/owner_loop.hh",
-        "tests/detent_authority/**"
+        "tests/detent_authority/test_multi_voter_idle*"
       ],
       "history": [
         {
@@ -16041,7 +16041,7 @@
       "risk": "high",
       "status": "active",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-21T13:12:33",
+      "updated": "2026-11-21T13:24:35",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
