@@ -1,6 +1,6 @@
 # consensus-quiescence: journal
 
-State: review fix F7 at consensus:818fd0a, pushed; waiting on jobs 261121-014433-a0c0a0 261121-014434-5b7fb2 261121-014435-92f796 and CI 44891001761 (suite `ci:macos-arm64`), then a re-review.
+State: correctness accepted at consensus:818fd0a; CI 44891001761 green; waiting on reruns 261121-024015-623d62 024018-5e5e05 024021-b1c77f 024024-03aefd 024027-4d9c52 024029-1062db 024031-c80fa6 024033-9ca256.
 Quest: .campaign/detent/quests/consensus-quiescence.md (the lead's; never edit it)
 
 ## Doing
@@ -16,6 +16,9 @@ Correctness re-review CHANGES at 3b20d96: F7 (blocking). Fix at consensus:818fd0
   mutant/consensus-quiescence-f7): 261121-014430-84aded --fails-without. Fix 261121-014431-0a5350
   (simulation_test), 261121-014433-a0c0a0 (groups_test driver, driver_test fence_tells_peers),
   TSan 261121-014434-5b7fb2 (A3), review probe G1-G5 261121-014435-92f796.
+- Probe 261121-014435-92f796 (reviewer's probe2.cc at 818fd0a): G1 leader stepped down: no,
+  final leader 1 term 1; G2 unchanged; G4 no election. A2 groups/driver 261121-014433-a0c0a0
+  and TSan 261121-014434-5b7fb2 exit 0; CI 44891001761 green (macos-arm64 included).
 - Done: mutant 261121-014430-84aded exit 1 ("a higher-term Gone deposes no one"); fix
   261121-014431-0a5350 exit 0. The stale-Gone check also passes on the mutant: a regression
   guard (a lower term never matched), not a mutant kill.
@@ -88,16 +91,16 @@ Nothing.
 
 ## Evidence
 
-At consensus:a020e14 (consensus main bb961b3 merged). Mutant jobs ran at their mutant commits.
+At consensus:818fd0a (review fix F7). Mutant jobs ran at their mutant commits, submitted --fails-without.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Suite `ci:macos-arm64` (CI 44877489407); reopen_barriers in 261120-225122-c34e4e (36 checks, 0 failures). Core consensus:b4314e4 simulation_test `closing` cases; Driver consensus:b8de3b8 driver_close_test `reopen_barriers` (a request with the reopening recover: 2 barriers, as an open group; without the record 5; damaged bytes Corruption). Fails without: 261120-095359-890b19 (admission without the hard state) |
-| A2 | Review F1, F2 at 3b20d96: TSan 261121-012405-a27269 (`transfer`, `gone`), fix 261121-012404-fce70e (groups_test quiescent_fence, driver_test fence_tells_peers); fails without: 261121-012400-f56485 (F1), 261121-012401-85a7ab, 261121-012403-b34836 (F2). At a020e14: suite `ci:macos-arm64` (CI 44877489407); simulation and leader_gone in 261120-225122-c34e4e: 300 seeds x 10,000 steps, 150 quiescent, 14,768 LeaderGone, 20,375 node-steps at rest; driver_test leader_gone (8 groups, 16 checks); groups_test driver quiescent part (both groups led from one node rest 3 s, node stops, both elect). Fails without: leader-gone-skips-one 261120-105231-8e1e83, leader-gone-ignored 261120-105233-efd55f, node-gone-unreported 261120-110213-1b3000 |
-| A3 | TSan 261121-012405-a27269 at 3b20d96 (300 seeds, oracles clean, quiescence cases with `transfer` and `gone`). At a020e14: TSan 261120-225122-c34e4e: simulation 300 seeds x 10,000 steps (150 quiescent; 31,340 closes at rest, 16,389 reopens resumed their term, 320 records refused as stale), oracles clean; driver simulation 30 seeds x 3,000 plus the regression seed clean; reopen_barriers, leader_gone |
-| A4 | docs/perf/quiescence-idle-cpu.md. Strict 261120-225122-0760b8: 1M groups at rest over 10 s, 0.0 wakes/s, 0 handles/s, CPU 0.000 s per s, 0 group timers armed (8.3 GB peak). Strict baseline 261120-225122-5cedce: 250k with heartbeats, 1,000 wakes/s, 345,294 handles/s, 5,000,000 answers/s, 68.8 CPU-s per s, 275 us per group per s, 250k timers. The doc's 250k row (07d7c2 at 3f3f664) has the same counts and 182.8 us: CPU per group moves with the machine (this run beside 7 light holds), the counts do not. 1M heartbeat row: 261120-113151-e99e39 (167.7 us per group per s) |
-| A5 | docs/mechanisms/quiescence.md (RFTCLOS1 bytes, refusals, close and reopen rules); 261120-225122-eb821c on faultfs: close_crash 8 seeds, 926 power cuts, 1,067 table closes, 1,276 releases, after a cut the last closed state resumed its term 160 times, 464 stale, never a term back; closed_bytes 5,708.5 B open, 11.8 B per row after the range sweep; simulation_test `record_bytes`, `lone_voter`, `three_voters` in the suite |
-| A6 | docs/perf/idle-bytes.md. 261120-225123-e76794: idle row 5,719 B at its checkpoint against Xapiand's 6,984 B; owners 261120-225123-17e4ea (Worker 1,536 B, Core 1,056 B, Journal 845 B largest sites); three-voter leaders 1,306 MB RSS at 100k 261120-225123-8fede5 (deque before: 2,143 MB, 261120-111929-1f3e62 at probe 03e3b99); lone voter before 6,807 B (261120-101850-c631af at probe 7c14f40) |
+| A1 | Suite `ci:macos-arm64` (CI 44891001761 at 818fd0a, all jobs green); 261121-024018-5e5e05 (check suite); reopen_barriers 261121-024015-623d62. Core simulation_test `closing` cases; driver_close_test `reopen_barriers` (a request with the reopening recover: 2 barriers, as an open group; without the record 5; damaged bytes Corruption). Fails without: 261120-095359-890b19 (admission without the hard state) |
+| A2 | Suite `ci:macos-arm64` (CI 44891001761); 261121-014433-a0c0a0 (groups_test driver quiescent_fence, driver_test fence_tells_peers); 261121-014431-0a5350 (simulation_test quiescence `gone` with the higher-term and stale Gone cases); TSan 261121-014434-5b7fb2 (300 seeds, 150 quiescent, 14,765 LeaderGone, 18,594 node-steps at rest; driver_test leader_gone). Fails without: F7 gone-raises-term 261121-014430-84aded, F1 261121-012400-f56485, F2 261121-012401-85a7ab and 261121-012403-b34836, leader-gone-skips-one 261120-105231-8e1e83, leader-gone-ignored 261120-105233-efd55f, node-gone-unreported 261120-110213-1b3000 |
+| A3 | TSan 261121-014434-5b7fb2 at 818fd0a: simulation 300 seeds x 10,000 steps (150 quiescent) with oracles clean, quiescence cases (`transfer`, `gone`), driver simulation 30 seeds x 3,000 plus the regression seed, reopen_barriers, leader_gone |
+| A4 | docs/perf/quiescence-idle-cpu.md. Strict 261121-024021-b1c77f: 1M groups at rest. Strict baseline 261121-024024-03aefd: 250k with per-group heartbeats |
+| A5 | docs/mechanisms/quiescence.md (RFTCLOS1 bytes, refusals, close and reopen rules); 261121-024027-4d9c52 (close_crash power-cut sweep on faultfs, closed_bytes); simulation_test `record_bytes`, `lone_voter`, `three_voters` in the suite |
+| A6 | docs/perf/idle-bytes.md. 261121-024033-9ca256 (idle_bytes per row by stage); 261121-024029-1062db (heap by owner); 261121-024031-c80fa6 (three-voter leaders RSS at 100k, flights after). The doc's before rows are measurements of older code, not evidence (R17) |
 
 ## Result
 
@@ -157,3 +160,6 @@ At consensus:a020e14 (consensus main bb961b3 merged). Mutant jobs ran at their m
 - R15 A6: Peer::flights deque to vector (libc++ deque keeps a 4 KiB block per idle peer).
 - R6 Term record: the first storage batch after a reopen carries the hard state (Core::persist),
   so the reopen adds no barrier. Mutant without it fails `lone_voter` (local).
+- R17 A6's "before" rows (261120-101850-c631af at probe 7c14f40, 261120-111929-1f3e62 at probe
+  03e3b99) measure the old code: they are neither fails-without nor rerunnable at the head, so the
+  Evidence row cites only jobs at 818fd0a; the doc keeps the before numbers as context.
