@@ -5,16 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Owner rule, relayed by Xapiand's lead (2026-11-21): every source file stays under 1,000 lines; new code never adds a file over it. Files over it in journal today: 3 tests. After this quest each is split into cohesive files by moves only (no behavior change), the build and tests name the new files, and nothing over 1,000 lines remains. Proved with cpp-libraries tools/split_check.py (Xapiand's quest split-check) once it lands, else a diff that shows only moved lines.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 No source file in the repository is over 1,000 lines: a job that lists every file's line count and prints none over
+- A2 The split moves code only: split_check.py (or a moved-lines diff) over the quest's range reports no changed line: a job
+- A3 The suite and CI pass
 
 ## Contracts
 
