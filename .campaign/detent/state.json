@@ -24866,7 +24866,9 @@
       "after": [
         "consensus-driver-install",
         "consensus-quiesce-election-stall",
-        "consensus-peers-wake"
+        "consensus-peers-wake",
+        "consensus-transport-test-flakes",
+        "consensus-quiesce-election-stall"
       ],
       "checks": [
         {
@@ -24919,7 +24921,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T13:24:19"
+      "updated": "2026-11-21T13:32:16"
     },
     "split-detent": {
       "accepted": {},
