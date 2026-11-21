@@ -19449,7 +19449,10 @@
         "CMakeLists.txt",
         "README.md",
         "docs/BUILDING.md",
-        "tools/**"
+        "tools/**",
+        "tests/**/*.sh",
+        "docs/perf/*.sh",
+        "bench/**/*.sh"
       ],
       "history": [
         {
@@ -19482,13 +19485,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "dense-distribution-build"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "Detent configures with Ninja only: a configure guard refuses any other generator",
-      "updated": "2026-11-21T09:23:13"
+      "updated": "2026-11-21T09:23:23"
     },
     "observability-core": {
       "accepted": {},
