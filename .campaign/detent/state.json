@@ -5108,20 +5108,65 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-quiescence",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T08:22:35",
+          "commit": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
+          "criteria": {
+            "A1": "261121-061927-6b8145, 261121-061927-72bebe; fails without: 261120-095359-890b19",
+            "A2": "261121-061927-6b8145, 261121-061926-16fb72, 261121-061926-a74ea8; fails without: 261120-105231-8e1e83, 261120-105233-efd55f, 261120-110213-1b3000, 261121-012400-f56485, 261121-012401-85a7ab, 261121-012403-b34836, 261121-014430-84aded",
+            "A3": "261121-061927-7e5b5d",
+            "A4": "261121-061928-e967e8, 261121-061928-b22796",
+            "A5": "261121-061928-be136d",
+            "A6": "261121-061929-d1eef1, 261121-061930-822269, 261121-061929-9988cc"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9bbd6327209fa6f176d2d6819666da5dddc57451",
+          "reason": "",
+          "tested": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-20T17:45:47",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "5ebf83431d97",
+          "at": "2026-11-20T17:45:47",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From xapiand (msg-176): node-admission fixes SIGPIPE at the root (consensus:c669067). When it lands and you merge main, drop the rpc_host SIGPIPE ignore from 82cefee and its sigpipe-default mutant."
+        }
       ],
       "milestone": "M1b",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
-      "updated": "2026-11-21T08:22:16",
-      "worktree": "../consensus-wt/detent/consensus-quiescence"
+      "updated": "2026-11-21T08:22:39",
+      "worktree": ""
     },
     "consensus-replica-delete": {
       "accepted": {},
