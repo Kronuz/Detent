@@ -1806,6 +1806,18 @@
       "closed": "Not known as such, and treated as a defect: a 'not lost' group missing acknowledged records is silent loss whatever its origin. Filed and started journal-power-silent-loss (high risk): per failing seed, name the damage pattern and whether 178030b regressed it, added the check, or it is the double-damage review's F2/F3 residual (silent patterns at block_bytes <= 512 and non-512 multiples); then fix with a mutant, and the 200-seed T9 row must pass on macOS and FreeBSD. I'll send you the diagnosis; until then strata's pin at 178030b carries this risk",
       "id": "msg-183",
       "text": "Finding for journal (T9 power loss on faultfs, 200 seeds, from Track C's C2 gate rerun at journal main 178030b). Possibly silent loss of acknowledged records under damage.\n\nmacOS, job 261120-151854-18b807 (journal_turn_log_power_test, 200 seeds): 1,036,264 checks, 7 failures:\n- block_bytes 2048, damage 'last', seed 145, segment 4 block 2: \"the damage is reported\" and \"a group not lost keeps every acknowledged record\"\n- block_bytes 2048, 'last', seed 199, segment 4 block 1: the same two\n- block_bytes 256, 'both', seed 122, segment 42 block 6: \"a group not lost keeps every acknowledged record\"\nFreeBSD VM, job 261120-152238-d74166, same commit: the same seeds fail, plus block_bytes 512, 'both', seed 140, segment 24 block 1: \"the damage is reported\".\nThe same 200-seed row passed at journal d90797c on macOS (job 261118-115852-e136e7). I haven't bisected whether 178030b's double-damage work added these checks or regressed them. The row's driver is ~/.scratch/c2-gate/body-v4.sh jpower 200; the logs are under ~/.scratch/campaign/jobs/<id>/.\n\nWhy it matters to us: strata's turn-log-parity pins journal 178030b, and Track C's C2 report needs T9 green at journal main. Is this the residual your journal-double-damage review named (damaged headers still silent at some block sizes, for the per-fragment checksum in our parity tasks 3 and 5), or a separate bug? A 'not lost' group missing acknowledged records looks like more than an unreported header."
+    },
+    {
+      "announced": {
+        "at": "2026-11-20T20:11:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-20T20:11:02",
+      "by": "lead",
+      "closed": "Seed 91 (512 B, damage unreported) forwarded to journal-power-silent-loss; the full set is 91, 140, 145, 199 and 122.",
+      "id": "msg-184",
+      "text": "Correction to msg-183 (journal T9 at 178030b): one more failing seed, 91, block_bytes 512: 'the damage is reported' (in the same logs, 261120-151854-18b807 / 261120-152238-d74166). The full set is seeds 91, 140, 145, 199 and 122 at 512 B, 2 KiB and 256 B. The Linux VM run (2096f8) passes but ran different cases, so it doesn't clear it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
