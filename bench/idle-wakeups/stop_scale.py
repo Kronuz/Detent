@@ -3,7 +3,7 @@
 usage: stop_scale.py --build BUILD --label LABEL --out OUT --keys KEYS
        stop_scale.py --check OUT
 
-A run starts three voters (tests/detent_system/authority.py), writes KEYS keys into one namespace,
+A run starts three voters (tests/detent_system/authority.py), writes KEYS keys across four producers,
 waits for the followers to apply them, then SIGTERMs each follower and the leader in turn and
 records each one's seconds from the signal to exit in OUT/LABEL.json. The stop loop retires the
 state in budgeted visits of about 32 nodes, so a 1 ms sleep per visit costs seconds at 100k keys.
@@ -29,8 +29,9 @@ SOURCE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SOURCE / "tests" / "detent_system"))
 from authority import Authority
 from runtime import Actors, Evidence
+from writers import Writers
 
-BATCH = 128
+PRODUCERS = 4
 
 
 def certificates(directory: Path) -> Path:
@@ -60,38 +61,17 @@ async def run(build: Path, label: str, out: Path, keys: int) -> int:
     certs = certificates(out / "certificates")
     evidence = Evidence(root / "events.jsonl", 64 * 1024 * 1024)
     async with Actors(evidence, 120) as actors:
-        group = Authority(build / "src" / "detent-authority", certs, root, actors, 1)
+        group = Authority(
+            build / "src" / "detent-authority", certs, root, actors, PRODUCERS
+        )
         await group.start()
-        leader = await group.leader()
         started = time.monotonic()
-        for sequence, first in enumerate(range(0, keys, BATCH), start=1):
-            operations = [
-                {"key": f"load0:k{i}", "value": {"default": i}, "expected_revision": 0}
-                | (
-                    {"absent_namespace_revision": 0}
-                    if sequence == 1 and i == first
-                    else {}
-                )
-                for i in range(first, min(keys, first + BATCH))
-            ]
-            fields = {
-                "generation": 1,
-                "sequence": sequence,
-                "namespace": "load0",
-                "operations": operations,
-            }
-            status, body = 0, {}
-            for _ in range(50):
-                status, body = await group.request(leader, "/v2/transactions", fields)
-                if status == 200:
-                    break
-                await asyncio.sleep(0.05)
-                leader = await group.leader()
-            if status != 200 or body.get("status") != "applied":
-                print(f"{label}: write {sequence}: {status} {body}")
-                return 2
+        # Each producer opens its session and writes its share in batches of 128.
+        writers = Writers(group, keys, PRODUCERS, 0)
+        await asyncio.gather(*(writers.prepare(p) for p in range(PRODUCERS)))
         wrote = time.monotonic() - started
         await asyncio.sleep(3)  # the followers apply
+        leader = await group.leader()
         stops = []
         for index in [i for i in range(3) if i != leader] + [leader]:
             member = group.members[index]
@@ -142,9 +122,9 @@ def main() -> int:
     arguments = parser.parse_args()
     if arguments.check:
         return check(arguments.out)
-    return asyncio.run(
-        run(arguments.build, arguments.label, arguments.out, arguments.keys)
-    )
+    # The voters run in their own directories, so their configuration needs absolute paths.
+    build, out = arguments.build.resolve(), arguments.out.resolve()
+    return asyncio.run(run(build, arguments.label, out, arguments.keys))
 
 
 if __name__ == "__main__":
