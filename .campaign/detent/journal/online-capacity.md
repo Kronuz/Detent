@@ -1,37 +1,26 @@
 # online-capacity: journal
 
-State: ready for review
+State: ready to land
 Quest: .campaign/detent/quests/online-capacity.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing: the ruling is written; it waits on the lead's decision id and the owner's confirmation.
+Nothing.
 
 ## Next
 
-1. Lead: record the decision (proposed text below) in PLAN.md Decisions; ask the owner the
-   question under "Blocked on"; file `restart-capacity` if he agrees.
+1. Lead: land.
 
 ## Blocked on
 
-Owner (via lead), because it narrows a documented capability and withdraws a shared-library
-agreement (both reserved decisions):
-
-- Q1. Drop online capacity increases and replace them with a raise at a coordinated restart?
-  Options: (a) drop online, build the restart raise (recommended); (b) build the online
-  blueprint (redesign first: it predates namespace history); (c) drop both: a raise is then
-  RC-4's new-epoch restore, with agent reset and new producer sessions.
-  What users lose with (a): a raise without a publication pause. Reads never pause.
-  Promised where: `docs/CAPACITY_RUNTIME.md:32`, `docs/CAPACITY_QUALIFICATION.md:26,30,70`,
-  `docs/status/README.md:33`, startup-runtime-capacity A3 ("online profile activation"), and the
-  October 23 agreement with the shared libraries, `docs/SHARED_LIBRARY_DECISIONS.md:231`
-  (consensus Worker two-format admission). No website page promises it.
+Nothing. Q1 answered (a) by the owner: D141 (Detent:16afa4dd); `restart-capacity` filed;
+the `SHARED_LIBRARY_DECISIONS.md:231` agreement withdrawn by the lead. Main merged.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [decision] Proposed for PLAN.md Decisions (the lead assigns the id): "Online capacity increases are not planned: a group raises `keys`, `state_bytes` and `image_bytes` at a coordinated restart, each replicated entry applying under the limits it carries. Online growth costs a replicated command, a new image version and a shared consensus Worker change to avoid a pause of publication only; ceilings are bounds, not reservations. By: owner (scope), lead (quest)." Reasons: `docs/ONLINE_CAPACITY_ARCHITECTURE.md` "Why not online" |
+| A1 | [decision] D141 (PLAN.md, Detent:16afa4dd): online increases dropped; capacity raised at a coordinated restart (quest restart-capacity). Reasons: `docs/ONLINE_CAPACITY_ARCHITECTURE.md` "Why not online" |
 | A2 | [artifact] `docs/ONLINE_CAPACITY_ARCHITECTURE.md`: Status "Not planned", the reasons, the restart-raise contract (rules 1-7), what it gives up |
 
 ## Result
