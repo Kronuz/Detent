@@ -13587,6 +13587,36 @@
       "updated": "2026-11-18T00:52:38",
       "worktree": ""
     },
+    "journal-tail-cut-header-design": {
+      "accepted": {},
+      "after": [
+        "journal-tail-second-sector"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
+      "updated": "2026-11-21T11:53:49"
+    },
     "journal-tail-second-sector": {
       "accepted": {},
       "after": [
