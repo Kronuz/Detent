@@ -528,6 +528,23 @@ void repair_floor(const std::filesystem::path &scratch) {
 				 static_cast<unsigned long long>(copy_at.position), static_cast<unsigned long long>(head.position));
 }
 
+// A base above the authority's default records limit (500K keys): the relay answers what its
+// authority wrote, as records and as pages (the 5M row's 1.25M-key namespaces).
+void large_base(const std::filesystem::path &scratch) {
+	prepare(scratch / "large");
+	Upstream up;
+	constexpr std::size_t keys = 500001;
+	up.create("app", keys);
+	const std::vector<std::string> names{"app"};
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "large", 0644), cluster, up);
+	relay.sync(names);
+	const auto records = decode(answer(relay, {{"app", std::nullopt, false}}));
+	check(records.size() == 1 && records[0].kind == d::FrameKind::FullCopy && records[0].records == keys);
+	const auto pages = decode(answer(relay, {{"app", std::nullopt, true}}));
+	check(pages.size() == 1 && pages[0].kind == d::FrameKind::Pages && pages[0].to == *relay.head("app"));
+	std::fprintf(stderr, "large base: %zu keys as records and as %zu page bytes\n", keys, pages[0].transfer.size());
+}
+
 // The mirror reads records only: a pages frame from its upstream fails the sync, unretried.
 void mirror_refuses(const std::filesystem::path &scratch) {
 	prepare(scratch / "refuses");
@@ -653,6 +670,7 @@ int main(int argc, char **argv) {
 		answer_owns(scratch);
 		resume_and_roots(scratch);
 		repair_floor(scratch);
+		large_base(scratch);
 		mirror_refuses(scratch);
 		service_builds_aside(scratch, 100000);
 	} catch (const std::exception &error) {

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <deque>
+#include <limits>
 #include <mutex>
 
 namespace detent::relay {
@@ -60,11 +61,19 @@ class Tiers {
   protected:
 	~Tiers() = default;
 };
+// A relay mirrors whatever its authority wrote: a file's change count is not bounded by the
+// default records limit (500K keys), as a relay build's records are not (page_copy.cc).
+authority::Limits history_limits() {
+	authority::Limits limits;
+	limits.keys = std::numeric_limits<std::uint32_t>::max();
+	return limits;
+}
 // A mirrored file's changes, checked against the layout that names it.
 h::Changes decode_changes(const NamespaceLayout &layout, const MirrorFile &file, std::string_view bytes) {
+	static const auto limits = history_limits();
 	auto block = file.kind == MirrorFile::Kind::Block || file.kind == MirrorFile::Kind::Section
-					 ? h::decode_block(bytes, {})
-					 : h::decode_base(bytes, {});
+					 ? h::decode_block(bytes, limits)
+					 : h::decode_base(bytes, limits);
 	if (block.name_space != layout.name || block.incarnation != layout.incarnation || block.first != file.first ||
 		block.last != file.last)
 		throw d::HistoryFailure("relay mirror: a file holds another range: " + file.name);
