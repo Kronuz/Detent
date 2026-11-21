@@ -3391,6 +3391,8 @@
         "peers-tsan-timeout",
         "driver-apply-gap"
       ],
+      "base": "8801b99025ba4f094e2566e7284d76b5b119a8b0",
+      "branch": "quest/detent/consensus-faultfs",
       "checks": [
         {
           "cmd": "mkdir -p .scratch && cmake -S . -B .scratch/build -G Ninja >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --stop-on-failure",
@@ -3417,16 +3419,19 @@
         "test/wave_open_test.cc",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/consensus-faultfs",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Overlaps quiescence/transport only in CMakeLists.txt lines and test/driver_test.cc; faultfs adds test cases, merges after them",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
-      "updated": "2026-11-18T12:58:30"
+      "updated": "2026-11-20T17:25:13",
+      "worktree": "../consensus-wt/detent/consensus-faultfs"
     },
     "consensus-fetch-lane": {
       "accepted": {
