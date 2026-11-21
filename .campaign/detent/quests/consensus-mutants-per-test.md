@@ -31,3 +31,5 @@ everything waits for the review; `land --upto` refuses then.>
 
 <The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
 after T0)`. Each merges into the quest branch on its own tests.>
+
+- 2026-11-21, msg-190 (xapiand track-c-gates, consensus 8801b99, tools/mutants.sh BUILD 400 10000, 16/16 killed each): per-mutant seconds in mutants.sh order. macOS 261120-151941-ce0b7a (2,616 s): 91 115 173 107 163 114 91 105 160 81 428 106 190 254 211 224 (longest "repair ignores the term at the base boundary" 428). Linux VM 261120-200605-743b1d (1,900 s): 127 122 175 132 116 117 110 117 114 100 110 107 100 100 111 140. FreeBSD VM 261120-200607-b7499c (1,764 s): 113 95 94 102 98 94 98 109 140 135 123 122 100 104 114 121. Size per-mutant TIMEOUTs from these (about 2x the slowest platform per mutant).
