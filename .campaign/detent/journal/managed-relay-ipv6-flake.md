@@ -1,6 +1,6 @@
 # managed-relay-ipv6-flake: journal
 
-State: working
+State: waiting on jobs 261121-131440-d68a15 261121-131903-946009 261121-131904-868125
 Quest: .campaign/detent/quests/managed-relay-ipv6-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Reading the three failed CI runs' artifacts (downloaded to /Users/kronuz/code/Kronuz/Detent/.scratch/managed-relay-ipv6-flake/<run>/). Findings so far:
+- All three: `managed agent 0 did not converge` after the 30 s selection_timeout (managed.py wait_selected); the same CI run also failed test_system_managed_poll (44869473548) or test_system_managed_relay (44877822656), so it is load on the macos-x86_64 runner (4 vCPU, ctest --parallel 2), not IPv6.
+- events.jsonl: both relays get the first bundle, agents publish the seed, then ~6.5 s into the 12 s write phase every relay request to the leader hits `delivery network deadline` (client timeout_ms 2000), then two `not_leader` (the followers), repeating every ~2.2 s until the test ends, long after the writers stop. Leader health: 16 writer requests in flight (reserved_body_bytes 4 MiB), publisher_admitted_to_ready max reaches 2.0 s, distribution_export_disconnected climbs.
+- Open question: why the relay never recovers once writers stop. Needs the local reproduction.
+Build + repro jobs queued behind an exclusive hold; stress script /Users/kronuz/code/Kronuz/Detent/.scratch/managed-relay-ipv6-flake/stress.sh COPIES ROUNDS BURNERS.
 
 ## Next
 
-1. <step>
+1. When 261121-131903-946009 (unloaded x20) and 261121-131904-868125 (4 copies x8 + 4 burners) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
 
 ## Blocked on
 
