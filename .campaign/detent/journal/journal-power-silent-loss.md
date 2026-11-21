@@ -5,7 +5,7 @@ Quest: .campaign/detent/quests/journal-power-silent-loss.md (the lead's; never e
 
 ## Doing
 
-Nothing: every criterion has its evidence at journal:b1bf19a.
+Nothing: every criterion has its evidence; head journal:0465f24 adds docs/mechanisms/turn-log-damage.md.
 
 ## Next
 
@@ -19,10 +19,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Result below (diagnosis per seed; old-code replay of the five seeds) |
+| A1 | `docs/mechanisms/turn-log-damage.md` (journal:0465f24): the rules and the seed that pins each; per-seed diagnosis and old-code replay in Result below |
 | A2 | 261120-201510-15f224 (all five seeds pass at dbab658); 261120-201511-64af67 (200 seeds, macOS: 1,036,264 checks, 0 failures; 241,462 crash points, none read as damage); 261120-203145-d7fbda (FreeBSD VM, 200 seeds at b1bf19a: 1,036,264 checks, 0 failures) |
-| A3 | 261120-201407-d594b9 (seed 91 @512 fails at 4b9166f, test only); 261120-201509-96e66d (seed 145 @2048 fails at e77d17b, tail fix only) |
-| A4 | CI run 44865755870 at b1bf19a: success (macos-arm64, macos-x86_64, freebsd, linux gcc/clang/arm64, asan-ubsan, tsan) |
+| A3 | 261120-213718-c759f2 (seeds 91 @512 and 145 @2048 pass at 0465f24); fails without: 261120-201407-d594b9 (at 4b9166f, test only), 261120-201509-96e66d (at e77d17b, tail fix only) |
+| A4 | ci:macos-arm64 (run 44865755870 green at b1bf19a; the run at 0465f24, a docs-only change, is pending) |
 
 msg-183: the five failing seeds (91, 140, 145, 199, 122; msg-184's 91 included) are diagnosed and
 fixed below.
@@ -64,6 +64,6 @@ Neither cause is F2 or F3. Test: turn_log_power_test takes SEEDS FIRST_SEED BLOC
   2^-32 per tear) is reported as damage and costs groups. It never loses data. I chose this over
   dropping the length bytes from the test's 'last' pattern, which would document the silent loss
   as a limit instead of fixing it.
-- No turn-log recovery mechanism doc exists, so the rules are in turn_log.h comments and the
-  CHANGELOG. mutants.py is outside the file set, so the mutants are --fails-without jobs at the
+- The rules are in docs/mechanisms/turn-log-damage.md, turn_log.h comments and the CHANGELOG.
+  mutants.py is outside the file set, so the mutants are --fails-without jobs at the
   pre-fix commits.
