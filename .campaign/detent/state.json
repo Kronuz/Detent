@@ -11863,7 +11863,50 @@
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-20T23:34:18",
+          "base": "178030b38f5617337486407e6cc35d70881a0841",
+          "blobs": {
+            "CHANGELOG.md": "100644:cc8a0434ae545385ffb67f83e59b32613cb2ea9e",
+            "docs/mechanisms/host-ranges.md": "100644:4ced1ae0a353b26f447048b0161a968241b7cc8b",
+            "include/journal/host.h": "100644:071fab55d96f140786edd0bc7297076ca5b6f6d4",
+            "test/host_test.cc": "100644:4461c042932a36d53033899f4a1e25229ed73bd4"
+          },
+          "by": "review",
+          "commit": "4748481ef3ad1f43e1848cdb6395d22260d2ae42",
+          "criteria": "93c40e9a61981955",
+          "diffs": {
+            "CHANGELOG.md": "57da62432d9665b6",
+            "docs/mechanisms/host-ranges.md": "1367785ebe1fce4d",
+            "include/journal/host.h": "b021ad085ed00817",
+            "test/host_test.cc": "816c47e5e1ebf76b"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c '.scratch/debug/journal_host_test loop_handoff && .scratch/debug/journal_host_test handoff_scope && .scratch/debug/journal_host_test handoff_close && .scratch/debug/journal_host_test'",
+                  "commit": "4748481ef3ad1f43e1848cdb6395d22260d2ae42",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261120-230045-01aa40",
+                  "level": "light",
+                  "seconds": 14.4,
+                  "state": "done",
+                  "what": "debug host_test: handoff passes, old owner aborts, scope"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "f92206c29814ef17e603e2e07440ea290f7155ef",
+          "reviewed": "87d4382e6f4b65914317d9c889921e63a11b56ab",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "journal-idle-groups"
       ],
@@ -11914,7 +11957,9 @@
       ],
       "journal": "../Detent-wt/detent/journal-loop-handoff",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -11922,7 +11967,7 @@
       "risk": "normal",
       "status": "review",
       "title": "A loop's range table moves to another thread by an explicit owner handoff",
-      "updated": "2026-11-20T22:43:23",
+      "updated": "2026-11-20T23:34:18",
       "worktree": "../journal-wt/detent/journal-loop-handoff"
     },
     "journal-power-silent-loss": {
