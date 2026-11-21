@@ -37,7 +37,8 @@ std::string member(const rapidjson::Value &object, const char *name) {
 	require(object.HasMember(name) && object[name].IsString() && object[name].GetStringLength() <= 255);
 	return {object[name].GetString(), object[name].GetStringLength()};
 }
-// `{"namespaces": [...]}` or `{"namespace": ..., "name": ...}`, nothing else.
+// `{"namespaces": [...]}` or `{"namespace": ..., "name": ...}`, the latter with a range (D138),
+// `"offset"` and `"length"` together, or without; nothing else.
 void parse_history(std::string_view path, std::string_view body, MirrorJob &job) {
 	rapidjson::Document json;
 	json.Parse<rapidjson::kParseValidateEncodingFlag>(body.data(), body.size());
@@ -52,11 +53,17 @@ void parse_history(std::string_view path, std::string_view body, MirrorJob &job)
 		}
 		return;
 	}
-	require(json.MemberCount() == 2);
+	const bool ranged = json.HasMember("offset");
+	require(json.MemberCount() == (ranged ? 4 : 2));
 	job.kind = MirrorJob::Kind::File;
 	job.name_space = member(json, "namespace");
 	job.name = member(json, "name");
 	require(d::valid_namespace_name(job.name_space) && !job.name.empty());
+	if (ranged) {
+		require(json["offset"].IsUint64() && json.HasMember("length") && json["length"].IsUint64() &&
+				json["length"].GetUint64() > 0);
+		job.range.emplace(json["offset"].GetUint64(), json["length"].GetUint64());
+	}
 }
 } // namespace
 struct ServiceRuntime::Impl {

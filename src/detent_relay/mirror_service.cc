@@ -57,6 +57,14 @@ struct MirrorService::Impl {
 		Clock::time_point deadline;
 	};
 	std::vector<Parked> parked;
+	// The file a downstream reads in ranges (D138), read once and held until its last range or
+	// another file is asked.
+	struct HeldFile {
+		std::string name_space;
+		MirrorFile file;
+		std::string bytes;
+	};
+	std::optional<HeldFile> held;
 	// The builder thread's tasks, under `mutex`; `built` tells the mirror thread one finished.
 	std::deque<std::function<void()>> builds;
 	std::condition_variable build_wake;
@@ -230,7 +238,24 @@ struct MirrorService::Impl {
 				control(job, 404, "{\"error\":\"not_found\"}");
 				break;
 			}
-			stream(job, "application/octet-stream", relay->fetch(job.name_space, *file));
+			if (!job.range) {
+				stream(job, "application/octet-stream", relay->fetch(job.name_space, *file));
+				break;
+			}
+			// A range answers at most its length from its offset, fewer at the file's end; 416 at or
+			// past the end.
+			const auto [offset, length] = *job.range;
+			if (offset >= file->size) {
+				held.reset();
+				control(job, 416, "{\"error\":\"range_not_satisfiable\"}");
+				break;
+			}
+			if (!held || held->name_space != job.name_space || held->file != *file)
+				held = HeldFile{job.name_space, *file, relay->fetch(job.name_space, *file)};
+			const auto count = std::min(length, file->size - offset);
+			stream(job, "application/octet-stream", std::string_view(held->bytes).substr(offset, count));
+			if (offset + count == file->size)
+				held.reset();
 			break;
 		}
 		}

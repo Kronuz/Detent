@@ -4,14 +4,24 @@
 // exact: a file several times the bound mirrors byte for byte, also when the relay asks ranges longer
 // than the bound; a file within one range is one whole request.
 // resume: an answer cut mid-file is asked again and no verified range is fetched twice, within one
-// fetch and across a fetch that failed; a damaged range fails the digest and drops the prefix.
+// fetch and across a fetch that failed (a 503 or no answer); a damaged range fails the digest and drops
+// the prefix.
 // backoff: a sync that keeps failing waits longer each time up to its bound, and reports its error.
+// chain: relay B mirrors relay A over HTTPS, reading A's base several ranges long in ranges, byte for
+// byte; A answers a range from its offset, fewer bytes at the file's end.
 //
 //    test_http_upstream CERTIFICATES
+#include "detent/owner_loop.hh"
 #include "detent_relay/http_upstream.hh"
 #include "detent_relay/mirror_service.hh"
+#include "detent_relay/service.hh"
+#include "history_format.hh"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
+#include <cstring>
+#include <future>
+#include <http_asio.h>
+#include <http_asio_tls.h>
 #include <iostream>
 #include <mutex>
 #include <rapidjson/document.h>
@@ -94,17 +104,19 @@ class FileServer {
 		cut_.clear();
 	}
 	// The next answers, counted from now: the `cut`-th is cut halfway, the `damaged`-th has a byte
-	// flipped, and from the `down`-th on every request answers 503.
-	void plan(int cut, int damaged = -1, int down = -1) {
+	// flipped, from the `down`-th on every request answers 503, and from the `silent`-th on every
+	// answer is cut.
+	void plan(int cut, int damaged = -1, int down = -1, int silent = -1) {
 		std::lock_guard lock(mutex_);
 		answered_ = 0;
 		cut_at_ = cut;
 		damaged_at_ = damaged;
 		down_at_ = down;
+		silent_at_ = silent;
 	}
 	void up() {
 		std::lock_guard lock(mutex_);
-		down_at_ = -1;
+		down_at_ = silent_at_ = -1;
 	}
 	std::exception_ptr failure;
 
@@ -157,7 +169,7 @@ class FileServer {
 		if (index == damaged_at_)
 			bytes[bytes.size() / 2] ^= 0x40;
 		auto out = reply("200 OK", "application/octet-stream", bytes);
-		if (index == cut_at_) {
+		if (index == cut_at_ || (silent_at_ >= 0 && index >= silent_at_)) {
 			cut_.push_back(sent.offset);
 			return {out, out.size() - bytes.size() / 2};
 		}
@@ -195,7 +207,7 @@ class FileServer {
 	std::vector<Served> served_;
 	std::vector<std::uint64_t> cut_;
 	unsigned answered_ = 0;
-	int cut_at_ = -1, damaged_at_ = -1, down_at_ = -1;
+	int cut_at_ = -1, damaged_at_ = -1, down_at_ = -1, silent_at_ = -1;
 	std::atomic<bool> stop_{false};
 	std::jthread thread_;
 };
@@ -312,6 +324,20 @@ void resume(Fixture &f) {
 		check(f.server->served() == ranges(bytes.size(), bound, bound, 2 * bound));
 		check(upstream.stats().resumed == 1 && upstream.stats().fetched_bytes == bytes.size());
 	}
+	// The source stops answering after two ranges (every answer cut): the same, a lost answer kept
+	// apart from a 503.
+	{
+		f.server->clear();
+		auto upstream = f.upstream(bound);
+		f.server->plan(-1, -1, -1, 2);
+		refuses<r::UpstreamUnavailable>([&] { upstream.fetch("ns", file); });
+		check(f.server->served() == ranges(2 * bound, bound, bound));
+		f.server->clear();
+		f.server->up();
+		check(upstream.fetch("ns", file) == bytes);
+		check(f.server->served() == ranges(bytes.size(), bound, bound, 2 * bound));
+		check(upstream.stats().resumed == 1 && upstream.stats().fetched_bytes == bytes.size());
+	}
 	// A damaged range fails the file's digest: the prefix is dropped and the next fetch starts over.
 	{
 		f.server->clear();
@@ -395,6 +421,164 @@ void backoff(const std::filesystem::path &root) {
 			  << std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started).count()
 			  << " ms (bound " << bound_calls << "), error \"" << status.error << "\"\n";
 }
+// A voter's history for the chain: one namespace, a base of `keys` real records.
+class Voter final : public r::Upstream {
+  public:
+	explicit Voter(std::size_t keys) {
+		namespace h = detent::authority::history;
+		h::Block base{"ns", identity('i'), 0, keys, {}};
+		for (std::size_t i = 0; i < keys; ++i) {
+			char key[16];
+			std::snprintf(key, sizeof key, "ns:k%06zu", i);
+			const detent::KnobDef definition{std::int64_t(i)};
+			base.changes.push_back({key, i + 1, detent::authority::encode_definition(definition)});
+		}
+		bytes = h::encode_base(base);
+		file = {r::MirrorFile::Kind::Base, "base-ns-" + std::to_string(keys), 0, keys, bytes.size(), sha(bytes)};
+	}
+	r::MirrorTable layouts(std::span<const std::string>) override {
+		return {0, 2, {{"ns", identity('i'), 2, 2, file.last, "policy-1", {file}}}};
+	}
+	std::string fetch(std::string_view, const r::MirrorFile &) override { return bytes; }
+	std::string frames(std::span<const r::Position>) override { return d::encode_session_frames(std::nullopt, {}); }
+	std::string bytes;
+	r::MirrorFile file;
+};
+
+// Relay A as the relay host runs it: its mirror of the voter behind ServiceRuntime and the HTTPS
+// listener, the runtime stepped on its owner loop, torn down in the host's phases.
+class RelayA {
+  public:
+	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys) : voter_(new Voter(keys)) {
+		bytes = voter_->bytes;
+		file = voter_->file;
+		prepare(root);
+		r::MirrorServiceOptions options;
+		options.directory = root;
+		options.cluster = identity('c');
+		options.namespaces = {"ns"};
+		options.interval = 10ms;
+		auto ledger = [](std::size_t limit) { return std::make_shared<d::StorageLedger>(limit); };
+		mirror_ = std::make_shared<r::MirrorService>(options, std::unique_ptr<r::Upstream>(voter_), ledger(1 << 30));
+		r::ConfiguredCredential credential;
+		const auto digest = sha(token);
+		std::memcpy(credential.token_hash.data(), digest.data(), digest.size());
+		credential.principal.identity[0] = 'b';
+		const std::string_view patterns[]{"ns"};
+		credential.namespaces = std::make_shared<const d::NamespaceGrants>(patterns);
+		auto registry = std::make_shared<r::Registry>(ledger(1 << 20), std::span(&credential, 1));
+		runtime_ = std::make_shared<r::ServiceRuntime>(
+			r::ServiceAccounts{ledger(1 << 20), {ledger(1 << 24), ledger(1 << 24), ledger(1 << 20)}}, registry,
+			mirror_);
+		facade_ = std::make_unique<r::Service>(runtime_);
+		auto tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+		reactor::tls::configure(*tls,
+								{(f.certificates / "one.pem").string(), (f.certificates / "one.key").string(),
+								 (f.certificates / "ca.pem").string()},
+								reactor::tls::Role::Server);
+		listener_ = std::make_unique<http::HttpAsioService>(*facade_, 1, 64, http::tls_connection_factory(tls), 64);
+		http::AsioBindOptions bind;
+		bind.address = "127.0.0.1";
+		listener_->set_bind_options(bind);
+		listener_->start(0);
+		turn_ = [this] {
+			const bool progress = runtime_->step(Clock::now());
+			if (stopped_ && runtime_->drained()) {
+				drained_.set_value();
+				return;
+			}
+			if (progress) {
+				asio::post(owner_.io(), turn_);
+				return;
+			}
+			tick_.expires_after(1ms);
+			tick_.async_wait([this](const asio::error_code &error) {
+				if (!error)
+					turn_();
+			});
+		};
+		asio::post(owner_.io(), turn_);
+	}
+	~RelayA() {
+		runtime_->close();
+		mirror_->close();
+		listener_->stop();
+		asio::post(owner_.io(), [this] { stopped_ = true; });
+		drained_.get_future().wait_for(10s);
+		owner_.stop();
+		listener_->close();
+		owner_.close();
+		listener_->destroy_roots();
+		owner_.destroy_roots();
+		facade_.reset();
+		runtime_.reset();
+		mirror_.reset();
+	}
+	std::uint16_t port() const { return listener_->port(); }
+	r::MirrorStatus status() const { return mirror_->status(); }
+	static constexpr std::string_view token = "0123456789abcdef0123456789abcdef";
+	std::string bytes;
+	r::MirrorFile file;
+
+  private:
+	Voter *voter_; // owned by the mirror
+	std::shared_ptr<r::MirrorService> mirror_;
+	std::shared_ptr<r::ServiceRuntime> runtime_;
+	std::unique_ptr<r::Service> facade_;
+	detent::OwnerLoop owner_;
+	asio::steady_timer tick_{owner_.io()};
+	std::unique_ptr<http::HttpAsioService> listener_;
+	std::function<void()> turn_;
+	bool stopped_ = false;
+	std::promise<void> drained_;
+};
+
+template <class Done> void until(Done done, const char *what) {
+	for (const auto limit = Clock::now() + 30s; !done(); std::this_thread::sleep_for(1ms))
+		if (Clock::now() > limit)
+			throw std::runtime_error(std::string("timed out waiting for ") + what);
+}
+
+void chain(Fixture &f, const std::filesystem::path &root) {
+	constexpr std::size_t range = 4096;
+	RelayA a(f, root / "a", 2000);
+	until([&] { return a.status().ready; }, "relay A's first sync");
+	check(a.file.size > 4 * range);
+	auto options = [&](std::size_t bytes) {
+		r::HttpUpstreamOptions o;
+		o.endpoints.emplace_back(asio::ip::address_v4::loopback(), a.port());
+		o.hostname = "localhost";
+		o.token = std::string(RelayA::token);
+		o.tls = f.client;
+		o.timeout = 5000ms;
+		o.range_bytes = bytes;
+		return o;
+	};
+	// One reader: the ranges join into the file, the last one shorter.
+	{
+		r::HttpUpstream upstream(options(range));
+		check(upstream.fetch("ns", a.file) == a.bytes);
+		const auto stats = upstream.stats();
+		check(stats.ranges == (a.file.size + range - 1) / range && stats.fetched_bytes == a.file.size);
+	}
+	// Relay B mirrors A: the file on its disk is the voter's, byte for byte.
+	prepare(root / "b");
+	r::MirrorServiceOptions b;
+	b.directory = root / "b";
+	b.cluster = identity('c');
+	b.namespaces = {"ns"};
+	b.interval = 10ms;
+	r::MirrorStatus status;
+	{
+		r::MirrorService relay(b, std::make_unique<r::HttpUpstream>(options(range)),
+							   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+		until([&] { return relay.status().ready || relay.status().failed; }, "relay B's first sync");
+		status = relay.status();
+	}
+	check(status.ready && status.fetched_files == 1 && status.fetched_bytes == a.file.size);
+	check(slurp(root / "b" / r::mirror_file_name(a.file.name)) == a.bytes);
+	std::cout << "chain: B mirrored A's " << a.file.size << "-byte base in ranges of " << range << "\n";
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -406,6 +590,7 @@ int main(int argc, char **argv) {
 		exact(f, scratch / "exact");
 		resume(f);
 		backoff(scratch / "backoff");
+		chain(f, scratch / "chain");
 		if (f.server->failure)
 			std::rethrow_exception(f.server->failure);
 		std::filesystem::remove_all(scratch);

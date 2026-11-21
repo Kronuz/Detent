@@ -9,23 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs for D138 at the branch head (see Evidence).
+The lead's round at 53686a6c: prefix_dropped survived, the 5M row's agent exited, relay-to-relay
+ranges.
 
 ## Next
 
-1. Read the jobs; the 5M row shows whether the relay now mirrors 5M (it failed 413 at 560 s).
+1. Syntax-check, commit, then jobs: test_http_upstream (plain, ASan+UBSan), prefix_dropped mutant,
+   the relay-ranges mutant, regression set.
+2. Read the 5M diagnosis job 261120-161154-462bce (the relay's swallowed answer errors printed).
 
 ## Blocked on
 
-The relay's own `/v2/history/file` (src/detent_relay/service.cc `parse_history`, and the File job in
-mirror_service.cc) refuses `offset`/`length` (exactly two fields), so a relay reading another relay
-fails on a file above `range_bytes` (4 MiB): today's chain fails only above the voter's 16 MiB bound
-at the first hop, so chains with 4 to 16 MiB files regress. Both files are outside this task's set,
-and mirror_service.cc is the fix contributor's. Options:
-1. Add those two files to this task (about 15 lines: parse the optional pair, answer a slice of the
-   mirror's bytes, 416 past the end), after the fixer's mirror_service.cc lands. Recommended.
-2. The fixer adds it.
-3. HttpUpstream asks ranges only of voters. Rejected: two request shapes by upstream kind.
+Nothing.
 
 ## Evidence
 
