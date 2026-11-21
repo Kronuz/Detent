@@ -1,6 +1,6 @@
 # consensus-driver-install: journal
 
-State: waiting on jobs 261120-225730-f34285 261120-225734-b342d4 261120-225736-8a7fed 261120-225738-b62375 261120-225740-b2bdb1 261120-225742-c5e61e 261120-225744-fa0a56 261120-225747-e54d29 261120-225748-45cc05 261120-225750-c12778
+State: ready for review
 Quest: .campaign/detent/quests/consensus-driver-install.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,11 +17,8 @@ driver_simulation installs, groups_test install over the real host transport.
 
 ## Next
 
-1. Read the jobs at consensus:740453b (State) and CI there. CI at 5982871 failed on every
-   platform in worker_test, "held ordinary output retains activation completion while
-   reclamation continues"; 740453b restores reclaim under held output (ruling 6). Job
-   261120-225734-b342d4 runs worker_test at 017c918 (the failure, expected to fail). The
-   224640..224653 jobs were malformed (zsh kept an unquoted flag string whole) and are cancelled.
+1. Correctness review (the lead launches it). Land after consensus-quiescence and
+   consensus-transport.
 2. Merge consensus-quiescence, consensus-transport, node-admission (consensus:c669067) when they
    land; rerun the jobs.
 3. After consensus-quiescence merges: a follower's orphaned incoming image ends only when
@@ -46,18 +43,24 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | jobs 261120-191737-e1518e (lagging), -191739-f8b0b5 (stale+restart), -191753-7348c5 (groups install over the host transport); fails-without -191744-5b41ef (no-transfer-out), -191746-d10632 (activation-wait-maintains), -191754-1b07f7 (no-transfer-out, groups) |
-| A2 | job 261120-191740-5424de (rejected); fails-without -191749-bef99d (failed-validates) |
-| A3 | job 261120-191742-f0f7eb (crash at every disk op, 24 cuts: 19 old, 5 new locally); fails-without -191751-b901bb (activate-on-validated) |
-| A4 | jobs 261120-224220-aca6f7, -224222-24810b (32 seeds each, at merge 017c918, queued); at 4d5b6e2 261120-193730-660db9 and -193735-f56dd7 passed. At c0838ff 261120-191756-1ba6e8 failed seed 15: a repair pending after healing (ruling 8); its summary: 35 SnapshotNeeded, 176 frames, 16 validated (1 refused), 15 activated. Seed 15 passes at 4d5b6e2 locally |
-| A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:c0838ff); contract sent to Xapiand as msg-187 |
-| A6 | pending: CI at consensus:017c918. Job 261120-194220-d581b0 built and passed driver, close and wave-open tests with the new Sinks at 5982871 |
+| A1 | 261120-225736-8a7fed, 261120-225738-b62375, 261120-225744-fa0a56; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29 |
+| A2 | 261120-225740-b2bdb1; fails without: 261120-191749-bef99d |
+| A3 | 261120-225742-c5e61e; fails without: 261120-191751-b901bb |
+| A4 | 261120-225748-45cc05, 261120-225750-c12778 |
+| A5 | [artifact] consensus `docs/DRIVER.md` section "Install" (consensus:740453b); contract sent to Xapiand as msg-187 |
+| A6 | `ci:macos-arm64` (CI run 44877138480 at consensus:740453b, green on every platform, TSan and ASan included); 261120-225730-f34285; fails without: 261120-225734-b342d4 (worker_test at 017c918: "held ordinary output retains activation completion while reclamation continues") |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+The consensus Driver installs snapshots per group over the host transport (consensus:740453b,
+branch quest/detent/consensus-driver-install). Contract: docs/DRIVER.md "Install"; frames on
+Bulk: docs/mechanisms/host-transport.md. Sink notices SendTransfer, ValidateImage, ActivateImage
+(replacing ActivateInstall); calls transfer, validated, validation_failed. worker.h gains
+snapshot_image and stops counting an image awaiting activation as runnable (a hot loop with
+inline IO). Tests: test/driver_install_test.cc (lagging, rejected, stale, restart, crash at
+every disk operation: 24 cuts, 19 old and 5 new replicas), the groups_test install case over
+real TLS, and installs in driver_simulation (64 seeds; at c0838ff's 32: 35 SnapshotNeeded, 176
+frames, 16 validated, 1 refused, 15 activated). Open: the quiescent-group orphaned image (Next 3).
 
 ## Rulings I made
 
