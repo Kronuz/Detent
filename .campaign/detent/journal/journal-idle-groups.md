@@ -1,6 +1,6 @@
 # journal-idle-groups: journal
 
-State: waiting on CI run 44863560566 at journal:a76ef25 (host_test split into one ctest per case after linux-asan-ubsan timed out journal_host at b6a7697, run 44857689442). All jobs at b6a7697 passed (coordinator): F1 261120-184649-b2db56; F2 261120-184652-47309a, 261120-184654-9e1272; F3 261120-184656-0e1021, 261120-184658-120ecc, 261120-184700-17fc0d; A3 261120-184647-8c0c61; A2 1M; the seven quest mutants
+State: done; correctness review accepted at journal:a76ef25, CI 44863560566 green; landing waits on xapiand:turn-log-parity (the lead's)
 Quest: .campaign/detent/quests/journal-idle-groups.md (the lead's; never edit it)
 
 ## Doing
@@ -35,13 +35,14 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | journal docs/design/idle-groups.md (journal:177814e, through journal:a336c58: D9-D11 the lead's Q1-Q3) |
-| A2 | 261120-095115-033c33 at journal:893fd77 (strict, 1M): 1,000,000 parked, heap slope 0.24 B/group (the shard index), 62.6 B/group on disk, log back to 1 segment; also 261120-092916-3cb2bf at 48df21b |
-| Q1 before/after (strict, 1M) | before 261120-092423-3fc8cc (7129c53), 261120-095112-ec7b19 (a0944ca, APFS); after 261120-092916-3cb2bf (48df21b), 261120-095115-033c33 (893fd77, APFS): 15,192 -> 3,143 table B per transition; APFS 59.6 -> 61.7 ms per transition (sync-bound, same within noise) |
-| A3 | 261120-100219-c9e590 at a336c58 (idle_crash, split_crash, split_stale_node, table_damage, park_mid_turn, idle_damage); mutants killed: parked-as-open 261120-090247-44cc33, wake-skips-commit 261120-090249-51170f, create-with-block 261120-090252-5f0ac1, park-keeps-log 261120-090255-807b5e, damaged-shard-fails-open 261120-092920-ea237b, split-removes-early 261120-092924-a5abc0, split-keeps-parent 261120-095118-0e43df (survived on split_crash 261120-092922-489113; retargeted to split_stale_node) |
-| Open time (coordinator item 1) | APFS warm, 1M parked, three opens: before 3.65/3.32/2.96 s over 4,096 files (261120-100752-65e1de at journal:61d2a42), after 1.92/1.88/1.72 s over 20,958 files (261120-100755-5948a1 at journal:0c56d21); cold cache unmeasured |
-| Forward scan (coordinator, from consensus-quiescence) | park_count: forward_slice visits 0.01 live records per turn over 20,000 parked groups (local, journal:09c6fa2); control mutant park-keeps-log 193 per turn, killed (261120-113449-d2ae31); 1M strict 261120-113445-21c05a: 0.02 records per turn |
-| A4 | 261120-100217-9e45a1 (suite at a336c58, passed 57/57); 261120-092926-4d25e2 passed at 48df21b (57/57); CI on push |
+| A1 | journal docs/design/idle-groups.md (journal:177814e, through journal:a336c58: D9-D11 the lead's Q1-Q3; review round 1 contract in D2, D9, D11 at journal:b6a7697) |
+| A2 | 261120-184737-1c0e6e (strict, 1M, at b6a7697), rerun at a76ef25 261120-210625-18c411; 261120-210624-d69943 and 261120-210755-f25487 (1M park_count at a76ef25). Earlier: 261120-095115-033c33 at 893fd77: heap slope 0.24 B/group (the shard index), 62.6 B/group on disk, log back to 1 segment |
+| Q1 before/after (strict, 1M) | before 261120-092423-3fc8cc (7129c53), 261120-095112-ec7b19 (a0944ca, APFS); after 261120-184737-1c0e6e (b6a7697; rerun 261120-210625-18c411 at a76ef25), 261120-095115-033c33 (893fd77, APFS): 15,192 -> 3,143 table B per transition; APFS 59.6 -> 61.7 ms per transition (sync-bound, same within noise) |
+| A3 | at a76ef25: 261120-210624-71f0cc (split_orphan, missing_shard, first_split_crash, park_unheld and the idle cases), 261120-210755-0fdc7b, 261120-210755-db9a92, 261120-210755-913cdd, 261120-210755-6b1c50. Mutants killed: parked-as-open 261120-210624-1346c2, wake-skips-commit 261120-210625-19b6bd, create-with-block 261120-210625-476ecf, park-keeps-log 261120-210624-21f2ec, damaged-shard-fails-open 261120-184715-dc11a8, split-removes-early 261120-184717-ef077e, split-keeps-parent 261120-184720-f6328d; review round 1: no-orphans 261120-184649-b2db56, missing-shard-stale 261120-184652-47309a, split-unstored 261120-184654-9e1272, park-skips-opened 261120-184656-0e1021, close-keeps-opened 261120-184658-120ecc, park-ignores-sealer 261120-184700-17fc0d |
+| Open time (coordinator item 1) | APFS warm, 1M parked, three opens: before 3.65/3.32/2.96 s over 4,096 files (261120-100752-65e1de at journal:61d2a42), after 1.92/1.88/1.72 s over 20,958 files (261120-100755-5948a1 at journal:0c56d21); at a76ef25 261120-210624-d69943; cold cache unmeasured |
+| Forward scan (coordinator, from consensus-quiescence) | park_count: 0.01 live records per turn over 20,000 parked groups; control mutant park-keeps-log, killed (261120-210624-21f2ec at a76ef25); 1M strict 261120-113445-21c05a: 0.02 records per turn |
+| A4 | 261120-210755-c4b2c6 (suite at a76ef25); CI run 44863560566 green at a76ef25 |
+| Review correctness | accepted at journal:a76ef25 (coordinator; confirming reruns ced8ca, cf3c4c, dd37e7) |
 
 Coordinator's design inputs (review F2, F3, F5 of Xapiand turn-log-parity-design.md): answered in
 idle-groups.md D1 (F3: parked is closed, a durable state recovery already exempts), D5 (F3:
