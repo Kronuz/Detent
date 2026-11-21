@@ -11452,9 +11452,9 @@
       "branch": "quest/detent/journal-idle-groups",
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -11465,6 +11465,34 @@
         "test/**",
         "docs/**",
         "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-20T18:25:30",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57/msg-178: the local Release build+ctest suite is what CI's macos-arm64 job runs at the same commit on every quest/** push; the gate now reads that CI job instead of rerunning it locally",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "journal": "../Detent-wt/detent/journal-idle-groups",
       "landed": [],
@@ -11480,7 +11508,7 @@
       "risk": "high",
       "status": "review",
       "title": "Idle groups leave the log: parked groups cost no stream, re-partitioned streams, group creation joins the turn (D148 Q3)",
-      "updated": "2026-11-20T16:05:05",
+      "updated": "2026-11-20T18:25:30",
       "worktree": "../journal-wt/detent/journal-idle-groups"
     },
     "journal-loop-handoff": {
