@@ -1,6 +1,6 @@
 # journal-loop-handoff: journal
 
-State: ready for review
+State: waiting on jobs 261120-230045-01aa40 261120-230047-4a4672 261120-230048-06c33d 261120-230050-c45323 261120-230051-2f2530 and CI at journal:4748481
 Quest: .campaign/detent/quests/journal-loop-handoff.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing. Debug host_test 261120-181331-7a0bfd passed at journal:87d4382 (loop_handoff 7/0,
-handoff_close 4/0, full host_test 1028 checks/0 failures). CI run 44854682137 at journal:87d4382
-green on every job (macos-arm64, macos-x86_64, linux tsan, asan-ubsan, x86_64 clang and gcc,
-arm64-gcc, freebsd). History: at ca95301 the third-thread probe failed because a new thread took
-the exited adopter's std::thread::id (probe 261120-181237-2da023, 20/20 reuse); 87d4382 probes
-from two live threads.
+Review correctness CHANGES at 87d4382 (reviews/journal-loop-handoff-correctness.md).
+- F1 (blocking): journal:4748481 adds host_test `handoff_scope` (2-loop Node: a thread adopts
+  loop 1 and makes no call; the first thread's loop-1 view aborts, its loop-0 view passes). No
+  code change: no test showed a defect. Jobs: passing Debug 261120-230045-01aa40 (loop_handoff,
+  handoff_scope, handoff_close, full host_test); fails-without handoff_scope at mutants clear
+  261120-230047-4a4672 (journal:51728741), every-loop 261120-230048-06c33d (journal:1757375c),
+  loop-zero 261120-230050-c45323 (journal:4c29a944); handoff_close at no-handoff
+  261120-230051-2f2530 (journal:ca6eaa71). Mutant refs: refs/mutants/journal-loop-handoff/*.
+- F2 (optional): not adopted; handoff_scope covers both loop mutants, and CI TSan runs the tests'
+  handoffs. Left to the lead.
+- F3 (nit): fixed in 4748481: status checks expect `stored`; the never-failing check is gone.
 
 ## Next
 
-1. Review; land after journal-idle-groups, merging journal main first (host.h, host_test.cc).
+1. Read the five jobs (mutants must fail on the test, not the build) and CI at 4748481; then
+   ready for review. Land after journal-idle-groups, merging journal main first.
 
 msg-178 (D57): A3 cites ci:macos-arm64 at journal:87d4382; nothing else changed.
 
