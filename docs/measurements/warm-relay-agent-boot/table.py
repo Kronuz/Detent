@@ -1,6 +1,7 @@
 """Tabulate the rows' SUMMARY lines: per size and arm, median and range of each measure.
 
-usage: table.py JOB_ID...   (reads ~/.scratch/campaign/jobs/JOB/a*/out/summary.jsonl; a1 is the first attempt)
+usage: table.py SOURCE...   (a job id, read from ~/.scratch/campaign/jobs/JOB/a*/out/summary.jsonl,
+or a rows file such as rows-131bde6.jsonl, whose lines carry their job)
 Prints a Markdown table per measure group and one line per run.
 """
 
@@ -19,12 +20,18 @@ FLUSHES = re.compile(
 )
 
 
-def runs(job: str) -> list[dict[str, object]]:
+def runs(source: str) -> list[dict[str, object]]:
     found: list[dict[str, object]] = []
-    for attempt in sorted((JOBS / job).glob("a*/out/summary.jsonl")):
+    files = (
+        [Path(source)]
+        if source.endswith(".jsonl")
+        else sorted((JOBS / source).glob("a*/out/summary.jsonl"))
+    )
+    for attempt in files:
         for line in attempt.read_text().splitlines():
             summary = json.loads(line.removeprefix("SUMMARY "))
-            summary["job"] = job
+            summary.setdefault("job", source)
+            job = summary["job"]
             counters = FLUSHES.search(str(summary["agent_publication"]))
             if counters is None:
                 raise ValueError(f"{job}: no publication counters")

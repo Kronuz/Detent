@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261120-144419-5e7242 261120-144420-73a018 261120-144420-48ab68 261120-144420-f0a573 261120-144421-d16a3a 261120-144421-5a223a (A1 rows rerun at the merged head), suite 261120-144425-4edf28, then CI
+State: working
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,8 +19,7 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Main merged (131bde6b; it changed tests/detent_system/authority.py, which made the six row jobs other code, so they are rerun).
-2. When the rows pass: tabulate them (table.py) into docs/perf/warm-relay-agent-boot.md, which does not exist yet (A2); then write ready to land. Tabulate rows into docs/perf/warm-relay-agent-boot.md (A2); its method cites D85 (5M one round); check no "ran beside" record.
+1. Push; CI macos-arm64 (D57 gate) green at the head, then ready for review.
 
 ## Blocked on
 
@@ -34,13 +33,18 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261120-144419-5e7242, 261120-144420-73a018, 261120-144420-48ab68, 261120-144420-f0a573, 261120-144421-d16a3a, 261120-144421-5a223a (all exit 0, exclusive, at 131bde6; no "ran beside" record) |
+| A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
+| Suite | 261120-144425-4edf28 (exit 0 at 131bde6); gate CI macos-arm64 |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+docs/perf/warm-relay-agent-boot.md. Warm-relay agent bootstrap, medians: 0.57 s (100K, 3 rounds),
+3.92 s (1M, 3), 19.22 s (5M, 1 per D85); relay-plus-agent cold total 3.93 / 33.51 / 162.78 s, so
+the agent is 15% / 12% / 12% of it (cold-bootstrap-5m.md estimated 32-38%). Cold total minus relay
+ready equals the warm agent time at every size. Agent CPU 0.31 / 2.88 / 14.40 s (about 2.9 us per
+record, same in both arms); 11 / 53 / 243 files, 4 device flushes; 0.22 / 2.0 / 10.0 MB in.
+Open: fetch vs decode vs build are one span (the agent logs no mark between them).
 
 ## Rulings I made
 
@@ -57,3 +61,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - Rows run without coldboot's restarts and per-job 10K smoke: one strict smoke job gates them.
 - Fixtures: 100000-main and 5000000-flat-main (seeded at Detent:ea1fddc, 2026-11-18); a new
   1000000-main seeded at this quest's tree by seed.sh.
+- Not merged main again: since 131bde6 main changed docs, campaign files and two tests
+  (tests/detent_local), none in src, include or the built targets; another merge would only rerun
+  the six exclusive rows. The lead's land --merge-main takes it.
+- table.py also reads a committed rows file (rows-131bde6.jsonl), so the doc's tables survive job
+  pruning.
