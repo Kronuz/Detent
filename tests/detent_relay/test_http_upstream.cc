@@ -464,6 +464,7 @@ class RelayA {
 		const auto digest = sha(token);
 		std::memcpy(credential.token_hash.data(), digest.data(), digest.size());
 		credential.principal.identity[0] = 'b';
+		credential.principal.policy_epoch = 1;
 		const std::string_view patterns[]{"ns"};
 		credential.namespaces = std::make_shared<const d::NamespaceGrants>(patterns);
 		auto registry = std::make_shared<r::Registry>(ledger(1 << 20), std::span(&credential, 1));

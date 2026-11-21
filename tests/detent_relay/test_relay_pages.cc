@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <limits>
 #include <map>
 #include <source_location>
 #include <sys/stat.h>
@@ -153,6 +154,7 @@ std::vector<Frame> decode(std::string_view body) {
 	Collect sink;
 	d::Limits limits;
 	limits.bytes = std::uint64_t{1} << 32;
+	limits.records = std::numeric_limits<std::uint32_t>::max(); // large_base sends more than the default
 	d::SessionFramesDecoder decoder(sink, limits);
 	std::span<const char> input(body);
 	auto budget = body.size();
