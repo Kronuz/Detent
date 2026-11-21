@@ -11743,6 +11743,8 @@
       "after": [
         "journal-idle-groups"
       ],
+      "base": "178030b38f5617337486407e6cc35d70881a0841",
+      "branch": "quest/detent/journal-power-silent-loss",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -11788,6 +11790,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-power-silent-loss",
       "landed": [],
       "lenses": [
         "correctness"
@@ -11795,11 +11798,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: Diagnosis starts now; src overlaps journal-idle-groups, and any fix merges after it lands",
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "T9 power loss on faultfs never loses an acknowledged record silently",
-      "updated": "2026-11-20T20:05:24"
+      "updated": "2026-11-20T20:05:26",
+      "worktree": "../journal-wt/detent/journal-power-silent-loss"
     },
     "journal-reopen-closed": {
       "accepted": {
