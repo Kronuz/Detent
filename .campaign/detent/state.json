@@ -7121,15 +7121,14 @@
       "consumes": [],
       "files": [
         "tests/detent_authority/cluster_harness.hh",
-        "tests/detent_authority/test_history_*.cc",
+        "tests/detent_authority/test_history_large_base.cc",
+        "tests/detent_authority/test_history_power_cut.cc",
+        "tests/detent_authority/test_history_transport.cc",
         "tests/detent_authority/test_namespace_power_cut.cc",
-        "tests/detent_agent/test_agent_store_crash.cc",
-        "tests/detent_relay/test_relay_mirror.cc",
-        "tests/detent_local/test_paged_publication_artifacts.cc",
-        "tests/detent_system/network.py",
-        "tests/detent_testing/**",
+        "tests/detent_authority/CMakeLists.txt",
         "tests/CMakeLists.txt",
-        "tests/*/CMakeLists.txt"
+        "cmake/dependencies.json",
+        "cmake/**"
       ],
       "history": [
         {
@@ -7168,7 +7167,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
-      "updated": "2026-11-20T18:25:19"
+      "updated": "2026-11-20T23:06:07"
     },
     "detent-multicast-seeds": {
       "accepted": {},
