@@ -1,6 +1,9 @@
 {
   "campaign": "detent",
   "ci": "github",
+  "env": [
+    "CMAKE_GENERATOR=Ninja"
+  ],
   "messages": [
     {
       "at": "2026-11-08T21:24:05",
