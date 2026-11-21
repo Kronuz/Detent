@@ -13643,6 +13643,8 @@
       "after": [
         "journal-tail-second-sector"
       ],
+      "base": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+      "branch": "quest/detent/journal-tail-cut-header-design",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -13673,6 +13675,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-tail-cut-header-design",
       "landed": [],
       "lenses": [
         "durability"
@@ -13682,9 +13685,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-21T11:54:25"
+      "updated": "2026-11-21T13:06:45",
+      "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
     },
     "journal-tail-second-sector": {
       "accepted": {
