@@ -46,3 +46,5 @@ Consumes every Kronuz library at its head; changes no Detent API (per the Xapian
 ## May land early
 
 None.
+
+- 2026-11-20, from xapiand (msg-193): take completion:714186e (task 95798a0, once landed); declare task 95798a0 at Detent top level before completion so one task resolves until journal and consensus move their completion pins; faultlab stops fetching journal (faultlab-journal-oracle) before journal step 8.
