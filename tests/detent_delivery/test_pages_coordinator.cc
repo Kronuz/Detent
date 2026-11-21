@@ -412,8 +412,9 @@ int main(int argc, char **argv) {
 								std::vector<std::string>{"big"}) != server.records_asked.end());
 			}
 			// D1: a records frame names its sender's root. One that the build reaches publishes; one it
-			// does not is refused and the namespace is fetched again as a full copy.
-			const auto rooted = [&](std::int64_t value) {
+			// does not is refused and the namespace is fetched again as a full copy. The write and its
+			// root change under one lock, so no frame at the new head goes out without the root.
+			const auto rooted = [&](std::int64_t value, bool flipped) {
 				std::lock_guard lock(server.mutex);
 				auto &served = server.find("big");
 				served.transactions.push_back({{"big:k0000003", def(value, 0)}});
@@ -421,21 +422,13 @@ int main(int argc, char **argv) {
 				const auto commitment = p::state_commitment(copy.root);
 				d::RootDigest digest;
 				std::copy(commitment.begin(), commitment.end(), digest.begin());
-				return std::pair{served.history().head(), digest};
+				digest[0] ^= flipped ? 1 : 0;
+				return server.roots["big"] = std::pair{served.history().head(), digest};
 			};
-			auto honest = rooted(91);
-			{
-				std::lock_guard lock(server.mutex);
-				server.roots["big"] = honest;
-			}
+			const auto honest = rooted(91, false);
 			auto rooted_state = agent.until([&](const auto &s) { return at(s, "big", honest.first); }, "rooted records");
 			check(rooted_state.transfers.diverged == 0);
-			auto wrong = rooted(92);
-			wrong.second[0] ^= 1;
-			{
-				std::lock_guard lock(server.mutex);
-				server.roots["big"] = wrong;
-			}
+			const auto wrong = rooted(92, true);
 			agent.until([](const auto &s) { return s.transfers.diverged > 0 && s.repair.requested > 0; }, "diverged records");
 			{
 				std::lock_guard lock(server.mutex);
