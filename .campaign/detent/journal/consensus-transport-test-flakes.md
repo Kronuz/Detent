@@ -1,6 +1,6 @@
 # consensus-transport-test-flakes: journal
 
-State: waiting on CI run 44989408833 (head consensus:4536590, merge of main e35356a) and jobs 261121-212631-ac045b 261121-212632-5bcdd7; only CI (A3, A4) and review remain.
+State: waiting on CI run 44989408833
 Quest: .campaign/detent/quests/consensus-transport-test-flakes.md (the lead's; never edit it)
 
 ## Doing
