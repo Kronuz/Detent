@@ -16473,11 +16473,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "needs Peers::wake from consensus-peers-wake (accepted, landing after CI) and its pin bump; resumes when it lands",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-21T13:24:35",
+      "until": [
+        "consensus-peers-wake"
+      ],
+      "updated": "2026-11-21T21:25:45",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
