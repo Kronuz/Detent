@@ -1,6 +1,6 @@
 # journal-tail-second-sector: journal
 
-State: ready to land (durability review accepted, F1=261121-115925-e0216a)
+State: ready to land (durability review accepted, F1=261121-135333-127af1)
 Quest: .campaign/detent/quests/journal-tail-second-sector.md (the lead's; never edit it)
 
 ## Doing
@@ -32,14 +32,14 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-115925-e0216a |
-| A2 | 261121-115925-e0216a, 261121-115928-e3ca87; fails without: 261121-103815-c377f1, 261121-115934-0256e0 |
-| A3 | 261121-115931-e97d8e; fails without: 261121-084916-f70fcc, 261121-103756-644f6c |
+| A1 | 261121-135333-127af1 |
+| A2 | 261121-135333-127af1, 261121-135333-4c0a7a; fails without: 261121-103815-c377f1, 261121-115934-0256e0 |
+| A3 | 261121-135334-e33976; fails without: 261121-084916-f70fcc, 261121-103756-644f6c |
 | A4 | docs/mechanisms/turn-log-damage.md at e912a28 |
 | A5 | `ci:macos-arm64` |
 
-200-seed T9 at journal:e912a28, identical on macOS (261121-115925-e0216a) and the FreeBSD VM
-(261121-115928-e3ca87): 1,228,209 checks, 0 failures; 242,242 crash points and 155,754 simulated
+200-seed T9 at journal:e912a28, identical on macOS (261121-135333-127af1) and the FreeBSD VM
+(261121-135333-4c0a7a): 1,228,209 checks, 0 failures; 242,242 crash points and 155,754 simulated
 tears report no damage; 18,045 damaged crossing fragments reported (9,632 @4096, 8,413 @2048),
 996 more with a cut header only counted (564, 432). CI 44943792157 green at journal:e912a28. The
 doc's Evidence paragraph keeps the journal:421011a counts; the landed code stays journal:e912a28.
