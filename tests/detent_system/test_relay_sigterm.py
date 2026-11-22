@@ -3,10 +3,11 @@
 usage: test_relay_sigterm.py DETENT_AUTHORITY DETENT_RELAY TLS_FIXTURE [BOUND_MS]
 
 Three authority voters and a relay run in the foreground; eight clients loop HTTPS /v1/health on the
-relay (a new connection each). The relay gets SIGTERM and must exit 0 within --shutdown-timeout-ms.
-A response the relay began and did not finish (a short body, or an admitted connection closed
-without a reply) fails the test; a connection refused or reset before its request was admitted,
-once the listener closed, is the stop doing its work.
+relay (a new connection each). The relay gets SIGTERM and must exit 0 within --shutdown-timeout-ms;
+exit 0 says its drain found no admitted request unanswered. A response the relay began and did not
+finish fails the test. After the signal, a connection refused, reset or closed before any response
+byte is the stop doing its work: it ends the TLS handshake and the read of a request not yet read
+(Kronuz/http), which the client cannot tell apart. Before the signal, any of them fails the test.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ def free_port() -> int:
 
 
 def request(port: int, context: ssl.SSLContext) -> str:
-    """One health request on a new connection: ok, refused (before admission) or torn."""
+    """One health request on a new connection: ok, unanswered (no response byte) or torn."""
     data = b""
     try:
         with (
@@ -50,13 +51,13 @@ def request(port: int, context: ssl.SSLContext) -> str:
             )
             while chunk := tls.recv(65536):
                 data += chunk
-    except (ConnectionRefusedError, ssl.SSLError, ConnectionResetError, TimeoutError):
-        # Before the handshake or the reply the connection was not admitted, or the reset is the stop.
-        return "refused" if not data else "torn"
     except OSError:
-        return "refused"
-    head, _, body = data.partition(b"\r\n\r\n")
-    if not head.startswith(b"HTTP/1.1 "):
+        # Refused, reset, a failed handshake, a broken pipe, a timeout: torn once the reply began.
+        return "torn" if data else "unanswered"
+    if not data:
+        return "unanswered"
+    head, separator, body = data.partition(b"\r\n\r\n")
+    if not separator or not head.startswith(b"HTTP/1.1 "):
         return "torn"
     for line in head.split(b"\r\n")[1:]:
         name, _, value = line.partition(b":")
@@ -178,7 +179,7 @@ def main() -> int:
         ],
     }
     children: dict[str, subprocess.Popen[bytes]] = {}
-    results: list[str] = []
+    results: list[tuple[str, float, float]] = []  # (outcome, sent, settled), monotonic
     stopping = threading.Event()
     lock = threading.Lock()
     try:
@@ -195,18 +196,19 @@ def main() -> int:
 
         def load() -> None:
             while not stopping.is_set():
+                sent = time.monotonic()
                 outcome = request(port, context)
                 with lock:
-                    results.append(outcome)
+                    results.append((outcome, sent, time.monotonic()))
 
         threads = [threading.Thread(target=load) for _ in range(8)]
         for thread in threads:
             thread.start()
         time.sleep(1.5)
-        began = time.monotonic()
+        signalled = time.monotonic()
         children["relay"].send_signal(signal.SIGTERM)
         status = children["relay"].wait(bound / 1000 + 10)
-        elapsed = time.monotonic() - began
+        elapsed = time.monotonic() - signalled
         stopping.set()
         for thread in threads:
             thread.join()
@@ -214,12 +216,24 @@ def main() -> int:
         assert elapsed * 1000 <= bound, (
             f"the stop took {elapsed:.1f} s, over {bound} ms"
         )
-        ok, torn = results.count("ok"), results.count("torn")
+        ok = sum(outcome == "ok" for outcome, _, _ in results)
+        torn = sum(outcome == "torn" for outcome, _, _ in results)
+        early = sum(
+            outcome == "unanswered" and settled < signalled
+            for outcome, _, settled in results
+        )
+        unanswered = sum(outcome == "unanswered" for outcome, _, _ in results) - early
         assert ok >= 8, f"only {ok} requests completed"
         assert not torn, f"{torn} responses were cut short"
+        assert not early, f"{early} requests went unanswered before the SIGTERM"
+        straddled = sum(
+            outcome == "ok" and sent < signalled < settled
+            for outcome, sent, settled in results
+        )
         print(
-            f"relay SIGTERM under load: {ok} requests completed, none cut short, "
-            f"exit 0 in {elapsed:.2f} s",
+            f"relay SIGTERM under load: {ok} requests completed ({straddled} sent before the "
+            f"signal and answered after it), none cut short; {unanswered} connections refused "
+            f"or closed unread after the signal; exit 0 in {elapsed:.2f} s",
             flush=True,
         )
     except BaseException:
