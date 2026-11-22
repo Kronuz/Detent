@@ -16322,6 +16322,42 @@
       "title": "Stage 6: managed authority failover",
       "updated": "2026-11-08T15:38:22"
     },
+    "managed-failover-isolated-leader": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_delivery/source_selection.hh",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_delivery/coordinator.hh",
+        "src/detent_authority/service.cc",
+        "tests/detent_delivery/test_source_selection.cc",
+        "tests/detent_delivery/test_namespace_coordinator.cc",
+        "tests/detent_system/run_partition.py",
+        "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
+        "docs/mechanisms/managed-failover*.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Agents opened at an isolated former leader find the majority (failover gate 2)",
+      "updated": "2026-11-21T21:47:40"
+    },
     "managed-relay-ipv6-flake": {
       "accepted": {},
       "after": [],
