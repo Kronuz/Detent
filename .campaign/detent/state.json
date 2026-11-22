@@ -5314,19 +5314,42 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-mutants-per-test",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T21:07:05",
+          "commit": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "criteria": {
+            "A1": "261121-173829-dc0b56",
+            "A2": "`CMakeLists.txt`: the consensus_mutants list; each TIMEOUT is 4x the slowest of msg-190's macOS/Linux/FreeBSD time, floor 600 s",
+            "A3": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:e35356a; 17 of 17 mutants killed on macOS in 73-420 s (dc0b56)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "reason": "",
+          "tested": "e35356a97d8fc849bd017ba718e625435f3ec10d"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "started by force: consensus main is red (cpp-libraries:12bae98 turned on consensus_mutants in CI); the overlap is CMakeLists.txt hunks, merged by whoever lands second",
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Each consensus mutant is its own ctest with its own timeout",
-      "updated": "2026-11-21T17:36:03",
-      "worktree": "../consensus-wt/detent/consensus-mutants-per-test"
+      "updated": "2026-11-21T21:07:58",
+      "worktree": ""
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
