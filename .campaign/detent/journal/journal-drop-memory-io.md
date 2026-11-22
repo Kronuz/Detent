@@ -28,7 +28,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `git grep memory_io` in journal at 9f5e846: empty. Suite: 261121-222332-05d7c1. Bench builds and runs: 261121-222339-b9f595. consensus: after consensus-install-test-faultfs lands (its branch's `git grep memory_io` is empty). CI on 9f5e846 pending. |
+| A1 | `git grep memory_io` in journal at 9f5e846: empty. Suite: 261121-222332-05d7c1. Bench builds and runs: 261121-222339-b9f595. `ci:macos-arm64` and the rest of CI green at 9f5e846. consensus side: consensus-install-test-faultfs |
 
 ## Result
 
