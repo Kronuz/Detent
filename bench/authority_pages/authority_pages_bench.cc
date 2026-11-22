@@ -33,6 +33,7 @@
 #include <thread>
 #include <unistd.h>
 #include <completion/posix.h>
+#include <sha256.h>
 
 namespace d = detent::distribution;
 namespace r = detent::relay;
@@ -98,6 +99,28 @@ detent::KnobDef definition(std::size_t key, int value) {
 		out.overrides.emplace("group-" + std::to_string(key % 5), std::int64_t(value * 3));
 	return out;
 }
+// Option (d) as incremental hashing: a homomorphic multiset hash of the namespace's records
+// (LtHash's shape: 1,024 16-bit lanes, each record expanded to 2 KiB by SHA-256 in counter mode),
+// so a change subtracts the old record and adds the new one. Prices the authority's cost only.
+struct RecordsDigest {
+	std::array<std::uint16_t, 1024> lanes{};
+	void apply(std::string_view key, std::uint64_t revision, const std::string &value, bool add) {
+		unsigned char block[32];
+		for (std::uint32_t i = 0; i < 64; ++i) {
+			kronuz::sha256::hasher h;
+			h.update(&i, sizeof i);
+			h.update(&revision, sizeof revision);
+			h.update(key);
+			h.update(value);
+			h.final(block);
+			for (unsigned j = 0; j < 16; ++j) {
+				const auto lane = std::uint16_t(block[2 * j] | block[2 * j + 1] << 8);
+				auto &x = lanes[16 * i + j];
+				x = add ? std::uint16_t(x + lane) : std::uint16_t(x - lane);
+			}
+		}
+	}
+};
 struct Record {
 	std::string key;
 	std::uint64_t revision;
@@ -149,7 +172,7 @@ class MemoryHistory final : public d::NamespaceHistory {
 };
 
 struct SealResult {
-	double cpu_ms = 0, wall_ms = 0, encode_ms = 0, sync_ms = 0;
+	double cpu_ms = 0, wall_ms = 0, encode_ms = 0, sync_ms = 0, digest_ms = 0;
 	std::uint64_t written = 0, builds = 0, relocations = 0;
 };
 // The builder's namespaces: their current generation each, as a voter that keeps only its head.
@@ -188,6 +211,15 @@ class Corpus {
 			const auto k = at % keys_;
 			touched[at / keys_].push_back({key(s.name, k), ++s.position, definition(k, salt + int(k))});
 		}
+		// (d): each change removes its key's previous record and adds the new one.
+		const auto digest = Clock::now();
+		for (std::size_t i = 0; i < spaces_.size(); ++i)
+			for (const auto &record : touched[i]) {
+				const auto value = detent::authority::encode_definition(record.value);
+				digest_.apply(record.key, record.revision - 1, value, false);
+				digest_.apply(record.key, record.revision, value, true);
+			}
+		out.digest_ms = since_ms(digest);
 		for (std::size_t i = 0; i < spaces_.size(); ++i)
 			if (!touched[i].empty())
 				build(spaces_[i], std::move(touched[i]), false, out);
@@ -290,13 +322,14 @@ class Corpus {
 	std::size_t keys_;
 	bool write_;
 	std::vector<Space> spaces_;
+	RecordsDigest digest_;
 };
 
 void print_seal(const char *what, std::size_t n, const SealResult &s) {
 	std::printf("{\"step\":\"%s\",\"n\":%zu,\"cpu_ms\":%.3f,\"wall_ms\":%.3f,\"encode_ms\":%.3f,\"sync_ms\":%.3f,"
-				"\"written\":%llu,\"builds\":%llu,\"relocations\":%llu,\"heap_mb\":%.1f,\"resident_mb\":%.1f,"
-				"\"peak_mb\":%.1f}\n",
-				what, n, s.cpu_ms, s.wall_ms, s.encode_ms, s.sync_ms, (unsigned long long)s.written,
+				"\"digest_ms\":%.3f,\"written\":%llu,\"builds\":%llu,\"relocations\":%llu,\"heap_mb\":%.1f,"
+				"\"resident_mb\":%.1f,\"peak_mb\":%.1f}\n",
+				what, n, s.cpu_ms, s.wall_ms, s.encode_ms, s.sync_ms, s.digest_ms, (unsigned long long)s.written,
 				(unsigned long long)s.builds, (unsigned long long)s.relocations, heap_mb(), resident_mb(), peak_mb());
 	std::fflush(stdout);
 }
@@ -321,7 +354,7 @@ int seals(int argc, char **argv) {
 	std::printf("{\"step\":\"corpus\",\"page_bytes\":%llu,\"physical_bytes\":%llu,\"pages_heap_mb\":%.1f}\n",
 				(unsigned long long)corpus.page_bytes(), (unsigned long long)corpus.physical_bytes(), heap_mb() - heap0);
 	std::mt19937_64 random(20261121);
-	std::vector<double> cpu, wall, sync;
+	std::vector<double> cpu, wall, sync, digest;
 	std::uint64_t written = 0, relocations = 0;
 	const auto disk1 = disk_written();
 	for (std::size_t i = 0; i < count; ++i) {
@@ -330,15 +363,17 @@ int seals(int argc, char **argv) {
 		cpu.push_back(s.cpu_ms);
 		wall.push_back(s.wall_ms);
 		sync.push_back(s.sync_ms);
+		digest.push_back(s.digest_ms);
 		written += s.written;
 		relocations += s.relocations;
 	}
 	std::printf("{\"step\":\"summary\",\"seals\":%zu,\"changes\":%zu,\"cpu_ms_p50\":%.3f,\"cpu_ms_p90\":%.3f,"
 				"\"cpu_ms_max\":%.3f,\"wall_ms_p50\":%.3f,\"wall_ms_max\":%.3f,\"sync_ms_p50\":%.3f,"
+				"\"digest_ms_p50\":%.3f,"
 				"\"written_per_seal\":%.0f,\"relocations\":%llu,\"page_bytes\":%llu,\"physical_bytes\":%llu,"
 				"\"pages_heap_mb\":%.1f,\"disk_written_cold\":%llu,\"disk_written_seals\":%llu,\"peak_mb\":%.1f}\n",
 				count, changes, percentile(cpu, 0.5), percentile(cpu, 0.9), percentile(cpu, 1), percentile(wall, 0.5),
-				percentile(wall, 1), percentile(sync, 0.5), count ? double(written) / double(count) : 0.0,
+				percentile(wall, 1), percentile(sync, 0.5), percentile(digest, 0.5), count ? double(written) / double(count) : 0.0,
 				(unsigned long long)relocations, (unsigned long long)corpus.page_bytes(),
 				(unsigned long long)corpus.physical_bytes(), heap_mb() - heap0, (unsigned long long)(disk1 - disk0),
 				(unsigned long long)(disk_written() - disk1), peak_mb());
