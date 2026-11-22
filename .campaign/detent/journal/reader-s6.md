@@ -368,6 +368,8 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
+- Lead (2026-11-21): t3-asan's test_reader_switch ran at ~974% CPU in one light hold (cab068). Cap its threads at 4 in the t3-asan and t3-tsan check commands. Changing a check is the lead's: name the cap in your report, and the lead sets it.
+
 1. Read the jobs in State; fill Evidence at `Detent:07a77ec`; CI at the head green.
 2. Then "ready for review" (correctness re-review of C1, C2, S1/D143, N1; `campaign accept`).
 
