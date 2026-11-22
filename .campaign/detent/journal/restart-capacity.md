@@ -9,8 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code, tests and docs done (Detent:4a703ede..HEAD). Waiting on the unit, mutant, service, system
-jobs and CI (pushed) at the quest head.
+Code, tests and docs done. Main merged (Detent:a17adba9). Unit job 261121-135043-e4073f failed at
+test_service.cc:746: the lowered `mutations` refusal surfaced as "authority recovery application
+fenced", the reason lost in the worker's terminal `Fenced` action. Fixed (Detent:84cf2357):
+startup refusals append the fence reason (`fence_reason`, service.cc). Mutants rebased onto it.
+Rerunning every evidence job at the new head.
 
 ## Next
 
@@ -55,7 +58,7 @@ does not do").
 1. Raisable set is contract rule 1's three (keys, state_bytes, image_bytes), not all ten: the
    outcome's "keys and the other nine" reads as the ten carried limits. The other seven bound what
    relays, agents and history and wire decoders accept, which rule 1 keeps equal. Widening is one
-   flag per field in `limit_fields` (state.cc). Lead: confirm.
+   flag per field in `limit_fields` (state.cc). The lead confirmed it (below).
 2. One table (`limit_fields`) drives write, read and admission; messages name the configuration
    key (`application_limits.<field>`).
 3. Sync paths (`State::apply`, `apply_batch`, `administer`, `BatchApplication::advance`, the
@@ -64,7 +67,10 @@ does not do").
 4. Not fixed: the in-force layout policy under raised state_bytes (documented). `Node::checked`
    still checks the configured layout.
 5. Mutants are commits on local branches `mutant/restart-capacity-a1` and `-a2`, one assertion
-   each, run with `--fails-without`.
+   each, run with `--fails-without`; rebased onto Detent:84cf2357 (a1 9a433e5b, a2 7a5c6f54).
+6. A fenced startup names the worker's fence reason (`fence_reason`, service.cc), for all three
+   refusals (storage initialization, recovery application, committed profile); the prefixes stay.
+   The failed job 261121-135043-e4073f (Detent:e3f48e0b) is the run without it.
 
 Cancelled, superseded (not evidence): 261121-134013-9953d2, 261121-134216-f7b3a0, 261121-134612-884a01.
 
