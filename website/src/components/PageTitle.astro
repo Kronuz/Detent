@@ -5,14 +5,12 @@ const route = Astro.locals.starlightRoute;
 const title = route.entry.data.title;
 // Splash/landing pages (the home) supply their own display heading, so don't
 // render the stock page <h1> (it would show a stray "Detent" title above the
-// custom hero content).
+// custom hero content); an empty #_top anchor keeps the skip-to-top link whole.
 const isSplash = route.entry.data.template === 'splash';
 ---
 
 {
-	!isSplash && (
-		<h1 id="_top">{title}</h1>
-	)
+	isSplash ? <span id="_top" /> : <h1 id="_top">{title}</h1>
 }
 
 <style>
