@@ -13475,7 +13475,9 @@
     },
     "journal-drop-memory-io": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-install-test-faultfs"
+      ],
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -13549,7 +13551,7 @@
       "risk": "low",
       "status": "planned",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T08:29:53"
+      "updated": "2026-11-21T22:18:21"
     },
     "journal-faultfs": {
       "accepted": {},
