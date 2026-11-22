@@ -27511,7 +27511,8 @@
       "accepted": {},
       "after": [
         "restart-capacity",
-        "server-composition-adoption"
+        "server-composition-adoption",
+        "consensus-follower-read"
       ],
       "base": "0edbbe35785fabf541c46051a907dbd461e49f38",
       "branch": "quest/detent/voter-read-freshness",
@@ -27556,7 +27557,7 @@
       "risk": "high",
       "status": "review",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-21T22:18:41",
+      "updated": "2026-11-21T22:27:32",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
