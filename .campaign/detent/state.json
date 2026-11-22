@@ -6279,9 +6279,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T14:42:27",
+      "updated": "2026-11-21T21:26:41",
       "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
     },
     "consensus-wave-open": {
