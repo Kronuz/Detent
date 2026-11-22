@@ -1,0 +1,13 @@
+# The authority-pages harness, built beside Detent without changing its build:
+#   cmake -S bench/authority_pages -B .scratch/build-ap (bench/authority_pages/build.sh)
+cmake_minimum_required(VERSION 3.24)
+project(authority_pages LANGUAGES C CXX)
+set(DETENT_BUILD_AUTHORITY ON CACHE BOOL "" FORCE)
+set(DETENT_BUILD_RELAY ON CACHE BOOL "" FORCE)
+set(DETENT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(DETENT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(DETENT_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+add_subdirectory(../.. detent)
+add_executable(authority_pages_bench authority_pages_bench.cc)
+target_include_directories(authority_pages_bench PRIVATE ../../src ../../src/detent_authority)
+target_link_libraries(authority_pages_bench PRIVATE detent::relay_mirror detent::authority_node)
