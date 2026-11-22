@@ -11,7 +11,7 @@ Pre-fix jobs rerun at consensus:2c1abbb (head's tree with main's rpc_host_test.c
 ## Next
 
 1. When run 44989408833 ends: record it; rerun the workflow one run at a time (`gh run rerun ID -R Kronuz/consensus`)
-   until 5 green runs at 4536590; list each id in A3.
+   until 3 green runs at 4536590 (A3 is three in a row now); list each id in A3.
 2. Read 261121-212631-ac045b and 261121-212632-5bcdd7 (must fail: --fails-without), put them in A1/A2.
 
 ## Blocked on
