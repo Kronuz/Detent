@@ -13,6 +13,7 @@ Owner rule (2026-11-21), written once in cpp-libraries docs/SPLITTING.md (cpp-li
 - A2 The split moves code only: cpp-libraries tools/split_check.py (cpp-libraries:920d1b2 or later) with `--base` at the quest's base passes, warnings listed in the journal: a job
 - A3 [manual] The lead reads the split and confirms each cut follows a recognizable boundary per SPLITTING.md
 - A4 The suite and CI pass
+- A5 No class body is over 1,000 lines (owner, 2026-11-21, relayed by xapiand msg-233: "One class body of 5K+ lines is just not right"; "I would still split them with craftmanship and aiming at improving maintainability and parallel work"). Core (core.h, 1,395), HostTransport (host_transport.h, 1,216), Worker (worker.h, 1,142) and Driver (driver.h, 1,050) take step 1: member definitions move out of the class body into one header per mechanism, the class keeps data members and declarations, and the umbrella header keeps its path. Proved by split_check `--members` and a Release fnsizes diff with no change: jobs. Step 2 (subobjects where state stands apart) is a separate reviewed quest if any
 
 ## Contracts
 
