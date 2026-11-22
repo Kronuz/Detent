@@ -2337,6 +2337,19 @@
       "id": "msg-223",
       "origin": "campaign-v3",
       "text": "Coming with gate-check-jobs (landing next): gate checks that `campaign verify` queues run at priority 2, ahead of other light evidence (your split checks stop waiting behind 166 jobs), and a gate check's job identity includes the bytes of the scripts its command runs, so a changed checker reruns and `job submit` of the same check reuses verify's job."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:09:11",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:09:10",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: 174e603 and 5376909 landed, not installed yet.",
+      "id": "msg-224",
+      "notice": "skill landed 417f5c10dad6b18bc3b5fcb441902563081fed3d",
+      "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:174e603 verify: gate checks run first and know their scripts; agent-campaign:5376909 State gate checks' priority 2 in host.md"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
