@@ -1,6 +1,6 @@
 # consensus-quiesce-election-stall: journal
 
-State: waiting on jobs 261121-141823-59e17c 261121-141825-00c318 261121-141828-d3de36 261121-141831-ab6b36 261121-141834-bf5253 261121-141837-c1601b
+State: waiting on jobs 261121-215851-aed878 261121-215854-ecc90b 261121-215857-8d21a5 261121-215900-6ba0bc 261121-215904-ed1f54 261121-215907-6a75bb 261121-215921-70138c 261121-215924-1cf081 261121-215927-4866dd 261121-215930-dc004e 261121-215933-7dd2bc 261121-215936-868140 261121-215938-7eb2c6 261121-215942-13c686 261121-215945-2d65fc
 Quest: .campaign/detent/quests/consensus-quiesce-election-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,42 +9,52 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code done at consensus:c45bb24 (pushed); evidence jobs queued. Cause (from a per-message trace of `driver_replace_test 1 1080 quiesce`, seed 1080 even: no witness; leaving member 1, removed; leader 4 term 2, followers 2 and 3):
+Fix round 1 (review CHANGES: F1, F2, F4) at consensus:ab47d8a, pushed; consensus main (e35356a) merged at consensus:e2743bf. Code done; only jobs and CI remain. Then: fill Evidence, State "ready for review".
 
-1. Removed node 1 keeps pre-voting (term 3) every timeout. At t=9303 its pre-vote wakes leader 4, which heartbeats 2 and 3 (commit 28). Both heartbeats arrive while 2 and 3 still rest, so they change nothing.
-2. At t=9305 node 1's pre-vote reaches 2 and 3 and wakes them: election timers run from 9305, and each re-acknowledges its log to 4.
-3. Those acknowledgements answer none of 4's flights; 4 is already awake, its peers' `told` equals the commit, so `leader_at_rest()` holds and 4 rests without heartbeating them. State: leader 4 at rest (no timer), followers 2 and 3 awake with election timers armed and no heartbeat coming.
-4. At t=9412 node 3 times out and pre-votes; node 2 (last contact 9305, past election_min) grants. Node 3 campaigns term 3 at step 3779 of 3799; 4 (leader, untransferred vote) and 2 (woken, contact fresh) ignore its votes, and its term-3 AppendResponse deposes 4 at 9473. The settle window closes at ~9480 mid-election: "no leader after settling".
+The rule now (core.h `reacknowledge`, receive_message(AppendResponse)):
 
-So it is not a follower that fails to detect a silent leader: it is a leader that rests while a follower's timer runs, so failure detection fires against a live leader. Fix (core.h, leader's AppendResponse handler): an unprompted success (no matching flight) clears that peer's `told`, so the leader heartbeats it back to rest before resting again.
+1. Follower: when its rest ends and it keeps its leader and term, on a wake or on a stale frame (adds nothing to its log or commit), it owes acknowledgements: at once on a wake (or as soon as its persistence completes), then after every heartbeat interval with no frame from that leader, until a frame rests it. `acknowledge_at_` holds the next one (maximum: none owed); next_deadline includes it.
+2. Leader: an unprompted success clears that peer's `told` and records `woke` (the last token issued); only an answer to a flight sent after it (`rpc > woke`) sets `told` again.
+
+Why it closes the class (a leader at rest over a follower's running election timer): a leader rests only once every replica answered a frame that rests it. A follower awake under it left rest after that answer without leaving its leader, by a wake or by a later frame from that leader. A frame that adds to its log is the leader's newer one, so that leader is awake and replicating and rests again only on an answer to a later resting frame; a wake or a stale frame owes acknowledgements (1). Each goes out within a heartbeat interval, wakes a leader at rest, or keeps an awake one from resting until it heartbeats the follower (2). So with acknowledgements delivered, the leader rests over a running timer for at most a heartbeat interval: busy (s2), overtaken (s4), lost and resent (s5), stale frame with its answer lost (s7). Only acknowledgements lost for a whole election timeout let the follower elect, as lost heartbeats do for an awake follower.
 
 ## Next
 
-1. When the jobs finish: fill Evidence, set State to ready for review.
-2. Lead: the ctest registration below (Blocked on), then CI.
+1. When the jobs finish: fill Evidence and the review rows; State "ready for review".
+2. CI run 44991647211 at ab47d8a.
+
+## Fixes since the review
+
+| Finding | Fix | Test | Evidence |
+|---|---|---|---|
+| F1 (busy follower) | Follower re-acknowledges on a wake as soon as its persistence completes, then every silent heartbeat interval until rested (consensus:00a59a8, ab47d8a) | quiescence_test s2; mutant wake-ack-dropped-busy | 261121-215930-dc004e (mutant, --fails-without); 261121-215907-6a75bb, 261121-215904-ed1f54 (pass) |
+| F3 (lost / overtaken acknowledgements) | Periodic re-acknowledgement (s5); leader counts only answers to frames sent after an unprompted acknowledgement (s4) | quiescence_test s4, s5; mutants wake-ack-overtaken, wake-ack-once | 261121-215924-1cf081, 261121-215927-4866dd |
+| F1 class: stale frame | A stale frame that ends a rest owes acknowledgements too | quiescence_test s7; mutant stale-frame-silent | 261121-215933-7dd2bc |
+| F2 (1080 caught by accident) | s6 (the exact 1080 ordering) as a deterministic case; the old rule's mutant updated | quiescence_test s6; mutant wake-ack-unanswered | 261121-215936-868140 (s6 alone, --fails-without), 261121-215921-70138c (whole test) |
+| F4 (doc claim false) | quiescence.md, Rest: "A follower that leaves rest under its leader re-acknowledges" and "A follower's running timer is fed", the rule and the bound stated exactly | quiescence_test s1-s7 check the bound (exposure <= heartbeat) | consensus docs/mechanisms/quiescence.md |
+| F7 (token collision) | Moot: a collision can only set `told` early; the next re-acknowledgement repairs it | s1-s7 | none needed |
+| Reviewer's checks | sweep 77ca8b and probe s1-s6 rerun at the fix | | 261121-215942-13c686 (exposure), 261121-215938-7eb2c6 (probe; its s5 immediate check cannot pass under any rule: the leader receives exactly what it would from rested followers, so s5's pass is the quiet check) |
+| Idle cost | at_rest: messages from a write to rest and in 80 election timeouts after, core.h at main e35356a, dbb22e7 and the fix | | 261121-215945-2d65fc; local at the fix: 8 to rest, 0 after |
 
 ## Blocked on
 
-Lead (file set): the named test as a ctest entry needs CMakeLists.txt, outside this quest's files. Options: (a) add to CMakeLists.txt after the `consensus_driver_replace_${first}` loop:
-`add_test(NAME consensus_driver_replace_rest_1080 COMMAND consensus_driver_replace_test 1 1080 quiesce)` plus a rest sweep, e.g. `foreach(first 1 251 501 751) add_test(NAME consensus_driver_replace_rest_${first} COMMAND consensus_driver_replace_test 250 ${first} quiesce) ...TIMEOUT 300`; (b) leave it as a job-run named case. Recommend (a): CI then runs it under the sanitizers on every push. Everything else proceeds without it.
+Nothing.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261121-141823-59e17c (named seed 1080 at rest), 261121-141825-00c318 (1-3000 at rest, Release), 261121-141828-d3de36 (ASan+UBSan), 261121-141831-ab6b36 (TSan). Local run at c45bb24 before the oracle edit: 3000 of 3000 at rest ok, longest leaderless 329 ms; plain 1-1000 unchanged (3549 elections, identical counts with and without the fix) |
-| A2 | 261121-141023-81b8cd: `--fails-without` at the pre-fix commit consensus:de24723, seed 1080 at rest exits 1 "no leader after settling"; 261121-141837-c1601b pending: the wake-ack-unanswered mutant (driver_mutants.py) at head |
-| A3 | pending: 261121-141834-bf5253 (TSan ctest: simulation incl. quiescence cases, driver, driver_close*, liveness, driver_replace parts), 261121-141831-ab6b36 |
-| A4 | consensus docs/mechanisms/quiescence.md, Rest, "A woken follower's acknowledgement is answered" |
-| A5 | CI at consensus:c45bb24 running (pushed) |
+| A1 | pending at consensus:ab47d8a: 261121-215851-aed878 (named seed 1080 at rest), 261121-215854-ecc90b (1-3000 at rest, Release), 261121-215857-8d21a5 (ASan+UBSan), 261121-215900-6ba0bc (TSan). Local at ab47d8a: 1080 ok; 1-250 at rest ok, longest leaderless 183 ms |
+| A2 | 261121-141023-81b8cd: `--fails-without` at the pre-fix commit consensus:de24723, seed 1080 at rest exits 1 "no leader after settling". At ab47d8a, `--fails-without` on quiescence_test per mutant: 261121-215921-70138c (wake-ack-unanswered, the old rule), 261121-215936-868140 (the same, s6 alone), 261121-215924-1cf081 (wake-ack-overtaken), 261121-215927-4866dd (wake-ack-once), 261121-215930-dc004e (wake-ack-dropped-busy), 261121-215933-7dd2bc (stale-frame-silent). Each was caught locally first |
+| A3 | pending at ab47d8a: 261121-215904-ed1f54 (TSan ctest: quiescence, simulation, driver, driver_close*, liveness, driver_replace parts), 261121-215900-6ba0bc, 261121-215907-6a75bb (quiescence_test under ASan+UBSan). Local Release at ab47d8a: quiescence_test ok, simulation_test 200 seeds ok |
+| A4 | consensus docs/mechanisms/quiescence.md, Rest, "A follower that leaves rest under its leader re-acknowledges" and "A follower's running timer is fed" |
+| A5 | CI run 44991647211 at consensus:ab47d8a (pushed) |
 
 Other jobs: 261121-134216-fb35b7 (failed, as intended): the reviewer's quiesce_trace.sh at consensus main 8780e44 reproduces seed 1080's "no leader after settling".
 
 ## Result
 
-consensus:c45bb24 (on consensus:de24723). core.h: a leader's AppendResponse that answers none of its flights clears that peer's `told`, so `leader_at_rest()` waits for a heartbeat round to that follower. Docs: docs/mechanisms/quiescence.md (Rest, the woken-follower rule), CHANGELOG.md (own bullet, 2026-11-21 Fixed). Test: `driver_replace_test [seeds] [first] quiesce`; settle reports elections and the longest leaderless span and fails past 3 x election_max. Mutant: test/driver_mutants.py `wake-ack-unanswered`.
-
-Open: the follower's wake acknowledgement uses its own `token()` as rpc, which could equal one of the leader's flight rpcs; a match with equal `through` would count as that flight's answer and set `told` again. Rare (both numbers must coincide); not changed here.
+consensus:ab47d8a (on consensus main e35356a). core.h: `reacknowledge` (a follower that leaves rest under its leader on a wake or a stale frame re-acknowledges its durable log until a frame rests it; `acknowledge_at_`, in next_deadline), and the leader's `Peer::woke` (an unprompted success clears `told`; only answers to later flights set it). Docs: docs/mechanisms/quiescence.md (Rest: the re-acknowledgement rule and the fed-timer bound), CHANGELOG.md (own bullet, 2026-11-21 Fixed). Tests: test/quiescence_test.cc (ctest consensus_quiescence: at_rest, s1-s7), `driver_replace_test [seeds] [first] quiesce` and its ctests. Mutants: test/driver_mutants.py `wake-ack-unanswered`, `wake-ack-overtaken`, `wake-ack-once`, `wake-ack-dropped-busy`, `stale-frame-silent`. Job script: .scratch/detent/consensus-quiesce-election-stall/idle.sh (home).
 
 ## Rulings I made
 
@@ -52,3 +62,7 @@ Open: the follower's wake acknowledgement uses its own `token()` as rpc, which c
 2. Any unprompted success clears `told` (also late or duplicated answers): it costs at most one extra heartbeat round, and tells a woken follower's acknowledgement from a stale one without a wire change.
 3. A2's pre-fix commit is consensus:de24723 (the test mode, no fix); the persistent mutant is driver_mutants.py's `wake-ack-unanswered`, run at head.
 4. Election bound in the oracle: 3 x election_max (600 ms) without a leader while settling; measured max 329 ms at rest, 236 ms plain.
+5. (Round 1) F1's fix is the reviewer's follower-side rule, widened to every way a follower leaves rest under its leader except a frame that adds to its log (a stale frame included), plus a leader-side ordering rule (`woke`): the leader counts only answers to frames sent after an unprompted acknowledgement. Owing acknowledgements after a log-growing frame was tried and dropped: every write then cost an extra heartbeat round before rest (simulation_test quiescence::at_rest failed: "replica 1 rests again").
+6. The re-acknowledgement is silence-based: a frame from the leader pushes it a heartbeat interval out, so an owed follower of a replicating leader sends none.
+7. quiescence_test is a new file (test/quiescence*), not simulation_test's quiescence namespace, which is outside the file set. It is a ctest (consensus_quiescence) and takes CONSENSUS_DRIVER_MUTANT.
+8. The bound the tests check is "the leader rests over a running election timer for at most a heartbeat interval", plus no term moves in ten election timeouts, every replica rests again, and 0 messages at rest after; s1, s2, s4, s6 also check the leader does not rest at all on that ordering.
