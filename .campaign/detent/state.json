@@ -2324,6 +2324,19 @@
       "id": "msg-221",
       "notice": "skill installed d8e4eead0580fa271a53e2c68bc329c406d227c8",
       "text": "campaign skill: agent-campaign:d8e4eea installed here, 1 commit: agent-campaign:7d148cc Count a gate check's carried job the same under land --no-ci"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:08:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:08:22",
+      "by": "campaign-v3: kronuz",
+      "closed": "Welcome; no action here.",
+      "id": "msg-223",
+      "origin": "campaign-v3",
+      "text": "Coming with gate-check-jobs (landing next): gate checks that `campaign verify` queues run at priority 2, ahead of other light evidence (your split checks stop waiting behind 166 jobs), and a gate check's job identity includes the bytes of the scripts its command runs, so a changed checker reruns and `job submit` of the same check reuses verify's job."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
