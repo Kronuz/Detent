@@ -1,6 +1,6 @@
 # consensus-install-test-faultfs: journal
 
-State: working
+State: waiting on jobs 261121-222240-06c746 261121-222221-9081aa; CI on bf429c0
 Quest: .campaign/detent/quests/consensus-install-test-faultfs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Pushed consensus:bf429c0 (driver_install_test on faultfs). Waiting on the A1 jobs and CI.
 
 ## Next
 
-1. <step>
+1. When both jobs and CI are green: write "ready for review" and fill the Evidence rows.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -28,7 +28,8 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261121-222240-06c746 (ctest -R consensus_driver_install, the five cases); 261121-222221-9081aa (the `crash` sweep, outside ctest); `git grep memory_io` in consensus: empty |
+| A2 | CI on bf429c0 (pending) |
 
 ## Result
 
@@ -38,4 +39,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+Crash seed is a per-node counter (deterministic). Power cut k is power_off_after(k - 1), dead() is mutations since the cut >= k, as in driver_close_test. Span counts mutations (faultfs has no read operations to count). CMakeLists: driver_install added to the faultlab link loop.
