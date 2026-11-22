@@ -27336,7 +27336,8 @@
     "voter-read-freshness": {
       "accepted": {},
       "after": [
-        "namespace-s8-wiring"
+        "restart-capacity",
+        "server-composition-adoption"
       ],
       "checks": [
         {
@@ -27359,7 +27360,12 @@
         "tests/detent_relay/**",
         "tests/detent_authority/**",
         "docs/status/namespace-s8.md",
-        "website/src/content/docs/reference/http-api/authority.md"
+        "website/src/content/docs/reference/http-api/authority.md",
+        "docs/USAGE.md",
+        "website/src/content/docs/**",
+        "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
+        "tests/detent_system/**",
+        "tests/detent_delivery/test_source_selection.cc"
       ],
       "landed": [],
       "lenses": [
@@ -27374,7 +27380,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-18T09:14:57"
+      "updated": "2026-11-21T22:11:31"
     },
     "w2-leftovers": {
       "accepted": {},
