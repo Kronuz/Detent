@@ -10541,7 +10541,8 @@
       "accepted": {},
       "after": [
         "consensus-worker-release",
-        "consensus-close-fenced"
+        "consensus-close-fenced",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -10621,7 +10622,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-20T18:25:23"
+      "updated": "2026-11-21T21:51:28"
     },
     "driver-witness-removal-sink": {
       "accepted": {
