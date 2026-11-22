@@ -5120,9 +5120,9 @@
       "after": [],
       "checks": [
         {
-          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "cmd": "ci:macos-arm64",
           "level": "light",
-          "minutes": 30,
+          "minutes": 120,
           "name": "suite"
         }
       ],
@@ -5130,6 +5130,34 @@
       "files": [
         "test/driver_install_test.cc",
         "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T22:18:19",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
       ],
       "landed": [],
       "lenses": [],
@@ -5140,7 +5168,7 @@
       "risk": "low",
       "status": "planned",
       "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
-      "updated": "2026-11-21T22:18:18"
+      "updated": "2026-11-21T22:18:19"
     },
     "consensus-late-append": {
       "accepted": {
