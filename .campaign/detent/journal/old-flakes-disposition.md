@@ -1,6 +1,6 @@
 # old-flakes-disposition: journal
 
-State: waiting on jobs 261121-203030-ac3e6e 261121-203033-af9677 261121-203036-9647b5 261121-203039-09602c (flake 3 fix proof, partition x50, failover x50); docs written, flake 3 partition line to confirm
+State: waiting on job 261121-203249-b164cf (flake 3 probe: 180 s wait, convergence times); leader_apart reverted per the lead; failover x50 09602c still queued
 Quest: .campaign/detent/quests/old-flakes-disposition.md (the lead's; never edit it)
 
 ## Doing
@@ -27,7 +27,7 @@ Dispositions (draft, results pending in the Jobs table):
 
 ## Blocked on
 
-- Flake 3 partition call site: `tests/detent_system/run_partition.py` (not in my file set) must call the fixture's new `ManagedCohort.leader_apart()` instead of `authority.leader()`: line `old = await authority.leader()` becomes `old = await cohort.leader_apart()`. Options: (a) widen my file set to run_partition.py (recommended, one line); (b) the lead files a quest. Without it the fixture method is unused and the partition flake (1 in 50 at main) stays. Jobs 203030/203036 apply the line by sed to prove it.
+Nothing yet. Lead ruling: agents opened at the isolated leader must find the majority (gate 2), so no re-homing; leader_apart reverted (5a6571a9). Probe b164cf decides: test wait too short (name the bound and the file) or a product defect (source_selection).
 
 ## Jobs
 
