@@ -14952,19 +14952,19 @@
     "journal-tail-second-sector": {
       "accepted": {
         "durability": {
-          "at": "2026-11-21T12:55:08",
-          "base": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+          "at": "2026-11-21T21:25:16",
+          "base": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
           "blobs": {
-            "CHANGELOG.md": "100644:e682733650fbb4baf9898976285052998c8872e9",
+            "CHANGELOG.md": "100644:c2cbdc9e98ff4bc01d784579590132d2fe507e41",
             "docs/mechanisms/turn-log-damage.md": "100644:feec05d2b75fd0ad4f7f7980efabf1ca200cd20f",
-            "include/journal/turn_log.h": "100644:1a0cb26e065f4a2049f17ae90c288eb0ffd80632",
+            "include/journal/turn_log.h": "100644:0a1b0a1862c3aa6afd1866292eba22da73b0b8c0",
             "test/turn_log_power_test.cc": "100644:4f9aa6c2df5290541bb952224e0816f85bf9b897"
           },
           "by": "review",
-          "commit": "e912a28e3686230a4d98559c84f340ab6afca415",
+          "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
           "criteria": "3e232dbbe724855a",
           "diffs": {
-            "CHANGELOG.md": "8490d1f3fab3ce61",
+            "CHANGELOG.md": "dceb278aa1e41113",
             "docs/mechanisms/turn-log-damage.md": "a4036b65fb1a9bee",
             "include/journal/turn_log.h": "57d3bb325ff2ebbd",
             "test/turn_log_power_test.cc": "380f51f692f795c1"
@@ -14974,21 +14974,21 @@
               "jobs": [
                 {
                   "cmd": "bash -c 'cd .scratch/build && ./journal_turn_log_power_test 200'",
-                  "commit": "e912a28e3686230a4d98559c84f340ab6afca415",
+                  "commit": "6ae8f467edce128534fa634daede3590f58e11b5",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-115925-e0216a",
+                  "job": "261121-135333-127af1",
                   "level": "light",
-                  "seconds": 530.3,
+                  "seconds": 344.7,
                   "state": "done",
-                  "what": "T9 200 seeds macOS at the cut-header fix"
+                  "what": "T9 200 seeds macOS at the cut-header fix at 6ae8f467edce"
                 }
               ],
               "kind": "defect",
               "reproduced": false
             }
           },
-          "note": "",
+          "note": "main's code changes since the review: xapiand journal-turn-buffers (journal:60ab864, reviewed and approved by this lead for durability) and journal-fuzz-decoder-pin (journal:9cdaa34, fuzz target only); CHANGELOG conflict resolved by hand",
           "review": "d0d877759ca2bc7f279c4a2f3b1f1a7a969a880c",
           "reviewed": "421011acfb9a98bf27b11eb857e18f947911ee76",
           "verdict": "CHANGES"
@@ -15074,7 +15074,7 @@
       "risk": "high",
       "status": "active",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-21T12:55:08",
+      "updated": "2026-11-21T21:25:16",
       "worktree": "../journal-wt/detent/journal-tail-second-sector"
     },
     "journal-turn-bound": {
