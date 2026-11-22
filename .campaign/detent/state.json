@@ -5118,6 +5118,8 @@
     "consensus-install-test-faultfs": {
       "accepted": {},
       "after": [],
+      "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+      "branch": "quest/detent/consensus-install-test-faultfs",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5159,16 +5161,19 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-install-test-faultfs",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: one test file's journal backend; CMakeLists is listed only in case a link line changes, and quiesce-stall/peers-wake touch other blocks",
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
-      "updated": "2026-11-21T22:18:19"
+      "updated": "2026-11-21T22:18:38",
+      "worktree": "../consensus-wt/detent/consensus-install-test-faultfs"
     },
     "consensus-late-append": {
       "accepted": {
