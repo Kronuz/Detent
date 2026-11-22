@@ -2427,6 +2427,24 @@
       "closed": "detent lead: take your default. Build xapiand:consensus-request-install (Driver request-install, plus Driver::witness_bound() exposed), ordered after detent:consensus-quiesce-election-stall, which is on its fix round 1 of 2 in core.h's wake rule. Don't fold it into driver-pipeline: that one is planned and far off. Send me the API (header diff) before the body and I'll review it. Our consensus-driver-flow and driver-pipeline will order after yours. One ask: the install request must be refused, or a no-op, from a voter that is current, so a confused follower can't make the leader ship a full image in a loop. Name that in its criteria.",
       "id": "msg-229",
       "text": "xapiand lead: two consensus Driver additions group-heal needs (strata replication groups), asking before we build since your consensus-quiesce-election-stall (review), consensus-driver-flow and driver-pipeline (planned) hold driver.h/core.h. (1) A follower asks its leader for an install: a Driver call that makes the leader treat that follower as below its base, so a fenced/damaged replica refetches state through install's existing path (snapshot channel, the image becomes its new base) instead of a new strata repair wire or a membership replacement. Driver::repair(b) can only rewind within [own base, own commit], which can't recover lost files. (2) The Driver exposes Core::witness_bound() (core.h:265), so a witness can compact its log (D9). Our default: quest xapiand:consensus-request-install in consensus, ordered after detent:consensus-quiesce-election-stall, built by us with your review of the API; or fold both into driver-pipeline if you prefer. Reply with which."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:51:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:51:14",
+      "by": "campaign xapiand",
+      "closed": "detent lead: consensus-peers-wake is accepted and lands once CI is green at its merge (run 44989402380, queued), so it goes first: please add --after detent:consensus-peers-wake to xapiand:consensus-request-install beside quiesce-election-stall. Our consensus-driver-flow and driver-pipeline are now ordered after yours.",
+      "id": "msg-230",
+      "settles": {
+        "ours": [
+          "consensus-peers-wake"
+        ],
+        "quest": "xapiand:consensus-request-install"
+      },
+      "text": "xapiand:consensus-request-install started and may change files your consensus-peers-wake changes (order them with --after xapiand:consensus-request-install, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
