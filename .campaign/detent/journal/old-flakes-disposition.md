@@ -1,6 +1,6 @@
 # old-flakes-disposition: journal
 
-State: flake 3 diagnosed as a product defect (see Blocked on); waiting on the lead; no jobs pending
+State: ready for review
 Quest: .campaign/detent/quests/old-flakes-disposition.md (the lead's; never edit it)
 
 ## Doing
@@ -27,11 +27,7 @@ Dispositions (draft, results pending in the Jobs table):
 
 ## Blocked on
 
-Flake 3 (partition) is a product defect against docs/MANAGED_FAILOVER_ARCHITECTURE.md acceptance gate 2, for a correctness quest on `src/detent_delivery/source_selection.*` and `coordinator.cc` (agent) and the voter's idle responses (`service.cc`).
-- Probe 261121-203249-b164cf at 0ab699fa: agents opened at the leader (voter 0, `managed_initial_source follower=0 leader=0`), the partition isolates voter 0, `selection_timeout` 180 s. 8 of 8 runs never converge: every namespace stays at position 1 of 5 for 180 s (runs end at about 213 s). The bound is about 1 s quorum refresh (`quorum_refresh_ms` 1000, jitter 20%) plus 2 s per member deadline (`timeout_ms` 2000) plus 100 ms backoff (`reconnect_maximum_ms` 100): a few seconds. The `managed_converged` records (2.1-4.8 s, 16 of 16) are the pre-partition wait; none follows the partition.
-- Voter states at the timeout (diagnostic): `0: 200 role=0 fenced=False idle=650`, `1: role=0 idle=0`, `2: role=2 idle=0` (new leader 1 or 2): the isolated former leader is reachable, not fenced, and answers about 650 idle responses; agents' `authority_endpoints` are [voter 0, 1, 2] (ports in the run's managed.json). No agent logged `managed quorum refresh failures` or a `managed source endpoint ... rotations` line in any kept run, so no rotation started.
-- Earlier probe 261121-152400-2cea7c (30 s wait): 12 of 12 stall, some agents partway (14 of 20); the CI sighting (1 of 50 at main, 261121-131855-20dfc1) is the same signature after leadership moved onto the agents' voter.
-- Not mine: source_selection, coordinator, service.cc. The test's 30 s wait is not the defect (180 s changes nothing); no fixture change is proposed.
+Nothing. Flake 3: product defect against failover gate 2, fixed by managed-failover-isolated-leader (the evidence above stays here).
 
 ## Jobs
 
