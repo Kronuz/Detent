@@ -5483,9 +5483,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T14:27:30",
+      "updated": "2026-11-21T19:33:33",
       "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
     },
     "consensus-quiescence": {
