@@ -1,6 +1,6 @@
 # consensus-mutants-per-test: journal
 
-State: working
+State: waiting on jobs 261121-173829-dc0b56 (A1 local macOS) and the branch's CI run (A3)
 Quest: .campaign/detent/quests/consensus-mutants-per-test.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+consensus:e35356a pushed: tools/mutants.sh takes [NAME] (slug) and --list; CMake adds 17
+consensus_mutant_<slug> tests only where Ninja and bash exist (find_program), with a configure-time
+check that the script's list equals the tests'. Old consensus_mutants removed.
 
 ## Next
 
-1. <step>
+1. A1: job 261121-173829-dc0b56 (macOS, ctest -R consensus_mutant_ -j4); Linux is CI's (A3).
+2. A3: CI on e35356a; if a sanitizer job times out a mutant, raise that TIMEOUT from the logged time.
 
 ## Blocked on
 
@@ -28,7 +31,9 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | job 261121-173829-dc0b56 (macOS); Linux/sanitizers in CI |
+| A2 | [artifact] CMakeLists.txt consensus_mutants list: each TIMEOUT is 4x the slowest of msg-190's macOS/Linux/FreeBSD time, floor 600 s |
+| A3 | CI run on consensus:e35356a (pending) |
 
 ## Result
 
@@ -38,4 +43,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- FreeBSD: tests added only where bash is found (smaller than porting the bash-array script to POSIX sh); FreeBSD CI skips the mutants.
+- TIMEOUT 4x the slowest platform (floor 600 s), not 2x: sanitizer jobs time unknown, and the script already bounds each suite itself.
+- The 17th mutant (a read counts every acknowledgement) has no msg-190 time: 900 s guess, confirm from the A1 job.
+- NAME is the lower-case dash slug (`mutants.sh --list`), so test names have no spaces or quotes.
