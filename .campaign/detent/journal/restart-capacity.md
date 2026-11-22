@@ -1,6 +1,6 @@
 # restart-capacity: journal
 
-State: waiting on jobs 261121-160253-0a4d67 261121-160259-a5c5c9 261121-160304-c2e302 261121-160309-c65da6
+State: waiting on jobs 261121-212128-2b5201 261121-212132-5fb9e1 261121-212136-f963d5 261121-212139-b4d7b2
 Quest: .campaign/detent/quests/restart-capacity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,38 +9,50 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code, tests and docs done. Main merged (Detent:a17adba9). Unit job 261121-135043-e4073f failed at
-test_service.cc:746: the lowered `mutations` refusal surfaced as "authority recovery application
-fenced", the reason lost in the worker's terminal `Fenced` action. Fixed (Detent:84cf2357):
-startup refusals append the fence reason (`fence_reason`, service.cc). Mutants rebased onto it.
-Rerun at Detent:849cea6a: unit 261121-160253-0a4d67, system 261121-160259-a5c5c9, mutants
-261121-160304-c2e302 (a1) and 261121-160309-c65da6 (a2); CI pushed.
+Fix round at Detent:2f64e0fd. test_authority_node and _completion crashed (SEGV, test_node.cc:392,
+`retried[0].results[0]` on an empty vector) in every unit job since the quest's first, at
+Detent:e3f48e0b (261121-135043-e4073f) and Detent:849cea6a (261121-160253-0a4d67); CI showed the
+same on all four Linux jobs. Neither the main merge (website and campaign files only, no dependency
+pin change) nor fence_reason (service.cc, not linked by the node test) caused it: it came in with
+the test itself, Detent:4a703ede. Its `lead()` serviced the recovered voter at a fixed tick 0, so
+the election never timed out; the voter stayed a follower and the retry came back NotLeader with no
+results. A second fault in the same commit's changed-limits loop: it stopped as the worker fenced,
+a turn before the Fenced action reaches the host, so the asserted reason was empty. Fixed
+(Detent:2f64e0fd): the voter comes up like the other restart tests (pump, start, pump, asserted
+Leader); the refusal loop runs until the reason arrives. Both modes pass under a local ASan Debug
+build. Mutants rebased onto it: a1 Detent:eedaff36, a2 Detent:7bc53720.
 
 ## Next
 
-1. Read the jobs: each mutant must fail at its assertion in `restart_raise`, not at build.
+1. Read the jobs: each mutant must fail at its assertion in `restart_raise` or test_state, not at
+   build; the unit and system jobs must pass.
 2. Paste `campaign brief`'s table below; set State to ready for review.
 
 ## Blocked on
 
-Nothing. One open question for the lead under Rulings (1): the quest outcome says "keys and the
-other nine"; this follows contract rule 1 (only keys, state_bytes, image_bytes rise).
+The lead: the Docs workflow (check-docs) fails at Detent:849cea6a with `STALE exception
+source-only config image_bytes` and `... state_bytes`. The quest's operator docs now name both
+keys, so their two lines in `tests/docs/docs_exceptions.txt` (lines 8 and 14) are stale.
+That file is outside the file set. Options: (1) widen the file set to it and I delete the two lines
+(recommended); (2) the lead deletes them on the branch.
 
 ## Evidence
 
 Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: unit job 261121-135043-e4073f (at Detent:e3f48e0b); mutant job 261121-134017-55739f on `mutant/restart-capacity-a1` (Detent:fc91b0c9, commands under configured limits) --fails-without |
-| A2 | pending: 261121-135043-e4073f; mutant job 261121-134021-7685c2 on `mutant/restart-capacity-a2` (Detent:53faec96, administrative entries under configured limits) --fails-without |
-| A3 | pending: 261121-135043-e4073f, 261121-134615-70d30f |
-| A4 | pending: system job 261121-134615-70d30f (`tests/detent_system/test_restart_capacity.sh`, at Detent:702fe5f9; inputs unchanged since) |
+| A1 | pending: unit 261121-212128-2b5201; mutant 261121-212136-f963d5 (`mutant/restart-capacity-a1`, Detent:eedaff36) --fails-without |
+| A2 | pending: unit 261121-212128-2b5201; mutant 261121-212139-b4d7b2 (`mutant/restart-capacity-a2`, Detent:7bc53720) --fails-without |
+| A3 | pending: 261121-212128-2b5201, 261121-212132-5fb9e1 |
+| A4 | pending: system 261121-212132-5fb9e1 |
 | A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
-| A6 | pending: CI at Detent:e3f48e0b (pushed; suite, ASan/UBSan, TSan) |
+| A6 | pending: CI at Detent:2f64e0fd's journal head (suite, ASan/UBSan, TSan); Docs blocked (above) |
+
+Failed, superseded (not evidence): 261121-135043-e4073f and 261121-160253-0a4d67 (node SEGV, fixed
+at Detent:2f64e0fd); mutants 261121-160304-c2e302, 261121-160309-c65da6, 261121-134017-55739f and
+261121-134021-7685c2 ran with the node test already crashing, so they do not show their assertion;
+system 261121-160259-a5c5c9 passed at Detent:849cea6a (replaced by 261121-212132-5fb9e1).
 
 ## Result
 
@@ -72,6 +84,8 @@ does not do").
 6. A fenced startup names the worker's fence reason (`fence_reason`, service.cc), for all three
    refusals (storage initialization, recovery application, committed profile); the prefixes stay.
    The failed job 261121-135043-e4073f (Detent:e3f48e0b) is the run without it.
+7. The node test's segfault was the quest's own test (Detent:4a703ede), not the merge or
+   fence_reason: fixed in the test (Detent:2f64e0fd); no product code changed.
 
 Cancelled, superseded (not evidence): 261121-134013-9953d2, 261121-134216-f7b3a0, 261121-134612-884a01.
 
