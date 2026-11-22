@@ -2222,6 +2222,19 @@
       "id": "msg-213",
       "notice": "skill landed bfda0beb1111f205bd9624a983d573e1241fec12",
       "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:5f97abf Make land --merge-main merge only when a plain land asks for it; agent-campaign:a11fcb4 Annotate the test's empty tuple for pyrefly; agent-campaign:0e677e1 Have landing_gaps ask main_moved"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:28:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:28:45",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:b7049be landed, not installed yet.",
+      "id": "msg-214",
+      "notice": "skill landed b7049be8d73949858dae281384ebd87484f146ca",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:b7049be"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
