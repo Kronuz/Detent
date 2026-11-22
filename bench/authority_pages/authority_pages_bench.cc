@@ -386,9 +386,11 @@ int seals(int argc, char **argv) {
 class Authority {
   public:
 	explicit Authority(const std::filesystem::path &dir) {
-		std::filesystem::create_directories(dir / "history");
-		::chmod(dir.c_str(), 0700);
-		::chmod((dir / "history").c_str(), 0700);
+		// The journal bootstraps only into an empty directory, so history sits beside it.
+		for (const auto *sub : {"journal", "history"}) {
+			std::filesystem::create_directories(dir / sub);
+			::chmod((dir / sub).c_str(), 0700);
+		}
 		options_.context.cluster[0] = 'c';
 		options_.context.group[0] = 'g';
 		options_.context.epoch[0] = 'e';
@@ -396,7 +398,7 @@ class Authority {
 		options_.configuration.configuration = options_.context.group;
 		options_.configuration.local = 1;
 		options_.configuration.voters = {1};
-		node_ = std::make_unique<a::Node>(std::make_unique<kronuz::journal::PosixIO>(dir), options_);
+		node_ = std::make_unique<a::Node>(std::make_unique<kronuz::journal::PosixIO>(dir / "journal"), options_);
 		node_->attach_history(std::make_shared<kronuz::journal::PosixIO>(dir / "history"));
 		a::Identity storage{};
 		storage[0] = 'b';
