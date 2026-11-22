@@ -13442,19 +13442,41 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-fuzz-decoder-pin",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T20:35:17",
+          "commit": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+          "criteria": {
+            "A1": "261121-154444-95ae40",
+            "A2": "`ci:macos-arm64`, CI green at journal:9cdaa34"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "60ab864407fe4eb2ac05fa354f504916ae55c6e6",
+          "reason": "",
+          "tested": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "started by force: journal-tail-second-sector is accepted and only waits on CI at its merge; the overlap is CMakeLists.txt and CHANGELOG.md hunks",
       "repo": "../journal",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "A build define pins journal_fuzz to one decoder",
-      "updated": "2026-11-21T15:44:05",
-      "worktree": "../journal-wt/detent/journal-fuzz-decoder-pin"
+      "updated": "2026-11-21T20:35:19",
+      "worktree": ""
     },
     "journal-group-io-cost": {
       "accepted": {},
