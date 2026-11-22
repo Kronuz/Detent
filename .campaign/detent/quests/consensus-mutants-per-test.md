@@ -10,7 +10,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 ## Acceptance criteria
 
 - A1 Every mutant is its own ctest and each is killed: a job on macOS and one in the Linux VM
-- A2 Each TIMEOUT is at least twice its mutant's measured time on the gate VM (track-c-gates' jobs 261120-152025-9d8f43 and 261120-152033-26cdba give the times): [artifact] the CMake list
+- A2 [artifact] Each TIMEOUT is at least twice its mutant's measured time on the gate VM (track-c-gates' jobs 261120-152025-9d8f43 and 261120-152033-26cdba give the times): the CMake list
 - A3 CI passes on every job, FreeBSD included: `tools/mutants.sh` runs without bash there (POSIX sh, or the test is added only where bash exists)
 
 ## Contracts
