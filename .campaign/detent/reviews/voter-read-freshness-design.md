@@ -1,7 +1,7 @@
 # voter-read-freshness review: design
 
-Commit: Detent:9bc009ce369a2e4a68c4c1f3ca62710ea07fb6de (design at docs/design/voter-read-freshness.md), against consensus:e35356a97d8fc849bd017ba718e625435f3ec10d
-Verdict: CHANGES
+Commit: Detent:fa29b47d (round 2; round 1 was Detent:9bc009ce369a2e4a68c4c1f3ca62710ea07fb6de), against consensus:e35356a97d8fc849bd017ba718e625435f3ec10d
+Verdict: APPROVE
 Date: 2026-11-21
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
@@ -11,6 +11,20 @@ REJECT: the approach is wrong; the quest is re-planned.
 The approach is right: a follower ReadIndex in consensus, batched per owner pass, refusing with the
 errors each client already rotates or skips on. Two text fixes before code: forwarded-read identity
 must survive a follower restart (V1), and A3 must measure the class D144 adds (V2).
+
+## Round 2 (Detent:fa29b47d)
+
+A check that each blocking finding is closed, not a new round. Both are, so the verdict is APPROVE.
+
+- V1 closed: forwarded reads are keyed `{start, token}`, where `start` is a random per-start nonce. A response counts only if it comes from the peer asked, at the request's term, with the current `start` and a pending token, while (term, leader) is unchanged. The restart test and the `start` mutant are listed under "Tests this design owes".
+- V2 closed: A3 (quest :19 and design "Cost") measures follower and leader Open/Next p50/p99 at 333 Opens/s, leader CPU, and rounds and tasks per pass. Latency at a real RTT is rounds × RTT plus the pass cost. It goes back to review if Open p99 is more than 5 ms over main, leader CPU more than 10% over, or rounds per pass above 1.
+- V3 folded in: every leader refusal answers with a reason (refusal table, `read_failure` mapping).
+- V4 folded in: one `election_max` deadline runs from the send to `applied >= index`.
+- V5 folded in: the "Authority" invariant, with its test and mutant.
+- V6 kept as a note: options for the owner.
+- V7 folded in: the "Rest" paragraph and the rested-group test.
+- V8 kept as a note.
+- V9 kept as a note: the rulings are recorded under "Status"; A1's Decisions row is the lead's to write.
 
 ## Evidence I relied on
 
