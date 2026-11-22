@@ -1,18 +1,18 @@
 # consensus-transport-test-flakes: journal
 
-State: ready for review; only CI (A3, A4) and review remain. CI is red on consensus_mutants alone until the lead's consensus-mutants-per-test lands.
+State: waiting on CI run 44989408833 (head consensus:4536590, merge of main e35356a) and jobs 261121-212631-ac045b 261121-212632-5bcdd7; only CI (A3, A4) and review remain.
 Quest: .campaign/detent/quests/consensus-transport-test-flakes.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Head consensus:3ae265a (docs only over consensus:14acad3), pushed.
+Merged consensus main (e35356a, consensus_mutants per-test) into the branch and pushed: head consensus:4536590.
+Pre-fix jobs rerun at consensus:2c1abbb (head's tree with main's rpc_host_test.cc and rpc_hosts.h; on no branch).
 
 ## Next
 
-1. When consensus-mutants-per-test lands: merge consensus main, CI the head; A3 counts runs of both tests on
-   linux-tsan and macos-x86_64 (lead's count; run ids listed below).
-2. When node-admission lands: merge consensus main (connection_test.cc, links_test.cc, CMakeLists.txt are
-   Xapiand's; not touched here), re-run the A2 jobs at the merged head.
+1. When run 44989408833 ends: record it; rerun the workflow one run at a time (`gh run rerun ID -R Kronuz/consensus`)
+   until 5 green runs at 4536590; list each id in A3.
+2. Read 261121-212631-ac045b and 261121-212632-5bcdd7 (must fail: --fails-without), put them in A1/A2.
 
 ## Blocked on
 
@@ -23,8 +23,8 @@ Nothing. Not a transport defect (see Result), so no widened file set is asked fo
 | Criterion | Evidence |
 |---|---|
 | A1 | [artifact] Result below; reproducing jobs 261121-143436-5d5a0f (fetch under TSan, pre-fix fails), 261121-143443-734524 (group-full paused, pre-fix fails) |
-| A2 | fetch TSan: 261121-143436-5d5a0f (pre-fix, fails) vs 261121-143440-4dd232 (fix, 48 runs, gaps 125-258 ms) and 261121-143505-802e52 (plain, 48 runs, gaps 106-108 ms); group-full: 261121-143443-734524 (pre-fix fails, 5 s pause at 23 offsets) vs 261121-143447-430e88 (fix passes); repeats 261121-143458-1278dc (TSan 48), 261121-143501-bfbd76 (plain 96); control 261121-143509-02c420 (rpc-shared-credit: "0 of 15 calls ... 100 of 100 after FAILED", 2 of 2 runs failed: the expected control result, a transport parking calls behind the credit) |
-| A3 | CI run 44957530000 at consensus:14acad3: rpc_host_fetch and rpc_host_group-full Passed on linux-tsan (1.97 s, 4.36 s) and macos-x86_64 (2.21 s, 3.44 s) and all 8 other jobs; one run of ten. Waiting on the lead's mutants fix for green runs. |
+| A2 | pre-fix at the head's tree: 261121-212631-ac045b (fetch), 261121-212632-5bcdd7 (group-full), both --fails-without at consensus:2c1abbb; earlier fetch TSan: 261121-143436-5d5a0f (pre-fix, fails) vs 261121-143440-4dd232 (fix, 48 runs, gaps 125-258 ms) and 261121-143505-802e52 (plain, 48 runs, gaps 106-108 ms); group-full: 261121-143443-734524 (pre-fix fails, 5 s pause at 23 offsets) vs 261121-143447-430e88 (fix passes); repeats 261121-143458-1278dc (TSan 48), 261121-143501-bfbd76 (plain 96); control 261121-143509-02c420 (rpc-shared-credit: "0 of 15 calls ... 100 of 100 after FAILED", 2 of 2 runs failed: the expected control result, a transport parking calls behind the credit) |
+| A3 | CI runs at consensus:4536590: 44989408833 (queued). Earlier, run 44957530000 at consensus:14acad3: rpc_host_fetch and rpc_host_group-full Passed on linux-tsan (1.97 s, 4.36 s) and macos-x86_64 (2.21 s, 3.44 s) and all 8 other jobs; one run of ten. Waiting on the lead's mutants fix for green runs. |
 | A4 | CI run 44957530000: every red job (freebsd, asan-ubsan, tsan, macos-x86_64, arm64-gcc) failed only consensus_mutants (Timeout 1800 s / Failed 0.00 s, 1 of 113); the rest passed. Needs consensus-mutants-per-test |
 
 Messages: msg-1 (lead: node-admission edits connection_test.cc, links_test.cc, CMakeLists.txt, lands first):
