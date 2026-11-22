@@ -32,8 +32,8 @@ jobs no journal names), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | job 261121-173829-dc0b56 (macOS); Linux/sanitizers in CI |
-| A2 | [artifact] CMakeLists.txt consensus_mutants list: each TIMEOUT is 4x the slowest of msg-190's macOS/Linux/FreeBSD time, floor 600 s |
-| A3 | CI run on consensus:e35356a (pending) |
+| A2 | `CMakeLists.txt`: the consensus_mutants list; each TIMEOUT is 4x the slowest of msg-190's macOS/Linux/FreeBSD time, floor 600 s |
+| A3 | `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:e35356a; 17 of 17 mutants killed on macOS in 73-420 s (dc0b56) |
 
 ## Result
 
