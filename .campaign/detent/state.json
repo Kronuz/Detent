@@ -13478,6 +13478,8 @@
       "after": [
         "consensus-install-test-faultfs"
       ],
+      "base": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+      "branch": "quest/detent/journal-drop-memory-io",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -13540,6 +13542,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-drop-memory-io",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -13547,11 +13550,13 @@
         "journal-tail-second-sector"
       ],
       "provides": [],
+      "reason": "started by force: journal-tail-cut-header-design is a design quest that writes only docs/design; the overlap is its declared globs",
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T22:18:21"
+      "updated": "2026-11-21T22:18:24",
+      "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
     "journal-faultfs": {
       "accepted": {},
