@@ -316,28 +316,6 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		assert(node.worker().applied_index() >= through);
 	}
 }
-// Runs a single-voter node until it leads, or until it fences; returns the fence reason.
-std::string lead(Node &node) {
-	std::string reason;
-	auto turn = [&] {
-		node.service({0, Timing{}.election_min});
-		if (auto job = node.worker().take_io_operation())
-			kronuz::journal::drive_synchronously(*job);
-		for (auto &action : node.take_network_actions())
-			if (auto *fenced = std::get_if<Fenced>(&action))
-				reason = fenced->reason;
-	};
-	for (unsigned i = 0; i < 1000 && !node.worker().ready() && reason.empty(); ++i)
-		turn();
-	if (!reason.empty())
-		return reason;
-	node.start();
-	for (unsigned i = 0; i < 1000 && reason.empty() && node.worker().role() != Role::Leader; ++i)
-		turn();
-	for (unsigned i = 0; i < 200 && reason.empty(); ++i)
-		turn();
-	return reason;
-}
 // D141: voters restarted with raised limits replay every entry under the limits it carries.
 void restart_raise(const std::filesystem::path &directory) {
 	struct Cleanup {
@@ -381,7 +359,10 @@ void restart_raise(const std::filesystem::path &directory) {
 	{
 		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), raised);
 		node.recover();
-		assert(lead(node).empty());
+		pump(node);
+		node.start();
+		pump(node);
+		assert(node.worker().role() == Role::Leader);
 		assert(node.state().limits() == raised.application);
 		// A1: the group that failed at the old ceiling replays with the same result.
 		assert(node.state().size() == 2 && !node.state().find("ns:c") &&
@@ -676,7 +657,8 @@ int main(int argc, char **argv) {
 		}
 		assert(node.worker().ready());
 		node.start();
-		for (unsigned i = 0; i < 1000 && !node.worker().fenced(); ++i) {
+		// The Fenced action reaches the host on the turn after the worker fences.
+		for (unsigned i = 0; i < 1000 && reason.empty(); ++i) {
 			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
