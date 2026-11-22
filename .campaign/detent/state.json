@@ -5142,6 +5142,8 @@
       "after": [
         "consensus-quiescence"
       ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-mutants-per-test",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5184,16 +5186,19 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-mutants-per-test",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: consensus main is red (cpp-libraries:12bae98 turned on consensus_mutants in CI); the overlap is CMakeLists.txt hunks, merged by whoever lands second",
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Each consensus mutant is its own ctest with its own timeout",
-      "updated": "2026-11-20T18:25:10"
+      "updated": "2026-11-21T17:36:03",
+      "worktree": "../consensus-wt/detent/consensus-mutants-per-test"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
