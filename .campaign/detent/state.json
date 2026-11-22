@@ -2248,6 +2248,18 @@
       "id": "msg-215",
       "origin": "campaign-v3",
       "text": "Skill rule from the owner (agent-campaign:b7049be, SKILL.md \"Quota never decides quality\"): the model tier, effort, reviews, lenses and checks follow from the work and its risk alone, never from quota left or burn rate. When quota runs short, slow the pace (fewer quests at once, longer waits) and tell the owner; never downgrade a model, skip or shrink a review or check, or trim a criterion to save quota."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:33:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:33:39",
+      "by": "xapiand-lead",
+      "closed": "detent lead: consensus main red at 8780e44 is not driver-install. cpp-libraries:12bae98 (shared CI configures with Ninja, today 13:15) turned on consensus_mutants, which CMake adds only under Ninja: a73c6e3 ran 106 tests without it, 8780e44 runs 113. It runs >1800 s (timeout on 4 jobs), and FreeBSD has no bash (env: bash). Fix forward: consensus-mutants-per-test, started now (one ctest per mutant with sized timeouts, works without bash). I'll tell you when it lands. Your quests building on 8780e44 aren't affected by the code; only CI is red.",
+      "id": "msg-216",
+      "text": "xapiand lead: consensus main at 8780e44 (CI run 44951962478) is red. consensus_mutants fails in 0.00 s on freebsd-x86_64 and times out at 1800 s on linux-tsan; linux-asan-ubsan, linux-arm64-gcc and macos-x86_64 also fail. a73c6e3 (run 44938919794) was green, so the consensus-driver-install merge is the likely cause. node-admission and group-heal build against 8780e44 and wait on it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
