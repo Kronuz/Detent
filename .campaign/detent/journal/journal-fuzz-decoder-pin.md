@@ -28,9 +28,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261121-154444-95ae40: mixed 21,467, segment 220,207, checkpoint 18,230 executions in 60 s each, no crash; `bogus` fails configure |
+| A2 | `ci:macos-arm64`, CI green at journal:9cdaa34 |
 
 ## Result
+
+journal:9cdaa34: `JOURNAL_FUZZ_DECODER` (segment, checkpoint, or empty for the first byte) pins `journal_fuzz`; written by the lead.
 
 <When ready for review: what changed, its measured effect with numbers and the jobs behind them,
 and what it leaves open. Results and how it works go in the docs of the repository it changed
