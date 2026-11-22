@@ -27508,7 +27508,26 @@
       "worktree": ""
     },
     "voter-read-freshness": {
-      "accepted": {},
+      "accepted": {
+        "design": {
+          "at": "2026-11-21T22:31:04",
+          "base": "0edbbe35785fabf541c46051a907dbd461e49f38",
+          "blobs": {
+            "docs/design/voter-read-freshness.md": "100644:216a1042bf5bcb94421e01c00b7f01ada783aa6d"
+          },
+          "by": "review",
+          "commit": "fa29b47d4ffd36a6c46a74d8dedb04a80ac305d3",
+          "criteria": "bb8990c2975db948",
+          "diffs": {
+            "docs/design/voter-read-freshness.md": "e457b010ba11954b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "1aaeee3de788d3ac5b857ca40192aeb8a7a67fef",
+          "reviewed": "",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "restart-capacity",
         "server-composition-adoption",
@@ -27546,7 +27565,8 @@
       ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "correctness",
+        "design"
       ],
       "milestone": "N1",
       "needs": [
@@ -27561,7 +27581,7 @@
       "until": [
         "consensus-follower-read"
       ],
-      "updated": "2026-11-21T22:30:34",
+      "updated": "2026-11-21T22:31:04",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
