@@ -446,11 +446,12 @@ class Authority {
 			submit(batch);
 		}
 	}
-	// One group: every producer writes one uniform key.
+	// One group: every producer writes one uniform key, each a distinct value so none is NoChange.
 	void group(std::mt19937_64 &random, std::size_t keys, int salt) {
 		std::uniform_int_distribution<std::size_t> pick(0, keys - 1);
+		std::int64_t value = std::int64_t(salt) * std::int64_t(commands_.size());
 		for (auto &c : commands_) {
-			c.mutations = {{"ns:feature_" + std::to_string(pick(random)), detent::KnobDef{salt}, {}, {}}};
+			c.mutations = {{"ns:feature_" + std::to_string(pick(random)), detent::KnobDef{value++}, {}, {}}};
 			++c.sequence;
 		}
 		submit(commands_);
