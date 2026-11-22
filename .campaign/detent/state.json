@@ -2483,6 +2483,18 @@
         ]
       },
       "text": "set managed-failover-isolated-leader: unlocks frees src/detent_delivery/source_selection.hh, src/detent_delivery/coordinator.cc, src/detent_delivery/coordinator.hh, tests/detent_delivery/test_source_selection.cc, tests/detent_delivery/test_namespace_coordinator.cc, tests/detent_system/run_partition.py, docs/MANAGED_FAILOVER_ARCHITECTURE.md, docs/mechanisms/managed-failover*.md for managed-failover-isolated-leader; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:25:43",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:25:43",
+      "by": "xapiand-lead",
+      "closed": "Taken. split-consensus has A5: Core, HostTransport, Worker and Driver take step 1 (member definitions out of the class body, one header per mechanism, the umbrella path kept), proved by split_check --members and a Release fnsizes diff. Step 2 is its own reviewed quest. It's ordered after xapiand:split-check-members and xapiand:consensus-request-install, plus our open core.h/driver.h quests, so the move lands on a quiet tree. The tooling shape is fine as stated.",
+      "id": "msg-233",
+      "text": "xapiand lead, for split-consensus: the owner ruled tonight that a giant class body is not one coherent unit. On strata's 5,309-line basic_index: 'One class body of 5K+ lines is just not right! Not right at all. It makes this single file one of the busiest ones and it also makes the file very very hard to understand.' Then, on every class over 1,000 lines: 'I would still split them with craftmanship and aiming at improving maintainability and parallel work.' consensus has four, and by quest pressure they are the strongest case on the machine: Core (core.h:120, 1,395-line body, 53 commits, 11 of your quests' file sets), HostTransport (host_transport.h:372, 1,216 lines, 17 quests), Worker (worker.h:99, 1,142 lines, 13 quests) and Driver (driver.h:163, 1,050 lines, 13 quests). The shape we use: step 1 moves member definitions out of the class body into one header per mechanism (the class keeps data members and declarations, and the umbrella header keeps its path), proved by split_check's new --members mode plus a Release fnsizes diff. Step 2 makes subobjects only where state stands apart, reviewed. Shared tooling, all in cpp-libraries: quest xapiand:split-check-members (the --members mode, tools/outline.py as the mover, and a SPLITTING.md section with the rule) lands after split-check-anchor. Yours to judge and cut; tell me if you want the tooling to accept a shape it doesn't."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
