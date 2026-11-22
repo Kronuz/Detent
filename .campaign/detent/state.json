@@ -2557,6 +2557,19 @@
       "closed": "noted: request-install's seed files are fuzz seeds only, not seed-discovery; no ordering against detent-multicast-seeds",
       "id": "msg-237",
       "text": "xapiand lead, FYI for detent-multicast-seeds: campaign check says consensus-request-install changes consensus:seed-discovery. It doesn't. Its only seed files are fuzz seeds for its own two frames: it adds generators in fuzz/seed.cc and two entries under fuzz/corpus/decoders/ (seed-install-request, seed-install-request-response). Seed discovery's code and wire are untouched. If multicast-seeds also edits fuzz/seed.cc, the two additions are separate generators, so a merge is mechanical."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T00:25:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T00:25:31",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: ci-reuse and verify-land-agree landed on agent-campaign main; this host still runs f958fe7 from the dotfiles copy, so they take effect when the dotfiles install updates; until then clean merges still rerun",
+      "id": "msg-238",
+      "notice": "skill landed 47dfb508a86af0a94fd18d85d6a6c6bf94d9b4aa",
+      "text": "campaign skill: 12 commits landed on agent-campaign's main, not installed here yet: agent-campaign:6918f4a Merge branch 'quest/campaign-v3/verify-land-agree' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:d1d4057 Carry a quest's green CI and review across a clean merge from main; agent-campaign:59d1995 Merge branch 'main' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:f8a9f29 Wire main's CI into problems and the [ci] criterion into ci_gate; agent-campaign:cacdd3f Name main's side of the merge in a red main after a carried landing; agent-campaign:07c8772 Clear a fixed-forward landing for good; clean merges a failed journal; agent-campaign:778ed50 Bound main's CI reads after a carried landing; agent-campaign:ff6942f Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:2dffe40 Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:9cd0ccf Land reads CI fresh; a carried head's running CI is a live waiter; agent-campaign:43d103c Keep the host's good CI answer when a fresh ask fails; agent-campaign:91f67b3 Refuse land when a fresh gh ask fails; readers keep the good answer"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
