@@ -5,16 +5,12 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+test_local_disk_store failed once on CI macos-arm64 (run 44989878521, job 137116872503, restart-capacity's branch at Detent:38d36498, which touches no local store code): "disk store invariant at line 191", the check that a generation whose shared lease was closed is gone after request_collection() and drive(). Main's recent CI is green. Find whether collection can leave the generation for one drive pass (a test that asserts too early, or a store that misses the lease release), and fix the cause.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause is named, and a test reproduces it, or a loop of 2,000 runs under 4 burners passes at the fix while failing before it: jobs
+- A2 The suite and CI pass
 
 ## Contracts
 
