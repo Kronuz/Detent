@@ -30,11 +30,9 @@ build. Mutants rebased onto it: a1 Detent:eedaff36, a2 Detent:7bc53720.
 
 ## Blocked on
 
-The lead: the Docs workflow (check-docs) fails at Detent:849cea6a with `STALE exception
-source-only config image_bytes` and `... state_bytes`. The quest's operator docs now name both
-keys, so their two lines in `tests/docs/docs_exceptions.txt` (lines 8 and 14) are stale.
-That file is outside the file set. Options: (1) widen the file set to it and I delete the two lines
-(recommended); (2) the lead deletes them on the branch.
+Nothing. The Docs check-docs failure (stale `image_bytes`, `state_bytes` exceptions) is fixed
+after the lead added `tests/docs/docs_exceptions.txt` to the file set; check_docs.py reports 0
+stale locally.
 
 ## Evidence
 
@@ -47,7 +45,7 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 | A3 | pending: 261121-212128-2b5201, 261121-212132-5fb9e1 |
 | A4 | pending: system 261121-212132-5fb9e1 |
 | A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
-| A6 | pending: CI at Detent:2f64e0fd's journal head (suite, ASan/UBSan, TSan); Docs blocked (above) |
+| A6 | pending: CI at Detent:2f64e0fd's journal head (suite, ASan/UBSan, TSan); Docs (check-docs, stale exceptions removed) |
 
 Failed, superseded (not evidence): 261121-135043-e4073f and 261121-160253-0a4d67 (node SEGV, fixed
 at Detent:2f64e0fd); mutants 261121-160304-c2e302, 261121-160309-c65da6, 261121-134017-55739f and
