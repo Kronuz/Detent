@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: working
+State: waiting on jobs 261121-214353-49cebb 261121-214754-909eb7 261121-214758-617a27 261121-214802-132bf5 261121-214806-067a3a 261121-214810-64032c
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,7 +12,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 Harness at bench/authority_pages/ (authority_pages_bench.cc, build.sh, run.sh, check.py): seals mode (per-seal
 build cost with the relay's build_generation, relocation rule, writes+F_FULLFSYNC, LtHash-shaped records
 digest) and commit mode (durable single-voter Node with positions and history; arms none, thread, inline,
-write interleaved on one node). Smoke 261121-214353-49cebb (light, builds) queued at 83402862.
+write interleaved on one node). Smoke 261121-214353-49cebb (light, builds) queued at 83402862; rows after it,
+exclusive, at f7280883 (bench/ identical; src/ identical to main):
+- 261121-214754-909eb7 seals 100K (4 x 25,000), 30 seals of 2,048, written and synced
+- 261121-214758-617a27 seals 5M (10 x 500,000), 30 seals of 2,048, written and synced
+- 261121-214802-132bf5 seals 5M, 30 idle seals of 16
+- 261121-214806-067a3a commit 100K, none/thread/inline/write x3
+- 261121-214810-64032c commit 5M, none/thread/inline/write x3
+If the smoke fails, the rows never start: fix, resubmit the smoke and the rows.
 
 ## Next
 
