@@ -1,6 +1,6 @@
 # restart-capacity: journal
 
-State: waiting on jobs 261121-135043-e4073f 261121-134615-70d30f 261121-134017-55739f 261121-134021-7685c2
+State: waiting on jobs 261121-160253-0a4d67 261121-160259-a5c5c9 261121-160304-c2e302 261121-160309-c65da6
 Quest: .campaign/detent/quests/restart-capacity.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,8 @@ Code, tests and docs done. Main merged (Detent:a17adba9). Unit job 261121-135043
 test_service.cc:746: the lowered `mutations` refusal surfaced as "authority recovery application
 fenced", the reason lost in the worker's terminal `Fenced` action. Fixed (Detent:84cf2357):
 startup refusals append the fence reason (`fence_reason`, service.cc). Mutants rebased onto it.
-Rerunning every evidence job at the new head.
+Rerun at Detent:849cea6a: unit 261121-160253-0a4d67, system 261121-160259-a5c5c9, mutants
+261121-160304-c2e302 (a1) and 261121-160309-c65da6 (a2); CI pushed.
 
 ## Next
 
