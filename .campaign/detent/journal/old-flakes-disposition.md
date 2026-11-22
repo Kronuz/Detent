@@ -48,8 +48,8 @@ At 8cab53a6: forced fix proof ac3e6e, forced mutant af9677, partition x50 9647b5
 
 | Criterion | Evidence |
 |---|---|
-| A1 | flake 4 plain 7f1905 (0/200), ASan 37854b; 5/8 08d011 (0/200), TSan d94ed9; catch-up 140682 (0/8 rounds); flake 3 failover 09602c (0/50); partition is the open product defect (Blocked on) |
-| A2 | flake 4: ce8385 forced passes at the fix, 8e000d fails without it; flake 3 has no fixture fix; see Blocked on |
+| A1 | flake 4 plain 7f1905 (0/200), ASan 37854b; 5/8 08d011 (0/200), TSan d94ed9; catch-up 140682 (0/8 rounds); flake 3 failover 09602c (0/50); partition: product defect against gate 2, fixed by managed-failover-isolated-leader (probe b164cf) |
+| A2 | flake 4: ce8385 forced passes at the fix, 8e000d fails without it; flake 3 is fixed by managed-failover-isolated-leader, no fixture fix here |
 | A3 | docs/DEPENDENCY_UPGRADES.md (2026-11-21 disposition) and docs/status/http-coroutines.md; tests/docs check passes |
 | A4 | fea7be forced prints the condition, process state and agent --status; ce6a7a pre-fix fails silently; ffac65 x20 passes |
 
