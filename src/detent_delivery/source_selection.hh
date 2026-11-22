@@ -47,6 +47,12 @@ class SourceSelection {
 		return false;
 	}
 	void successful() noexcept { attempts_ = 0; }
+	// A due refresh opens at the next endpoint: a member answers Open from its own history, so only
+	// moving bounds how long one cut off from the majority holds the session with idle answers.
+	void refreshed() noexcept {
+		current_ = current_ + 1 == count_ ? 0 : current_ + 1;
+		attempts_ = 0;
+	}
 	void opened(Clock::time_point now) noexcept {
 		random_ += UINT64_C(0x9e3779b97f4a7c15);
 		auto bits = random_;

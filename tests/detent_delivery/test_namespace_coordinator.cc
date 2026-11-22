@@ -226,6 +226,40 @@ int main(int argc, char **argv) {
 			matches(server, root, limits, "app");
 			matches(server, root, limits, "web");
 		}
+		{
+			// Failover gate 2: the opening member is cut off from the majority and answers every next
+			// idle. A due refresh opens at the next member, so the agent reaches the majority's head in
+			// about one refresh, and returning to the cut-off member answers it idle, never older.
+			Server stale(server_tls, {"app"}), current(server_tls, {"app"});
+			current.served = {{"app", id('a'), 1, writes("app", 16, 1)}};
+			stale.served = current.served;
+			stale.served[0].transactions.resize(6);
+			const auto pooled_root = root / "pooled";
+			std::filesystem::create_directories(pooled_root);
+			std::filesystem::permissions(pooled_root, std::filesystem::perms::owner_all);
+			auto pooled = options;
+			pooled.namespaces = {"app"};
+			pooled.directory = pooled_root;
+			pooled.authority_endpoints = {stale.acceptor.local_endpoint(), current.acceptor.local_endpoint()};
+			pooled.source.endpoint = pooled.authority_endpoints.front();
+			pooled.quorum_refresh = 1s;
+			const auto at = [](Server &source, const t::CoordinatorStatus &s) {
+				std::lock_guard lock(source.mutex);
+				return !s.namespaces.empty() && s.namespaces.front().cursor == source.find("app").history().head();
+			};
+			Agent agent(pooled_root, l::StoreOpenMode::FreshEmpty, pooled, account, domain, queue);
+			agent.until([&](const auto &s) { return at(stale, s) && stale.idle > 2; }, "idle at the cut-off member");
+			const auto began = std::chrono::steady_clock::now();
+			auto state = agent.until([&](const auto &s) { return at(current, s); }, "the majority's head", 10s);
+			check(std::chrono::steady_clock::now() - began < 4s);
+			check(state.source_endpoint_index == 1 && state.source_rotations == 1 && !state.quorum_refresh_failures);
+			const auto idle = stale.idle.load();
+			state = agent.until([&](const auto &s) { return s.source_rotations == 2 && stale.idle > idle + 2; },
+								"back at the cut-off member", 10s);
+			check(at(current, state) && stale.answered == 1);
+			matches(current, pooled_root, limits, "app");
+			check(!stale.failure && !current.failure);
+		}
 		check(!server.failure);
 		queue.reset();
 		domain.close().wait();

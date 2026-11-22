@@ -1027,6 +1027,11 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					revalidating = true;
 					co_await release_session(session_source(), session, sources.pooled());
 					session = {};
+					const auto previous = sources.index();
+					sources.refreshed();
+					diagnostic.source_endpoint_index = sources.index();
+					if (sources.index() != previous)
+						++diagnostic.source_rotations;
 				}
 				auto request = options.source;
 				request.endpoint = sources.endpoint();

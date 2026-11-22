@@ -53,6 +53,16 @@ int main() {
 		behind.opened(now);
 		assert(behind.unavailable() == (attempt + 1 == endpoints.size()));
 	}
+	// A refresh moves to the next endpoint and starts a fresh round there.
+	SourceSelection refreshing(endpoints, {}, 30s, 17);
+	assert(!refreshing.unavailable() && refreshing.index() == 1);
+	refreshing.refreshed();
+	assert(refreshing.endpoint() == endpoints[2]);
+	assert(!refreshing.unavailable() && !refreshing.unavailable() && refreshing.unavailable());
+	refreshing.refreshed();
+	assert(refreshing.endpoint() == endpoints[0]);
+	legacy.refreshed();
+	assert(legacy.endpoint() == endpoints[0]);
 	SourceSelection repeat(endpoints, {}, 30s, 17);
 	repeat.opened(now);
 	assert(repeat.wait(now, 60s) == wait);
