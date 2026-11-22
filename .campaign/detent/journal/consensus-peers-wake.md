@@ -37,7 +37,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A2 | 261121-143902-c2b9e9, 261121-143905-8c1df5, 261121-143908-546fd9, 261121-143912-fb2da8, 261121-143916-805a2e, 261121-143920-0a930f, 261121-143923-5e1a09, 261121-143927-f0a404, 261121-143931-b1fc2e, 261121-143950-b0ce0e (--fails-without at refs/mutants/consensus-peers-wake/<name> on consensus:7f1f7e1: control, bulk-taken, bulk-refused, consumed, opened, lost, timer, any-lane-opened, stop-wakes; the reviewer's probe at bulk-refused), all failed as designed |
 | A3 | 261121-212628-07693b (macOS llvm TSan) at consensus:a068ba0; passed at consensus:7f1f7e1: 261121-143853-28897a |
 | A4 | docs/mechanisms/peers-wake.md (consensus:3576fb5, bulk step consensus:7f1f7e1) |
-| A5 | ci:macos-arm64 and the rest of CI run 44989402380 at consensus:a068ba0 (run 44957914227 at 7f1f7e1 was red only from consensus_mutants, fixed on main at e35356a) |
+| A5 | `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:a068ba0 (run 44989402380) |
 
 Superseded at consensus:a1855ac, never run: A1 261121-140831-f20fe2 and 261121-140921-85a62f, A3
 261121-140924-7f1c2c (replaced by the jobs above); the nine old mutant jobs 261121-140841-25783f,
