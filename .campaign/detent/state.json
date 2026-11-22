@@ -15072,9 +15072,9 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-21T21:25:16",
+      "updated": "2026-11-21T21:26:37",
       "worktree": "../journal-wt/detent/journal-tail-second-sector"
     },
     "journal-turn-bound": {
