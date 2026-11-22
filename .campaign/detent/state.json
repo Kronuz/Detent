@@ -13505,7 +13505,10 @@
         "AGENTS.md",
         "ARCHITECTURE.md",
         "CMakeLists.txt",
-        "docs/**"
+        "docs/**",
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md",
+        "CMakeLists.txt"
       ],
       "history": [
         {
@@ -13555,12 +13558,11 @@
         "journal-tail-second-sector"
       ],
       "provides": [],
-      "reason": "started by force: journal-tail-cut-header-design is a design quest that writes only docs/design; the overlap is its declared globs",
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
       "status": "active",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T22:18:24",
+      "updated": "2026-11-21T22:24:16",
       "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
     "journal-faultfs": {
