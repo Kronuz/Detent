@@ -25565,7 +25565,8 @@
         "consensus-quiesce-election-stall",
         "consensus-peers-wake",
         "consensus-transport-test-flakes",
-        "consensus-quiesce-election-stall"
+        "xapiand:consensus-request-install",
+        "xapiand:split-check-members"
       ],
       "checks": [
         {
@@ -25618,7 +25619,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T13:32:16"
+      "updated": "2026-11-21T22:26:09"
     },
     "split-detent": {
       "accepted": {},
