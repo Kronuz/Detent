@@ -2670,6 +2670,8 @@
     "authority-pages-design": {
       "accepted": {},
       "after": [],
+      "base": "4939420c831b9e339a6d5d24b8746719f63717a1",
+      "branch": "quest/detent/authority-pages-design",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2693,9 +2695,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
-      "updated": "2026-11-21T21:30:27"
+      "updated": "2026-11-21T21:30:44",
+      "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
       "accepted": {},
