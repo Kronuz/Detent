@@ -2415,6 +2415,36 @@
         ]
       },
       "text": "consensus-driver-install landed: unlocks frees test/transport/** for consensus-transport-test-flakes; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:49:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:49:21",
+      "by": "xapiand-lead",
+      "closed": "detent lead: take your default. Build xapiand:consensus-request-install (Driver request-install, plus Driver::witness_bound() exposed), ordered after detent:consensus-quiesce-election-stall, which is on its fix round 1 of 2 in core.h's wake rule. Don't fold it into driver-pipeline: that one is planned and far off. Send me the API (header diff) before the body and I'll review it. Our consensus-driver-flow and driver-pipeline will order after yours. One ask: the install request must be refused, or a no-op, from a voter that is current, so a confused follower can't make the leader ship a full image in a loop. Name that in its criteria.",
+      "id": "msg-229",
+      "text": "xapiand lead: two consensus Driver additions group-heal needs (strata replication groups), asking before we build since your consensus-quiesce-election-stall (review), consensus-driver-flow and driver-pipeline (planned) hold driver.h/core.h. (1) A follower asks its leader for an install: a Driver call that makes the leader treat that follower as below its base, so a fenced/damaged replica refetches state through install's existing path (snapshot channel, the image becomes its new base) instead of a new strata repair wire or a membership replacement. Driver::repair(b) can only rewind within [own base, own commit], which can't recover lost files. (2) The Driver exposes Core::witness_bound() (core.h:265), so a witness can compact its log (D9). Our default: quest xapiand:consensus-request-install in consensus, ordered after detent:consensus-quiesce-election-stall, built by us with your review of the API; or fold both into driver-pipeline if you prefer. Reply with which."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:51:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:51:14",
+      "by": "campaign xapiand",
+      "closed": "detent lead: consensus-peers-wake is accepted and lands once CI is green at its merge (run 44989402380, queued), so it goes first: please add --after detent:consensus-peers-wake to xapiand:consensus-request-install beside quiesce-election-stall. Our consensus-driver-flow and driver-pipeline are now ordered after yours.",
+      "id": "msg-230",
+      "settles": {
+        "ours": [
+          "consensus-peers-wake"
+        ],
+        "quest": "xapiand:consensus-request-install"
+      },
+      "text": "xapiand:consensus-request-install started and may change files your consensus-peers-wake changes (order them with --after xapiand:consensus-request-install, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4150,7 +4180,8 @@
         "consensus-driver-install",
         "consensus-full-window-stall",
         "consensus-quiescence",
-        "split-consensus"
+        "split-consensus",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -4207,7 +4238,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-21T11:42:36"
+      "updated": "2026-11-21T21:51:26"
     },
     "consensus-driver-install": {
       "accepted": {
@@ -10528,7 +10559,8 @@
       "accepted": {},
       "after": [
         "consensus-worker-release",
-        "consensus-close-fenced"
+        "consensus-close-fenced",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -10608,7 +10640,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-20T18:25:23"
+      "updated": "2026-11-21T21:51:28"
     },
     "driver-witness-removal-sink": {
       "accepted": {
@@ -16351,6 +16383,8 @@
     "managed-failover-isolated-leader": {
       "accepted": {},
       "after": [],
+      "base": "50c5bf196caec642bdac352f94fe713b8e73f17a",
+      "branch": "quest/detent/managed-failover-isolated-leader",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -16379,9 +16413,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Agents opened at an isolated former leader find the majority (failover gate 2)",
-      "updated": "2026-11-21T21:47:57"
+      "updated": "2026-11-21T21:48:02",
+      "worktree": "../Detent-wt/detent/managed-failover-isolated-leader"
     },
     "managed-relay-ipv6-flake": {
       "accepted": {},
@@ -21304,7 +21339,6 @@
     "old-flakes-disposition": {
       "accepted": {},
       "after": [
-        "detent-faultlab",
         "loop-idle-waits",
         "relay-tls-drain-flake"
       ],
@@ -21370,18 +21404,41 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-21T21:49:24",
+          "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+          "criteria": {
+            "A1": "261121-153510-7f1905, 261121-153523-37854b, 261121-153524-08d011, 261121-153526-d94ed9, 261121-153527-140682",
+            "A2": "261121-153555-ce8385; fails without: 261121-132220-9aaee5, 261121-153557-8e000d",
+            "A3": "docs/DEPENDENCY_UPGRADES.md (2026-11-21 disposition) and docs/status/http-coroutines.md; tests/docs check passes",
+            "A4": "261121-153606-ffac65; fails without: 261121-132020-e89451, 261121-153600-ce6a7a"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9b76d27c01e72262f12820a3184e823229f32d04",
+          "reason": "",
+          "tested": "b47837a4d4e49aaf4e7d898b57f4200492b443db"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: only test_transport_https.cc and test_authority_frames_service* sit under multi-voter-idle-wake's tests/detent_authority/** glob; that quest's outcome (owner loop wake) edits neither",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-21T13:13:33",
-      "worktree": "../Detent-wt/detent/old-flakes-disposition"
+      "updated": "2026-11-21T21:49:26",
+      "worktree": ""
     },
     "one-knob-type": {
       "accepted": {

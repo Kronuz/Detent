@@ -12,6 +12,8 @@ struct App : http::HttpHandler {
 	std::mutex mutex;
 	std::condition_variable ready;
 	http::OwnedStreamCapability pending;
+	std::condition_variable writable_ready;
+	bool writable = false;
 	task::task<void> handle(http::Request &request, http::ResponseWriter &writer) override {
 		if (request.path == "/v1/health") {
 			writer.send(200, "healthy");
@@ -24,6 +26,13 @@ struct App : http::HttpHandler {
 		// The reply leaves later, through the owned stream: the connection keeps reading meanwhile.
 		http::StreamOptions options;
 		options.reply.deadline = std::chrono::steady_clock::now() + 3s;
+		options.on_writable = [this] {
+			{
+				std::lock_guard lock(mutex);
+				writable = true;
+			}
+			writable_ready.notify_one();
+		};
 		std::lock_guard lock(mutex);
 		pending = writer.stream(std::move(options));
 		ready.notify_one();
@@ -38,6 +47,12 @@ struct App : http::HttpHandler {
 		std::unique_lock lock(mutex);
 		assert(ready.wait_for(lock, 2s, [&] { return bool(pending); }));
 		return std::move(pending);
+	}
+	// A chunk is accepted once the header write has settled; until then publish() answers Busy.
+	void wait_writable() {
+		std::unique_lock lock(mutex);
+		assert(writable_ready.wait_for(lock, 2s, [&] { return writable; }));
+		writable = false;
 	}
 };
 int main(int argc, char **argv) {
@@ -71,6 +86,7 @@ int main(int argc, char **argv) {
 	response.content_type = "text/plain";
 	auto deferred = std::make_shared<const std::string>("deferred");
 	assert(reply->start(response, deferred->size(), true) == http::StreamSubmit::Accepted);
+	app.wait_writable();
 	assert(reply->publish({deferred, std::string_view(*deferred)}) == http::StreamSubmit::Accepted);
 	assert(reply->finish() == http::StreamSubmit::Accepted);
 	asio::write(client, asio::buffer(std::string(

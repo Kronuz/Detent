@@ -52,6 +52,31 @@ set_port() {
         fi
     done
 }
+# wait_until WHAT CMD...: polls CMD for 30 s; on timeout says what it waited for and the processes' state.
+wait_until() {
+    local what=$1 limit=$((SECONDS + 30)) status=0
+    shift
+    while ((SECONDS < limit)); do
+        if "$@"; then return; fi
+        sleep 0.02
+    done
+    printf 'Timed out after 30 s waiting for %s\n' "$what" >&2
+    for process in agent_pid authority_pid; do
+        if [[ -n "${!process}" ]] && kill -0 "${!process}" 2>/dev/null; then
+            printf '%s %s is running\n' "${process%_pid}" "${!process}" >&2
+        else
+            printf '%s is not running\n' "${process%_pid}" >&2
+        fi
+    done
+    "$agent" --status --config "$root/agent.json" >&2 2>&1 || status=$?
+    printf 'agent --status exit=%s\n' "$status" >&2
+    return 1
+}
+process_exited() { ! kill -0 "$1" 2>/dev/null; }
+agent_status_has() { "$agent" --status --config "$root/agent.json" > "$root/$1" 2>&1 && grep -q "$2" "$root/$1"; }
+open_generation() {
+    post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"$1\"}" > "$root/$2.json" 2> "$root/$2-post.log"
+}
 post() {
     curl -fsS --max-time 10 --cacert "$certificates/ca.pem" --resolve "localhost:$port:127.0.0.1" \
         -H "Authorization: Bearer $writer_token" -H 'Content-Type: application/json' --data "$2" "https://localhost:$port$1"
@@ -60,10 +85,7 @@ post() {
 authority_pid=$!
 port=$(bound_port "$root/authority.log" "$authority_pid")
 set_port "$port" managed.json
-deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" > "$root/open.json" 2>/dev/null; then break; fi
-    sleep 0.05
-done
+wait_until "the authority to open generation 1" open_generation 61000000000000000000000000000000 open
 grep -q '"generation":1' "$root/open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/first.json"
 first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/first.json")
@@ -117,12 +139,7 @@ grep -q "knob_count=1 namespace=ns$" "$root/progress-status.txt"
 [[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
 # Positions are the namespace's own (W1), so the deletion is found by its effect.
-deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if "$agent" --status --config "$root/agent.json" > "$root/deleted-status.txt" &&
-        grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"; then break; fi
-    sleep 0.02
-done
-grep -q "knob_count=0 namespace=ns$" "$root/deleted-status.txt"
+wait_until "the agent to report the deleted knob (knob_count=0)" agent_status_has deleted-status.txt "knob_count=0 namespace=ns$"
 wait_value 7
 kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
@@ -143,17 +160,9 @@ cp "$root/managed.json" "$root/managed-good.json"
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["token"]="invalid-reader-token-000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
 "$agent" --config "$root/agent.json" > "$root/agent-unauthorized.log" 2>&1 &
 agent_pid=$!
-deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"; then break; fi
-    sleep 0.02
-done
-grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
+wait_until "the agent to log a delivery failure" grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
-    sleep 0.02
-done
-if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
+wait_until "the agent to exit on its rejected credential" process_exited "$agent_pid"
 wait_agent_failure "$agent_pid" "$root/agent-unauthorized.log"
 agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
@@ -166,10 +175,7 @@ identity=${identity/63000000000000000000000000000000/640000000000000000000000000
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["cluster"]="64000000000000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
 "$authority" --authority "$root/authority.json" --port "$port" --runtime-dir "$root/authority-run" > "$root/authority-reset.log" 2>&1 &
 authority_pid=$!
-deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-    if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"62000000000000000000000000000000\"}" > "$root/reset-open.json" 2>/dev/null; then break; fi
-    sleep 0.05
-done
+wait_until "the restored authority to open generation 1" open_generation 62000000000000000000000000000000 reset-open
 grep -q '"generation":1' "$root/reset-open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
 reset_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/reset-value.json")
@@ -194,11 +200,7 @@ mv "$root/generations" "$root/displaced-generations"
 mkdir "$root/generations"
 chmod 700 "$root/generations"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":100},\"expected_revision\":$reset_revision}]}" > "$root/fatal-progress.json"
-for ((attempt=0;attempt<300;attempt++)); do
-    if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
-    sleep 0.02
-done
-if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
+wait_until "the agent to exit on its lost generation store" process_exited "$agent_pid"
 wait_agent_failure "$agent_pid" "$root/agent-fatal.log"
 agent_pid=
 printf 'Authenticated delivery, followed namespaces, rejected credentials, deletion defaults, stopped reads, re-creation restart and fatal service exit passed\n'
