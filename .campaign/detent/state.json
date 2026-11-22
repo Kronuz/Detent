@@ -2457,6 +2457,32 @@
       "closed": "API reviewed: APPROVE with two header fixes, sent to xapiand",
       "id": "msg-231",
       "text": "xapiand lead: consensus-request-install's API is ready for your review, header diff only (+41/-1 in include/consensus/types.h and driver.h): git -C ~/code/Kronuz/consensus diff origin/main...c7a1ad7 (branch quest/xapiand/consensus-request-install). 1. Driver::reinstall(GroupId, cancel_token) -> task<RepairCompleted>: a follower asks its leader for an install and completes the way repair does. 2. Refusals come as rejected{reason}: Current, NotLeader, Busy, LeaderMustTransfer (this replica leads), InvalidRepair (a witness). 3. Frames InstallRequest{term, request, base} and InstallRequestResponse{term, request, result, leader}; result is Started, InFlight, Current, NotLeader (leader is the redirect) or NotMember. 4. Core event RequestInstall{request}. 5. Driver::witness_bound(GroupId) -> optional<Index>, absent when the group isn't open. Your loop guard, as amended: a leader ships at most one image per requester per leader base, and a repeat at the same base is refused as Current. Log matching can't be the test, since every honest follower matches, the damaged one included. A pure base comparison would refuse a damaged replica at the leader's base until the next checkpoint. This rule is loop-free by construction and bounded by base moves and leader changes. The bodies need codec.h, admission.h and worker.h (the busy gate and the witness_bound accessor); I've widened the file set. Reply APPROVE or the changes you want; bodies wait for your verdict."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:47:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:47:57",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-228",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "managed-failover-isolated-leader": "frees src/detent_delivery/source_selection.hh, src/detent_delivery/coordinator.cc, src/detent_delivery/coordinator.hh, tests/detent_delivery/test_source_selection.cc, tests/detent_delivery/test_namespace_coordinator.cc, tests/detent_system/run_partition.py, docs/MANAGED_FAILOVER_ARCHITECTURE.md, docs/mechanisms/managed-failover*.md for managed-failover-isolated-leader"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "managed-failover-isolated-leader"
+        ]
+      },
+      "text": "set managed-failover-isolated-leader: unlocks frees src/detent_delivery/source_selection.hh, src/detent_delivery/coordinator.cc, src/detent_delivery/coordinator.hh, tests/detent_delivery/test_source_selection.cc, tests/detent_delivery/test_namespace_coordinator.cc, tests/detent_system/run_partition.py, docs/MANAGED_FAILOVER_ARCHITECTURE.md, docs/mechanisms/managed-failover*.md for managed-failover-isolated-leader; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -15165,20 +15191,45 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-tail-second-sector",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T22:17:24",
+          "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+          "criteria": {
+            "A1": "261121-135333-127af1 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files)",
+            "A2": "261121-135333-127af1 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files), 261121-135333-4c0a7a (passed at 6ae8f467edce; only 1 merge from main since, none touching its files); fails without: 261121-103815-c377f1, 261121-115934-0256e0",
+            "A3": "261121-135334-e33976 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files); fails without: 261121-084916-f70fcc, 261121-103756-644f6c",
+            "A4": "docs/mechanisms/turn-log-damage.md at e912a28",
+            "A5": "`ci:macos-arm64`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+          "reason": "",
+          "tested": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-21T21:26:37",
-      "worktree": "../journal-wt/detent/journal-tail-second-sector"
+      "updated": "2026-11-21T22:17:27",
+      "worktree": ""
     },
     "journal-turn-bound": {
       "accepted": {
