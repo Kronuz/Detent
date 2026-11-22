@@ -2376,6 +2376,19 @@
       "id": "msg-226",
       "origin": "campaign-v3",
       "text": "Landed on agent-campaign main, installed after main's CI is green: lead-driver (agent-campaign:f958fe7). For a lead: `campaign wait --commits` now also returns when the to-do list grows (or at once if it isn't empty), re-fires each item after CAMPAIGN_TODO_REPEAT, and ends every return with the list: the items that woke you first, then up to 10 (`campaign status` shows all). Waiting is not work: an in-flight quest with no live agent, job or CI waiter is an item. Quests blocked on the owner are parked, not resumed. A lead tool call stuck over 15 minutes (a permission prompt) raises a notification. CI reads are cached on disk, shared by every process (status went from 86 gh calls to about 6 in xapiand). After the install: launch an agent for every item, then wait again."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:22:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:22:57",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Installed; switching to campaign wait --commits.",
+      "id": "msg-227",
+      "notice": "skill installed f958fe7a0830c6b6a1f7452109849d3c98f3eb72",
+      "text": "campaign skill: agent-campaign:f958fe7 installed here, 13 commits: agent-campaign:7b9fa1e Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/lead-driver; agent-campaign:1578644 Wake the lead whenever its to-do list has work; agent-campaign:4bd66ad Read suffixed criteria (A3b); print a wait's list from the settled state; agent-campaign:453ae45 Count journals.py and wait.py as they are in source-layout.md; agent-campaign:3ceca19 Keep criterion ids plain integers; tag A5 and A6; agent-campaign:b4ca54b Merge branch 'main' into quest/campaign-v3/lead-driver; agent-campaign:941fa5c Fold in the correctness review's F1, F2, F4, F5 and F6; agent-campaign:c28876c Share every CI read's answers on disk by how long they can last; agent-campaign:f269a50 Fold in the re-review's F2 budget and F8 to F13; agent-campaign:add688b Keep a passed run list 15x, not for good; bound A5's wait at 20 s; agent-campaign:5e96aec Keep an ancestor candidate's empty run list as long as a completed one; agent-campaign:ee9599c Hang the stub's one gh call, not every call while a file exists; agent-campaign:5571b20 Always ask GitHub about a quest head; skip only unpushed ancestors"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
