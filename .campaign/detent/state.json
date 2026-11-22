@@ -2533,6 +2533,18 @@
         ]
       },
       "text": "journal-tail-second-sector landed: unlocks frees test/** for split-journal; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T23:10:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T23:10:17",
+      "by": "xapiand-lead",
+      "closed": "agreed: the three overlaps are CMakeLists only and trial-merge clean; no ordering, whoever lands second merges main",
+      "id": "msg-236",
+      "text": "xapiand lead, FYI on campaign check's overlap warnings: I diffed the real branches. consensus-install-test-faultfs shares only CMakeLists.txt with our node-admission and consensus-request-install, journal-drop-memory-io shares only CMakeLists.txt with our journal-lost-bound, and consensus-transport-test-flakes shares nothing with request-install (it touches rpc_host_test.cc, rpc_hosts.h and the two scripts; we touch codec_test.cc). All three pairs trial-merge clean (git merge-tree), so I'm not ordering them: whoever lands first, the other merges main. Also: node-admission merged consensus main (42a8cde) after peers-wake landed, and I read your 20 files against its review: no admission logic changed."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
