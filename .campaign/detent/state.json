@@ -4162,7 +4162,8 @@
         "consensus-driver-install",
         "consensus-full-window-stall",
         "consensus-quiescence",
-        "split-consensus"
+        "split-consensus",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -4219,7 +4220,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-21T11:42:36"
+      "updated": "2026-11-21T21:51:26"
     },
     "consensus-driver-install": {
       "accepted": {
