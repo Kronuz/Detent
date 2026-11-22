@@ -24935,9 +24935,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-21T21:32:23",
+      "updated": "2026-11-22T00:09:05",
       "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
