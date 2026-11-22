@@ -5711,18 +5711,18 @@
     "consensus-peers-wake": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T20:33:41",
-          "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "at": "2026-11-21T22:59:49",
+          "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
           "blobs": {
             "CHANGELOG.md": "100644:63c7d2bd116a60c5b1280b80ea5e0deefc81afdf",
-            "CMakeLists.txt": "100644:d13f4d16b51bef8630380b9be2a0654f50bbfb82",
+            "CMakeLists.txt": "100644:e1fb4e6ae438830f2404f0f0df9efc5515ca7788",
             "docs/mechanisms/peers-wake.md": "100644:0926d2183a67384a7e61c00d511cc3efedf82fe8",
             "include/consensus/transport/peers.h": "100644:22c566a7862b7fe588911396fb4f49318d49d159",
             "test/peers_wake_mutants.py": "100644:cc194aa780128f30d39425aa38f851b361481381",
             "test/peers_wake_test.cc": "100644:f80be94551f44760adc0da540f39f5ec641d8f1f"
           },
           "by": "review",
-          "commit": "7f1f7e1a341748331bd45ee75d75c360007dd57c",
+          "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
           "criteria": "135d7050237ea52f",
           "diffs": {
             "CHANGELOG.md": "0cb297dc3d44057a",
@@ -5737,14 +5737,14 @@
               "jobs": [
                 {
                   "cmd": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 --target consensus_transport_peers_wake_test && ctest --test-dir .scratch/build --output-on-failure --repeat until-fail:3 -R \"consensus_tls_certificates|consensus_transport_peers_wake\"'",
-                  "commit": "7f1f7e1a341748331bd45ee75d75c360007dd57c",
+                  "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-143846-6e9ab7",
+                  "job": "261121-212625-7909ca",
                   "level": "light",
-                  "seconds": 26.0,
+                  "seconds": 31.0,
                   "state": "done",
-                  "what": "A1 peers_wake idle/control/bulk, 3 repeats"
+                  "what": "A1 peers_wake idle/control/bulk, 3 repeats at a068ba067362"
                 }
               ],
               "kind": "gap",
@@ -5819,7 +5819,7 @@
       "risk": "high",
       "status": "review",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T20:33:41",
+      "updated": "2026-11-21T22:59:49",
       "worktree": "../consensus-wt/detent/consensus-peers-wake"
     },
     "consensus-quiesce-election-stall": {
