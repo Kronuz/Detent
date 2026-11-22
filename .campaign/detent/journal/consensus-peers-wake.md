@@ -1,6 +1,6 @@
 # consensus-peers-wake: journal
 
-State: waiting on jobs 261121-143846-6e9ab7 261121-143850-ef4b0f 261121-143853-28897a 261121-143902-c2b9e9 261121-143905-8c1df5 261121-143908-546fd9 261121-143912-fb2da8 261121-143916-805a2e 261121-143920-0a930f 261121-143923-5e1a09 261121-143927-f0a404 261121-143931-b1fc2e 261121-143950-b0ce0e
+State: waiting on jobs 261121-212625-7909ca 261121-212627-ae7c2d 261121-212628-07693b and CI run 44989402380
 Quest: .campaign/detent/quests/consensus-peers-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 (review consensus-peers-wake-correctness, CHANGES) at consensus:7f1f7e1: F1 and F2
-fixed, all jobs resubmitted, branch pushed (CI). Locally (dev build, not evidence) bulk passes
-at 7f1f7e1 and fails by CHECK at both bulk mutants: bulk-refused at peers_wake_test.cc:425
-(`reaches(11)`), bulk-taken at :372 (`reaches(2)`).
+Correctness review accepted at consensus:7f1f7e1; all 13 jobs there ended as designed (A1 and
+TSan passed, nine mutants and the probe failed). Merged consensus main e35356a (mutants per
+ctest, fixes the red consensus_mutants CI job): consensus:a068ba0, a clean merge of
+CMakeLists.txt and tools/mutants.sh; the peers_wake block is unchanged. Pushed; A1/A3 rerun at
+the merge, CI run 44989402380 queued.
 
 ## Next
 
-1. Record the jobs below; a red one gets its cause fixed and a rerun.
-2. CI green at 7f1f7e1 (A5), then State: ready for review (the reviewer confirms F1 with
-   261121-143908-546fd9 and 261121-143950-b0ce0e).
+1. Record the A1/A3 reruns and CI at consensus:a068ba0; a red one gets its cause fixed.
+2. The lead re-accepts the review at the merge.
 
 ## Blocked on
 
@@ -33,11 +33,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261121-143846-6e9ab7 (3 repeats), 261121-143850-ef4b0f (plain), at consensus:7f1f7e1 |
-| A2 | --fails-without at refs/mutants/consensus-peers-wake/<name>, each one hunk on consensus:7f1f7e1: control 261121-143902-c2b9e9 (3d124de), bulk-taken 261121-143905-8c1df5 (e429553), bulk-refused 261121-143908-546fd9 (40b1113), consumed 261121-143912-fb2da8 (7b428d3), opened 261121-143916-805a2e (12e97f0), lost 261121-143920-0a930f (fcabfa0), timer 261121-143923-5e1a09 (6b21788), any-lane-opened 261121-143927-f0a404 (1d8a79d), stop-wakes 261121-143931-b1fc2e (06d3c61); reviewer probe bulk-refused-survives.sh at 40b1113, must fail: 261121-143950-b0ce0e |
-| A3 | 261121-143853-28897a (macOS llvm TSan, peers and peers_wake ctest entries) at consensus:7f1f7e1 |
+| A1 | 261121-212625-7909ca (3 repeats), 261121-212627-ae7c2d (plain), at consensus:a068ba0; passed at consensus:7f1f7e1: 261121-143846-6e9ab7, 261121-143850-ef4b0f |
+| A2 | 261121-143902-c2b9e9, 261121-143905-8c1df5, 261121-143908-546fd9, 261121-143912-fb2da8, 261121-143916-805a2e, 261121-143920-0a930f, 261121-143923-5e1a09, 261121-143927-f0a404, 261121-143931-b1fc2e, 261121-143950-b0ce0e (--fails-without at refs/mutants/consensus-peers-wake/<name> on consensus:7f1f7e1: control, bulk-taken, bulk-refused, consumed, opened, lost, timer, any-lane-opened, stop-wakes; the reviewer's probe at bulk-refused), all failed as designed |
+| A3 | 261121-212628-07693b (macOS llvm TSan) at consensus:a068ba0; passed at consensus:7f1f7e1: 261121-143853-28897a |
 | A4 | docs/mechanisms/peers-wake.md (consensus:3576fb5, bulk step consensus:7f1f7e1) |
-| A5 | campaign verify (CI) at consensus:7f1f7e1 |
+| A5 | ci:macos-arm64 and the rest of CI run 44989402380 at consensus:a068ba0 (run 44957914227 at 7f1f7e1 was red only from consensus_mutants, fixed on main at e35356a) |
 
 Superseded at consensus:a1855ac, never run: A1 261121-140831-f20fe2 and 261121-140921-85a62f, A3
 261121-140924-7f1c2c (replaced by the jobs above); the nine old mutant jobs 261121-140841-25783f,
