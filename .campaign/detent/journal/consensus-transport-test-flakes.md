@@ -1,36 +1,31 @@
 # consensus-transport-test-flakes: journal
 
-State: waiting on jobs 261121-143436-5d5a0f 261121-143440-4dd232 261121-143443-734524 261121-143447-430e88 261121-143458-1278dc 261121-143501-bfbd76 261121-143505-802e52 261121-143509-02c420
+State: ready for review; only CI (A3, A4) and review remain. CI is red on consensus_mutants alone until the lead's consensus-mutants-per-test lands.
 Quest: .campaign/detent/quests/consensus-transport-test-flakes.md (the lead's; never edit it)
 
 ## Doing
 
-Fix pushed (consensus branch quest/detent/consensus-transport-test-flakes, 14acad3 consensus:14acad3). Jobs
-below run the repeat counts. Local numbers are in Result.
+Nothing. Head consensus:3ae265a (docs only over consensus:14acad3), pushed.
 
 ## Next
 
-1. Read the jobs' results; fill the Evidence table; `campaign verify` for the suite.
+1. When consensus-mutants-per-test lands: merge consensus main, CI the head; A3 counts runs of both tests on
+   linux-tsan and macos-x86_64 (lead's count; run ids listed below).
 2. When node-admission lands: merge consensus main (connection_test.cc, links_test.cc, CMakeLists.txt are
-   Xapiand's until then; not touched here), re-run the jobs at the merged head.
-3. A3 (ten CI passes of both tests on linux-tsan and macos-x86_64): CI runs on the pushed branch, the lead's
-   count; I list run ids as they come.
+   Xapiand's; not touched here), re-run the A2 jobs at the merged head.
 
 ## Blocked on
 
-Nothing. Not a transport defect (see Result), so no widened file set is asked for. One doc line is
-stale outside my file set: docs/mechanisms/rpc-lane.md:176 says group-full's receiving loop "stalls 4 s"
-(now held until the calls end), and its `fetch` row says "about 1.1 s beside 131 MiB ... 210 ms longest
-gap" (now measured below). Lead's call whether to widen to docs/mechanisms/rpc-lane.md.
+Nothing. Not a transport defect (see Result), so no widened file set is asked for.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Result below; jobs 5d5a0f (pre-fix fetch fails), 734524 (pre-fix group-full fails) |
-| A2 | fetch TSan: 5d5a0f at consensus:329e7f6 (pre-fix, `--fails-without`) vs 4dd232 at the fix; group-full: 734524 vs 430e88 (5 s SIGSTOP at 23 offsets); repeats 1278dc, bfbd76, 802e52; control 02c420 (rpc-shared-credit still fails group-full) |
-| A3 | <CI run ids, the lead's count> |
-| A4 | <CI> |
+| A1 | [artifact] Result below; reproducing jobs 261121-143436-5d5a0f (fetch under TSan, pre-fix fails), 261121-143443-734524 (group-full paused, pre-fix fails) |
+| A2 | fetch TSan: 261121-143436-5d5a0f (pre-fix, fails) vs 261121-143440-4dd232 (fix, 48 runs, gaps 125-258 ms) and 261121-143505-802e52 (plain, 48 runs, gaps 106-108 ms); group-full: 261121-143443-734524 (pre-fix fails, 5 s pause at 23 offsets) vs 261121-143447-430e88 (fix passes); repeats 261121-143458-1278dc (TSan 48), 261121-143501-bfbd76 (plain 96); control 261121-143509-02c420 (rpc-shared-credit: "0 of 15 calls ... 100 of 100 after FAILED", 2 of 2 runs failed: the expected control result, a transport parking calls behind the credit) |
+| A3 | CI run 44957530000 at consensus:14acad3: rpc_host_fetch and rpc_host_group-full Passed on linux-tsan (1.97 s, 4.36 s) and macos-x86_64 (2.21 s, 3.44 s) and all 8 other jobs; one run of ten. Waiting on the lead's mutants fix for green runs. |
+| A4 | CI run 44957530000: every red job (freebsd, asan-ubsan, tsan, macos-x86_64, arm64-gcc) failed only consensus_mutants (Timeout 1800 s / Failed 0.00 s, 1 of 113); the rest passed. Needs consensus-mutants-per-test |
 
 Messages: msg-1 (lead: node-admission edits connection_test.cc, links_test.cc, CMakeLists.txt, lands first):
 left those alone; my change is rpc_host_test.cc, rpc_hosts.h and two scripts only; will merge consensus main
@@ -53,7 +48,7 @@ fetch under TSan: not a transport defect; the stalls were the test's own, on the
   reader fix only 0 of 12, gaps 377-842 ms; full fix 0 of 12, gaps 211-380 ms; fetch 2.5-3.2 s plain,
   4.3-5.8 s TSan against 4-18 s before. The bound stays 1,000 ms, the election timeout it protects.
 - Noted, not a defect: the reader runs on the loop, so a reader that blocks delays that loop's
-  heartbeats by its duration (docs/mechanisms/rpc-lane.md).
+  heartbeats by its duration.
 
 group-full on macOS x86_64: a runner that pauses the process, not the transport.
 - CI logs (macos-x86_64): run 44924240551 job 136907325526: "credit full (no, 458927 bytes uncredited ...);
@@ -78,3 +73,5 @@ group-full on macOS x86_64: a runner that pauses the process, not the transport.
   `beats.worst < 1000` style bounds and no failure here, so left alone. Candidates if they flake.
 - Pre-fix commit for `--fails-without` is consensus:329e7f6, HEAD's tree with the base's rpc_host_test.cc and
   rpc_hosts.h (on no branch), the same way rpc_mutants.py makes a mutant.
+- docs/mechanisms/rpc-lane.md (widened into the file set by the lead): group-full and fetch rows now state what
+  the test asserts and the measured gaps (consensus:3ae265a).
