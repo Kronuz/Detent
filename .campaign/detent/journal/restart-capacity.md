@@ -40,10 +40,10 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: unit 261121-212128-2b5201; mutant 261121-212136-f963d5 (`mutant/restart-capacity-a1`, Detent:eedaff36) --fails-without |
-| A2 | pending: unit 261121-212128-2b5201; mutant 261121-212139-b4d7b2 (`mutant/restart-capacity-a2`, Detent:7bc53720) --fails-without |
-| A3 | pending: 261121-212128-2b5201, 261121-212132-5fb9e1 |
-| A4 | pending: system 261121-212132-5fb9e1 |
+| A1 | unit 261121-212128-2b5201; mutant 261121-212136-f963d5 (`mutant/restart-capacity-a1`, Detent:eedaff36) --fails-without: 3 of 3 abort |
+| A2 | unit 261121-212128-2b5201; mutant 261121-212139-b4d7b2 (`mutant/restart-capacity-a2`, Detent:7bc53720) --fails-without: test_state.cc:1046 restart_raise asserts |
+| A3 | 261121-212128-2b5201, 261121-212132-5fb9e1 |
+| A4 | system 261121-212132-5fb9e1 |
 | A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
 | A6 | pending: CI at Detent:2f64e0fd's journal head (suite, ASan/UBSan, TSan); Docs (check-docs, stale exceptions removed) |
 
