@@ -2,7 +2,7 @@
 
 usage: test_relay_sigterm.py DETENT_AUTHORITY DETENT_RELAY TLS_FIXTURE [BOUND_MS]
 
-An authority voter and a relay run in the foreground; eight clients loop HTTPS /v1/health on the
+Three authority voters and a relay run in the foreground; eight clients loop HTTPS /v1/health on the
 relay (a new connection each). The relay gets SIGTERM and must exit 0 within --shutdown-timeout-ms.
 A response the relay began and did not finish (a short body, or an admitted connection closed
 without a reply) fails the test; a connection refused or reset before its request was admitted,
@@ -65,36 +65,50 @@ def request(port: int, context: ssl.SSLContext) -> str:
     return "ok"
 
 
-def authority_configuration(certificates: Path, directory: Path, peer: int) -> Path:
-    der = ssl.PEM_cert_to_DER_cert((certificates / "one.pem").read_text())
-    tls = {
-        "certificate": str(certificates / "one.pem"),
-        "key": str(certificates / "one.key"),
-        "ca": str(certificates / "ca.pem"),
-    }
-    configuration = CONTEXT | {
-        "node": 1,
-        "voters": [
-            {
-                "id": 1,
-                "host": "127.0.0.1",
-                "port": peer,
-                "certificate_sha256": hashlib.sha256(der).hexdigest(),
-            }
-        ],
-        "directory": str(directory / "state"),
-        "peer_tls": tls,
-        "publisher_tls": tls,
-        "publisher_bind": "127.0.0.1",
-        "publisher_name": "localhost",
-        "credentials": [{"token": TOKEN, "producer": "writer", "namespaces": ["ns"]}],
-    }
-    if sys.platform.startswith("linux"):
-        configuration["storage_backend"] = "native"
-    path = directory / "authority.json"
-    path.write_text(json.dumps(configuration))
-    path.chmod(0o600)
-    return path
+NAMES = ("one", "two", "three")
+
+
+def authority_configurations(
+    certificates: Path, directory: Path, peers: list[int]
+) -> list[Path]:
+    """One file a voter: the authority starts only as three voters."""
+    voters = [
+        {
+            "id": index + 1,
+            "host": "127.0.0.1",
+            "port": port,
+            "certificate_sha256": hashlib.sha256(
+                ssl.PEM_cert_to_DER_cert((certificates / f"{name}.pem").read_text())
+            ).hexdigest(),
+        }
+        for index, (name, port) in enumerate(zip(NAMES, peers))
+    ]
+    paths = []
+    for index, name in enumerate(NAMES):
+        tls = {
+            "certificate": str(certificates / f"{name}.pem"),
+            "key": str(certificates / f"{name}.key"),
+            "ca": str(certificates / "ca.pem"),
+        }
+        configuration = CONTEXT | {
+            "node": index + 1,
+            "voters": voters,
+            "directory": str(directory / f"state-{index}"),
+            "peer_tls": tls,
+            "publisher_tls": tls,
+            "publisher_bind": "127.0.0.1",
+            "publisher_name": "localhost",
+            "credentials": [
+                {"token": TOKEN, "producer": "writer", "namespaces": ["ns"]}
+            ],
+        }
+        if sys.platform.startswith("linux"):
+            configuration["storage_backend"] = "native"
+        path = directory / f"authority-{index}.json"
+        path.write_text(json.dumps(configuration))
+        path.chmod(0o600)
+        paths.append(path)
+    return paths
 
 
 def relay_configuration(
@@ -137,17 +151,22 @@ def main() -> int:
     directory = Path.cwd() / ".scratch" / f"relay-sigterm-{time.monotonic_ns()}"
     directory.mkdir(parents=True)
     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
-    peer, publisher, port = free_port(), free_port(), free_port()
+    peers = [free_port() for _ in NAMES]
+    publisher, port = free_port(), free_port()
     commands = {
-        "authority": [
+        f"authority-{index}": [
             str(authority),
             "--authority",
-            str(authority_configuration(certificates, directory, peer)),
+            str(path),
             "--port",
-            str(publisher),
+            str(publisher if index == 0 else 0),
             "--runtime-dir",
-            str(directory / "runtime"),
-        ],
+            str(directory / f"runtime-{index}"),
+        ]
+        for index, path in enumerate(
+            authority_configurations(certificates, directory, peers)
+        )
+    } | {
         "relay": [
             str(relay),
             "--config",

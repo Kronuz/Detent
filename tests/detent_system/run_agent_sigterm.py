@@ -18,7 +18,7 @@ from pathlib import Path
 
 from authority import Authority
 from managed import ManagedCohort
-from run_relay_pages import Reported, check, rewrite, seed
+from run_relay_pages import Reported, check, rewrite, seed, widen
 from runtime import Actors, Evidence
 from writers import Writers
 
@@ -32,6 +32,7 @@ async def run(arguments: argparse.Namespace) -> None:
         authority = Authority(
             arguments.binary.resolve(), certificates, output, actors, 1
         )
+        widen(output)
         await authority.start()
         writers = Writers(authority, arguments.records, 1, 1)
         await seed(writers)
