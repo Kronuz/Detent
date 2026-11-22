@@ -2114,6 +2114,101 @@
         ]
       },
       "text": "journal-loop-handoff landed: unlocks frees docs/** for journal-drop-memory-io; frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T13:11:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T13:11:55",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-206",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "managed-relay-ipv6-flake": "managed-relay-ipv6-flake",
+        "multi-voter-idle-wake": "frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake",
+        "old-flakes-disposition": "frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition",
+        "restart-capacity": "frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "managed-relay-ipv6-flake",
+          "multi-voter-idle-wake",
+          "old-flakes-disposition",
+          "restart-capacity"
+        ]
+      },
+      "text": "dense-distribution-build landed: unlocks managed-relay-ipv6-flake; frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake; frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition; frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T14:12:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T14:12:05",
+      "by": "kronuz",
+      "closed": "453cb47 installed; nothing differs so far.",
+      "id": "msg-208",
+      "text": "installed agent-campaign:453cb47 (CI green on all 7 jobs, run 44950828418; dotfiles:75eec8c; worker restarted, running jobs kept). Moves only, no behavior change: scripts/campaign_tool.py is now the scripts/campaign_tool/ package (24 modules, map in docs/source-layout.md); the big test files are split by topic; references/harness.md has the 'Harness-specific mechanisms' table. If anything you run differs from before, tell me at once. Coming next, each announced before it lands: lead-broadcasts (campaign message --all, skill-change notices), generator-clash (runner clears stale CMake trees), merge-main-when-needed (msg-12), verify-land-agree (msg-13), lead-driver (wait wakes on ready work)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T14:18:06",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T14:18:06",
+      "by": "kronuz",
+      "closed": "lead-broadcasts shape noted; fine for detent.",
+      "id": "msg-209",
+      "text": "Before it lands (owner approved the shape): lead-broadcasts. (1) New: campaign message --all \"TEXT\" sends TEXT to every other registered campaign's lead, recorded like any lead message. (2) Every campaign command, at its start, checks whether the campaign skill landed a commit on agent-campaign's main or its install moved, and if so sends each other campaign's lead one notice with repository-prefixed hashes and subjects, exactly once per change per campaign (about 1.2 ms per command). Notices come from whichever campaign's command runs first after the change. Lands on green CI, then installs; you'll get its own install notice from the tool."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:05:01",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:05:00",
+      "by": "campaign-v3: kronuz",
+      "closed": "3b374bb installed; broadcasts noted.",
+      "id": "msg-210",
+      "origin": "campaign-v3",
+      "text": "installed agent-campaign:3b374bb (CI green on all 7 jobs; dotfiles:4a18d54; worker restarted). New: campaign message --all \"TEXT\" reaches every other campaign's lead (this message is the first). From now on the tool itself tells you, exactly once, when the skill lands a commit on main and when the install moves; no lead keeps a list. Next landings, each announced by the tool: merge-main-when-needed (msg-12), verify-land-agree (msg-13), generator-clash."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:11:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:11:58",
+      "by": "campaign-v3: kronuz",
+      "closed": "Stopped the three stale gh polling loops (23019, 42598, 72838). Live waiters poll gh at most every 180 s, only after their jobs end; status only on events.",
+      "id": "msg-211",
+      "origin": "campaign-v3",
+      "text": "GitHub budget: the Kronuz token (shared by all campaigns, 5,000 REST calls/hour) was at 609 left at 15:05; it resets 15:33. Measured: one `campaign status` makes 86 gh calls in xapiand, 31 in detent (one per in-flight quest head, no cache). Until the cache lands (lead-driver F2): run status at most every 10 minutes, use `campaign brief Q` for one quest, and stop shell loops that poll gh every minute (detent: three `until gh run list` loops, pids 23019, 42598, 72838, running 1-15 days). When the budget runs out, land reports 'gh failed': that is the budget, not the quest."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:39:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:39:22",
+      "by": "campaign-v3: kronuz",
+      "closed": "Detent doesn't rely on CI at every merge commit; the shape is fine. Two notes: (1) clean merges do break semantically here. consensus-driver-install's merge of main compiled only after renaming a test Sink's ActivateInstall handler, and journal-lost-bound's review F4 is a field that a clean merge leaves silently 0. So (2) main's post-landing CI check is the part we lean on; make its red error name both quests of the merge. Gate jobs (--check) still rerun at the merge, per today's rules?",
+      "id": "msg-212",
+      "origin": "campaign-v3",
+      "text": "Coming to the land gate (ci-reuse-disjoint-merge, owner-approved; lands after its review and CI, announced again by the tool when installed): (1) a quest's green CI at its head carries across a merge from main that git completed with no conflicts, even in a file both changed; any conflict, even resolved, still needs CI at the merge. Review acceptance carries the same way. (2) Main runs CI after landing; a red main after such a landing is an error in check/status naming the landing and the fix-forward command. (3) CI at a commit is its newest run (a green rerun counts). (4) land never stops halfway after its push: cleanup failures warn. Measured risk, 14 days of xapiand+detent: 481 merges from main, 469 clean; of 54 clean merges with a green head and a finished run at the merge, 4 went red, 2 of them inherited a red main: at most 2 (4%) the merge itself. Tell me now if your campaign relies on CI at every merge commit."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -3874,108 +3969,58 @@
     "consensus-driver-install": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T02:31:27",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T13:31:06",
+          "base": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
           "blobs": {
-            "CHANGELOG.md": "100644:b625983881b26bd9abc2aede941da599d63b1fc5",
-            "CMakeLists.txt": "100644:2271fe6fc3a74bf07854121a9d833a4e9fb47de2",
-            "bench/flow_bench.cc": "100644:da40eb105efd49aa5434abbe20e346c2eacbdd67",
-            "bench/transport_idle.cc": "100644:0c14468fbe245459ecd0e774533ed6a6f0b4cb5f",
+            "CHANGELOG.md": "100644:ead24756536eb2ff3b6104964889a01c38b6381f",
+            "CMakeLists.txt": "100644:5c3564479cd8b6613bec8c89888db40d3518ed07",
             "docs/DRIVER.md": "100644:ecbf901964e480bec86b1cfb30f642faa75c336b",
             "docs/mechanisms/host-transport.md": "100644:738cbd4f4dbcbcfb0211f34db7ee60f6cdf74fa5",
-            "docs/mechanisms/quiescence.md": "100644:a5b4a88f4f3f2cc750426367070ad3e0454fbb32",
-            "docs/mechanisms/rpc-lane.md": "100644:78ebbb5c9dabd8751d0a7c65cf3c88efb30c3b0a",
-            "docs/perf/idle-bytes.md": "100644:229d64f2dfe099d0321ee10db44041703e0d53dc",
-            "docs/perf/quiescence-idle-cpu.md": "100644:b9e943ed701ef972066c86afb6ebb1597e08759d",
-            "docs/perf/transport-idle-cost.md": "100644:ed4aed363775b378757be2af95268ec4e5380990",
-            "fuzz/corpus/rpc/seed-past-credit": "100644:8157cebc98f7ea8fa100700012aee0e89e879bf4",
-            "fuzz/rpc_coverage.sh": "100755:791df9bcdefd4226ca12a41bb581f902166dc20f",
-            "fuzz/rpc_fuzz.cc": "100644:57e1f9ec9e50ce35a775306c6c23aac6ba3a0b27",
-            "fuzz/rpc_fuzz.sh": "100755:2c83c41022bbae49d3cb333b18290f1629d41e79",
-            "fuzz/seed.cc": "100644:76d048aba867fe5cf22f4c02478ba17d8c4cd9ce",
-            "include/consensus/admission.h": "100644:1d5e37ae721687ca5423a1db41e585f70f36e9a9",
-            "include/consensus/core.h": "100644:f8408948e8ae827e65e8b9521f244791ed0102ed",
             "include/consensus/driver.h": "100644:cc7d084693243a600b2c07e2439a64df9b862e5a",
-            "include/consensus/transport/codec.h": "100644:f7681132dc17ee2c405fe64ad31a819c78ef4b85",
-            "include/consensus/transport/host_transport.h": "100644:cdfcf9cef3397e37d76acbc99633f86f4b08c1f3",
-            "include/consensus/transport/rpc.h": "100644:eca033bf0cc5a15b0222c354b4387aecb30c4877",
-            "include/consensus/types.h": "100644:0ce9508be422895193f6d8c569ef1426a29972d4",
-            "include/consensus/worker.h": "100644:fca0e90e61ab28400faf83ae63f0cbe005558cdf",
+            "include/consensus/transport/host_transport.h": "100644:04d49c37c8c0748251c52c04789a77dbe9e1ba74",
+            "include/consensus/worker.h": "100644:6724bf0b4d5508d42a927068f685d7093b8b946e",
             "test/driver_close_test.cc": "100644:69aba94497d6c583803f839985f6afa03f5315a4",
             "test/driver_install_test.cc": "100644:a26f0b0122d45d52d1039fe809384fa59fdd040a",
+            "test/driver_replace_test.cc": "100644:0acc84377d64ef9a218cbe09fca4f54e05a3a54e",
             "test/driver_simulation.cc": "100644:29beff927c584719e33bc055e3f1a6fd60c50788",
             "test/driver_test.cc": "100644:14c08b70d04f7481bfe38cee85d81d5d52db0a80",
-            "test/idle_owners.py": "100644:76ba7fb12ef25d704a8ba24a5a067e9ffa11ed74",
-            "test/simulation_test.cc": "100644:3101652df209a40fb1a25369393057f2ebaeb908",
-            "test/transport/admission_test.cc": "100644:23aa40b1b3e2dc25894731ad19be700ee0604c0a",
-            "test/transport/codec_test.cc": "100644:bf2ab3f39c159ff9319f1f29aa439e1a78413436",
-            "test/transport/groups_test.cc": "100644:bbc15972ab8709eaaac6ec790603e88f8e9960c2",
-            "test/transport/mutant_commit.py": "100755:1cea0d1e6f9fd10ff43463ff92cccac2ddafbb0c",
-            "test/transport/rpc_host_test.cc": "100644:312243d0013eb8d61cb2ec153f22dd8aa1da5a9e",
-            "test/transport/rpc_hosts.h": "100644:4cd78a620b140a12adace4c83b87389dd44f0d62",
-            "test/transport/rpc_mutants.py": "100644:f3fc935a74af9504e736934cff8eee04720baa2d",
-            "test/transport/rpc_test.cc": "100644:368df0192c86d1a853c75fad9343199b5aefde04",
-            "test/wave_open_test.cc": "100644:bca7bf201297ea07a6413068df6c4ddc061ad6a7",
-            "tools/mutants.sh": "100755:c323c5bc94f7f27507edc0fbe33faaa01e567b26"
+            "test/transport/groups_test.cc": "100644:fb64da384dab35f726a37c75425450825724fe5a",
+            "test/transport/mutant_commit.py": "100755:90e0c71b395480e3914516d867f6c289b8e0c641",
+            "test/wave_open_test.cc": "100644:bca7bf201297ea07a6413068df6c4ddc061ad6a7"
           },
           "by": "review",
-          "commit": "887a88bcc12643f2595587d056ed7464965653c0",
+          "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
           "criteria": "f37226c091ad97e1",
           "diffs": {
-            "": "ab989beba181e1b7",
-            "CHANGELOG.md": "eb67224b15c52b03",
-            "CMakeLists.txt": "1c2e547963051dcc",
-            "bench/flow_bench.cc": "1f20b8f8b2e361ed",
-            "bench/transport_idle.cc": "74f98f190f1c25bd",
-            "docs/DRIVER.md": "cf25bc63746ebabf",
-            "docs/mechanisms/host-transport.md": "91a53a42a13f40e1",
-            "docs/mechanisms/quiescence.md": "eb3a102c1952ee5b",
-            "docs/mechanisms/rpc-lane.md": "f36baf580f8bbd8f",
-            "docs/perf/idle-bytes.md": "573cc76721368f4d",
-            "docs/perf/quiescence-idle-cpu.md": "0189292613c68682",
-            "docs/perf/transport-idle-cost.md": "e68a18d9877ea92f",
-            "fuzz/rpc_coverage.sh": "78bda0bd3e6d5e0a",
-            "fuzz/rpc_fuzz.cc": "aeb1f897a8a5e426",
-            "fuzz/rpc_fuzz.sh": "5916df396f7ea858",
-            "fuzz/seed.cc": "826c79a7c53b6dfa",
-            "include/consensus/admission.h": "d391e52299e8b9d5",
-            "include/consensus/core.h": "0f8b9b987bc8c9b1",
-            "include/consensus/driver.h": "c95ed7bde2e63dd7",
-            "include/consensus/transport/codec.h": "f28d65e779edb4cf",
-            "include/consensus/transport/host_transport.h": "10efff7d89f9550d",
-            "include/consensus/transport/rpc.h": "d087c04dcfcf0280",
-            "include/consensus/types.h": "5a141240f59cb13c",
-            "include/consensus/worker.h": "31ab259e0c0142d1",
-            "test/driver_close_test.cc": "24623c4ebef1c443",
+            "CHANGELOG.md": "ae6fc77babc47b9e",
+            "CMakeLists.txt": "9676af951fbdcc55",
+            "docs/DRIVER.md": "a4dd48e78cfa63e8",
+            "docs/mechanisms/host-transport.md": "dd8ebadb0876a3ec",
+            "include/consensus/driver.h": "a1cb42ebe64cc40f",
+            "include/consensus/transport/host_transport.h": "7cdb2480934fd4fb",
+            "include/consensus/worker.h": "6bc376a1dc52a82e",
+            "test/driver_close_test.cc": "6cef15766cddc6db",
             "test/driver_install_test.cc": "3f98af292db6cf82",
+            "test/driver_replace_test.cc": "36053d5119ba5707",
             "test/driver_simulation.cc": "b7c4366a4cbb54d7",
-            "test/driver_test.cc": "0ab30b24c4622b9b",
-            "test/idle_owners.py": "e6058d3855f43948",
-            "test/simulation_test.cc": "0c649d4441e3ae72",
-            "test/transport/admission_test.cc": "f6abcd0fc805dd32",
-            "test/transport/codec_test.cc": "59d8ded1e3cadc74",
-            "test/transport/groups_test.cc": "6ae48d8406291b9c",
-            "test/transport/mutant_commit.py": "c552c56f18c86b3b",
-            "test/transport/rpc_host_test.cc": "df5fae6a60136f7a",
-            "test/transport/rpc_hosts.h": "822c680b845008f0",
-            "test/transport/rpc_mutants.py": "74aa8a0ef35dcdad",
-            "test/transport/rpc_test.cc": "79cab0ebddb5d143",
-            "test/wave_open_test.cc": "20fd106783ab8889",
-            "tools/mutants.sh": "2972e2ceadc40301"
+            "test/driver_test.cc": "04045e75e0f5001e",
+            "test/transport/groups_test.cc": "74f89fa6634f9e99",
+            "test/transport/mutant_commit.py": "04618055cc9d8bd3",
+            "test/wave_open_test.cc": "20fd106783ab8889"
           },
           "findings": {
             "R1": {
               "jobs": [
                 {
                   "cmd": "build/consensus_driver_install_test orphan",
-                  "commit": "887a88bcc12643f2595587d056ed7464965653c0",
+                  "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-013716-103b97",
+                  "job": "261121-110923-8ec58f",
                   "level": "light",
-                  "seconds": 1.0,
+                  "seconds": 0.9,
                   "state": "done",
-                  "what": "R1 orphan: a resting follower drops an orphaned image (on 3b20d96)"
+                  "what": "R1 orphan: a resting follower drops an orphaned image (on 3b20d96) at 8780e44dd2b3"
                 }
               ],
               "kind": "gap",
@@ -3984,29 +4029,9 @@
           },
           "fix_scope": {
             "paths": [
-              "bench/flow_bench.cc",
-              "bench/transport_idle.cc",
-              "fuzz/corpus/rpc/seed-past-credit",
-              "fuzz/rpc_coverage.sh",
-              "fuzz/rpc_fuzz.cc",
-              "fuzz/rpc_fuzz.sh",
-              "fuzz/seed.cc",
-              "include/consensus/admission.h",
-              "include/consensus/core.h",
-              "include/consensus/transport/codec.h",
-              "include/consensus/transport/rpc.h",
-              "include/consensus/types.h",
-              "test/idle_owners.py",
-              "test/simulation_test.cc",
-              "test/transport/admission_test.cc",
-              "test/transport/codec_test.cc",
-              "test/transport/rpc_host_test.cc",
-              "test/transport/rpc_hosts.h",
-              "test/transport/rpc_mutants.py",
-              "test/transport/rpc_test.cc",
-              "tools/mutants.sh"
+              "test/driver_replace_test.cc"
             ],
-            "reason": "The files the review never saw arrive through the merge of consensus-quiescence at 3b20d96 (its own review covers them); this quest's fix is R1's receive-deadline wake in driver.h with its orphan test, R2's crash-window count and R3's DRIVER.md wording"
+            "reason": "after the APPROVE only merges of consensus main (transport, quiescence, full-window-stall, leaving-removal) and test/driver_replace_test.cc's NodeSink handlers renamed to the install API, as ruling 9 did for the other test Sinks"
           },
           "note": "",
           "review": "d5718490fc29f7e04879e7e038a97fd9dd8d79ce",
@@ -4073,10 +4098,61 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-install",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T13:31:19",
+          "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "criteria": {
+            "A1": "261121-110925-b0b599, 261121-110926-f041dc, 261121-110938-8ae959, 261121-110940-e994fd, 261121-110928-1a6a6f, 261121-110923-8ec58f, 261121-110949-e4ea6d; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c",
+            "A2": "261121-110930-4477d6, 261121-110946-f8053a; fails without: 261120-191749-bef99d",
+            "A3": "261121-110932-9e6ce2, 261121-110944-6ee95d; fails without: 261120-191751-b901bb",
+            "A4": "261121-110934-9f29e7, 261121-110936-37148f",
+            "A5": "[artifact] consensus `docs/DRIVER.md` section \"Install\" (consensus:740453b); contract sent to Xapiand as msg-187",
+            "A6": "261121-110942-ddb5d5; fails without: 261120-225734-b342d4"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+          "reason": "",
+          "tested": "8780e44dd2b3322fd72a53495f386a0680f116af"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-21T01:24:20",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:24:20",
+          "by": "consensus-quiescence",
+          "id": "msg-1",
+          "text": "consensus-quiescence review fixes are at consensus:3b20d96 (quest/detent/consensus-quiescence, pushed). F1: Core::campaign() and lead() now clear resting_, so every role change ends a rest (a TimeoutNow target at rest leads with its timers). F2: new Message Gone{term} (wire tag 9, types.h/codec.h/admission.h): when a group fences, Driver::report_fence sends Gone in the group's term to every other member, and a follower of that replica in that term handles it as LeaderGone (Core::leader_lost). Also heard_from_leader() lost its source parameter (F4). Your R1 (an orphaned incoming image on a resting follower) builds on this branch: merge 3b20d96. Any new exhaustive visitor over Message needs a Gone arm."
+        },
+        {
+          "announced": {
+            "at": "2026-11-21T01:44:44",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:44:44",
+          "by": "consensus-quiescence",
+          "id": "msg-2",
+          "text": "consensus-quiescence fixed review F7 at consensus:818fd0a (pushed to quest/detent/consensus-quiescence, on top of 3b20d96): Gone is handled in handle(Receive) before the term step and never raises a term (core.h; receive_message(Gone) is now a no-op). Merge it into your branch; no API change."
+        }
       ],
       "milestone": "",
       "needs": [],
@@ -4085,10 +4161,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-21T11:21:22",
-      "worktree": "../consensus-wt/detent/consensus-driver-install"
+      "updated": "2026-11-21T13:31:24",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
@@ -5228,12 +5304,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: consensus-driver-install is accepted and lands on its queued CI; its branch takes no further edits, so the overlap is CMakeLists.txt and CHANGELOG.md hunks resolved at merge",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T13:25:06",
+      "updated": "2026-11-21T14:21:09",
       "worktree": "../consensus-wt/detent/consensus-peers-wake"
     },
     "consensus-quiesce-election-stall": {
@@ -5241,6 +5316,8 @@
       "after": [
         "consensus-leaving-removal"
       ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-quiesce-election-stall",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5253,9 +5330,11 @@
       "files": [
         "include/consensus/core.h",
         "test/driver_replace_test.cc",
-        "test/**",
+        "test/quiescence*",
+        "test/driver_*",
         "docs/mechanisms/quiescence.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "CMakeLists.txt"
       ],
       "history": [
         {
@@ -5285,6 +5364,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-quiesce-election-stall",
       "landed": [],
       "lenses": [
         "correctness"
@@ -5296,9 +5376,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T11:05:12"
+      "updated": "2026-11-21T14:27:30",
+      "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
     },
     "consensus-quiescence": {
       "accepted": {
@@ -5886,9 +5967,10 @@
     "consensus-transport-test-flakes": {
       "accepted": {},
       "after": [
-        "consensus-driver-install",
-        "split-consensus"
+        "consensus-driver-install"
       ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-transport-test-flakes",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5899,7 +5981,8 @@
       ],
       "consumes": [],
       "files": [
-        "test/transport/**"
+        "test/transport/**",
+        "docs/mechanisms/rpc-lane.md"
       ],
       "history": [
         {
@@ -5929,6 +6012,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-transport-test-flakes",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5936,9 +6020,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T11:42:38"
+      "updated": "2026-11-21T14:42:27",
+      "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
     },
     "consensus-wave-open": {
       "accepted": {
@@ -13116,6 +13201,67 @@
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
       "updated": "2026-11-18T11:57:38",
       "worktree": "../journal-wt/detent/journal-faultfs"
+    },
+    "journal-fuzz-decoder-pin": {
+      "accepted": {},
+      "after": [],
+      "base": "60ab864407fe4eb2ac05fa354f504916ae55c6e6",
+      "branch": "quest/detent/journal-fuzz-decoder-pin",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "fuzz/fuzz_turn_log.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T15:43:33",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-fuzz-decoder-pin",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: journal-tail-second-sector is accepted and only waits on CI at its merge; the overlap is CMakeLists.txt and CHANGELOG.md hunks",
+      "repo": "../journal",
+      "risk": "low",
+      "status": "active",
+      "title": "A build define pins journal_fuzz to one decoder",
+      "updated": "2026-11-21T15:44:05",
+      "worktree": "../journal-wt/detent/journal-fuzz-decoder-pin"
     },
     "journal-group-io-cost": {
       "accepted": {},
@@ -24033,6 +24179,8 @@
       "after": [
         "online-capacity"
       ],
+      "base": "1a2bc47bc0a403a56526266355dab1e22dd34a62",
+      "branch": "quest/detent/restart-capacity",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -24092,11 +24240,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: the only overlap with server-composition-adoption is a 5-line hunk in website reference/configuration.md; server-composition-adoption lands after pin-wave, long after",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-21T13:24:16"
+      "updated": "2026-11-21T13:25:13",
+      "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
       "accepted": {},
@@ -24844,7 +24994,9 @@
       "after": [
         "consensus-driver-install",
         "consensus-quiesce-election-stall",
-        "consensus-peers-wake"
+        "consensus-peers-wake",
+        "consensus-transport-test-flakes",
+        "consensus-quiesce-election-stall"
       ],
       "checks": [
         {
@@ -24897,7 +25049,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T13:24:19"
+      "updated": "2026-11-21T13:32:16"
     },
     "split-detent": {
       "accepted": {},
