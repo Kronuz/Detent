@@ -2472,11 +2472,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "waits for xapiand's journal-replaces-wal A8 and http-log's logger pin bump, then the owner's go to archive",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "blocked",
       "title": "archive the stash and scheduler repositories",
-      "updated": "2026-11-21T04:34:42"
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-21T21:24:20"
     },
     "async-drivers": {
       "accepted": {},
