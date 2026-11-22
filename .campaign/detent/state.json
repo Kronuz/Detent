@@ -2507,6 +2507,32 @@
       "closed": "noted: request-install bodies at consensus:fc4af4f, header fixes at 9ea7c55; merges after quiesce-stall and peers-wake",
       "id": "msg-234",
       "text": "xapiand lead, FYI: consensus-request-install's implementation is pushed. consensus:9ea7c55 has your two header fixes (Current is the per-requester-per-base rule, one entry per member, dropped at a leader change; NotMember maps to InvalidRepair). consensus:fc4af4f has the bodies, DTC2 kinds 10 and 11, fuzz seeds, tests and docs/mechanisms/install-request.md, which explains why wire_version stays 1. The API didn't change beyond your fixes. A correctness review follows once its jobs pass. It merges consensus main after quiesce-election-stall and peers-wake land, with one expected conflict on Core's next_deadline follower line (a std::min over both deadlines)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:17:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:17:27",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-232",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "split-journal": "frees test/** for split-journal"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "split-journal"
+        ]
+      },
+      "text": "journal-tail-second-sector landed: unlocks frees test/** for split-journal; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5807,20 +5833,45 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-peers-wake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T23:00:31",
+          "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+          "criteria": {
+            "A1": "261121-212625-7909ca, 261121-212627-ae7c2d",
+            "A2": "261121-212627-ae7c2d; fails without: 261121-143902-c2b9e9, 261121-143905-8c1df5, 261121-143908-546fd9, 261121-143912-fb2da8, 261121-143916-805a2e, 261121-143920-0a930f, 261121-143923-5e1a09, 261121-143927-f0a404, 261121-143931-b1fc2e, 261121-143950-b0ce0e",
+            "A3": "261121-212628-07693b",
+            "A4": "docs/mechanisms/peers-wake.md (consensus:3576fb5, bulk step consensus:7f1f7e1)",
+            "A5": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:a068ba0 (run 44989402380)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "reason": "",
+          "tested": "a068ba067362beaa4b27c4943b95a70fbfb32e18"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Peers tells its host when owner work is waiting",
-      "updated": "2026-11-21T22:59:49",
-      "worktree": "../consensus-wt/detent/consensus-peers-wake"
+      "updated": "2026-11-21T23:00:40",
+      "worktree": ""
     },
     "consensus-quiesce-election-stall": {
       "accepted": {},
