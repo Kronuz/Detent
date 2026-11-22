@@ -8,10 +8,10 @@ Legacy single-endpoint managed sources retry one configured endpoint. In the pin
 ## Component boundaries
 
 1. Append a pool of at most eight endpoints to `CoordinatorOptions`; leave `ClientOptions.endpoint` as the single destination for each transport attempt. An empty pool preserves existing behavior. Configuration accepts either legacy `address`/`port` or an explicit endpoint list. Reject duplicates and invalid destinations. Every entry shares the configured TLS name, CA, credential, authority identity and scope.
-2. Keep routing in one private `source_selection.hh` component. It owns bounded endpoint state and refresh timing, with no transport, storage or session ownership. Try endpoints serially, once per round, before existing seeded reconnect backoff. Remain sticky after success. Add no per-endpoint workers.
+2. Keep routing in one private `source_selection.hh` component. It owns bounded endpoint state and refresh timing, with no transport, storage or session ownership. Try endpoints serially, once per round, before existing seeded reconnect backoff. Remain sticky between refreshes. Add no per-endpoint workers.
 3. Distinguish authority `source_not_leader` read rejection from admission pressure and write outcome uncertainty. Reuse bounded control decoding for subscription and polling. Rotate on classified transport/deadline failures, NotLeader, temporary unavailability and SourceBehind. Local construction, storage and admission failures do not change routes. Parser exceptions do not establish source unavailability.
 4. Bind each session to its opening endpoint and trusted TLS name. Validate Next and Close against that route. Before rotation, drain the outstanding original and attempt bounded Close on its opening endpoint. Discard the old session before Open on another endpoint. Open uses the actual recovered durable selection, window zero and the retained forced-snapshot latch. Session IDs and feedback never cross endpoints.
-5. Give pooled subscriptions a finite refresh interval, default 30 seconds with seeded bounded jitter. Idle responses do not extend it. Cap parked Next waits by the remaining interval. Finish accepted publication and recovery before closing, then try a fresh quorum-backed Open on the current endpoint before alternatives. Polling already performs quorum reads and only needs error-driven rotation.
+5. Give pooled subscriptions a finite refresh interval, default 30 seconds with seeded bounded jitter. Idle responses do not extend it. Cap parked Next waits by the remaining interval. Finish accepted publication and recovery before closing, then Open at the next endpoint. A member answers a version 2 Open from its own history without a quorum read, so moving is what bounds how long a member cut off from the majority holds a session with idle answers; returning to it later answers the agent's newer cursor idle, never older. Polling already performs quorum reads and only needs error-driven rotation.
 6. Fail closed on explicit authentication/authorization denial, TLS verification failure and unexpected identity/profile. Never follow redirects or send credentials outside the configured pool. Routing grants no reset permission and permits no revision regression. Multiple relay endpoints need a separate freshness contract because relay Open does not itself prove a fresh authority quorum.
 7. Report active endpoint, rotations, refresh failures and the last successful quorum Open without credentials. Document discovery time in terms of refresh, member deadlines, retry backoff and accepted local work. Existing 60-second request deadlines prevent a short failover guarantee. A nominal 30-second refresh across 10,000 agents adds roughly 333 Opens per second before jitter and requires measured admission/quorum qualification.
 
@@ -23,5 +23,15 @@ Legacy single-endpoint managed sources retry one configured endpoint. In the pin
 4. Held and failed Open, Next and Close originals cover rotation and cancellation. Cleanup uses the opening endpoint, and feedback never crosses routes.
 5. Authentication, TLS and identity negatives fail closed. SourceBehind cannot regress state. History loss negotiates a snapshot. Both delivery modes and legacy single-endpoint behavior remain covered.
 6. Native, sanitizer and reduced Linux/FreeBSD process checks use the pinned consensus baseline. Measure periodic refresh load separately.
+
+## Discovery bound
+
+A pooled agent whose session is at a member cut off from the majority reaches a majority member within the sum, over the cut-off members it tries first, of each one's cost:
+
+1. Idle answers: at most 1.2 × `quorum_refresh` after its Open, since parked Next waits end at the refresh, plus one Close capped at 1 second.
+2. NotLeader, temporary unavailability or SourceBehind: one answer, then the next endpoint at once.
+3. No answer: one request deadline, then the next endpoint at once.
+
+Reconnect backoff applies only after a whole round fails. Add the Open and first Next at the majority member and accepted local publication. With three voters at most one member is cut off, so an idle one costs 1.2 × `quorum_refresh` + 1 s. `test_namespace_coordinator` asserts it at a 1-second refresh: an agent opened at a member that answers idle reaches the other member's head within 4 seconds, and returning answers it idle. `test_system_managed_partition` asserts convergence within 30 seconds at a 1-second refresh.
 
 This is one complete component under [Stage 6](STAGE6_ARCHITECTURE.md), with a consolidated review after implementation. It changes no consensus dependency or membership contract.
