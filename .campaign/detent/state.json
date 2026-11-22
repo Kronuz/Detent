@@ -15746,6 +15746,8 @@
     "local-disk-store-lease-flake": {
       "accepted": {},
       "after": [],
+      "base": "5051d2f9e174ae45b859d9fbc00cfd4f0b21ef5b",
+      "branch": "quest/detent/local-disk-store-lease-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -15766,9 +15768,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "test_local_disk_store line 191 failed once on CI macos-arm64",
-      "updated": "2026-11-22T00:09:31"
+      "updated": "2026-11-22T00:09:36",
+      "worktree": "../Detent-wt/detent/local-disk-store-lease-flake"
     },
     "localhost-dial-everywhere": {
       "accepted": {},
