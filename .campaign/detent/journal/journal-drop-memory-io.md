@@ -1,6 +1,6 @@
 # journal-drop-memory-io: journal
 
-State: working
+State: waiting on jobs 261121-222332-05d7c1 261121-222339-b9f595; then quest 1's landing (consensus-install-test-faultfs)
 Quest: .campaign/detent/quests/journal-drop-memory-io.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Pushed journal:9f5e846 (header deleted, bench on faultfs, mentions dropped). Waiting on the suite and bench jobs and CI.
 
 ## Next
 
-1. <step>
+1. When the jobs and CI are green, write "ready for review": only quest 1's landing remains. After it lands, check `git grep memory_io` in consensus main is empty.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -28,7 +28,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | `git grep memory_io` in journal at 9f5e846: empty. Suite: 261121-222332-05d7c1. Bench builds and runs: 261121-222339-b9f595. consensus: after consensus-install-test-faultfs lands (its branch's `git grep memory_io` is empty). CI on 9f5e846 pending. |
 
 ## Result
 
@@ -38,4 +38,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+bench/group_io_bench.cc is outside the quest's file set; the assignment named it. group_io_bench times Host::group_io's table over an in-memory directory with no real files, so it moves to faultfs, not PosixIO. It was not in CMakeLists; it is now the journal_group_io_bench target (linked to faultlab) so the suite compiles it. docs/perf/group-io.md says faultfs for MemoryIO. The recorded numbers there were taken on MemoryIO and are not re-measured.
