@@ -27497,12 +27497,11 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "started by force: A1 is a design reviewed before code (D144); the code waits on restart-capacity and server-composition-adoption by after=, and the design touches only docs/design",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-21T22:11:49",
+      "updated": "2026-11-21T22:18:41",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
