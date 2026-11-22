@@ -1,6 +1,6 @@
 # old-flakes-disposition: journal
 
-State: waiting on jobs 261121-152400-2cea7c 261121-153510-7f1905 261121-153523-37854b 261121-153524-08d011 261121-153526-d94ed9 261121-153527-140682 261121-153555-ce8385 261121-153557-8e000d 261121-153558-fea7be 261121-153600-ce6a7a 261121-153606-ffac65
+State: waiting on jobs 261121-203030-ac3e6e 261121-203033-af9677 261121-203036-9647b5 261121-203039-09602c (flake 3 fix proof, partition x50, failover x50); docs written, flake 3 partition line to confirm
 Quest: .campaign/detent/quests/old-flakes-disposition.md (the lead's; never edit it)
 
 ## Doing
@@ -27,7 +27,7 @@ Dispositions (draft, results pending in the Jobs table):
 
 ## Blocked on
 
-Nothing.
+- Flake 3 partition call site: `tests/detent_system/run_partition.py` (not in my file set) must call the fixture's new `ManagedCohort.leader_apart()` instead of `authority.leader()`: line `old = await authority.leader()` becomes `old = await cohort.leader_apart()`. Options: (a) widen my file set to run_partition.py (recommended, one line); (b) the lead files a quest. Without it the fixture method is unused and the partition flake (1 in 50 at main) stays. Jobs 203030/203036 apply the line by sed to prove it.
 
 ## Jobs
 
@@ -41,14 +41,17 @@ At 5010c15a (flake 4 forcing): fixed 261121-132218-06a35a; mutant 261121-132220-
 
 At 87f69a56 (resume reruns; the 4 harness failures fixed with `mkdir -p .scratch`, `g` in the sed): flake 4 plain 7f1905, ASan 37854b... see ids in State; submitter script: ~/.scratch/detent/ofd/submit.py.
 
+Probe 261121-152400-2cea7c (agents opened at the isolated leader, at 29fd932e): 12 of 12 stall, same message as the CI flake; some agents progress partway (14 of 20), none converge in 30 s. Hypothesis confirmed. Coordinator's report: the other 10 reruns passed (flake 4: 7f1905 x200, 37854b ASan, ce8385 forced; 5/8: 08d011, d94ed9 TSan; catch-up 140682; A4 fea7be, ffac65; pre-fix 8e000d and A4 mutant ce6a7a fail as designed).
+At 8cab53a6: forced fix proof ac3e6e, forced mutant af9677, partition x50 9647b5 (run_partition patched by sed), failover x50 09602c.
+
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
-| A2 | pending |
-| A3 | pending: docs/DEPENDENCY_UPGRADES.md |
-| A4 | pending |
+| A1 | flake 4 plain 7f1905 (0/200), ASan 37854b; 5/8 08d011 (0/200), TSan d94ed9; catch-up 140682 (0/8 rounds); flake 3 failover 09602c, partition 9647b5 pending |
+| A2 | flake 4: ce8385 forced passes at the fix, 8e000d fails without it; flake 3: ac3e6e passes with leader_apart, af9677 fails without (pending) |
+| A3 | docs/DEPENDENCY_UPGRADES.md (2026-11-21 disposition) and docs/status/http-coroutines.md; tests/docs check passes |
+| A4 | fea7be forced prints the condition, process state and agent --status; ce6a7a pre-fix fails silently; ffac65 x20 passes |
 
 ## Result
 
@@ -58,3 +61,4 @@ At 87f69a56 (resume reruns; the 4 harness failures fixed with `mkdir -p .scratch
 
 1. Flake 4's fix is in the test: `Busy` from `publish()` while the header write is in flight is the stream's documented backpressure answer, not a product fault.
 2. The baseline soaks run at main's code (c7d4921a differs from main only in campaign files).
+3. Flake 3's cause is a fixture assumption (the leader can move onto the agents' voter); the fix is `ManagedCohort.leader_apart`. How fast an agent fails over from an isolated voter is a product question, not opened here.

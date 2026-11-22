@@ -284,6 +284,8 @@ The reviewer reports six `-j3` runs passing on both baseline and replay, with no
 
 Preserve an immutable baseline, exact concurrency command and failure log or stack before the next pin bump. Separate completion/progress correctness from an arbitrary timing threshold when fixing the test, with a generous outer hang bound. Increasing the deadline alone does not resolve an unconfirmed crash. The publisher future joins before the locals it captures are destroyed, so this source inspection does not establish a captured-local use-after-free. StoragePressure and catch-up stability findings remain open independently.
 
+2026-11-21 disposition: the catch-up group (`test_authority_distribution_poll_publisher`, `test_authority_multivoter`, `test_authority_snapshot_catchup`) ran 8 rounds under `ctest -j4` at main with no segmentation fault and no timeout; the segmentation fault has no stack and no reproduction, and its timeout causes were fixed by ci-test-flakes. It is retired with a measured zero rate. The `test_local_paged_publication_artifacts` StoragePressure failure (flakes 5 and 8) ran 0 of 200 plain and 0 of 100 under TSan after `Detent:9b85fdf6`. Flakes 3 and 4 and the silent wait in `test_managed_process.sh` are in `docs/status/http-coroutines.md`.
+
 ### Scheduler/stash refusal reporting and lazy re-arm
 
 **Verdict: accept the proposed explicit refusal contract for qualification after review.** Scheduler `add` overloads become `noexcept` and return `bool`; false covers the 24-hour horizon, shutdown and allocation failure. Stash `add` returns false for the horizon while `bad_alloc` still throws. Its applicable walk/peep/clean methods become `noexcept`. Ignored return values remain source-compatible; callers that need delivery must handle refusal.
