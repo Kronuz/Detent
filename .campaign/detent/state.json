@@ -27553,11 +27553,15 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
+      "reason": "design accepted (D145); code waits on consensus-follower-read, restart-capacity and server-composition-adoption",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "blocked",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-21T22:27:32",
+      "until": [
+        "consensus-follower-read"
+      ],
+      "updated": "2026-11-21T22:30:34",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
