@@ -97,6 +97,33 @@ class ManagedCohort:
         self.observe = observe
         self.opened_at: int | None = None
 
+    def endpoints(self, first: int) -> list[dict[str, object]]:
+        """The three voters in dial order, `first` first."""
+        return [
+            {
+                "address": self.authority.address,
+                "port": self.authority.ports[3 + (first + offset) % 3],
+            }
+            for offset in range(3)
+        ]
+
+    async def leader_apart(self) -> int:
+        """The leader, with the agents re-homed first when it is the voter they open at."""
+        while True:
+            leader = await self.authority.leader()
+            if leader != self.opened_at:
+                return leader
+            first = (leader + 1) % 3
+            for index, path in enumerate(self.source_paths):
+                source = json.loads(path.read_text())
+                source["authority_endpoints"] = self.endpoints(first)
+                path.write_text(json.dumps(source))
+                await self.restart_agent(index)
+            self.opened_at = first
+            self.actors.evidence.record(
+                "managed_rehomed", follower=first, leader=leader
+            )
+
     def relay_configuration(
         self, directory: Path, port: int, upstreams: list[dict[str, object]]
     ) -> dict[str, object]:
@@ -150,13 +177,7 @@ class ManagedCohort:
     async def start(self) -> None:
         leader = await self.authority.leader()
         first = (leader + 1) % 3
-        endpoints: list[dict[str, object]] = [
-            {
-                "address": self.authority.address,
-                "port": self.authority.ports[3 + (first + offset) % 3],
-            }
-            for offset in range(3)
-        ]
+        endpoints = self.endpoints(first)
         self.opened_at = first
         self.actors.evidence.record(
             "managed_initial_source", follower=first, leader=leader
