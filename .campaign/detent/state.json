@@ -24521,7 +24521,8 @@
         "docs/CAPACITY_RUNTIME.md",
         "docs/CAPACITY_QUALIFICATION.md",
         "docs/status/README.md",
-        "website/src/content/docs/reference/configuration.md"
+        "website/src/content/docs/reference/configuration.md",
+        "tests/docs/docs_exceptions.txt"
       ],
       "history": [
         {
@@ -24558,12 +24559,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: the only overlap with server-composition-adoption is a 5-line hunk in website reference/configuration.md; server-composition-adoption lands after pin-wave, long after",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-21T13:25:13",
+      "updated": "2026-11-21T21:32:23",
       "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
