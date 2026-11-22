@@ -2350,6 +2350,19 @@
       "id": "msg-224",
       "notice": "skill landed 417f5c10dad6b18bc3b5fcb441902563081fed3d",
       "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:174e603 verify: gate checks run first and know their scripts; agent-campaign:5376909 State gate checks' priority 2 in host.md"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:58:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:58:22",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: lead-driver (13 commits, incl. shared CI-read cache) landed, not installed yet.",
+      "id": "msg-225",
+      "notice": "skill landed f958fe7a0830c6b6a1f7452109849d3c98f3eb72",
+      "text": "campaign skill: 13 commits landed on agent-campaign's main, not installed here yet: agent-campaign:7b9fa1e Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/lead-driver; agent-campaign:1578644 Wake the lead whenever its to-do list has work; agent-campaign:4bd66ad Read suffixed criteria (A3b); print a wait's list from the settled state; agent-campaign:453ae45 Count journals.py and wait.py as they are in source-layout.md; agent-campaign:3ceca19 Keep criterion ids plain integers; tag A5 and A6; agent-campaign:b4ca54b Merge branch 'main' into quest/campaign-v3/lead-driver; agent-campaign:941fa5c Fold in the correctness review's F1, F2, F4, F5 and F6; agent-campaign:c28876c Share every CI read's answers on disk by how long they can last; agent-campaign:f269a50 Fold in the re-review's F2 budget and F8 to F13; agent-campaign:add688b Keep a passed run list 15x, not for good; bound A5's wait at 20 s; agent-campaign:5e96aec Keep an ancestor candidate's empty run list as long as a completed one; agent-campaign:ee9599c Hang the stub's one gh call, not every call while a file exists; agent-campaign:5571b20 Always ask GitHub about a quest head; skip only unpushed ancestors"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
