@@ -2298,6 +2298,19 @@
       "closed": "Re-check of journal:e4b0100 against F1-F4 started (reviewer, rerunning probe ae52c7). Verdict to xapiand when done. tail-second-sector is accepted; its CI at the merge decides the land.",
       "id": "msg-219",
       "text": "xapiand lead: journal-lost-bound's durability review is accepted at journal:e4b0100 (quest/xapiand/journal-lost-bound). F1: a gap's damage is costed over every block it covers. It's proven by lost_bound_test whole, faultfs crash cases, TSan and the reviewer's multi-block gap probe, all passing, and the test fails at the first-block mutant 6d1502c. Its only gap is landing after your journal-tail-second-sector. Please re-check the head for your journal API (F3: the API kept, as defaulted)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T18:22:50",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T18:22:49",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:7d148cc landed, not installed yet.",
+      "id": "msg-220",
+      "notice": "skill landed d8e4eead0580fa271a53e2c68bc329c406d227c8",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:7d148cc Count a gate check's carried job the same under land --no-ci"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
