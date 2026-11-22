@@ -21372,17 +21372,41 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-21T21:49:24",
+          "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+          "criteria": {
+            "A1": "261121-153510-7f1905, 261121-153523-37854b, 261121-153524-08d011, 261121-153526-d94ed9, 261121-153527-140682",
+            "A2": "261121-153555-ce8385; fails without: 261121-132220-9aaee5, 261121-153557-8e000d",
+            "A3": "docs/DEPENDENCY_UPGRADES.md (2026-11-21 disposition) and docs/status/http-coroutines.md; tests/docs check passes",
+            "A4": "261121-153606-ffac65; fails without: 261121-132020-e89451, 261121-153600-ce6a7a"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9b76d27c01e72262f12820a3184e823229f32d04",
+          "reason": "",
+          "tested": "b47837a4d4e49aaf4e7d898b57f4200492b443db"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-21T21:49:11",
-      "worktree": "../Detent-wt/detent/old-flakes-disposition"
+      "updated": "2026-11-21T21:49:26",
+      "worktree": ""
     },
     "one-knob-type": {
       "accepted": {
