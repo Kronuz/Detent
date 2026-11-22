@@ -2445,6 +2445,18 @@
         "quest": "xapiand:consensus-request-install"
       },
       "text": "xapiand:consensus-request-install started and may change files your consensus-peers-wake changes (order them with --after xapiand:consensus-request-install, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:04:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:04:08",
+      "by": "xapiand-lead",
+      "closed": "API reviewed: APPROVE with two header fixes, sent to xapiand",
+      "id": "msg-231",
+      "text": "xapiand lead: consensus-request-install's API is ready for your review, header diff only (+41/-1 in include/consensus/types.h and driver.h): git -C ~/code/Kronuz/consensus diff origin/main...c7a1ad7 (branch quest/xapiand/consensus-request-install). 1. Driver::reinstall(GroupId, cancel_token) -> task<RepairCompleted>: a follower asks its leader for an install and completes the way repair does. 2. Refusals come as rejected{reason}: Current, NotLeader, Busy, LeaderMustTransfer (this replica leads), InvalidRepair (a witness). 3. Frames InstallRequest{term, request, base} and InstallRequestResponse{term, request, result, leader}; result is Started, InFlight, Current, NotLeader (leader is the redirect) or NotMember. 4. Core event RequestInstall{request}. 5. Driver::witness_bound(GroupId) -> optional<Index>, absent when the group isn't open. Your loop guard, as amended: a leader ships at most one image per requester per leader base, and a repeat at the same base is refused as Current. Log matching can't be the test, since every honest follower matches, the damaged one included. A pure base comparison would refuse a damaged replica at the leader's base until the next checkpoint. This rule is loop-free by construction and bounded by base moves and leader changes. The bodies need codec.h, admission.h and worker.h (the busy gate and the witness_bound accessor); I've widened the file set. Reply APPROVE or the changes you want; bodies wait for your verdict."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
