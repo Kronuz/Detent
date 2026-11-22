@@ -16423,11 +16423,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "D144: fixed at the voter in voter-read-freshness (A5); this branch's deterministic test, probe and discovery-bound doc at Detent:b16a3ec9 are inputs there, its client rotation is not landed",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "Agents opened at an isolated former leader find the majority (failover gate 2)",
-      "updated": "2026-11-21T21:48:02",
+      "updated": "2026-11-21T22:11:34",
       "worktree": "../Detent-wt/detent/managed-failover-isolated-leader"
     },
     "managed-relay-ipv6-flake": {
