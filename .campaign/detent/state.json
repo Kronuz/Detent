@@ -4856,7 +4856,11 @@
     },
     "consensus-follower-read": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-quiesce-election-stall",
+        "consensus-peers-wake",
+        "xapiand:consensus-request-install"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -4888,7 +4892,7 @@
       "risk": "high",
       "status": "planned",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-21T22:27:09"
+      "updated": "2026-11-21T22:27:20"
     },
     "consensus-full-window-stall": {
       "accepted": {
