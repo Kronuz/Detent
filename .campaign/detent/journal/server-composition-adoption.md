@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261121-155450-fdcc66 (build all + daemon/unit ctest), 261121-155458-ba8bec (system SIGTERM, dual stack, managed; after the first), 261121-155502-a74726 (authority-only and relay-only builds, docs check); all at 0cfe0ecd; CI at 0cfe0ecd (A3)
+State: waiting on jobs 261121-211232-9a4c8d (system SIGTERM, dual stack, managed; builds all), 261121-211235-2e7c08 (authority-only and relay-only builds, docs check, site build and links); both at 820f6a91; CI at 820f6a91 (A3). fdcc66 passed at 0cfe0ecd (13 of 13).
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,6 +19,7 @@ secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
 
+0. ba8bec failed: main was already merged; the tests were wrong. test_relay_sigterm started one authority voter (refused: three required, so the relay mirrored nothing); run_agent_sigterm wrote 4096-key batches over the default operation bound (400 operation count bound). Fixed in 820f6a91 (three voters; widen()). a74726's check_links.py needs DIST: the job now builds the site first.
 1. Read the jobs listed in State; fix failures (a fix gets a test that fails without it). The four earlier jobs failed in the build: src/detent_authority/main.cc used `kMaxDuration`, declared only in detent-relay's main.cc (fixed in 0cfe0ecd; the build itself is the test).
 2. After pin-wave and multi-voter-idle-wake land: merge main, drop the task pin line, apply
    `.scratch/server-composition/d125-authority-service.patch` (service.cc loader: process fields skipped,
@@ -48,9 +49,9 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: test_authority_daemon_sigterm in 261121-155450-fdcc66; relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-155458-ba8bec |
-| A3 | ci:macos-arm64 at 0cfe0ecd; 261121-155502-a74726 (authority-only and relay-only builds, docs check); pin-check red until pin-wave |
-| A4 | jobs 261121-155450-fdcc66, 261121-155458-ba8bec. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
+| A2 | authority: test_authority_daemon_sigterm in 261121-155450-fdcc66 (passed); relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-211232-9a4c8d |
+| A3 | ci:macos-arm64 at 820f6a91; 261121-211235-2e7c08 (authority-only and relay-only builds, docs check, links); pin-check red until pin-wave |
+| A4 | jobs 261121-155450-fdcc66 (passed), 261121-211232-9a4c8d. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
 
 ## Result
 
