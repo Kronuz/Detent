@@ -10,4 +10,5 @@ set(DETENT_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 add_subdirectory(../.. detent)
 add_executable(authority_pages_bench authority_pages_bench.cc)
 target_include_directories(authority_pages_bench PRIVATE ../../src ../../src/detent_authority)
-target_link_libraries(authority_pages_bench PRIVATE detent::relay_mirror detent::authority_node)
+target_link_libraries(authority_pages_bench PRIVATE detent::relay_mirror detent::relay_page_window
+  detent::authority_node)
