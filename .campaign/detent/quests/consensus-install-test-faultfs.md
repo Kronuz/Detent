@@ -5,16 +5,12 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus's test/driver_install_test.cc (added by consensus-driver-install, consensus:8780e44) still includes journal/memory_io.h, the last consensus user. It builds its journal on faultlab's faultfs, as consensus-faultfs moved the other ten tests (consensus:813d95f..bb961b3), so journal-drop-memory-io can delete the header.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `git grep memory_io` in consensus finds nothing, and the five consensus_driver_install_* tests pass: a job
+- A2 The suite and CI pass
 
 ## Contracts
 
