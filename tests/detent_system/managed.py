@@ -275,6 +275,7 @@ class ManagedCohort:
 
     async def wait_selected(self, positions: dict[str, int]) -> None:
         """Wait until every agent's entry for each name reaches its position."""
+        began = time.monotonic()
         for index, member in enumerate(self.members):
             directory = self.directory / f"agent-{index}" / "generations"
             deadline = time.monotonic() + self.selection_timeout
@@ -295,6 +296,11 @@ class ManagedCohort:
                         if position and table.get(name, 0) < position
                     }
                     if not behind:
+                        self.actors.evidence.record(
+                            "managed_converged",
+                            index=index,
+                            seconds=time.monotonic() - began,
+                        )
                         break
                 if time.monotonic() >= deadline:
                     raise RuntimeError(
