@@ -21307,7 +21307,6 @@
     "old-flakes-disposition": {
       "accepted": {},
       "after": [
-        "detent-faultlab",
         "loop-idle-waits",
         "relay-tls-drain-flake"
       ],
@@ -21378,12 +21377,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: only test_transport_https.cc and test_authority_frames_service* sit under multi-voter-idle-wake's tests/detent_authority/** glob; that quest's outcome (owner loop wake) edits neither",
       "repo": ".",
       "risk": "normal",
       "status": "active",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-21T13:13:33",
+      "updated": "2026-11-21T21:49:11",
       "worktree": "../Detent-wt/detent/old-flakes-disposition"
     },
     "one-knob-type": {
