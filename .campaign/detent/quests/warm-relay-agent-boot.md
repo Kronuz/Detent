@@ -9,7 +9,7 @@ The time a new agent pays to join a fleet: one agent cold-bootstrapping against 
 
 ## Acceptance criteria
 
-- A1 Exclusive jobs on current main: per size, the relay starts and reaches "durable bundles ready" outside the clock, then at least 3 interleaved rounds time one cold agent from start to selecting the fixture's revision; no "ran beside" record. The harness lives under docs/measurements/warm-relay-agent-boot/.
+- A1 Exclusive jobs on current main: per size, the relay starts and reaches ready outside the clock (the namespace mirror relay on main logs "the namespace mirror is ready" and its health is ready; the bundle relay's "durable bundles ready" is gone), then at least 3 interleaved rounds time one cold agent from start to selecting the fixture's revision; no "ran beside" record. The harness lives under docs/measurements/warm-relay-agent-boot/.
 - A2 [artifact] docs/perf/warm-relay-agent-boot.md: per size, the median and range of the agent's warm-relay bootstrap, its CPU and wall, files, device flushes and wire bytes, the relay-plus-agent total from the same fixture for comparison, the hardware, and the job ids.
 
 ## Contracts
