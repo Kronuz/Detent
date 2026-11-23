@@ -6258,6 +6258,34 @@
       "title": "A replica that leaves a group removes its state, so it can rejoin fresh",
       "updated": "2026-11-21T00:05:04"
     },
+    "consensus-sanitizer-ci-time": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CMakeLists.txt",
+        "tools/mutants.sh",
+        "test/transport/groups_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
+      "updated": "2026-11-22T21:05:33"
+    },
     "consensus-transport": {
       "accepted": {
         "security": {
