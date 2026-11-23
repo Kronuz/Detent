@@ -1,6 +1,6 @@
 # managed-relay-ipv6-flake: journal
 
-State: waiting on jobs 261121-225424-d93fe2 261121-225431-dfdab9
+State: blocked on lead: pre-fix stress does not reproduce (52 of 52 pass); choose the next step under Blocked on
 Quest: .campaign/detent/quests/managed-relay-ipv6-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,7 +21,11 @@ Stress jobs 261121-142317-81f60a and 261121-185318-61a635 timed out (30, 90 min)
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+The lead: the failure does not reproduce locally. 261121-225424-d93fe2 passed 20 of 20 serial runs (30-62 s each); 261121-225431-dfdab9 passed 32 of 32 (4 copies x8 with 4 spinners, 40-51 s each). Total 52 of 52 on a 16-CPU x86_64 host, whose load alone does not trip the 30 s selection_timeout. CI's runner has 4 vCPU and ctest --parallel 2 with the poll or relay test alongside (all three failed runs had a second managed test fail too).
+Options:
+1. Reproduce on CI at the pre-fix commit: a throwaway branch running the relay and relay_ipv6 and poll tests together with `ctest --repeat until-fail:10 --parallel 2` on macos-x86_64 (also the A3 shape). Smallest step that matches the failing environment. Recommended.
+2. Local forced reproducer: taskpolicy or cpuset-limited 4 CPUs with 2 concurrent managed tests and 4 spinners, x20. Cheap, but 16 CPUs of headroom may still hide it.
+3. Close as not reproducible, with the 3 CI artifacts as the only evidence (A2 cannot be met).
 
 ## Evidence
 
@@ -32,7 +36,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | no cause proven. Evidence so far: the three CI runs' events.jsonl (journal Doing): `managed agent 0 did not converge` after 30 s selection_timeout, the same CI run also failing another managed test, every relay request to the leader hits `delivery network deadline` during the 12 s write phase; "load, not IPv6" is a hypothesis |
+| A2 | no reproduction: jobs 261121-225424-d93fe2 (0 of 20 failed) and 261121-225431-dfdab9 (0 of 32 failed) |
+| A3 | none: needs a fix |
+| A4 | none: CI not run on this branch yet |
 
 ## Result
 
