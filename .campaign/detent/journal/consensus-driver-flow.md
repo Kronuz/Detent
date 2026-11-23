@@ -1,6 +1,6 @@
 # consensus-driver-flow: journal
 
-State: waiting on jobs 261123-063949-57aa77 261123-063953-58e218 261123-063957-782827
+State: waiting on jobs 261123-105043-139c3a 261123-105047-a9361e
 Quest: .campaign/detent/quests/consensus-driver-flow.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,10 +29,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261123-063949-57aa77 (queued): driver_test, all cases, at consensus:10eb12e; local run of flow_reaches_core 830 checks, 0 failures |
-| A2 | jobs 261123-063953-58e218 (create drops the Flow, mutant/driver-flow-create 46e0f17) and 261123-063957-782827 (recover drops it, mutant/driver-flow-recover 80c7c8e), --fails-without (queued) |
-| A3 | [artifact] docs/DRIVER.md, 'Replication flow (D15)' above the Seams block: names `WorkerLimits::flow` / `GroupOptions::scheduling.flow`, default `Flow{}`; CHANGELOG.md 2026-11-23 |
-| A4 | CI on the pushed branch quest/detent/consensus-driver-flow at consensus:10eb12e (running) |
+| A1 | 261123-063949-57aa77 (passed at 10eb12e; the merge touched none of its files) |
+| A2 | 261123-105043-139c3a (create drops the Flow), 261123-105047-a9361e (recover drops it), --fails-without on mutant branches rebuilt on f7a44f3; first round 58e218, 782827 passed at 10eb12e |
+| A3 | docs/DRIVER.md: `WorkerLimits::flow` and `GroupOptions::scheduling.flow` name the option, `Flow{}` its default |
+| A4 | ci:macos-arm64, ci:ci (CI 45229726672 at consensus:f7a44f3, green) |
 
 ## Result
 
