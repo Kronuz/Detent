@@ -17149,11 +17149,12 @@
         "dense-distribution-build"
       ],
       "provides": [],
+      "reason": "not reproducible: 0 failures in 52 local runs (16 CPUs, 4 burners) and 10x2 CI repeats (run 45116414557, macos-x86_64 and linux-x86_64-gcc) at the pre-fix tree after main's merge; the three failing trees (610565fc, 7d1fad45, c2e83169) predate the relay turn-scheduling changes Detent:59206705 and 563c5c31, the plausible fix (not bisected). Result in its journal at Detent:5691dd3c; reopen with a new quest if it recurs",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "dropped",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T13:12:29",
+      "updated": "2026-11-22T22:11:04",
       "worktree": "../Detent-wt/detent/managed-relay-ipv6-flake"
     },
     "msgpack-adoption": {
