@@ -6165,11 +6165,11 @@
     "consensus-quiesce-election-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-22T21:58:33",
-          "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "at": "2026-11-22T23:52:24",
+          "base": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
           "blobs": {
-            "CHANGELOG.md": "100644:2e63425fda51f236f44ca9659d65bb28a0df3a60",
-            "CMakeLists.txt": "100644:e88f104b91662b14256caef38e9d4896cb885bcb",
+            "CHANGELOG.md": "100644:46710a1c94e6fef357de2ed055daa52c10093b1d",
+            "CMakeLists.txt": "100644:920ff8787fe0b06f7d3aea87dc76f3df3f628c5d",
             "docs/mechanisms/quiescence.md": "100644:ffeeb48bd666ff57529a513528adb09e21bb0ef5",
             "include/consensus/core.h": "100644:05def458a49ae91fdd0d524538dca318e5a211cb",
             "test/driver_mutants.py": "100644:890e2f2f1f44856eb9e6e879ebb5618a56d63877",
@@ -6177,7 +6177,7 @@
             "test/quiescence_test.cc": "100644:bfe03a76e10fe6629095f912b3706570e0faecc9"
           },
           "by": "review",
-          "commit": "ab47d8a60570c125eb351ce319b7a85f83fa455d",
+          "commit": "ca24f8063c4f0d27a5681f1154d1a16163b2ba5a",
           "criteria": "32d399d0230b3bee",
           "diffs": {
             "CHANGELOG.md": "64ce91aad75092ec",
@@ -6190,7 +6190,7 @@
           },
           "findings": {},
           "note": "",
-          "review": "aba967088d3dbc740abdcea820dbcc5483502490",
+          "review": "38f543748f47aa61f2ee5d1c7f595ad13214da11",
           "reviewed": "ab47d8a60570c125eb351ce319b7a85f83fa455d",
           "verdict": "APPROVE"
         }
@@ -6260,7 +6260,7 @@
       "risk": "high",
       "status": "review",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-22T21:58:33",
+      "updated": "2026-11-22T23:52:24",
       "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
     },
     "consensus-quiescence": {
