@@ -14359,7 +14359,32 @@
       "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
     "journal-earlier-turn-loss": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T07:57:56",
+          "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "blobs": {
+            "CHANGELOG.md": "100644:0e38a5947f68ec1cc893d17b9f6661656d535500",
+            "docs/mechanisms/turn-log-damage.md": "100644:ed567af278bbc8cb7a7e81cc1bf2a3b14cec85e5",
+            "include/journal/turn_log.h": "100644:b23f42cef2a117cb372f1ba0439cd26fe11c8c9e",
+            "test/turn_log_test.cc": "100644:3509d1dae6c73322ab86d042fed87adea27065a4"
+          },
+          "by": "review",
+          "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+          "criteria": "6efea81d3e26be11",
+          "diffs": {
+            "CHANGELOG.md": "d9e9535d3a312feb",
+            "docs/mechanisms/turn-log-damage.md": "1473f02995a8deab",
+            "include/journal/turn_log.h": "cfe4eb4fbbbf335e",
+            "test/turn_log_test.cc": "8e906d68a8abe865"
+          },
+          "findings": {},
+          "note": "",
+          "review": "8a57a5a5cab3b78efd6e9218256e8f909cb3c107",
+          "reviewed": "921301d6f55362fd17d8718ae3e058d2287f926f",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "d8453f6b67da28c01266485f0d046ce917d34736",
       "branch": "quest/detent/journal-earlier-turn-loss",
@@ -14414,7 +14439,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
-      "updated": "2026-11-23T06:52:48",
+      "updated": "2026-11-23T07:57:56",
       "worktree": "../journal-wt/detent/journal-earlier-turn-loss"
     },
     "journal-faultfs": {
