@@ -32,6 +32,8 @@ for ((c=0;c<8;c++)); do
     done) &
 done
 sleep 1.5
+# Statuses recorded before the signal; every one of them must be a completed request.
+for ((c=0;c<8;c++)); do wc -l < "$root/c$c" | tr -d " " > "$root/n$c"; done
 started=$SECONDS
 kill -TERM "$pid"
 status=0; wait "$pid" || status=$?
@@ -42,9 +44,15 @@ wait 2>/dev/null || true
 if [[ "$status" != 0 ]]; then echo "SIGTERM: the daemon exited with status $status" >&2; cat "$root/daemon.log" >&2; exit 1; fi
 if ((elapsed * 1000 > bound)); then echo "SIGTERM: the stop took ${elapsed} s, over the ${bound} ms bound" >&2; exit 1; fi
 ok=$(cat "$root"/c* | grep -c '^0$' || true)
-# A cut-short response is curl 18 (partial file) or 52 (empty reply); refusing or resetting a new
-# connection after the stop is 7 or 56.
-torn=$(cat "$root"/c* | grep -Ec '^(18|52)$' || true)
+# A cut-short response is curl 18 (a partial body). Before the signal every request must have
+# completed; after it, a connection closed with no reply (52) or refused or reset (7, 56) is the stop
+# declining a request it had not read, which Kronuz/http's session token allows.
+torn=$(cat "$root"/c* | grep -Ec '^18$' || true)
+early=0
+for ((c=0;c<8;c++)); do
+    early=$((early + $(head -n "$(cat "$root/n$c")" "$root/c$c" | grep -vc '^0$' || true)))
+done
 if ((ok < 8)); then echo "SIGTERM: only $ok requests completed" >&2; exit 1; fi
+if ((early)); then echo "SIGTERM: $early requests failed before the signal" >&2; exit 1; fi
 if ((torn)); then echo "SIGTERM: $torn responses were cut short" >&2; exit 1; fi
 printf 'authority SIGTERM under load: %d requests completed, none cut short, exit 0 in %d s\n' "$ok" "$elapsed"
