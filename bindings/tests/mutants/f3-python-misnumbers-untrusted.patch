@@ -7,7 +7,7 @@ index b9bb488b..16249723 100644
                   {"SOURCE_FAILURE", DETENT_SOURCE_FAILURE},
                   {"UNAVAILABLE", DETENT_UNAVAILABLE},
 -                 {"UNTRUSTED", DETENT_UNTRUSTED},
-+                 {"UNTRUSTED", DETENT_UNTRUSTED + 1},
++                 {"UNTRUSTED", detent_status(DETENT_UNTRUSTED + 1)},
                   {"INVALID_ARGUMENT", DETENT_INVALID_ARGUMENT},
                   {"NO_MEMORY", DETENT_NO_MEMORY},
                   {"IO", DETENT_IO}};

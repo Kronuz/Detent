@@ -1,5 +1,6 @@
 # Fails unless the shared library at LIBRARY defines exactly the functions LIST names (and the
 # linker's own symbols): nothing missing, nothing extra.
+cmake_minimum_required(VERSION 3.24) # IN_LIST (CMP0057) in script mode
 find_program(NM nm REQUIRED)
 if(APPLE)
   set(flags -gU)

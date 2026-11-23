@@ -32,9 +32,12 @@ add_subdirectory(detent_reader)
 add_subdirectory(detent_system)
 
 # The opt-in development component installs and serves an application test (D149, legacy-h A19).
+# The consumer compiles and links with this build's flags (a sanitizer build's libraries need its runtime).
 if(TARGET detent_reader_shared AND TARGET detent_testing_shared)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type)
   add_test(NAME test_installed_testing_component
            COMMAND "${CMAKE_COMMAND}" "-DBUILD=${PROJECT_BINARY_DIR}"
+                   "-DCXX_FLAGS=${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}}" "-DLINK_FLAGS=${CMAKE_EXE_LINKER_FLAGS}"
                    "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/cmake_consumer/installed"
                    "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/installed-component" "-DGENERATOR=${CMAKE_GENERATOR}"
                    "-DCXX=${CMAKE_CXX_COMPILER}" "-DSYSROOT=${CMAKE_OSX_SYSROOT}" -P "${PROJECT_SOURCE_DIR}/tests/cmake_consumer/installed/check.cmake")
