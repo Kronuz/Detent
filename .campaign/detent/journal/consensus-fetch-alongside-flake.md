@@ -1,6 +1,6 @@
 # consensus-fetch-alongside-flake: journal
 
-State: working
+State: waiting on jobs 261123-141158-c6d68a 261123-141159-efa9e4 261123-141201-2e0693 261123-141202-3e37e0 261123-141204-1b7c5f
 Quest: .campaign/detent/quests/consensus-fetch-alongside-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,31 +9,44 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Diagnosis (A1). Instrumentation landed on the branch: consensus:3965055 (each inexact fetch's
-error or first differing byte, commits past 2 s, the term change, per-node links / peers gone /
-aborted calls, the process's worst stall) and consensus:aa3de7a (`LoopLags`: the longest each
-loop went without turning; the first loop 1.5 s late prints every thread's stack).
+Fix committed (consensus:9011df3, merged with main at consensus:be2ffef, pushed); evidence jobs
+queued. Commits on the branch:
+- consensus:3965055 per inexact fetch its error or first differing byte; commits past 2 s; the
+  term change; per node links, peers gone, aborted calls; the process's worst stall.
+- consensus:aa3de7a `LoopLags`: each loop's longest wait to turn; the first loop 1.5 s late
+  prints every thread's stack (print_stacks, factored from the watchdog).
+- consensus:8429f45 `TimedInline`: the longest single journal operation per loop.
+- consensus:16c5bfa `FETCH_ALONGSIDE_SLOW_SYNC=ms`: one follower's next sync that slow.
+- consensus:9011df3 the fix (below).
 
-Probes so far (local x86_64 Mac, build of the branch, scratch scripts in
-~/.scratch/detent/consensus-fetch-alongside-flake, not evidence jobs):
-- SIGSTOP of the whole process 3 s / 6 s mid-fetch: term lost, commit 3.1 / 6.3 s, but 16 of 16
-  exact, no link lost (the late-deadline rule covers a whole-process stop). So a runner stopping
-  the process does not give CI's 13 of 16.
-- One loop blocked 6 s (a posted sleep, uncommitted hook block-hook.diff): node 2 loop 0 gives
-  exactly CI's "13 of 16", each inexact one `connection_aborted` (dead_after 5 s ends node 2's
-  links); node 1 (leader) loop 0 gives term lost + commit 5,080 ms + 15 of 16. No wrong bytes.
-- Every node's connections and its group's Driver and journal (InlineCompletion, F_FULLFSYNC on
-  macOS) are on loop 0; loop 1 idles (1-29 ms lag). Baseline loop 0 lag 55-77 ms.
-Working hypothesis: something blocks one node's loop 0 for >= 5 s on the CI runner (a slow
-synchronous journal sync is the candidate); the stack dump at 1.5 s will name it.
+Cause (local probes, Intel Mac, same arch as CI):
+- Every peer connection of these nodes is on loop 0 (slot(1..3) -> loop 0 of 2) and the group
+  was on loop 0 too; the journal runs inline (InlineCompletion; F_FULLFSYNC on macOS) on it.
+- Loop 0's lag equals its journal hold: 70/83/60 ms lag vs 74/89/65 ms longest journal op.
+- One loop blocked 6 s (posted sleep) on node 2 gives exactly CI's "13 of 16": node 2's links
+  end at dead_after 5 s, all three fetches through them `connection_aborted`; on the leader it
+  gives the term change and a 5,080 ms commit. Never wrong bytes.
+- A whole-process SIGSTOP of 3 / 6 s gives the term change and slow commit but 16 of 16 exact:
+  the late-deadline rule keeps links up when every thread stops. CI's 13 of 16 needs one loop
+  held, and the journal's sync is the one blocking call on it.
+CI's two failures (44996244171, 45240308075 attempt 1) both ran beside the install case
+(ctest --parallel 2), which syncs heavily on the same runner disk.
 
-Jobs: 261123-133204-e7abf4 (30 runs serial, 4 burners), 261123-133207-5107e0 (24 runs, 3 at
-once, 4 burners) at aa3de7a. CI run 45270266798 at aa3de7a (macos-x86_64 prints only on failure).
+Fix (test only, groups_test.cc): the group sits on loop 1, which serves no connection (asserted),
+so a slow sync holds the Driver, never the links: every fetch must arrive exact, unconditionally.
+The 2 s commit bound becomes 2,000 ms + the host's take (longest journal op + longest process
+stall); a term change is allowed only once that reaches the 1,000 ms election timeout.
+
+Jobs: A1 261123-141158-c6d68a (signature.sh at 16c5bfa: 6 s slow sync -> fails, inexact fetches
+all errors, no wrong bytes, journal held >= 6 s); A2 261123-141159-efa9e4 (--fails-without at
+16c5bfa, FETCH_ALONGSIDE_SLOW_SYNC=6000) and 261123-141201-2e0693 (same, with the fix); A3
+261123-141202-3e37e0, 261123-141204-1b7c5f (25 runs each, 4 burners). Scripts:
+~/.scratch/detent/consensus-fetch-alongside-flake/{repro,signature}.sh.
 
 ## Next
 
-1. Read the jobs' and CI's loop lags and stacks; name what blocks the loop.
-2. Fix by cause (test design if the journal's sync on the loop; library report if transport).
+1. Read the jobs; A4 and A3's ci:macos-x86_64 from CI at be2ffef.
+2. rpc-lane.md: no lane contract changed (the cause is the test's journal placement); leave it.
 
 ## Blocked on
 
