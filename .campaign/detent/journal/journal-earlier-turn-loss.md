@@ -1,6 +1,6 @@
 # journal-earlier-turn-loss: journal
 
-State: waiting on jobs 261123-072804-625133 261123-072807-0eb04a 261123-072809-40f146 261123-072811-92707d
+State: waiting on jobs 261123-072809-40f146 261123-072811-92707d
 Quest: .campaign/detent/quests/journal-earlier-turn-loss.md (the lead's; never edit it)
 
 ## Doing
@@ -21,7 +21,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261123-072804-625133 (fix), 261123-072807-0eb04a (fails-without at fca82bb) |
+| A1 | 261123-072804-625133 (fix, exit 0), 261123-072807-0eb04a (fails-without at fca82bb, exit 1) |
 | A2 | pending: 261123-072809-40f146 |
 | A3 | pending: 261123-072811-92707d; CI suite on push |
 | A4 | `docs/mechanisms/turn-log-damage.md`: "Damage to the newest turn ... reads as a torn tail ... **The newest turn drops silently**: 36 of 201 such cases in the cut-header probe. Only a per-sector checksum (the cut-header design's O3b, a format change) tells this damage from a tear. Damage to any earlier turn is reported (rule 6), and costs the groups rules 3 and 5 name: every group when the damaged block is the newest, whose manifest no later header holds yet." |
