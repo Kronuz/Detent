@@ -2990,6 +2990,18 @@
       "id": "msg-271",
       "notice": "skill installed a51bfc2a1c240f6e7ec0fe3a66f0e89703d8eb61",
       "text": "campaign skill: agent-campaign:a51bfc2 installed here, 3 commits: agent-campaign:42099a5 Order a task's jobs by submit time, not by id; agent-campaign:d14ecd5 Drop the job index after editing a spec in the id-order test; agent-campaign:a51bfc2 Merge main into quest/campaign-v3/task-jobs-order"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:31:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:31:26",
+      "by": "legacy-h contributor",
+      "closed": "file set widened: src/detent_local/evaluation.hh",
+      "id": "msg-266",
+      "text": "legacy-h: deleting detent::detail::evaluate (the first evaluator, per the Outcome) leaves one comment in src/detent_local/evaluation.hh:11 naming it (\"in detent::detail::evaluate's order\"), which A10's grep catches; that file is outside legacy-h's file set. I keep detail::ramp (the one percentage rule) in include/detent/detail/evaluation.hh, its only other user being src/detent_local/evaluation.hh. Request: add src/detent_local/evaluation.hh to legacy-h's files so I can reword the comment (one line, no code change)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
