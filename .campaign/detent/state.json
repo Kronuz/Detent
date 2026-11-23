@@ -23183,7 +23183,6 @@
         "docs/DEPENDENCY_UPGRADES.md",
         "docs/SHARED_LIBRARY_DECISIONS.md",
         "docs/perf/**",
-        "tools/w5/**",
         "website/src/content/docs/architecture/dependencies.md",
         "website/src/content/docs/installation.md",
         "website/src/content/docs/roadmap.md"
@@ -23207,7 +23206,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-08T12:45:02"
+      "updated": "2026-11-22T21:57:52"
     },
     "post-w2": {
       "accepted": {},
