@@ -16748,7 +16748,9 @@
         "tests/detent_system/**",
         "tools/w5/**",
         "website/**",
-        "docs/design/client-local-source.md"
+        "docs/design/client-local-source.md",
+        "src/detent_local/evaluation.hh",
+        "include/detent_testing/**"
       ],
       "history": [
         {
@@ -16858,7 +16860,7 @@
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T10:31:36",
+      "updated": "2026-11-23T11:14:53",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
