@@ -28547,7 +28547,8 @@
         "tests/detent_system/test_localhost_dial.py",
         "tests/detent_system/test_managed_case.sh",
         "tests/docs/run_e2e.py",
-        "tests/support/**"
+        "tests/support/**",
+        "tests/detent_system/managed.py"
       ],
       "landed": [],
       "lenses": [],
@@ -28558,7 +28559,7 @@
       "risk": "low",
       "status": "active",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-23T10:01:35",
+      "updated": "2026-11-23T10:15:54",
       "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {
