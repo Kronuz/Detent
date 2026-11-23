@@ -5,32 +5,26 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus_transport_rpc_host_fetch judges its Control heartbeats against the election timeout plus the host lag it measures, as group-full does (250 ms plus `lag.worst`), so a stall of the whole runner or of both processes no longer fails it, while head-of-line blocking of Control behind Bulk still does. Reported by xapiand-lead (msg-253): heartbeat gaps of 4,711 ms on macos-x86_64 (run 44925311406), 4,092 ms on linux-tsan at consensus main 5a114dd (run 44930858682) and 1,358-4,592 ms on 9 other TSan runs, with Bulk stalling as long as Control, which marks a whole-host stall; 2 of 65 macos-x86_64 attempts. It reds consensus-request-install's CI (run 45150071779) on Xapiand's critical path.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The fetch case's heartbeat bound is 1,000 ms plus the measured host lag, and it prints both: a job running rpc_host fetch 50 times under 4 burners passes at the fix.
+- A2 The bound still catches head-of-line blocking: a mutant that sends the heartbeats on Bulk instead of Control fails the fetch case (`--fails-without`).
+- A3 The suite passes, and `ci:linux-tsan`, `ci:macos-x86_64` are green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None: test-only.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: a separate quest after consensus-transport-test-flakes, which is one CI round from landing; the fix is the allowance xapiand-lead proposed.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None needed: it is one change.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
