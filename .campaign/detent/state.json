@@ -15074,6 +15074,32 @@
       "updated": "2026-11-18T11:57:38",
       "worktree": "../journal-wt/detent/journal-faultfs"
     },
+    "journal-faultlab-repin": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "low",
+      "status": "planned",
+      "title": "journal pins faultlab at 5d4df9b (stale at_mark fix)",
+      "updated": "2026-11-23T15:00:48"
+    },
     "journal-fuzz-decoder-pin": {
       "accepted": {},
       "after": [],
