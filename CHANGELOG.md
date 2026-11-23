@@ -130,6 +130,11 @@
   `make_managed_read_source`, `detent::global`, `TestKnobs`, `OverrideTable`,
   `SnapshotRef`, the first evaluator (`detail::evaluate`) and the file and poll sources.
   `detent::Reader` over the reader core is the one read API in C, C++, Python and Rust.
+  With the Client go its `Metrics` counters, `get_or_panic`, the `ConversionFailed`
+  error (`Reader::get_as<T>` answers a value outside `T` with the fallback and status
+  OK), the staleness alert (`refresh_alert_after`), `on_update`, `max_knobs` and
+  enumeration (`read_view()`, `current_snapshot()`); `revision(namespace)` and
+  `lookup`'s status are the diagnostics.
 - The Python module is a C extension over `libdetent_reader`, and the Rust crate
   calls the same C ABI; pybind11, `cxx` and `cxx-build` are gone. Both expose
   `Reader(store, publisher_uid, namespaces, mapping_bytes)` with `get`, `get_bool`,

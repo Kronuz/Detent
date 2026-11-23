@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) APPROVED by the owner on 2026-11-04, who ruled Q1 (a) and Q2 (a) (see "Owner rulings"). Refines [reader.md](reader.md) D7, S8 and S9 for legacy wave 2 step H; changes Step H option B in `docs/status/legacy-wave2.md` (branch `legacy/wave2-f`).
+> Status: CURRENT (2026-11-23) APPROVED by the owner on 2026-11-04, who ruled Q1 (a) and Q2 (a) (see "Owner rulings"); restated on the landed reader ABI (one int64 knob, D65; the mapping cap, D143) after the design review `legacy-h-design.md` F1-F4. Refines [reader.md](reader.md) D7, S8 and S9 for legacy wave 2 step H (quest `legacy-h`).
 
 # Client local source in the bindings
 
@@ -27,39 +27,41 @@ The owner ruled today to drop the unmanaged agent and remove the Client's legacy
 
 | | C++ (`reader.hh`) | Python (`detent`) | Rust (`detent`) |
 | --- | --- | --- | --- |
-| Open | `Reader(store, publisher_uid, namespaces = {})`, throws `ReaderError` | `Reader(store, publisher_uid, namespaces=())`, raises `ReaderError` | `Reader::open(store, publisher_uid, &[..]) -> Result<Reader, ReaderError>` |
-| Bool | `eval(name, fallback, hash, switch_value) -> bool` | `eval(name, fallback, hash=None, switch_value=None) -> bool` | `eval(&self, name, fallback, hash: Option<&str>, switch_value: Option<&str>) -> bool` |
-| Integer | `get(name, fallback) -> int64_t` | `get(name, fallback) -> int` | `get(&self, name, fallback) -> i64` |
-| Status | `lookup(name, hash, switch_value) -> Lookup{status, value}` | `lookup(...) -> Lookup` (`.status`, `.value`, truthy on `OK`) | `lookup(...) -> Result<Value, Status>`, `enum Value { Bool(bool), Int(i64) }` |
+| Open | `Reader(store, publisher_uid, namespaces = {}, mapping_bytes = 0)`, throws `ReaderError` | `Reader(store, publisher_uid, namespaces=(), mapping_bytes=0)`, raises `ReaderError` | `Reader::open(store, publisher_uid, &[..], mapping_bytes) -> Result<Reader, ReaderError>` |
+| Value | `get(name, fallback, hash, switch_value) -> int64_t` | `get(name, fallback, hash=None, switch_value=None) -> int` | `get(&self, name, fallback: i64, hash: Option<&str>, switch_value: Option<&str>) -> i64` |
+| Typed | `get_as<T>(name, fallback, hash, switch_value) -> T` | `get_bool(name, fallback, hash=None, switch_value=None) -> bool` | `get_as<T: Knob>(&self, name, fallback: T, hash, switch_value) -> T` |
+| Status | `lookup(name, fallback, hash, switch_value) -> Lookup{status, value}` | `lookup(name, fallback, ...) -> Lookup` (`.status`, `.value`, truthy on `OK`) | `lookup(&self, name, fallback, ...) -> Result<i64, Status>` |
 | Refresh | `refresh() -> detent_status` | `refresh() -> Status` | `refresh(&self) -> Result<(), Status>` |
 | Revision | `revision(ns) -> optional<uint64_t>` | `revision(namespace) -> int \| None` | `revision(&self, ns) -> Option<u64>` |
 | Close | destructor | deallocation | `Drop` |
 
-The arguments are the C ABI's `detent_open_options` (`include/detent/reader.h:25-30`):
+Every knob is one int64 read through one call, `detent_get(handle, name, hash, switch_value, fallback, &out)` (one-knob-type, D65); a flag is a knob holding 0 or 1. The arguments are the C ABI's `detent_open_options` (`include/detent/reader.h`):
 
 - `store` is the agent's store directory.
 - `publisher_uid` is required, because trust is never inferred from the directory owner (reader.md D1 item 5). An application passes the uid its agent runs as.
 - `namespaces` limits the handle to those namespaces. Empty means all of them, including ones published later.
+- `mapping_bytes` caps the bytes of mapped packs and their verified bitmaps (D143); 0 means 512 MiB, and a cap below one pack and its bitmap (`DETENT_MINIMUM_MAPPING_BYTES`) fails the open with `INVALID_ARGUMENT`.
 
 There is no defaults path (R1), no override list (R2) and no poll interval: a lookup sees a publish through the mapped `change` file (reader.md D4), and `refresh()` pays the attach earlier from a thread the caller chooses.
 
 Differences, each forced by the language:
 
-1. Rust's fallible constructor is `open` returning `Result`, after `detent_open` and `File::open`.
-2. Rust `lookup` is `Result<Value, Status>`: a sum type carries what C++ spreads over `kind`, `boolean` and `integer`. Python's `Lookup.value` is a `bool` or an `int`, so its type carries the kind.
-3. `store` takes `os.PathLike | str | bytes` in Python and `impl AsRef<Path>` in Rust, passed as raw bytes; a `&str` would refuse non-UTF-8 paths the C ABI accepts.
-4. Python checks types first: a non-`bool` fallback to `eval`, a non-`int` or `bool` fallback to `get`, or a non-`str` name raises `TypeError`; an integer outside int64 raises `OverflowError`. C++ and Rust reject these at compile time.
-5. Only C++ keeps `native()`, for C callers; the bindings have none.
+1. Rust's fallible constructor is `open` returning `Result`, after `detent_open` and `File::open`; Rust has no default arguments, so `mapping_bytes` is explicit.
+2. Rust `lookup` is `Result<i64, Status>`: the caller holds the fallback, so the error side needs only the status. Python's `Lookup.value` is the int, the fallback on any error.
+3. Typed reads mirror C++ `get_as<T>`: the fallback when the value is outside `T` (for `bool`, other than 0 or 1). Rust's `get_as<T: Knob>` takes `bool` and the fixed-width integers through a sealed trait. Python ints have no width, so only the flag read remains: `get_bool`.
+4. `store` takes `os.PathLike | str | bytes` in Python and `impl AsRef<Path>` in Rust, passed as raw bytes; a `&str` would refuse non-UTF-8 paths the C ABI accepts.
+5. Python checks types first: a non-`bool` fallback to `get_bool`, a non-`int` or `bool` fallback to `get` or `lookup`, or a non-`str` name raises `TypeError`; an integer outside int64 raises `OverflowError`. C++ and Rust reject these at compile time.
+6. Only C++ keeps `native()`, for C callers; the bindings have none.
 
 ### D2. Errors: open raises, lookups never do
 
-Only opening fails loudly: `ReaderError` carries the `detent_status`, with the message `detent_open: <detent_status_name>` as in C++ (`reader.hh:42-44`). Under reader Q6 (a), opening a store that does not exist yet succeeds, and lookups return the fallback with `UNAVAILABLE` until a generation appears (`src/detent_reader/core.cc:614-624`). Every lookup returns the caller's fallback on any error, and `lookup` reports the status (reader Q2 (a), the lead's call; Python's raising today is the owner's to keep or drop). `Status` is a Python `IntEnum` and a Rust `#[non_exhaustive]` enum with `Unknown(u32)`. The C ABI may add statuses without a version bump ("known or not, is an error", `reader.h:23`), so Rust declares the C return type as `c_int` and maps it: reading an out-of-range value into a Rust enum is undefined behavior. Python maps an unknown value to a pseudo-member that keeps the integer. Both check `detent_abi_version` once: Python at import, raising `ImportError`; Rust in `open`, as C++ does in its constructor.
+Only opening fails loudly: `ReaderError` carries the `detent_status`, with the message `detent_open: <detent_status_name>` as in C++ (`reader.hh:42-44`). Under reader Q6 (a), opening a store that does not exist yet succeeds, and lookups return the fallback with `UNAVAILABLE` until a generation appears (`src/detent_reader/core.cc:614-624`). Every lookup returns the caller's fallback on any error, and `lookup` reports the status (reader Q2 (a), the lead's call; Python's raising today is the owner's to keep or drop). `Status` is a Python `IntEnum` and a Rust `#[non_exhaustive]` enum with `Unknown(u32)`. The C ABI may add statuses without a version bump ("known or not, is an error", `reader.h:23`), so Rust declares the C return type as `c_int` and maps it: reading an out-of-range value into a Rust enum is undefined behavior. Python maps an unknown value to a pseudo-member that keeps the integer. Both check `detent_abi_version` once: Python at import, raising `ImportError`; Rust in `open`, as C++ does in its constructor. The version does not move when statuses are renumbered (reader S6 renumbered them at version 1), so neither binding trusts its own numbering: Python builds `Status` from the header's `DETENT_*` constants compiled into the extension, and a Rust unit test checks that `Status::from_raw(n).name()` equals `detent_status_name(n)` for every known value.
 
 ### D3. Lifetime: the object is the handle, with no `close()`
 
 A close that races a lookup is undefined (reader.md D1 item 7), so in every language the handle closes when the object ends and never earlier. Rust lookups borrow `&self`, so `Drop` cannot overlap one; `Reader` is `Send + Sync`, not `Clone`, shared through `Arc`. In Python every lookup holds a reference to the reader, so deallocation cannot overlap one either; a `close()` or context manager would bring the race back, so there is none.
 
-Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle never changes after construction. Lookups keep the GIL (reader.md D7); open and `refresh()` release it around their I/O. The extension declares `Py_MOD_GIL_NOT_USED`: the core's lookups are thread-safe and the object is immutable, so free-threaded builds need no lock. A forked child keeps a working handle (reader.md D10). No language starts a thread.
+Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle never changes after construction. Lookups keep the GIL (reader.md D7); open and `refresh()` release it around their I/O. The core's lookups are thread-safe and the object is immutable, so a free-threaded build would need no lock; the extension declares `Py_MOD_GIL_NOT_USED` once a free-threaded run passes T3 and T4 (follow-up). A forked child keeps a working handle (reader.md D10). No language starts a thread.
 
 ### D4. One scenario table, three runners
 
@@ -73,11 +75,11 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 | `Client(defaults, source_path=p)`; `Client::new(d, Some(p), ..)` | Same `Reader`, over the managed agent's store | The file source is removed (owner, 2026-11-04) |
 | `cli_overrides=[...]` | None. Tests publish values with the writer | R2 |
 | `poll_interval_ms=N` | None; `refresh()` to attach earlier | reader.md D4, Q1 (a) |
-| `eval(name, hash_val=, switch_val=)` | `eval(name, fallback, hash=, switch_value=)` | R1 |
-| `get(name, switch_val=)` | `get(name, fallback)` | The spec ignores switch for integers (reader.md D1 item 3) |
-| `except DetentError` around `eval`/`get`; Rust `?` | `lookup(name).status`; Rust `lookup(..)?` | reader Q2 (a) |
+| `get(name, hash_val=, switch_val=)` | `get(name, fallback, hash=, switch_value=)` | R1 |
+| `get_bool(name, hash_val=, switch_val=)` | Python `get_bool(name, fallback, ...)`; Rust `get_as(name, fallback, ...)` | R1; mirrors C++ `get_as<bool>` |
+| `except DetentError` around `get`; Rust `?` | `lookup(name, fallback).status`; Rust `lookup(..)?` | reader Q2 (a) |
 | `except DetentError` around construction | `except ReaderError as e: e.status` | D2 |
-| `health()` | `revision(namespace)` and `lookup(name).status` | Q2 (a), owner |
+| `health()` | `revision(namespace)` and `lookup(name, fallback).status` | Q2 (a), owner |
 | C++ `InitOptions{.read_source = make_local_read_source(opts)}`, `make_managed_read_source(dir, uid)` | `detent::Reader(dir, uid, namespaces)` | Q1 (a), owner |
 | C++ `auto_refresh = false` with `LocalReadSource::refresh()` | `Reader::refresh()`; there is never a thread | reader.md D5 |
 
@@ -95,7 +97,7 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 | `LocalReadSource`, `ClientSourceOptions`, `make_local_read_source`, `make_managed_read_source` | `include/detent_local/client_source.hh`, `src/detent_local/client_source.cc` | `main.cc`, `test_client_source`, `test_lazy_page_access`, three system probes |
 | `detent::global`, `TestKnobs`, `TestGuard`, the test slot | `include/detent/global.hh`, `src/detent/global.cc`, `include/detent/testing.hh`, `src/detent/testing.cc`, `include/detent/detail/test_hook.hh`, `src/detent/test_hook.cc` | `tests/detent/test_testing_guard.cc` |
 | `SnapshotRef` | `include/detent/snapshot_ref.hh` | `tests/detent/test_concurrency_stress.cc` |
-| Override precedence and the baked-defaults evaluator (reader.md D6) | `include/detent/detail/evaluation.hh` | `tests/detent_local/test_evaluation.cc` keeps its `evaluate` cases and drops the `detail::evaluate` comparison |
+| Override precedence and the first evaluator, `detail::evaluate` (reader.md D6); `detail::ramp`, the one percentage rule, stays for the paged evaluator | `include/detent/detail/evaluation.hh` (keeps `ramp` only) | `test_evaluation` and `test_one_knob_differential` compare the paged evaluator with a reference written in the test or with recorded answers; `one_knob_record.cc` builds only against the commit it records (`one_knob_record.sh`) and stays; the c3 mutant moves from `read_view.hh`'s `convert` to `reader.hh`'s `get_as<bool>` |
 | `OverrideTable` as a read layer (R2) | `include/detent/overrides.hh`, `src/detent/overrides.cc` | Also used by `test_duplicate_precedence`, `test_model_alloc_failure`, `benchmarks/btree-repair/actual_type_sweep.cc`, `w5_detent.cc`: H checks each, and deletes the file only if none needs it outside the Client |
 | The pybind11 module and the cxx shim | `bindings/python/detent_python.cc` (rewritten in B3), `bindings/rust/src/shim.hh`, `bindings/rust/src/shim.cc` | B3, B4 |
 
@@ -105,17 +107,17 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 
 Binding tests, both rewritten:
 
-- `bindings/python/tests/test_detent.py` and `bindings/rust/tests/integration.rs` run D4's table. It covers bool and integer values, including `INT64_MIN` and `INT64_MAX`; a missing knob, a wrong type, an invalid name and a namespace outside the handle, each returning the fallback with its status; today's hash pairs (`user-1` false and `user-42` true at a 10% rollout, `test_detent.py:75-76`) and the switch match; and `revision` across two publishes.
+- `bindings/python/tests/test_detent.py` and `bindings/rust/tests/integration.rs` run D4's table (56 rows). It covers flags and integers, including `INT64_MIN` and `INT64_MAX`; typed reads out of range (a flag read of 2, `int8` of `INT64_MAX`, `uint64` of `INT64_MIN`); a missing knob, an invalid name and a namespace outside the handle, each returning the fallback with its status; the hash pairs (`user-1` outside and `user-42` inside a 10% rollout), the switch match, and an integer knob with a rollout and group overrides; and `revision` across two publishes. Python runs the `bool` typed rows only, its ints having no width.
 - **Fixture.** Each test makes a fresh store under the build tree: Python under `DETENT_TEST_ROOT`, which the CMake test target sets to `${CMAKE_BINARY_DIR}/.scratch`, and Rust under `CARGO_TARGET_TMPDIR`. Directory trust refuses any group- or world-writable ancestor (`src/detent_local/generation_file_access.hh:103-106`), so `/tmp` and `tempfile`'s default fail. The C++ tests root their stores the same way (`tests/detent_reader/test_reader_core.cc:277`). Python loads the writer through `ctypes`; Rust declares it with `#[link(name = "detent_testing")]` in the test crate, so it never reaches the library.
 
 | Row | Target | Procedure |
 | --- | --- | --- |
 | T1 Parity | Every row of `scenarios.json` passes in C++, Python and Rust | `ctest -R 'reader_scenarios\|detent_python_test\|detent_rust_test'` |
-| T2 Store states | An absent store opens and returns `UNAVAILABLE`, then `OK` once the writer publishes (after the 200 ms retry). A 0777 directory and a uid of `getuid()+1` raise `UNTRUSTED` | Cases ported from `test_reader_core.cc` `opens()` |
+| T2 Store states | An absent store opens and returns `UNAVAILABLE`, then `OK` once the writer publishes (after the 200 ms retry). A 0777 directory and a uid of `getuid()+1` raise `UNTRUSTED` at open; a store absent at open and created 0777 later answers `UNTRUSTED` from a lookup. A `mapping_bytes` below the minimum raises `INVALID_ARGUMENT`; the minimum opens | Cases ported from `test_reader_core.cc` `opens()` |
 | T3 Threads | 8 threads look up `t:rev` while the writer publishes 100 revisions; each thread sees non-decreasing values and only `OK`. Python runs it on the GIL build and on a free-threaded build when CI has one | Python `threading`; Rust `std::thread::scope` |
 | T4 Lifetime | Descriptors and the thread count are unchanged after open, lookups and drop or `del`. A forked Python child sees the next publish | `/dev/fd` count, `threading.active_count()` and `os.fork()`; Rust counts `/dev/fd` |
 | T5 Mutants | Each fails a test: a binding that ignores the fallback on error; one that drops `hash`; one that maps `UNTRUSTED` to `OK` | Applied one at a time in the developer's ledger |
-| T6 CI | A new `bindings` job (Linux x86_64, macOS arm64) builds with `DETENT_BUILD_PYTHON=ON DETENT_BUILD_RUST=ON` and runs T1-T4. No workflow builds the bindings today: `ci.yml` has no Python binding, `cargo` or `pybind` step, and both options default `OFF` (`CMakeLists.txt:47-48`) | Run on the branch first, with `--repeat until-fail:5` |
+| T6 CI | The `bindings` job (ubuntu-24.04, macos-15) builds with `DETENT_BUILD_PYTHON=ON DETENT_BUILD_RUST=ON` and runs T1-T4 and the export checks with `--repeat until-fail:3`; both options default `OFF`, so no other job builds them | `ci.yml` `bindings` |
 
 C++ Client tests under H (Q1 (a)):
 
@@ -139,13 +141,15 @@ C++ Client tests under H (Q1 (a)):
 
 **Q2. What replaces `health()`?** Today it returns initialized, connected, accepted version, staleness and knob counts (`detent_python.cc:92-106`, spec section 12). (a) Drop it: `revision(namespace)` and `lookup`'s status are the diagnostics. (b) Add `detent_health(handle, namespace, detent_health *)` to the C ABI, with the last refresh status, the revision and the attached generation's age. A new function needs no ABI version bump. *Recommendation: (a)* for S8 and S9, with (b) as a reader-core addition if operators need staleness. Dropping it removes user-visible behavior, so the call is the owner's. **Ruled (a)**, 2026-11-04: "Delete Detent::Client and health() if they're legacy."
 
+**Open, the lead relays (design review F5, F6).** F5: `detent get` stays on `GenerationReader` and loses `--defaults` (R1) under D21; the identity flags it needed are gone from main and the core has `mapping_bytes`, so moving it to the core is the owner's call. F6: `libdetent_testing` is test-only and not installed; whether applications get it (or another way to set knobs in their tests) is the owner's call.
+
 ## First steps
 
 Q1 and Q2 are ruled. All steps wait on reader S6 reaching main.
 
 | Step | Change |
 | --- | --- |
-| B1 | D6 items 1-2: the shared `libdetent_reader` with exported C symbols only, the test-only shared `libdetent_testing`, and a link check that only `detent_*` is exported (`nm -gU` / `nm -D`) |
+| B1 | D6 items 1-2: the shared `libdetent_reader` with exported C symbols only, the test-only shared `libdetent_testing`, and a link check that the exported set is exactly each library's `exports.list` (`nm -gU` / `nm -D`); the same list writes the version script and the Apple exported-symbols list |
 | B2 | D4: `bindings/tests/scenarios.json` and the C++ runner `test_reader_scenarios` |
 | B3 | reader S8: the Python C extension (`METH_FASTCALL`, D1-D3), with pybind11 dropped (`bindings/python/CMakeLists.txt:7-11`), and T1-T5 in Python |
 | B4 | reader S9: the Rust crate with hand-written `extern "C"`, with `cxx` and `cxx-build` dropped (`bindings/rust/Cargo.toml:12,15`), and T1-T5 in Rust |

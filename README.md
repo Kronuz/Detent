@@ -275,8 +275,8 @@ Rust example:
 
 ```rust
 let reader = detent::Reader::open(generation_dir, agent_uid, &[], 0)?;
-reader.get_bool("payments:new_processor", false, Some("user-42"), None);
-reader.get_bool("checkout:new_flow", false, None, Some("beta_testers"));
+reader.get_as("payments:new_processor", false, Some("user-42"), None);
+reader.get_as("checkout:new_flow", false, None, Some("beta_testers"));
 reader.get("search:max_results", 25, None, None);
 reader.lookup("search:max_results", 25, None, None);
 ```

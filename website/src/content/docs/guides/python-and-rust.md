@@ -56,8 +56,8 @@ A failed open raises `detent.ReaderError`, with the reason in `.status`. See the
 ```rust
 let reader = detent::Reader::open("agent-state", agent_uid, &[], 0)?;
 
-let on = reader.get_bool("payments:new_processor", false, Some("user-42"), None);
-let beta = reader.get_bool("checkout:new_flow", false, None, Some("beta_testers"));
+let on = reader.get_as("payments:new_processor", false, Some("user-42"), None);
+let beta = reader.get_as("checkout:new_flow", false, None, Some("beta_testers"));
 let max = reader.get("search:max_results", 25, None, None);
 
 match reader.lookup("search:nope", 0, None, None) {
@@ -66,8 +66,9 @@ match reader.lookup("search:nope", 0, None, None) {
 }
 ```
 
-`get` returns an `i64` and `get_bool` a `bool`, each its fallback on any error;
-`get_bool` also falls back for a value other than 0 or 1. `lookup` returns
+`get` returns an `i64` and `get_as` the type of its fallback (`bool` or a
+fixed-width integer), each its fallback on any error; `get_as` also falls back
+for a value outside that type (for `bool`, other than 0 or 1). `lookup` returns
 `Result<i64, Status>`. See the
 [Rust API reference](/Detent/reference/bindings/rust/).
 

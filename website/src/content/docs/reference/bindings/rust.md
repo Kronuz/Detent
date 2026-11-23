@@ -29,13 +29,13 @@ impl Reader {
         switch_value: Option<&str>,
     ) -> i64;
 
-    pub fn get_bool(
+    pub fn get_as<T: Knob>(
         &self,
         name: &str,
-        fallback: bool,
+        fallback: T,
         hash: Option<&str>,
         switch_value: Option<&str>,
-    ) -> bool;
+    ) -> T;
 
     pub fn lookup(
         &self,
@@ -58,19 +58,21 @@ so non-UTF-8 paths work. A store that doesn't exist yet opens, and lookups
 return the fallback with `Status::Unavailable`.
 
 `get` returns a knob's `i64` value with the
-[standard precedence](/Detent/reference/evaluation/). `get_bool` returns
-`false` for 0 and `true` for 1. Both return `fallback` on any error, and
-`get_bool` also for any other value; `lookup` returns the status instead.
+[standard precedence](/Detent/reference/evaluation/). `get_as` reads it as
+`T`, as C++'s `get_as<T>`: `bool` (`false` for 0, `true` for 1) or a
+fixed-width integer (`i8` to `i64`, `u8` to `u64`). Both return `fallback` on
+any error, and `get_as` also for a value outside `T`'s range (for `bool`, other
+than 0 or 1); `lookup` returns the status instead.
 `Reader` is `Send + Sync` and not `Clone`: share one through `Arc`. The handle
 closes on `Drop`, which can't overlap a lookup because lookups borrow `&self`.
 
 ```rust
 let reader = detent::Reader::open("agent-state", agent_uid, &[], 0)?;
-if reader.get_bool("checkout:killswitch_new_path", false, None, None) {
+if reader.get_as("checkout:killswitch_new_path", false, None, None) {
     disable_new_checkout();
 }
 let max = reader.get("search:max_results", 25, None, None);
-let on = reader.get_bool("payments:new_processor", false, Some("user-42"), None);
+let on = reader.get_as("payments:new_processor", false, Some("user-42"), None);
 ```
 
 ---

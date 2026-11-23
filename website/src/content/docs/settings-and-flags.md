@@ -102,12 +102,12 @@ A `null` value deletes the key from its namespace:
 publish search:timeout_ms null
 sleep 1
 detent get search:timeout_ms
-# ERR MissingKnob: search:timeout_ms (scoped lookup failed)
+# ERR MissingKnob: search:timeout_ms (local image lookup failed)
 ```
 
 <!-- e2e:begin
 exit: 1
-stderr-contains: ERR MissingKnob: search:timeout_ms (scoped lookup failed)
+stderr-contains: ERR MissingKnob: search:timeout_ms (local image lookup failed)
 e2e:end -->
 
 A reader returns each call's fallback for it, with the status `MISSING`, so

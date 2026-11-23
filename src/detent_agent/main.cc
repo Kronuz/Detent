@@ -212,7 +212,10 @@ std::optional<std::string> try_read(const detent::local::ReadView &view, const s
 	};
 	auto value = view.get(name_space, key, view_of(hash_val), view_of(switch_val));
 	if (value) return std::to_string(value.value());
-	if (out_error) *out_error = value.error();
+	if (out_error) {
+		*out_error = value.error();
+		out_error->name = name; // the view names the key alone
+	}
 	return std::nullopt;
 }
 

@@ -42,7 +42,7 @@ the status with the value. The C names are `DETENT_<NAME>` in
 | `NO_MEMORY` | An allocation, or the reader's memory budget, refused |
 | `IO` | A system call failed |
 
-`get_as<T>` (and `get_bool` in Python and Rust) also returns the fallback for
+`get_as<T>` (`get_as` in Rust, `get_bool` in Python) also returns the fallback for
 a value that doesn't fit `T`, such as a value other than 0 or 1 for `bool`;
 `lookup` reports that read as `OK` with the stored value.
 

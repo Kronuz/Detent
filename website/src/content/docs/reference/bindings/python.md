@@ -7,8 +7,8 @@ import detent
 ```
 
 The `detent` extension module is a C extension over `libdetent_reader`, built
-when `DETENT_BUILD_PYTHON=ON`. It declares `Py_MOD_GIL_NOT_USED`, so it runs
-on free-threaded builds without a lock.
+when `DETENT_BUILD_PYTHON=ON`. A free-threaded interpreter re-enables the GIL
+when it imports it: no free-threaded build has run its tests yet.
 
 ---
 
