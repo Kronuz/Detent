@@ -46,7 +46,8 @@ Nothing.
 
 1. `campaign brief` lists the older jobs at dbb22e7 (261121-193329-*, 261121-193330-*) as evidence that "ran other code" next to their identical successors, so a rerun of the whole list queues duplicates (same cmd, same commit); `job rerun` does not dedupe an identical job already queued, and a cancelled job still shows in the generated Evidence table.
 2. A2 (untagged, only `--fails-without` jobs) showed "jobs: ;" and no evidence until a plain job was tagged `--for A2`: the message does not say a passing job is needed beside the mutants.
-3. A5 "CI passes" names no CI job, so the brief says "names no job" even with a green run: the row needs `ci:NAME` per job, the names are not in the quest text.
+3. A5 "CI passes" is an untagged job criterion, so its Evidence row needs a backticked `ci:NAME` per CI job (a bare `ci:NAME` is not read, and `brief` prints "names no job" without saying so); the CI job names are in neither the quest text nor the brief.
+4. Bug: a journal row's `ci:NAME` is read by `proof` (evidence.py) with `ci_job` at the head commit only. The land gate (`ci_gate`) and a `ci:` gate check carry a green run across a clean merge from main, the row does not: after a clean merge the row reads "running" or "no CI job named ... (push the branch)" until CI at the merge itself finishes, though `brief` and the skill say CI carries. The "(push the branch)" text also shows for a pushed branch whose run has queued but not created that job yet.
 
 ## Evidence
 
@@ -56,7 +57,7 @@ Nothing.
 | A2 | Passing at consensus:ca24f80: 261122-220146-4f043d (seed 1080 at rest, then quiescence_test, `--for A2`). `--fails-without`: 261121-141023-81b8cd at the pre-fix commit consensus:de24723, seed 1080 at rest exits 1 "no leader after settling". At ab47d8a, per mutant on quiescence_test: 261121-215921-70138c (wake-ack-unanswered, the old rule), 261121-215936-868140 (the same, s6 alone), 261121-215924-1cf081 (wake-ack-overtaken), 261121-215927-4866dd (wake-ack-once), 261121-215930-dc004e (wake-ack-dropped-busy), 261121-215933-7dd2bc (stale-frame-silent), 261121-141837-c1601b (wake-ack-unanswered, seed 1080). Each was caught locally first |
 | A3 | At consensus:ca24f80: 261122-220106-1794eb (TSan ctest: quiescence, simulation, driver, driver_close*, liveness, driver_replace parts), 261122-220105-a4c641 (replace 1-3000 under TSan), 261122-220106-91745d (quiescence_test under ASan+UBSan). Local Release at ab47d8a: quiescence_test ok, simulation_test 200 seeds ok |
 | A4 | consensus docs/mechanisms/quiescence.md, Rest, "A follower that leaves rest under its leader re-acknowledges" and "A follower's running timer is fed" |
-| A5 | CI run 44991647211 at consensus:ab47d8a, all 8 jobs green (carried across the clean merge of main at ca24f80): ci:linux-tsan, ci:linux-asan-ubsan, ci:freebsd-x86_64, ci:macos-arm64, ci:macos-x86_64, ci:linux-arm64-gcc, ci:linux-x86_64-gcc, ci:linux-x86_64-clang |
+| A5 | CI run 44991647211 green at consensus:ab47d8a (all 8 jobs), the same tree as the clean merge ca24f80 but for main's peers-wake files; CI at ca24f80 (pushed) is running: `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`, `ci:linux-x86_64-gcc`, `ci:linux-x86_64-clang` |
 
 Other jobs: 261121-134216-fb35b7 (failed, as intended): the reviewer's quiesce_trace.sh at consensus main 8780e44 reproduces seed 1080's "no leader after settling".
 
