@@ -6871,6 +6871,8 @@
     "consensus-simulation-asan-timeout": {
       "accepted": {},
       "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-simulation-asan-timeout",
       "checks": [
         {
           "cmd": "ci:linux-asan-ubsan",
@@ -6891,6 +6893,7 @@
         "test/driver_simulation.cc",
         "docs/mechanisms/simulation*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6898,9 +6901,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus_simulation stays well inside its timeout under ASan",
-      "updated": "2026-11-23T11:03:07"
+      "updated": "2026-11-23T11:03:23",
+      "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
       "accepted": {
