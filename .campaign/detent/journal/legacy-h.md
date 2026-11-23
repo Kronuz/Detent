@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-115748-542767 261123-115749-3be19d 261123-115751-5bff53 261123-115753-f3287a 261123-115755-5cd01d 261123-115757-c99c71 261123-115759-1641e1 261123-115802-d5ab2f 261123-115804-bf7616 261123-115806-c752e0 261123-115808-e4edc7 261123-115809-d73ef0 261123-115811-ea984a 261123-115813-9d3c88 261123-115815-a432cd 261123-115830-16b083
+State: waiting on jobs 261123-132656-1c173d 261123-132712-88becb 261123-132715-96b85d 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 and CI at `Detent:62293129`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,25 +9,26 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on the jobs above and CI at `Detent:daeca859` (pushed). Local (Release, bindings on, at
-`Detent:daeca859`): `test_reader_scenarios`, `test_reader_core`, `test_reader_exports`,
-`test_reader_exports_unlisted`, `test_testing_exports`, `detent_python_test`, `detent_rust_test`,
-`test_agent_cli`, `test_one_knob_differential`, `test_local_evaluation`, `test_local_lazy_page_access`,
-`test_installed_testing_component` pass (12 of 12). The installed prefix holds the two dylibs, four
-headers and the package files only; the consumer prints `count=7 on=1 missing=missing later=8`.
+Round 3 at `Detent:62293129` (fixes `Detent:1e7264e5`, `Detent:62293129`; main merged `Detent:72de6c74`).
+CI run 45254351645 at `Detent:5610152f` failed on Linux only:
+- `test_reader_exports`, `test_testing_exports` (every Linux job): `check_exports.cmake` runs as
+  `cmake -P` without a minimum version; CMake 3.x leaves CMP0057 unset and rejects `IN_LIST`
+  (CMake 4 locally makes it NEW). `test_reader_exports_unlisted` passed on that same error (WILL_FAIL);
+  it now requires the "exports detent_close, which" message.
+- `test_installed_testing_component` (asan, tsan): the consumer linked the sanitized libraries
+  without the sanitizer runtime (`undefined reference to __tsan_unaligned_write16`); it now gets the
+  build's `CMAKE_CXX_FLAGS[_<TYPE>]` and `CMAKE_EXE_LINKER_FLAGS`.
+- `test_reader_switch` (linux-x86_64-gcc, T3 "threads 1 (before 2)"): the baseline counted the
+  joined priming thread still in `/proc/self/task`; the 100 ms settle now follows the join.
+Mutant f3-python built `int` into a `detent_status` member (exit 126); the patch casts it.
+Local (Release, macOS): the three export tests, `test_installed_testing_component` and
+`test_reader_switch` pass; a non-matching failure of the export script does not match the pattern.
 
 ## Next
 
-1. Read the jobs; fix failures. Round 1 (native 261123-110240-386616 at `Detent:daeca859`) failed:
-   `test_model_alloc_failure` still built `OverrideValue` (my targeted build skipped it), and
-   `run.sh` logged under `.scratch/`, absent in a job checkout (exit 126 on all 14 binding jobs).
-   Both fixed at `Detent:5610152f`; a full configure and build of every target (suite flags, bindings
-   and examples on) has 0 errors locally.
-2. Pushed for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
-   A5 `bindings/tests/run.sh`; A10 `bindings/tests/legacy_grep.sh`; A12 the six
-   `bindings/tests/mutants/*.patch` through `run.sh PATCH` with `--fails-without`; A13 `test_system_*`;
-   A20 the F-fix mutants.
-3. Evidence table from `campaign brief`; Result; ready for review.
+1. Read jobs 261123-132656-1c173d 261123-132712-88becb 261123-132715-96b85d 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 (native, bindings plain for A2-A5/A12/A20, A10 grep, A13, F3-python and F7
+   mutants) and CI at `Detent:62293129` (`ci:linux-asan-ubsan`, `ci:linux-tsan`, `ci:ci`).
+2. Evidence table from `campaign brief`; Result; ready for review.
 
 ## Blocked on
 
@@ -119,3 +120,6 @@ Not yet.
    `DOCUMENTATION_FINDINGS`, `benchmarks/container-alternative/`, `docs/design`, `docs/handoffs`) and
    the refusal tests (`test_agent_cli.cmake`, `tests/docs/mutants.py`). `SCALE_TARGETS.md` item 1 and
    both how-it-works status rows are reworded.
+10. `test_reader_switch`'s baseline race is in a reader-core test this quest does not otherwise
+    touch (likely pre-existing on main: a timing race, not shown by a job at main); fixed inside the
+    file set (`tests/detent_reader/**`) since it red-lit this quest's CI.
