@@ -1,9 +1,11 @@
 # consensus-transport-test-flakes: journal
 
-State: waiting on CI run 44989408833
+State: waiting on jobs 261122-220503-cbf63a 261122-220506-6b6202 and CI run 45120807742 (at consensus:f1af49f)
 Quest: .campaign/detent/quests/consensus-transport-test-flakes.md (the lead's; never edit it)
 
 ## Doing
+
+Landing prep: f1af49f (merge of main a068ba0, peers-wake) is pushed; CI run 45120807742 runs at it. Pre-fix jobs rerun at consensus:196403f (f1af49f's tree with main's rpc_host_test.cc and rpc_hosts.h; on no branch): 261122-220503-cbf63a (fetch), 261122-220506-6b6202 (group-full). A3 and A4 `ci:` rows read CI at f1af49f only (see Campaign tool notes), so they count when run 45120807742 finishes green; 4536590's run 44989408833 (attempts 1-3 green) is the three in a row.
 
 Merged consensus main (e35356a, consensus_mutants per-test) into the branch and pushed: head consensus:4536590.
 Pre-fix jobs rerun at consensus:2c1abbb (head's tree with main's rpc_host_test.cc and rpc_hosts.h; on no branch).
@@ -18,11 +20,17 @@ Pre-fix jobs rerun at consensus:2c1abbb (head's tree with main's rpc_host_test.c
 
 Nothing. Not a transport defect (see Result), so no widened file set is asked for.
 
+## Campaign tool notes (for campaign-v3)
+
+1. Bug: a journal row's `ci:NAME` is read by `proof` (evidence.py) with `ci_job` at the head commit only. The land gate (`ci_gate`) and a `ci:` gate check carry a green run across a clean merge from main; the row does not. After f1af49f (a clean merge of main onto 4536590, whose run 44989408833 was green three attempts in a row) A3 and A4 read "running" / "no CI job named ... (push the branch)", though `brief` and the skill say CI carries. The "(push the branch)" text also shows for a pushed branch whose run has queued but not yet created that job.
+2. A journal row citing a `--fails-without` job as a pass always reads "ran other code": `job_problem` wants the job's twin at the head's code and a pre-fix job has none, so `brief`'s "rerun it" hint cannot be satisfied, with `--commit` or without. The hint should skip jobs tagged `--fails-without` (A2's own check, `fails_without_met`, already counts them), or `proof` should apply that check to them.
+3. `campaign brief` names `ci:JOB` as the form but not that it must be backticked; a bare `ci:linux-tsan` reads as "names no job".
+
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Causes in Result below; fix passes 261121-143440-4dd232; reproducers 261121-212631-ac045b (fetch) and 261121-212632-5bcdd7 (group-full) exited 1 pre-fix as designed |
+| A1 | Causes in Result below; fix passes 261121-143440-4dd232 (carried across main's merges); the pre-fix reproducers are A2's `--fails-without` jobs (A2 row), not cited here: a row's job must pass at the head's code, which a pre-fix job never does |
 | A2 | pre-fix at the head's tree: 261121-212631-ac045b (fetch), 261121-212632-5bcdd7 (group-full), both --fails-without at consensus:2c1abbb, each exited 1 as designed; earlier fetch TSan: 261121-143436-5d5a0f (pre-fix, fails) vs 261121-143440-4dd232 (fix, 48 runs, gaps 125-258 ms) and 261121-143505-802e52 (plain, 48 runs, gaps 106-108 ms); group-full: 261121-143443-734524 (pre-fix fails, 5 s pause at 23 offsets) vs 261121-143447-430e88 (fix passes); repeats 261121-143458-1278dc (TSan 48), 261121-143501-bfbd76 (plain 96); control 261121-143509-02c420 (rpc-shared-credit: "0 of 15 calls ... 100 of 100 after FAILED", 2 of 2 runs failed: the expected control result, a transport parking calls behind the credit) |
 | A3 | `ci:linux-tsan`, `ci:macos-x86_64` (run 44989408833: attempts 1, 2, 3 green on both) |
 | A4 | `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc` |
