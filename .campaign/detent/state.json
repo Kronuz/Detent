@@ -15122,13 +15122,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "journal-drop-memory-io"
+      ],
       "provides": [],
       "repo": "../journal",
       "risk": "low",
       "status": "planned",
       "title": "journal pins faultlab at 5d4df9b (stale at_mark fix)",
-      "updated": "2026-11-23T15:00:48"
+      "updated": "2026-11-23T15:01:18"
     },
     "journal-fuzz-decoder-pin": {
       "accepted": {},
