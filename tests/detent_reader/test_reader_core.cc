@@ -5,6 +5,7 @@
 #include "prepared_reader.hh"
 #include "testing.hh"
 #include <algorithm>
+#include <atomic>
 #include <climits>
 #include <cstdint>
 #include <cstdio>
@@ -146,14 +147,29 @@ void refresh_memo(const std::filesystem::path &root) {
 // A store of two packs: the first lookup maps one, and some key lives only in the other.
 constexpr int wide_knobs = 60000;
 std::string wide_name(int i) { return "t:k" + std::to_string(i); }
+std::string wide_json(int rev) {
+	std::string json = R"({"schema_version":1,"knobs":{)";
+	for (int i = 0; i != wide_knobs; ++i)
+		json += (i ? ",\"" : "\"") + wide_name(i) + R"(":{"default":)" + std::to_string(3 * i + rev) + "}";
+	return json + "}}";
+}
 std::filesystem::path wide_store(const std::filesystem::path &root) {
 	const auto store = root / "wide";
 	detent::testing::GenerationWriter writer(store);
-	std::string json = R"({"schema_version":1,"knobs":{)";
-	for (int i = 0; i != wide_knobs; ++i)
-		json += (i ? ",\"" : "\"") + wide_name(i) + R"(":{"default":)" + std::to_string(3 * i + 1) + "}";
-	CHECK(writer.publish_json(json + "}}") == 1);
+	CHECK(writer.publish_json(wide_json(1)) == 1);
 	return store;
+}
+// How many keys of revision `rev` answer, each with its value.
+int wide_reads(detent_reader *h, int rev) {
+	int ok = 0;
+	for (int i = 0; i != wide_knobs; ++i) {
+		std::int64_t out = 0;
+		const auto name = wide_name(i);
+		const auto status = detent_get(h, S(name), none, none, -7, &out);
+		CHECK(status == DETENT_OK ? out == 3 * i + rev : status == DETENT_NO_MEMORY && out == -7);
+		ok += status == DETENT_OK;
+	}
+	return ok;
 }
 // The first key past k0 whose lookup does not answer, and its status.
 std::pair<int, detent_status> first_refused(detent_reader *h) {
@@ -220,6 +236,51 @@ void capped(const std::filesystem::path &store) {
 	CHECK(raised.status == DETENT_OK && t::stats(raised.handle).mapped_limit == std::uint64_t(1) << 40);
 	CHECK(get(raised.handle, "t:k0", DETENT_OK) == 1 && first_refused(raised.handle).first < 0);
 	std::cout << "raised cap: every key, charged " << t::stats(raised.handle).mapped_bytes << "\n";
+}
+// A view a lookup pinned across a commit is freed by the next refresh once the pin drops, Unchanged
+// or not, and returns its mapping charge: with room for one generation, the new one reads whole.
+void retained(const std::filesystem::path &root) {
+	const auto store = root / "retained";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(wide_json(1)) == 1);
+	std::uint64_t whole = 0;
+	{
+		Opened wide(store, {}, ::getuid(), std::uint64_t(1) << 40);
+		CHECK(wide_reads(wide.handle, 1) == wide_knobs);
+		whole = t::stats(wide.handle).mapped_bytes;
+	}
+	Opened r(store, {}, ::getuid(), whole + whole / 2);
+	CHECK(r.status == DETENT_OK && wide_reads(r.handle, 1) == wide_knobs);
+	struct Park {
+		std::atomic<int> state{0}; // 1 parked, 2 released
+	} park;
+	static thread_local Park *armed = nullptr;
+	t::install([](t::Window at, void *) noexcept {
+		if (at != t::Window::Pinned || !armed)
+			return;
+		auto &park = *std::exchange(armed, nullptr);
+		park.state = 1;
+		while (park.state.load() != 2)
+			std::this_thread::yield();
+	}, nullptr);
+	std::int64_t seen = 0;
+	std::thread reader([&] {
+		armed = &park;
+		detent_get(r.handle, S("t:k0"), none, none, -7, &seen);
+	});
+	while (park.state.load() != 1)
+		std::this_thread::yield();
+	CHECK(writer.publish_json(wide_json(2)) == 2 && detent_refresh(r.handle) == DETENT_OK);
+	CHECK(t::stats(r.handle).generations == 2); // the pinned view keeps revision 1
+	park.state = 2;
+	reader.join();
+	t::install(nullptr, nullptr);
+	CHECK(seen == 2 && detent_refresh(r.handle) == DETENT_OK);
+	const int ok = wide_reads(r.handle, 2);
+	const auto stats = t::stats(r.handle);
+	std::cout << "retained: revision 2 reads " << ok << " of " << wide_knobs << ", generations " << stats.generations
+	          << ", charged " << stats.mapped_bytes << " of " << stats.mapped_limit << "\n";
+	CHECK(ok == wide_knobs && stats.generations == 1 && stats.live_views == 1);
 }
 // A refused fork-handler registration fails the open; the next open registers them.
 void atfork_refused(const std::filesystem::path &root) {
@@ -507,6 +568,7 @@ int main() {
 	const auto wide = wide_store(root);
 	transient_miss(wide);
 	capped(wide);
+	retained(root);
 	values(root);
 	wrapper(root);
 	opens(root);

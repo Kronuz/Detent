@@ -196,6 +196,19 @@ struct detent_reader {
 		bool idle = false;
 		return refreshing.compare_exchange_strong(idle, true, std::memory_order_acquire, std::memory_order_relaxed);
 	}
+	// Frees every view outside slot `keep` that no lookup pins; only the holder of `refreshing` runs it.
+	void free_retired(std::size_t keep) noexcept {
+		for (std::size_t k = 0; k != ring_size; ++k) {
+			auto &slot = ring[k];
+			if (k == keep)
+				continue;
+			if (auto *old = slot.view.load(std::memory_order_relaxed); old && slot.sum() == 0) {
+				DETENT_WINDOW(Freeing);
+				slot.view.store(nullptr, std::memory_order_relaxed);
+				free_view(old);
+			}
+		}
+	}
 	void release_refreshing() noexcept {
 		refreshing.store(false, std::memory_order_release);
 		refreshing.notify_all();
@@ -366,19 +379,19 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	const auto s = handle.current.load(std::memory_order_relaxed);
 	const View *installed = handle.ring[s % ring_size].view.load(std::memory_order_relaxed);
 	auto &next = handle.ring[(s + 1) % ring_size];
-	// Checked before attaching, so a refusal has built nothing to free.
-	if (auto *old = next.view.load(std::memory_order_relaxed)) {
-		if (next.sum() != 0) {
-			handle.refused.fetch_add(1, std::memory_order_relaxed);
-			DETENT_COUNT(refused_publishes, 1);
-			handle.backoff = std::clamp(handle.backoff * 2, backoff_min_ns, backoff_max_ns);
-			handle.retry_at.store(now_ns() + handle.backoff, std::memory_order_relaxed);
-			return Outcome::Refused;
-		}
-		next.view.store(nullptr, std::memory_order_relaxed);
-		handle.free_view(old);
-		DETENT_WINDOW(AfterFree);
+	// Every outcome first frees the retired views no lookup pins, refunding their mapping charge.
+	const bool occupied = next.view.load(std::memory_order_relaxed) != nullptr;
+	handle.free_retired(s % ring_size);
+	// The next slot is checked before attaching, so a refusal has built nothing to free.
+	if (next.view.load(std::memory_order_relaxed)) {
+		handle.refused.fetch_add(1, std::memory_order_relaxed);
+		DETENT_COUNT(refused_publishes, 1);
+		handle.backoff = std::clamp(handle.backoff * 2, backoff_min_ns, backoff_max_ns);
+		handle.retry_at.store(now_ns() + handle.backoff, std::memory_order_relaxed);
+		return Outcome::Refused;
 	}
+	if (occupied)
+		DETENT_WINDOW(AfterFree);
 	View *built = nullptr;
 	Generation *fresh = nullptr;
 	Change *new_change = nullptr;
@@ -511,16 +524,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	handle.backoff = 0;
 	handle.retry_at.store(0, std::memory_order_relaxed);
 	handle.failed_store.store(UINT64_MAX, std::memory_order_relaxed);
-	for (std::size_t k = 0; k != ring_size; ++k) {
-		auto &slot = handle.ring[k];
-		if (&slot == &next)
-			continue;
-		if (auto *old = slot.view.load(std::memory_order_relaxed); old && slot.sum() == 0) {
-			DETENT_WINDOW(Freeing);
-			slot.view.store(nullptr, std::memory_order_relaxed);
-			handle.free_view(old);
-		}
-	}
+	handle.free_retired((s + 1) % ring_size);
 	return Outcome::Published;
 }
 
