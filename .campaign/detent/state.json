@@ -15882,9 +15882,9 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-21T13:06:45",
+      "updated": "2026-11-23T06:51:52",
       "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
     },
     "journal-tail-second-sector": {
