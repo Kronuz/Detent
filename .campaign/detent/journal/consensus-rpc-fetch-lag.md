@@ -37,7 +37,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261123-093627-64939a, 261123-093627-f49f89 (50 runs under 4 burners at 531b655) |
-| A2 | fails without: 261123-093621-880c1c (mutant consensus:031194e withholds heartbeats 1.5 s: 3 of 3 runs fail, longest gap 1597-1599 ms of 1001 allowed) |
+| A2 | 261123-102708-24df25 (plain fetch at the fix); fails without: 261123-093621-880c1c (mutant consensus:031194e withholds heartbeats 1.5 s: 3 of 3 runs fail, longest gap 1597-1599 ms of 1001 allowed) |
 | A3 | 261123-060909-e27d55; `ci:linux-tsan`, `ci:macos-x86_64` (CI at 531b655, green) |
 
 Examined: 261123-060906-b60033 (Bulk heartbeats, passed: gaps 150-161 ms) and 261123-090002-e8d6eb (bulk-ahead-of-control, passed: 105-121 ms): the fetch case cannot show head-of-line blocking; A2 rewritten by the lead (Detent:af6be48f).
