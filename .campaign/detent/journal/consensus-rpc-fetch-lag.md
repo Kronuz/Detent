@@ -1,6 +1,6 @@
 # consensus-rpc-fetch-lag: journal
 
-State: waiting on jobs 261123-093621-880c1c (A2), 261123-093627-64939a 261123-093627-f49f89 (A1 reruns at consensus:531b655), the suite at 531b655 and CI
+State: ready for review (low risk: lead reads the diff)
 Quest: .campaign/detent/quests/consensus-rpc-fetch-lag.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -36,13 +36,15 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261123-093627-64939a, 261123-093627-f49f89 (50 runs under 4 burners at 531b655) |
+| A2 | fails without: 261123-093621-880c1c (mutant consensus:031194e withholds heartbeats 1.5 s: 3 of 3 runs fail, longest gap 1597-1599 ms of 1001 allowed) |
+| A3 | 261123-060909-e27d55; `ci:linux-tsan`, `ci:macos-x86_64` (CI at 531b655, green) |
+
+Examined: 261123-060906-b60033 (Bulk heartbeats, passed: gaps 150-161 ms) and 261123-090002-e8d6eb (bulk-ahead-of-control, passed: 105-121 ms): the fetch case cannot show head-of-line blocking; A2 rewritten by the lead (Detent:af6be48f).
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+The fetch case's heartbeat bound is 1,000 ms plus the measured host lag (`Lag` sampler from the heartbeat reset on), as group-full uses 250 ms plus lag; it prints gap, bound and lag. A whole-host stall no longer fails it; withheld heartbeats still do (A2). docs/mechanisms/rpc-lane.md's fetch row says the case guards heartbeat stalls, not head-of-line blocking (group-full and call-full do).
 
 ## Rulings I made
 
