@@ -218,13 +218,55 @@ LayoutPolicy read_policy(Reader &r) {
 	validate(p);
 	return p;
 }
-void write_limits(Writer &w, Limits l) {
-	for (auto n : {l.keys, l.namespaces, l.producers, l.mutations, l.request_bytes, l.state_bytes,
-				   l.image_bytes, l.definition_bytes, l.overrides, l.results}) {
-		w.number(n);
-	}
+// The ten replicated limits in their encoded order; a restart may raise the three marked.
+struct LimitField {
+	const char *name;
+	std::size_t Limits::*field;
+	bool raisable;
+};
+constexpr LimitField limit_fields[] = {
+	{"keys", &Limits::keys, true},
+	{"namespaces", &Limits::namespaces, false},
+	{"producers", &Limits::producers, false},
+	{"mutations", &Limits::mutations, false},
+	{"request_bytes", &Limits::request_bytes, false},
+	{"state_bytes", &Limits::state_bytes, true},
+	{"image_bytes", &Limits::image_bytes, true},
+	{"definition_bytes", &Limits::definition_bytes, false},
+	{"overrides", &Limits::overrides, false},
+	{"results", &Limits::results, false},
+};
+void write_limits(Writer &w, const Limits &l) {
+	for (const auto &f : limit_fields)
+		w.number(l.*f.field);
+}
+// The profile an entry or image records, admitted under `configured`, whose layout it takes.
+Limits read_limits(Reader &r, const Limits &configured) {
+	Limits recorded = configured;
+	for (const auto &f : limit_fields)
+		recorded.*f.field = static_cast<std::size_t>(r.number());
+	admit_limits(recorded, configured);
+	return recorded;
 }
 } // namespace
+void admit_limits(const Limits &recorded, const Limits &configured) {
+	for (const auto &f : limit_fields) {
+		const auto was = recorded.*f.field, is = configured.*f.field;
+		if (was == is || (f.raisable && was < is))
+			continue;
+		throw std::invalid_argument(
+			"authority application_limits." + std::string(f.name) + " " + std::to_string(is) +
+			(f.raisable ? " is below the recorded " + std::to_string(was) + "; limits only rise"
+						: " differs from the recorded " + std::to_string(was) +
+							  "; only keys, state_bytes and image_bytes rise at a restart"));
+	}
+}
+Limits recorded_limits(std::string_view entry, const Limits &configured) {
+	Reader r{entry};
+	const auto magic = r.raw(8);
+	require(magic == "DTABAT02" || magic == "DTAADM01", "unsupported authority entry");
+	return read_limits(r, configured);
+}
 
 std::string encode_policy(const LayoutPolicy &policy) {
 	Writer w{{}, 88};
@@ -1229,13 +1271,11 @@ bool dispose_command(Command &command, CommandWorkBudget &budget) noexcept {
 	}
 	return true;
 }
-BatchDecoder::BatchDecoder(std::string_view bytes, Limits limits, std::size_t cap) : limits_(limits) {
+BatchDecoder::BatchDecoder(std::string_view bytes, Limits limits, std::size_t cap) {
 	require(bytes.size() <= cap, "transaction group bytes bound");
 	Reader reader{bytes};
 	require(reader.raw(8) == "DTABAT02", "unsupported transaction group");
-	Writer profile{{}, 1024};
-	write_limits(profile, limits);
-	require(reader.raw(profile.bytes.size()) == profile.bytes, "changed replicated semantic limits");
+	limits_ = read_limits(reader, limits);
 	auto count = reader.number();
 	require(count && count <= 64, "transaction group count bound");
 	count_ = static_cast<std::size_t>(count);
@@ -1320,9 +1360,8 @@ struct CommandApplication::Impl {
 		  result{Status::Applied, s.revision(), s.namespace_revision(validated.command().name_space),
 				 validated.command().generation, validated.command().sequence},
 		  changes(validated.command().mutations.size(), 0), total(s.logical_bytes()), count(s.size()) {
-		require(validated.valid_ && validated.limits() == s.limits() &&
-					validated.command().context == s.context(),
-				"foreign command capability");
+		require(validated.valid_ && validated.command().context == s.context(), "foreign command capability");
+		admit_limits(validated.limits(), s.limits());
 		require(i > s.applied_ && i < maximum && t && t >= s.applied_term_, "invalid application boundary");
 		current = source.producer(validated.command().producer);
 	}
@@ -1365,7 +1404,7 @@ struct CommandApplication::Impl {
 			if (source.revision_ == maximum)
 				result.status = Status::Exhausted;
 			else if (!source.namespaces_.find(validated.command().name_space) &&
-					 source.namespaces_.size() >= source.limits_.namespaces)
+					 source.namespaces_.size() >= validated.limits_.namespaces)
 				result.status = Status::Capacity;
 			else {
 				const auto &name = validated.command().name_space;
@@ -1427,7 +1466,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					}
 					if ((d.current ? d.current->generation : 0) != c.generation)
 						d.result.status = Status::FencedSession;
-					else if (!d.current && d.source.producers_.size() >= d.source.limits_.producers)
+					else if (!d.current && d.source.producers_.size() >= d.validated.limits_.producers)
 						d.result.status = Status::Capacity;
 					else if (c.generation == maximum)
 						d.result.status = Status::Exhausted;
@@ -1560,7 +1599,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				break;
 			case Phase::Add:
 				if (d.row == c.mutations.size()) {
-					if (d.count > d.source.limits_.keys) {
+					if (d.count > d.validated.limits_.keys) {
 						d.result.status = Status::Capacity;
 						d.copy_producer();
 					} else {
@@ -1576,8 +1615,8 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					const auto &op = c.mutations[i];
 					if (op.value) {
 						auto amount = op.key.size() + d.validated.sizes_[i] + 16;
-						if (amount > d.source.limits_.state_bytes ||
-							d.total > d.source.limits_.state_bytes - amount) {
+						if (amount > d.validated.limits_.state_bytes ||
+							d.total > d.validated.limits_.state_bytes - amount) {
 							d.result.status = Status::Capacity;
 							d.copy_producer();
 							break;
@@ -1671,7 +1710,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				else {
 					d.producer->high_water = c.sequence;
 					d.producer->receipts.push_back({c.sequence, d.validated.digest_, d.result});
-					if (d.producer->receipts.size() > d.source.limits_.results)
+					if (d.producer->receipts.size() > d.validated.limits_.results)
 						d.producer->receipts.pop_front();
 				}
 				detail::DeferredValues<Producer>::set_encoded_size(*d.producer,
@@ -1831,9 +1870,7 @@ std::string encode(const AdministrativeCommand &c, Limits l) {
 AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
 	Reader r{bytes};
 	require(r.raw(8) == "DTAADM01", "unsupported administrative entry");
-	Writer profile{{}, 1024};
-	write_limits(profile, l);
-	require(r.raw(profile.bytes.size()) == profile.bytes, "changed replicated semantic limits");
+	const auto recorded = read_limits(r, l);
 	AdministrativeCommand c;
 	c.context = decode_context(r);
 	auto kind = r.number();
@@ -1845,14 +1882,15 @@ AdministrativeCommand decode_administrative(std::string_view bytes, Limits l) {
 	if (carries_policy(c.kind))
 		c.policy = read_policy(r);
 	r.end();
-	validate_administrative(c, l);
+	validate_administrative(c, recorded);
 	return c;
 }
 AdministrativeApplication::AdministrativeApplication(const State &source, std::uint64_t index,
-													 std::uint64_t term, AdministrativeCommand command)
+													 std::uint64_t term, AdministrativeCommand command, Limits profile)
 	: source_(source), candidate_(source), index_(index), term_(term), command_(std::move(command)),
-	  result_{Status::Applied, source.revision_, 0, 0, 0} {
-	validate_administrative(command_, source.limits_);
+	  profile_(profile), result_{Status::Applied, source.revision_, 0, 0, 0} {
+	admit_limits(profile_, source.limits_);
+	validate_administrative(command_, profile_);
 	require(command_.context == source.context_, "foreign authority context");
 	require(index > source.applied_ && index < maximum && term && term >= source.applied_term_,
 			"invalid application boundary");
@@ -1892,8 +1930,8 @@ void AdministrativeApplication::step(CommandWorkBudget &budget) {
 				result_.status = Status::Conflict;
 			else if (command_.policy == (source_.pending_ ? *source_.pending_ : source_.policy_))
 				result_.status = Status::NoChange;
-			else if (history::file_bytes(source_.limits_, command_.policy, source_.policy_) >
-					 history::fetch_bytes(source_.limits_))
+			else if (history::file_bytes(profile_, command_.policy, source_.policy_) >
+					 history::fetch_bytes(profile_))
 				result_.status = Status::Conflict; // Files written across the change would outgrow a fetch.
 			else
 				candidate_.pending_ = command_.policy;
@@ -2135,9 +2173,7 @@ struct ImageDecoder::Impl {
 		auto &l = s.limits_;
 		if (stage == 0) {
 			require(r.raw(8) == "DTAIMG03" && decode_context(r) == s.context_, "foreign application image");
-			Writer lw{{}, 1024};
-			write_limits(lw, l);
-			require(r.raw(lw.bytes.size()) == lw.bytes, "changed semantic limits");
+			(void)read_limits(r, l); // The state runs under the configured limits.
 			auto applied = r.number(), term = r.number(), revision = r.number(), keys = r.number();
 			require(applied < maximum && bool(applied) == bool(term), "invalid image boundary");
 			require(keys <= l.keys, "image key count bound");
