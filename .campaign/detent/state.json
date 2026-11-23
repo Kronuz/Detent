@@ -2848,6 +2848,19 @@
       "id": "msg-251",
       "notice": "skill landed 7b3a0fa378554ffbec92e25e6797e15772c1ca67",
       "text": "campaign skill: 6 commits landed on agent-campaign's main, not installed here yet: agent-campaign:ee7a4d2 Build a gate check's job spec in one place; agent-campaign:42f63aa Digest a check's scripts only when its command names a file; agent-campaign:f50c120 Match brief's not-green line with its commit; agent-campaign:0b3bf5f Merge main into quest/campaign-v3/check-spec-one; agent-campaign:82eb635 Merge main into quest/campaign-v3/check-spec-one; agent-campaign:56700bf Merge main into quest/campaign-v3/check-spec-one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T03:26:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T03:26:16",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: evidence rows follow the land gate (msg-32 fix); takes effect at the next install",
+      "id": "msg-252",
+      "notice": "skill landed bd54f12b7ff3c0c19fdd4f95714358abb9118517",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, not installed here yet: agent-campaign:c72a1c2 Evidence rows and their hints follow the land gate; agent-campaign:05a9e8e Read a cited fails-without job by its own rule; share ci_named; agent-campaign:b4ee5cf Revert A4 and the ci_named move; land A1-A3 first; agent-campaign:8ab02c3 Merge main into quest/campaign-v3/evidence-hints; agent-campaign:2cfe40c Merge main into quest/campaign-v3/evidence-hints; agent-campaign:8f4d92b Merge main into quest/campaign-v3/evidence-hints"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
