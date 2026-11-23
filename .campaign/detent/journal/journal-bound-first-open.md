@@ -9,15 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix committed (journal:870382d): `Host::settle_damage` reads each log with `TurnLog::read` (writes
+nothing) and stores bounds (`mark_bounds`) and losses (`mark_lost`) before the drivers write their
+open records. Drivers recover against the pre-settle table, so `recovered()` is unchanged (the
+`bounds` case checks `recovered().bounded`). Test journal:900a11a, `lost_bound_test first_open`:
+4 rule-5 layouts; locally 66 of 138 checks fail at main's host.h, 0 of 251 with the fix.
+Measuring the extra read's open cost (scratch bench `.scratch/detent/journal-bound-first-open/`).
 
 ## Next
 
-1. <step>
+1. A2 job 261123-110049-af725e (queued, --fails-without at 900a11a).
+2. Open-cost numbers main vs fix; doc sentence with them; commit doc (A3).
+3. `campaign verify --for A1`; push; ci:ci.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
