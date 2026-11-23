@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: ready for review
+State: waiting on jobs 261123-141834-bbcc84 261123-141838-0c7abd and the 14 rows under Doing
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,26 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Rows at dc0315b5 (261122-211123-e68717 100K, -211123-7d24e2 1M, -211124-af8242 5M) timed out from a
+hang, not their size: main (30c2d65b) serves the relay from its namespace mirror only, so it logs
+"the namespace mirror is ready" and never "durable bundles ready", and boot.py waited 1800 s for
+the old line. From each job's start in those logs: authorities listening at 6.0 / 9.8 / 54 s
+(100K / 1M / 5M), mirror ready at 7.9 / 13.0 / 68 s (the relay 1-14 s after it starts, versus
+3.4 / 32 / 148 s for the old bundle relay). The old relay's rows at 3a57661b, per mode: 100K
+total 9-24 s (one warm run hit the 120 s settle bound), 1M 44-51 s, 5M 214-234 s (authority 47-55
+s, relay 139-148 s, warm agent 17.8 s); each fit 10 minutes, 5M warm with 6 minutes to spare.
+
+At 0a247a7e (main merged; boot.py waits for the mirror line and a ready health, reads each
+namespace's position (D3), records mirror counters and the agent's publication files and device
+flushes; selection bound 300 s): light probes 261123-141834-bbcc84 (100K warm+cold) and
+261123-141838-0c7abd (5M warm, at 10474914) gate the rows. Rows, exclusive, one mode per job,
+10 minutes each, interleaved: 100K and 1M rounds 1 warm,cold / 2 cold,warm / 3 warm,cold (after
+the 100K probe), 5M round 1 warm, cold (after the 5M probe, D85): 261123-142309-4755f7, -142315-5d9d85, -142322-7fc115, -142327-c26a47, -142332-844c26, -142337-6f5b0b, -142341-8b6e26, -142346-eaa46d, -142350-34cc60, -142354-d2245b, -142359-6c39a3, -142404-b2697f, -142408-98fe9f, -142412-9734c4.
+Worst case per 5M job: clone + authority ~60 s, mirror ~15 s, settle <=120 s, agent <=300 s, so
+no job needs --long.
+
+Earlier rounds (history):
 
 Harness in docs/measurements/warm-relay-agent-boot/ (boot.py one run warm|cold; row.sh in-job
 driver; seed.sh 1M seed; submit.sh queues smoke, seed, rows). Jobs: smoke 261120-041206-eee476 (strict, 10K warm+cold); seed
@@ -19,7 +39,9 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Review of docs/perf/warm-relay-agent-boot.md (A2) and the harness.
+1. When the rows finish: tabulate them (table.py reads summary.jsonl; it needs the new mirror and
+   agent-publication fields), commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
+   (A2) for the mirror relay, then ready for review.
 
 ## Blocked on
 
@@ -33,7 +55,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261120-224611-67dc23, 261120-224611-aedadf, 261120-224611-82350f, 261120-224612-141e56, 261120-224612-0b90b3, 261120-224612-ebc964 (all exit 0, exclusive, at 131bde6; no "ran beside" record) |
+| A1 | pending: 261123-142309-4755f7, -142315-5d9d85, -142322-7fc115, -142327-c26a47, -142332-844c26, -142337-6f5b0b, -142341-8b6e26, -142346-eaa46d, -142350-34cc60, -142354-d2245b, -142359-6c39a3, -142404-b2697f, -142408-98fe9f, -142412-9734c4 (exclusive at 0a247a7e). Superseded: 261122-211123-e68717, 261122-211123-7d24e2, 261122-211124-af8242 (timeout: the harness waited for a log line main removed) |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
 | Suite | 261120-144425-4edf28 (exit 0 at 131bde6); CI run 44831410902 at 131bde6, all jobs green incl. macos-arm64 (D57); later commits are docs-only, paths-ignored by CI |
 
@@ -47,6 +69,12 @@ record, same in both arms); 11 / 53 / 243 files, 4 device flushes; 0.22 / 2.0 / 
 Open: fetch vs decode vs build are one span (the agent logs no mark between them).
 
 ## Rulings I made
+
+- A1's "durable bundles ready" maps to the mirror relay's "the namespace mirror is ready" plus a
+  ready /v1/health (main removed bundles in 30c2d65b); the relay health has no revision, so the
+  agent's convergence to every namespace's position is the revision check. Lead: confirm.
+- One mode per exclusive job (lead's direction); A2's relay "publication files" become the
+  agent's own publication files and device flushes, plus the mirror's fetched files and bytes.
 
 - New harness boot.py instead of coldboot.py: main renamed detentd to detent-authority, which
   coldboot.py and seed.py still name; boot.py starts the relay through ManagedCohort with count 0,
