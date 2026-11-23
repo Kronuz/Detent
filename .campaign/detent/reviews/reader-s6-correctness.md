@@ -1,13 +1,50 @@
 # reader-s6 review: correctness
 
-Commit: Detent:c1c7498e82f1e6fe0cd5f17bc258c40ccac41cf4 (round 3; the quest head `Detent:1718a25a`
-differs only in the journal. Round 2 was at `Detent:80cde23b`, round 1 at `Detent:d8c01825`)
+Commit: Detent:1d7f04f26ec986e0dc3aadcf53ad92e4231ead87 (round 4, test-only. Round 3 was at
+`Detent:c1c7498e`, round 2 at `Detent:80cde23b`, round 1 at `Detent:d8c01825`)
 Verdict: APPROVE
 Date: 2026-11-23
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+## Round 4 (linux-tsan hang)
+
+Re-checked only `Detent:c1c7498e..1d7f04f2`: one commit, `test_reader_syscalls.cc`, both
+`SECCOMP_RET_KILL` returns of the child's filter now `SECCOMP_RET_KILL_PROCESS`, plus the header
+comment. Diff and the whole test read.
+
+- The hang is deterministic, not this run's bad luck: linux-tsan never finished on this quest. Probe
+  `bash .scratch/detent/review-reader-s6-correctness/tsan-hang-runs.sh` (GitHub logs, no job) shows
+  runs 44955216762, 45119864837 and 45152925089 each start `test_reader_syscalls`, never finish
+  it, and are cancelled 87-107 min later with `ctest` and one `test_reader_syscalls` left to kill.
+- Diagnosis: right. The parent's writer threads start TSan's background thread; TSan's fork
+  interceptor restarts it in a child whose parent had one user thread (`ForkChildAfter`,
+  `start_thread`), so the child is two threads before `prctl(PR_SET_SECCOMP)`, which without
+  `SECCOMP_FILTER_FLAG_TSYNC` filters only the calling thread. `SECCOMP_RET_KILL` (=
+  `KILL_THREAD`) ends the main thread only when another thread lives; the background thread
+  sleeps in a loop, holds `result[1]` through the shared fd table, and the parent's `read`
+  (`test_reader_syscalls.cc:127`) never sees EOF. Only one `test_reader_syscalls` in the runner's
+  orphan list fits: a process whose leader thread has exited exposes no `/proc/PID/environ`, so
+  the runner cannot tag the child. The plain and ASan children are single-threaded, where
+  `KILL_THREAD` already ended the process, which is why linux-asan-ubsan and the plain Linux legs
+  passed at `Detent:c1c7498e` (run 45152925089).
+- The fix ends it: `KILL_PROCESS` is a group exit, every thread dies, the fds close, `read` returns
+  and `waitpid` reaps. TSan then reports "signal 31", accepted under `DETENT_SANITIZED` as before.
+- The plain proof is unchanged: its child is single-threaded (it exited 0 under the old filter at
+  `Detent:c1c7498e` on gcc, clang and arm64), so a disallowed call ends it with SIGSYS under either
+  action and line 134 still requires exit 0, 8 bytes and `answer == total`. The allowed path is
+  untouched.
+- Other ways the parent waits forever: none that a dying child reaches. Any signal death is
+  process-wide; `_Exit` is `exit_group`; the only allowed blocking call is an 8-byte `write` to an
+  empty pipe. What is left is a child that loops without a syscall, a bug the parent cannot bound
+  (N7).
+- Kernel: `KILL_PROCESS` needs 4.14 (2017) headers and kernel. CI is Ubuntu 24.04 (6.x); every
+  maintained target distro is past 4.14. On an older kernel the unknown top bit is masked out and
+  the action decays to `KILL`, the old behavior, so nothing fails that passes today.
+- CI at `Detent:1d7f04f2` (run 45189633970) was queued when I wrote this; linux-tsan finishing is
+  the proof the hang is gone and is the landing gate, not this review's.
 
 ## Round 3 (fix round D146)
 
@@ -113,8 +150,13 @@ defect is in when a retained generation is released (C3).
 | N5 | no | nit | `DETENT_MINIMUM_MAPPING_BYTES` equals one full pack plus its bitmap exactly (`core.cc:58`), but the same ledger is charged first for the page table's `State` and slot table (`lazy_page_access.cc:105`, `271`) and then the segment object, each with an allocator header (`allocator.hh:32`). At the floor no pack whose rounded mapping is 1 MiB can be mapped, so the open succeeds and every lookup in such a pack answers `DETENT_NO_MEMORY`. The docs do not promise one readable pack, only the open refusal. | `core.cc:58`, `lazy_page_access.cc:105`, `199-207`, `271` | Say "below which no pack can be read" or add a fixed page-table allowance to the floor; or keep. |
 | N6 | no | nit | `reader_capacity_probe` with `refuses` calls `statuses.at("no_memory")`, which throws (exit 134, not 1) when the default cap refuses with another status. | `reader_capacity_probe.cc:111` | **Fixed at `Detent:c1c7498e`** (`find`). |
 | R1 | no | defect | C3 residual: a lookup mid-answer at a commit (past its sequence check, e.g. in a cold miss) unpins without refreshing, so the retired view and its generation stay charged until the next refresh or publish. Bounded, reported (`DETENT_NO_MEMORY`, fallback, never a wrong value), released by `detent_refresh`, and described by reader-core.md step 1; see the round-3 ruling. | `probe_midanswer_cap`, job 261123-021428-e9d6ef: rev 2 reads 15,564 of 60,000 with no refresh, 60,000 after one `detent_refresh` | Owner's call: (b) a lookup refused with `DETENT_NO_MEMORY` while a non-current slot holds a view tries `refreshing`, runs `free_retired` and retries (recommended; test: the probe's `Miss` park, no refresh), or (a) keep, with one line in reader.h telling callers `detent_refresh` returns retired generations' charge. |
+| C5 | no (fixed at Detent:1d7f04f2) | defect | Round 4 (found by CI): under TSan the seccomp child kept TSan's unfiltered background thread after `SECCOMP_RET_KILL` ended its main thread, so it never exited and the parent blocked on the result pipe until linux-tsan was cancelled. **Fixed at `Detent:1d7f04f2`** (`SECCOMP_RET_KILL_PROCESS`). Plain proof unchanged. | `tsan-hang-runs.sh`: 44955216762, 45119864837, 45152925089; `test_reader_syscalls.cc:111`, `115`, `127` | Done; CI 45189633970's linux-tsan confirms. |
+| N7 | no | nit | Nothing bounds the parent's wait: a child that loops without a syscall hangs `read` and `waitpid`, and the test has no ctest `TIMEOUT`; the child also holds ctest's output pipe, so killing the parent alone would not free ctest. | `test_reader_syscalls.cc:101-129`; `tests/detent_reader/CMakeLists.txt:22` | Optional: `alarm(N)` in the child before the filter (SIGALRM kills the whole process, no later syscall needed), or keep. |
 
 ## Not run
+
+- Round 4: no Linux run of any kind (no Linux host here); CI 45189633970 at `Detent:1d7f04f2` was
+  queued. TSan's fork behavior is from compiler-rt's `ForkChildAfter`, not a trace of the child.
 
 - Round 3: no ASan, Linux or CI result read (CI 45152925089 was running); no `reader_capacity_probe`
   run (its job 261123-020615-e1cb4e was queued).
