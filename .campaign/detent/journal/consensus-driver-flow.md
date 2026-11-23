@@ -1,6 +1,6 @@
 # consensus-driver-flow: journal
 
-State: working
+State: waiting on jobs 261123-063949-57aa77 261123-063953-58e218 261123-063957-782827
 Quest: .campaign/detent/quests/consensus-driver-flow.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Header change (WorkerLimits::flow reaches all four Core builds) and docs written in consensus worktree (uncommitted until the local driver_test flow_reaches_core passes); test in test/driver_test.cc.
+Committed and pushed consensus:10eb12e (WorkerLimits::flow to all four Core builds; docs; driver_test flow_reaches_core, passes locally 830 checks). A1 job 261123-063949-57aa77; A2 mutants (local branches mutant/driver-flow-create 46e0f17, -recover 80c7c8e) jobs 261123-063953-58e218, 261123-063957-782827; CI on the pushed branch is A4.
 
 ## Next
 
-1. Local build/run of driver_test flow_reaches_core (.scratch/driver-flow/build).
-2. Commit; A1 job; mutant commit (worker.h create/recover drop flow) for A2 --fails-without; push for CI (A4).
+1. When the three jobs finish: paste `campaign brief` Evidence; check CI (A4).
+2. Fill Result; State ready for review.
 
 ## Blocked on
 
