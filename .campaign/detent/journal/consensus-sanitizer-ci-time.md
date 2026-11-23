@@ -1,6 +1,6 @@
 # consensus-sanitizer-ci-time: journal
 
-State: waiting on jobs 261123-024553-f40684 (A2 50 runs) 261123-024556-23e35f (suite) 261123-024605-221c81 261123-024605-aff78b 261123-024607-59f0bd and the CI run for consensus-sanitizer-ci-time:90247a7
+State: waiting on jobs 261123-024553-f40684 (A2 50 runs) 261123-024556-23e35f (suite) 261123-024605-221c81 261123-024605-aff78b 261123-024607-59f0bd and CI run 45159052662 at consensus-sanitizer-ci-time:90247a7 (run 45153365600 was cancelled by this push; its freebsd job had failed at the vmactions step)
 Quest: .campaign/detent/quests/consensus-sanitizer-ci-time.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
