@@ -39,7 +39,13 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. When the rows finish: tabulate them (table.py reads summary.jsonl; it needs the new mirror and
+1. Probe 261123-141834-bbcc84 (queued behind load 56-82 at submit) answers the lead's fixture
+   question: at dc0315b5 main's authorities opened the old fixtures (100K seeded at ea1fddc8, 1M at
+   78d69fa6, 5M at ea1fddc8), answered /v2/read at or above the seeded revision, and the mirror
+   synced and logged ready, so the hang is the renamed line; whether the agent converges on them
+   is what the probe shows. If it fails on the fixture, reseed at main (seed.sh; 1M took 1,115 s
+   light, 5M 4,679 s, which needs --long) and resubmit the rows; the rows wait on the probes.
+2. When the rows finish: tabulate them (table.py reads summary.jsonl; it needs the new mirror and
    agent-publication fields), commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
    (A2) for the mirror relay, then ready for review.
 
