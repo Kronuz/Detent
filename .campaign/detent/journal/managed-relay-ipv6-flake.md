@@ -1,6 +1,6 @@
 # managed-relay-ipv6-flake: journal
 
-State: blocked on lead: pre-fix stress does not reproduce (52 of 52 pass); choose the next step under Blocked on
+State: waiting on CI run 45116414557 (repro branch)
 Quest: .campaign/detent/quests/managed-relay-ipv6-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,15 +17,12 @@ Stress jobs 261121-142317-81f60a and 261121-185318-61a635 timed out (30, 90 min)
 
 ## Next
 
-1. When 261121-225424-d93fe2 (unloaded x20) and 261121-225431-dfdab9 (4 copies x8 + 4 burners, after the first) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
+0. Read CI run 45116414557 (workflow Repro, branch quest/detent/managed-relay-ipv6-flake-repro at its one commit over e66c46be: ctest --repeat until-fail:10 --parallel 2 -R 'relay|relay_ipv6|poll' on macos-x86_64 and linux-x86_64-gcc; artifacts failure-<name>). The same push also started CI run 45116414824 (baseline). If a test fails: cause from the kept events.jsonl, fix on this branch, --fails-without proof or the same CI at the same repeat count. Then `git push origin --delete quest/detent/managed-relay-ipv6-flake-repro`; never merge it.
+1. (done, 52 of 52 passed) When 261121-225424-d93fe2 (unloaded x20) and 261121-225431-dfdab9 (4 copies x8 + 4 burners, after the first) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
 
 ## Blocked on
 
-The lead: the failure does not reproduce locally. 261121-225424-d93fe2 passed 20 of 20 serial runs (30-62 s each); 261121-225431-dfdab9 passed 32 of 32 (4 copies x8 with 4 spinners, 40-51 s each). Total 52 of 52 on a 16-CPU x86_64 host, whose load alone does not trip the 30 s selection_timeout. CI's runner has 4 vCPU and ctest --parallel 2 with the poll or relay test alongside (all three failed runs had a second managed test fail too).
-Options:
-1. Reproduce on CI at the pre-fix commit: a throwaway branch running the relay and relay_ipv6 and poll tests together with `ctest --repeat until-fail:10 --parallel 2` on macos-x86_64 (also the A3 shape). Smallest step that matches the failing environment. Recommended.
-2. Local forced reproducer: taskpolicy or cpuset-limited 4 CPUs with 2 concurrent managed tests and 4 spinners, x20. Cheap, but 16 CPUs of headroom may still hide it.
-3. Close as not reproducible, with the 3 CI artifacts as the only evidence (A2 cannot be met).
+Nothing. Lead chose option 1.
 
 ## Evidence
 
@@ -53,6 +50,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Jobs
 
+- CI repro: run 45116414557 (Repro workflow) and 45116414824 (CI) on branch quest/detent/managed-relay-ipv6-flake-repro. The ctest arguments live in the shared Kronuz/cpp-libraries cmake.yml with no input for repeat, so the repro adds its own .github/workflows/repro.yml.
 - 261121-142317-81f60a and 261121-185318-61a635 timed out (the burner `wait` hang above, not the test); 261121-142320-2b70fc and 261121-185320-67e210 skipped. Resubmitted with the fixed script: 261121-225424-d93fe2 (x20 unloaded, 45 min) and 261121-225431-dfdab9 (4 copies x8 + 4 burners, after the first, 45 min), both at the quest's 6c3950842adc, pre-fix (no fix exists yet).
 - 261121-131440-d68a15 failed (stale SDK/libc++ include error on a reused .scratch/build); 261121-131903-946009 and 261121-131904-868125 were skipped. Resubmitted as 261121-133855-33a40b and 261121-133912-8a5eb2, each configuring a fresh build in $JOB_OUT the way CI does (llvm, CMAKE_OSX_SYSROOT).
 - 261121-133855-33a40b failed too: my script's -DCMAKE_OSX_SYSROOT put the SDK's usr/include before libc++'s (-isystem), breaking <cwchar>. Dropped the sysroot and explicit compilers; resubmitted as 261121-142317-81f60a and 261121-142320-2b70fc, default toolchain, fresh build in $JOB_OUT.
