@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261123-102546-6e81cf 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e 261123-103432-c20472 261123-103435-b1e0ae 261123-103438-3b96b1
+State: waiting on jobs 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e 261123-103432-c20472 261123-103435-b1e0ae 261123-103438-3b96b1
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,7 +24,7 @@ salt*64+i, so a pick of key k with salt*64+i == k is NoChange. Diagnostic at ff2
 value, held) reproduced it locally on the same draw sequence (`commit 1 1000 160 none none inline none none
 none`, light): "transaction 52 rejected: status 2 (key 53748, value 53748, held 53748)" = NoChange. Fix
 07ac6b63: group values start past the seeded count. Proof jobs: 261123-102546-6e81cf at ff2d21ab
-(--fails-without), 261123-102550-885bdd at the fix.
+(--fails-without) passed: it failed with the same NoChange (key 53748); 261123-102550-885bdd at the fix pending.
 
 Split: a commit row is 4 strict jobs of one arm rotation each (none-thread-inline-write, thread-inline-
 write-none, inline-write-none-thread, write-none-thread-inline: a Latin square, each arm once per position),
