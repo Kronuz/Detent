@@ -15,9 +15,9 @@ Today the authority builds no pages. A relay builds them from the records it mir
 
 Four options were priced: (a) no pages (today); (b) the leader builds; (c) every voter builds; (d) the authority keeps only a records commitment, an incremental multiset hash, with no pages. A seal is the authority's unit of positioned changes (2,048 transactions, `src/detent_authority/state.hh:28`); the rc3 target of 2,000 transactions/s sustained and 10,000/s burst (`docs/SCALE_TARGETS.md:117`) is about 1 seal/s and 5 seals/s.
 
-At 100K keys a 2,048-change seal costs the builder 78.8 ms of one core (p50) and rewrites 2.42 MB of pages; the records commitment of (d) costs more, 97.3 ms, because it hashes 2 KiB per record twice (job `261122-210428-976f07`). The 5M rows are *pending*.
+At 100K keys a 2,048-change seal costs the builder 78.8 ms of one core (p50) and rewrites 2.42 MB of pages; the records commitment of (d) costs 97.3 ms, because it hashes 2 KiB per record twice (job `261122-210428-976f07`). At 5M the build costs 604.8 ms and rewrites 11.2 MB (19.0 MB with relocations), while (d) stays at 96.7 ms: (b) is 59% of a core at the sustained rate and 2.95 cores at the burst, beyond one builder thread; a cold build takes 9.0 s (job `261122-210429-1ed7a8`). The commit rows, which say whether a builder thread moves commit latency, are *pending*.
 
-*Recommendation (provisional until the 5M rows land):* (b) the leader builds, off the service loop, with pages in memory and the root carried in the existing frame-header field. It closes Limit 1 for one core-fraction on one voter, keeps leader changes off the commit path, and leaves Q4's host relay as the page server. (d) is dominated at 100K: it costs more CPU than (b) and does not let a cold agent check what it receives.
+*Recommendation (the commit rows confirm or revise it):* (b) the leader builds, on a pool of builder threads off the service loop, with pages in memory and the root carried in the existing frame-header field. It closes Limit 1, and with relays passing pages through it moves the build that every relay pays today onto one voter instead of adding it. (d) is six times cheaper at 5M but cannot be checked by a cold agent taking pages; (c) removes a 9 s root lag per election for 1.2 more cores always on.
 
 ## The question
 
@@ -103,24 +103,27 @@ The root is never on the commit path. The builder publishes the root of position
 
 ## Recommendation
 
-(b), provisionally: the leader builds on a builder thread, keeps its head generation in memory, and fills D1's root field in the answers it gives relays. Agents then check the authority's root at no cost beyond the hashing they already do.
+(b): the leader builds on builder threads, keeps its head generation in memory, and fills D1's root field in the answers it gives relays. Agents then check the authority's root at no cost beyond the hashing they already do. The commit rows (*pending*) confirm that a builder thread leaves group commit latency inside the noise floor, or revise this.
 
 Against the alternatives:
 
-1. **(a)**: costs nothing and leaves Limit 1 open. A second relay's root is a cross-check nothing runs.
-2. **(c)**: closes Limit 1 and removes the leader-change lag, at three times (b)'s CPU and memory. It pays only if the 5M cold build is long enough that a lag after each election matters.
-3. **(d)**: costs more CPU than (b) at 100K (97.3 against 78.8 ms per seal) and cannot be checked by a cold agent. A faster expansion (an XOF instead of SHA-256 counter mode) would change the CPU row, not the second point.
+1. **(a)**: costs the authority nothing and leaves Limit 1 open; every relay, Q4's host relay included, pays the build (604.8 ms per seal at 5M). A second relay's root is a cross-check nothing runs.
+2. **(c)**: closes Limit 1 and removes (b)'s root lag after an election (9.0 s of cold build at 5M), at three times (b)'s CPU and memory: 1.77 cores and 3 × 135-243 MB at 5M. Elections are rare; 1.2 cores always on does not pay for 9 s of late roots each.
+3. **(d)**: 9.4% of a core per voter at 5M against (b)'s 59%, flat in the store's size, but a cold agent taking pages cannot check them (hashing every record, about 119 s at 5M). It is the right fallback if the owner rules the build too costly for the authority; it closes Limit 1 only for agents taking record deltas.
+4. **Inline in the service loop**: ruled out at 5M on its face, a 604.8 ms build between two service calls is six heartbeats (the commit rows' inline gap measures it).
+
+Burst sizing: one builder thread builds 1.65 seals/s at 5M (3,390 transactions/s), under the 4.9 seals/s burst. The ten namespaces build independently, so (b) runs one build per namespace on a small pool, and a builder that is behind may build several seals' changes in one pass; both are the implementation quest's to measure.
 
 What it changes, if accepted:
 
 | Row | Becomes |
 | --- | --- |
 | Limit 1 | closed: the root in every answer is the authority's |
-| Q4 | (b) stands for page serving; the authority adds roots, not a page server |
+| Q4 | (b) stands for page serving; the authority adds roots, not a page server, and the host relay may pass pages through |
 | D6 | unchanged: pages or records per update, now from relays that may pass through |
-| D33, D34 | unchanged: builds stay out of the consensus loop, on a builder thread |
+| D33, D34 | unchanged: builds stay out of the consensus loop, on builder threads |
 
-Quests it would add: an authority builder thread and root publication (the relay's builder, reused), and the agent's check of the authority's root. None dropped.
+Quests it would add: an authority builder pool and root publication (the relay's builder, reused, one build per namespace, with a root-lag metric); a relay pass-through mode that serves the authority's pages; and the agent's check of the authority's root. None dropped.
 
 ## Limits
 
@@ -132,10 +135,10 @@ Quests it would add: an authority builder thread and root publication (the relay
 
 ## Decision request (A4, the owner's)
 
-**Facts.** At 100K a seal costs the builder 78.8 ms of one core and 2.42 MB of writes; the records commitment costs 97.3 ms. Relay-less pages already come from Q4's host relay; only an authority-built root closes Limit 1. The 5M rows are *pending*.
+**Facts.** A seal costs the builder 78.8 ms of one core at 100K and 604.8 ms at 5M (59% of a core at the sustained rate, 2.95 cores at the burst); the records commitment costs 97.3 and 96.7 ms. A new leader's cold build takes 9.0 s at 5M. Relay-less pages already come from Q4's host relay; only an authority-built root closes Limit 1 for every agent. Commit latency under a builder thread: *pending*.
 
 **Options.** (a) none; (b) the leader builds; (c) every voter builds; (d) a records commitment only.
 
-**Recommendation.** (b), confirmed or revised by the 5M rows.
+**Recommendation.** (b) on a builder pool, with (d) the fallback if the build is ruled too costly for the authority.
 
 **What deferring costs.** Nothing on the machines: (a) is today's state. It keeps Limit 1 open, so a relay that mis-applies records serves a consistent wrong state to every agent below it, and it keeps every cold relay building.
