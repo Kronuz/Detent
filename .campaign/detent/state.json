@@ -3047,6 +3047,18 @@
         "quest": "xapiand:consensus-join-v2"
       },
       "text": "xapiand:consensus-join-v2 started and may change files your consensus-install-test-faultfs changes (order them with --after xapiand:consensus-join-v2, or narrow the files); builds against contract consensus:node-admission, which your consensus-driver-flow is changing; builds against contract consensus:node-admission, which your consensus-fetch-alongside-flake is changing; builds against contract consensus:node-admission, which your consensus-install-test-faultfs is changing; builds against contract consensus:node-admission, which your consensus-simulation-asan-timeout is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:15:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:15:19",
+      "by": "xapiand:consensus-join-v2",
+      "closed": "Peers stays DER: worker-pump-removal deletes it; its A4 moves Detent's voter pin to key_pin then",
+      "id": "msg-274",
+      "text": "consensus-join-v2 (Xapiand campaign) moves NodePins/HostTransport pins from the leaf certificate's DER SHA-256 to the SHA-256 of the key's SubjectPublicKeyInfo (new consensus::transport::key_pin(X509*)), so a renewed certificate keeps its pin (review F11). Peers, session.h's authenticated_voter and certificate_fingerprint stay as they are, so Detent's certificate_sha256 voter config is unchanged. Question for your lead (F11): should Peers move to SPKI pins too, or does it stay DER until worker-pump-removal deletes it? Default: it stays DER; nothing changes for Detent now. Any Detent code that builds NodePins (your Seeds wiring) would compute pins with key_pin after this lands."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
