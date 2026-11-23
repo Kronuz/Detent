@@ -181,7 +181,7 @@ void embedded(const std::filesystem::path &directory) {
 			::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
 		check(held->fd >= 0);
 		auto pages = runtime.domain.make<l::detail::LazyPageAccess>(held, held->fd, ::getuid(), root, runtime.options.recovery_limits,
-			runtime.domain.factory(), runtime.heap, runtime.mappings);
+			runtime.heap, runtime.mappings);
 		refused = false;
 		try {
 			pages->resolve(root.tree);
