@@ -9,11 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Done: doc at journal:e69ce03 (pushed), placeholders filled, A2 at the quest head.
+Durability review round 1 (CHANGES at journal:76729d1) folded in at journal:9e0649d (pushed):
+- F1 (blocking): D2 stores the segment's low 32 bits and binds all 64 in the CRC; the reader
+  reconstructs the segment (this one, else the nearest below with the stored bits). Cites the
+  review's model 261123-072901-f7e1ff (2,042 of 55,069 tears misread at 32 bits, 0 at 64). Cost
+  unchanged (trailer stays 8 bytes).
+- F2: O3 column labelled "by construction"; D4's evidence is f7e1ff.
+- F3: D4 keeps Q3's rule; Limits name the lost-write shape (21,381 of 27,411 reported with it);
+  Interactions name journal-earlier-turn-loss.
+- F4: D4 calls an unreadable sector damage.
+- F5: no change (already labelled).
+A text-only fix: the review's model job is the test (no new code in the file set).
 
 ## Next
 
-1. Durability review (lens `design`/`durability`), the lead's.
+1. Re-review, the lead's.
 
 ## Blocked on
 
@@ -53,7 +63,7 @@ Superseded and cancelled before running: 261122-211543-7dd050, 261122-211547-f80
 
 ## Result
 
-Design doc `docs/design/turn-log-cut-header.md` (journal:e69ce03). Recommendation: per-sector
+Design doc `docs/design/turn-log-cut-header.md` (journal:9e0649d; review F1-F4 folded in). Recommendation: per-sector
 checks (O3b, format `RFTW0002`): 0 of 201 newest-tail damage cases silent in the model against 36
 of 201 today (O1 header alignment 30 of 189, O2 sector-aligned writes 36 of 159); bytes per turn
 -5.6 to -6.2% for records up to 700 B, +1.0% for 4 KiB records; latency unchanged within the 21 ms
