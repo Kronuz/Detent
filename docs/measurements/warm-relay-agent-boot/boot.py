@@ -32,7 +32,7 @@ from mixed import MixedWriters
 from runtime import Actors, Evidence
 
 READY = b"the namespace mirror is ready"
-SELECTION_TIMEOUT = 420
+SELECTION_TIMEOUT = 300
 SETTLE_LIMIT = 120.0
 
 
