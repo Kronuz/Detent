@@ -116,7 +116,7 @@ struct WarmGraphValidator::Impl {
 		const auto &prior = base->root();
 		base_segments = base->registry()->inputs();
 		counts = base->counts();
-		require(prior.cursor.same_identity(root.cursor) && root.cursor.revision >= prior.cursor.revision &&
+		require(prior.cursor.same_identity(root.cursor) && root.cursor.position >= prior.cursor.position &&
 				root.profile == prior.profile && root.namespaces == prior.namespaces &&
 				added.size() <= root.segments);
 		p::encode_root(root, limits);
@@ -304,7 +304,7 @@ struct WarmGraphValidator::Impl {
 				require(!definitions);
 				++new_namespaces;
 				const auto revision = read_integer(body, 0, 8);
-				require(revision >= ns.original && revision <= expected.cursor.revision);
+				require(revision >= ns.original && revision <= expected.cursor.position);
 				ns.revision = revision;
 			}
 			target.strings += parsed.name_space.size();

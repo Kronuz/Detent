@@ -55,11 +55,11 @@ paged::Digest checksum(std::span<const char> bytes) {
 	return result;
 }
 } // namespace
-GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher) {
+GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher, std::string_view name) {
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};
     require(::fstat(directory.fd, &info) == 0);
-    return {selected(directory.fd, publisher).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+    return {selected(directory.fd, publisher, name).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	if (!generation.paged_)
@@ -99,24 +99,23 @@ AttachedGeneration::~AttachedGeneration() {
 	if (lease >= 0)
 		::close(lease);
 }
-Selected PreparedReader::selected(int directory, uid_t publisher) {
+Selected PreparedReader::selected(int directory, uid_t publisher, std::string_view name) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt)
-		if (auto table = read_selected(directory, publisher))
+		if (auto table = read_selected(directory, publisher, name))
 			return *table;
 	throw GenerationUnavailable("selected generation changed while reading it");
 }
 AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLimits limits,
-                                          std::optional<d::Cursor> expected, const Selected *read) {
+                                          std::optional<d::NamespaceCursor> expected, const Selected *read,
+                                          std::string_view name) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
-		const auto table = attempt == 0 && read ? std::optional(*read) : read_selected(directory, publisher);
+		const auto table = attempt == 0 && read ? std::optional(*read) : read_selected(directory, publisher, name);
 		if (!table)
 			continue;
-		if (!table->paged)
-			throw GenerationUnavailable("publisher has not prepared a current paged generation");
 		const auto &descriptor = table->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
-			        descriptor.cursor.revision >= expected->revision);
+			        descriptor.cursor.position >= expected->position);
 		const GenerationName lease_name(descriptor.generation, GenerationFile::Lease);
 		RecoveryFile lease(open_record(directory, lease_name.view()));
 		if (lease.fd < 0 && errno == ENOENT)
@@ -180,7 +179,7 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 	throw GenerationUnavailable("selected generation changed during attachment");
 }
 PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
-                                        std::optional<d::Cursor> expected) {
+                                        std::optional<d::NamespaceCursor> expected, std::string_view name) {
 	auto &domain = resources::domain(limits);
 	auto factory = domain.factory();
 	auto heap = domain.storage_account();
@@ -189,7 +188,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 	struct stat directory{};
 	require(::fstat(files->directory.fd, &directory) == 0);
 	const DirectoryIdentity directory_identity{std::uint64_t(directory.st_dev), std::uint64_t(directory.st_ino)};
-	auto attached = attach(files->directory.fd, publisher, limits, expected);
+	auto attached = attach(files->directory.fd, publisher, limits, expected, nullptr, name);
 	files->lease.fd = std::exchange(attached.lease, -1);
 	auto mappings = resources::mapping_account(attached.limits);
 	using Files = d::RetirementHandle<PreparedFiles>;

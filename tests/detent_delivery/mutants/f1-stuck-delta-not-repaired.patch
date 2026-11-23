@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index a68cae87..e5027e92 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -637,8 +637,6 @@ struct Coordinator::Impl {
+ 			} catch (const std::invalid_argument &) {
+ 				// A delta that does not apply to the namespace's base: the namespace is asked as a full
+ 				// copy (D10.3), so a wrong base never fails every later delta.
+-				if (input->after())
+-					request_repair(name, false);
+ 				throw;
+ 			}
+ 			// D1: a records frame that names its sender's root publishes only a build that reaches it;

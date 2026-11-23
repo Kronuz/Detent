@@ -283,7 +283,7 @@ int main() {
 		}
 
 		rejects<std::invalid_argument>([&] { recover_dependencies(image, account, 1, true); });
-		require(image.descriptor().generation == generation && image.descriptor().cursor == cursor());
+		require(image.descriptor().generation == generation && image.descriptor().cursor == local_cursor());
 		require(image.descriptor().checksum ==
 				p::metadata_commitment({image.bytes()->data(), image.bytes()->size()}));
 		require(p::state_commitment(p::decode_root({image.bytes()->data(), image.bytes()->size()}, p::Limits{})) == logical);

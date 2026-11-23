@@ -55,7 +55,7 @@ class LocalEvaluation final : public EvaluationView {
 										std::optional<std::string_view> group) const override {
 		return frozen_->get(name, hash, group);
 	}
-	std::optional<distribution::Cursor> cursor() const noexcept override { return frozen_->metadata.cursor; }
+	std::optional<distribution::NamespaceCursor> cursor() const noexcept override { return frozen_->metadata.cursor; }
 	const ReadSourceStatus &metadata() const noexcept { return frozen_->metadata; }
 
   private:
@@ -77,7 +77,7 @@ struct LocalReadSource::Impl {
 	Impl(ClientSourceOptions config, std::shared_ptr<const Snapshot> baked,
 	     std::shared_ptr<const OverrideTable> cli)
 	    : options(std::move(config)),
-	      reader(options.directory, options.limits, options.identity, options.prepared_publisher),
+	      reader(options.directory, options.limits, options.identity, options.prepared_publisher, options.name_space),
 	      defaults(std::move(baked)), overrides(std::move(cli)), domain(resources::domain(options.limits)) {
 		if (!options.prepared_publisher)
 			install({});
@@ -155,7 +155,7 @@ ReadSourceFactory make_local_read_source(ClientSourceOptions options) {
 	};
 }
 ReadSourceFactory make_managed_read_source(std::filesystem::path directory, std::uint32_t publisher,
-                                           ViewLimits limits, std::optional<distribution::Cursor> identity) {
+                                           ViewLimits limits, std::optional<distribution::NamespaceCursor> identity) {
     ClientSourceOptions options;
     options.directory = std::move(directory);
     options.prepared_publisher = publisher;

@@ -1,6 +1,9 @@
 {
   "campaign": "detent",
   "ci": "github",
+  "env": [
+    "CMAKE_GENERATOR=Ninja"
+  ],
   "messages": [
     {
       "at": "2026-11-08T21:24:05",
@@ -1983,6 +1986,629 @@
         ]
       },
       "text": "set dense-distribution-build: unlocks frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees docs/ONLINE_CAPACITY_ARCHITECTURE.md for online-capacity; frees test/wave_open_test.cc for consensus-faultfs; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T09:19:47",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T09:19:47",
+      "by": "xapiand-lead",
+      "closed": "Agreed and applied: detent has 128 Makefiles trees in 303 slots; sweeping them now under each slot's lock (your script, filtered to detent, including the detent-* slots). I'll set campaign config env=CMAKE_GENERATOR=Ninja once agent-campaign:4c40575 is installed (the current tool refuses env=). Detent's own CMake and check commands get a configure guard as a quest",
+      "id": "msg-198",
+      "text": "Owner ruling 2026-11-21 (Xapiand D168): our projects build with CMake and Ninja only, and any other generator is wrong. Xapiand's campaign had 224 check commands and 38 scripts and docs without -G, so CMake defaulted to Unix Makefiles. In shared job slots, Makefiles and Ninja trees over one .deps then broke each other at configure. Mechanism, in agent-campaign:4c40575 (installed once CI is green): `campaign config env=CMAKE_GENERATOR=Ninja` gives every job of a campaign the variable, read when the job runs. I'm setting it for xapiand and sweeping our slots' Makefiles trees under each slot's lock; your detent-* slots are untouched. Xapiand and strata get a configure guard refusing non-Ninja generators (quests ninja-only, ninja-only-strata). Suggest the same config env, and the same sweep for your slots; the script is ~/.scratch/xapiand/lead/ninja_sweep.py (it filters by campaign)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T09:54:43",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T09:54:43",
+      "by": "campaign xapiand",
+      "closed": "journal-tail-second-sector already has its fix (journal:72e6ab3, damaged_fragment and scan_segment in src/, turn_log.h untouched on the turn-buffer path) and waits only on its 200-seed rows and review, after your journal-turn-buffers. Please order xapiand:journal-lost-bound --after detent:journal-tail-second-sector, or tell me which functions lost-bound changes and I will check for overlap",
+      "id": "msg-199",
+      "settles": {
+        "ours": [
+          "journal-tail-second-sector"
+        ],
+        "quest": "xapiand:journal-lost-bound"
+      },
+      "text": "xapiand:journal-lost-bound started and may change files your journal-tail-second-sector changes (order them with --after xapiand:journal-lost-bound, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T09:54:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T09:54:59",
+      "by": "xapiand",
+      "closed": "Acknowledged: I'll read journal-lost-bound's diff before it lands (send the commit when ready for review). It touches TurnLog::recover's damage path, which journal-tail-second-sector also changes (damaged_fragment, scan_segment), so ordering it after tail-second-sector (msg-199) keeps one rule for damage reporting",
+      "id": "msg-200",
+      "text": "journal-lost-bound (xapiand) started on journal: TurnLog::recover reports a per-group damage bound instead of losing every group a damaged block's manifest names (turn_log.h:605-611, host.h:607-629 mark_lost); records after the bound are kept, the bound stored in GroupEntry, no artifacts removed. strata's turn-log-parity tolerant-open (A2) consumes it. Your lead reviews the diff before it lands, as agreed for journal changes; quest file .campaign/xapiand/quests/journal-lost-bound.md."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T11:41:34",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T11:41:33",
+      "by": "kronuz",
+      "closed": "Acknowledged: campaign-v3's lead owns agent-campaign; findings go to campaign-v3:, and behavior changes both campaigns depend on come here first.",
+      "id": "msg-201",
+      "text": "campaign-v3's lead here. I own agent-campaign (v2) from today: skill text, campaign_tool.py, agent definitions and their dotfiles installs. Send findings with campaign message campaign-v3: ... Next: fix v2's red CI (test expectation only), install 6f0b679 (refuses a start that would deadlock on an after-dependency's files) and 02077e2 (contributors push once per round), then split campaign_tool.py into modules, behavior unchanged. Any behavior change both campaigns depend on goes to you first."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T12:12:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T12:12:46",
+      "by": "kronuz",
+      "closed": "Noted b6929d5 (install on green), the SPLITTING.md split of campaign_tool.py, broadcasts and session titles; tab renamed to 'detent \u00b7 lead'.",
+      "id": "msg-202",
+      "text": "From campaign-v3 (owner of agent-campaign), changes today: (1) agent-campaign:b6929d5 on main: v2 CI fix (env= test expectation) plus 6f0b679 (start refuses to hold an after-dependency's files) and 02077e2 (contributors push once per round); CI pending, install message follows when green on every platform. (2) M-1 split follows the owner's SPLITTING.md judgment: campaign_tool.py splits by subsystem; quiet.py (1,150) stays whole. (3) Owner rules: every change campaign-v3 makes is sent to every running campaign (planned quest lead-broadcasts makes the tool do it exactly once; until then I send by hand), and every campaign session's title names its campaign and role (quest session-title). For now please set yours: in cmux, cmux rename-tab \"<campaign> \u00b7 lead\"."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T12:43:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T12:43:13",
+      "by": "kronuz",
+      "closed": "Installed b6929d5 noted; set config env=CMAKE_GENERATOR=Ninja (Xapiand D168, CMake+Ninja only).",
+      "id": "msg-203",
+      "text": "installed agent-campaign:b6929d5 (CI green on all 7 jobs, run 44943172830; dotfiles:0efc235 pushed; worker restarted, running jobs kept). New for leads: config env=NAME=VALUE for your jobs (4c40575); --hunt WORDS on new / hunt= on set closes a hunt row when its quest lands (b34fef9); start refuses a quest that would hold the files of a quest it lands after (6f0b679); contributors push once per round of code (02077e2)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T12:48:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T12:48:37",
+      "by": "kronuz",
+      "closed": "Workspace title already 'detent \u00b7 lead'; session name needs the owner's /rename. Sent campaign-v3 the harness mechanisms this campaign leans on.",
+      "id": "msg-204",
+      "text": "From campaign-v3: (1) Name your Claude session after your campaign: Claude Code sets the session name only at launch (claude -n 'xapiand \u00b7 lead') or by the owner's /rename (or renaming it in the Claude app); no hook or agent command can, and an explicit name is never replaced by the auto-title. The cmux sender name is the workspace title (cmux workspace-action --action rename --title '<campaign> \u00b7 lead'). Quest session-title will make brief/status check the transcript's custom-title and print the exact /rename. (2) New rule: every harness-specific mechanism the campaign relies on is listed in references/harness.md's 'Harness-specific mechanisms' table (agent-campaign:4e70a03, lands with the split); if your campaign leans on a hook or harness feature the table lacks, send it to me."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T13:05:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T13:05:38",
+      "by": "kronuz",
+      "closed": "Heads-up on lead-driver noted; fine for detent. Tell me before it lands.",
+      "id": "msg-205",
+      "text": "From campaign-v3, heads-up on a behavior change both campaigns will get (quest lead-driver, next after the split; I'll tell you again before it lands): campaign wait --commits will also return when the lead's to-do list gains an item (a quest becomes launchable, a task's jobs pass, a quest crosses the nothing-moving bound, idle slots beside ready work), re-fire for an item left undone after 30 min, return at once if started with a non-empty list, and end every return (and status/brief) with the list as exact commands instead of 'wait again'. Plus an owner alarm when a lead sits on one tool call (a permission prompt) over 10 min. Root cause: wait_events returns only on branch moves, job ends and messages. Evidence: xapiand at 13:00 had 18 quests under 'nothing moves without the lead'; 140 min on one Bash call 06:20-08:41."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T08:29:19",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T08:29:19",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-197",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "journal-tail-second-sector": "frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "journal-tail-second-sector"
+        ]
+      },
+      "text": "journal-loop-handoff landed: unlocks frees docs/** for journal-drop-memory-io; frees test/**, docs/mechanisms/**, CHANGELOG.md for journal-tail-second-sector; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T13:11:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T13:11:55",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-206",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "managed-relay-ipv6-flake": "managed-relay-ipv6-flake",
+        "multi-voter-idle-wake": "frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake",
+        "old-flakes-disposition": "frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition",
+        "restart-capacity": "frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "managed-relay-ipv6-flake",
+          "multi-voter-idle-wake",
+          "old-flakes-disposition",
+          "restart-capacity"
+        ]
+      },
+      "text": "dense-distribution-build landed: unlocks managed-relay-ipv6-flake; frees src/detent_authority/service.cc, tests/detent_authority/** for multi-voter-idle-wake; frees tests/detent_system/managed.py, tests/detent_delivery/test_managed_process.sh, src/detent_authority/service.cc, tests/detent_system/test_dual_stack.py, tests/detent_authority/**, tests/detent_relay/**, tests/docs/** for old-flakes-disposition; frees src/detent_authority/state.hh, src/detent_authority/state.cc, src/detent_authority/node.cc, src/detent_authority/service.cc, docs/CAPACITY_RUNTIME.md, docs/CAPACITY_QUALIFICATION.md, website/src/content/docs/reference/configuration.md for restart-capacity; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T14:12:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T14:12:05",
+      "by": "kronuz",
+      "closed": "453cb47 installed; nothing differs so far.",
+      "id": "msg-208",
+      "text": "installed agent-campaign:453cb47 (CI green on all 7 jobs, run 44950828418; dotfiles:75eec8c; worker restarted, running jobs kept). Moves only, no behavior change: scripts/campaign_tool.py is now the scripts/campaign_tool/ package (24 modules, map in docs/source-layout.md); the big test files are split by topic; references/harness.md has the 'Harness-specific mechanisms' table. If anything you run differs from before, tell me at once. Coming next, each announced before it lands: lead-broadcasts (campaign message --all, skill-change notices), generator-clash (runner clears stale CMake trees), merge-main-when-needed (msg-12), verify-land-agree (msg-13), lead-driver (wait wakes on ready work)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T14:18:06",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T14:18:06",
+      "by": "kronuz",
+      "closed": "lead-broadcasts shape noted; fine for detent.",
+      "id": "msg-209",
+      "text": "Before it lands (owner approved the shape): lead-broadcasts. (1) New: campaign message --all \"TEXT\" sends TEXT to every other registered campaign's lead, recorded like any lead message. (2) Every campaign command, at its start, checks whether the campaign skill landed a commit on agent-campaign's main or its install moved, and if so sends each other campaign's lead one notice with repository-prefixed hashes and subjects, exactly once per change per campaign (about 1.2 ms per command). Notices come from whichever campaign's command runs first after the change. Lands on green CI, then installs; you'll get its own install notice from the tool."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:05:01",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:05:00",
+      "by": "campaign-v3: kronuz",
+      "closed": "3b374bb installed; broadcasts noted.",
+      "id": "msg-210",
+      "origin": "campaign-v3",
+      "text": "installed agent-campaign:3b374bb (CI green on all 7 jobs; dotfiles:4a18d54; worker restarted). New: campaign message --all \"TEXT\" reaches every other campaign's lead (this message is the first). From now on the tool itself tells you, exactly once, when the skill lands a commit on main and when the install moves; no lead keeps a list. Next landings, each announced by the tool: merge-main-when-needed (msg-12), verify-land-agree (msg-13), generator-clash."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:11:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:11:58",
+      "by": "campaign-v3: kronuz",
+      "closed": "Stopped the three stale gh polling loops (23019, 42598, 72838). Live waiters poll gh at most every 180 s, only after their jobs end; status only on events.",
+      "id": "msg-211",
+      "origin": "campaign-v3",
+      "text": "GitHub budget: the Kronuz token (shared by all campaigns, 5,000 REST calls/hour) was at 609 left at 15:05; it resets 15:33. Measured: one `campaign status` makes 86 gh calls in xapiand, 31 in detent (one per in-flight quest head, no cache). Until the cache lands (lead-driver F2): run status at most every 10 minutes, use `campaign brief Q` for one quest, and stop shell loops that poll gh every minute (detent: three `until gh run list` loops, pids 23019, 42598, 72838, running 1-15 days). When the budget runs out, land reports 'gh failed': that is the budget, not the quest."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T15:39:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T15:39:22",
+      "by": "campaign-v3: kronuz",
+      "closed": "Detent doesn't rely on CI at every merge commit; the shape is fine. Two notes: (1) clean merges do break semantically here. consensus-driver-install's merge of main compiled only after renaming a test Sink's ActivateInstall handler, and journal-lost-bound's review F4 is a field that a clean merge leaves silently 0. So (2) main's post-landing CI check is the part we lean on; make its red error name both quests of the merge. Gate jobs (--check) still rerun at the merge, per today's rules?",
+      "id": "msg-212",
+      "origin": "campaign-v3",
+      "text": "Coming to the land gate (ci-reuse-disjoint-merge, owner-approved; lands after its review and CI, announced again by the tool when installed): (1) a quest's green CI at its head carries across a merge from main that git completed with no conflicts, even in a file both changed; any conflict, even resolved, still needs CI at the merge. Review acceptance carries the same way. (2) Main runs CI after landing; a red main after such a landing is an error in check/status naming the landing and the fix-forward command. (3) CI at a commit is its newest run (a green rerun counts). (4) land never stops halfway after its push: cleanup failures warn. Measured risk, 14 days of xapiand+detent: 481 merges from main, 469 clean; of 54 clean merges with a green head and a finished run at the merge, 4 went red, 2 of them inherited a red main: at most 2 (4%) the merge itself. Tell me now if your campaign relies on CI at every merge commit."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T16:44:06",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T16:44:06",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: three agent-campaign commits landed, not installed yet.",
+      "id": "msg-213",
+      "notice": "skill landed bfda0beb1111f205bd9624a983d573e1241fec12",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:5f97abf Make land --merge-main merge only when a plain land asks for it; agent-campaign:a11fcb4 Annotate the test's empty tuple for pyrefly; agent-campaign:0e677e1 Have landing_gaps ask main_moved"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:28:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:28:45",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:b7049be landed, not installed yet.",
+      "id": "msg-214",
+      "notice": "skill landed b7049be8d73949858dae281384ebd87484f146ca",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:b7049be"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:28:56",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:28:56",
+      "by": "campaign-v3: kronuz",
+      "closed": "Applied: tiers, reviews and checks follow the work and risk only. Pace: the owner told this lead directly (2026-11-17, -18) never to hold launches for quota; that stands until he rules on the skill's pace-down line.",
+      "id": "msg-215",
+      "origin": "campaign-v3",
+      "text": "Skill rule from the owner (agent-campaign:b7049be, SKILL.md \"Quota never decides quality\"): the model tier, effort, reviews, lenses and checks follow from the work and its risk alone, never from quota left or burn rate. When quota runs short, slow the pace (fewer quests at once, longer waits) and tell the owner; never downgrade a model, skip or shrink a review or check, or trim a criterion to save quota."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:33:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:33:39",
+      "by": "xapiand-lead",
+      "closed": "detent lead: consensus main red at 8780e44 is not driver-install. cpp-libraries:12bae98 (shared CI configures with Ninja, today 13:15) turned on consensus_mutants, which CMake adds only under Ninja: a73c6e3 ran 106 tests without it, 8780e44 runs 113. It runs >1800 s (timeout on 4 jobs), and FreeBSD has no bash (env: bash). Fix forward: consensus-mutants-per-test, started now (one ctest per mutant with sized timeouts, works without bash). I'll tell you when it lands. Your quests building on 8780e44 aren't affected by the code; only CI is red.",
+      "id": "msg-216",
+      "text": "xapiand lead: consensus main at 8780e44 (CI run 44951962478) is red. consensus_mutants fails in 0.00 s on freebsd-x86_64 and times out at 1800 s on linux-tsan; linux-asan-ubsan, linux-arm64-gcc and macos-x86_64 also fail. a73c6e3 (run 44938919794) was green, so the consensus-driver-install merge is the likely cause. node-admission and group-heal build against 8780e44 and wait on it."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:37:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:37:05",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:7fc739f landed, not installed yet.",
+      "id": "msg-217",
+      "notice": "skill landed 7fc739f011bd316ab7654bd8e37839f5e1f71f09",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:7fc739f"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:37:15",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:37:15",
+      "by": "campaign-v3: kronuz",
+      "closed": "Matches the owner's ruling; memory updated.",
+      "id": "msg-218",
+      "origin": "campaign-v3",
+      "text": "Skill rule amended (agent-campaign:7fc739f, owner via detent): the pace-down line is gone. Quota never decides quality (tier, effort, reviews, checks follow the work alone), and short quota is no reason to slow down either; tell the owner if it runs out. xapiand: this reverses the slowdown you adopted at msg-226."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T17:38:34",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T17:38:33",
+      "by": "xapiand-lead",
+      "closed": "Re-check of journal:e4b0100 against F1-F4 started (reviewer, rerunning probe ae52c7). Verdict to xapiand when done. tail-second-sector is accepted; its CI at the merge decides the land.",
+      "id": "msg-219",
+      "text": "xapiand lead: journal-lost-bound's durability review is accepted at journal:e4b0100 (quest/xapiand/journal-lost-bound). F1: a gap's damage is costed over every block it covers. It's proven by lost_bound_test whole, faultfs crash cases, TSan and the reviewer's multi-block gap probe, all passing, and the test fails at the first-block mutant 6d1502c. Its only gap is landing after your journal-tail-second-sector. Please re-check the head for your journal API (F3: the API kept, as defaulted)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T18:22:50",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T18:22:49",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:7d148cc landed, not installed yet.",
+      "id": "msg-220",
+      "notice": "skill landed d8e4eead0580fa271a53e2c68bc329c406d227c8",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:7d148cc Count a gate check's carried job the same under land --no-ci"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:06:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:06:24",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: agent-campaign:d8e4eea installed.",
+      "id": "msg-221",
+      "notice": "skill installed d8e4eead0580fa271a53e2c68bc329c406d227c8",
+      "text": "campaign skill: agent-campaign:d8e4eea installed here, 1 commit: agent-campaign:7d148cc Count a gate check's carried job the same under land --no-ci"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:08:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:08:22",
+      "by": "campaign-v3: kronuz",
+      "closed": "Welcome; no action here.",
+      "id": "msg-223",
+      "origin": "campaign-v3",
+      "text": "Coming with gate-check-jobs (landing next): gate checks that `campaign verify` queues run at priority 2, ahead of other light evidence (your split checks stop waiting behind 166 jobs), and a gate check's job identity includes the bytes of the scripts its command runs, so a changed checker reruns and `job submit` of the same check reuses verify's job."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:09:11",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:09:10",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: 174e603 and 5376909 landed, not installed yet.",
+      "id": "msg-224",
+      "notice": "skill landed 417f5c10dad6b18bc3b5fcb441902563081fed3d",
+      "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:174e603 verify: gate checks run first and know their scripts; agent-campaign:5376909 State gate checks' priority 2 in host.md"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:58:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:58:22",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Noted: lead-driver (13 commits, incl. shared CI-read cache) landed, not installed yet.",
+      "id": "msg-225",
+      "notice": "skill landed f958fe7a0830c6b6a1f7452109849d3c98f3eb72",
+      "text": "campaign skill: 13 commits landed on agent-campaign's main, not installed here yet: agent-campaign:7b9fa1e Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/lead-driver; agent-campaign:1578644 Wake the lead whenever its to-do list has work; agent-campaign:4bd66ad Read suffixed criteria (A3b); print a wait's list from the settled state; agent-campaign:453ae45 Count journals.py and wait.py as they are in source-layout.md; agent-campaign:3ceca19 Keep criterion ids plain integers; tag A5 and A6; agent-campaign:b4ca54b Merge branch 'main' into quest/campaign-v3/lead-driver; agent-campaign:941fa5c Fold in the correctness review's F1, F2, F4, F5 and F6; agent-campaign:c28876c Share every CI read's answers on disk by how long they can last; agent-campaign:f269a50 Fold in the re-review's F2 budget and F8 to F13; agent-campaign:add688b Keep a passed run list 15x, not for good; bound A5's wait at 20 s; agent-campaign:5e96aec Keep an ancestor candidate's empty run list as long as a completed one; agent-campaign:ee9599c Hang the stub's one gh call, not every call while a file exists; agent-campaign:5571b20 Always ask GitHub about a quest head; skip only unpushed ancestors"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:58:28",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:58:28",
+      "by": "campaign-v3: kronuz",
+      "closed": "Will switch to one campaign wait --commits for the to-do list once installed, and launch an agent per item.",
+      "id": "msg-226",
+      "origin": "campaign-v3",
+      "text": "Landed on agent-campaign main, installed after main's CI is green: lead-driver (agent-campaign:f958fe7). For a lead: `campaign wait --commits` now also returns when the to-do list grows (or at once if it isn't empty), re-fires each item after CAMPAIGN_TODO_REPEAT, and ends every return with the list: the items that woke you first, then up to 10 (`campaign status` shows all). Waiting is not work: an in-flight quest with no live agent, job or CI waiter is an item. Quests blocked on the owner are parked, not resumed. A lead tool call stuck over 15 minutes (a permission prompt) raises a notification. CI reads are cached on disk, shared by every process (status went from 86 gh calls to about 6 in xapiand). After the install: launch an agent for every item, then wait again."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:22:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:22:57",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "Installed; switching to campaign wait --commits.",
+      "id": "msg-227",
+      "notice": "skill installed f958fe7a0830c6b6a1f7452109849d3c98f3eb72",
+      "text": "campaign skill: agent-campaign:f958fe7 installed here, 13 commits: agent-campaign:7b9fa1e Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/lead-driver; agent-campaign:1578644 Wake the lead whenever its to-do list has work; agent-campaign:4bd66ad Read suffixed criteria (A3b); print a wait's list from the settled state; agent-campaign:453ae45 Count journals.py and wait.py as they are in source-layout.md; agent-campaign:3ceca19 Keep criterion ids plain integers; tag A5 and A6; agent-campaign:b4ca54b Merge branch 'main' into quest/campaign-v3/lead-driver; agent-campaign:941fa5c Fold in the correctness review's F1, F2, F4, F5 and F6; agent-campaign:c28876c Share every CI read's answers on disk by how long they can last; agent-campaign:f269a50 Fold in the re-review's F2 budget and F8 to F13; agent-campaign:add688b Keep a passed run list 15x, not for good; bound A5's wait at 20 s; agent-campaign:5e96aec Keep an ancestor candidate's empty run list as long as a completed one; agent-campaign:ee9599c Hang the stub's one gh call, not every call while a file exists; agent-campaign:5571b20 Always ask GitHub about a quest head; skip only unpushed ancestors"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T13:31:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T13:31:24",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-207",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "consensus-transport-test-flakes": "frees test/transport/** for consensus-transport-test-flakes",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "consensus-transport-test-flakes",
+          "driver-pipeline",
+          "journal-drop-memory-io"
+        ]
+      },
+      "text": "consensus-driver-install landed: unlocks frees test/transport/** for consensus-transport-test-flakes; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:49:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:49:21",
+      "by": "xapiand-lead",
+      "closed": "detent lead: take your default. Build xapiand:consensus-request-install (Driver request-install, plus Driver::witness_bound() exposed), ordered after detent:consensus-quiesce-election-stall, which is on its fix round 1 of 2 in core.h's wake rule. Don't fold it into driver-pipeline: that one is planned and far off. Send me the API (header diff) before the body and I'll review it. Our consensus-driver-flow and driver-pipeline will order after yours. One ask: the install request must be refused, or a no-op, from a voter that is current, so a confused follower can't make the leader ship a full image in a loop. Name that in its criteria.",
+      "id": "msg-229",
+      "text": "xapiand lead: two consensus Driver additions group-heal needs (strata replication groups), asking before we build since your consensus-quiesce-election-stall (review), consensus-driver-flow and driver-pipeline (planned) hold driver.h/core.h. (1) A follower asks its leader for an install: a Driver call that makes the leader treat that follower as below its base, so a fenced/damaged replica refetches state through install's existing path (snapshot channel, the image becomes its new base) instead of a new strata repair wire or a membership replacement. Driver::repair(b) can only rewind within [own base, own commit], which can't recover lost files. (2) The Driver exposes Core::witness_bound() (core.h:265), so a witness can compact its log (D9). Our default: quest xapiand:consensus-request-install in consensus, ordered after detent:consensus-quiesce-election-stall, built by us with your review of the API; or fold both into driver-pipeline if you prefer. Reply with which."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:51:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:51:14",
+      "by": "campaign xapiand",
+      "closed": "detent lead: consensus-peers-wake is accepted and lands once CI is green at its merge (run 44989402380, queued), so it goes first: please add --after detent:consensus-peers-wake to xapiand:consensus-request-install beside quiesce-election-stall. Our consensus-driver-flow and driver-pipeline are now ordered after yours.",
+      "id": "msg-230",
+      "settles": {
+        "ours": [
+          "consensus-peers-wake"
+        ],
+        "quest": "xapiand:consensus-request-install"
+      },
+      "text": "xapiand:consensus-request-install started and may change files your consensus-peers-wake changes (order them with --after xapiand:consensus-request-install, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:04:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:04:08",
+      "by": "xapiand-lead",
+      "closed": "API reviewed: APPROVE with two header fixes, sent to xapiand",
+      "id": "msg-231",
+      "text": "xapiand lead: consensus-request-install's API is ready for your review, header diff only (+41/-1 in include/consensus/types.h and driver.h): git -C ~/code/Kronuz/consensus diff origin/main...c7a1ad7 (branch quest/xapiand/consensus-request-install). 1. Driver::reinstall(GroupId, cancel_token) -> task<RepairCompleted>: a follower asks its leader for an install and completes the way repair does. 2. Refusals come as rejected{reason}: Current, NotLeader, Busy, LeaderMustTransfer (this replica leads), InvalidRepair (a witness). 3. Frames InstallRequest{term, request, base} and InstallRequestResponse{term, request, result, leader}; result is Started, InFlight, Current, NotLeader (leader is the redirect) or NotMember. 4. Core event RequestInstall{request}. 5. Driver::witness_bound(GroupId) -> optional<Index>, absent when the group isn't open. Your loop guard, as amended: a leader ships at most one image per requester per leader base, and a repeat at the same base is refused as Current. Log matching can't be the test, since every honest follower matches, the damaged one included. A pure base comparison would refuse a damaged replica at the leader's base until the next checkpoint. This rule is loop-free by construction and bounded by base moves and leader changes. The bodies need codec.h, admission.h and worker.h (the busy gate and the witness_bound accessor); I've widened the file set. Reply APPROVE or the changes you want; bodies wait for your verdict."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T21:47:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T21:47:57",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-228",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "managed-failover-isolated-leader": "frees src/detent_delivery/source_selection.hh, src/detent_delivery/coordinator.cc, src/detent_delivery/coordinator.hh, tests/detent_delivery/test_source_selection.cc, tests/detent_delivery/test_namespace_coordinator.cc, tests/detent_system/run_partition.py, docs/MANAGED_FAILOVER_ARCHITECTURE.md, docs/mechanisms/managed-failover*.md for managed-failover-isolated-leader"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "managed-failover-isolated-leader"
+        ]
+      },
+      "text": "set managed-failover-isolated-leader: unlocks frees src/detent_delivery/source_selection.hh, src/detent_delivery/coordinator.cc, src/detent_delivery/coordinator.hh, tests/detent_delivery/test_source_selection.cc, tests/detent_delivery/test_namespace_coordinator.cc, tests/detent_system/run_partition.py, docs/MANAGED_FAILOVER_ARCHITECTURE.md, docs/mechanisms/managed-failover*.md for managed-failover-isolated-leader; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:25:43",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:25:43",
+      "by": "xapiand-lead",
+      "closed": "Taken. split-consensus has A5: Core, HostTransport, Worker and Driver take step 1 (member definitions out of the class body, one header per mechanism, the umbrella path kept), proved by split_check --members and a Release fnsizes diff. Step 2 is its own reviewed quest. It's ordered after xapiand:split-check-members and xapiand:consensus-request-install, plus our open core.h/driver.h quests, so the move lands on a quiet tree. The tooling shape is fine as stated.",
+      "id": "msg-233",
+      "text": "xapiand lead, for split-consensus: the owner ruled tonight that a giant class body is not one coherent unit. On strata's 5,309-line basic_index: 'One class body of 5K+ lines is just not right! Not right at all. It makes this single file one of the busiest ones and it also makes the file very very hard to understand.' Then, on every class over 1,000 lines: 'I would still split them with craftmanship and aiming at improving maintainability and parallel work.' consensus has four, and by quest pressure they are the strongest case on the machine: Core (core.h:120, 1,395-line body, 53 commits, 11 of your quests' file sets), HostTransport (host_transport.h:372, 1,216 lines, 17 quests), Worker (worker.h:99, 1,142 lines, 13 quests) and Driver (driver.h:163, 1,050 lines, 13 quests). The shape we use: step 1 moves member definitions out of the class body into one header per mechanism (the class keeps data members and declarations, and the umbrella header keeps its path), proved by split_check's new --members mode plus a Release fnsizes diff. Step 2 makes subobjects only where state stands apart, reviewed. Shared tooling, all in cpp-libraries: quest xapiand:split-check-members (the --members mode, tools/outline.py as the mover, and a SPLITTING.md section with the rule) lands after split-check-anchor. Yours to judge and cut; tell me if you want the tooling to accept a shape it doesn't."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:37:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:37:18",
+      "by": "xapiand-lead",
+      "closed": "noted: request-install bodies at consensus:fc4af4f, header fixes at 9ea7c55; merges after quiesce-stall and peers-wake",
+      "id": "msg-234",
+      "text": "xapiand lead, FYI: consensus-request-install's implementation is pushed. consensus:9ea7c55 has your two header fixes (Current is the per-requester-per-base rule, one entry per member, dropped at a leader change; NotMember maps to InvalidRepair). consensus:fc4af4f has the bodies, DTC2 kinds 10 and 11, fuzz seeds, tests and docs/mechanisms/install-request.md, which explains why wire_version stays 1. The API didn't change beyond your fixes. A correctness review follows once its jobs pass. It merges consensus main after quiesce-election-stall and peers-wake land, with one expected conflict on Core's next_deadline follower line (a std::min over both deadlines)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T22:17:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T22:17:27",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-232",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "journal-drop-memory-io": "frees docs/** for journal-drop-memory-io",
+        "split-journal": "frees test/** for split-journal"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "journal-drop-memory-io",
+          "split-journal"
+        ]
+      },
+      "text": "journal-tail-second-sector landed: unlocks frees test/** for split-journal; frees docs/** for journal-drop-memory-io; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T23:10:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T23:10:17",
+      "by": "xapiand-lead",
+      "closed": "agreed: the three overlaps are CMakeLists only and trial-merge clean; no ordering, whoever lands second merges main",
+      "id": "msg-236",
+      "text": "xapiand lead, FYI on campaign check's overlap warnings: I diffed the real branches. consensus-install-test-faultfs shares only CMakeLists.txt with our node-admission and consensus-request-install, journal-drop-memory-io shares only CMakeLists.txt with our journal-lost-bound, and consensus-transport-test-flakes shares nothing with request-install (it touches rpc_host_test.cc, rpc_hosts.h and the two scripts; we touch codec_test.cc). All three pairs trial-merge clean (git merge-tree), so I'm not ordering them: whoever lands first, the other merges main. Also: node-admission merged consensus main (42a8cde) after peers-wake landed, and I read your 20 files against its review: no admission logic changed."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T00:19:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T00:19:59",
+      "by": "xapiand-lead",
+      "closed": "noted: request-install's seed files are fuzz seeds only, not seed-discovery; no ordering against detent-multicast-seeds",
+      "id": "msg-237",
+      "text": "xapiand lead, FYI for detent-multicast-seeds: campaign check says consensus-request-install changes consensus:seed-discovery. It doesn't. Its only seed files are fuzz seeds for its own two frames: it adds generators in fuzz/seed.cc and two entries under fuzz/corpus/decoders/ (seed-install-request, seed-install-request-response). Seed discovery's code and wire are untouched. If multicast-seeds also edits fuzz/seed.cc, the two additions are separate generators, so a merge is mechanical."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T00:25:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T00:25:31",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: ci-reuse and verify-land-agree landed on agent-campaign main; this host still runs f958fe7 from the dotfiles copy, so they take effect when the dotfiles install updates; until then clean merges still rerun",
+      "id": "msg-238",
+      "notice": "skill landed 47dfb508a86af0a94fd18d85d6a6c6bf94d9b4aa",
+      "text": "campaign skill: 12 commits landed on agent-campaign's main, not installed here yet: agent-campaign:6918f4a Merge branch 'quest/campaign-v3/verify-land-agree' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:d1d4057 Carry a quest's green CI and review across a clean merge from main; agent-campaign:59d1995 Merge branch 'main' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:f8a9f29 Wire main's CI into problems and the [ci] criterion into ci_gate; agent-campaign:cacdd3f Name main's side of the merge in a red main after a carried landing; agent-campaign:07c8772 Clear a fixed-forward landing for good; clean merges a failed journal; agent-campaign:778ed50 Bound main's CI reads after a carried landing; agent-campaign:ff6942f Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:2dffe40 Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:9cd0ccf Land reads CI fresh; a carried head's running CI is a live waiter; agent-campaign:43d103c Keep the host's good CI answer when a fresh ask fails; agent-campaign:91f67b3 Refuse land when a fresh gh ask fails; readers keep the good answer"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T23:00:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T23:00:40",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-235",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "multi-voter-idle-wake": "multi-voter-idle-wake (until consensus-peers-wake met: `campaign set multi-voter-idle-wake status=active`)",
+        "split-journal": "frees test/** for split-journal"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "multi-voter-idle-wake",
+          "split-journal"
+        ]
+      },
+      "text": "consensus-peers-wake landed: unlocks multi-voter-idle-wake (until consensus-peers-wake met: `campaign set multi-voter-idle-wake status=active`); frees test/** for split-journal; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:05:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:05:49",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: broadcast commits; installs with the next dotfiles update",
+      "id": "msg-240",
+      "notice": "skill landed b6cf285f20d25c909876dc875f20e693e4e4d38e",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:7023ca3 Tell every campaign's lead of skill commits it did not land; agent-campaign:5614004 Merge branch 'main' into quest/campaign-v3/broadcast-every-lead; agent-campaign:8969e84 Tell a lander of its own commits when they are installed"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -2066,11 +2692,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "waits for xapiand's journal-replaces-wal A8 and http-log's logger pin bump, then the owner's go to archive",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "blocked",
       "title": "archive the stash and scheduler repositories",
-      "updated": "2026-11-21T04:34:42"
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-21T21:24:20"
     },
     "async-drivers": {
       "accepted": {},
@@ -2256,6 +2886,39 @@
       "title": "Design the journal and consensus coroutine drivers",
       "updated": "2026-11-11T11:21:58",
       "worktree": ""
+    },
+    "authority-pages-design": {
+      "accepted": {},
+      "after": [],
+      "base": "4939420c831b9e339a6d5d24b8746719f63717a1",
+      "branch": "quest/detent/authority-pages-design",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/authority-pages.md",
+        "bench/authority_pages/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "design",
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "active",
+      "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
+      "updated": "2026-11-21T21:30:44",
+      "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
       "accepted": {},
@@ -3680,7 +4343,9 @@
       "after": [
         "consensus-driver-install",
         "consensus-full-window-stall",
-        "consensus-quiescence"
+        "consensus-quiescence",
+        "split-consensus",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -3737,113 +4402,63 @@
       "risk": "normal",
       "status": "planned",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-21T02:12:15"
+      "updated": "2026-11-21T21:51:26"
     },
     "consensus-driver-install": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T02:31:27",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T13:31:06",
+          "base": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
           "blobs": {
-            "CHANGELOG.md": "100644:b625983881b26bd9abc2aede941da599d63b1fc5",
-            "CMakeLists.txt": "100644:2271fe6fc3a74bf07854121a9d833a4e9fb47de2",
-            "bench/flow_bench.cc": "100644:da40eb105efd49aa5434abbe20e346c2eacbdd67",
-            "bench/transport_idle.cc": "100644:0c14468fbe245459ecd0e774533ed6a6f0b4cb5f",
+            "CHANGELOG.md": "100644:ead24756536eb2ff3b6104964889a01c38b6381f",
+            "CMakeLists.txt": "100644:5c3564479cd8b6613bec8c89888db40d3518ed07",
             "docs/DRIVER.md": "100644:ecbf901964e480bec86b1cfb30f642faa75c336b",
             "docs/mechanisms/host-transport.md": "100644:738cbd4f4dbcbcfb0211f34db7ee60f6cdf74fa5",
-            "docs/mechanisms/quiescence.md": "100644:a5b4a88f4f3f2cc750426367070ad3e0454fbb32",
-            "docs/mechanisms/rpc-lane.md": "100644:78ebbb5c9dabd8751d0a7c65cf3c88efb30c3b0a",
-            "docs/perf/idle-bytes.md": "100644:229d64f2dfe099d0321ee10db44041703e0d53dc",
-            "docs/perf/quiescence-idle-cpu.md": "100644:b9e943ed701ef972066c86afb6ebb1597e08759d",
-            "docs/perf/transport-idle-cost.md": "100644:ed4aed363775b378757be2af95268ec4e5380990",
-            "fuzz/corpus/rpc/seed-past-credit": "100644:8157cebc98f7ea8fa100700012aee0e89e879bf4",
-            "fuzz/rpc_coverage.sh": "100755:791df9bcdefd4226ca12a41bb581f902166dc20f",
-            "fuzz/rpc_fuzz.cc": "100644:57e1f9ec9e50ce35a775306c6c23aac6ba3a0b27",
-            "fuzz/rpc_fuzz.sh": "100755:2c83c41022bbae49d3cb333b18290f1629d41e79",
-            "fuzz/seed.cc": "100644:76d048aba867fe5cf22f4c02478ba17d8c4cd9ce",
-            "include/consensus/admission.h": "100644:1d5e37ae721687ca5423a1db41e585f70f36e9a9",
-            "include/consensus/core.h": "100644:f8408948e8ae827e65e8b9521f244791ed0102ed",
             "include/consensus/driver.h": "100644:cc7d084693243a600b2c07e2439a64df9b862e5a",
-            "include/consensus/transport/codec.h": "100644:f7681132dc17ee2c405fe64ad31a819c78ef4b85",
-            "include/consensus/transport/host_transport.h": "100644:cdfcf9cef3397e37d76acbc99633f86f4b08c1f3",
-            "include/consensus/transport/rpc.h": "100644:eca033bf0cc5a15b0222c354b4387aecb30c4877",
-            "include/consensus/types.h": "100644:0ce9508be422895193f6d8c569ef1426a29972d4",
-            "include/consensus/worker.h": "100644:fca0e90e61ab28400faf83ae63f0cbe005558cdf",
+            "include/consensus/transport/host_transport.h": "100644:04d49c37c8c0748251c52c04789a77dbe9e1ba74",
+            "include/consensus/worker.h": "100644:6724bf0b4d5508d42a927068f685d7093b8b946e",
             "test/driver_close_test.cc": "100644:69aba94497d6c583803f839985f6afa03f5315a4",
             "test/driver_install_test.cc": "100644:a26f0b0122d45d52d1039fe809384fa59fdd040a",
+            "test/driver_replace_test.cc": "100644:0acc84377d64ef9a218cbe09fca4f54e05a3a54e",
             "test/driver_simulation.cc": "100644:29beff927c584719e33bc055e3f1a6fd60c50788",
             "test/driver_test.cc": "100644:14c08b70d04f7481bfe38cee85d81d5d52db0a80",
-            "test/idle_owners.py": "100644:76ba7fb12ef25d704a8ba24a5a067e9ffa11ed74",
-            "test/simulation_test.cc": "100644:3101652df209a40fb1a25369393057f2ebaeb908",
-            "test/transport/admission_test.cc": "100644:23aa40b1b3e2dc25894731ad19be700ee0604c0a",
-            "test/transport/codec_test.cc": "100644:bf2ab3f39c159ff9319f1f29aa439e1a78413436",
-            "test/transport/groups_test.cc": "100644:bbc15972ab8709eaaac6ec790603e88f8e9960c2",
-            "test/transport/mutant_commit.py": "100755:1cea0d1e6f9fd10ff43463ff92cccac2ddafbb0c",
-            "test/transport/rpc_host_test.cc": "100644:312243d0013eb8d61cb2ec153f22dd8aa1da5a9e",
-            "test/transport/rpc_hosts.h": "100644:4cd78a620b140a12adace4c83b87389dd44f0d62",
-            "test/transport/rpc_mutants.py": "100644:f3fc935a74af9504e736934cff8eee04720baa2d",
-            "test/transport/rpc_test.cc": "100644:368df0192c86d1a853c75fad9343199b5aefde04",
-            "test/wave_open_test.cc": "100644:bca7bf201297ea07a6413068df6c4ddc061ad6a7",
-            "tools/mutants.sh": "100755:c323c5bc94f7f27507edc0fbe33faaa01e567b26"
+            "test/transport/groups_test.cc": "100644:fb64da384dab35f726a37c75425450825724fe5a",
+            "test/transport/mutant_commit.py": "100755:90e0c71b395480e3914516d867f6c289b8e0c641",
+            "test/wave_open_test.cc": "100644:bca7bf201297ea07a6413068df6c4ddc061ad6a7"
           },
           "by": "review",
-          "commit": "887a88bcc12643f2595587d056ed7464965653c0",
+          "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
           "criteria": "f37226c091ad97e1",
           "diffs": {
-            "": "ab989beba181e1b7",
-            "CHANGELOG.md": "eb67224b15c52b03",
-            "CMakeLists.txt": "1c2e547963051dcc",
-            "bench/flow_bench.cc": "1f20b8f8b2e361ed",
-            "bench/transport_idle.cc": "74f98f190f1c25bd",
-            "docs/DRIVER.md": "cf25bc63746ebabf",
-            "docs/mechanisms/host-transport.md": "91a53a42a13f40e1",
-            "docs/mechanisms/quiescence.md": "eb3a102c1952ee5b",
-            "docs/mechanisms/rpc-lane.md": "f36baf580f8bbd8f",
-            "docs/perf/idle-bytes.md": "573cc76721368f4d",
-            "docs/perf/quiescence-idle-cpu.md": "0189292613c68682",
-            "docs/perf/transport-idle-cost.md": "e68a18d9877ea92f",
-            "fuzz/rpc_coverage.sh": "78bda0bd3e6d5e0a",
-            "fuzz/rpc_fuzz.cc": "aeb1f897a8a5e426",
-            "fuzz/rpc_fuzz.sh": "5916df396f7ea858",
-            "fuzz/seed.cc": "826c79a7c53b6dfa",
-            "include/consensus/admission.h": "d391e52299e8b9d5",
-            "include/consensus/core.h": "0f8b9b987bc8c9b1",
-            "include/consensus/driver.h": "c95ed7bde2e63dd7",
-            "include/consensus/transport/codec.h": "f28d65e779edb4cf",
-            "include/consensus/transport/host_transport.h": "10efff7d89f9550d",
-            "include/consensus/transport/rpc.h": "d087c04dcfcf0280",
-            "include/consensus/types.h": "5a141240f59cb13c",
-            "include/consensus/worker.h": "31ab259e0c0142d1",
-            "test/driver_close_test.cc": "24623c4ebef1c443",
+            "CHANGELOG.md": "ae6fc77babc47b9e",
+            "CMakeLists.txt": "9676af951fbdcc55",
+            "docs/DRIVER.md": "a4dd48e78cfa63e8",
+            "docs/mechanisms/host-transport.md": "dd8ebadb0876a3ec",
+            "include/consensus/driver.h": "a1cb42ebe64cc40f",
+            "include/consensus/transport/host_transport.h": "7cdb2480934fd4fb",
+            "include/consensus/worker.h": "6bc376a1dc52a82e",
+            "test/driver_close_test.cc": "6cef15766cddc6db",
             "test/driver_install_test.cc": "3f98af292db6cf82",
+            "test/driver_replace_test.cc": "36053d5119ba5707",
             "test/driver_simulation.cc": "b7c4366a4cbb54d7",
-            "test/driver_test.cc": "0ab30b24c4622b9b",
-            "test/idle_owners.py": "e6058d3855f43948",
-            "test/simulation_test.cc": "0c649d4441e3ae72",
-            "test/transport/admission_test.cc": "f6abcd0fc805dd32",
-            "test/transport/codec_test.cc": "59d8ded1e3cadc74",
-            "test/transport/groups_test.cc": "6ae48d8406291b9c",
-            "test/transport/mutant_commit.py": "c552c56f18c86b3b",
-            "test/transport/rpc_host_test.cc": "df5fae6a60136f7a",
-            "test/transport/rpc_hosts.h": "822c680b845008f0",
-            "test/transport/rpc_mutants.py": "74aa8a0ef35dcdad",
-            "test/transport/rpc_test.cc": "79cab0ebddb5d143",
-            "test/wave_open_test.cc": "20fd106783ab8889",
-            "tools/mutants.sh": "2972e2ceadc40301"
+            "test/driver_test.cc": "04045e75e0f5001e",
+            "test/transport/groups_test.cc": "74f89fa6634f9e99",
+            "test/transport/mutant_commit.py": "04618055cc9d8bd3",
+            "test/wave_open_test.cc": "20fd106783ab8889"
           },
           "findings": {
             "R1": {
               "jobs": [
                 {
                   "cmd": "build/consensus_driver_install_test orphan",
-                  "commit": "887a88bcc12643f2595587d056ed7464965653c0",
+                  "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-013716-103b97",
+                  "job": "261121-110923-8ec58f",
                   "level": "light",
-                  "seconds": 1.0,
+                  "seconds": 0.9,
                   "state": "done",
-                  "what": "R1 orphan: a resting follower drops an orphaned image (on 3b20d96)"
+                  "what": "R1 orphan: a resting follower drops an orphaned image (on 3b20d96) at 8780e44dd2b3"
                 }
               ],
               "kind": "gap",
@@ -3852,29 +4467,9 @@
           },
           "fix_scope": {
             "paths": [
-              "bench/flow_bench.cc",
-              "bench/transport_idle.cc",
-              "fuzz/corpus/rpc/seed-past-credit",
-              "fuzz/rpc_coverage.sh",
-              "fuzz/rpc_fuzz.cc",
-              "fuzz/rpc_fuzz.sh",
-              "fuzz/seed.cc",
-              "include/consensus/admission.h",
-              "include/consensus/core.h",
-              "include/consensus/transport/codec.h",
-              "include/consensus/transport/rpc.h",
-              "include/consensus/types.h",
-              "test/idle_owners.py",
-              "test/simulation_test.cc",
-              "test/transport/admission_test.cc",
-              "test/transport/codec_test.cc",
-              "test/transport/rpc_host_test.cc",
-              "test/transport/rpc_hosts.h",
-              "test/transport/rpc_mutants.py",
-              "test/transport/rpc_test.cc",
-              "tools/mutants.sh"
+              "test/driver_replace_test.cc"
             ],
-            "reason": "The files the review never saw arrive through the merge of consensus-quiescence at 3b20d96 (its own review covers them); this quest's fix is R1's receive-deadline wake in driver.h with its orphan test, R2's crash-window count and R3's DRIVER.md wording"
+            "reason": "after the APPROVE only merges of consensus main (transport, quiescence, full-window-stall, leaving-removal) and test/driver_replace_test.cc's NodeSink handlers renamed to the install API, as ruling 9 did for the other test Sinks"
           },
           "note": "",
           "review": "d5718490fc29f7e04879e7e038a97fd9dd8d79ce",
@@ -3910,7 +4505,8 @@
         "CMakeLists.txt",
         "test/driver_test.cc",
         "test/driver_close_test.cc",
-        "test/wave_open_test.cc"
+        "test/wave_open_test.cc",
+        "test/driver_replace_test.cc"
       ],
       "history": [
         {
@@ -3940,10 +4536,61 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-install",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T13:31:19",
+          "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "criteria": {
+            "A1": "261121-110925-b0b599, 261121-110926-f041dc, 261121-110938-8ae959, 261121-110940-e994fd, 261121-110928-1a6a6f, 261121-110923-8ec58f, 261121-110949-e4ea6d; fails without: 261120-190408-045251, 261120-191744-5b41ef, 261120-191746-d10632, 261120-191754-1b07f7, 261120-225747-e54d29, 261121-005958-f4db38, 261121-013719-2f4f8c",
+            "A2": "261121-110930-4477d6, 261121-110946-f8053a; fails without: 261120-191749-bef99d",
+            "A3": "261121-110932-9e6ce2, 261121-110944-6ee95d; fails without: 261120-191751-b901bb",
+            "A4": "261121-110934-9f29e7, 261121-110936-37148f",
+            "A5": "[artifact] consensus `docs/DRIVER.md` section \"Install\" (consensus:740453b); contract sent to Xapiand as msg-187",
+            "A6": "261121-110942-ddb5d5; fails without: 261120-225734-b342d4"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "8780e44dd2b3322fd72a53495f386a0680f116af",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+          "reason": "",
+          "tested": "8780e44dd2b3322fd72a53495f386a0680f116af"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-21T01:24:20",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:24:20",
+          "by": "consensus-quiescence",
+          "id": "msg-1",
+          "text": "consensus-quiescence review fixes are at consensus:3b20d96 (quest/detent/consensus-quiescence, pushed). F1: Core::campaign() and lead() now clear resting_, so every role change ends a rest (a TimeoutNow target at rest leads with its timers). F2: new Message Gone{term} (wire tag 9, types.h/codec.h/admission.h): when a group fences, Driver::report_fence sends Gone in the group's term to every other member, and a follower of that replica in that term handles it as LeaderGone (Core::leader_lost). Also heard_from_leader() lost its source parameter (F4). Your R1 (an orphaned incoming image on a resting follower) builds on this branch: merge 3b20d96. Any new exhaustive visitor over Message needs a Gone arm."
+        },
+        {
+          "announced": {
+            "at": "2026-11-21T01:44:44",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "8780e44dd2b3",
+          "at": "2026-11-21T01:44:44",
+          "by": "consensus-quiescence",
+          "id": "msg-2",
+          "text": "consensus-quiescence fixed review F7 at consensus:818fd0a (pushed to quest/detent/consensus-quiescence, on top of 3b20d96): Gone is handled in handle(Receive) before the term step and never raises a term (core.h; receive_message(Gone) is now a no-op). Merge it into your branch; no API change."
+        }
       ],
       "milestone": "",
       "needs": [],
@@ -3952,10 +4599,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A Driver group installs snapshots: transfer frames, validation, and the image at activation",
-      "updated": "2026-11-21T02:31:27",
-      "worktree": "../consensus-wt/detent/consensus-driver-install"
+      "updated": "2026-11-21T13:31:24",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
@@ -4321,21 +4968,61 @@
       "updated": "2026-11-16T21:41:06",
       "worktree": ""
     },
+    "consensus-follower-read": {
+      "accepted": {},
+      "after": [
+        "consensus-quiesce-election-stall",
+        "consensus-peers-wake",
+        "xapiand:consensus-request-install"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "include/consensus/types.h",
+        "include/consensus/codec.h",
+        "include/consensus/driver.h",
+        "test/follower_read_test.cc",
+        "CMakeLists.txt",
+        "docs/mechanisms/follower-read.md",
+        "fuzz/corpus/decoders/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
+      "updated": "2026-11-21T22:27:20"
+    },
     "consensus-full-window-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T02:22:18",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T09:08:29",
+          "base": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
           "blobs": {
-            "CHANGELOG.md": "100644:0e150f66e15f2c8b1bcacb8c1dff462ddefc51aa",
-            "CMakeLists.txt": "100644:e88cb0e2feb14c9e096fc98763e778cb0a3ea006",
+            "CHANGELOG.md": "100644:8ee690c35afbf3fa6977ecc1079366a058f71ad6",
+            "CMakeLists.txt": "100644:b6666c1dcc899b8a939fb02745fe8a64d5bf0754",
             "bench/netlab/full_window_check.py": "100755:cbdde67ecb595788fac1ddbe1595658e1f5a0907",
             "docs/mechanisms/append-pacing.md": "100644:eb0d27cb54ccd61c2763219f9903ae2883cc1b12",
-            "include/consensus/core.h": "100644:cf48029c98449b6d4eab76b549f804ae7606e2d0",
+            "include/consensus/core.h": "100644:e41c4f9ef702c21ddcf4f0d822411fac52243096",
             "test/full_window_stall_test.cc": "100644:fe4e2640fcd7548600d6bb76dfec2c93c8be525d"
           },
           "by": "review",
-          "commit": "8e55060e3a3d105e4d988bd1bd11abc9ce7be570",
+          "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
           "criteria": "01c3c05b23b6feec",
           "diffs": {
             "CHANGELOG.md": "8bfe5f11ca0518be",
@@ -4349,22 +5036,22 @@
             "F1": {
               "jobs": [
                 {
-                  "cmd": "sh -c 'cmake -S . -B build -G Ninja >/dev/null && cmake --build build -j4 --target consensus_full_window_stall_test || exit 127; cd build && ctest -R '\"'\"'^consensus_full_window_stall$'\"'\"' --output-on-failure'",
-                  "commit": "8e55060e3a3d105e4d988bd1bd11abc9ce7be570",
+                  "cmd": "sh -c 'JOB_SRC=$PWD bash /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-consensus-full-window-stall-correctness/probe.sh asis'",
+                  "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261121-011736-1b0bbb",
+                  "job": "261121-082753-627be6",
                   "level": "light",
-                  "seconds": 9.6,
+                  "seconds": 18.5,
                   "state": "done",
-                  "what": "A1: registered consensus_full_window_stall passes at the fix at 8e55060e3a3d"
+                  "what": "F1: reviewer's big_entry_probe (probe.sh asis) passes at the fixed head at 5a114dd5836c"
                 }
               ],
               "kind": "defect",
               "reproduced": false
             }
           },
-          "note": "main's 12 changed files since review are consensus-faultfs's test migration (test/*, CMakeLists.txt); no core.h or driver change",
+          "note": "re-accepted after merging consensus main 5ebf834 (transport, quiescence); core.h's two conflicts were adjacent additions, both kept",
           "review": "216c0f26bcab9703cf9e8f94198a815dca112f8f",
           "reviewed": "90ff87897ad8930991cbc647bff7e16d820f0553",
           "verdict": "CHANGES"
@@ -4423,20 +5110,57 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-full-window-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T09:35:11",
+          "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+          "criteria": {
+            "A1": "261121-082753-d21525, 261121-082753-a72cc7; fails without: 261120-183911-97e441, 261120-183913-e37593, 261120-185057-a51736, 261120-185059-a31b7d, 261120-201357-874d17, 261120-201358-1847ef, 261120-225642-33fe0e, 261120-225643-3b255d, 261120-225646-4a2941",
+            "A2": "`docs/mechanisms/append-pacing.md` (consensus:17751bc; netem table consensus:fe0d2dc, both runs per build consensus:90ff878)",
+            "A3": "261121-082754-5ae1d3, 261121-082754-676cb7, 261121-082754-20565a, 261121-082754-8c8b3b, 261121-082754-ab5004, 261121-082754-412a78, 261121-082755-291adf; fails without: 261120-190521-62807e, 261120-201349-112b82",
+            "A4": "261121-082753-887444"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5ebf83431d978acf65a3ec56f0d1f74460f84fb9",
+          "reason": "",
+          "tested": "5a114dd5836ccac43572f62b729c87fab3d3a1d7"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-20T19:29:33",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "5a114dd5836c",
+          "at": "2026-11-20T19:29:33",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "From consensus-transport: consensus_transport_peers late-append failed under a loaded host at -j2 (job 261120-152646-9f3363, '5 ms hog: commits FAILED, slowest 2015 ms, 102 appends superseded'); it also passes 10/10 at main and at transport's head, so it is a load-dependent case of whole-batch resends after rpc_timeout. Check that your append pacing makes this case pass at -j2 on a loaded host (repeat x10 as a job) and cite it in your journal."
+        }
       ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "The leader keeps replicating when a full rpc_bytes window meets loss or reorder",
-      "updated": "2026-11-21T02:22:18",
-      "worktree": "../consensus-wt/detent/consensus-full-window-stall"
+      "updated": "2026-11-21T09:35:19",
+      "worktree": ""
     },
     "consensus-heal-snapshot-stall": {
       "accepted": {
@@ -4556,6 +5280,66 @@
       "title": "a peer that already holds the entries waits a full snapshot_timeout after a heal",
       "updated": "2026-11-20T04:10:24",
       "worktree": ""
+    },
+    "consensus-install-test-faultfs": {
+      "accepted": {},
+      "after": [],
+      "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+      "branch": "quest/detent/consensus-install-test-faultfs",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_install_test.cc",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T22:18:19",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/consensus-install-test-faultfs",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: one test file's journal backend; CMakeLists is listed only in case a link line changes, and quiesce-stall/peers-wake touch other blocks",
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "active",
+      "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
+      "updated": "2026-11-21T22:18:38",
+      "worktree": "../consensus-wt/detent/consensus-install-test-faultfs"
     },
     "consensus-late-append": {
       "accepted": {
@@ -4728,19 +5512,19 @@
     "consensus-leaving-removal": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-21T03:14:41",
-          "base": "bb961b3250b89abce85cd2a99c22529179acc786",
+          "at": "2026-11-21T11:03:56",
+          "base": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
           "blobs": {
             "ARCHITECTURE.md": "100644:d7b35abb5ccba0c6f78e488e3961643129607d5a",
-            "CHANGELOG.md": "100644:16e3a33bb61be057ab8872945bf8917ae8c9455d",
-            "CMakeLists.txt": "100644:fc5359987bfc7f020f5bb66c6d9251ba4f179139",
-            "include/consensus/core.h": "100644:33e042b49191cc11f0b577cb406bff43ba7b34c8",
-            "include/consensus/worker.h": "100644:4820db7087c4ede807f69abd21adc572151a88d3",
-            "test/driver_mutants.py": "100644:b0581ec7ee709165688f1759ddc9a3520403609f",
-            "test/driver_replace_test.cc": "100644:29d65fc3a28e221ced97b29414f8a2ecfc954659"
+            "CHANGELOG.md": "100644:9e40573b0f0749b1b36b454111c062fad06045b8",
+            "CMakeLists.txt": "100644:b729badcb14ee00662cc43ba5dd2dd0e1f78a7cf",
+            "include/consensus/core.h": "100644:2ea382aba7ea796343147b7ec208751cbcbb18c0",
+            "include/consensus/worker.h": "100644:807a94b1f47100f58e64d8eb5537c3a390fbc252",
+            "test/driver_mutants.py": "100644:3818f5ee980c3953081bdb6e5463425261a653e4",
+            "test/driver_replace_test.cc": "100644:3123bc643aac50d71c45f9e5ed6b89cadc9a1d45"
           },
           "by": "review",
-          "commit": "ebc3b2eb72b8215a93b6e6f33a88b7d09b5d61df",
+          "commit": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
           "criteria": "3185cbb9ba8e6b0e",
           "diffs": {
             "ARCHITECTURE.md": "e4f4109347ac73f6",
@@ -4748,13 +5532,13 @@
             "CMakeLists.txt": "87c13120f5a1afa9",
             "include/consensus/core.h": "b2647592c202ec35",
             "include/consensus/worker.h": "66b02463aa82c891",
-            "test/driver_mutants.py": "d3c8d98e6f54bc11",
-            "test/driver_replace_test.cc": "887e9d56f990379f"
+            "test/driver_mutants.py": "898ceca6e82e9858",
+            "test/driver_replace_test.cc": "96bd468d2f5203a4"
           },
           "findings": {},
-          "note": "",
-          "review": "2a2ce093ac1a0d3d942911c1aa73c621230f2add",
-          "reviewed": "ebc3b2eb72b8215a93b6e6f33a88b7d09b5d61df",
+          "note": "re-accepted after merging consensus main 5a114dd (consensus-full-window-stall) with no conflict",
+          "review": "684582cfb5e9a153fe7dd1cdba4dd6f6df9c7dc5",
+          "reviewed": "304bb1ee8e74ae373d4a728546e909ff09f15335",
           "verdict": "APPROVE"
         }
       },
@@ -4813,26 +5597,52 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-leaving-removal",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T11:04:07",
+          "commit": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+          "criteria": {
+            "A1": "261121-094829-84c93b",
+            "A2": "261121-094831-422c49, 261121-094829-84c93b; fails without: 261121-011652-0bbc59, 261121-011653-871e69, 261121-012216-933a9e, 261121-012218-e3e272, 261121-014435-ea9ba4, 261121-014436-34f470, 261121-031034-f6c862, 261121-031035-8662fc, 261121-031817-665bcf, 261121-031819-910be2, 261121-082921-bf944a, 261121-082923-c44295, 261121-083445-9321a1, 261121-083448-2a6b63, 261121-094834-6ef492, 261121-094837-453d12",
+            "A3": "261121-094840-1c44c7; fails without: 261121-083453-9b1c92, 261121-094843-9c9d0d",
+            "A4": "`ci:macos-arm64` (pending at a73c6e3)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5a114dd5836ccac43572f62b729c87fab3d3a1d7",
+          "reason": "",
+          "tested": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
-      "updated": "2026-11-21T03:14:41",
-      "worktree": "../consensus-wt/detent/consensus-leaving-removal"
+      "updated": "2026-11-21T11:04:12",
+      "worktree": ""
     },
     "consensus-mutants-per-test": {
       "accepted": {},
       "after": [
         "consensus-quiescence"
       ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-mutants-per-test",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -4875,16 +5685,42 @@
           ]
         }
       ],
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T21:07:05",
+          "commit": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "criteria": {
+            "A1": "261121-173829-dc0b56",
+            "A2": "`CMakeLists.txt`: the consensus_mutants list; each TIMEOUT is 4x the slowest of msg-190's macOS/Linux/FreeBSD time, floor 600 s",
+            "A3": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:e35356a; 17 of 17 mutants killed on macOS in 73-420 s (dc0b56)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "8780e44dd2b3322fd72a53495f386a0680f116af",
+          "reason": "",
+          "tested": "e35356a97d8fc849bd017ba718e625435f3ec10d"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: consensus main is red (cpp-libraries:12bae98 turned on consensus_mutants in CI); the overlap is CMakeLists.txt hunks, merged by whoever lands second",
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "landed",
       "title": "Each consensus mutant is its own ctest with its own timeout",
-      "updated": "2026-11-20T18:25:10"
+      "updated": "2026-11-21T21:07:58",
+      "worktree": ""
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
@@ -4973,6 +5809,215 @@
       "title": "peers_test:621 reconnect attempts bound fails on macos-x86_64",
       "updated": "2026-11-20T01:24:02",
       "worktree": ""
+    },
+    "consensus-peers-wake": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-21T22:59:49",
+          "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "blobs": {
+            "CHANGELOG.md": "100644:63c7d2bd116a60c5b1280b80ea5e0deefc81afdf",
+            "CMakeLists.txt": "100644:e1fb4e6ae438830f2404f0f0df9efc5515ca7788",
+            "docs/mechanisms/peers-wake.md": "100644:0926d2183a67384a7e61c00d511cc3efedf82fe8",
+            "include/consensus/transport/peers.h": "100644:22c566a7862b7fe588911396fb4f49318d49d159",
+            "test/peers_wake_mutants.py": "100644:cc194aa780128f30d39425aa38f851b361481381",
+            "test/peers_wake_test.cc": "100644:f80be94551f44760adc0da540f39f5ec641d8f1f"
+          },
+          "by": "review",
+          "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+          "criteria": "135d7050237ea52f",
+          "diffs": {
+            "CHANGELOG.md": "0cb297dc3d44057a",
+            "CMakeLists.txt": "6b8a44563c40b666",
+            "docs/mechanisms/peers-wake.md": "4ba462634e12177a",
+            "include/consensus/transport/peers.h": "ae642665277817ea",
+            "test/peers_wake_mutants.py": "c4819dccfff0f9a6",
+            "test/peers_wake_test.cc": "17089fe0878dafbc"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 --target consensus_transport_peers_wake_test && ctest --test-dir .scratch/build --output-on-failure --repeat until-fail:3 -R \"consensus_tls_certificates|consensus_transport_peers_wake\"'",
+                  "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261121-212625-7909ca",
+                  "level": "light",
+                  "seconds": 31.0,
+                  "state": "done",
+                  "what": "A1 peers_wake idle/control/bulk, 3 repeats at a068ba067362"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "071c2ddff9d4a70d069ac3fbc1c6d570ba77ee2d",
+          "reviewed": "a1855ace45fb6ce81d94431db4a25f32d00c23b5",
+          "verdict": "CHANGES"
+        }
+      },
+      "after": [
+        "consensus-driver-install"
+      ],
+      "base": "a73c6e37ba4dbc5d63e6b47a45768bb63a2c9565",
+      "branch": "quest/detent/consensus-peers-wake",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/peers.h",
+        "test/peers_wake*",
+        "test/CMakeLists.txt",
+        "CMakeLists.txt",
+        "docs/mechanisms/peers-wake.md",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T13:24:11",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T23:00:31",
+          "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+          "criteria": {
+            "A1": "261121-212625-7909ca, 261121-212627-ae7c2d",
+            "A2": "261121-212627-ae7c2d; fails without: 261121-143902-c2b9e9, 261121-143905-8c1df5, 261121-143908-546fd9, 261121-143912-fb2da8, 261121-143916-805a2e, 261121-143920-0a930f, 261121-143923-5e1a09, 261121-143927-f0a404, 261121-143931-b1fc2e, 261121-143950-b0ce0e",
+            "A3": "261121-212628-07693b",
+            "A4": "docs/mechanisms/peers-wake.md (consensus:3576fb5, bulk step consensus:7f1f7e1)",
+            "A5": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:a068ba0 (run 44989402380)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "reason": "",
+          "tested": "a068ba067362beaa4b27c4943b95a70fbfb32e18"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "landed",
+      "title": "Peers tells its host when owner work is waiting",
+      "updated": "2026-11-21T23:00:40",
+      "worktree": ""
+    },
+    "consensus-quiesce-election-stall": {
+      "accepted": {},
+      "after": [
+        "consensus-leaving-removal"
+      ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-quiesce-election-stall",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "test/driver_replace_test.cc",
+        "test/quiescence*",
+        "test/driver_*",
+        "docs/mechanisms/quiescence.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T08:50:05",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job; correctness is the dominant risk of a liveness fix",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/consensus-quiesce-election-stall",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "consensus-driver-install"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "review",
+      "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
+      "updated": "2026-11-21T19:33:33",
+      "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
     },
     "consensus-quiescence": {
       "accepted": {
@@ -5252,6 +6297,39 @@
       "title": "A replica that leaves a group removes its state, so it can rejoin fresh",
       "updated": "2026-11-21T00:05:04"
     },
+    "consensus-sanitizer-ci-time": {
+      "accepted": {},
+      "after": [],
+      "base": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+      "branch": "quest/detent/consensus-sanitizer-ci-time",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CMakeLists.txt",
+        "tools/mutants.sh",
+        "test/transport/groups_test.cc"
+      ],
+      "journal": "../Detent-wt/detent/consensus-sanitizer-ci-time",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: shared file is CMakeLists.txt's test block only (mutant registration); the others edit other blocks and trial-merge clean, as with xapiand's msg-236 pairs",
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "active",
+      "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
+      "updated": "2026-11-22T21:06:51",
+      "worktree": "../consensus-wt/detent/consensus-sanitizer-ci-time"
+    },
     "consensus-transport": {
       "accepted": {
         "security": {
@@ -5499,7 +6577,8 @@
     "consensus-transport-budgets": {
       "accepted": {},
       "after": [
-        "consensus-transport"
+        "consensus-transport",
+        "split-consensus"
       ],
       "checks": [
         {
@@ -5554,7 +6633,68 @@
       "risk": "normal",
       "status": "planned",
       "title": "HostTransport's window and data queue count wire bytes, and the defaults hold the frames they name",
-      "updated": "2026-11-21T01:51:20"
+      "updated": "2026-11-21T11:42:34"
+    },
+    "consensus-transport-test-flakes": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-install"
+      ],
+      "base": "8780e44dd2b3322fd72a53495f386a0680f116af",
+      "branch": "quest/detent/consensus-transport-test-flakes",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/**",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T09:09:48",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/consensus-transport-test-flakes",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "review",
+      "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
+      "updated": "2026-11-21T21:26:41",
+      "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
     },
     "consensus-wave-open": {
       "accepted": {
@@ -6808,7 +7948,715 @@
       "worktree": ""
     },
     "dense-distribution-build": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-21T13:10:01",
+          "base": "5688e40d92d754a85635b86cbe35963f4814323b",
+          "blobs": {
+            ".github/workflows/ci.yml": "100644:9eafbf760f0de33f0e00e8021e0e61e0ffc1a410",
+            ".github/workflows/tls-fixture-diagnostics.yml": "100644:e737e9ecc01715ea480a33002c83aa8d4e345e5a",
+            "README.md": "100644:030137e7d0eaff88f076614644d8064650b3cf10",
+            "benchmarks/CMakeLists.txt": "100644:398d3c5eebace49f6c4d17c1bc72367228dea7ec",
+            "benchmarks/detent_fleet_load.cc": "deleted",
+            "benchmarks/fleet_load.cc": "deleted",
+            "benchmarks/fleet_load.hh": "deleted",
+            "benchmarks/local_image_bench.cc": "deleted",
+            "benchmarks/paged_recovery_bench.cc": "100644:e181b04502214937ebfbad02b7e8e8de3c331bfa",
+            "benchmarks/relay_window_bench.cc": "100644:2e71ca23eeb837cbcc498e21ea12e8ca51af6f5a",
+            "docs/ACTORS.md": "100644:1b0507695820a37ec8fb6411a1948e7429773e2e",
+            "docs/CAPACITY_QUALIFICATION.md": "100644:75d51e969bc24e228660705c36e3155cc7b55388",
+            "docs/CAPACITY_RUNTIME.md": "100644:d71246b9553988f0f42793144da93d95159fee82",
+            "docs/FAST_CLIENT_ARCHITECTURE.md": "100644:b5d0bf2e0a36271c24bd39a57fd5464b0d2e6110",
+            "docs/LOCAL_IMAGE_FORMAT.md": "100644:55e537cb1ad56caa7199c918bf54b87ff499e59b",
+            "docs/PRODUCTION_CONTRACT.md": "100644:adae2630d84ebb44f8c05bd89f5c53f20833e049",
+            "docs/RELAY.md": "100644:77ec19253a505f36846fbb0ff00506875c1c5895",
+            "docs/SERVICES.md": "100644:ef87b6695ae27675a6dc84b19b2647a2102a9089",
+            "docs/USAGE.md": "100644:d6a730695d9261bb8c5f660a965421a65c14ac1c",
+            "docs/design/dense-distribution-model.py": "100644:a69548ee1f7c7a1d67f91bb86ca8215ab01777f4",
+            "docs/design/namespace-delivery.md": "100644:734d9421d6da227267f65ac95c14d75cdde4f668",
+            "docs/mechanisms/dense-pages.md": "100644:86fa2a23613532b4a5bc309917703320774272cc",
+            "docs/mechanisms/paged-transfer.md": "100644:2e6baf9f867c0d947b23b3ea6b69ff7ccc1303fb",
+            "docs/mechanisms/recovery-digest-once.md": "100644:60e8d810f27a07eb16a325331fb71ed7e412b5ba",
+            "docs/perf/dense-distribution-bins.sh": "100755:ed4cd4e58bf0fbbef0de12d3dd5182aaf23a1ec0",
+            "docs/perf/dense-distribution-boot.py": "100644:eac6b232e099ec4c7486407569b7fd93f55820a6",
+            "docs/perf/dense-distribution-profile.py": "100644:dfd8bf4d78fdcd253d1c15986fbe719d1551c501",
+            "docs/perf/dense-distribution-row.sh": "100755:edf3db4a22724ed55d2ec7be49b372fb544b3ecd",
+            "docs/perf/dense-distribution.md": "100644:a4d2c8c3fcd8fd34f72a959f2d715e2090723f99",
+            "docs/perf/relay-window.md": "100644:7f10b5ad1508d57d457636c28b237cd98b7ce705",
+            "docs/status/namespace-s6.md": "100644:26fc1846d6830f2bf79eca8be8fa077b507a0880",
+            "docs/status/namespace-s8.md": "100644:02234d356b17f5493c1926be636683d133a4c4d5",
+            "include/detent/config_trust_internal.hh": "100644:70a5bdf2ed9c4782b0ea3a011656c4fb5c32d7cd",
+            "include/detent/cursor.hh": "100644:aab48d34ef00f8bc9997911a57560f2499e44e54",
+            "include/detent/read_view.hh": "100644:d9a0f2688ba9b47531db88e1e3e2ca561f6657fb",
+            "include/detent_delivery/client.hh": "100644:7fadaa47d42a41de5e7d0bb060ea8fde2e5ac1ad",
+            "include/detent_delivery/configuration.hh": "100644:38afc9e9ef834deb61443b25b65d937775925301",
+            "include/detent_delivery/coordinator.hh": "100644:8f55495417c6b6456d3933498b3143773a381416",
+            "include/detent_delivery/namespace_session.hh": "100644:85346f2321ad25682097f676fa835d7448317bc2",
+            "include/detent_delivery/publication_sink.hh": "deleted",
+            "include/detent_delivery/response.hh": "100644:fe67d9dd4fe2e1bd36d7a83b0d9ed5d03c4217a3",
+            "include/detent_distribution/frame_input.hh": "100644:9f24928120113c46799ebf9acbbf0ee91cf6234f",
+            "include/detent_distribution/history.hh": "100644:9410e8a0abc93f95b75b75013f04c9cbe7442991",
+            "include/detent_distribution/messagepack.hh": "100644:d993a869565d6e422dbd36cc8ad4cf3fe4883bad",
+            "include/detent_distribution/protocol.hh": "100644:585a692cb42583da841c1c0a9f164575f64201d3",
+            "include/detent_distribution/session_frames.hh": "100644:e6be69a6dc7b68b6dc0cc064d49304ecb2ced257",
+            "include/detent_distribution_http/session_request.hh": "100644:662f7f605c979a50af58f81824793c8d34350999",
+            "include/detent_local/agent_store.hh": "100644:fc5cff4ba304e22caf41f5d3ca9d5d79972b3b6a",
+            "include/detent_local/builder.hh": "deleted",
+            "include/detent_local/client_source.hh": "100644:efd712b2da777782c87e08c2ec34687df8764de9",
+            "include/detent_local/derived_ids.hh": "100644:32cb6cc4b799d02a84a7da519adf10cc175cd145",
+            "include/detent_local/disk_ledger.hh": "100644:7db32057e1625ac04471a0407523b2bacffabbc0",
+            "include/detent_local/disk_store.hh": "100644:f4c8de976040504642bf986c47f15f5100e4fbda",
+            "include/detent_local/generation.hh": "100644:2d7fa20655d68c17dce5bfcba693906f6eb5fa4f",
+            "include/detent_local/identity_reset.hh": "100644:1474bf1e4f8e3eda7697b90fd90f854540733f92",
+            "include/detent_local/layout.hh": "100644:28c8f032ebad0f3b222000e6843a3b4899395f7f",
+            "include/detent_local/paged_layout.hh": "100644:e62414a59ad38464ee607a11d4140a312537a12f",
+            "include/detent_local/reader.hh": "100644:62f6e38d56bfdb9442cd23337addf5780439a005",
+            "include/detent_local/store_table.hh": "100644:dd1a34ace9532fc60cd1a74bf02e578196490cdb",
+            "include/detent_local/view.hh": "100644:541c1a0ce418276e99e798ebe364feb80dc9d084",
+            "include/detent_relay/bundle.hh": "deleted",
+            "include/detent_relay/configuration.hh": "100644:2b168398dff0762f25fa661e24bf58864abeaa32",
+            "include/detent_relay/http_upstream.hh": "100644:229110fd2ba0fde5d088421340e50b14b7dddbdb",
+            "include/detent_relay/mirror_service.hh": "100644:31d5ac61969f34d41203f3ded298c47570495350",
+            "include/detent_relay/namespace_relay.hh": "100644:c27e3d8e543c1d96d5eeaf93fccff94be4ce58f8",
+            "include/detent_relay/registry.hh": "100644:3bab87ae84b84ec5f292696cf05982dcb8d60a49",
+            "include/detent_relay/service.hh": "100644:d626816e953057683b95c7e1fe926af294bce4ec",
+            "include/detent_relay/service_limits.hh": "100644:47f10a662689f9556e8742c98e1e98802cf13f8d",
+            "include/detent_relay/sessions.hh": "deleted",
+            "src/CMakeLists.txt": "100644:2d7b6148ea512bd522adb5c65856e42be4de14da",
+            "src/detent/client.cc": "100644:6943b26d92a7741c7d111a9d6444c7fcebc9895a",
+            "src/detent/cursor.cc": "100644:92f2544ab6f2b18f86d4c84180e924b49ced94ee",
+            "src/detent/read_view.cc": "100644:aa788ca169962334d1d5f1b048717f4d9590cc19",
+            "src/detent_agent/config.cc": "100644:b93b50d449a21d9a0d96dc595c01a65d61096b29",
+            "src/detent_agent/main.cc": "100644:683a311747eaba89d9d2f9edaf008bffb725d26d",
+            "src/detent_agent/managed_host.cc": "100644:6dd7bc5696459c72e13f55234b966ac8fe2cf5e2",
+            "src/detent_agent/managed_host_internal.hh": "100644:6877521fd5ded1aba8973af03c9ebc78bc6c7bef",
+            "src/detent_authority/frames_export.cc": "100644:882131b9540f8026d5c5aca8072b59be056e26db",
+            "src/detent_authority/frames_export.hh": "100644:d9154903a753515df3c337121d9d2901589f9bd6",
+            "src/detent_authority/node.cc": "100644:42bf9709bbf022018fb1acf9f7ff1d1beb884173",
+            "src/detent_authority/service.cc": "100644:c467969432c2d29e82fbe8efab906f689302e34b",
+            "src/detent_authority/service.hh": "100644:265d956747912d407bd72879ae5dc4c47fa1f309",
+            "src/detent_authority/state.cc": "100644:b2a1bd88976e88545760dbaf7453ecce92e5d54b",
+            "src/detent_authority/state.hh": "100644:abf895346d94dc405522b21d273e72b1dd873a5b",
+            "src/detent_delivery/CMakeLists.txt": "100644:5a15eb0ead4e9c8a3547531480e7c9ce2f78f609",
+            "src/detent_delivery/client.cc": "100644:fe38729485de7b9fb6b7894296b701eb28f95c5f",
+            "src/detent_delivery/client_probe_internal.hh": "deleted",
+            "src/detent_delivery/configuration.cc": "100644:b5253dc4d8c7187d34b83195aff3398e2f363633",
+            "src/detent_delivery/connection_cache.cc": "100644:6bde814723e1624dd3154b46d16ab4a3dd92b59d",
+            "src/detent_delivery/coordinator.cc": "100644:e59a34d906d9a83512a39af79ba17c2a3a353b07",
+            "src/detent_delivery/coordinator_internal.hh": "100644:8cda63d2e9273498795be4d4e1ddd4604cb25489",
+            "src/detent_delivery/delta_transfer.cc": "100644:a1de9fd955b269dd7400fd1a27f4eed7f1368fd9",
+            "src/detent_delivery/delta_transfer.hh": "100644:89c09f5cccf42f9967f0a2961d320ae250883b53",
+            "src/detent_delivery/namespace_session.cc": "100644:18e10bd28ab0712933b693bac250c71fe533b797",
+            "src/detent_delivery/response.cc": "100644:28b76a2355fb2ec39e5674c05914cb36211cf04c",
+            "src/detent_delivery/response_probe_internal.hh": "deleted",
+            "src/detent_distribution/CMakeLists.txt": "100644:c89ae742bc18f6e9fa57a99dc85ab70275fdce6f",
+            "src/detent_distribution/frame_encoder.cc": "100644:577404647b99e96f9456e27158b67a03acc053f9",
+            "src/detent_distribution/frame_input.cc": "100644:4f642ec56745599d791b1829ec3f3e0a572a0200",
+            "src/detent_distribution/protocol.cc": "100644:590f21246b42dd9c2e9876535663387bc2d24a0b",
+            "src/detent_distribution/session_frames.cc": "100644:315c9819f747081abf91e20606259fddaf4b66d2",
+            "src/detent_distribution_http/session_request.cc": "100644:dd9eabd96c395db4608487aefad57c7311512940",
+            "src/detent_local/CMakeLists.txt": "100644:3d121808814832b7d92927b6354fb354dc7147bf",
+            "src/detent_local/agent_store.cc": "100644:e552197e4bc66210ffd15ef1486e667b5285ee00",
+            "src/detent_local/applied_base_source.hh": "deleted",
+            "src/detent_local/applied_source.hh": "deleted",
+            "src/detent_local/borrowed_definition.cc": "100644:0d5aaddf7a1f93f343623800eecbb22c4adaebd2",
+            "src/detent_local/borrowed_definition.hh": "100644:8d4a8e4c3423e4a1075b7df87e18815db8739222",
+            "src/detent_local/builder.cc": "deleted",
+            "src/detent_local/candidate_flat_validator.cc": "deleted",
+            "src/detent_local/candidate_flat_validator.hh": "deleted",
+            "src/detent_local/client_source.cc": "100644:bc3e05b5fce5c0086a75b4c3ab0e54d0a5e89979",
+            "src/detent_local/derived_ids.cc": "100644:1032dd4fea5c69292f7abb2f167d2d67158e55fa",
+            "src/detent_local/disk_store.cc": "100644:4c93e743b46be8c5a663810e6d6e137c5e0da2b9",
+            "src/detent_local/evaluation.hh": "100644:cb6c1be60786a9bc34043db1b7d011e7f2493dc4",
+            "src/detent_local/flat_state_rows.hh": "deleted",
+            "src/detent_local/generation.cc": "100644:9f04cbe8427416e75aacaf1ce98592381e22e6ce",
+            "src/detent_local/generation_file_access.hh": "100644:cc9821ed1907c3d56cf995afea236abf390038e5",
+            "src/detent_local/layout.cc": "100644:62f607989f737171e45a54531aac8b9fc06a7249",
+            "src/detent_local/lazy_page_access.cc": "100644:733c3b7c0ef815000410c5ae222ef7e2218c6bad",
+            "src/detent_local/leased_paged_root.hh": "100644:271f8e5281429610fe6644f3ccbc7484087c75c4",
+            "src/detent_local/managed_recovery.hh": "100644:594efb7858d23e7e4666024ff675ca2cec702f0a",
+            "src/detent_local/paged_canonical_copy.cc": "100644:415dd16956022aab7eead2605fc75c8e7a158433",
+            "src/detent_local/paged_canonical_copy.hh": "100644:73367e317d78289ee4d9af5e87a5f9be49b70cd7",
+            "src/detent_local/paged_delta_leaves.cc": "100644:c9d8d1a4777f150c4d70447a5fd264e2e75e412c",
+            "src/detent_local/paged_delta_leaves.hh": "100644:37b75c29113dd1d73219e4b119dde9ad98d672a9",
+            "src/detent_local/paged_graph_validator.cc": "100644:010a93d381cb34261150162abd52343ce70ac71d",
+            "src/detent_local/paged_layout.cc": "100644:24f167ba4cc4005488303637fee76e650390789d",
+            "src/detent_local/paged_maintenance_plan.cc": "100644:d738c91b1a9e7c8100a338b74e0cb1614b3b267d",
+            "src/detent_local/paged_maintenance_plan.hh": "100644:5e8b96a33ff8857a9f5f3cfbc490441e3fa11a4f",
+            "src/detent_local/paged_overlay_assembler.cc": "100644:84257be960b5d6133845ed9c6a19b15eabc7ee0b",
+            "src/detent_local/paged_overlay_assembler.hh": "100644:679c978ef6d1faa9da02cc491c64072d8a7eba7e",
+            "src/detent_local/paged_plan.cc": "100644:d1f6a2c4361a101c0ca63e211f737596ead67ec2",
+            "src/detent_local/paged_plan.hh": "100644:c67c82eb60304a288432f7ff10acc2811afbec5b",
+            "src/detent_local/paged_read_state.cc": "100644:1eecd78d63f1b8a437f632629fa2f76ea39c7828",
+            "src/detent_local/paged_root_prefix.cc": "100644:aafefbade06eb968181a9eedf51d476746d986a0",
+            "src/detent_local/paged_root_prefix.hh": "100644:4a05937f70695cb659999cc6d45671ebef66e05e",
+            "src/detent_local/paged_snapshot_builder.cc": "100644:364c360c44a19299bfcecc6f1d32a53196e0a369",
+            "src/detent_local/paged_snapshot_builder.hh": "100644:1bb022dc61fb18ec087d478be4835a9916ef0d1b",
+            "src/detent_local/paged_snapshot_plan.cc": "100644:f3f0899cdcfb72f6372edf202bb140ce9e840375",
+            "src/detent_local/paged_snapshot_plan.hh": "100644:5eed227e57098f682c635807b4ef356e6e5b45e3",
+            "src/detent_local/paged_snapshot_source.cc": "deleted",
+            "src/detent_local/paged_snapshot_source.hh": "deleted",
+            "src/detent_local/paged_state_equivalence.hh": "100644:5188287e19aaf55ebb9c4c939886237f4c849176",
+            "src/detent_local/paged_transfer.cc": "100644:1f6369d64d407b721f24ebcb612e9238f3ebc94f",
+            "src/detent_local/paged_transfer.hh": "100644:5c8ce9d8d57f8f8de02b2a83d26dca3bc1ab66cd",
+            "src/detent_local/paged_transfer_plan.cc": "100644:572abc805563841a088aee20bbb35564ad1ce93b",
+            "src/detent_local/paged_transfer_plan.hh": "100644:4d56b745313fcf009cd9e4ed252e66742af6aa6e",
+            "src/detent_local/paged_warm_validator.cc": "100644:651931eddbf3201d9c120e185c75ba5170825a2d",
+            "src/detent_local/pinned_source.hh": "deleted",
+            "src/detent_local/prepared_reader.cc": "100644:10d180cd862be984349c54e2d913a8087f38919f",
+            "src/detent_local/prepared_reader.hh": "100644:7b7ad5c1256a338b104198dc2e1802cac145ede6",
+            "src/detent_local/read_root.hh": "100644:06fd1c61bf504d118cdcb5b99c1eb34d0403cc3b",
+            "src/detent_local/reader.cc": "100644:dc54e77587881b5c114a7ed0421fb11686a03947",
+            "src/detent_local/recovery_context.hh": "100644:49f2a0a2b6bd6e50afb2cc087367e3ac321f1d84",
+            "src/detent_local/snapshot_source.cc": "deleted",
+            "src/detent_local/snapshot_source.hh": "deleted",
+            "src/detent_local/sparse_plan_finalizer.cc": "100644:0061644ded806474f941d828d33dd08a86f0b573",
+            "src/detent_local/sparse_plan_finalizer.hh": "100644:7154031fa27428df89a868254bf234055c8113c5",
+            "src/detent_local/state_cursor.cc": "100644:782e524b697d6ba763c1ed13d1778b2270dcf7b7",
+            "src/detent_local/state_cursor.hh": "100644:f74b1e7d87fee63a5d383dd30db294feb2632300",
+            "src/detent_local/state_equivalence.cc": "100644:d3f22b6293856eb89a54bdb9bce2ce29ca3b0bbc",
+            "src/detent_local/state_equivalence.hh": "100644:a2e732c05594086b1957ffb58743ff8fbaa0014e",
+            "src/detent_local/store_core.hh": "100644:c8efb24aa025d7c61c5bf243ff90b45e7526e98e",
+            "src/detent_local/store_table.cc": "100644:23b045749027f1f349cb783129b10d7f4704181d",
+            "src/detent_local/validated_flat_state.hh": "deleted",
+            "src/detent_local/view.cc": "100644:8a978471667b166b2a8d839931793bd7f029711e",
+            "src/detent_local/warm_recovery_eligibility.hh": "100644:25b826ea2862c080c5fb1f8b06e06d043b4f1f28",
+            "src/detent_relay/CMakeLists.txt": "100644:80813901b63213e6d0a54f42ae7577186571b2c1",
+            "src/detent_relay/bundle.cc": "deleted",
+            "src/detent_relay/configuration.cc": "100644:dd5cbc6523a2b6c811b578823ed7368e08133e33",
+            "src/detent_relay/host.cc": "100644:bbe4887e787ae43d5829a346954e3241505f0de2",
+            "src/detent_relay/host.hh": "100644:b0aa0937f6b92cb699560745408b6b8873d2e7c9",
+            "src/detent_relay/http_upstream.cc": "100644:84325f459ce9230b81be60c8881484ff1171d9c8",
+            "src/detent_relay/main.cc": "100644:cbbb750f226cdc6fd0669124cdd9cf096d2cde51",
+            "src/detent_relay/mirror_service.cc": "100644:7777b66c3ae538e5c216016b704e9b3221433dad",
+            "src/detent_relay/namespace_relay.cc": "100644:2959b0a2bee817085efc137220f213a9abf3440c",
+            "src/detent_relay/page_copy.cc": "100644:27c824a5c2b4d433eff776e0c276f9b2b0df55dd",
+            "src/detent_relay/page_copy.hh": "100644:f9376719964f07da4f0fbbc809be6a91bfdfc529",
+            "src/detent_relay/page_window.cc": "100644:b85ccba6c95cdab599608dd23a5727590ea834de",
+            "src/detent_relay/page_window.hh": "100644:9c85b4b8f0f5b9eee405d79fcb2dc0bc2d143abc",
+            "src/detent_relay/registry.cc": "100644:122f75f3a6624bc3d21e0087c5e68dcf7a1bcd9b",
+            "src/detent_relay/service.cc": "100644:3463f12087a0d11f66a52b9ce895bbdc89eebab7",
+            "src/detent_relay/sessions.cc": "deleted",
+            "src/detent_testing/generation_writer.cc": "100644:9ab9b8f5c7457bda12b830aecefd732b9388f11f",
+            "tests/ctest_mutant.sh": "100755:74f2d926682c219e6c939178e22d171bc88f0818",
+            "tests/detent_agent/CMakeLists.txt": "100644:71679ba87473e1bc084dd45a21fb76773611b2c5",
+            "tests/detent_agent/agent_store_fixture.hh": "100644:8e919719855900893e7552323dc4aac2865dc243",
+            "tests/detent_agent/test_agent_catch_up.cc": "100644:abd7b7558cb0b6e6cdf6df1d8bbaf7cbfa461f7a",
+            "tests/detent_agent/test_agent_store.cc": "100644:2fc0ca024777798aa797d753eeeb5cb8b8733cc8",
+            "tests/detent_agent/test_frame_input.cc": "100644:09750be5aad66607ef6531febad9232a0aeac079",
+            "tests/detent_authority/CMakeLists.txt": "100644:1daf81a5289d5c058e99d82ff6c5d210fde19343",
+            "tests/detent_authority/test_distribution_service.cc": "100644:909128c47d12f891b143edfdca3d7956ff0be57d",
+            "tests/detent_authority/test_frames_export_buffers.cc": "100644:10ecb5f792a5350851a9af80af5bcb6ece5f5090",
+            "tests/detent_authority/test_history_layout.cc": "100644:a75a2bd3e75f2273509f3f9b049a1945fd14bfeb",
+            "tests/detent_authority/test_history_ranges.cc": "100644:667b7dd73fbc5d74b5f43d9e70b18a4b7e11931a",
+            "tests/detent_authority/test_history_ranges_mutant_unbounded.patch": "100644:81dee7ffd270e3bedd9b566f27f9f73b898181f9",
+            "tests/detent_delivery/CMakeLists.txt": "100644:690dfa610cdf7c12915dbf48112901ae308a2c2c",
+            "tests/detent_delivery/bootstrap_tls_fixture.hh": "deleted",
+            "tests/detent_delivery/coordinator_agent_fixture.hh": "100644:423ed64a537cc8b0133b17c70630c63ec9ad5563",
+            "tests/detent_delivery/mutants/d1-root-after-write.patch": "100644:a4e4d29a803d39bd6f0b70e47df65c12cf4da2f1",
+            "tests/detent_delivery/mutants/d139-agent-publishes-below.patch": "100644:17e5f42a6f26f393c5a91ddfca162ce7405a7662",
+            "tests/detent_delivery/mutants/d139-repair-takes-entries.patch": "100644:2e64f3e4146357ccea4a7b5fe7a8c770402e8ab7",
+            "tests/detent_delivery/mutants/f1-stuck-delta-not-repaired.patch": "100644:de79f66f8532bb0ffe20a8771acd7a3082b02e50",
+            "tests/detent_delivery/mutants/f3-cut-prefix-dropped.patch": "100644:59f9d3a227136c705369148a535318ddf21b8af1",
+            "tests/detent_delivery/mutants/f5-records-root-unchecked.patch": "100644:40f0169dcb99fd0dc030c7091e8682bdd6d83430",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "100755:b38d3f08ac3de3182b2cae22e64a8b70d7742961",
+            "tests/detent_delivery/mutants/s4-f1-shared-counters.patch": "100644:f8fc54d2fed2f37d0f6d89544a8ed1eba818ab90",
+            "tests/detent_delivery/namespace_server_fixture.hh": "100644:333fb7d781b5688fc366eac9d8587ea726a58a6e",
+            "tests/detent_delivery/relay_delta_probe.sh": "deleted",
+            "tests/detent_delivery/relay_delta_shutdown.cc": "deleted",
+            "tests/detent_delivery/relay_network_fixture.hh": "deleted",
+            "tests/detent_delivery/relay_service_fixture.hh": "deleted",
+            "tests/detent_delivery/scripted_upstream.hh": "deleted",
+            "tests/detent_delivery/test_bootstrap_retention.cc": "deleted",
+            "tests/detent_delivery/test_bundle_maintenance.cc": "deleted",
+            "tests/detent_delivery/test_client.cc": "deleted",
+            "tests/detent_delivery/test_connection_cache.cc": "100644:4cdd731ad33d3b7410e08f2e93a4261f866478c5",
+            "tests/detent_delivery/test_coordinator.cc": "deleted",
+            "tests/detent_delivery/test_coordinator_teardown.cc": "100644:6eec38caeb9345daa6a2c46041d4eede18ba5c82",
+            "tests/detent_delivery/test_delta_transfer.cc": "100644:10994c55d543c48604ea79b9a2224643682f62f5",
+            "tests/detent_delivery/test_hash_once.cc": "deleted",
+            "tests/detent_delivery/test_managed_config.cc": "100644:c8a9c174f7b1c7c45f6ab2444b8977b7d01ac7e4",
+            "tests/detent_delivery/test_managed_process.sh": "100644:00187a29f1093ec923aa6ce328e3f838fc07d771",
+            "tests/detent_delivery/test_managed_readiness.cc": "100644:1ff60c56cf44352d9baadb51de608c6fbea9676f",
+            "tests/detent_delivery/test_namespace_coordinator.cc": "100644:7aae7d0c4772eed0ccec356293a7f501ab008207",
+            "tests/detent_delivery/test_namespace_session.cc": "100644:b3a47e2603aae56671ee847027b881d622906a8e",
+            "tests/detent_delivery/test_pages_coordinator.cc": "100644:0ff6ead71c860d7dd37dc9827868f96e41d521a9",
+            "tests/detent_delivery/test_preparation_deadline.cc": "deleted",
+            "tests/detent_delivery/test_prepared_startup.cc": "deleted",
+            "tests/detent_delivery/test_probe_client.cc": "deleted",
+            "tests/detent_delivery/test_probe_response.cc": "deleted",
+            "tests/detent_delivery/test_reconnect_cancel.cc": "100644:b648d65cbf8ef03c46d2695fcc1443f738288411",
+            "tests/detent_delivery/test_relay_config.cc": "deleted",
+            "tests/detent_delivery/test_relay_registry.cc": "deleted",
+            "tests/detent_delivery/test_repair.cc": "deleted",
+            "tests/detent_delivery/test_response.cc": "deleted",
+            "tests/detent_delivery/test_session_request.cc": "100644:df4585c25d77e7a1a4fb21f0aa532ecd78de1c9a",
+            "tests/detent_delivery/test_worker.cc": "100644:51fb8cb31004e02caa56a29d27b2493178e711e7",
+            "tests/detent_delivery/verify_local_format.py": "100644:2326b6bde33d4ee3900637d0d3f8d896deef57cd",
+            "tests/detent_distribution/test_frame_encoder.cc": "100644:cf2bff643f572e69d5d02e04119a0940c9217442",
+            "tests/detent_distribution/test_session_frames.cc": "100644:2a40d7a9506519018fb313a2d851ab528bfa01bc",
+            "tests/detent_local/CMakeLists.txt": "100644:599c0dd87c1c43e5e846528149cdc39bf4e44c67",
+            "tests/detent_local/dense_fixture.hh": "100644:d76dafa88e68ba1864c5b563d5b177ab4906ae2e",
+            "tests/detent_local/dense_graph_fixture.hh": "100644:49634a37647b472354b1d76c229b4407e4153686",
+            "tests/detent_local/derived_names_grep.sh": "100755:206f0a24d5f30d335325b5cf1c7be5d5a67e2871",
+            "tests/detent_local/mutants/f1-unbound-transfer.patch": "100644:6e22045919f376af6065d58991823bfe5ac4efef",
+            "tests/detent_local/mutants/f7-d5-packing-unchecked.patch": "100644:ec5ea8702e0abef3796bbbdd730b3697001b5f40",
+            "tests/detent_local/mutants/s7-flat-live-private-ledger.patch": "deleted",
+            "tests/detent_local/paged_progress_fixture.hh": "100644:db0eac6817b51cd320e1737e575172c297d2bfce",
+            "tests/detent_local/snapshot_fixture.hh": "100644:bf78e41626866cd8c61a511c0e9e8b5008a156f6",
+            "tests/detent_local/test_applied_builder.cc": "deleted",
+            "tests/detent_local/test_borrowed_definition.cc": "100644:629802e67585329a2802dade9e4b8b245822849f",
+            "tests/detent_local/test_builder.cc": "deleted",
+            "tests/detent_local/test_client_source.cc": "100644:322cec64f43d881144ce2722045a9da1df53237d",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "100644:3490d879bab1671d518bd37456d709120c5f6c50",
+            "tests/detent_local/test_dense_fullbuild.cc": "100644:73060794ef13f7db62f260069830206d45b2f37c",
+            "tests/detent_local/test_dense_reads.cc": "100644:6233c64504db22ecc56a3fc9ce1b9946012f3eb3",
+            "tests/detent_local/test_derived_names.cc": "100644:7f598cad7ae6a74ca190617c96aa5cc65552cd52",
+            "tests/detent_local/test_disk_ledger.cc": "100644:9f8200e4cada0c43d26a259a419755d40a89b1c7",
+            "tests/detent_local/test_disk_store.cc": "100644:d93e22888660b132df448801feb3338fa3afaf39",
+            "tests/detent_local/test_foreign_generation.cc": "100644:a08b7797af3f72b9dcd20f270befbefd36ad87ff",
+            "tests/detent_local/test_identity_reset.cc": "100644:1856eb82594e860f1eb13c456e6f7a740b4c905b",
+            "tests/detent_local/test_layout.cc": "deleted",
+            "tests/detent_local/test_lazy_page_access.cc": "100644:8a0966b104c12013399d3e6ce504c10ecfa88c8e",
+            "tests/detent_local/test_managed_reader.cc": "100644:456cc9813e3f53a9272a468ee087213840a9629b",
+            "tests/detent_local/test_mapped_recovery_admission.cc": "100644:2c36178ea205b61f341105ce3f4a91078d618126",
+            "tests/detent_local/test_paged_canonical_copy.cc": "100644:08166807c2f8dffdf5cfb9b12f17639d9566e031",
+            "tests/detent_local/test_paged_delta_leaves.cc": "100644:46b9bfa513a486a4e5c0c996d0af7bf985599ed1",
+            "tests/detent_local/test_paged_delta_plan.cc": "100644:152369533c1f589450850b53faeac278129a4479",
+            "tests/detent_local/test_paged_export.cc": "deleted",
+            "tests/detent_local/test_paged_layout.cc": "100644:3f79764ad3c64eea2b82c3c3ad5f4e8e0d48d5d5",
+            "tests/detent_local/test_paged_maintenance.cc": "100644:66333a698c6ceaae2831878e9274fd07d121dd68",
+            "tests/detent_local/test_paged_overlay_assembler.cc": "100644:0025d0398ed3348c20d6640f4e2ca5bed84232e8",
+            "tests/detent_local/test_paged_plan.cc": "100644:b4feb6ca8413ff423d2d9a95a6236ad80ad9d83c",
+            "tests/detent_local/test_paged_progress_recovery.cc": "100644:a2efb20dcfc95bb320397c9f50276be99c35054d",
+            "tests/detent_local/test_paged_recovery.cc": "100644:a6f457923015cb4b52c439914e20fab27b41bda1",
+            "tests/detent_local/test_paged_reuse.cc": "100644:13ec62253243c70b4251947e6261583513be3512",
+            "tests/detent_local/test_paged_root_prefix.cc": "100644:2d90575ef0185a5e4cb28797ddea19799344b1a2",
+            "tests/detent_local/test_paged_root_reclaim.cc": "100644:4401dfbd3937ab5b4f9334a5496bcfb7f2f8769c",
+            "tests/detent_local/test_paged_snapshot_builder.cc": "100644:ed23abd865871f5df6e5d689f31a18a0b9a9c125",
+            "tests/detent_local/test_paged_snapshot_plan.cc": "100644:d455e1415ee93cf0bd8ec117e5e035449429d469",
+            "tests/detent_local/test_paged_store_startup.cc": "100644:228d35e55428033833ec1b5ff2c61e6b23626a7e",
+            "tests/detent_local/test_paged_transfer.cc": "100644:78b086defc236f81d779bc52920fcf17cda13912",
+            "tests/detent_local/test_paged_trie_overlay.cc": "100644:d3454be951e9ac4ae67e1e06a1ad86b7f4a8565b",
+            "tests/detent_local/test_pinned_source.cc": "deleted",
+            "tests/detent_local/test_reader.cc": "100644:211378860c006d5d925b8c79f3ebaeb52daa5123",
+            "tests/detent_local/test_state_equivalence.cc": "100644:5619e3a96c6310419156b674c20223fd959547f9",
+            "tests/detent_local/test_view.cc": "deleted",
+            "tests/detent_local/trusted_records.hh": "100644:4e6397028e6f233c469dc842421dbf52abfe6dcc",
+            "tests/detent_relay/CMakeLists.txt": "100644:5cef327b9d8120057c62310a19a2dc9e159c5c98",
+            "tests/detent_relay/delta_scenarios.hh": "100644:06a986cb418103a865719e107379cd5772a28f15",
+            "tests/detent_relay/delta_scenarios.py": "100644:cba9013f1588b9b88e87e9aa04591ae8e526090a",
+            "tests/detent_relay/mutants/answer-borrows.patch": "100644:9c15aa1a3b16b3c07b92f133079f467b711b503f",
+            "tests/detent_relay/mutants/build-on-mirror-thread.patch": "100644:071c40e3863036fe0701fd69993737074a15f8ac",
+            "tests/detent_relay/mutants/compressed-answer-unfitted.patch": "100644:de03f44c84fb80de3528a8502e7aafd58349743d",
+            "tests/detent_relay/mutants/d139-relay-copy-below.patch": "100644:a04e71c11c3230f2dd5ed6ffe1be02294b81b157",
+            "tests/detent_relay/mutants/mirror-answer-unwoken.patch": "100644:41bd63c43532c5634c7115e7e93daaddff72df92",
+            "tests/detent_relay/mutants/mirror-forgotten.patch": "100644:4329219621cf79904b2f40bde073f39e9c9d5cd2",
+            "tests/detent_relay/mutants/relay-history-default-limits.patch": "100644:d8f424473fe80865c6202fbc65677b83244d35a9",
+            "tests/detent_relay/mutants/relay-range-refused.patch": "100644:aec112f4dc958c25773c25fe2cf6ea44c24dba13",
+            "tests/detent_relay/mutants/relay-range-whole.patch": "100644:10f4d9c8acb4e147c4f390fa5bb355970854cff7",
+            "tests/detent_relay/test_http_upstream.cc": "100644:041f6b19d08c284755eb8c65c0bd89da99a80adf",
+            "tests/detent_relay/test_http_upstream_mutant_no_backoff.patch": "100644:85a1fe7e8088f298603f09f0dc775981bff53e80",
+            "tests/detent_relay/test_http_upstream_mutant_prefix_dropped.patch": "100644:798350ff0d74484d6256a96765c7880ceba0edbf",
+            "tests/detent_relay/test_http_upstream_mutant_whole_files.patch": "100644:374fd33d570e7ea3237ec955a1711f77cc946593",
+            "tests/detent_relay/test_page_window.cc": "100644:adef473dc2454fb7662d00ae1bd5a31920f185f3",
+            "tests/detent_relay/test_relay_config.cc": "100644:8eae72bceeba66dcafa463e0bb83593b5ecda372",
+            "tests/detent_relay/test_relay_pages.cc": "100644:2dcca97bf614b19243d7b248dc68e84949ca639c",
+            "tests/detent_relay/test_relay_registry.cc": "100644:a6302f7ea4733aede27f33d5418f4d0923f79a76",
+            "tests/detent_system/CMakeLists.txt": "100644:7fe84f4120e9c9ac0765bf022661c72a202a97b4",
+            "tests/detent_system/README.md": "100644:d1b8fcd84416c724ff54fbfe1a8a1f139456d12f",
+            "tests/detent_system/first_read_gate.py": "100644:e78708481e6e0e4c3ce44254889c8a8611b3f7b7",
+            "tests/detent_system/forcing/relay-root-forced.patch": "100644:8ae5e2becef7aed19a77fe28e2a45f2245fa2242",
+            "tests/detent_system/forcing/relay_pages_forced.sh": "100644:6176a768659628cea065acd6df2b54b0eb0190bb",
+            "tests/detent_system/local_oracle.cc": "100644:7e28250db516aa4208faec9ddf2663d50c47e534",
+            "tests/detent_system/managed.py": "100644:cc50b87c5a397fd8620047f9d7c96362ad7ac51b",
+            "tests/detent_system/mixed_oracle.cc": "100644:908d4eec776af05b8989e91a87879f4afe471ef8",
+            "tests/detent_system/mutants/positions-counted.patch": "100644:50a6da7227c6c9f0bf8c00c3d6f7e21435351501",
+            "tests/detent_system/mutants/stopped-relay-unwatched.patch": "100644:e0f051f0bdc8f78a9a68cdf291847861719a2405",
+            "tests/detent_system/oracle_capacity.hh": "100644:d867b682053ceb507c365f771e119db0f25fee87",
+            "tests/detent_system/run_partition.py": "100644:bf9cca836b2724ce390f0a55d690c21ec8aa46ee",
+            "tests/detent_system/run_relay_pages.py": "100644:56d24a0bef9f63853bbbefc0e0ee394b3fc58b24",
+            "tests/detent_system/run_trust_negatives.py": "100644:0c5e0b8d9e987170b8f01e804c2cd4c0947f1862",
+            "tests/detent_system/run_writers.py": "100644:d2b4c75114509e88fb5fc611527a091b956c355b",
+            "tests/detent_system/test_dual_stack.py": "100644:8e86d88e21652ca75c62de3cf1914a67c8c519b7",
+            "tests/detent_system/test_managed_case.sh": "100644:162aecbf7f3132360fd4145035974908c4c7226c",
+            "tests/detent_system/test_relay_pages.sh": "100755:5eda48e4c8d959e70b76be72c025750fce2a539d",
+            "tests/detent_system/test_writers.py": "100644:337c61526f31966f6a006b6a4605308b72f07400",
+            "tests/detent_system/writers.py": "100644:65ab45d68c00ab510b37906fd0d17c19ea92d1a0",
+            "tests/detent_testing/CMakeLists.txt": "100644:9da71a15f540cc2bd977d88ad00edc726b498d5e",
+            "tests/detent_testing/paged_transfer_fuzz.cc": "100644:62a4110b505c3f1f950903dd3c0d3fa69ac2be8d",
+            "tests/detent_testing/test_change_file.cc": "100644:3d51567c94cab20e459625b0c2164e06a360b44e",
+            "tests/detent_testing/test_generation_writer.cc": "100644:1c04299eda4203228cd348edc7a9d4b9808dc0f2",
+            "tests/detent_testing/test_trusted_restart.cc": "100644:47bbebb8af595c3dec24d4644484dae6f7ac7607",
+            "tests/detent_testing/transfer_fuzz.sh": "100755:657b33d2f6aa0c17f6f246d108a97fca76fefb67",
+            "tests/docs/docs_exceptions.txt": "100644:4783ffc9f62257d06f6d0b8a3875a8b35c4cfe2d",
+            "website/src/content/docs/architecture/delivery.md": "100644:d404b011f5c63a21bb572a4deb1e6f1476bb1bd9",
+            "website/src/content/docs/guides/live-updates.md": "100644:163a76549b357fbbacb2488fcbcf18038b6cec2f",
+            "website/src/content/docs/guides/managed-delivery.md": "100644:c288757d98a4e72e2d1fe25a71f5fe512f8c3c7d",
+            "website/src/content/docs/quickstart.md": "100644:ee1e1ec268585234f76828e1892b1a371711066f",
+            "website/src/content/docs/reference/cli/detent-agent.md": "100644:2294a239353cf779452fbfa2957e5a707642b7b7",
+            "website/src/content/docs/reference/cli/detent.md": "100644:08e4f9ab178b102ec217af8f248786b572b20a15",
+            "website/src/content/docs/reference/configuration.md": "100644:cb1bcb2be2fa55afb496c84614de2c87ce46a071",
+            "website/src/content/docs/reference/http-api/authority.md": "100644:13713197ec08d5d4c6900a74274521e7162be860"
+          },
+          "by": "review",
+          "commit": "1b0daf2156b7278b18da5358cf502b1af2031795",
+          "criteria": "14aa58350d3290be",
+          "diffs": {
+            "": "1b8f2c7fc41dd720",
+            ".github/workflows/ci.yml": "661bdfc2d3650395",
+            ".github/workflows/tls-fixture-diagnostics.yml": "ba99745213e8cf99",
+            "README.md": "1d65146bc059c319",
+            "benchmarks/CMakeLists.txt": "40440cf5bb40d700",
+            "benchmarks/detent_fleet_load.cc": "46307280d93d28b0",
+            "benchmarks/fleet_load.cc": "8e5d5f41ad1a4a54",
+            "benchmarks/fleet_load.hh": "882942958a2d9303",
+            "benchmarks/local_image_bench.cc": "49ff3f73c7a7f2f8",
+            "benchmarks/paged_recovery_bench.cc": "9ff410cad1ed58f4",
+            "benchmarks/relay_window_bench.cc": "c9033ed9f8c3f16e",
+            "docs/ACTORS.md": "b806cf8c7f9a0cf2",
+            "docs/CAPACITY_QUALIFICATION.md": "be30d80b981953ff",
+            "docs/CAPACITY_RUNTIME.md": "de6aadded30d734f",
+            "docs/FAST_CLIENT_ARCHITECTURE.md": "dde22f84726358e0",
+            "docs/LOCAL_IMAGE_FORMAT.md": "1156db5319290633",
+            "docs/PRODUCTION_CONTRACT.md": "9a09ad33b52bd8ff",
+            "docs/RELAY.md": "5be4dfa7aaee17be",
+            "docs/SERVICES.md": "2a62fb86eb1548c0",
+            "docs/USAGE.md": "c84d0d68b03a466f",
+            "docs/design/dense-distribution-model.py": "1b5b3abd750f0288",
+            "docs/design/namespace-delivery.md": "c681f42b99717288",
+            "docs/mechanisms/dense-pages.md": "117f01f91451ed83",
+            "docs/mechanisms/paged-transfer.md": "46e933cfdb3d4bf3",
+            "docs/mechanisms/recovery-digest-once.md": "9ff2ca40a671e10d",
+            "docs/perf/dense-distribution-bins.sh": "e184c09229449a37",
+            "docs/perf/dense-distribution-boot.py": "0c19cf25367704cf",
+            "docs/perf/dense-distribution-profile.py": "592560fb235b8dce",
+            "docs/perf/dense-distribution-row.sh": "57a76cdb6904c8bd",
+            "docs/perf/dense-distribution.md": "db2bd941ffd8f036",
+            "docs/perf/relay-window.md": "9edf9915c6210133",
+            "docs/status/namespace-s6.md": "711759342f0cacfb",
+            "docs/status/namespace-s8.md": "6930be75338b6e06",
+            "include/detent/config_trust_internal.hh": "643509acc08d774a",
+            "include/detent/cursor.hh": "97376dc02cdd329e",
+            "include/detent/read_view.hh": "b6a25cdab40c82d3",
+            "include/detent_delivery/client.hh": "6b652c83355f9ee0",
+            "include/detent_delivery/configuration.hh": "dd10e3cfb6b94071",
+            "include/detent_delivery/coordinator.hh": "943ea3ef6f86f35b",
+            "include/detent_delivery/namespace_session.hh": "32aecf81cba8a413",
+            "include/detent_delivery/publication_sink.hh": "cc8d50c24aa6bd46",
+            "include/detent_delivery/response.hh": "e168a0003263caac",
+            "include/detent_distribution/frame_input.hh": "aa2212caa661b411",
+            "include/detent_distribution/history.hh": "5dc7550ed11cfd03",
+            "include/detent_distribution/messagepack.hh": "10805843fa7f3cc7",
+            "include/detent_distribution/protocol.hh": "4d8752252acfc955",
+            "include/detent_distribution/session_frames.hh": "36d1582f7f1bb3de",
+            "include/detent_distribution_http/session_request.hh": "f0872498f68b5bda",
+            "include/detent_local/agent_store.hh": "651078743eec5c86",
+            "include/detent_local/builder.hh": "559d357e8861e9b8",
+            "include/detent_local/client_source.hh": "56af29d45d3e14b9",
+            "include/detent_local/derived_ids.hh": "c852add2cdfc9485",
+            "include/detent_local/disk_ledger.hh": "7a7dc7b6723df7e9",
+            "include/detent_local/disk_store.hh": "5f754486143ef93b",
+            "include/detent_local/generation.hh": "00f5e14160a7d803",
+            "include/detent_local/identity_reset.hh": "72b922005dd35aba",
+            "include/detent_local/layout.hh": "8d0bb5876a71307c",
+            "include/detent_local/paged_layout.hh": "6b7d5577a02d7c42",
+            "include/detent_local/reader.hh": "08c89f889ce613a7",
+            "include/detent_local/store_table.hh": "6bdbd113a8d210fa",
+            "include/detent_local/view.hh": "fe57296d9052723b",
+            "include/detent_relay/bundle.hh": "d5e44884dedb9e55",
+            "include/detent_relay/configuration.hh": "ea1164ad408618e6",
+            "include/detent_relay/http_upstream.hh": "b68ab80966052273",
+            "include/detent_relay/mirror_service.hh": "a9f74a898cc46dad",
+            "include/detent_relay/namespace_relay.hh": "8357d9e31dff5430",
+            "include/detent_relay/registry.hh": "f69d56f934cadf21",
+            "include/detent_relay/service.hh": "c5e5bcc5e7e5aa87",
+            "include/detent_relay/service_limits.hh": "3d1aa4cf21eb90a7",
+            "include/detent_relay/sessions.hh": "4b7bce33e6cae915",
+            "src/CMakeLists.txt": "a8ca7f6ffb0872b8",
+            "src/detent/client.cc": "23655e20197475c7",
+            "src/detent/cursor.cc": "3977cb4ccd40b0ec",
+            "src/detent/read_view.cc": "0b1034b70752124c",
+            "src/detent_agent/config.cc": "df9b306a479d5cd8",
+            "src/detent_agent/main.cc": "0b541f2eb1e38e69",
+            "src/detent_agent/managed_host.cc": "162188f59f70e577",
+            "src/detent_agent/managed_host_internal.hh": "5cd398dc56e4744d",
+            "src/detent_authority/frames_export.cc": "b812384494b6cd75",
+            "src/detent_authority/frames_export.hh": "23b94b40592b8965",
+            "src/detent_authority/node.cc": "89663f331bd72625",
+            "src/detent_authority/service.cc": "7cc7757fe6214c8d",
+            "src/detent_authority/service.hh": "3efd237d41812875",
+            "src/detent_authority/state.cc": "acde36e5d2a1eb41",
+            "src/detent_authority/state.hh": "478e4f7f19273b98",
+            "src/detent_delivery/CMakeLists.txt": "6c0d62a3bb89d674",
+            "src/detent_delivery/client.cc": "36c8a0d2c5ed64ed",
+            "src/detent_delivery/client_probe_internal.hh": "82775c4102c05c46",
+            "src/detent_delivery/configuration.cc": "356e305bc3d79be4",
+            "src/detent_delivery/connection_cache.cc": "dd7a9dcc38f53dc0",
+            "src/detent_delivery/coordinator.cc": "5473fd0aaaff1d1c",
+            "src/detent_delivery/coordinator_internal.hh": "9df02c38e6053d97",
+            "src/detent_delivery/delta_transfer.cc": "a1fcf34054fd7028",
+            "src/detent_delivery/delta_transfer.hh": "bb0b55aa39de5eb2",
+            "src/detent_delivery/namespace_session.cc": "b37c5bdb10984aca",
+            "src/detent_delivery/response.cc": "445dc98b60a05182",
+            "src/detent_delivery/response_probe_internal.hh": "17e0e54ee1afa2eb",
+            "src/detent_distribution/CMakeLists.txt": "8ed8fed5766835ad",
+            "src/detent_distribution/frame_encoder.cc": "c0c37d94850362f6",
+            "src/detent_distribution/frame_input.cc": "e6f526a371591b1c",
+            "src/detent_distribution/protocol.cc": "21e3616b0e885ef0",
+            "src/detent_distribution/session_frames.cc": "cc00f438f4e076ac",
+            "src/detent_distribution_http/session_request.cc": "ca7063c1a0292e85",
+            "src/detent_local/CMakeLists.txt": "8f9d7eb6d281eb01",
+            "src/detent_local/agent_store.cc": "8934f4bf9a81395e",
+            "src/detent_local/applied_base_source.hh": "cde6eb7892b0d089",
+            "src/detent_local/applied_source.hh": "a876a79d1aacafc9",
+            "src/detent_local/borrowed_definition.cc": "313c23f6f0106556",
+            "src/detent_local/borrowed_definition.hh": "92ba72536bec599b",
+            "src/detent_local/builder.cc": "753bae838e9ddd64",
+            "src/detent_local/candidate_flat_validator.cc": "d89f95a72a1ad9e3",
+            "src/detent_local/candidate_flat_validator.hh": "34f4556a81823963",
+            "src/detent_local/client_source.cc": "c911c9c81230dc99",
+            "src/detent_local/derived_ids.cc": "43a184ba8b315aef",
+            "src/detent_local/disk_store.cc": "66e2f7c3cf33c588",
+            "src/detent_local/evaluation.hh": "7acc7de69fcfad3d",
+            "src/detent_local/flat_state_rows.hh": "b0ea9037c0966010",
+            "src/detent_local/generation.cc": "04c1e1ba8e45db3e",
+            "src/detent_local/generation_file_access.hh": "6b6d667848a67675",
+            "src/detent_local/layout.cc": "110e26e03d1291ae",
+            "src/detent_local/lazy_page_access.cc": "e99365ca9f4892f8",
+            "src/detent_local/leased_paged_root.hh": "7c424dba14e330fd",
+            "src/detent_local/managed_recovery.hh": "1f9fa0cb426f3cd6",
+            "src/detent_local/paged_canonical_copy.cc": "518779e2c3e8c93c",
+            "src/detent_local/paged_canonical_copy.hh": "36e56cc96dc52eb1",
+            "src/detent_local/paged_delta_leaves.cc": "a0bdc5cb01ec1e42",
+            "src/detent_local/paged_delta_leaves.hh": "f723863701b8d0a4",
+            "src/detent_local/paged_graph_validator.cc": "e9ca147878e48885",
+            "src/detent_local/paged_layout.cc": "97c3051dcf630657",
+            "src/detent_local/paged_maintenance_plan.cc": "e48a343421931936",
+            "src/detent_local/paged_maintenance_plan.hh": "03d3a523b1f15cfc",
+            "src/detent_local/paged_overlay_assembler.cc": "cd30725338782152",
+            "src/detent_local/paged_overlay_assembler.hh": "7b8c793b7afe8654",
+            "src/detent_local/paged_plan.cc": "d90d36dffe25bb0f",
+            "src/detent_local/paged_plan.hh": "bedc4328bbac708e",
+            "src/detent_local/paged_read_state.cc": "2a866961034579c1",
+            "src/detent_local/paged_root_prefix.cc": "ab5e0176a3c641d0",
+            "src/detent_local/paged_root_prefix.hh": "2979b6b0030f497e",
+            "src/detent_local/paged_snapshot_builder.cc": "1403dc32717c84b2",
+            "src/detent_local/paged_snapshot_builder.hh": "9f489880bdd58328",
+            "src/detent_local/paged_snapshot_plan.cc": "9604d42f289df7d6",
+            "src/detent_local/paged_snapshot_plan.hh": "8461964fa13b9de9",
+            "src/detent_local/paged_snapshot_source.cc": "c97cb719b382a49b",
+            "src/detent_local/paged_snapshot_source.hh": "23a4a762cbff0347",
+            "src/detent_local/paged_state_equivalence.hh": "02acb51675530482",
+            "src/detent_local/paged_transfer.cc": "eb4ea7d8bb81d9cc",
+            "src/detent_local/paged_transfer.hh": "c13b3ff954c3e43d",
+            "src/detent_local/paged_transfer_plan.cc": "dbdf93931fd0c062",
+            "src/detent_local/paged_transfer_plan.hh": "f48115a42ae5360c",
+            "src/detent_local/paged_warm_validator.cc": "2cf8c5e1c41d0bdc",
+            "src/detent_local/pinned_source.hh": "7520750467dbeb0f",
+            "src/detent_local/prepared_reader.cc": "de6f702c731f1349",
+            "src/detent_local/prepared_reader.hh": "eef324648c5d268b",
+            "src/detent_local/read_root.hh": "d263cfc5749e7403",
+            "src/detent_local/reader.cc": "1442bddaabe14dcb",
+            "src/detent_local/recovery_context.hh": "55e0ce0b85aff009",
+            "src/detent_local/snapshot_source.cc": "8934abd0034ce5d1",
+            "src/detent_local/snapshot_source.hh": "f230e05429a7b0a4",
+            "src/detent_local/sparse_plan_finalizer.cc": "96a7ddb13d818f10",
+            "src/detent_local/sparse_plan_finalizer.hh": "3118eca5ca684df7",
+            "src/detent_local/state_cursor.cc": "343421823a15063e",
+            "src/detent_local/state_cursor.hh": "dd8d3747cd9b9d08",
+            "src/detent_local/state_equivalence.cc": "71f42dfaf155e8c9",
+            "src/detent_local/state_equivalence.hh": "f645c2601bd8d693",
+            "src/detent_local/store_core.hh": "2dfe62450dfecf8e",
+            "src/detent_local/store_table.cc": "9b97a210db941c00",
+            "src/detent_local/validated_flat_state.hh": "62a28fd264ed6714",
+            "src/detent_local/view.cc": "d87c1cde1cef3d34",
+            "src/detent_local/warm_recovery_eligibility.hh": "0303ab9964127206",
+            "src/detent_relay/CMakeLists.txt": "9c77150e458f60af",
+            "src/detent_relay/bundle.cc": "522f00fadb1e60a6",
+            "src/detent_relay/configuration.cc": "8a9d05f005a04d9b",
+            "src/detent_relay/host.cc": "239bbf8b4b5cd090",
+            "src/detent_relay/host.hh": "1fa9a7a495b00e6c",
+            "src/detent_relay/http_upstream.cc": "5d01897fce71602f",
+            "src/detent_relay/main.cc": "c85c8523cdefaef9",
+            "src/detent_relay/mirror_service.cc": "f9bc0053adb5a0a8",
+            "src/detent_relay/namespace_relay.cc": "af86b3a572dad60d",
+            "src/detent_relay/page_copy.cc": "9b0de4d28611f603",
+            "src/detent_relay/page_copy.hh": "ac02b00f92384caa",
+            "src/detent_relay/page_window.cc": "92f541b9dda0db9a",
+            "src/detent_relay/page_window.hh": "e940e7b44769b13a",
+            "src/detent_relay/registry.cc": "e2364f13ad13046d",
+            "src/detent_relay/service.cc": "e27e6ea61bb29d41",
+            "src/detent_relay/sessions.cc": "f8d0544f20854ba0",
+            "src/detent_testing/generation_writer.cc": "053fc8ad267673c3",
+            "tests/ctest_mutant.sh": "f8d1d4203afaa65c",
+            "tests/detent_agent/CMakeLists.txt": "f04022d1ee4f6840",
+            "tests/detent_agent/agent_store_fixture.hh": "6cca4b075458c651",
+            "tests/detent_agent/test_agent_catch_up.cc": "6373e1a94e588c6f",
+            "tests/detent_agent/test_agent_store.cc": "cc6fe8071bb1a4fc",
+            "tests/detent_agent/test_frame_input.cc": "8dee78ea8e1d0dec",
+            "tests/detent_authority/CMakeLists.txt": "dec8cfa59855fc78",
+            "tests/detent_authority/test_distribution_service.cc": "193aabbd0458dc36",
+            "tests/detent_authority/test_frames_export_buffers.cc": "1dee195758b7f0df",
+            "tests/detent_authority/test_history_layout.cc": "4ee0378423c114cb",
+            "tests/detent_authority/test_history_ranges.cc": "b8397a0c78673b17",
+            "tests/detent_authority/test_history_ranges_mutant_unbounded.patch": "43bbe861776b2304",
+            "tests/detent_delivery/CMakeLists.txt": "88ee06a06c3c0bb1",
+            "tests/detent_delivery/bootstrap_tls_fixture.hh": "016d24d9056ed74f",
+            "tests/detent_delivery/coordinator_agent_fixture.hh": "0e786c0e47657b2e",
+            "tests/detent_delivery/mutants/d1-root-after-write.patch": "5bd26c290b44cc00",
+            "tests/detent_delivery/mutants/d139-agent-publishes-below.patch": "7ee2e3ae1e97859c",
+            "tests/detent_delivery/mutants/d139-repair-takes-entries.patch": "c02760760e7f7313",
+            "tests/detent_delivery/mutants/f1-stuck-delta-not-repaired.patch": "9263d47d37ae1a80",
+            "tests/detent_delivery/mutants/f3-cut-prefix-dropped.patch": "e8e9a7ffaccc1020",
+            "tests/detent_delivery/mutants/f5-records-root-unchecked.patch": "54e48c815e2aa141",
+            "tests/detent_delivery/mutants/loop_idle_waits.sh": "38a1375125bf9159",
+            "tests/detent_delivery/mutants/s4-f1-shared-counters.patch": "0b52656ca28c7874",
+            "tests/detent_delivery/namespace_server_fixture.hh": "9a6319be80be45ad",
+            "tests/detent_delivery/relay_delta_probe.sh": "d7eb2b39c49bd284",
+            "tests/detent_delivery/relay_delta_shutdown.cc": "8bce827f5329a887",
+            "tests/detent_delivery/relay_network_fixture.hh": "a7eeaf906637cdc5",
+            "tests/detent_delivery/relay_service_fixture.hh": "d87b81c6c4048da1",
+            "tests/detent_delivery/scripted_upstream.hh": "1d098c82e274a833",
+            "tests/detent_delivery/test_bootstrap_retention.cc": "6108d361d2ff64f4",
+            "tests/detent_delivery/test_bundle_maintenance.cc": "9fede7605f05c95c",
+            "tests/detent_delivery/test_client.cc": "aa9de9f62f58dae2",
+            "tests/detent_delivery/test_connection_cache.cc": "dce39e908aa5f189",
+            "tests/detent_delivery/test_coordinator.cc": "5aca774fedf4c282",
+            "tests/detent_delivery/test_coordinator_teardown.cc": "e4580911cbc1aefb",
+            "tests/detent_delivery/test_delta_transfer.cc": "f0d7929db18922fe",
+            "tests/detent_delivery/test_hash_once.cc": "8c4ff3a124be51b7",
+            "tests/detent_delivery/test_managed_config.cc": "3651cb21c161a061",
+            "tests/detent_delivery/test_managed_process.sh": "69923b92d80348a4",
+            "tests/detent_delivery/test_managed_readiness.cc": "06f1db0a88fe86d1",
+            "tests/detent_delivery/test_namespace_coordinator.cc": "f2f5398b1a333e84",
+            "tests/detent_delivery/test_namespace_session.cc": "1e0742cd98acd325",
+            "tests/detent_delivery/test_pages_coordinator.cc": "41ec88b58fee7fe2",
+            "tests/detent_delivery/test_preparation_deadline.cc": "c4701d50f5c057a0",
+            "tests/detent_delivery/test_prepared_startup.cc": "fadc3eca626311d8",
+            "tests/detent_delivery/test_probe_client.cc": "3642e23b75f8fa8d",
+            "tests/detent_delivery/test_probe_response.cc": "18648cf3403313f1",
+            "tests/detent_delivery/test_reconnect_cancel.cc": "e395958fc7df6067",
+            "tests/detent_delivery/test_relay_config.cc": "5be5f7002a9fd1ad",
+            "tests/detent_delivery/test_relay_registry.cc": "94e9878338bc0f61",
+            "tests/detent_delivery/test_repair.cc": "07a5bb53d37d53d9",
+            "tests/detent_delivery/test_response.cc": "227eb7c734bb9ac3",
+            "tests/detent_delivery/test_session_request.cc": "223f569e31f23609",
+            "tests/detent_delivery/test_worker.cc": "82ee1214caa6ef1a",
+            "tests/detent_delivery/verify_local_format.py": "4fe8f28652c4a55d",
+            "tests/detent_distribution/test_frame_encoder.cc": "f5940f11b8131d86",
+            "tests/detent_distribution/test_session_frames.cc": "37f95db4e997310b",
+            "tests/detent_local/CMakeLists.txt": "99cd0deb642d8d50",
+            "tests/detent_local/dense_fixture.hh": "eec0c0cad95957b6",
+            "tests/detent_local/dense_graph_fixture.hh": "261ea56091eb802e",
+            "tests/detent_local/derived_names_grep.sh": "19d1eb6aa0304773",
+            "tests/detent_local/mutants/f1-unbound-transfer.patch": "b06240e548fd86e8",
+            "tests/detent_local/mutants/f7-d5-packing-unchecked.patch": "6c024e10a25a7eec",
+            "tests/detent_local/mutants/s7-flat-live-private-ledger.patch": "7da680c135f1000a",
+            "tests/detent_local/paged_progress_fixture.hh": "589f506ea7a9cc7d",
+            "tests/detent_local/snapshot_fixture.hh": "87a207e5be512eb6",
+            "tests/detent_local/test_applied_builder.cc": "f553d2b15882597a",
+            "tests/detent_local/test_borrowed_definition.cc": "6b369967ba4ba636",
+            "tests/detent_local/test_builder.cc": "e9a61f5a02ac9cf5",
+            "tests/detent_local/test_client_source.cc": "4fb0c36d21492722",
+            "tests/detent_local/test_delta_plan_moved_definitions.cc": "abe14038fe573581",
+            "tests/detent_local/test_dense_fullbuild.cc": "4ceea3a40abdee88",
+            "tests/detent_local/test_dense_reads.cc": "13f1b025f329e67f",
+            "tests/detent_local/test_derived_names.cc": "57c6fe3406edb033",
+            "tests/detent_local/test_disk_ledger.cc": "76fe5ce0f09ebe69",
+            "tests/detent_local/test_disk_store.cc": "4939dd08aa9968a0",
+            "tests/detent_local/test_foreign_generation.cc": "f9c5a9e01a17a559",
+            "tests/detent_local/test_identity_reset.cc": "f326eb36f2076aaf",
+            "tests/detent_local/test_layout.cc": "94d55299d38f6496",
+            "tests/detent_local/test_lazy_page_access.cc": "ea5c79354dc785a6",
+            "tests/detent_local/test_managed_reader.cc": "98c1a2ebfdf09990",
+            "tests/detent_local/test_mapped_recovery_admission.cc": "2c8afc8ba4243008",
+            "tests/detent_local/test_paged_canonical_copy.cc": "8fd95aa73a5cc99f",
+            "tests/detent_local/test_paged_delta_leaves.cc": "32c72defaeeed122",
+            "tests/detent_local/test_paged_delta_plan.cc": "66c7ffe3912b1afe",
+            "tests/detent_local/test_paged_export.cc": "a8901ac10a9ec9ce",
+            "tests/detent_local/test_paged_layout.cc": "594aa5d9b2949948",
+            "tests/detent_local/test_paged_maintenance.cc": "fe285bb6057f2194",
+            "tests/detent_local/test_paged_overlay_assembler.cc": "67f968c36a356092",
+            "tests/detent_local/test_paged_plan.cc": "753a11590d13af08",
+            "tests/detent_local/test_paged_progress_recovery.cc": "1bc36ed033cbd4f5",
+            "tests/detent_local/test_paged_recovery.cc": "de05ab546ff90a5e",
+            "tests/detent_local/test_paged_reuse.cc": "0ef408cdcd5c7962",
+            "tests/detent_local/test_paged_root_prefix.cc": "b51871e84e0a4eb7",
+            "tests/detent_local/test_paged_root_reclaim.cc": "fb8e3a16ae21bd65",
+            "tests/detent_local/test_paged_snapshot_builder.cc": "6bdbee58c3989b48",
+            "tests/detent_local/test_paged_snapshot_plan.cc": "0878cabd4b48f060",
+            "tests/detent_local/test_paged_store_startup.cc": "69081df939b87c6c",
+            "tests/detent_local/test_paged_transfer.cc": "3a59f06cc3573d7a",
+            "tests/detent_local/test_paged_trie_overlay.cc": "d001b585470de139",
+            "tests/detent_local/test_pinned_source.cc": "31aeb3e45c822427",
+            "tests/detent_local/test_reader.cc": "39467497493f1ed2",
+            "tests/detent_local/test_state_equivalence.cc": "19f54f3c90761249",
+            "tests/detent_local/test_view.cc": "07ca43dced693252",
+            "tests/detent_local/trusted_records.hh": "ca6c757805e84173",
+            "tests/detent_relay/CMakeLists.txt": "5aeae895bcace176",
+            "tests/detent_relay/delta_scenarios.hh": "f11737a30136b3d7",
+            "tests/detent_relay/delta_scenarios.py": "934ebeb6aa22b6b6",
+            "tests/detent_relay/mutants/answer-borrows.patch": "eb690c7051fa97b5",
+            "tests/detent_relay/mutants/build-on-mirror-thread.patch": "935e451cf61e11cc",
+            "tests/detent_relay/mutants/compressed-answer-unfitted.patch": "956bca9bdf152e30",
+            "tests/detent_relay/mutants/d139-relay-copy-below.patch": "77e7bc86675d2f31",
+            "tests/detent_relay/mutants/mirror-answer-unwoken.patch": "dfb7f8a76076e6f0",
+            "tests/detent_relay/mutants/mirror-forgotten.patch": "c0468cd23dc683ad",
+            "tests/detent_relay/mutants/relay-history-default-limits.patch": "7bba43c18a49f0a8",
+            "tests/detent_relay/mutants/relay-range-refused.patch": "e24b2f16195fab67",
+            "tests/detent_relay/mutants/relay-range-whole.patch": "30254054afd49eb8",
+            "tests/detent_relay/test_http_upstream.cc": "cd1a3b44ad027b90",
+            "tests/detent_relay/test_http_upstream_mutant_no_backoff.patch": "74f6b4fe2b2bb411",
+            "tests/detent_relay/test_http_upstream_mutant_prefix_dropped.patch": "3e001251eb8a6e07",
+            "tests/detent_relay/test_http_upstream_mutant_whole_files.patch": "31291d49a2397bdc",
+            "tests/detent_relay/test_page_window.cc": "dcc71129c1ac3563",
+            "tests/detent_relay/test_relay_config.cc": "2b9302f046f36cd5",
+            "tests/detent_relay/test_relay_pages.cc": "2fe4213f5ec82647",
+            "tests/detent_relay/test_relay_registry.cc": "4959e6218fac68af",
+            "tests/detent_system/CMakeLists.txt": "b9b526b4b64b0cdd",
+            "tests/detent_system/README.md": "7feaa53480583644",
+            "tests/detent_system/first_read_gate.py": "bc3b10b67075fadb",
+            "tests/detent_system/forcing/relay-root-forced.patch": "db4db730bbc7b817",
+            "tests/detent_system/forcing/relay_pages_forced.sh": "ab5614bd35056885",
+            "tests/detent_system/local_oracle.cc": "b5736343717676b6",
+            "tests/detent_system/managed.py": "31a96e85d7f0281c",
+            "tests/detent_system/mixed_oracle.cc": "a5104ce7506b6ff9",
+            "tests/detent_system/mutants/positions-counted.patch": "478cee98ed68b849",
+            "tests/detent_system/mutants/stopped-relay-unwatched.patch": "adf1ce587a5eac5d",
+            "tests/detent_system/oracle_capacity.hh": "58516bf0ddc07322",
+            "tests/detent_system/run_partition.py": "90e9ce3efe348b60",
+            "tests/detent_system/run_relay_pages.py": "7d957957042fbbab",
+            "tests/detent_system/run_trust_negatives.py": "c8bb58d700447d68",
+            "tests/detent_system/run_writers.py": "a996fa7f353bb528",
+            "tests/detent_system/test_dual_stack.py": "d269cdf73f56227a",
+            "tests/detent_system/test_managed_case.sh": "a1c957bf2ab6d2ef",
+            "tests/detent_system/test_relay_pages.sh": "b89f3661d0c45d92",
+            "tests/detent_system/test_writers.py": "cfc44382f7ea8a7d",
+            "tests/detent_system/writers.py": "8acb8ea8e09acac8",
+            "tests/detent_testing/CMakeLists.txt": "05c8a765b4a6ebc4",
+            "tests/detent_testing/paged_transfer_fuzz.cc": "2dee621d136f59b8",
+            "tests/detent_testing/test_change_file.cc": "cab66a186f5e7d69",
+            "tests/detent_testing/test_generation_writer.cc": "04f2bae23701c625",
+            "tests/detent_testing/test_trusted_restart.cc": "47bbf88bb75dd24c",
+            "tests/detent_testing/transfer_fuzz.sh": "2bd9f587837d827a",
+            "tests/docs/docs_exceptions.txt": "026a383066f81a31",
+            "website/src/content/docs/architecture/delivery.md": "a1119cdeb3ae8b7d",
+            "website/src/content/docs/guides/live-updates.md": "0a93b7c512aedb04",
+            "website/src/content/docs/guides/managed-delivery.md": "170e2bd7b6899815",
+            "website/src/content/docs/quickstart.md": "d20c29571fc6cf35",
+            "website/src/content/docs/reference/cli/detent-agent.md": "27267d87c1c72c48",
+            "website/src/content/docs/reference/cli/detent.md": "936d9e419cef643a",
+            "website/src/content/docs/reference/configuration.md": "913ca7d46403559d",
+            "website/src/content/docs/reference/http-api/authority.md": "b508da896a13528f"
+          },
+          "findings": {},
+          "note": "read main's change since the review: only docs/design/stash-scheduler-verdict.md (a new design note) and .campaign; no code under the quest",
+          "review": "a08e85d9c75669b275e4456b747f603ed768c1a6",
+          "reviewed": "eb3b443e53a2bb17f6cb0d479d48bbf516d84a3d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "7173c37c31f4427c636308338c86816b7c329c42",
       "branch": "quest/detent/dense-distribution-build",
@@ -7165,7 +9013,11 @@
         "tests/detent_distribution/test_frame_encoder.cc",
         "tests/detent_authority/test_frames_export_buffers.cc",
         "tests/detent_authority/CMakeLists.txt",
-        "tests/detent_distribution/CMakeLists.txt"
+        "tests/detent_distribution/CMakeLists.txt",
+        "tests/detent_delivery/mutants/d1-root-after-write.patch",
+        "tests/detent_system/mutants/stopped-relay-unwatched.patch",
+        "tests/detent_relay/mutants/mirror-answer-unwoken.patch",
+        "tests/detent_delivery/mutants/loop_idle_waits.sh"
       ],
       "history": [
         {
@@ -7195,16 +9047,46 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-21T13:10:33",
+          "commit": "1dcb82930e62d213fa97eacc2dbc15853b3fdbd1",
+          "criteria": {
+            "A1": "261121-120503-fef5bb (passed at 353ff12f3096; only 1 merge from main since, none touching its files), 261121-120536-71ecd1 (passed at 353ff12f3096; only 1 merge from main since, none touching its files); fails without: 261120-114010-d77302, 261120-120156-0e5cc8, 261120-120600-2910d1, 261120-125856-673c7a, 261120-125858-c2aa42, 261120-125901-306a49, 261120-125903-d6cacc, 261120-125906-d531ac, 261120-125908-7185f2, 261120-130720-4e5da1, 261120-130722-c1de00, 261120-130724-33d8ce, 261120-130727-a5032b, 261120-130729-9a8e6e, 261120-130731-c646f9, 261120-140717-ac69d9, 261120-140718-121ba1, 261120-140720-77337a, 261120-141019-07be70, 261120-141024-5b7b19, 261120-141026-8818b0, 261120-141032-1ff8f3, 261120-161540-0595dc, 261120-163556-fb7ed6, 261120-163559-ef4b37, 261120-163602-5a7ea7, 261120-224455-3acb56, 261121-062205-e19581, 261121-062207-f59e01, 261121-062223-e3ab93, 261121-062225-f9c3bf, 261121-091833-56989c, 261121-095235-fe4798, 261121-095237-6685ff, 261121-095239-fbb807, 261121-095309-093a8f, 261121-100630-8d1935, 261121-100633-2da50f, 261121-120500-bb7f6a",
+            "A2": "`ci:macos-arm64` (CI 44944355224 green at Detent:eb3b443e)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "1b0daf2156b7278b18da5358cf502b1af2031795",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "a196e97b9c006376b14a181c7f49e104f0f8b878",
+          "reason": "",
+          "tested": "1b0daf2156b7278b18da5358cf502b1af2031795"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "1dcb82930e62",
+          "at": "2026-11-20T05:10:50",
+          "by": "dense-distribution-build/v2-sessions",
+          "id": "msg-1",
+          "text": "To the namespace-local-cursor writer (relay via the lead if needed): (1) commit and push the flat-v1 removal as soon as it builds; I merge it before editing src/detent_local/disk_store.cc and coordinator.cc. (2) The coordinator moves to W5/W6 and speaks W1 natively: skip the coordinator's v1<->W1 boundary mapping; builders taking the W1 target from the caller is all I need. (3) The D8 multi-entry DiskStore (N named plans per cycle, selection and recovery by name) is mine; skip 'DiskStore's one entry named scope'. (4) Interim bridge until W1 types land: namespace_cursor(v1) becomes {cluster, group as incarnation, revision}, and distribution::frame_cursor maps W1 to v1 as {cluster, incarnation as group, 0, sha(name) as scope, position}; your W1 change deletes both. Plan: my journal on quest/detent/dense-distribution-build."
+        }
       ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "tasks": {
         "agent-pages": {
           "base": "237779e855fb254ba9f76267e04d4dc00ded4c34",
@@ -7214,7 +9096,7 @@
           ],
           "reason": "Its branch is fully merged into the quest branch (0 commits ahead); the quest's suite and CI cover its code",
           "status": "dropped",
-          "worktree": "../Detent-wt/detent/dense-distribution-build--agent-pages"
+          "worktree": ""
         },
         "history-ranges": {
           "base": "0bf7d61c747630211a5a1a5b24d92efce3119eaa",
@@ -7258,11 +9140,11 @@
           ],
           "reason": "Its branch is fully merged into the quest branch (0 commits ahead); the quest's suite and CI cover its code",
           "status": "dropped",
-          "worktree": "../Detent-wt/detent/dense-distribution-build--relay-pages"
+          "worktree": ""
         }
       },
       "title": "Dense distribution, built: agents and relays on v2, the full copy and large deltas ship as verified pages",
-      "updated": "2026-11-21T06:26:44",
+      "updated": "2026-11-21T13:11:55",
       "worktree": "../Detent-wt/detent/dense-distribution-build"
     },
     "dense-pages": {
@@ -8999,7 +10881,8 @@
       "accepted": {},
       "after": [
         "consensus-worker-release",
-        "consensus-close-fenced"
+        "consensus-close-fenced",
+        "xapiand:consensus-request-install"
       ],
       "checks": [
         {
@@ -9079,7 +10962,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-20T18:25:23"
+      "updated": "2026-11-21T21:51:28"
     },
     "driver-witness-removal-sink": {
       "accepted": {
@@ -11821,7 +13704,11 @@
     },
     "journal-drop-memory-io": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "consensus-install-test-faultfs"
+      ],
+      "base": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+      "branch": "quest/detent/journal-drop-memory-io",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -11842,7 +13729,10 @@
         "AGENTS.md",
         "ARCHITECTURE.md",
         "CMakeLists.txt",
-        "docs/**"
+        "docs/**",
+        "bench/group_io_bench.cc",
+        "docs/perf/group-io.md",
+        "CMakeLists.txt"
       ],
       "history": [
         {
@@ -11884,6 +13774,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-drop-memory-io",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -11893,9 +13784,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T08:29:53"
+      "updated": "2026-11-21T22:24:16",
+      "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
     "journal-faultfs": {
       "accepted": {},
@@ -11990,6 +13882,89 @@
       "title": "journal: its MemoryIO tests and fuzzers run on faultlab's faultfs (faultlab step 5)",
       "updated": "2026-11-18T11:57:38",
       "worktree": "../journal-wt/detent/journal-faultfs"
+    },
+    "journal-fuzz-decoder-pin": {
+      "accepted": {},
+      "after": [],
+      "base": "60ab864407fe4eb2ac05fa354f504916ae55c6e6",
+      "branch": "quest/detent/journal-fuzz-decoder-pin",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "fuzz/fuzz_turn_log.cc",
+        "CMakeLists.txt",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T15:43:33",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T20:35:17",
+          "commit": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+          "criteria": {
+            "A1": "261121-154444-95ae40",
+            "A2": "`ci:macos-arm64`, CI green at journal:9cdaa34"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "60ab864407fe4eb2ac05fa354f504916ae55c6e6",
+          "reason": "",
+          "tested": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: journal-tail-second-sector is accepted and only waits on CI at its merge; the overlap is CMakeLists.txt and CHANGELOG.md hunks",
+      "repo": "../journal",
+      "risk": "low",
+      "status": "landed",
+      "title": "A build define pins journal_fuzz to one decoder",
+      "updated": "2026-11-21T20:35:19",
+      "worktree": ""
     },
     "journal-group-io-cost": {
       "accepted": {},
@@ -13344,10 +15319,106 @@
       "updated": "2026-11-18T00:52:38",
       "worktree": ""
     },
-    "journal-tail-second-sector": {
+    "journal-tail-cut-header-design": {
       "accepted": {},
       "after": [
-        "journal-power-silent-loss"
+        "journal-tail-second-sector"
+      ],
+      "base": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
+      "branch": "quest/detent/journal-tail-cut-header-design",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T11:54:25",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "design quest; durability is its dominant risk, one durability review of the design covers it",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-tail-cut-header-design",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "active",
+      "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
+      "updated": "2026-11-21T13:06:45",
+      "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
+    },
+    "journal-tail-second-sector": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-21T21:25:16",
+          "base": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+          "blobs": {
+            "CHANGELOG.md": "100644:c2cbdc9e98ff4bc01d784579590132d2fe507e41",
+            "docs/mechanisms/turn-log-damage.md": "100644:feec05d2b75fd0ad4f7f7980efabf1ca200cd20f",
+            "include/journal/turn_log.h": "100644:0a1b0a1862c3aa6afd1866292eba22da73b0b8c0",
+            "test/turn_log_power_test.cc": "100644:4f9aa6c2df5290541bb952224e0816f85bf9b897"
+          },
+          "by": "review",
+          "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+          "criteria": "3e232dbbe724855a",
+          "diffs": {
+            "CHANGELOG.md": "dceb278aa1e41113",
+            "docs/mechanisms/turn-log-damage.md": "a4036b65fb1a9bee",
+            "include/journal/turn_log.h": "57d3bb325ff2ebbd",
+            "test/turn_log_power_test.cc": "380f51f692f795c1"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'cd .scratch/build && ./journal_turn_log_power_test 200'",
+                  "commit": "6ae8f467edce128534fa634daede3590f58e11b5",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261121-135333-127af1",
+                  "level": "light",
+                  "seconds": 344.7,
+                  "state": "done",
+                  "what": "T9 200 seeds macOS at the cut-header fix at 6ae8f467edce"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "main's code changes since the review: xapiand journal-turn-buffers (journal:60ab864, reviewed and approved by this lead for durability) and journal-fuzz-decoder-pin (journal:9cdaa34, fuzz target only); CHANGELOG conflict resolved by hand",
+          "review": "d0d877759ca2bc7f279c4a2f3b1f1a7a969a880c",
+          "reviewed": "421011acfb9a98bf27b11eb857e18f947911ee76",
+          "verdict": "CHANGES"
+        }
+      },
+      "after": [
+        "journal-power-silent-loss",
+        "xapiand:journal-turn-buffers"
       ],
       "base": "335b1b5f1e71a2b44ac951363938925abf2ef5f3",
       "branch": "quest/detent/journal-tail-second-sector",
@@ -13413,20 +15484,45 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-tail-second-sector",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-21T22:17:24",
+          "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+          "criteria": {
+            "A1": "261121-135333-127af1 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files)",
+            "A2": "261121-135333-127af1 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files), 261121-135333-4c0a7a (passed at 6ae8f467edce; only 1 merge from main since, none touching its files); fails without: 261121-103815-c377f1, 261121-115934-0256e0",
+            "A3": "261121-135334-e33976 (passed at 6ae8f467edce; only 1 merge from main since, none touching its files); fails without: 261121-084916-f70fcc, 261121-103756-644f6c",
+            "A4": "docs/mechanisms/turn-log-damage.md at e912a28",
+            "A5": "`ci:macos-arm64`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9cdaa34e387f88c9b250b05dc7832bf581ad7a0e",
+          "reason": "",
+          "tested": "8b063a1484fffc3e0ba5dbb4a7994c0ed81ed954"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Damage in a newest-tail fragment's second sector is reported, never a silent tear",
-      "updated": "2026-11-21T08:29:41",
-      "worktree": "../journal-wt/detent/journal-tail-second-sector"
+      "updated": "2026-11-21T22:17:27",
+      "worktree": ""
     },
     "journal-turn-bound": {
       "accepted": {
@@ -13743,6 +15839,36 @@
       "status": "landed",
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
+    },
+    "local-disk-store-lease-flake": {
+      "accepted": {},
+      "after": [],
+      "base": "5051d2f9e174ae45b859d9fbc00cfd4f0b21ef5b",
+      "branch": "quest/detent/local-disk-store-lease-flake",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_local/test_disk_store.cc",
+        "src/detent_local/disk_store*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "test_local_disk_store line 191 failed once on CI macos-arm64",
+      "updated": "2026-11-22T00:09:36",
+      "worktree": "../Detent-wt/detent/local-disk-store-lease-flake"
     },
     "localhost-dial-everywhere": {
       "accepted": {},
@@ -14640,9 +16766,50 @@
       "title": "Stage 6: managed authority failover",
       "updated": "2026-11-08T15:38:22"
     },
+    "managed-failover-isolated-leader": {
+      "accepted": {},
+      "after": [],
+      "base": "50c5bf196caec642bdac352f94fe713b8e73f17a",
+      "branch": "quest/detent/managed-failover-isolated-leader",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_delivery/source_selection.hh",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_delivery/coordinator.hh",
+        "tests/detent_delivery/test_source_selection.cc",
+        "tests/detent_delivery/test_namespace_coordinator.cc",
+        "tests/detent_system/run_partition.py",
+        "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
+        "docs/mechanisms/managed-failover*.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "reason": "D144: fixed at the voter in voter-read-freshness (A5); this branch's deterministic test, probe and discovery-bound doc at Detent:b16a3ec9 are inputs there, its client rotation is not landed",
+      "repo": ".",
+      "risk": "high",
+      "status": "dropped",
+      "title": "Agents opened at an isolated former leader find the majority (failover gate 2)",
+      "updated": "2026-11-21T22:11:34",
+      "worktree": "../Detent-wt/detent/managed-failover-isolated-leader"
+    },
     "managed-relay-ipv6-flake": {
       "accepted": {},
       "after": [],
+      "base": "ee425e632ddc0b64be459f929ee9ae14d9bcac23",
+      "branch": "quest/detent/managed-relay-ipv6-flake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -14694,9 +16861,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T05:30:26"
+      "updated": "2026-11-21T13:12:29",
+      "worktree": "../Detent-wt/detent/managed-relay-ipv6-flake"
     },
     "msgpack-adoption": {
       "accepted": {},
@@ -14768,8 +16936,10 @@
     "multi-voter-idle-wake": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "restart-capacity"
       ],
+      "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
+      "branch": "quest/detent/multi-voter-idle-wake",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -14780,9 +16950,7 @@
       ],
       "consumes": [],
       "files": [
-        "src/detent_authority/service.cc",
-        "include/detent/owner_loop.hh",
-        "tests/detent_authority/**"
+        "tests/detent_authority/test_multi_voter_idle*"
       ],
       "history": [
         {
@@ -14817,13 +16985,20 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
+      "reason": "B1 resolved (consensus:a068ba0 PeerOptions::wake); B2 the consensus bump moves task and completion too, so it rides pin-wave; B3 service.cc is held by restart-capacity (server-composition-adoption already lands after this quest)",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-20T18:25:36"
+      "until": [
+        "pin-wave"
+      ],
+      "updated": "2026-11-22T21:10:46",
+      "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
       "accepted": {},
@@ -19302,6 +21477,68 @@
       "title": "Namespace S9-S10: detent-image seeding and the group count",
       "updated": "2026-11-10T13:11:10"
     },
+    "ninja-only": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CMakeLists.txt",
+        "README.md",
+        "docs/BUILDING.md",
+        "tools/**",
+        "tests/**/*.sh",
+        "docs/perf/*.sh",
+        "bench/**/*.sh"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T09:22:56",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "dense-distribution-build"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Detent configures with Ninja only: a configure guard refuses any other generator",
+      "updated": "2026-11-21T09:23:23"
+    },
     "observability-core": {
       "accepted": {},
       "after": [
@@ -19489,10 +21726,11 @@
     "old-flakes-disposition": {
       "accepted": {},
       "after": [
-        "detent-faultlab",
         "loop-idle-waits",
         "relay-tls-drain-flake"
       ],
+      "base": "0df333edd453bec1a0b319e405d3a8f4b910e0fe",
+      "branch": "quest/detent/old-flakes-disposition",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -19510,13 +21748,9 @@
         "docs/status/http-coroutines.md",
         "docs/DEPENDENCY_UPGRADES.md",
         "tests/detent_authority/test_authority_frames_service*",
-        "src/detent_authority/service.cc",
         "tests/detent_system/authority.py",
         "tests/detent_system/test_dual_stack.py",
         "tests/detent_relay/test_relay_service.py",
-        "tests/detent_authority/test_node.cc",
-        "tests/detent_authority/**",
-        "tests/detent_relay/**",
         "tests/docs/**"
       ],
       "history": [
@@ -19557,16 +21791,41 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-21T21:49:24",
+          "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+          "criteria": {
+            "A1": "261121-153510-7f1905, 261121-153523-37854b, 261121-153524-08d011, 261121-153526-d94ed9, 261121-153527-140682",
+            "A2": "261121-153555-ce8385; fails without: 261121-132220-9aaee5, 261121-153557-8e000d",
+            "A3": "docs/DEPENDENCY_UPGRADES.md (2026-11-21 disposition) and docs/status/http-coroutines.md; tests/docs check passes",
+            "A4": "261121-153606-ffac65; fails without: 261121-132020-e89451, 261121-153600-ce6a7a"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "b47837a4d4e49aaf4e7d898b57f4200492b443db",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9b76d27c01e72262f12820a3184e823229f32d04",
+          "reason": "",
+          "tested": "b47837a4d4e49aaf4e7d898b57f4200492b443db"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "landed",
       "title": "reproduce or retire ledger flakes 3, 4, 5, 8 and the catch-up segfault",
-      "updated": "2026-11-20T18:25:40"
+      "updated": "2026-11-21T21:49:26",
+      "worktree": ""
     },
     "one-knob-type": {
       "accepted": {
@@ -22195,9 +24454,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-19T14:07:09",
+      "updated": "2026-11-21T11:38:43",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -22743,6 +25002,8 @@
       "after": [
         "online-capacity"
       ],
+      "base": "1a2bc47bc0a403a56526266355dab1e22dd34a62",
+      "branch": "quest/detent/restart-capacity",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -22765,7 +25026,8 @@
         "docs/CAPACITY_RUNTIME.md",
         "docs/CAPACITY_QUALIFICATION.md",
         "docs/status/README.md",
-        "website/src/content/docs/reference/configuration.md"
+        "website/src/content/docs/reference/configuration.md",
+        "tests/docs/docs_exceptions.txt"
       ],
       "history": [
         {
@@ -22804,9 +25066,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-20T18:25:44"
+      "updated": "2026-11-22T00:09:05",
+      "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
       "accepted": {},
@@ -23332,7 +25595,8 @@
         "loop-idle-waits",
         "rename-detentd",
         "xapiand:task-lifecycle",
-        "pin-wave"
+        "pin-wave",
+        "multi-voter-idle-wake"
       ],
       "base": "f47ef2201754b8dae9686d7c784a00d65f04fd20",
       "branch": "quest/detent/server-composition-adoption",
@@ -23349,7 +25613,15 @@
         "src/detent_authority/main.cc",
         "src/detent_relay/main.cc",
         "src/detent_cli/**",
-        "src/detent_agent/main.cc"
+        "src/detent_agent/main.cc",
+        "src/CMakeLists.txt",
+        "src/detent_relay/host.cc",
+        "src/detent_relay/configuration.cc",
+        "src/detent_agent/managed_host.cc",
+        "src/detent_agent/config.cc",
+        "tests/*/CMakeLists.txt",
+        "docs/mechanisms/server-composition.md",
+        "website/src/content/docs/reference/**"
       ],
       "history": [
         {
@@ -23388,7 +25660,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-21T04:34:39",
+      "updated": "2026-11-21T13:14:25",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
@@ -23539,6 +25811,189 @@
       "status": "landed",
       "title": "sha256 AVX2 kernel for x86_64 without SHA-NI",
       "updated": "2026-11-08T15:38:38"
+    },
+    "split-consensus": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-install",
+        "consensus-quiesce-election-stall",
+        "consensus-peers-wake",
+        "consensus-transport-test-flakes",
+        "xapiand:consensus-request-install",
+        "xapiand:split-check-members"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/**",
+        "test/**",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T11:42:31",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in consensus is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T22:26:09"
+    },
+    "split-detent": {
+      "accepted": {},
+      "after": [
+        "dense-distribution-build",
+        "reader-s6"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_authority/**",
+        "src/detent_delivery/**",
+        "tests/detent_delivery/**",
+        "docs/design/*.py",
+        "src/CMakeLists.txt",
+        "tests/detent_delivery/CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T11:42:11",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in Detent is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T11:42:11"
+    },
+    "split-journal": {
+      "accepted": {},
+      "after": [
+        "journal-tail-second-sector",
+        "xapiand:journal-lost-bound"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 120,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/**",
+        "CMakeLists.txt"
+      ],
+      "history": [
+        {
+          "at": "2026-11-21T11:42:32",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:macos-arm64",
+                "level": "light",
+                "minutes": 120,
+                "name": "suite"
+              }
+            ]
+          ],
+          "reason": "D57: suite gate is CI's macos-arm64 job",
+          "voided": [],
+          "weakened": [
+            "gate check suite changed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "low",
+      "status": "planned",
+      "title": "Every source file in journal is under 1,000 lines, split by moves only",
+      "updated": "2026-11-21T11:45:01"
     },
     "stage-0-architecture": {
       "accepted": {},
@@ -23978,6 +26433,35 @@
       "title": "S1/S2 before and after timing table from main",
       "updated": "2026-11-09T14:46:53",
       "worktree": ""
+    },
+    "system-failover-port-reuse": {
+      "accepted": {},
+      "after": [],
+      "base": "741081e6f892e427f90703fae828041411e53cb0",
+      "branch": "quest/detent/system-failover-port-reuse",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_system/test_managed_failover.sh"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
+      "updated": "2026-11-22T21:06:31",
+      "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {
       "accepted": {},
@@ -25255,10 +27739,33 @@
       "worktree": ""
     },
     "voter-read-freshness": {
-      "accepted": {},
+      "accepted": {
+        "design": {
+          "at": "2026-11-21T22:31:04",
+          "base": "0edbbe35785fabf541c46051a907dbd461e49f38",
+          "blobs": {
+            "docs/design/voter-read-freshness.md": "100644:216a1042bf5bcb94421e01c00b7f01ada783aa6d"
+          },
+          "by": "review",
+          "commit": "fa29b47d4ffd36a6c46a74d8dedb04a80ac305d3",
+          "criteria": "bb8990c2975db948",
+          "diffs": {
+            "docs/design/voter-read-freshness.md": "e457b010ba11954b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "1aaeee3de788d3ac5b857ca40192aeb8a7a67fef",
+          "reviewed": "",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
-        "namespace-s8-wiring"
+        "restart-capacity",
+        "server-composition-adoption",
+        "consensus-follower-read"
       ],
+      "base": "0edbbe35785fabf541c46051a907dbd461e49f38",
+      "branch": "quest/detent/voter-read-freshness",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -25280,22 +27787,33 @@
         "tests/detent_relay/**",
         "tests/detent_authority/**",
         "docs/status/namespace-s8.md",
-        "website/src/content/docs/reference/http-api/authority.md"
+        "website/src/content/docs/reference/http-api/authority.md",
+        "docs/USAGE.md",
+        "website/src/content/docs/**",
+        "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
+        "tests/detent_system/**",
+        "tests/detent_delivery/test_source_selection.cc"
       ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "correctness",
+        "design"
       ],
       "milestone": "N1",
       "needs": [
         "detent-refuse-old-format"
       ],
       "provides": [],
+      "reason": "design accepted (D145); code waits on consensus-follower-read, restart-capacity and server-composition-adoption",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "blocked",
       "title": "Voters serve history only after a leader-confirmed read",
-      "updated": "2026-11-18T09:14:57"
+      "until": [
+        "consensus-follower-read"
+      ],
+      "updated": "2026-11-21T22:31:04",
+      "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
       "accepted": {},

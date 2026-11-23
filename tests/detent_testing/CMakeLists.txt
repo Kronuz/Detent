@@ -27,3 +27,19 @@ if(TARGET detent::testing_store)
   target_link_libraries(test_local_change_file PRIVATE detent::testing_store detent::local_publication)
   add_test(NAME test_local_change_file COMMAND test_local_change_file)
 endif()
+
+# The transfer receiver's fuzz target, replayed in the suite; -DDETENT_TRANSFER_FUZZ=ON with
+# -fsanitize=fuzzer-no-link,address,undefined in CMAKE_CXX_FLAGS builds the libFuzzer binary.
+add_executable(test_testing_paged_transfer_fuzz_replay paged_transfer_fuzz.cc)
+target_compile_definitions(test_testing_paged_transfer_fuzz_replay PRIVATE DETENT_FUZZ_REPLAY)
+target_include_directories(test_testing_paged_transfer_fuzz_replay PRIVATE
+  "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
+target_link_libraries(test_testing_paged_transfer_fuzz_replay PRIVATE detent::local_transfer detent::local_packer)
+add_test(NAME test_testing_paged_transfer_fuzz_replay COMMAND test_testing_paged_transfer_fuzz_replay)
+if(DETENT_TRANSFER_FUZZ)
+  add_executable(paged_transfer_fuzz paged_transfer_fuzz.cc)
+  target_include_directories(paged_transfer_fuzz PRIVATE
+    "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
+  target_link_libraries(paged_transfer_fuzz PRIVATE detent::local_transfer detent::local_packer)
+  target_link_options(paged_transfer_fuzz PRIVATE -fsanitize=fuzzer)
+endif()

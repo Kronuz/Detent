@@ -24,17 +24,17 @@ struct AttachedGeneration {
 };
 class PreparedReader {
   public:
-	static GenerationSelection selection(const std::filesystem::path &, uid_t publisher);
-	// The selected table, read from a trusted store directory; GenerationUnavailable when absent.
-	static Selected selected(int directory, uid_t publisher);
-	// Attaches the selected generation through a trusted store directory without opening it again;
-	// `read` is the caller's table for the first attempt, and a retry reads `selected` again.
+	static GenerationSelection selection(const std::filesystem::path &, uid_t publisher, std::string_view name = {});
+	// The table entry `name`, read from a trusted store directory; GenerationUnavailable when absent.
+	static Selected selected(int directory, uid_t publisher, std::string_view name = {});
+	// Attaches the entry's selected generation through a trusted store directory without opening it
+	// again; `read` is the caller's entry for the first attempt, and a retry reads `selected` again.
 	static AttachedGeneration attach(int directory, uid_t publisher, ViewLimits,
-	                                 std::optional<distribution::Cursor> expected = {},
-	                                 const Selected *read = nullptr);
+	                                 std::optional<distribution::NamespaceCursor> expected = {},
+	                                 const Selected *read = nullptr, std::string_view name = {});
     static ReaderMetadata describe(const RecoveredGeneration &);
     static bool metadata_ready(const std::filesystem::path &, const RecoveredGeneration &, uid_t publisher);
 	static PreparedGeneration open(const std::filesystem::path &, uid_t publisher, ViewLimits,
-	                               std::optional<distribution::Cursor> expected = {});
+	                               std::optional<distribution::NamespaceCursor> expected = {}, std::string_view name = {});
 };
 } // namespace detent::local::detail

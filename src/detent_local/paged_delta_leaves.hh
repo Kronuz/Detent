@@ -12,6 +12,10 @@ class DeltaLeaves {
   public:
 	DeltaLeaves(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
 				paged::Limits = {});
+	// A one-namespace generation's delta (a relay's build, dense distribution D7.2): the base holds
+	// `name` alone, its watermark at the base's position.
+	DeltaLeaves(std::string_view name, std::uint64_t watermark,
+				std::shared_ptr<const distribution::ValidatedDelta>, paged::Limits = {});
 	~DeltaLeaves();
 	DeltaLeaves(DeltaLeaves &&) noexcept;
 	DeltaLeaves(const DeltaLeaves &) = delete;

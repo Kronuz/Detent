@@ -2,15 +2,12 @@
 #include "detent/identity.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent/json_schema_internal.hh"
-#include "detent/scope.hh"
+#include "detent_distribution/grants.hh"
 #include "source_selection.hh"
 #include <algorithm>
-#include <cerrno>
-#include <fcntl.h>
 #include <openssl/rand.h>
 #include <rapidjson/document.h>
 #include <set>
-#include <sys/stat.h>
 #include <unistd.h>
 
 namespace detent::delivery {
@@ -20,13 +17,6 @@ void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
 }
-struct File {
-	int descriptor;
-	~File() {
-		if (descriptor >= 0)
-			::close(descriptor);
-	}
-};
 void fields(const Value &object, std::initializer_list<std::string_view> allowed) {
 	require(object.IsObject(), "managed configuration requires an object");
 	std::set<std::string_view> seen;
@@ -61,38 +51,10 @@ template <std::size_t N> std::array<char, N> identity(const Value &value) {
 }
 
 } // namespace
-std::string read_private_configuration(const std::filesystem::path &configuration) {
-	File file{::open(configuration.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)};
-	struct stat info{};
-	require(file.descriptor >= 0 && ::fstat(file.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
-				(info.st_uid == 0 || info.st_uid == ::geteuid()) && info.st_nlink == 1 &&
-				!(info.st_mode & 0027) && detent::internal::mode_only_acl(file.descriptor) &&
-				info.st_size > 0 && info.st_size <= 1024 * 1024,
-			"managed credential configuration ownership, permissions or size");
-	std::string bytes(static_cast<std::size_t>(info.st_size), '\0');
-	std::size_t offset = 0;
-	while (offset != bytes.size()) {
-		auto count = ::read(file.descriptor, bytes.data() + offset, bytes.size() - offset);
-		if (count < 0 && errno == EINTR)
-			continue;
-		require(count > 0, "short managed configuration");
-		offset += count;
-	}
-	char extra;
-	ssize_t remaining;
-	do {
-		remaining = ::read(file.descriptor, &extra, 1);
-	} while (remaining < 0 && errno == EINTR);
-	require(remaining == 0, "managed configuration changed while reading");
-	require(detent::internal::mode_only_acl(file.descriptor),
-			"managed credential configuration ACL changed while reading");
-	return bytes;
-}
-
 ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 									const std::filesystem::path &directory, detent::local::StoreOpenMode mode,
 									bool system) {
-	auto bytes = read_private_configuration(configuration);
+	auto bytes = detent::internal::read_private_configuration(configuration);
 	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16),
 			"managed configuration JSON bound");
 	rapidjson::Document object;
@@ -100,10 +62,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 																						 bytes.size());
 	require(!object.HasParseError(), "invalid managed configuration JSON");
 	fields(object, {"cluster",
-					"group",
-					"epoch",
-					"principal",
-					"policy_epoch",
 					"namespaces",
 					"token",
 					"address",
@@ -118,32 +76,15 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"disk_bytes",
 					"disk_entries",
 					"disk_generations",
-					"poll_interval_ms",
+					"retry_interval_ms",
 					"reconnect_maximum_ms",
-					"delivery_mode",
-					"image_format",
 					"compaction_interval_ms",
 					"scrub_bytes_per_second",
 					"timeout_ms",
 					"compression",
-					"reset_from",
 					"image_limits"});
 	ManagedOptions result;
 	result.coordinator.directory = directory;
-	if (object.HasMember("delivery_mode")) {
-		result.delivery_mode_explicit = true;
-		const auto mode = text(object["delivery_mode"], 16);
-		require(mode == "poll" || mode == "subscription", "invalid managed delivery mode");
-		result.coordinator.delivery_mode = mode == "subscription"
-											   ? detent::delivery::DeliveryMode::Subscription
-											   : detent::delivery::DeliveryMode::Poll;
-	}
-	if (object.HasMember("image_format")) {
-		const auto format = text(object["image_format"], 16);
-		require(format == "flat-v1" || format == "paged-v2", "invalid managed image format");
-		result.coordinator.image_format =
-			format == "paged-v2" ? LocalImageFormat::PagedV2 : LocalImageFormat::FlatV1;
-	}
 	const auto interval = number(object, "compaction_interval_ms", 60000, 0, 86400000);
 	require(interval == 0 || interval >= 1000,
 			"managed compaction interval must be zero or at least 1000 ms");
@@ -152,23 +93,21 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	result.coordinator.scrub_bytes_per_second = number(
 		object, "scrub_bytes_per_second", result.coordinator.scrub_bytes_per_second, 0, 1024ull * 1024 * 1024);
 	auto &source = result.coordinator.source;
-	source.configured.cluster = identity<16>(field(object, "cluster"));
-	source.configured.group = identity<16>(field(object, "group"));
-	source.configured.restore_epoch = identity<16>(field(object, "epoch"));
-	result.principal = text(field(object, "principal"), 128);
-	result.policy_epoch = number(object, "policy_epoch", 1, 1, UINT64_MAX);
-	const auto &names = field(object, "namespaces");
-	require(names.IsArray() && names.Size() <= 4096, "managed namespace count");
-	for (const auto &name : names.GetArray())
-		source.namespaces.push_back(text(name, 198));
-	std::sort(source.namespaces.begin(), source.namespaces.end());
-	source.namespaces.erase(std::unique(source.namespaces.begin(), source.namespaces.end()),
-							source.namespaces.end());
-	std::vector<std::string_view> canonical;
-	for (const auto &name : source.namespaces)
-		canonical.push_back(name);
-	source.configured.scope =
-		detent::distribution::canonical_scope_identity(result.principal, result.policy_epoch, canonical);
+	result.coordinator.cluster = identity<16>(field(object, "cluster"));
+	// W13: the followed names; without them, every name the credential grants.
+	if (object.HasMember("namespaces")) {
+		const auto &names = object["namespaces"];
+		require(names.IsArray() && names.Size() <= 4096, "managed namespace count");
+		auto &followed = result.coordinator.namespaces;
+		for (const auto &name : names.GetArray()) {
+			followed.push_back(text(name, 198));
+			require(detent::distribution::valid_namespace_name(followed.back()), "invalid managed namespace name");
+		}
+		std::sort(followed.begin(), followed.end());
+		followed.erase(std::unique(followed.begin(), followed.end()), followed.end());
+		require(!followed.empty(), "managed namespaces must name at least one namespace");
+	} else
+		result.coordinator.all = true;
 	source.token = text(field(object, "token"), 128);
 	require(source.token.size() >= 32 && std::all_of(source.token.begin(), source.token.end(),
 													 [](unsigned char c) { return c >= 32 && c != 127; }),
@@ -204,12 +143,12 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 	reactor::tls::configure(*source.tls_context, {"", "", ca.string()}, reactor::tls::Role::Client);
 	source.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 60000, 1, 86400000));
-	result.coordinator.poll_interval =
-		std::chrono::milliseconds(number(object, "poll_interval_ms", 200, 1, 86400000));
+	result.coordinator.retry_interval =
+		std::chrono::milliseconds(number(object, "retry_interval_ms", 200, 1, 86400000));
 	result.coordinator.reconnect_maximum = std::chrono::milliseconds(
 		number(object, "reconnect_maximum_ms",
-			   std::max<std::int64_t>(30000, result.coordinator.poll_interval.count()),
-			   result.coordinator.poll_interval.count(), 86400000));
+			   std::max<std::int64_t>(30000, result.coordinator.retry_interval.count()),
+			   result.coordinator.retry_interval.count(), 86400000));
 	require(RAND_bytes(reinterpret_cast<unsigned char *>(&result.coordinator.reconnect_seed),
 					   sizeof(result.coordinator.reconnect_seed)) == 1,
 			"managed reconnect entropy unavailable");
@@ -250,17 +189,6 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	require(result.disk.artifact_mode == 0600 || result.disk.artifact_mode == 0640 ||
 				result.disk.artifact_mode == 0644,
 			"managed artifact_mode must be 384, 416 or 420");
-	if (object.HasMember("reset_from")) {
-		const auto &old = object["reset_from"];
-		fields(old, {"cluster", "group", "epoch", "scope"});
-		detent::distribution::Cursor cursor;
-		cursor.cluster = identity<16>(field(old, "cluster"));
-		cursor.group = identity<16>(field(old, "group"));
-		cursor.restore_epoch = identity<16>(field(old, "epoch"));
-		cursor.scope = identity<32>(field(old, "scope"));
-		require(!cursor.same_identity(source.configured), "managed reset must change identity");
-		result.coordinator.reset_from = cursor;
-	}
 	return result;
 }
 } // namespace detent::delivery

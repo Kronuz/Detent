@@ -1,0 +1,26 @@
+diff --git a/tests/detent_delivery/test_pages_coordinator.cc b/tests/detent_delivery/test_pages_coordinator.cc
+index 0ff6ead7..1ea60dda 100644
+--- a/tests/detent_delivery/test_pages_coordinator.cc
++++ b/tests/detent_delivery/test_pages_coordinator.cc
+@@ -415,7 +415,7 @@ int main(int argc, char **argv) {
+ 			// does not is refused and the namespace is fetched again as a full copy. The write and its
+ 			// root change under one lock, so no frame at the new head goes out without the root.
+ 			const auto rooted = [&](std::int64_t value, bool flipped) {
+-				std::lock_guard lock(server.mutex);
++				std::unique_lock lock(server.mutex);
+ 				auto &served = server.find("big");
+ 				served.transactions.push_back({{"big:k0000003", def(value, 0)}});
+ 				const auto copy = canonical(served, limits);
+@@ -423,7 +423,11 @@ int main(int argc, char **argv) {
+ 				d::RootDigest digest;
+ 				std::copy(commitment.begin(), commitment.end(), digest.begin());
+ 				digest[0] ^= flipped ? 1 : 0;
+-				return server.roots["big"] = std::pair{served.history().head(), digest};
++				const auto head = served.history().head();
++				lock.unlock();
++				std::this_thread::sleep_for(500ms);
++				lock.lock();
++				return server.roots["big"] = std::pair{head, digest};
+ 			};
+ 			const auto honest = rooted(91, false);
+ 			auto rooted_state = agent.until([&](const auto &s) { return at(s, "big", honest.first); }, "rooted records");

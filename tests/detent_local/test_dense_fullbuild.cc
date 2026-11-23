@@ -17,10 +17,19 @@
 namespace d = detent::distribution;
 namespace x = detent::local::detail;
 using namespace dense_test;
+// The corpus's v1 identity, which its snapshot encoding names.
+static d::Cursor corpus_cursor() {
+	d::Cursor cursor;
+	cursor.cluster.fill('c');
+	cursor.group.fill('g');
+	cursor.restore_epoch.fill('e');
+	cursor.scope.fill('s');
+	return cursor;
+}
 class CorpusSource final : public d::SnapshotSource {
   public:
 	CorpusSource(std::shared_ptr<Rows> rows, std::shared_ptr<d::StorageLedger> account)
-		: rows_(std::move(rows)), account_(std::move(account)), cursor_(empty_root().cursor) {
+		: rows_(std::move(rows)), account_(std::move(account)), cursor_(corpus_cursor()) {
 		cursor_.revision = 0;
 		for (const auto &row : *rows_)
 			if (row.key.front() == 'W') {

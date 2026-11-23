@@ -453,7 +453,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 				if (had) {
 					// A4: no regression within an incarnation.
 					const auto &previous = had->generation->attached.descriptor.cursor;
-					if (previous.same_identity(cursor) && cursor.revision < previous.revision)
+					if (previous.same_identity(cursor) && cursor.position < previous.position)
 						throw Failure{DETENT_SOURCE_FAILURE};
 				}
 				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.mappings);
@@ -707,7 +707,7 @@ detent_status detent_revision(detent_reader *handle, detent_str name_space, uint
 		return fail(DETENT_NOT_OPENED, out, uint64_t(0));
 	uint64_t revision = 0;
 	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		revision = generation.attached.descriptor.cursor.revision;
+		revision = generation.attached.descriptor.cursor.position;
 		return DETENT_OK;
 	});
 	*out = status == DETENT_OK ? revision : 0;

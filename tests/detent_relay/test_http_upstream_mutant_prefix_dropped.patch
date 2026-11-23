@@ -1,0 +1,16 @@
+diff --git a/src/detent_relay/http_upstream.cc b/src/detent_relay/http_upstream.cc
+index 3b66fa65..71314551 100644
+--- a/src/detent_relay/http_upstream.cc
++++ b/src/detent_relay/http_upstream.cc
+@@ -291,8 +291,10 @@ std::string HttpUpstream::fetch(std::string_view name_space, const MirrorFile &f
+ 		try {
+ 			response = p.exchange("/v2/history/file", body);
+ 		} catch (const UpstreamUnavailable &) {
+-			if (++lost > p.options.endpoints.size())
++			if (++lost > p.options.endpoints.size()) {
++				p.partial.reset();
+ 				throw;
++			}
+ 			continue;
+ 		}
+ 		if (response.status == 503 && ++lost <= p.options.endpoints.size()) {

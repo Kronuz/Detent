@@ -1,0 +1,13 @@
+diff --git a/tests/detent_system/run_relay_pages.py b/tests/detent_system/run_relay_pages.py
+index 56d24a0b..6b621336 100644
+--- a/tests/detent_system/run_relay_pages.py
++++ b/tests/detent_system/run_relay_pages.py
+@@ -360,7 +360,7 @@ def main() -> None:
+     arguments = parser.parse_args()
+     if not 1000 <= arguments.records <= 500000:
+         raise SystemExit("records must be 1,000 to 500,000")
+-    survive_stopped_children()
++    pass
+     try:
+         asyncio.run(run(arguments))
+     except Exception as error:

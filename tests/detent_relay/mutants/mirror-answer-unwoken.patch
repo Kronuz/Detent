@@ -1,0 +1,12 @@
+diff --git a/src/detent_relay/service.cc b/src/detent_relay/service.cc
+--- a/src/detent_relay/service.cc
++++ b/src/detent_relay/service.cc
+@@ -387,7 +387,7 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
+ 	}
+ 	job.principal = admission->credential->principal;
+ 	job.grants = admission->credential->namespaces.get();
+-	job.answered = p.wake;
++	// mutant: a mirror answer does not wake the owner, which sleeps through it
+ 	task->admission = std::move(admission);
+ 	http::StreamOptions stream;
+ 	stream.resource = p.lanes[index]->resource;

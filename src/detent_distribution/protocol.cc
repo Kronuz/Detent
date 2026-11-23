@@ -198,6 +198,7 @@ struct DefinitionDecoder {
 
 bool ValidatedSnapshot::discard(WorkBudget &budget) {
 	cursor_ = {};
+	namespace_cursor_ = {};
 	if (!storage_)
 		return true;
 	if (!storage_->retiring) {
@@ -333,6 +334,7 @@ struct SnapshotDecoder::Impl {
 		case Phase::Revision:
 			snapshot.cursor_.revision = number(token);
 			require(snapshot.cursor_.revision >= expected.revision, "snapshot revision rollback");
+			snapshot.namespace_cursor_ = namespace_cursor(snapshot.cursor_);
 			phase = Phase::CountsTuple;
 			break;
 		case Phase::CountsTuple:

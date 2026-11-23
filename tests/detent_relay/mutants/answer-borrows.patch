@@ -1,0 +1,12 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -390,7 +390,7 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
+ 					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
+ 					resume(sent, position.resume);
+ 					request.pages = &sent;
+-					owned.push_back(std::move(full));
++					full.reset(); // mutant: the frame borrows the copy the relay may replace mid-answer
+ 					++pages_stats.full_copies;
+ 				}
+ 			} else if (chosen.kind == d::AnswerKind::Entries || chosen.kind == d::AnswerKind::Blocks) {

@@ -79,8 +79,18 @@ class WriterTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(follower_attempts, 2)
 
     async def test_capacity_is_terminal_and_advances_sequence(self) -> None:
-        capacity = {"status": "capacity", "generation": 1, "sequence": 1}
-        applied = {"status": "applied", "generation": 1, "sequence": 2}
+        capacity = {
+            "status": "capacity",
+            "namespace_revision": 0,
+            "generation": 1,
+            "sequence": 1,
+        }
+        applied = {
+            "status": "applied",
+            "namespace_revision": 1,
+            "generation": 1,
+            "sequence": 2,
+        }
         authority = Responses([(429, capacity), (200, applied)])
         writers = Writers(authority, 1, 1, 17)
         self.assertFalse(await writers.transaction(0, []))
@@ -89,6 +99,7 @@ class WriterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(writers.counts["terminal_capacity_rejections"], 1)
         self.assertEqual(writers.counts["acknowledged"], 1)
         self.assertEqual(writers.values[0], 0)
+        self.assertEqual(writers.positions, [1])
 
     async def test_generator_refusal_preserves_sequence_and_unknown_state(self) -> None:
         for replies in (
@@ -109,7 +120,12 @@ class WriterTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(writers.counts["transport_unknown"], 1)
 
     async def test_retry_preserves_exact_command(self) -> None:
-        applied = {"status": "applied", "generation": 1, "sequence": 1}
+        applied = {
+            "status": "applied",
+            "namespace_revision": 4,
+            "generation": 1,
+            "sequence": 1,
+        }
         authority = Responses([(503, {"error": "outcome_unknown"}), (200, applied)])
         writers = Writers(authority, 1, 1, 17)
         self.assertTrue(
@@ -121,6 +137,8 @@ class WriterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(writers.counts["logical_commands"], 1)
         self.assertEqual(writers.counts["offered_attempts"], 2)
         self.assertEqual(writers.sequences, [1])
+        # A write before positions are enabled takes the global revision (D3).
+        self.assertEqual(writers.positions, [4])
 
 
 if __name__ == "__main__":

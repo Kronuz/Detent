@@ -85,8 +85,10 @@ class AgentStore {
 	AgentStore(const AgentStore &) = delete;
 	AgentStore &operator=(const AgentStore &) = delete;
 	const StoreTable &table() const noexcept;
-	// Namespaces whose entry did not verify at startup and has not been republished since.
+	// Namespaces whose entry did not verify at startup or recovery and has not been republished since.
 	std::span<const std::string> failed() const noexcept;
+	// Fails table entry `name` until a cycle republishes it.
+	void fail(std::string_view name);
 	std::uint64_t change_word(std::size_t index) const noexcept;
 	// One cycle (D8, D11): every file staged under `.tmp-` and linked to its derived name; owner records
 	// and reused names synced as one group, payloads as another; the table written under `.tmp-`,

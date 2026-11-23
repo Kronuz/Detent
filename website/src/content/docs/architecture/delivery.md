@@ -92,6 +92,6 @@ state from disk instead of guessing.
 ## Status
 
 Managed delivery, subscriptions, the [relay](/Detent/architecture/relay/)
-and incremental `paged-v2` publication (the default image format) are
+and incremental paged publication are
 implemented with component acceptance. Sustained fleet qualification remains
 open; see the [Roadmap](/Detent/roadmap/).

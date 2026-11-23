@@ -6,10 +6,10 @@
 
 namespace detent::local {
 GenerationReader::GenerationReader(std::filesystem::path directory, ViewLimits limits,
-                                   std::optional<distribution::Cursor> identity,
-                                   std::optional<std::uint32_t> prepared_publisher)
+                                   std::optional<distribution::NamespaceCursor> identity,
+                                   std::optional<std::uint32_t> prepared_publisher, std::string name)
     : directory_(std::move(directory)), limits_(std::move(limits)), identity_(identity),
-      prepared_publisher_(prepared_publisher) {}
+      prepared_publisher_(prepared_publisher), name_(std::move(name)) {}
 
 bool GenerationReader::refresh() {
 	// Serialize refreshes so an older recovery cannot overwrite a newer install.
@@ -23,8 +23,8 @@ bool GenerationReader::refresh() {
     }
     if (!prepared_publisher_ || installed) {
         const auto selection = prepared_publisher_
-            ? detail::PreparedReader::selection(directory_, *prepared_publisher_)
-            : read_generation_selection(directory_);
+            ? detail::PreparedReader::selection(directory_, *prepared_publisher_, name_)
+            : read_generation_selection(directory_, name_);
         std::lock_guard install_lock(installed_mutex_);
         if (directory_identity_ && *directory_identity_ != selection.directory_identity)
             throw std::invalid_argument("local generation directory was replaced");
@@ -34,19 +34,15 @@ bool GenerationReader::refresh() {
 	std::optional<RecoveredGeneration> recovered;
 	std::optional<detail::PreparedGeneration> prepared;
 	if (prepared_publisher_)
-		prepared.emplace(detail::PreparedReader::open(directory_, *prepared_publisher_, limits_, identity_));
+		prepared.emplace(detail::PreparedReader::open(directory_, *prepared_publisher_, limits_, identity_, name_));
 	else
-		recovered.emplace(recover_generation(directory_, limits_, {}, recovered_ ? &*recovered_ : nullptr));
+		recovered.emplace(recover_generation(directory_, limits_, {}, recovered_ ? &*recovered_ : nullptr, name_));
 	const auto &next = prepared ? prepared->descriptor : recovered->descriptor();
 	const auto directory_identity = prepared ? prepared->directory_identity : recovered->directory_identity();
 	if (identity_ && !identity_->same_identity(next.cursor))
 		throw std::invalid_argument("local generation has an unexpected authority identity");
 	if (recovered_ && recovered_->descriptor().cursor == next.cursor) {
 		detail::StateEquivalence proof(*recovered_, *recovered, resources::domain(limits_).storage_account());
-		while (!proof.done()) {
-			ValidationBudget budget;
-			proof.step(budget);
-		}
 		if (!proof.equal())
 			throw std::invalid_argument("local generation conflicts with the installed cursor");
 	}
@@ -57,7 +53,7 @@ bool GenerationReader::refresh() {
 			throw std::invalid_argument("local generation directory was replaced");
 		if (descriptor_) {
 			if (!descriptor_->cursor.same_identity(next.cursor) ||
-			    next.cursor.revision < descriptor_->cursor.revision)
+			    next.cursor.position < descriptor_->cursor.position)
 				throw std::invalid_argument("local generation identity changed or revision regressed");
 			if (next == *descriptor_)
 				return false;

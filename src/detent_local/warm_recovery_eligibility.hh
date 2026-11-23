@@ -8,7 +8,7 @@ inline bool eligible_warm_recovery(const distribution::RetirementHandle<LeasedPa
 								   const std::shared_ptr<distribution::StorageLedger> &mappings) {
 	if (!prior || prior->directory_identity() != directory ||
 		!prior->registry()->uses_account(heap) || !prior->root().cursor.same_identity(target.cursor) ||
-		target.cursor.revision < prior->root().cursor.revision || target.profile != prior->root().profile ||
+		target.cursor.position < prior->root().cursor.position || target.profile != prior->root().profile ||
 		target.namespaces != prior->root().namespaces)
 		return false;
 	const auto registry = prior->registry();

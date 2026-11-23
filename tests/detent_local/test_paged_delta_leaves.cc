@@ -94,7 +94,7 @@ int main() {
 				l::GenerationId next{};
 				next.fill('n');
 				l::detail::OverlayAssembler assembly(account, overlay, segments, live, image->root(),
-													 next, update->target());
+													 next, local_cursor(update->target()));
 				for (unsigned turn = 0; !assembly.done(); ++turn) {
 					require(turn < 2000000);
 					l::ValidationBudget work{1, 1};
@@ -103,7 +103,7 @@ int main() {
 				auto assembled = std::make_shared<l::detail::PagedImage>(assembly.take());
 				require(p::state_commitment(assembled->root()) == p::state_commitment(wanted.root()) &&
 						assembled->root().records == wanted.root().records);
-				require(assembled->descriptor().cursor == update->target() &&
+				require(assembled->descriptor().cursor == local_cursor(update->target()) &&
 						assembled->descriptor().generation == next);
 				require(progress ? assembled->segments().empty() : assembled->segments().size() == 1);
 				std::vector<l::detail::SegmentInput> merged;
@@ -374,7 +374,7 @@ int main() {
 		std::vector<l::detail::SegmentInput> added{
 			{segment.ownership(), {segment.bytes()->data(), segment.bytes()->size()}}};
 		auto bad = image->root();
-		++bad.cursor.revision;
+		++bad.cursor.position;
 		bad.tree = reference;
 		bad.records = 2 * (bad.records + bad.namespaces) - bad.namespaces;
 		++bad.pages;

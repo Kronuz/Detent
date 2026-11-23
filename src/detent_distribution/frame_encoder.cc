@@ -202,7 +202,21 @@ std::shared_ptr<const OwnedBuffer> OwnedFragmentEncoder::take() {
 	p.terminal = p.final;
 	p.active = p.ready = false;
 	p.input.reset();
-	return std::exchange(p.output, {});
+	auto output = std::exchange(p.output, {});
+	// A fragment that fills at most half its buffer (compressed, or a short last one) is held at its
+	// own size, so an answer admits the bytes it sends; the full buffer stays when the copy is refused.
+	if (2 * output->size() > maximum_wire_bytes())
+		return output;
+	try {
+		auto fitted = make_owned_buffer(p.account, output->size());
+		fitted->append(output->view());
+		fitted->seal();
+		return fitted;
+	} catch (const StoragePressure &) {
+		return output;
+	} catch (const std::bad_alloc &) {
+		return output;
+	}
 }
 bool OwnedFragmentEncoder::discard(WorkBudget &budget) noexcept {
 	auto &p = *impl_;

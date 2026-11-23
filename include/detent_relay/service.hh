@@ -12,24 +12,21 @@ struct ServiceAccounts {
 };
 struct ServiceStatus {
 	std::array<std::size_t, 3> requests{};
-	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
-	std::size_t sessions = 0;
 	bool closing = false;
 };
 class ServiceRuntime {
   public:
-	// `mirror`, when set, answers W5 sessions (version 2) and the history routes a downstream relay
-	// reads; version 1 stays with the bundles.
+	// `mirror` answers W5 sessions (version 2) and the history routes a downstream relay reads.
 	// `wake` runs on any thread once a request, a reply or a mirror answer gives step() work: the owner's wake.
-	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::span<const SessionBinding>,
-				   ServiceLimits = {}, std::shared_ptr<MirrorService> mirror = {}, std::function<void()> wake = {});
+	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::shared_ptr<MirrorService>,
+				   ServiceLimits = {}, std::function<void()> wake = {});
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;
 	// One turn's share of the requests (32 polls, 8 opens, 8 closes, round robin) and 64 sessions; true
 	// when it changed anything. rescan() starts a round over every occupied slot and session; swept() is
 	// true once the turns since have visited them all.
-	bool step(Sessions::Clock::time_point);
+	bool step(std::chrono::steady_clock::time_point);
 	void rescan() noexcept;
 	bool swept() const noexcept;
 	ServiceStatus status() const noexcept;
