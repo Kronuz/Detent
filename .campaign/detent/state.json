@@ -2822,6 +2822,19 @@
       "id": "msg-249",
       "notice": "skill landed d968c3aa035a86f7864c7f4841feb0e9cebe2457",
       "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:c49431d Check out an unversioned job's --ref instead of dropping it"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T00:45:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T00:45:31",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: set --check/--later edit by name; keep passing full lists until installed",
+      "id": "msg-250",
+      "notice": "skill landed 2bc50596133605928d4592b71a3d75133872facd",
+      "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:b87abed Edit set --check and --later checks by name; agent-campaign:5e85680 Merge main into quest/campaign-v3/check-set-by-name"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
