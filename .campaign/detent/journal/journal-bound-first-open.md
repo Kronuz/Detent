@@ -1,6 +1,6 @@
 # journal-bound-first-open: journal
 
-State: waiting on jobs 261123-110049-af725e 261123-111045-7f9830 and CI
+State: waiting on jobs 261123-110049-af725e 261123-111045-7f9830 and CI at journal:0951710
 Quest: .campaign/detent/quests/journal-bound-first-open.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,7 +11,9 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Waiting on jobs: A2 261123-110049-af725e (--fails-without at journal:900a11a), open-cost A/B
 261123-111045-7f9830 (strict, main e58f977 vs fix journal:870382d), CI on the pushed branch
-(journal:0951710; suite `macos-arm64` and `ci`).
+(journal:0951710; suite `macos-arm64` and `ci`). Both jobs still queued after a 600 s wait
+(2026-11-23 11:2x, 72 jobs queued). Local runs: 66 of 138 checks fail at main's host.h, 0 of
+251 with the fix. Durability review not yet launched (the lead's).
 
 ## Next
 
