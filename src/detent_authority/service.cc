@@ -77,6 +77,19 @@ void check(bool b, const char *message) {
 		throw std::invalid_argument(message);
 	}
 }
+// `what` and the reason a fenced worker reports once, after its other actions: a startup refusal.
+std::string fence_reason(Node &node, std::string what) {
+	auto find = [](kronuz::consensus::Actions actions) -> std::optional<std::string> {
+		for (auto &action : actions)
+			if (auto fenced = std::get_if<kronuz::consensus::Fenced>(&action))
+				return std::move(fenced->reason);
+		return std::nullopt;
+	};
+	auto reason = find(node.take_network_actions());
+	for (unsigned turn = 0; !reason && turn < 2; ++turn)
+		reason = find(node.worker().take_actions());
+	return reason ? what + ": " + *reason : what;
+}
 // The storage format this build reads and writes: bump it with any change to a stored byte layout
 // (docs/mechanisms/format-refusal.md lists what each number means). Format 1 is the layout before
 // Detent:53abd637, whose images and replay this build does not read.
@@ -2096,7 +2109,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				dispatch(owned_node);
 				node.take_network_actions();
 				if (node.worker().fenced()) {
-					throw std::runtime_error("authority storage initialization fenced");
+					throw std::runtime_error(fence_reason(node, "authority storage initialization fenced"));
 				}
 				if (in_flight())
 					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
@@ -2114,14 +2127,16 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				const auto applied = node.state().applied_index();
 				node.service({0, election_delay()});
 				dispatch(owned_node);
-				check(!node.worker().fenced(), "authority recovery application fenced");
+				if (node.worker().fenced())
+					throw std::invalid_argument(fence_reason(node, "authority recovery application fenced"));
 				if (in_flight() && !node.state().reclamation_pending() && node.state().applied_index() == applied) {
 					co_await sleep(timer, wake_by(Clock::now() + storage_wait));
 				} else {
 					co_await task::yield();
 				}
 			}
-			check(!node.worker().fenced(), "authority committed application/profile mismatch");
+			if (node.worker().fenced())
+				throw std::invalid_argument(fence_reason(node, "authority committed application/profile mismatch"));
 		} catch (const std::exception &error) {
 			if (unstamped)
 				refuse_format(options_.directory, "storage format 1 (no format stamp, and it does not read as format " +

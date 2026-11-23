@@ -5,13 +5,11 @@
 source-only config baseline_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config decoded_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config definition_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
-source-only config image_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config image_limits -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config private_key -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config publisher_user -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config reader_validation -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config request_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
-source-only config state_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only config string_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
 source-only error admission_full -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
 source-only error authorization_timeout -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
