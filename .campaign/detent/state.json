@@ -25757,7 +25757,6 @@
         "QUICKSTART.md",
         "README.md",
         "bench/idle-wakeups/pair.py",
-        "cmake/dependencies.json",
         "docs/ACTORS.md",
         "docs/LOGGING.md",
         "docs/READER_CAPACITY_ARCHITECTURE.md",
@@ -25833,7 +25832,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-22T21:36:37",
+      "updated": "2026-11-22T21:57:47",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
