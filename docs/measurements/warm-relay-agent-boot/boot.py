@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(TREE) / "tests/detent_system"))
 
 from authority import Authority
 from capacity import CapacityProfile
-from managed import ManagedCohort
+from managed import ManagedCohort, table_positions
 from mixed import MixedWriters
 from runtime import Actors, Evidence
 
@@ -353,6 +353,10 @@ async def run() -> dict[str, Any]:
             ]
         marks["result"] = "passed"
     finally:
+        # What the agent selected, kept for a run that never converges.
+        selected = output / "agent-0/generations/selected"
+        if selected.exists():
+            marks["agent_selected_table"] = table_positions(selected.read_bytes())
         tracing.cancel()
         await asyncio.gather(tracing, return_exceptions=True)
         marks["total_s"] = time.monotonic() - t0
