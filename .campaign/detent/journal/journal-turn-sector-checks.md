@@ -20,8 +20,11 @@ host-layout, framing.md, turn-seal.md, framing.h). Done at journal:8c1e8c2, push
 
 ## Next
 
-1. 261123-104146-ca1f89 (A4 latency, strict), 261123-113618-d586c1 (journal_turn_log time, main vs
-   fix, strict), ci:ci at journal:8c1e8c2, local suite: fill A4, A6 and the Result.
+1. 261123-104146-ca1f89 (A4 latency, strict, running), 261123-113618-d586c1 (journal_turn_log time,
+   main vs fix, strict, queued), ci:ci run 45250703904 at journal:8c1e8c2 (queued): fill A4, A6,
+   the turn_log time, and the Result. The local suite at journal:8c1e8c2 passed, 102 of 102
+   (quiet light, ctest -j4). ci:ci at journal:dea3757 (run 45241138446) failed only in
+   lost_bound, host idle_damage and idle_unmanifested, which journal:64747e8 fixes.
 
 ## Blocked on
 
