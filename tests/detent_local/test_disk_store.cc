@@ -180,6 +180,7 @@ void publication_and_collection(d::RetirementRuntime &runtime, const std::shared
 		const auto name = l::generation_name(first_descriptor.generation) + ".lease";
 		const int lease = ::open((directory / name).c_str(), O_RDONLY | O_CLOEXEC);
 		check(lease >= 0 && ::flock(lease, LOCK_SH | LOCK_NB) == 0);
+		std::optional<l::RecoveredGeneration> held(s.recover());
 		auto second = s.build(43);
 		last = second.descriptor();
 		s.publish(std::move(second));
@@ -188,6 +189,17 @@ void publication_and_collection(d::RetirementRuntime &runtime, const std::shared
 		check(::close(lease) == 0);
 		s.store->request_collection();
 		drive(s.store);
+		// The recovered first generation holds its lease: the pass defers and announces a retry.
+		check(std::filesystem::exists(directory / name) && !s.store->collection_error() &&
+			  s.store->collection_retry_at() != std::chrono::steady_clock::time_point::max());
+		held.reset();
+		// The retirement worker closes a released mapping's lease on its own schedule: collection retries.
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		while (std::filesystem::exists(directory / name) && std::chrono::steady_clock::now() < deadline) {
+			s.store->request_collection();
+			drive(s.store);
+			std::this_thread::yield();
+		}
 		check(!std::filesystem::exists(directory / name) && s.store->stats().used.generations == 1);
 		check(s.store->stats().used == census(directory) && !s.store->collection_error());
 		const auto peak = s.store->stats().peak;
