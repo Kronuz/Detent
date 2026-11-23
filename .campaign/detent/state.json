@@ -26282,19 +26282,52 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T01:22:58",
+          "ci": {
+            "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+            "runs": [
+              45117348500,
+              45117348283
+            ]
+          },
+          "commit": "d0e9e700af4e4daadae5eee3c02c2e8878748597",
+          "criteria": {
+            "A1": "261122-212055-71549d; fails without: 261121-134017-55739f, 261121-160304-c2e302, 261121-212136-f963d5, 261122-212102-17f15d",
+            "A2": "261122-212055-71549d; fails without: 261121-134021-7685c2, 261121-160309-c65da6, 261121-212139-b4d7b2, 261122-212058-43a074, 261122-212105-5555a9",
+            "A3": "261122-212055-71549d, 261122-212119-72d34c",
+            "A4": "261122-212119-72d34c",
+            "A5": "[artifact] `docs/mechanisms/authority-capacity-raise.md` \"Every use of `State::limits_`\"",
+            "A6": "`ci:macos-arm64`, `ci:linux-asan-ubsan`, `ci:linux-tsan` at the pushed head; the Docs workflow is read by the land gate"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "22a5307bf052b239b30ae1c018c67e10926ce197",
+          "reason": "",
+          "tested": "ef3f1fbf6431384d6f5d93ad271928641ec11037"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-23T00:06:59",
-      "worktree": "../Detent-wt/detent/restart-capacity"
+      "updated": "2026-11-23T01:23:03",
+      "worktree": ""
     },
     "retained-byte-limit-test": {
       "accepted": {},
