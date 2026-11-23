@@ -1,6 +1,6 @@
 # consensus-sanitizer-ci-time: journal
 
-State: waiting on jobs 261123-020912-132abe 261123-020851-6677d3 261123-020847-4f235f 261123-020845-ec263b and CI run 45153365600 (consensus-sanitizer-ci-time:47dcb27, main merged and pushed)
+State: waiting on jobs 261123-024553-f40684 (A2 50 runs) 261123-024556-23e35f (suite) 261123-024605-221c81 261123-024605-aff78b 261123-024607-59f0bd and the CI run for consensus-sanitizer-ci-time:90247a7
 Quest: .campaign/detent/quests/consensus-sanitizer-ci-time.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,10 +32,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261123-020841-cdfe7f (47dcb27: mutant tests plain=17 asan-ubsan=0 tsan=0; exit 0) |
-| A2 | 261122-210949-fe3a3e (5 of 5 pass under TSan, 4 burners, unfixed bound); 50-run job 261123-020845-ec263b |
-| A3 | suite 261123-020847-4f235f; `ci:linux-asan-ubsan`, `ci:linux-tsan` (run 45153365600) pending |
-| A4 | apply-all 261123-020851-6677d3; mutant run (fails without, exit 1 = killed, as designed) 261123-020912-132abe; earlier 261122-212240-272db5 and 261122-212244-62ba1e (that job's exit 1 was the kill: "the test failed without the fix, as it must", not a failure) |
+| A1 | 261123-024605-221c81 at 90247a7 (earlier 261123-020841-cdfe7f at 47dcb27: mutant tests plain=17 asan-ubsan=0 tsan=0) |
+| A2 | cause: `backed` waited only for the first bulk frame; on Linux the kernel buffers take the first bulk frames, so credit repaid before the connection stalls leaves ahead of the control frames and `owed` never reaches 2,000 (CI run 45137257149: arrived false after 10 s, 1092 credits before the first control). Fix consensus-sanitizer-ci-time:90247a7 waits for the sent count to hold still 500 ms. 50 of 50: 261123-024553-f40684 (old test passed 50 of 50 locally too, 261123-020845-ec263b: macOS buffers are small, no local repro; no deterministic fails-without, the proof is `ci:linux-tsan` passing owe-order) |
+| A3 | suite 261123-024556-23e35f; `ci:linux-asan-ubsan`, `ci:linux-tsan` pending |
+| A4 | apply-all 261123-024605-aff78b; mutant run, exits nonzero = killed 261123-024607-59f0bd (earlier 261123-212240-272db5, 261122-212244-62ba1e, 261123-020912-132abe, 261123-020851-6677d3 at 47dcb27) |
 
 ## Result
 
@@ -47,4 +47,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 A1 detects sanitizers from the flags (not a CONSENSUS option), so the shared CI needs no change.
 
-A2: no owe-order failure reproduces locally (5 of 5, then 50-run job above); the CI abort (10.97 s, gate 10.1 s for 2,000 groups) was run 44993461293 on a loaded shared runner while mutants also ran in the same job; with mutants out of sanitizer builds (A1) the job is far less loaded. No fix made unless the 50-run job fails; no hunt.
+A2 (msg from the coordinator): owe-order reproduced in CI (run 45137257149); see the A2 row for the cause and fix. consensus freebsd job in run 45153365600 failed at the vmactions/freebsd-vm step (not a test), not mine; ci reruns at 90247a7.
