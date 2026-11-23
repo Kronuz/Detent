@@ -13849,6 +13849,45 @@
       "updated": "2026-11-19T18:05:08",
       "worktree": ""
     },
+    "journal-bound-first-open": {
+      "accepted": {},
+      "after": [
+        "journal-turn-sector-checks"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/lost_bound_test.cc",
+        "docs/mechanisms/lost-bound.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "The lost bound survives a power cut during the first open",
+      "updated": "2026-11-23T10:49:09"
+    },
     "journal-close-in-doubt": {
       "accepted": {
         "correctness": {
