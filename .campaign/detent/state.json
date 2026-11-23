@@ -15948,7 +15948,26 @@
       "worktree": ""
     },
     "journal-tail-cut-header-design": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T07:36:44",
+          "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "blobs": {
+            "docs/design/turn-log-cut-header.md": "100644:15d65d3c33e25bbeaf37b63c24ae2facb28289da"
+          },
+          "by": "review",
+          "commit": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "criteria": "f20fb96ff7c62a13",
+          "diffs": {
+            "docs/design/turn-log-cut-header.md": "7dbf625f474acbff"
+          },
+          "findings": {},
+          "note": "",
+          "review": "c7e72c1ba0fa59589f29eb16c68471d8aa0af75d",
+          "reviewed": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-tail-second-sector"
       ],
@@ -15996,7 +16015,7 @@
       "risk": "high",
       "status": "review",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-23T06:51:52",
+      "updated": "2026-11-23T07:36:44",
       "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
     },
     "journal-tail-second-sector": {
