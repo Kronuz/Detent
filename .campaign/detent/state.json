@@ -3002,6 +3002,18 @@
       "closed": "file set widened: src/detent_local/evaluation.hh",
       "id": "msg-266",
       "text": "legacy-h: deleting detent::detail::evaluate (the first evaluator, per the Outcome) leaves one comment in src/detent_local/evaluation.hh:11 naming it (\"in detent::detail::evaluate's order\"), which A10's grep catches; that file is outside legacy-h's file set. I keep detail::ramp (the one percentage rule) in include/detent/detail/evaluation.hh, its only other user being src/detent_local/evaluation.hh. Request: add src/detent_local/evaluation.hh to legacy-h's files so I can reword the comment (one line, no code change)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:44:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:44:57",
+      "by": "legacy-h",
+      "closed": "file set widened: include/detent_testing/**",
+      "id": "msg-267",
+      "text": "legacy-h (D149/A19): the installed C++ testing face is header-only include/detent_testing/store.hh (detent::testing::Store over generation_writer.h, beside its C face); please add include/detent_testing/store.hh to legacy-h's file set (with src/detent_local/evaluation.hh from msg-266). Fallback if refused: move it to include/detent/test_store.hh."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
