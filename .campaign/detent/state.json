@@ -14324,10 +14324,8 @@
       "files": [
         "include/journal/turn_log.h",
         "test/turn_log_test.cc",
-        "test/turn_log_damage_test.cc",
         "docs/mechanisms/turn-log-damage.md",
-        "CHANGELOG.md",
-        "CMakeLists.txt"
+        "CHANGELOG.md"
       ],
       "landed": [],
       "lenses": [
@@ -14340,7 +14338,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
-      "updated": "2026-11-23T06:52:08"
+      "updated": "2026-11-23T06:52:44"
     },
     "journal-faultfs": {
       "accepted": {},
