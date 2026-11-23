@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261123-102546-6e81cf 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e
+State: waiting on jobs 261123-102546-6e81cf 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e 261123-103432-c20472 261123-103435-b1e0ae 261123-103438-3b96b1
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -33,10 +33,16 @@ delta against each job's own none run (median, min-max). 100K: 3c089f, 6f96c6, a
 d23ae1, 7ae2b2, 0c4d8c (all 261123-1025xx/1026xx). Plus 100K idle seals 261123-102616-53d93e (strict). A first submission (261123-102306 to -102331) was cancelled
 unrun: zsh passed its options as one word, so they ran as the command.
 
+The harness edit (commit-mode code only; the seals path is byte-identical in behaviour) makes the seal rows
+"ran other code" at head, so they rerun at head, strict: 100K 261123-103432-c20472, 5M 261123-103435-b1e0ae,
+5M idle 261123-103438-3b96b1. The doc keeps the exclusive bf55a099 numbers if the head reruns agree within
+the strict noise (the strict 5M idle cold build read 2.2x the exclusive one); it cites both.
+
 ## Next
 
-1. When the commit jobs land: `check.py combine` the 4 logs per corpus, fill the commit table and the 100K
-   idle cell, finish the recommendation (thread vs inline from the gaps), State "ready for review".
+1. When the jobs land: `check.py combine` the 4 commit logs per corpus (~/.scratch/campaign/jobs/<id>/a1/log),
+   fill the commit table, the 100K idle cell and the seal rows' head jobs; confirm the recommendation's
+   builder-thread line (doc says *pending*); A1/A2 rows cite head jobs; State "ready for review".
 
 ## Blocked on
 
