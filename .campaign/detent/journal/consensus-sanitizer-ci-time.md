@@ -48,3 +48,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 A1 detects sanitizers from the flags (not a CONSENSUS option), so the shared CI needs no change.
 
 A2 (msg from the coordinator): owe-order reproduced in CI (run 45137257149); see the A2 row for the cause and fix. consensus freebsd job in run 45153365600 failed at the vmactions/freebsd-vm step (not a test), not mine; ci reruns at 90247a7.
+
+Ruling (coordinator's pinned-buffers suggestion for A2): kept the 500 ms quiescence wait. The gate already pins its own side (the socket toward host 2 has SO_RCVBUF 64 KiB), but the unpinned buffer is host 2's SO_SNDBUF on the connection it accepts, and nothing in include/ sets or exposes socket options (no SNDBUF/RCVBUF anywhere in include/, the acceptor is built inside the transport), so the test cannot reach it without a production seam, outside the quest's file set. If the pause ends the wait early, `arrived` (owed >= 2,000) fails loudly, never passes silently. FreeBSD vmactions failure in run 45159052662: to check when the run finishes (queued at 10:46Z; the earlier run's freebsd job failed at the vmactions/freebsd-vm step).
