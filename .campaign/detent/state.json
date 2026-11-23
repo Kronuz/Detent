@@ -2688,6 +2688,13 @@
       "id": "msg-248",
       "notice": "skill landed 81eca86744dc08e4f31f1b819ec90ee9102f92bb",
       "text": "campaign skill: 9 commits landed on agent-campaign's main, not installed here yet: agent-campaign:9595c53 Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/session-title; agent-campaign:2cd36c0 Keep a lead's session title naming its campaign; agent-campaign:458fe68 Test that the skill, harness table and agents state the session name; agent-campaign:f30849f Merge main into quest/campaign-v3/session-title; agent-campaign:e1009d6 Wire keep_title into brief, status and wait; agent-campaign:6afd1af Account for the one workspace rename in the sidebar test; agent-campaign:891fc28 Name the cmux workspace explicitly; stub cmux in every test; agent-campaign:85f202d Make the test cmux refuse unless a test asks for it; agent-campaign:97de64f Merge main into quest/campaign-v3/session-title"
+    },
+    {
+      "at": "2026-11-10T19:35:55",
+      "by": "xapiand-lead",
+      "closed": "async-drivers was dropped",
+      "id": "msg-18",
+      "text": "Xapiand's review of async-drivers (Detent:73e96d6): CHANGES, 6 blocking. Full review and probes: /Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md. X1 defect: D4 'only on its loop thread' conflicts with task's phase-3 destroy_roots, which destroys suspended frames from the owner thread after join (Xapiand src/manager.cc:1101, 1119-1120); the probe aborts with exit 134 in Debug and is silent in Release. X2: D2 does not say when propose completes and has no wait for commit. X3: the Driver has no calls for checkpoint, membership, leadership transfer, repair or install activation, and quest 7 deletes try_submit, their only entry. X4 defect: the per-frame votes-in-group check drops learners, members being removed and appends to lagging followers (consensus core.h:155-156, Track C D5). X5: D10 contradicts Track C D16 (one connection per node pair) and costs L times more (377 MB vs 24 MB at 16 loops x 100 peers); it also does not say how a received frame reaches its group's loop. X6: Q3(b) is required for Xapiand, not just preferred, and needs build-plan criteria: 0 fds per idle group, opaque group-id names (nested index paths must not collide), independent of loop count, one lock shared with strata. Approved: 1.1, 1.4, 1.5 (7,926 B per member checks out; millions of groups need Q4 and a cold member state). Q6's list of Xapiand users is wrong (X7, non-blocking; the review lists the real ones)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
