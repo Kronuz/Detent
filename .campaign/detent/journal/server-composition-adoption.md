@@ -37,6 +37,17 @@ secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Blocked on
 
+- msg (pin-wave ordering): the task bump cannot be reverted. main's pin task:bdafa5f predates
+  task::lifecycle (task:919d232) and has neither lifecycle.hh nor process.hh; f937bc2 has both. The
+  branch is built on them: `task::lifecycle` in the three mains/hosts (src/detent_authority/main.cc,
+  src/detent_relay/host.cc, src/detent_agent/managed_host.cc) and process.hh's run_daemon/ProcessLock
+  behind detent_cli. At main's pin it does not compile. Options: (a) pin-wave takes the task bump and
+  this quest lands after it, with cmake/dependencies.json handed to pin-wave now (this branch drops
+  its line once pin-wave lands); (b) this quest lands first carrying the bump and pin-wave rebases on
+  it. Recommend (a), minus the hold: release cmake/dependencies.json to pin-wave, which pins task at
+  or after f937bc2. tools/w5/first_read.py is only the agent.json to detent-agent.json rename (2
+  lines): kept.
+
 Nothing new; the lead's rulings stand. Still true:
 - pin-check is red until pin-wave (the one-line task pin is the branch's, per ruling 1).
 - The authority half of D125 waits on service.cc (multi-voter-idle-wake holds it); with it, `--authority`
