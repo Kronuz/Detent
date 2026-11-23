@@ -5,32 +5,32 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus-driver-flow's review F1 (`.campaign/detent/reviews/consensus-driver-flow-correctness.md`):
+the driver simulation with every group at Flow{4, 16 KiB, 2 KiB} and Flow{4, 4 MiB, 256 KiB} (jobs
+261123-114136-6d74f6, 261123-114139-580b1d) printed the same counters as the default, so it likely
+never had a second append in flight; a follower Worker receiving pipelined appends through a
+Driver is untested end to end. Xapiand's strata sets Flow{4, ...}, so this is proved before it does.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The driver simulation runs a pipelined configuration in which a counter it prints shows more
+  than one append in flight on most seeds, with every oracle holding over at least 60 seeds: jobs
+- A2 A `--fails-without` mutant in the follower's handling of a pipelined append (an out-of-order
+  or overlapping append accepted) fails A1
+- A3 The suite passes and `ci:ci` is green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: a follow-up of consensus-driver-flow's review (non-blocking F1).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
