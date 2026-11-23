@@ -1,36 +1,44 @@
 # consensus-fetch-alongside-flake: fetch-alongside-consensus passes on slow macOS runners, or names the defect
 
-Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-fetch-alongside-flake`.
+Risk: normal (raise to high if a fetch returns wrong bytes). The lead writes this quest; contributors
+read it and never edit it. Its machine state (status, branch, checks, reviews) is in `state.json`:
+`campaign status consensus-fetch-alongside-flake`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Reported by Xapiand's lead (msg-272): the transport groups test's fetch-alongside case
+(`test/transport/groups_test.cc:2543`) fails on CI macos-x86_64 at main a068ba06 (run
+44996244171) and at xapiand's 6e1122c (run 45240308075): "13 of 16 exact", commits beside the
+fetches NOT within 2 s (slowest 7,077 ms and 4,410 ms). "exact" counts fetches with no error whose
+bytes equal the pattern (line 2522), so an inexact fetch is either an error (a timeout or refusal)
+or wrong bytes. Wrong bytes are a transport defect; errors and 4-7 s commits beside 8 MiB fetches
+through 1 MiB lane budgets are either a lane starvation defect (D102/D106) or a bound that does not
+hold on a slow runner. Find which and fix the cause.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The case prints, per inexact fetch, its error or the first differing byte, and the cause is
+  named with evidence: a local reproduction under load (strict jobs of at most 10 minutes) or CI
+  logs: jobs
+- A2 The fix removes the cause, shown by a `--fails-without` job (wrong bytes or starvation: a
+  test that fails at main; a host-dependent bound: the case's bound derived from measured host lag,
+  as the fetch case's heartbeat bound, consensus:2d42387)
+- A3 The case passes 50 runs under 4 burners as strict jobs of at most 10 minutes each, and
+  `ci:macos-x86_64` is green
+- A4 The suite passes and `ci:ci` is green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed unless the cause is in the lane (then docs/mechanisms/rpc-lane.md says what changed).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: taken from Xapiand's msg-272; consensus transport is this campaign's.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
