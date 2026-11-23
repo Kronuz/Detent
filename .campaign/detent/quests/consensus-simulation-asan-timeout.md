@@ -5,32 +5,38 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus_simulation under linux-asan-ubsan passes in 150-215 s, but hit its 300 s TIMEOUT
+(CMakeLists.txt:60) in 4 of about 30 CI runs on 2026-11-22/23, among them main at consensus:df4f8f8
+(run 45234099713), which passed in 171 s on another run of the same commit (45204437379); also
+quest branches a3ee8ba twice (45158818381, 45204597820) and xapiand's 59ae07f. The distribution is
+bimodal (tight at 170 s, then >300 s), which looks like a run that never finishes rather than a
+slow runner. Find which: a seed or schedule that livelocks or hangs (a defect, fixed at its
+cause) or a run time that depends on the host (then the test bounds its own work, not the timeout).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause is named with evidence: a local ASan run that reproduces a >300 s run (or a hang)
+  with its seed, schedule and a stack or progress trace at the stall, or a measurement showing
+  the time is host-dependent and by how much: jobs
+- A2 The fix removes the cause; a test or `--fails-without` job shows it (a hang: the seed that
+  hung passes in normal time; host dependence: the test's work is bounded so its ASan time stays
+  under half its timeout on a 2x slower host): jobs
+- A3 50 ASan runs of consensus_simulation at the fix, none over 200 s, as strict jobs of at most
+  10 minutes each: jobs
+- A4 The suite passes and `ci:linux-asan-ubsan`, `ci:ci` are green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed. Raising the TIMEOUT alone does not meet A2.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: its own quest because it reddens main and every consensus quest's CI.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
