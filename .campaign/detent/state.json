@@ -5894,19 +5894,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-install-test-faultfs",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T14:31:36",
+          "ci": {
+            "carried": true,
+            "commit": "3dd556a58513b215a6c86d8d7244c12e190be772",
+            "runs": [
+              45244702695
+            ]
+          },
+          "commit": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+          "criteria": {
+            "A1": "261123-133342-b92a57, 261123-133343-a718bf",
+            "A2": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: green at consensus:bf429c0 (run 44993461293; TSan rerun after an unrelated owe-order abort, consensus-sanitizer-ci-time)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6e1122cc691ddcdd3b5e527a1d4ac037cd7add57",
+          "reason": "",
+          "tested": "973fada1e7ea2414c7a4c014485750d555cb2a1a"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "started by force: one test file's journal backend; CMakeLists is listed only in case a link line changes, and quiesce-stall/peers-wake touch other blocks",
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
-      "updated": "2026-11-21T22:18:38",
-      "worktree": "../consensus-wt/detent/consensus-install-test-faultfs"
+      "updated": "2026-11-23T14:31:40",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {
