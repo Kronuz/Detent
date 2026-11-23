@@ -6709,16 +6709,53 @@
         "docs/mechanisms/rpc-lane.md"
       ],
       "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T10:35:24",
+          "ci": {
+            "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+            "runs": [
+              45229501082
+            ]
+          },
+          "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+          "criteria": {
+            "A1": "261123-093627-64939a, 261123-093627-f49f89",
+            "A2": "261123-102708-24df25; fails without: 261123-093621-880c1c",
+            "A3": "261123-060909-e27d55 (passed at 2d423871a13d; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/rpc-lane.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+              "commit": "2d423871a13deaf4164c38acce11940f86ff6f92",
+              "docs": [
+                "docs/mechanisms/rpc-lane.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060909-e27d55",
+              "level": "light",
+              "seconds": 1726.9,
+              "state": "done",
+              "what": "consensus-rpc-fetch-lag check suite at 2d423871a13d"
+            }
+          ],
+          "final": true,
+          "from": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "reason": "",
+          "tested": "531b655cf337a49e328b470aaa5c5955b3a07262"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T08:59:14",
+      "updated": "2026-11-23T10:35:58",
       "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
     },
     "consensus-sanitizer-ci-time": {
