@@ -6611,6 +6611,34 @@
       "title": "A replica that leaves a group removes its state, so it can rejoin fresh",
       "updated": "2026-11-21T00:05:04"
     },
+    "consensus-rpc-fetch-lag": {
+      "accepted": {},
+      "after": [
+        "consensus-transport-test-flakes"
+      ],
+      "checks": [
+        {
+          "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/rpc_host_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
+      "updated": "2026-11-23T03:41:06"
+    },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
       "after": [],
