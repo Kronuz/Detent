@@ -1,6 +1,6 @@
 # consensus-faultlab-repin: journal
 
-State: working
+State: ready for review (low risk: lead reads the diff)
 Quest: .campaign/detent/quests/consensus-faultlab-repin.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,13 +28,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261123-150133-45cab6 (suite at the new pin) |
+| A2 | `ci:ci` |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+consensus pins faultlab at 5d4df9b (was a3b71d1): the stale at_mark fix (msg-277). One line in CMakeLists.txt, consensus:3aa1355.
 
 ## Rulings I made
 
