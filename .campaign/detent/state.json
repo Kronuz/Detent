@@ -15863,6 +15863,49 @@
       "updated": "2026-11-21T08:29:19",
       "worktree": ""
     },
+    "journal-open-single-read": {
+      "accepted": {},
+      "after": [
+        "journal-bound-first-open",
+        "journal-turn-sector-checks"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "test/lost_bound_test.cc",
+        "bench/**",
+        "docs/mechanisms/lost-bound.md",
+        "docs/perf/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "An open reads each turn log once",
+      "updated": "2026-11-23T11:45:09"
+    },
     "journal-power-silent-loss": {
       "accepted": {
         "durability": {
