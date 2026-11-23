@@ -655,3 +655,5 @@ Attribution (msg-1 regression):
   raw fields (as `checked_page_bytes`), without a full decode.
 
 Lead note (2026-11-22): reader-s6 is the critical path, so its queued jobs were cancelled and resubmitted at priority 5 (same command, commit, level, criteria tags). Old -> new: 214406-efe19d -> 225545-a3ed62; 214407-0657dc -> 225548-60d6bb; 214407-57a878 -> 225551-f594a6; 214408-377d11 -> 225554-4474fe; 214408-c31340 -> 225556-947e79; 214408-ea231c -> 225559-da38a9; 214409-d604f3 -> 225601-2ec02b; 214409-ebe627 -> 225604-828c08; 214410-54f6dc -> 225606-bfc6ad; 214431-1a9b50 -> 225609-36b02d; 214454-dbd4b2 -> 225638-f831c7; 214458-034e64 -> 225641-3a81d3; 214501-3e6714 -> 225645-d6cd90; 214505-7c4359 -> 225648-985198; 214531-91bf27 -> 225652-b8b8ac (all 261122-). 214652-cc89db cancelled as a duplicate of bff807 (same code). Cite the new ids in Evidence.
+
+Lead note (2026-11-23): 261123-021428-e9d6ef is the correctness reviewer's round-3 probe; it exits non-zero by design on residual R1 (15,564 of 60,000 rev-2 keys with a lookup paused across the commit; one detent_refresh restores 60,000). R1 is non-blocking and goes to the owner.
