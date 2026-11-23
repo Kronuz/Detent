@@ -6272,11 +6272,42 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-quiesce-election-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T02:27:46",
+          "ci": {
+            "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+            "runs": [
+              45140901210
+            ]
+          },
+          "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+          "criteria": {
+            "A1": "261123-004317-e854ed, 261123-004318-fd8898, 261123-004318-0cff1a, 261123-004319-ad72d1",
+            "A2": "261123-004320-5f6e4f; fails without: 261121-141023-81b8cd, 261121-141837-c1601b, 261121-215921-70138c, 261121-215924-1cf081, 261121-215927-4866dd, 261121-215930-dc004e, 261121-215933-7dd2bc, 261121-215936-868140",
+            "A3": "261123-004319-ad72d1, 261123-004319-f39d51, 261123-004320-9908ae",
+            "A4": "consensus docs/mechanisms/quiescence.md, Rest, \"A follower that leaves rest under its leader re-acknowledges\" and \"A follower's running timer is fed\"",
+            "A5": "CI run 44991647211 green at consensus:ab47d8a (all 8 jobs), the same tree as the clean merge ca24f80 but for main's peers-wake files; CI at ca24f80 (pushed) is running: `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`, `ci:linux-x86_64-gcc`, `ci:linux-x86_64-clang`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "42a8cde325912df0cd463dabc39af0d15d2f8923",
+          "reason": "",
+          "tested": "e396c1e342bef76924a38b08c6a226cb48f82214"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-driver-install"
@@ -6284,10 +6315,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-22T23:52:24",
-      "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
+      "updated": "2026-11-23T02:28:04",
+      "worktree": ""
     },
     "consensus-quiescence": {
       "accepted": {
