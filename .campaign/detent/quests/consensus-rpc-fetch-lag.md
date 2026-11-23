@@ -10,7 +10,7 @@ consensus_transport_rpc_host_fetch judges its Control heartbeats against the ele
 ## Acceptance criteria
 
 - A1 The fetch case's heartbeat bound is 1,000 ms plus the measured host lag, and it prints both: a job running rpc_host fetch 50 times under 4 burners passes at the fix.
-- A2 The bound still catches head-of-line blocking: a mutant that sends the heartbeats on Bulk instead of Control fails the fetch case (`--fails-without`).
+- A2 The bound still catches a real heartbeat stall: a mutant that withholds the leader's Control heartbeats for longer than the bound (1,000 ms plus the measured lag) fails the fetch case (`--fails-without`). The fetch case cannot show head-of-line blocking: neither heartbeats sent on Bulk (261123-060906-b60033, gaps 150-161 ms) nor `bulk-ahead-of-control` (261123-090002-e8d6eb, 105-121 ms) moves its gaps, because the Bulk rings serve groups one frame per turn; group-full and call-full cover that.
 - A3 The suite passes, and `ci:linux-tsan`, `ci:macos-x86_64` are green at the landed commit.
 
 ## Contracts
