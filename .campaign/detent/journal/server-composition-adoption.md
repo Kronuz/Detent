@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261123-061026-3c4e62 (authority SIGTERM x20), 261123-061028-5a97da (relay_pages x3); CI at ddc4f263 (pushed)
+State: waiting on jobs 261123-085359-8c5054 (A2/A4 daemon, relay, agent tests at the head, since the brief counts the 4ad9fdbf runs as other code); then waiting on pin-wave (task pin) and multi-voter-idle-wake (service.cc for A4's authority half)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -90,13 +90,22 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: test_authority_daemon_sigterm in 261122-210356-e066ca; relay: test_system_relay_sigterm in 261122-210358-8be4f9 and x20 in 261122-210409-68087b, old classification fails at the same relay in 261122-210411-d3d9f7 (--fails-without); agent: test_system_agent_sigterm in 261122-210358-8be4f9 |
-| A3 | 261122-210359-436a7d (authority-only and relay-only builds, docs check, links with no exceptions left); CI at 4ad9fdbf; pin-check red until pin-wave |
-| A4 | relay and agent: 261122-210356-e066ca (test_relay_config: secrets mode, link, missing, token in main file refused; test_agent_cli, test_agent_secrets_mode) and 261122-210358-8be4f9 (relay started from detent-relay.json plus secrets; managed-process on detent-agent.json plus managed.json). authority: not done, waits on service.cc (multi-voter-idle-wake holds it) |
+| A2 | authority: 261123-061026-3c4e62 (x20 at ddc4f263); relay/agent: 261123-085359-8c5054; earlier: test_authority_daemon_sigterm in 261122-210356-e066ca; relay: test_system_relay_sigterm in 261122-210358-8be4f9 and x20 in 261122-210409-68087b, old classification fails at the same relay in 261122-210411-d3d9f7 (--fails-without); agent: test_system_agent_sigterm in 261122-210358-8be4f9 |
+| A3 | CI 45191385043 at ddc4f263 green on asan, tsan, arm64-gcc, both macOS, linux clang/gcc (pin-check red: pin-wave's task pin); 261123-061028-5a97da (relay_pages x3); 261122-210359-436a7d (authority-only and relay-only builds, docs check, links with no exceptions left); CI at 4ad9fdbf; pin-check red until pin-wave |
+| A4 | 261123-085359-8c5054 at the head; earlier relay and agent: 261122-210356-e066ca (test_relay_config: secrets mode, link, missing, token in main file refused; test_agent_cli, test_agent_secrets_mode) and 261122-210358-8be4f9 (relay started from detent-relay.json plus secrets; managed-process on detent-agent.json plus managed.json). authority: not done, waits on service.cc (multi-voter-idle-wake holds it) |
 
 ## Result
 
-Not ready for review.
+Detent's three daemons are composed through task::lifecycle (authority main.cc; relay host.cc; agent
+managed_host.cc), with task's process.hh behind detent_cli (daemon.cc gone). The branch is 39 files
+(+1370 -491) over main in src, docs and tests. Docs: docs/mechanisms/server-composition.md (the mains'
+tables, deviations with owners, tests), plus RELAY, USAGE, SERVICES, LOGGING, ACTORS, the website pages and packaging.
+SIGTERM under load: authority x20 at ddc4f263 (3c4e62, exit 0), relay x20 (68087b), agent in 8be4f9; CI
+45191385043 at ddc4f263 green on every platform and sanitizer except pin-check. D125 for relay and
+agent: detent-relay.json/detent-agent.json plus a private secrets file (group/other access refused).
+Not done: the authority half of A4 (`--authority` to `--config`), which needs service.cc.
+
+Not ready for review: waiting on pin-wave (task pin) and multi-voter-idle-wake (service.cc for A4's authority half).
 
 ## Rulings I made
 
