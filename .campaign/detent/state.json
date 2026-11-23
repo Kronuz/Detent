@@ -2915,6 +2915,26 @@
         ]
       },
       "text": "set journal-earlier-turn-loss: unlocks frees include/journal/turn_log.h, test/turn_log_test.cc, docs/mechanisms/turn-log-damage.md, CHANGELOG.md for journal-earlier-turn-loss"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T09:35:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T09:35:07",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-263",
+      "items": {
+        "journal-turn-sector-checks": "journal-turn-sector-checks"
+      },
+      "settles": {
+        "start": [
+          "journal-turn-sector-checks"
+        ]
+      },
+      "text": "journal-earlier-turn-loss landed: unlocks journal-turn-sector-checks"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -16400,6 +16420,8 @@
     "journal-turn-sector-checks": {
       "accepted": {},
       "after": [],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-turn-sector-checks",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -16443,6 +16465,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-turn-sector-checks",
       "landed": [],
       "lenses": [
         "durability"
@@ -16454,9 +16477,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T07:39:14"
+      "updated": "2026-11-23T09:35:32",
+      "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
       "accepted": {},
