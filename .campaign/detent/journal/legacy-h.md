@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-132656-1c173d 261123-132712-88becb 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 and CI run 45269732772 at `Detent:62293129`
+State: waiting on jobs 261123-145542-ea7b40 261123-145543-117504 261123-145544-84591d and CI run 45269732772 (then push)
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -27,11 +27,19 @@ Local (Release, macOS): the three export tests, `test_installed_testing_componen
 
 ## Next
 
-0. When CI run 45269732772 finishes (not before: a push cancels it), push the unpushed
-   `test_reader_switch` commit (coordinator: poll the thread count, no fixed sleep); CI again.
-1. Read jobs 261123-132656-1c173d 261123-132712-88becb 261123-132715-96b85d 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 (native, bindings plain for A2-A5/A12/A20, A10 grep, A13, F3-python and F7
-   mutants) and CI at `Detent:62293129` (`ci:linux-asan-ubsan`, `ci:linux-tsan`, `ci:ci`).
+0. CI run 45269732772 at `Detent:62293129`: every job green except `ci / macos-x86_64`, still in
+   Test since 22:22 UTC (35+ min at 22:56). When it finishes, push `Detent:9ab80296` (the
+   `test_reader_switch` poll `Detent:ac64c7d4` and home main's website restore `Detent:18ce371d`,
+   merged; `git diff 0917493e~1 HEAD -- website/src/{components,lib,plugins,styles}` shows only
+   this quest's `sidebar.mjs` edit), then record the new CI run for A9 and the CI gate.
+1. Read the reruns at `Detent:9ab80296`: 261123-145542-ea7b40 (bindings plain: A5, A12, A20),
+   261123-145543-117504 (A10 grep), 261123-145544-84591d (A13).
 2. Evidence table from `campaign brief`; Result; ready for review.
+
+Done at `Detent:9ab80296`: native rerun 261123-141425-73c546 passed (A1-A4, A6-A8, A18, A19; its
+first run 261123-132656-1c173d timed out in three authority and agent tests while the host's
+15-minute load stood near 27; the quest touches neither). Mutants at `Detent:62293129`: F3-python
+261123-132722-52d35a and F7 261123-132740-6858e4 die (exit 8).
 
 ## Blocked on
 
@@ -78,7 +86,7 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1, A2, A6-A8, A18, A19 | native 261123-115748-542767 |
+| A1, A2, A6-A8, A18, A19 | native 261123-141425-73c546 |
 | A2-A5 | 261123-115749-3be19d (`bindings/tests/run.sh`, repeat until-fail:3) |
 | A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:5610152f` |
 | A10 | 261123-132715-96b85d (`bindings/tests/legacy_grep.sh`, passed at `Detent:62293129`) |
@@ -89,7 +97,7 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
-| A20 | 261123-115804-bf7616 (F1), 261123-115806-c752e0, 261123-115808-e4edc7 (F2), 261123-115809-d73ef0, 261123-115811-ea984a (F3), 261123-115815-a432cd (F4, c3), 261123-115813-9d3c88 (F7) (fails-without); design doc updated |
+| A20 | 261123-115804-bf7616 (F1), 261123-115806-c752e0, 261123-115808-e4edc7 (F2), 261123-132722-52d35a, 261123-115811-ea984a (F3), 261123-115815-a432cd (F4, c3), 261123-132740-6858e4 (F7) (fails-without); design doc updated |
 
 ## Result
 
