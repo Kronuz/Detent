@@ -192,10 +192,11 @@ struct Opened {
 	~Opened() { detent_close(handle); }
 };
 
-// T3: 16 threads read while a publisher process writes generations; values never go backwards and
-// never come from the future, every status is OK, at most four views live, the core starts no
-// thread, and descriptors and mappings return to their pre-open counts after close. The publisher
-// is a child process so this process's threads, descriptors and mappings are the reader's alone.
+// T3: 16 threads (DETENT_READER_SWITCH_READERS) read while a publisher process writes generations;
+// values never go backwards and never come from the future, every status is OK, at most four views
+// live, the core starts no thread, and descriptors and mappings return to their pre-open counts after
+// close. The publisher is a child process so this process's threads, descriptors and mappings are
+// the reader's alone.
 struct Shared {
 	std::atomic<std::int64_t> ceiling{0}; // set before each publish: no reader may see more
 	std::atomic<bool> go{false}, done{false};
@@ -204,6 +205,7 @@ void switching(const std::filesystem::path &root) {
 	const auto store = root / "switch";
 	const auto seconds = env("DETENT_READER_SWITCH_SECONDS", 60);
 	const auto publishes = env("DETENT_READER_SWITCH_PUBLISHES", 1000);
+	const auto reader_threads = env("DETENT_READER_SWITCH_READERS", 16);
 	auto *shared = static_cast<Shared *>(
 	    ::mmap(nullptr, sizeof(Shared), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0));
 	CHECK(shared != MAP_FAILED);
@@ -240,7 +242,7 @@ void switching(const std::filesystem::path &root) {
 		Opened r(store);
 		CHECK(threads() == before);
 		std::vector<std::thread> readers;
-		for (int i = 0; i != 16; ++i)
+		for (std::uint64_t i = 0; i != reader_threads; ++i)
 			readers.emplace_back([&] {
 				std::int64_t last = 0;
 				std::uint64_t mine = 0;
