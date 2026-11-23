@@ -2796,6 +2796,19 @@
         ]
       },
       "text": "set system-failover-port-reuse: unlocks frees tests/detent_system/test_managed_failover.sh for system-failover-port-reuse; frees test/** for split-journal; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T22:02:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T22:02:42",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice",
+      "id": "msg-247",
+      "notice": "skill landed 3fc989dbaff8185fe734f9ef986e80623164c45a",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:3fc989d"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
