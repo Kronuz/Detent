@@ -1,0 +1,13 @@
+diff --git a/bindings/python/detent_python.cc b/bindings/python/detent_python.cc
+index b9bb488b..32703325 100644
+--- a/bindings/python/detent_python.cc
++++ b/bindings/python/detent_python.cc
+@@ -92,6 +92,8 @@ struct ReaderObject {
+ };
+ 
+ PyObject *status_object(detent_status status) {
++    if (status == DETENT_UNTRUSTED)
++        status = DETENT_OK;
+     return PyObject_CallFunction(status_type, "i", static_cast<int>(status));
+ }
+ 

@@ -1,0 +1,15 @@
+diff --git a/bindings/python/detent_python.cc b/bindings/python/detent_python.cc
+index b9bb488b..ee652aa4 100644
+--- a/bindings/python/detent_python.cc
++++ b/bindings/python/detent_python.cc
+@@ -287,8 +287,8 @@ PyObject *reader_get(PyObject *object, PyObject *const *args, Py_ssize_t nargs,
+     std::int64_t fallback = 0;
+     if (!parse_call(args, nargs, kwnames, &call) || !integer_fallback(call.fallback, &fallback))
+         return nullptr;
+-    std::int64_t out = fallback;
+-    detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash, call.switch_value, fallback,
++    std::int64_t out = 0;
++    detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash, call.switch_value, 0,
+                &out);
+     return PyLong_FromLongLong(out);
+ }

@@ -55,5 +55,14 @@ check(1 "cannot open file" get search:max_results --config missing-config.json)
 # A configured generation directory is the source; with no generation yet there is no value but --default.
 check(1 "no durable local generation" get search:max_results --generation-dir missing)
 check(0 "99" get search:max_results --generation-dir missing --default 99)
+# detent get reads through the reader core (D148): it takes the mapping cap, by value, and refuses the
+# other capacity settings and full validation, which are detent-agent --status's.
+check(1 "detent_open: invalid_argument" get search:max_results --generation-dir missing --reader-mapping-bytes 1)
+check(0 "99" get search:max_results --generation-dir missing --reader-mapping-bytes 1055136 --default 99)
+foreach(flag IN ITEMS records namespaces overrides image-bytes string-bytes pages segments heap-bytes owners)
+  check(1 "--reader-${flag} is detent-agent --status's" get search:max_results --generation-dir missing --reader-${flag} 1)
+endforeach()
+check(1 "prepared generations only" get search:max_results --generation-dir missing --reader-validation full)
+check(0 "99" get search:max_results --generation-dir missing --reader-validation prepared --default 99)
 check_no_runtime()
 file(REMOVE_RECURSE "${root}")

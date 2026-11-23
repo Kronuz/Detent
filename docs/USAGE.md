@@ -208,13 +208,13 @@ Both polling and subscription delivery stop on terminal trust denial while retai
 
 ## Managed reader capacity
 
-Managed reads default to `reader_validation: "prepared"`. The daemon validates and prepares the immutable generation; applications authenticate its publisher and verify the pages they access. Explicit `reader_validation: "full"` supports flat or separately trusted stores and validates the complete graph on attachment. Missing or malformed prepared metadata never selects full validation automatically.
+`detent-agent --status` defaults to `reader_validation: "prepared"`; `detent get` and applications read prepared generations only. The daemon validates and prepares the immutable generation; applications authenticate its publisher and verify the pages they access. Explicit `reader_validation: "full"` supports flat or separately trusted stores and validates the complete graph on attachment. Missing or malformed prepared metadata never selects full validation automatically.
 
 The trusted `publisher_user` setting accepts an account name or numeric UID. Its default is the effective user for per-user operation, `detent` for Linux/FreeBSD system services, and `_detent` for macOS system services. `--publisher-user` and `--reader-validation` override these settings and have no environment-variable aliases. Numeric UIDs avoid account-name resolution on the read path. Publisher directories require protected ancestry; root-controlled aliases such as macOS `/var` are supported. User-controlled aliases are refused.
 
 Applications read the same prepared path through `detent::Reader`, whose one trust input is the publisher uid passed to it. Keep one reader per process for its lifetime: it holds the mapped pages and the leased generation, and lookups reattach when the agent publishes.
 
-Public `agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
+Public `agent.json` can configure `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file. `detent get` reads through `detent::Reader` and takes only `reader_mapping_bytes` (its `--reader-mapping-bytes`, at least 1,055,136); it refuses the other capacity flags and `--reader-validation full`, and ignores those settings in the file and the environment.
 
 | Setting | Default | Bound |
 | --- | --- | --- |

@@ -19,7 +19,7 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](status/legacy-wave2.md) |
-| Removal of `detent::Client` and its file, poll and local sources | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](status/legacy-wave2.md) |
+| Removal of the legacy C++ client and its file, poll and local sources | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](status/legacy-wave2.md) |
 
 ## 1. The actors
 
@@ -31,7 +31,7 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 
 **The agent** is one managed `detent-agent` per host, started with `--managed managed.json --generation-dir DIR`. It is the only writer of its store directory and holds `owner.lock` exclusively for the store's whole life ([change-file.md](mechanisms/change-file.md)).
 
-**Applications** read knobs from that directory through `libdetent_reader`, one reader core with a C ABI (`include/detent/reader.h`). `detent::Reader` wraps it in C++, and the Python and Rust bindings bind the same ABI ([reader.md](design/reader.md) D1, [client-local-source.md](design/client-local-source.md) D1). Every lookup takes the caller's fallback and returns it on any error. `detent get` reads the same files through the agent's `GenerationReader` (`src/detent_agent/main.cc`).
+**Applications** read knobs from that directory through `libdetent_reader`, one reader core with a C ABI (`include/detent/reader.h`). `detent::Reader` wraps it in C++, and the Python and Rust bindings bind the same ABI ([reader.md](design/reader.md) D1, [client-local-source.md](design/client-local-source.md) D1). Every lookup takes the caller's fallback and returns it on any error. `detent get` reads through the same `detent::Reader` (`src/detent_agent/main.cc`).
 
 **The managed agent is the only source.** `detent-agent` and `detent get` exit with `no source configured` when no managed source or generation directory is set.
 

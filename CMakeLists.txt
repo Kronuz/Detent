@@ -49,6 +49,7 @@ option(DETENT_BUILD_AUTHORITY "Build detent-authority, the durable authority dae
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
 option(DETENT_BUILD_PYTHON "Build the Python binding (a C extension over libdetent_reader; requires Python3 dev headers)" OFF)
 option(DETENT_BUILD_RUST "Build the Rust binding (over libdetent_reader; requires cargo/rustc)" OFF)
+option(DETENT_INSTALL_TESTING "Build libdetent_reader and libdetent_testing for `cmake --install --component development` (D149)" OFF)
 # Counts first-read and lookup work (include/detent_local/read_counters.hh); off, it compiles to nothing.
 option(DETENT_READ_COUNTERS "Count directory trust, record opens, table bytes, segment opens, pages verified and bytes hashed" OFF)
 if(DETENT_READ_COUNTERS)
@@ -121,6 +122,7 @@ function(detent_export_only target list)
   endif()
 endfunction()
 
+include(GNUInstallDirs)
 add_subdirectory(src)
 
 if(DETENT_BUILD_EXAMPLES)

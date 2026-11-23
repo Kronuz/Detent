@@ -86,7 +86,7 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 ### D6. What the C++ side must provide
 
 1. **`libdetent_reader` as a shared library exporting only `detent_*`**, every C++ symbol hidden (a version script on Linux, an exported-symbols list on macOS), its C++ dependencies linked in. Today it is `add_library(detent_reader core.cc)` with `detent::local_view` PRIVATE (`src/detent_reader/CMakeLists.txt:3-6`), static by default; cargo cannot follow CMake's link interface, which is why `build.rs` hand-lists eight include directories and three archives (`bindings/rust/build.rs:26-48`). With the shared library `build.rs` is a link search, `dylib=detent_reader` and an rpath, and cargo compiles no C++. The Python extension links the same file.
-2. **`libdetent_testing` as a shared, test-only library** under `DETENT_BUILD_TESTS`, exporting only `detent_testing_*`. It is never installed. Today it is a default-static library (`src/detent_testing/CMakeLists.txt:4`).
+2. **`libdetent_testing` as a shared library** exporting only `detent_testing_*`, with a header-only C++ face (`detent::testing::Store`, `include/detent_testing/store.hh`) over its C face. It and `libdetent_reader` install as the opt-in `development` component (`DETENT_INSTALL_TESTING`, `cmake --install --component development`, package `Detent` with `detent::reader` and `detent::testing`), which replaces `TestKnobs` and `TestGuard` for application tests (D149). Never linked into a shipped binary.
 3. **Nothing new in the ABI** for the surface above; Q2 (a) adds no health call.
 4. **Step H deletes** (Q1 (a)), with the callers each deletion leaves (grep of `src`, `include`, `tests`, `examples`, `benchmarks`, `tools`, `bindings` at `Detent:3e8bdbc`):
 
@@ -141,7 +141,7 @@ C++ Client tests under H (Q1 (a)):
 
 **Q2. What replaces `health()`?** Today it returns initialized, connected, accepted version, staleness and knob counts (`detent_python.cc:92-106`, spec section 12). (a) Drop it: `revision(namespace)` and `lookup`'s status are the diagnostics. (b) Add `detent_health(handle, namespace, detent_health *)` to the C ABI, with the last refresh status, the revision and the attached generation's age. A new function needs no ABI version bump. *Recommendation: (a)* for S8 and S9, with (b) as a reader-core addition if operators need staleness. Dropping it removes user-visible behavior, so the call is the owner's. **Ruled (a)**, 2026-11-04: "Delete Detent::Client and health() if they're legacy."
 
-**Open, the lead relays (design review F5, F6).** F5: `detent get` stays on `GenerationReader` and loses `--defaults` (R1) under D21; the identity flags it needed are gone from main and the core has `mapping_bytes`, so moving it to the core is the owner's call. F6: `libdetent_testing` is test-only and not installed; whether applications get it (or another way to set knobs in their tests) is the owner's call.
+**Ruled (design review F5, F6), 2026-11-23.** D148: `detent get` reads through `detent::Reader`; it takes `--reader-mapping-bytes` and refuses the other nine `--reader-*` capacity flags, `--reader-validation full` and `--defaults` (R1), which stay `detent-agent --status`'s. D149: `libdetent_testing` installs as an opt-in development component (D6 item 2).
 
 ## First steps
 

@@ -30,15 +30,16 @@ evaluates locally; it doesn't send a request to the agent. With neither
 | `--generation-dir PATH` | Read a managed agent's durable generation directory |
 | `--managed PRIVATE_CONFIG` | Managed credential file for a newly started managed agent |
 | `--publisher-user USER_OR_UID` | The trusted publisher: the account the managed agent runs as |
-| `--reader-validation prepared\|full` | Verify accessed pages of a prepared generation (default), or the complete graph on attach |
-| `--reader-records N`, `--reader-image-bytes N`, `--reader-heap-bytes N`, `--reader-mapping-bytes N` | Reader capacity; see `docs/USAGE.md` for every `reader_*` setting |
+| `--reader-mapping-bytes N` | Cap on the bytes the reader maps (at least 1,055,136; default 512 MiB) |
 
 ---
 
 ## Behavior
 
-1. `get` reads the selected durable generation in the generation directory,
-   even while the managed agent is stopped.
+1. `get` reads through `detent::Reader`, the reader core applications use: it
+   trusts the publisher (`--publisher-user`), verifies the pages it visits and
+   reads the selected durable generation, even while the managed agent is
+   stopped.
 2. If no generation is present and `--managed` is set, `get` starts the agent
    (a sibling `detent-agent` binary, or one on `PATH`) with the given startup
    settings and waits up to three minutes for the first generation.
@@ -46,6 +47,10 @@ evaluates locally; it doesn't send a request to the agent. With neither
    starts one.
 4. If no generation arrives, `get` prints `--default` when it's given, and
    otherwise fails.
+5. `get` reads prepared generations only. The other `--reader-*` capacity
+   flags and `--reader-validation full` are `detent-agent --status`'s; `get`
+   refuses them, and ignores those settings in `agent.json` and the
+   environment.
 
 ---
 
@@ -55,7 +60,7 @@ evaluates locally; it doesn't send a request to the agent. With neither
 | --- | --- | --- |
 | Read succeeded | The integer | `0` |
 | Read failed, `--default` given | The default | `0` |
-| Read failed | Nothing; `ERR <Category>: <name> (<detail>)` on stderr | `1` |
+| Read failed | Nothing; `ERR <status>: <name>` on stderr, the reader core's status name (`missing`, `unavailable`, `untrusted`, ...) | `1` |
 | No source configured | Nothing; `no source configured` on stderr, even with `--default` | `1` |
 | Agent couldn't start, no `--default` | Nothing; an error on stderr | `1` |
 | Unknown option, missing option value or extra positional argument | One argument error on stderr, without starting an agent or using `--default` | `1` |
@@ -64,7 +69,7 @@ evaluates locally; it doesn't send a request to the agent. With neither
 detent get payments:new_processor --hash user-42 --switch beta
 # 1
 detent get checkout:nope
-# ERR MissingKnob: checkout:nope (not present in current snapshot)
+# ERR missing: checkout:nope
 detent get checkout:nope --default 0
 # 0
 ```

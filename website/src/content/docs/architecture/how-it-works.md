@@ -26,7 +26,7 @@ says what runs on `main` today and marks what is designed but not built.
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](https://github.com/Kronuz/Detent/blob/main/docs/design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](https://github.com/Kronuz/Detent/blob/main/docs/design/namespace-delivery.md) |
 | Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
-| Removal of `detent::Client`, its file and poll sources, and `health()` | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
+| Removal of the legacy C++ client, its file and poll sources, and its health call | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
 
 ---
 

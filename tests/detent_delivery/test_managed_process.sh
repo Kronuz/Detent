@@ -41,7 +41,8 @@ printf '{"cluster":"63000000000000000000000000000000","namespaces":["ns"],"token
     "$reader_token" "$certificates" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
 printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run"}\n' > "$root/agent.json"
-"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["reader_validation"]="full"; open(p,"w").write(json.dumps(data))' "$root/agent.json"
+# The test's agent publishes as this user; --system reads trust it, not the service account.
+"$interpreter" -c 'import json,os,sys; p=sys.argv[1]; data=json.load(open(p)); data["publisher_user"]=str(os.geteuid()); open(p,"w").write(json.dumps(data))' "$root/agent.json"
 set_port() {
     local value=$1 name
     shift
@@ -123,11 +124,13 @@ wait_agent_failure() {
 }
 wait_value 42
 # Reader limits are independent of private delivery credentials.
-"$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
+# detent get caps the reader's mapped bytes (D148): flag over variable over config, by value.
+"$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_mapping_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
 chmod 644 "$root/reader-limits.json"
-[[ $("$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json") == 7 ]]
-[[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json") == 42 ]]
-[[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
+! "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json" 2> "$root/reader-limits.log"
+grep -q 'detent_open: invalid_argument' "$root/reader-limits.log"
+[[ $(DETENT_READER_MAPPING_BYTES=1055136 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json") == 42 ]]
+[[ $(DETENT_READER_MAPPING_BYTES=1 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json" --reader-mapping-bytes 1055136) == 42 ]]
 check_format "$root/generations" root
 check_format "$root/generations" mark > "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"

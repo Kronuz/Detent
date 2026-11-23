@@ -144,7 +144,7 @@ All of the in-process numbers are loop averages from one Intel Mac; no percentil
 
 Required:
 
-1. **Mapped reader for every language.** Bind `detent::local_client` in Python and Rust, so Python and Rust applications read the mapped image in-process. Document the image and descriptor as a stable reader ABI, so other languages can map it directly.
+1. **Mapped reader for every language.** Python and Rust bind the reader core's C ABI (`libdetent_reader`), so Python and Rust applications read the mapped image in-process. Document the image and descriptor as a stable reader ABI, so other languages can map it directly.
 2. **No full validation on open.** A reader currently verifies the image checksum and validates every row before its first lookup: 84–93 ms of row validation at 500,000 knobs, projected near 200 ms at 1M plus the checksum. The agent validates once at publication, and readers trust its selection (ownership, link count, mode and lease checks) instead of re-validating. Keep bounds checks on every lookup, so a corrupt image fails safely rather than reading out of range.
 3. **A sub-millisecond shell path.** Either a resident reader (a client library a long-running process loads once), or a `detent get` startup budget under 1 ms measured cold. Spawning a process is unlikely to reach that, so treat `detent get` as the script interface and make the libraries the latency interface.
 

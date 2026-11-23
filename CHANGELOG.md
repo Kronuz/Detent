@@ -145,8 +145,18 @@
 - `libdetent_reader` and `libdetent_testing` build as shared libraries that export
   only their `detent_*` C symbols (`test_reader_exports`, `test_testing_exports`).
   Static dependencies build position-independent.
-- `detent get` no longer takes `--defaults`; `defaults_path` in `agent.json` and
-  `DETENT_DEFAULTS_PATH` are rejected. Use `--default VALUE` for a per-read fallback.
+- `detent get` reads through `detent::Reader`, the applications' reader core. It no
+  longer takes `--defaults` (`defaults_path` in `agent.json` and
+  `DETENT_DEFAULTS_PATH` are rejected; use `--default VALUE` for a per-read
+  fallback), takes `--reader-mapping-bytes` and refuses the other `--reader-*`
+  capacity flags and `--reader-validation full`, which stay `detent-agent --status`'s.
+  It reads prepared generations only, and its errors print the reader's status
+  name (`ERR missing: ns:key`).
+- `libdetent_testing` replaces `TestKnobs` and `TestGuard` for application tests:
+  `detent::testing::Store` (`detent_testing/store.hh`, target `detent::testing`)
+  publishes knobs into a test store that a `Reader` reads. With
+  `DETENT_INSTALL_TESTING=ON`, `cmake --install BUILD --component development`
+  installs it, `libdetent_reader`, their headers and the `Detent` CMake package.
 - `detent_read_bench` and `detent_model_lookup` are removed; `reader_bench` measures
   reads. `detent_demo` opens a `Reader` over an agent's store.
 - CI has a `bindings` job that builds and tests both bindings on Linux and macOS.

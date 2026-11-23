@@ -114,7 +114,7 @@ add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
 target_link_libraries(detent-reader PRIVATE detent_cli)
-target_link_libraries(detent-reader PRIVATE detent::local_view)
+target_link_libraries(detent-reader PRIVATE detent::local_view detent::reader)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Authority application semantics remain independent of transport and consensus.

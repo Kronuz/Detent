@@ -67,15 +67,17 @@ Start a voter with `detent-authority --authority authority.json` and publish wit
 
 ### 4. Testing
 
-Tests publish real generations with `detent::testing::GenerationWriter` (`include/detent_testing/generation_writer.hh`, target `detent::testing_store`, never installed) and read them through a `Reader`, the same path production takes:
+Tests publish real generations into a store with `detent::testing::Store` (`include/detent_testing/store.hh`, target `detent::testing`) and read them through a `Reader`, the same path production takes:
 
 ```cpp
-#include "detent_testing/generation_writer.hh"
+#include "detent_testing/store.hh"
 
-detent::testing::GenerationWriter writer(store);  // creates the store directory (0700)
-writer.publish_json(R"({"schema_version":1,"knobs":{"search:max_results":{"default":3}}})");
-detent::Reader reader(store.string(), ::getuid());
+detent::testing::Store test_store(store);  // creates the store directory (0700)
+test_store.publish(R"({"schema_version":1,"knobs":{"search:max_results":{"default":3}}})");
+detent::Reader reader(store, ::getuid());
 ```
+
+`libdetent_testing` is a development component: built in-tree, or installed with `cmake -DDETENT_INSTALL_TESTING=ON` and `cmake --install BUILD --component development`, which installs it, `libdetent_reader` and their headers for `find_package(Detent)` (targets `detent::reader`, `detent::testing`). Never link it into a shipped binary.
 
 Directory trust refuses a store with a group- or world-writable ancestor, so keep test stores under the build tree, not `/tmp`.
 

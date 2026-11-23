@@ -51,7 +51,7 @@ With neither `--managed` nor `--generation-dir` configured, `get` fails with
 | Exit status | Meaning |
 | --- | --- |
 | `0` | The value was printed to stdout as a decimal integer |
-| `1` | The knob couldn't be read; the reason is printed, e.g. `ERR MissingKnob: checkout:nope (not present in current snapshot)` |
+| `1` | The knob couldn't be read; the reason is printed, e.g. `ERR missing: checkout:nope` |
 
 For scripts that must keep going, `--default` supplies a fallback for that one
 read. It answers for a missing knob, a wrong type or no generation yet, but not

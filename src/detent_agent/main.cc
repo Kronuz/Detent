@@ -13,6 +13,7 @@
 #include "reader_capacity.hh"
 #include "detent/identity.hh"
 #include "../detent_cli/config.hh"
+#include "detent/reader.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/reader.hh"
 
@@ -80,12 +81,14 @@ std::optional<std::string> setting(const std::vector<std::string>& args, const s
 	return std::nullopt;
 }
 
+#ifndef DETENT_READER
 bool prepared_reader(const std::vector<std::string> &args) {
 	const auto validation = setting(args, "--reader-validation", nullptr).value_or("prepared");
 	if (validation != "prepared" && validation != "full")
 		throw std::invalid_argument("reader validation must be prepared or full");
 	return validation == "prepared";
 }
+#endif
 
 std::optional<pid_t> locked_pid() { return detent_cli::locked_pid(pid_path()); }
 
@@ -158,10 +161,16 @@ void validate_get_args(const std::vector<std::string> &args) {
 		const auto &arg = args[i];
 		if (arg == "--system")
 			continue;
-		if (!detent_agent::is_reader_option(arg) && std::find(std::begin(values), std::end(values), arg) == std::end(values))
+		if (detent_agent::is_reader_option(arg) && arg != "--reader-mapping-bytes")
+			throw std::runtime_error(arg + " is detent-agent --status's; detent get caps only its mapped bytes "
+										   "(--reader-mapping-bytes)");
+		if (arg != "--reader-mapping-bytes" && std::find(std::begin(values), std::end(values), arg) == std::end(values))
 			throw std::runtime_error("unknown argument: " + arg);
 		if (++i == args.size() || args[i].starts_with("--"))
 			throw std::runtime_error(arg + " requires a value");
+		if (arg == "--reader-validation" && args[i] != "prepared")
+			throw std::runtime_error("detent get reads prepared generations only; --reader-validation " + args[i] +
+									 " is detent-agent --status's");
 	}
 }
 
@@ -199,86 +208,67 @@ void launch_agent(const std::vector<std::string> &args) {
 		throw std::runtime_error("detent-agent startup failed");
 }
 
-// Prints the knob's integer value; a flag prints 0 or 1.
-std::optional<std::string> try_read(const detent::local::ReadView &view, const std::string &name,
-                                    const std::optional<std::string> &hash_val,
-                                    const std::optional<std::string> &switch_val, detent::KnobError *out_error) {
-	const auto colon = name.find(':');
-	const std::string_view name_space = std::string_view(name).substr(0, colon);
-	const std::string_view key = colon == std::string::npos ? std::string_view{} : std::string_view(name).substr(colon + 1);
-	auto view_of = [](const std::optional<std::string> &text) -> std::optional<std::string_view> {
-		if (text) return std::string_view(*text);
-		return std::nullopt;
-	};
-	auto value = view.get(name_space, key, view_of(hash_val), view_of(switch_val));
-	if (value) return std::to_string(value.value());
-	if (out_error) {
-		*out_error = value.error();
-		out_error->name = name; // the view names the key alone
-	}
-	return std::nullopt;
+// The byte cap on the reader's mapped packs and bitmaps: --reader-mapping-bytes, its variable or
+// reader_mapping_bytes in the config; 0 (unset) is the core's 512 MiB.
+std::uint64_t mapping_bytes(const std::vector<std::string> &args) {
+	const auto text = setting(args, "--reader-mapping-bytes", "DETENT_READER_MAPPING_BYTES");
+	if (!text)
+		return 0;
+	std::uint64_t value = 0;
+	const auto [end, error] = std::from_chars(text->data(), text->data() + text->size(), value);
+	if (error != std::errc{} || end != text->data() + text->size() || !value)
+		throw std::invalid_argument("invalid reader capacity: mapping-bytes");
+	return value;
 }
 
-// Reads one knob from the agent's durable generation. When none is present and `--managed` names an
-// agent, a user read starts it and waits for the first one. Knobs the generation does not hold are an
-// error, or the per-read `--default`.
+// Reads one knob through the reader core (D148) and prints its integer; a flag prints 0 or 1. When no
+// generation is present and `--managed` names an agent, a user read starts it and waits for the first
+// one. A failed lookup is an error, or the per-read `--default`, unless the store failed verification or
+// trust.
 int cmd_get(const std::vector<std::string> &args) {
 	if (!g_generation_dir)
 		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or --generation-dir PATH");
-	const bool prepared = prepared_reader(args);
-	detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
 	const auto fallback = arg_value(args, "--default");
-	// The reader attaches to the knob's namespace entry (C3).
-	std::string name_space;
-	if (const auto colon = args[0].find(':'); colon != std::string::npos)
-		name_space = args[0].substr(0, colon);
-	detent::local::GenerationReader generations(
-		*g_generation_dir, capacity.limits(), std::nullopt,
-		prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt,
-		std::move(name_space));
-	bool available = false;
-	bool validation_failed = false;
-	const auto deadline = std::chrono::steady_clock::now() + detent_agent::managed_startup_timeout;
-	auto attempt = [&] {
-		try {
-			generations.refresh();
-			available = true;
-		} catch (const detent::local::GenerationUnavailable &) {
-		} catch (const std::exception &) {
-			if (prepared) { validation_failed = true; throw; }
-		}
+	const auto &name = args[0];
+	const auto colon = name.find(':');
+	std::vector<std::string_view> namespaces;
+	if (colon != std::string::npos)
+		namespaces.push_back(std::string_view(name).substr(0, colon));
+	const detent::Reader reader(*g_generation_dir,
+								detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system),
+								namespaces, mapping_bytes(args));
+	const auto hash = arg_value(args, "--hash"), switch_value = arg_value(args, "--switch");
+	auto read = [&] {
+		auto view = [](const std::optional<std::string> &text) -> std::optional<std::string_view> {
+			if (text) return std::string_view(*text);
+			return std::nullopt;
+		};
+		return reader.lookup(name, 0, view(hash), view(switch_value));
 	};
-	attempt();
-	// A durable selected image remains useful with the daemon stopped.
-	if (!available && !g_system && g_managed_config) {
+	auto found = read();
+	// A durable selected generation remains useful with the daemon stopped.
+	if (found.status == DETENT_UNAVAILABLE && !g_system && g_managed_config) {
 		try {
 			launch_agent(args);
-			do {
-				attempt();
-				if (available)
-					break;
+			const auto deadline = std::chrono::steady_clock::now() + detent_agent::managed_startup_timeout;
+			while ((found = (reader.refresh(), read())).status == DETENT_UNAVAILABLE &&
+				   std::chrono::steady_clock::now() < deadline)
 				std::this_thread::sleep_for(20ms);
-			} while (std::chrono::steady_clock::now() < deadline);
 		} catch (const std::exception &error) {
-			if (validation_failed) throw;
 			if (!fallback)
 				std::fprintf(stderr, "detent: managed agent startup: %s\n", error.what());
 		}
 	}
-	detent::KnobError error{detent::ErrorCategory::Uninitialized, "", ""};
-	if (available) {
-		const auto view = generations.read_view();
-		if (auto result = try_read(view, args[0], arg_value(args, "--hash"), arg_value(args, "--switch"), &error)) {
-			std::printf("%s\n", result->c_str());
-			return 0;
-		}
+	if (found) {
+		std::printf("%lld\n", static_cast<long long>(found.value));
+		return 0;
 	}
-	if (fallback && error.category != detent::ErrorCategory::SourceFailure) {
+	if (fallback && found.status != DETENT_SOURCE_FAILURE && found.status != DETENT_UNTRUSTED) {
 		std::printf("%s\n", fallback->c_str());
 		return 0;
 	}
-	std::fprintf(stderr, "ERR %s%s\n", error.what().c_str(),
-				 available ? "" : " (no durable local generation available)");
+	std::fprintf(stderr, "ERR %s: %s%s\n", detent_status_name(found.status), name.c_str(),
+				 found.status == DETENT_UNAVAILABLE ? " (no durable local generation available)" : "");
 	return 1;
 }
 
@@ -293,9 +283,8 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "system reads attach to the managed service. Without --managed or --generation-dir\n"
 					 "(or managed_path or generation_dir in the config) the read fails: no source configured.\n"
 					 "Config: agent.json in the standard Detent config directory.\n"
-					 "Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
-					 "Reader capacity: --reader-records N, --reader-image-bytes N, --reader-heap-bytes N,\n"
-					 "--reader-mapping-bytes N; see USAGE.md for all reader_* settings.\n"
+					 "Managed readers: --publisher-user USER_OR_UID; --reader-mapping-bytes N caps the\n"
+					 "bytes the reader maps (0: 512 MiB). The other reader_* settings are detent-agent's.\n"
 					 "Flags override environment variables, which override config.\n";
 #else
 const char *kUsage =

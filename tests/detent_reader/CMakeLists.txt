@@ -47,7 +47,7 @@ if(TARGET detent::reader_shared)
     -DLIBRARY=$<TARGET_FILE:detent_reader_shared> -DLIST=${CMAKE_CURRENT_BINARY_DIR}/exports-without-close.list -P ${CMAKE_CURRENT_SOURCE_DIR}/check_exports.cmake)
   set_tests_properties(test_reader_exports_unlisted PROPERTIES WILL_FAIL TRUE)
 endif()
-if(TARGET detent::testing_store_shared)
+if(TARGET detent::testing)
   add_test(NAME test_testing_exports COMMAND ${CMAKE_COMMAND}
     -DLIBRARY=$<TARGET_FILE:detent_testing_shared> -DLIST=${PROJECT_SOURCE_DIR}/src/detent_testing/exports.list -P ${CMAKE_CURRENT_SOURCE_DIR}/check_exports.cmake)
 endif()

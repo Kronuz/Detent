@@ -9,22 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Local build of the merged branch with both bindings (`.scratch/legacy-h/build.sh`, Release, Ninja,
-`-DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON`, under `quiet light`), then the binding, scenario
-and export tests, then the full suite.
+Targeted local build (`.scratch/legacy-h/build-some.sh`, Release, Ninja, bindings on) of the
+changed targets, then the binding, scenario, export, CLI and installed-component tests.
 
 ## Next
 
 1. Fix what the local build and the binding tests find; commit.
-2. `campaign verify legacy-h` (native, tsan) and jobs for A2-A5, A10, A12 (six mutants, `--fails-without`), A13; push for CI (A9, CI gate).
+2. Push for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
+   A5 `bindings/tests/run.sh`; A10 `bindings/tests/legacy_grep.sh`; A12 the six
+   `bindings/tests/mutants/*.patch` through `run.sh PATCH` with `--fails-without`; A13 `test_system_*`;
+   A20 the F-fix mutants.
 3. Evidence table from `campaign brief`; Result; ready for review.
 
 ## Blocked on
 
 - msg-266 (to the lead): `src/detent_local/evaluation.hh:11` names the deleted `detail::evaluate` in a
   comment; the file is outside the file set. A10's grep hits it until the lead widens the set.
-- Owner calls F5 (D21, `detent get` on the core) and F6 (`libdetent_testing` for applications) of
-  the design review: kept as they stand, per the lead.
+- msg-267 (to the lead): add `include/detent_testing/store.hh` (D149's header-only C++ face) to the
+  file set; fallback `include/detent/test_store.hh`.
 
 ## Design review (legacy-h-design.md) findings
 
@@ -49,6 +51,16 @@ and export tests, then the full suite.
 - F11: T2 lookup-time UNTRUSTED row in Python and Rust.
 - F10 (PIC build-wide unmeasured), F12 (macOS bindings job toolchain): not taken; follow-ups.
 - Design doc restated on the landed ABI (`docs/design/client-local-source.md`).
+- F5 ruled D148 (A18): `detent get` opens `detent::Reader` (no `GenerationReader` in `get`), takes
+  `--reader-mapping-bytes` (flag, `DETENT_READER_MAPPING_BYTES`, `reader_mapping_bytes`), refuses the
+  other nine `--reader-*` flags and `--reader-validation full`; errors print `ERR <status>: ns:key`.
+  Tests: `test_agent_cli` (mapping cap 1 refused, minimum opens; each refused flag by name;
+  `full` refused, `prepared` accepted) and `test_managed_process` (flag over variable over config).
+- F6 ruled D149 (A19): `DETENT_INSTALL_TESTING` builds both shared libraries; `cmake --install
+  --component development` (EXCLUDE_FROM_ALL) installs them, `reader.h`, `reader.hh`,
+  `generation_writer.h`, `store.hh` and `DetentConfig.cmake` (`detent::reader`, `detent::testing`).
+  `test_installed_testing_component` installs into the build tree, builds
+  `tests/cmake_consumer/installed` with `find_package(Detent)`, publishes, reads, republishes, refreshes.
 
 ## Evidence
 
@@ -66,8 +78,12 @@ Not yet.
 
 1. Merged main (Detent:88ac01cd) into the quest branch, which started at `legacy/wave2-h`
    (Detent:aac6cb6b): `Detent:ce2dd309`. Deletions kept; main's later edits to deleted files dropped.
-2. `detent get` (D21, unchanged): `GenerationReader` over the knob's namespace entry, no identity
-   (main removed the identity flags), errors name the full `ns:key`.
+2. `detent get` (D148): open failures (a cap below the minimum, an untrusted store) are hard errors
+   even with `--default`; `--default` answers MISSING, UNAVAILABLE and the other lookup statuses but
+   not SOURCE_FAILURE or UNTRUSTED. `get` ignores the other `reader_*` settings in `agent.json` and the
+   environment (they configure `--status`), refusing only the flags. `test_managed_process` now names
+   the test user as `publisher_user` instead of `reader_validation: "full"`, since `get --system`
+   trusts the service account by default.
 3. Typed reads: Rust `get_as<T: Knob>` (sealed: `bool`, `i8`..`u64`) mirrors C++ `get_as<T>`;
    Python keeps one explicit `get_bool`, its ints having no width. Python skips the non-bool typed rows.
 4. `include/detent/detail/evaluation.hh` keeps `detail::ramp` (the one percentage rule the paged
@@ -77,3 +93,12 @@ Not yet.
 6. A10's grep excludes historical records: `benchmarks/*.json`, `benchmarks/container-alternative/*.patch`
    (applied to deleted files of a past experiment) and `tests/detent/one_knob_record.cc`.
 7. Session: a subagent of the lead's session, not a `legacy-h` titled session.
+8. A19's C++ face is `detent::testing::Store`, header-only over the C face like `Reader` over
+   `reader.h`; `GenerationWriter` stays the implementation behind the C face and Detent's own tests'
+   writer (delta, compaction, repair). In-tree alias `detent::testing` is the same shared library
+   the package exports, so in-tree and installed consumers name one target.
+9. A10's grep (`bindings/tests/legacy_grep.sh`) also excludes dated records (`docs/dev/docs-site-audit.md`,
+   `DELIVERY_INTEGRATION_ARCHITECTURE`, `READER_CAPACITY_ARCHITECTURE`, `CONTAINER_SELECTION_*`,
+   `DOCUMENTATION_FINDINGS`, `benchmarks/container-alternative/`, `docs/design`, `docs/handoffs`) and
+   the refusal tests (`test_agent_cli.cmake`, `tests/docs/mutants.py`). `SCALE_TARGETS.md` item 1 and
+   both how-it-works status rows are reworded.
