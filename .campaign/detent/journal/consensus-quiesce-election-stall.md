@@ -1,6 +1,6 @@
 # consensus-quiesce-election-stall: journal
 
-State: waiting on jobs 261121-215851-aed878 261121-215854-ecc90b 261121-215857-8d21a5 261121-215900-6ba0bc 261121-215904-ed1f54 261121-215907-6a75bb 261121-215921-70138c 261121-215924-1cf081 261121-215927-4866dd 261121-215930-dc004e 261121-215933-7dd2bc 261121-215936-868140 261121-215938-7eb2c6 261121-215942-13c686 261121-215945-2d65fc
+State: waiting on jobs 261122-220103-9e4235 261122-220104-c91461 261122-220105-51067d 261122-220105-a4c641 261122-220106-1794eb 261122-220106-91745d 261122-220146-4f043d
 Quest: .campaign/detent/quests/consensus-quiesce-election-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,6 +19,8 @@ The rule now (core.h `reacknowledge`, receive_message(AppendResponse)):
 Why it closes the class (a leader at rest over a follower's running election timer): a leader rests only once every replica answered a frame that rests it. A follower awake under it left rest after that answer without leaving its leader, by a wake or by a later frame from that leader. A frame that adds to its log is the leader's newer one, so that leader is awake and replicating and rests again only on an answer to a later resting frame; a wake or a stale frame owes acknowledgements (1). Each goes out within a heartbeat interval, wakes a leader at rest, or keeps an awake one from resting until it heartbeats the follower (2). So with acknowledgements delivered, the leader rests over a running timer for at most a heartbeat interval: busy (s2), overtaken (s4), lost and resent (s5), stale frame with its answer lost (s7). Only acknowledgements lost for a whole election timeout let the follower elect, as lost heartbeats do for an awake follower.
 
 ## Next
+
+0. Landing prep: main merged cleanly at consensus:ca24f80 (no conflict; main added peers-wake and touched CMakeLists.txt, so jobs reran) and pushed. Jobs above rerun at it; the 5 duplicate reruns 261122-220050-601d23 261122-220051-367bc6 261122-220051-47dfa1 261122-220052-2d9294 261122-220052-cd8967 were cancelled (they repeated the same commands).
 
 1. When the jobs finish: fill Evidence and the review rows; State "ready for review".
 2. CI run 44991647211 at ab47d8a.
@@ -40,15 +42,21 @@ Why it closes the class (a leader at rest over a follower's running election tim
 
 Nothing.
 
+## Campaign tool notes (for campaign-v3)
+
+1. `campaign brief` lists the older jobs at dbb22e7 (261121-193329-*, 261121-193330-*) as evidence that "ran other code" next to their identical successors, so a rerun of the whole list queues duplicates (same cmd, same commit); `job rerun` does not dedupe an identical job already queued, and a cancelled job still shows in the generated Evidence table.
+2. A2 (untagged, only `--fails-without` jobs) showed "jobs: ;" and no evidence until a plain job was tagged `--for A2`: the message does not say a passing job is needed beside the mutants.
+3. A5 "CI passes" names no CI job, so the brief says "names no job" even with a green run: the row needs `ci:NAME` per job, the names are not in the quest text.
+
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending at consensus:ab47d8a: 261121-215851-aed878 (named seed 1080 at rest), 261121-215854-ecc90b (1-3000 at rest, Release), 261121-215857-8d21a5 (ASan+UBSan), 261121-215900-6ba0bc (TSan). Local at ab47d8a: 1080 ok; 1-250 at rest ok, longest leaderless 183 ms |
-| A2 | 261121-141023-81b8cd: `--fails-without` at the pre-fix commit consensus:de24723, seed 1080 at rest exits 1 "no leader after settling". At ab47d8a, `--fails-without` on quiescence_test per mutant: 261121-215921-70138c (wake-ack-unanswered, the old rule), 261121-215936-868140 (the same, s6 alone), 261121-215924-1cf081 (wake-ack-overtaken), 261121-215927-4866dd (wake-ack-once), 261121-215930-dc004e (wake-ack-dropped-busy), 261121-215933-7dd2bc (stale-frame-silent). Each was caught locally first |
-| A3 | pending at ab47d8a: 261121-215904-ed1f54 (TSan ctest: quiescence, simulation, driver, driver_close*, liveness, driver_replace parts), 261121-215900-6ba0bc, 261121-215907-6a75bb (quiescence_test under ASan+UBSan). Local Release at ab47d8a: quiescence_test ok, simulation_test 200 seeds ok |
+| A1 | At consensus:ca24f80 (ab47d8a merged with main ca24f80; main changed CMakeLists.txt, so every job reran): 261122-220103-9e4235 (named seed 1080 at rest), 261122-220104-c91461 (1-3000 at rest, Release), 261122-220105-51067d (ASan+UBSan), 261122-220105-a4c641 (TSan). Local at ab47d8a: 1080 ok; 1-250 at rest ok, longest leaderless 183 ms |
+| A2 | Passing at consensus:ca24f80: 261122-220146-4f043d (seed 1080 at rest, then quiescence_test, `--for A2`). `--fails-without`: 261121-141023-81b8cd at the pre-fix commit consensus:de24723, seed 1080 at rest exits 1 "no leader after settling". At ab47d8a, per mutant on quiescence_test: 261121-215921-70138c (wake-ack-unanswered, the old rule), 261121-215936-868140 (the same, s6 alone), 261121-215924-1cf081 (wake-ack-overtaken), 261121-215927-4866dd (wake-ack-once), 261121-215930-dc004e (wake-ack-dropped-busy), 261121-215933-7dd2bc (stale-frame-silent), 261121-141837-c1601b (wake-ack-unanswered, seed 1080). Each was caught locally first |
+| A3 | At consensus:ca24f80: 261122-220106-1794eb (TSan ctest: quiescence, simulation, driver, driver_close*, liveness, driver_replace parts), 261122-220105-a4c641 (replace 1-3000 under TSan), 261122-220106-91745d (quiescence_test under ASan+UBSan). Local Release at ab47d8a: quiescence_test ok, simulation_test 200 seeds ok |
 | A4 | consensus docs/mechanisms/quiescence.md, Rest, "A follower that leaves rest under its leader re-acknowledges" and "A follower's running timer is fed" |
-| A5 | CI run 44991647211 at consensus:ab47d8a (pushed) |
+| A5 | CI run 44991647211 at consensus:ab47d8a, all 8 jobs green (carried across the clean merge of main at ca24f80): ci:linux-tsan, ci:linux-asan-ubsan, ci:freebsd-x86_64, ci:macos-arm64, ci:macos-x86_64, ci:linux-arm64-gcc, ci:linux-x86_64-gcc, ci:linux-x86_64-clang |
 
 Other jobs: 261121-134216-fb35b7 (failed, as intended): the reviewer's quiesce_trace.sh at consensus main 8780e44 reproduces seed 1080's "no leader after settling".
 
