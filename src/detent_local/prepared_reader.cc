@@ -26,18 +26,23 @@ int open_record(int directory, std::string_view name) {
 	require(name.size() <= 64 && name.find('\0') == std::string_view::npos);
 	std::array<char, 65> terminated{};
 	std::copy(name.begin(), name.end(), terminated.begin());
-	return ::openat(directory, terminated.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	return ::openat(directory, terminated.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 }
 template <std::size_t N> std::array<char, N> record(int directory, std::string_view name, uid_t owner) {
-	RecoveryFile file(open_record(directory, name));
-    if (file.fd < 0 && errno == ENOENT &&
-        (name == "selected" || name.ends_with(".read")))
-        throw GenerationUnavailable("publisher has not prepared a selected generation");
-	check_generation_file(file.fd, owner, N);
-	require(internal::mode_only_acl(file.fd));
-	std::array<char, N> bytes{};
-	read_generation_record(file.fd, bytes);
-	return bytes;
+	// A collection may unlink a record after its open: the read opens it again.
+	for (unsigned attempt = 0; attempt != 3; ++attempt) {
+		RecoveryFile file(open_record(directory, name));
+		record_opened(name);
+		if (file.fd < 0 && errno == ENOENT && name.ends_with(".read"))
+			throw GenerationUnavailable("publisher has not prepared a selected generation");
+		if (!checked_or_unlinked(file.fd, owner, N))
+			continue;
+		require(internal::mode_only_acl(file.fd));
+		std::array<char, N> bytes{};
+		read_generation_record(file.fd, bytes);
+		return bytes;
+	}
+	throw GenerationUnavailable("publisher replaced the record during the read");
 }
 paged::Digest checksum(std::span<const char> bytes) {
 	DETENT_COUNT(bytes_hashed, bytes.size());
@@ -54,10 +59,7 @@ GenerationSelection PreparedReader::selection(const std::filesystem::path &path,
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat info{};
     require(::fstat(directory.fd, &info) == 0);
-    for (unsigned attempt = 0; attempt != 3; ++attempt)
-        if (const auto selected = read_selected(directory.fd, publisher, name))
-            return {selected->descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
-    throw GenerationUnavailable("selected generation changed while reading it");
+    return {selected(directory.fd, publisher, name).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	if (!generation.paged_)
@@ -91,34 +93,39 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     require(bytes == expected);
     return true;
 }
-PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
-                                        std::optional<d::NamespaceCursor> expected, std::string_view name) {
-	auto &domain = resources::domain(limits);
-	auto factory = domain.factory();
-	auto heap = domain.storage_account();
+AttachedGeneration::AttachedGeneration(AttachedGeneration &&other) noexcept
+    : lease(std::exchange(other.lease, -1)), descriptor(other.descriptor), root(other.root), metadata(other.metadata), limits(std::move(other.limits)) {}
+AttachedGeneration::~AttachedGeneration() {
+	if (lease >= 0)
+		::close(lease);
+}
+Selected PreparedReader::selected(int directory, uid_t publisher, std::string_view name) {
+	for (unsigned attempt = 0; attempt != 3; ++attempt)
+		if (auto table = read_selected(directory, publisher, name))
+			return *table;
+	throw GenerationUnavailable("selected generation changed while reading it");
+}
+AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLimits limits,
+                                          std::optional<d::NamespaceCursor> expected, const Selected *read,
+                                          std::string_view name) {
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
-		auto files = factory.make<PreparedFiles>();
-		files->directory.fd = open_publisher_directory(path, publisher);
-		struct stat directory{};
-		require(::fstat(files->directory.fd, &directory) == 0);
-		const DirectoryIdentity directory_identity{std::uint64_t(directory.st_dev),
-		                                           std::uint64_t(directory.st_ino)};
-		const auto selected = read_selected(files->directory.fd, publisher, name);
-		if (!selected)
+		const auto table = attempt == 0 && read ? std::optional(*read) : read_selected(directory, publisher, name);
+		if (!table)
 			continue;
-		const auto &descriptor = selected->descriptor;
+		const auto &descriptor = table->descriptor;
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
 			        descriptor.cursor.position >= expected->position);
 		const GenerationName lease_name(descriptor.generation, GenerationFile::Lease);
-		files->lease.fd = open_record(files->directory.fd, lease_name.view());
-		if (files->lease.fd < 0 && errno == ENOENT)
+		RecoveryFile lease(open_record(directory, lease_name.view()));
+		if (lease.fd < 0 && errno == ENOENT)
 			continue;
-		check_generation_file(files->lease.fd, publisher, 0);
-		require(internal::mode_only_acl(files->lease.fd));
+		if (!checked_or_unlinked(lease.fd, publisher, 0))
+			continue; // collected between the open and the check
+		require(internal::mode_only_acl(lease.fd));
 		int locked;
 		do {
-			locked = ::flock(files->lease.fd, LOCK_SH | LOCK_NB);
+			locked = ::flock(lease.fd, LOCK_SH | LOCK_NB);
 		} while (locked < 0 && errno == EINTR);
 		if (locked < 0 && (errno == EWOULDBLOCK || errno == EAGAIN))
 			continue;
@@ -126,25 +133,25 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		std::array<char, 65> terminated_lease{};
 		std::copy(lease_name.view().begin(), lease_name.view().end(), terminated_lease.begin());
 		struct stat held{}, named{};
-		require(::fstat(files->lease.fd, &held) == 0);
+		require(::fstat(lease.fd, &held) == 0);
 		if (!held.st_nlink)
 			continue;
-		if (::fstatat(files->directory.fd, terminated_lease.data(), &named, AT_SYMLINK_NOFOLLOW) != 0) {
+		if (::fstatat(directory, terminated_lease.data(), &named, AT_SYMLINK_NOFOLLOW) != 0) {
 			if (errno == ENOENT)
 				continue;
 			require(false);
 		}
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
-        require(descriptor.length == paged::root_bytes);
+		require(descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
-		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
+		const auto image = record<paged::root_bytes>(directory, image_name.view(), publisher);
 		require(checksum(image) == descriptor.checksum);
 		const auto root = paged::decode_root(image, paged_format_limits());
 		require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);
 		const GenerationName metadata_name(descriptor.generation, GenerationFile::ReaderMetadata);
 		const auto metadata = decode_reader_metadata(
-		    record<reader_metadata_bytes>(files->directory.fd, metadata_name.view(), publisher));
+		    record<reader_metadata_bytes>(directory, metadata_name.view(), publisher));
 		require(metadata.generation == descriptor.generation &&
 		        metadata.root_checksum == descriptor.checksum &&
 		        metadata.counts.records == root.records &&
@@ -161,20 +168,41 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		limits.overrides = metadata.counts.maximum_overrides;
 		limits.pages = root.pages;
 		limits.segments = root.segments;
-		auto mappings = resources::mapping_account(limits);
-		using Files = d::RetirementHandle<PreparedFiles>;
-		auto files_owner = std::allocate_shared<Files>(d::StorageAllocator<Files>(heap), files);
-		auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher, root,
-		                                           limits, factory, heap, mappings);
-		using Access = d::RetirementHandle<LazyPageAccess>;
-		auto access_owner =
-		    std::allocate_shared<Access>(d::StorageAllocator<Access>(heap), std::move(access));
-		std::shared_ptr<const PagedPageAccess> page_access(access_owner, access_owner->get());
-		auto view = factory.make<ReadView::Root>(
-		    access_owner, PagedReadState{root, {}, std::move(page_access)}, metadata.counts.overrides,
-		    metadata.counts.strings);
-		return {ReadView(std::move(view)), descriptor, directory_identity, paged::state_commitment(root)};
+		AttachedGeneration attached;
+		attached.lease = std::exchange(lease.fd, -1);
+		attached.descriptor = descriptor;
+		attached.root = root;
+		attached.metadata = metadata;
+		attached.limits = std::move(limits);
+		return attached;
 	}
 	throw GenerationUnavailable("selected generation changed during attachment");
+}
+PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
+                                        std::optional<d::NamespaceCursor> expected, std::string_view name) {
+	auto &domain = resources::domain(limits);
+	auto factory = domain.factory();
+	auto heap = domain.storage_account();
+	auto files = factory.make<PreparedFiles>();
+	files->directory.fd = open_publisher_directory(path, publisher);
+	struct stat directory{};
+	require(::fstat(files->directory.fd, &directory) == 0);
+	const DirectoryIdentity directory_identity{std::uint64_t(directory.st_dev), std::uint64_t(directory.st_ino)};
+	auto attached = attach(files->directory.fd, publisher, limits, expected, nullptr, name);
+	files->lease.fd = std::exchange(attached.lease, -1);
+	auto mappings = resources::mapping_account(attached.limits);
+	using Files = d::RetirementHandle<PreparedFiles>;
+	auto files_owner = std::allocate_shared<Files>(d::StorageAllocator<Files>(heap), files);
+	auto access = factory.make<LazyPageAccess>(files_owner, files->directory.fd, publisher,
+	                                           attached.root, attached.limits, heap, mappings);
+	using Access = d::RetirementHandle<LazyPageAccess>;
+	auto access_owner = std::allocate_shared<Access>(d::StorageAllocator<Access>(heap), std::move(access));
+	std::shared_ptr<const PagedPageAccess> page_access(access_owner, access_owner->get());
+	const auto &counts = attached.metadata.counts;
+	auto view = factory.make<ReadView::Root>(access_owner,
+	                                         PagedReadState{attached.root, {}, std::move(page_access)},
+	                                         counts.overrides, counts.strings);
+	return {ReadView(std::move(view)), attached.descriptor, directory_identity,
+	        paged::state_commitment(attached.root)};
 }
 } // namespace detent::local::detail

@@ -66,6 +66,7 @@ target_include_directories(detent_local_transfer PUBLIC "${CMAKE_CURRENT_SOURCE_
 target_link_libraries(detent_local_transfer PUBLIC detent::local_builder)
 add_library(detent::local_transfer ALIAS detent_local_transfer)
 add_subdirectory(detent_testing)
+add_subdirectory(detent_reader)
 add_subdirectory(detent_relay)
 if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   add_library(detent_delivery_coordinator detent_delivery/coordinator.cc)

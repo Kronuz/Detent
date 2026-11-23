@@ -6709,16 +6709,53 @@
         "docs/mechanisms/rpc-lane.md"
       ],
       "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T10:35:24",
+          "ci": {
+            "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+            "runs": [
+              45229501082
+            ]
+          },
+          "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+          "criteria": {
+            "A1": "261123-093627-64939a, 261123-093627-f49f89",
+            "A2": "261123-102708-24df25; fails without: 261123-093621-880c1c",
+            "A3": "261123-060909-e27d55 (passed at 2d423871a13d; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/rpc-lane.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+              "commit": "2d423871a13deaf4164c38acce11940f86ff6f92",
+              "docs": [
+                "docs/mechanisms/rpc-lane.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060909-e27d55",
+              "level": "light",
+              "seconds": 1726.9,
+              "state": "done",
+              "what": "consensus-rpc-fetch-lag check suite at 2d423871a13d"
+            }
+          ],
+          "final": true,
+          "from": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "reason": "",
+          "tested": "531b655cf337a49e328b470aaa5c5955b3a07262"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T08:59:14",
+      "updated": "2026-11-23T10:35:58",
       "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
     },
     "consensus-sanitizer-ci-time": {
@@ -12154,13 +12191,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-20T18:25:25"
+      "updated": "2026-11-23T10:18:44"
     },
     "fixture-500k": {
       "accepted": {},
@@ -16485,6 +16524,8 @@
     "legacy-h": {
       "accepted": {},
       "after": [],
+      "base": "87687327e0cb84c291b04f4e6e35a9055e4cd9a5",
+      "branch": "quest/detent/legacy-h",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -16544,7 +16585,8 @@
         "tests/detent_reader/**",
         "tests/detent_system/**",
         "tools/w5/**",
-        "website/**"
+        "website/**",
+        "docs/design/client-local-source.md"
       ],
       "history": [
         {
@@ -16652,9 +16694,10 @@
       ],
       "repo": ".",
       "risk": "critical",
-      "status": "planned",
+      "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-22T22:05:39"
+      "updated": "2026-11-23T10:31:36",
+      "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
       "accepted": {},
@@ -26191,10 +26234,93 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T10:15:35",
+          "ci": {
+            "carried": true,
+            "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+            "runs": [
+              45189633970
+            ]
+          },
+          "commit": "2416ff80511b387342d26a250d35aeb9021576f6",
+          "criteria": {
+            "A1": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133829-b558f2, 261121-133832-23f97d, 261123-020610-c38819, 261123-020612-66011f",
+            "A10": "261123-060127-6575ae (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094528-862642, 261118-094529-cc96ed, 261118-094531-9d6c47, 261118-094532-ea240d, 261118-094533-4d9871, 261118-150210-e182b0, 261118-150213-4bef61, 261118-150215-b73f2b, 261118-150218-e176e3, 261118-150220-736a52, 261119-045632-5a285e, 261119-045636-1ae4f6, 261119-045639-da21c3, 261119-045642-44ae68, 261119-045646-c6bb0c",
+            "A11": "261123-060126-b8a2c8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094534-ef5614, 261118-150222-c9e640, 261119-045649-0b8176",
+            "A12": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-095700-c09e87, 261118-095701-fc5e6e, 261118-095703-2934a2, 261118-095704-ba2018, 261118-150223-3a55c5, 261118-150225-822725, 261118-150227-533ecf, 261118-150229-2e752f, 261119-045653-7df812, 261119-045656-100c83, 261119-045700-c2d927, 261119-045703-fdfa80",
+            "A13": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A14": "261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-ba7596 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-140d4c (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133836-91d1e5, 261121-141042-a5d80c, 261121-141044-9b81e0, 261121-141047-4552ff, 261123-020610-c38819",
+            "A15": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A16": "261123-100115-16c6c5, 261123-060129-5230e0 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060129-0caffb (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A2": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A3": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A4": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-4b687d (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060124-994ab8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-185553-58fade, 261119-045706-676367, 261120-150455-acc366",
+            "A5": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133840-2a7bcc",
+            "A6": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A7": "261123-060126-21529a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A8": "261123-060128-fc8519 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094515-9b4bb9, 261118-094516-4e137b, 261118-094517-f5658e, 261118-094518-855a2e, 261118-094519-347eee, 261118-094521-4baa90, 261118-094522-34bd94, 261118-094523-363cb7, 261118-094525-7ae4a1, 261118-094527-d7fb02, 261118-100900-90e1ea, 261118-150142-8445c8, 261118-150144-1fe887, 261118-150147-6a8a03, 261118-150149-092144, 261118-150152-431265, 261118-150154-2d19f4, 261118-150157-b4eafd, 261118-150200-3c206c, 261118-150203-bfde28, 261118-150205-3f55ca, 261118-150208-3f52f6, 261118-150230-adf29d, 261118-150232-7b363f, 261119-045253-bf6dfc, 261119-045549-d0abbe, 261119-045552-74046b, 261119-045556-e9c3f2, 261119-045600-a76c88, 261119-045604-2ff884, 261119-045607-3738a8, 261119-045611-ba7bfb, 261119-045614-7f9b83, 261119-045618-1bbf8d, 261119-045621-ab977b, 261119-045625-a52560, 261119-045629-33a983, 261119-111418-48b91f, 261119-111420-6f99e1",
+            "A9": "[artifact] `docs/mechanisms/reader-core.md`: \"## Fork and cold preparation\" (also its sections Fork (D10), Bounds and Mapped bytes after verification; doc check job 261122-225652-b8b8ac)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060124-6b8f76",
+              "level": "light",
+              "seconds": 443.1,
+              "state": "done",
+              "what": "reader-s6 check native at 1d7f04f26ec9"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "state": "done"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060125-5f2b20",
+              "level": "light",
+              "seconds": 4120.4,
+              "state": "done",
+              "what": "reader-s6 check t3-tsan at 1d7f04f26ec9"
+            }
+          ],
+          "final": true,
+          "from": "1941ec85caa231e88076640fb1fc3d3429400543",
+          "later": [
+            "261123-101536-f6fb44"
+          ],
+          "reason": "",
+          "tested": "28c442b5644e931c833c3831e362fe59799e607e"
+        }
+      ],
       "lenses": [
         "security",
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T13:03:02",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Observability bench (job 261109-120858-28cd50, Detent:d1ce742 on reader S6 b1d281c): S6 core hot-int lookup is 889 ns at 1 thread, 3.3x reader.md D3's 268.5 ns pinned-view number. Check against S6's T1 gate before landing."
+        },
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T17:15:15",
+          "by": "lead",
+          "id": "msg-2",
+          "text": "When reader-s6 rebases onto landed dense-pages (review dense-pages-design DES-10, DES-7 at Detent:81a3232): lazy_page_access.cc:147,228 page_header_bytes is now 64, use minimum_page_bytes; :233 the bitmap test must follow the header compare; prepared_reader.cc:172 layout_version == 2; :232 and prepared_reader.hh:10 root.logical (renamed per DES-9). Merge LazyPageAccess::resolve with paged_navigation.hh checked_page_bytes when rewriting resolve (DES-7). Its T1 gate carries D4's hit compare."
+        }
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
@@ -26206,9 +26332,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-23T06:08:54",
+      "updated": "2026-11-23T10:15:37",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -28464,7 +28590,8 @@
         "tests/detent_system/test_localhost_dial.py",
         "tests/detent_system/test_managed_case.sh",
         "tests/docs/run_e2e.py",
-        "tests/support/**"
+        "tests/support/**",
+        "tests/detent_system/managed.py"
       ],
       "landed": [],
       "lenses": [],
@@ -28475,7 +28602,7 @@
       "risk": "low",
       "status": "active",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-23T10:01:35",
+      "updated": "2026-11-23T10:15:54",
       "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {
