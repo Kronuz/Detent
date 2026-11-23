@@ -13967,7 +13967,30 @@
       "worktree": ""
     },
     "journal-bound-first-open": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T11:45:07",
+          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "blobs": {
+            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
+            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
+            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+          },
+          "by": "review",
+          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "criteria": "2c746bd6f8489691",
+          "diffs": {
+            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
+            "include/journal/host.h": "04df3faad6d22e7e",
+            "test/lost_bound_test.cc": "37292cd506bcefe2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
+          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-turn-sector-checks"
       ],
@@ -14023,7 +14046,7 @@
       "risk": "high",
       "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-23T10:49:46",
+      "updated": "2026-11-23T11:45:07",
       "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
