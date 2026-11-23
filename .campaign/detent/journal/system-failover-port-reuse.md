@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-100818-4f26f0 (A2 suite) 261123-100828-0a1fbb 261123-100829-0846b2 (A1) 261123-100831-4a2d3b 261123-100834-000cbb 261123-100836-5b2cd6 (A3) A3 shards 261123-101308-2a35b0 261123-101310-89c43b 261123-101313-4de3d1 261123-101315-d5acf7 261123-101317-fced80 (strict, after the suite)
+State: waiting on jobs 261123-110512-a95d5f (A2 suite) 261123-110507-e20eab 261123-110509-1a8eb1 261123-110511-1c5f4a (A1) A3 shards 261123-110520-1cfb2d 261123-110522-238036 261123-110524-4594da 261123-110526-624a20 261123-110527-56826a; diagnostics at main and head 261123-105628-3ecffd 261123-105633-b695c4 261123-105639-065983 261123-105643-9dfc85 261123-105647-143e38 261123-105651-2f7418
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,6 +14,28 @@ Widened scope (all ports): every test picks its ports one way, tests/support/por
 `xargs -I{}: command line cannot be assembled, too long` (macOS limit), not on the test;
 261123-030314-52c787 failed test_system_managed_relay at 59 s under load 330 (run_writers.py
 exception group; a load flake of the old reserve-and-release harness, not read further).
+
+## Lead's message after the refusal at 590cd741
+
+1. macos-x86_64 CI failure of test_system_restart_rebind (run 45236070277): a test defect, not a
+   product defect. The test's stand-in daemon is a Python ThreadingHTTPServer, not detent-authority.
+   HTTPServer.server_bind reverse-resolves the bound address (socket.getfqdn) after bind and before
+   listen, so a slow lookup leaves the restarted stand-in bound but not listening (lsof: TCP
+   127.0.0.1:PORT (CLOSED); macOS times a connect out), alive with empty output past the 20 s wait.
+   Reproduced exactly ("alive ... 20 s after restart attempt 2: last TimeoutError('timed out');
+   output ''") by making the lookup sleep: the stand-in now poisons socket.getfqdn to sleep 60 s
+   (b55839c6, fails: job 261123-110507-e20eab at b55839c6) and Server.server_bind skips the lookup
+   (11ead2c3, passes: 261123-110509-1a8eb1; x96 at 24 parallel: 261123-110511-1c5f4a). Not
+   reproduced by load alone: x192 at 32 parallel failed once at run 41 ("alive but refused") in job
+   261123-105613-fb61f7 and passed in the rerun 261123-105742-1d6aef; the first is the same stall.
+   restart_member's failure now includes ps and lsof for the member's pid and port. Whether the
+   real detent-authority does a reverse lookup before listening is not exercised here.
+2. Suite 261123-100818-4f26f0 failures (test_authority_idle_wake, test_agent_store_crash,
+   test_authority_transport_peers): not in my files; each runs at main (slot sfpr-main, 2e34a603)
+   and at the head as one job: 3ecffd/b695c4 (idle_wake main/head), 065983/9dfc85 (store_crash),
+   143e38/2f7418 (transport_peers). Results below once they finish.
+3. Merged origin/main (e7a38ef8), pushed.
+4. A2 suite and the five A3 shards resubmitted at 11ead2c3.
 
 ## Next
 
