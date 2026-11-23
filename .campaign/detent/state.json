@@ -14245,10 +14245,8 @@
         "AGENTS.md",
         "ARCHITECTURE.md",
         "CMakeLists.txt",
-        "docs/**",
         "bench/group_io_bench.cc",
-        "docs/perf/group-io.md",
-        "CMakeLists.txt"
+        "docs/perf/group-io.md"
       ],
       "history": [
         {
@@ -14302,7 +14300,7 @@
       "risk": "low",
       "status": "active",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T22:24:16",
+      "updated": "2026-11-23T06:52:42",
       "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
     "journal-earlier-turn-loss": {
