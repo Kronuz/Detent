@@ -1,6 +1,6 @@
 # consensus-sanitizer-ci-time: journal
 
-State: working
+State: waiting on jobs 261122-210931-de7473 261122-210949-fe3a3e
 Quest: .campaign/detent/quests/consensus-sanitizer-ci-time.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Worktree ../consensus-wt/detent/consensus-sanitizer-ci-time. A1 committed (consensus-sanitizer-ci-time:0338620): CMakeLists.txt skips the mutant tests when CMAKE_CXX_FLAGS, CMAKE_CXX_FLAGS_<BUILD_TYPE> or CMAKE_EXE_LINKER_FLAGS holds -fsanitize (the shared CI sets them there). A1 job 261122-210931-de7473; scripts in ~/.scratch/detent/consensus-sanitizer-ci-time/. A2 probe job 261122-210949-fe3a3e (owe-order x5 under TSan with 4 burners) to read where the 10 s goes (the `arrived` until in owe_order, groups_test.cc).
 
 ## Next
 
-1. <step>
+1. Read the probe, fix owe-order's bound or stall, run 50 of 50 (a2.sh 50).
+2. Push, A3 CI, Evidence table.
 
 ## Blocked on
 
@@ -38,4 +39,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+A1 detects sanitizers from the flags (not a CONSENSUS option), so the shared CI needs no change.
