@@ -6720,18 +6720,53 @@
         "test/transport/groups_test.cc",
         "test/driver_mutants.py"
       ],
-      "journal": "../Detent-wt/detent/consensus-sanitizer-ci-time",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T07:22:07",
+          "ci": {
+            "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+            "runs": [
+              45189461775
+            ]
+          },
+          "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "criteria": {
+            "A1": "261123-055947-405885",
+            "A2": "261123-055946-b75c94",
+            "A3": "261123-055946-a5f911",
+            "A4": "261123-055947-f7bc13; fails without: 261122-212244-62ba1e, 261123-020912-132abe, 261123-024607-59f0bd"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-055946-a5f911",
+              "level": "light",
+              "seconds": 1702.3,
+              "state": "done",
+              "what": "consensus-sanitizer-ci-time check suite at df4f8f8324ea"
+            }
+          ],
+          "final": true,
+          "from": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+          "reason": "",
+          "tested": "df4f8f8324eae486260b9038bb937e9923dfba61"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
-      "updated": "2026-11-22T21:21:16",
-      "worktree": "../consensus-wt/detent/consensus-sanitizer-ci-time"
+      "updated": "2026-11-23T07:22:17",
+      "worktree": ""
     },
     "consensus-transport": {
       "accepted": {
