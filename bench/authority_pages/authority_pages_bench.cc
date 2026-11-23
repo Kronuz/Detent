@@ -449,10 +449,11 @@ class Authority {
 			submit(batch);
 		}
 	}
-	// One group: every producer writes one uniform key, each a distinct value so none is NoChange.
+	// One group: every producer writes one uniform key, each a value no key has held, so none is
+	// NoChange; seeded values are the key indexes, so group values start past them.
 	void group(std::mt19937_64 &random, std::size_t keys, int salt) {
 		std::uniform_int_distribution<std::size_t> pick(0, keys - 1);
-		std::int64_t value = std::int64_t(salt) * std::int64_t(commands_.size());
+		std::int64_t value = std::int64_t(values_.size()) + std::int64_t(salt) * std::int64_t(commands_.size());
 		picked_.clear();
 		for (auto &c : commands_) {
 			const auto key = pick(random);
