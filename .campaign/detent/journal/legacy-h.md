@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: working
+State: waiting on jobs 261123-110240-386616 261123-110300-4e60a4 261123-110302-1a3102 261123-110305-7bd985 261123-110308-227199 261123-110311-3880be 261123-110314-6a9111 261123-110317-302949 261123-110319-e4bc35 261123-110321-d1c666 261123-110324-da98fe 261123-110327-126e80 261123-110329-5f54e1 261123-110331-009612 261123-110333-692380 261123-110344-ca7aa3
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Targeted local build (`.scratch/legacy-h/build-some.sh`, Release, Ninja, bindings on) of the
-changed targets, then the binding, scenario, export, CLI and installed-component tests.
+Waiting on the jobs above and CI at `Detent:daeca859` (pushed). Local (Release, bindings on, at
+`Detent:daeca859`): `test_reader_scenarios`, `test_reader_core`, `test_reader_exports`,
+`test_reader_exports_unlisted`, `test_testing_exports`, `detent_python_test`, `detent_rust_test`,
+`test_agent_cli`, `test_one_knob_differential`, `test_local_evaluation`, `test_local_lazy_page_access`,
+`test_installed_testing_component` pass (12 of 12). The installed prefix holds the two dylibs, four
+headers and the package files only; the consumer prints `count=7 on=1 missing=missing later=8`.
 
 ## Next
 
-1. Fix what the local build and the binding tests find; commit.
-2. Push for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
+1. Read the jobs; fix failures; A10 job once msg-266 widens the file set.
+2. Pushed for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
    A5 `bindings/tests/run.sh`; A10 `bindings/tests/legacy_grep.sh`; A12 the six
    `bindings/tests/mutants/*.patch` through `run.sh PATCH` with `--fails-without`; A13 `test_system_*`;
    A20 the F-fix mutants.
@@ -68,7 +72,18 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1-A17 | not yet |
+| A1, A2, A6-A8, A18, A19 | native 261123-110240-386616 |
+| A2-A5 | 261123-110300-4e60a4 (`bindings/tests/run.sh`, repeat until-fail:3) |
+| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:daeca859` |
+| A10 | pending msg-266 (`bindings/tests/legacy_grep.sh`; one hit, `src/detent_local/evaluation.hh:11`) |
+| A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
+| A12 | 261123-110302-1a3102, 261123-110305-7bd985, 261123-110308-227199, 261123-110311-3880be, 261123-110314-6a9111, 261123-110317-302949 (fails-without) |
+| A13 | 261123-110344-ca7aa3 |
+| A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`; `client.md`, `sources.md`, `global-and-testing.md`, `guides/live-updates.md`, `06_adapters` deleted |
+| A15 | [decision] D13 |
+| A16 | [decision] D14 |
+| A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
+| A20 | 261123-110319-e4bc35 (F1), 261123-110321-d1c666, 261123-110324-da98fe (F2), 261123-110327-126e80, 261123-110329-5f54e1 (F3), 261123-110333-692380 (F4, c3), 261123-110331-009612 (F7) (fails-without); design doc updated |
 
 ## Result
 
