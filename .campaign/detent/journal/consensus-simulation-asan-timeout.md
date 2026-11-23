@@ -1,6 +1,6 @@
 # consensus-simulation-asan-timeout: journal
 
-State: working
+State: waiting on jobs 261123-120158-c6e7a8 261123-120851-a1e636 261123-120853-0b47e0 261123-120854-b69029 261123-120855-c2ed8d 261123-120857-272231 261123-120859-a03833 261123-120900-0d6648
 Quest: .campaign/detent/quests/consensus-simulation-asan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,8 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 job 261123-120158-c6e7a8 (strict A/B main vs fix); then A2 (bound, --fails-without at
-main), A3 shards (asan-many.sh), push for A4.
+Jobs queued (scripts in consensus worktree .scratch/asan-timeout/):
+- A1 261123-120158-c6e7a8: strict A/B main vs fix (asan-ab.sh): driver seed 16 alone, 17, default.
+- A2 261123-120851-a1e636: default run at the fix under 150 s (half the TIMEOUT) on this
+  host, which ran main at 373 s vs CI's typical 170 s (>= 2x slower than CI typical).
+- A2 --fails-without 261123-120853-0b47e0: the same bound at main 531b655.
+- A3 261123-120854-b69029 261123-120855-c2ed8d 261123-120857-272231 261123-120859-a03833
+  261123-120900-0d6648: 5 shards x 10 runs (5 parallel x 2), limit 200 s.
+- Pushed quest branch at consensus:b5e1d47 for ci:linux-asan-ubsan, ci:ci (A4).
 
 ## Findings
 
