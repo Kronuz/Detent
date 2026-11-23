@@ -2895,6 +2895,26 @@
         ]
       },
       "text": "consensus-transport-test-flakes landed: unlocks frees docs/mechanisms/** for consensus-driver-flow; frees test/transport/rpc_host_test.cc for consensus-rpc-fetch-lag"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T06:52:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T06:52:44",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-257",
+      "items": {
+        "journal-earlier-turn-loss": "frees include/journal/turn_log.h, test/turn_log_test.cc, docs/mechanisms/turn-log-damage.md, CHANGELOG.md for journal-earlier-turn-loss"
+      },
+      "settles": {
+        "start": [
+          "journal-earlier-turn-loss"
+        ]
+      },
+      "text": "set journal-earlier-turn-loss: unlocks frees include/journal/turn_log.h, test/turn_log_test.cc, docs/mechanisms/turn-log-damage.md, CHANGELOG.md for journal-earlier-turn-loss"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -14306,6 +14326,8 @@
     "journal-earlier-turn-loss": {
       "accepted": {},
       "after": [],
+      "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+      "branch": "quest/detent/journal-earlier-turn-loss",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -14345,6 +14367,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-earlier-turn-loss",
       "landed": [],
       "lenses": [
         "durability"
@@ -14354,9 +14377,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
-      "updated": "2026-11-23T06:52:45"
+      "updated": "2026-11-23T06:52:48",
+      "worktree": "../journal-wt/detent/journal-earlier-turn-loss"
     },
     "journal-faultfs": {
       "accepted": {},
