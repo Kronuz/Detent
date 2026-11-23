@@ -1,6 +1,6 @@
 # consensus-rpc-fetch-lag: journal
 
-State: waiting on jobs 261123-060820-9e03f1 261123-060832-50fd33 261123-060906-b60033 261123-060909-e27d55 and CI at consensus:2d42387
+State: waiting on jobs 261123-090002-e8d6eb (probe, not evidence)
 Quest: .campaign/detent/quests/consensus-rpc-fetch-lag.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,6 +10,10 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Fix committed and pushed at consensus:2d42387: the fetch case runs a `Lag` sampler from the heartbeat reset on and asserts `beats.worst < 1000 + lag.worst`, printing both (test/transport/rpc_host_test.cc; docs/mechanisms/rpc-lane.md fetch row). Jobs: A1 261123-060820-9e03f1, 261123-060832-50fd33 (25 runs each, 2 at once, 4 burners, strict); A2 261123-060906-b60033 (fails-without at mutant consensus:bebda26, heartbeats sent on Bulk as data, made by .scratch/rpc-fetch-lag/mutant.py from rpc_mutants.py's machinery; check its log fails on the gap, not on a crash); suite 261123-060909-e27d55; CI for A3.
+
+## msg (coordinator: A2 failed)
+
+A1 shards and the suite passed. A2 261123-060906-b60033 FAILED: the Bulk-heartbeat mutant (consensus:bebda26) passed fetch, gaps 150-161 ms. Reading: a heartbeat sent on Bulk is a data frame of its own group, and the Bulk rings serve groups round robin one frame per turn, so it waits for at most one 1 MiB frame, not the backlog; that mutant cannot show head-of-line blocking whatever the bound. The fetch case's Control column in docs/mechanisms/rpc-lane.md is empty (no mutant targets it). Probe: the host's real Control-behind-Bulk mutant `bulk-ahead-of-control` (consensus:cd21eb6, test/transport/mutant_commit.py) run plain against fetch: 261123-090002-e8d6eb. If it fails fetch, A2's target is that mutant, not the Bulk-heartbeat one. 27a1ece merged main (lead); push and `campaign job rerun` the A1 shards at the new head after.
 
 ## Next
 
