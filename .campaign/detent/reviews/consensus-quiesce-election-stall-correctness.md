@@ -88,8 +88,19 @@ the home checkout.
   persistence takes 0-30 units. The oracles: with no drops, no term moves and every exposure
   stays within a heartbeat interval plus persistence plus three delivery times. A second mode
   drops 2% of messages and only reports. It runs at the head, at dbb22e7 and at e35356a (to show
-  it has teeth), and with all five mutants. It was still queued, behind 137 jobs at load 129 on 16
-  CPUs, when I wrote this. It adds evidence and does not block the verdict.
+  it has teeth), and with all five mutants. Results, 300 seeds each:
+  - At the head with no drops, 0 seeds fail: 0 term moves over 84,546 leader rests, 100,642
+    wakes and 54,093 writes. The longest exposure is 14 units against a 60-unit heartbeat.
+  - At the head with 2% drops: 0 term moves. The longest exposure is 132 units, and none reaches
+    election_min. 132 units is more than one heartbeat interval, as N1 says, and far below
+    election_min (600).
+  - Quiesce off (control): 0 term moves.
+  - The fuzz has teeth. At dbb22e7, 13 of the first 17 seeds fail, with exposures up to 1035
+    units; with drops, 84 exposures reach election_min. At e35356a, 13 of 15 fail; with drops,
+    143 exposures reach election_min and one term moves.
+  - With no drops, every mutant passes. With drops, wake-ack-once has 34 exposures of
+    election_min or longer and a term move, and stale-frame-silent has 1. Each mutant removes
+    only one rule; the others cover what remains, except under loss.
 
 ## Findings
 
@@ -101,16 +112,13 @@ the home checkout.
 | F4 | no | defect | **Closed, except N1.** The doc now states the rule as the code implements it: who owes acknowledgements, when they go out, until when, and what the leader counts. | quiescence.md:32-51 | N1. |
 | F5, F6 | no | nit | Unchanged and still true. at_rest sends 0 messages; s3 rests again within two heartbeats. | 6a75bb | None. |
 | F7 | no | nit | **Moot, as the journal says.** A collision can only set `told` early, and the next re-acknowledgement, a heartbeat interval later, wakes the leader. | core.h:578, 1216 | None. |
-| N1 | no | defect | quiescence.md:45-48 says the acknowledgement "goes out within a heartbeat interval, whether a persistence deferred it" and that "a leader rests over a running election timer for at most a heartbeat interval". The election deadline keeps running while the follower persists, and the bound leaves out persistence and delivery time. The sweep's longest exposure is 83 ms against a 20 ms heartbeat. That is still below election_min, so liveness holds, but the sentence is not exactly true. | 13c686 (longest 83 ms); core.h:336, 574 | Replace it with: "a leader rests over a running election timer for at most a heartbeat interval after the follower's persistence completes, plus the time to deliver the acknowledgement and the leader's heartbeat, and a further interval for each acknowledgement lost (`quiescence_test`, s1 to s7, with delivery at once)". |
+| N1 | no | defect | quiescence.md:45-48 says the acknowledgement "goes out within a heartbeat interval, whether a persistence deferred it" and that "a leader rests over a running election timer for at most a heartbeat interval". The election deadline keeps running while the follower persists, and the bound leaves out persistence and delivery time. The sweep's longest exposure is 83 ms against a 20 ms heartbeat. That is still below election_min, so liveness holds, but the sentence is not exactly true. | 13c686 (longest 83 ms); abb76a (132 units with 2% drops); core.h:336, 574 | Replace it with: "a leader rests over a running election timer for at most a heartbeat interval after the follower's persistence completes, plus the time to deliver the acknowledgement and the leader's heartbeat, and a further interval for each acknowledgement lost (`quiescence_test`, s1 to s7, with delivery at once)". |
 | N2 | no | nit | at_rest prints the 8 messages from a write to rest but asserts only the 0 at rest after. A write that cost an extra round would still pass quiescence_test. The journal's ruling 5 says simulation_test's quiescence::at_rest caught such a variant; I did not check that. | quiescence_test.cc:153-160 | Assert `to_rest` against the value measured at main (8). |
 | N3 | no | nit | The mutant wake-ack-dropped-busy delays the acknowledgement by a heartbeat interval; it does not drop it. Its exposure (59 units) stays within the bound, so only s2's state check catches it. That is enough, but the name misleads. | driver_mutants.py; dc004e log | Rename it `wake-ack-deferred-busy`, or leave it. |
 | N4 | no | nit | quiescence.md:28-29 lists the events that end a follower's rest as "a frame that leaves it behind its leader's commit". A stale frame also ends a rest (s7); the next paragraph covers it, but this list does not. | quiescence.md:28; quiescence_test s7 | Add "or a stale frame". |
 
 ## Not run
 
-- The fuzz job 261122-211830-abb76a was still queued when I wrote this; it does not block the
-  verdict. Read it for the 2%-drop counts and as a check that the bound holds under random
-  orderings, including at dbb22e7 and e35356a.
 - CI run 44991647211: I took the lead's word that it is green.
 - Learners, witnesses and five-voter groups beyond reading the code. The sweep's odd seeds include
   witnesses.
