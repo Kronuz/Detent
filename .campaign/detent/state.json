@@ -2955,6 +2955,28 @@
         ]
       },
       "text": "reader-s6 landed: unlocks frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:49:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:49:24",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-269",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms",
+        "journal-bound-first-open": "frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-bound-first-open"
+        ]
+      },
+      "text": "set journal-bound-first-open: unlocks frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4709,7 +4731,7 @@
         "test/worker_test.cc",
         "test/driver_test.cc",
         "docs/DRIVER.md",
-        "docs/mechanisms/**",
+        "docs/mechanisms/append-pacing.md",
         "CHANGELOG.md"
       ],
       "history": [
@@ -4750,7 +4772,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T11:02:39",
+      "updated": "2026-11-23T11:03:20",
       "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
