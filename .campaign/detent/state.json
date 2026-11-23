@@ -6287,6 +6287,8 @@
     "consensus-sanitizer-ci-time": {
       "accepted": {},
       "after": [],
+      "base": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+      "branch": "quest/detent/consensus-sanitizer-ci-time",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6301,16 +6303,19 @@
         "tools/mutants.sh",
         "test/transport/groups_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-sanitizer-ci-time",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "started by force: shared file is CMakeLists.txt's test block only (mutant registration); the others edit other blocks and trial-merge clean, as with xapiand's msg-236 pairs",
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
-      "updated": "2026-11-22T21:05:33"
+      "updated": "2026-11-22T21:06:51",
+      "worktree": "../consensus-wt/detent/consensus-sanitizer-ci-time"
     },
     "consensus-transport": {
       "accepted": {
