@@ -5261,6 +5261,39 @@
       "updated": "2026-11-20T21:51:09",
       "worktree": ""
     },
+    "consensus-fetch-alongside-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-x86_64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
+      "updated": "2026-11-23T12:32:11"
+    },
     "consensus-fetch-lane": {
       "accepted": {
         "correctness": {
