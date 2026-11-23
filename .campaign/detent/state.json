@@ -2809,6 +2809,19 @@
       "id": "msg-247",
       "notice": "skill landed 3fc989dbaff8185fe734f9ef986e80623164c45a",
       "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:3fc989d"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T23:51:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T23:51:48",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: unversioned --ref fix; takes effect at the next install",
+      "id": "msg-249",
+      "notice": "skill landed d968c3aa035a86f7864c7f4841feb0e9cebe2457",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:c49431d Check out an unversioned job's --ref instead of dropping it"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
