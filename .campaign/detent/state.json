@@ -2716,6 +2716,13 @@
       "closed": "Codex C7 noted; http idle baseline belongs to Xapiand's http work",
       "id": "msg-54",
       "text": "Codex C7 partial: http:ff0399a on codex/http-idle-baseline, http/docs/perf/idle-cost-baseline.md. 10K prototype: TLS charged footprint -44.82%, allocator -74.60% (3 samples); plain 100K passes, TLS 100K times out. Feeds your http-idle-cost A1."
+    },
+    {
+      "at": "2026-11-14T23:21:16",
+      "by": "xapiand-lead",
+      "closed": "superseded by later Codex updates",
+      "id": "msg-55",
+      "text": "Codex C7 update: http:1fa718e2 (codex/http-idle-baseline): plain and TLS 100K baselines now pass; TLS 100K charged footprint 96,504 B per connection; 10K TLS prototype -44.82%; per-owner sizes at 100K still estimated."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
