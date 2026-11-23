@@ -44,7 +44,7 @@ Per seal of 2,048 uniform one-key updates, over the relay's own builder (`detent
 | Pages written, p50 (mean) | 2.42 MB (2.40 MB); store 2.54 MB | 11.21 MB (19.03 MB); store 128.8 MB |
 | Relocations | 56 of 120 namespace builds | 20 of 300, all ten namespaces in the same two seals |
 | (d) records digest CPU, p50 | 97.3 ms (85.9-106.4) | 96.7 ms (85.4-141.8) |
-| Idle seal (16 changes): CPU, wall, written | *pending* | 33.8 ms, 265.1 ms, 171 KB; (d) 1.8 ms |
+| Idle seal (16 changes): CPU, wall, written | *pending `261123-102616-53d93e`* | 33.8 ms, 265.1 ms, 171 KB; (d) 1.8 ms |
 | Head generation in memory | 11.6 MB heap, 55.4 MB peak RSS | 135.1 MB cold, 243.1 MB after 30 seals; 618.8 MB peak RSS |
 | Cold build (restart, new leader), one thread | 203.6 ms CPU, 300.1 ms wall, 2.54 MB | 9.00 s CPU, 12.04 s wall, 128.8 MB |
 
@@ -67,7 +67,7 @@ At the 10,000/s burst, 4.9 seals/s, (b) needs 38% of a core at 100K and 2.95 cor
 
 | Arm, 4 rotations | 100K builder corpus | 5M builder corpus |
 | --- | --- | --- |
-| Jobs | `261123-102312-f68100`, `-102317-ee98d8`, `-102322-8a13d6`, `-102326-29e936` | `261123-102315-eeee65`, `-102319-d64d52`, `-102324-33f7d5`, `-102329-ff81c3` |
+| Jobs | `261123-102553-3c089f`, `-102558-6f96c6`, `-102605-a63417`, `-102610-fdd616` | `261123-102555-afdabb`, `-102602-d23ae1`, `-102608-7ae2b2`, `-102613-0c4d8c` |
 | none: group p50 (min-max), p99, worst gap | *pending* | *pending* |
 | thread: delta p50 (min-max), worst gap | *pending* | *pending* |
 | write | *pending* | *pending* |

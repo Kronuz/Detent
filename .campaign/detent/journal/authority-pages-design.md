@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261123-102306-dab325 261123-102309-475fa8 261123-102312-f68100 261123-102315-eeee65 261123-102317-ee98d8 261123-102319-d64d52 261123-102322-8a13d6 261123-102324-33f7d5 261123-102326-29e936 261123-102329-ff81c3 261123-102331-9bcdbc
+State: waiting on jobs 261123-102546-6e81cf 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,14 +23,15 @@ Cause (bench bug, not an authority limit): seeding gives key k the value k; a gr
 salt*64+i, so a pick of key k with salt*64+i == k is NoChange. Diagnostic at ff2d21ab (names status, key,
 value, held) reproduced it locally on the same draw sequence (`commit 1 1000 160 none none inline none none
 none`, light): "transaction 52 rejected: status 2 (key 53748, value 53748, held 53748)" = NoChange. Fix
-07ac6b63: group values start past the seeded count. Proof jobs: 261123-102306-dab325 at ff2d21ab
-(--fails-without), 261123-102309-475fa8 at the fix.
+07ac6b63: group values start past the seeded count. Proof jobs: 261123-102546-6e81cf at ff2d21ab
+(--fails-without), 261123-102550-885bdd at the fix.
 
 Split: a commit row is 4 strict jobs of one arm rotation each (none-thread-inline-write, thread-inline-
 write-none, inline-write-none-thread, write-none-thread-inline: a Latin square, each arm once per position),
 about 5-6 min each; `check.py combine LOG...` gives per-arm median group p50 over the jobs and the paired
-delta against each job's own none run (median, min-max). 100K: f68100, ee98d8, 8a13d6, 29e936; 5M: eeee65,
-d64d52, 33f7d5, ff81c3 (all 261123-1023xx). Plus 100K idle seals 261123-102331-9bcdbc (strict).
+delta against each job's own none run (median, min-max). 100K: 3c089f, 6f96c6, a63417, fdd616; 5M: afdabb,
+d23ae1, 7ae2b2, 0c4d8c (all 261123-1025xx/1026xx). Plus 100K idle seals 261123-102616-53d93e (strict). A first submission (261123-102306 to -102331) was cancelled
+unrun: zsh passed its options as one word, so they ran as the command.
 
 ## Next
 
@@ -51,7 +52,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/design/authority-pages.md: 100K priced from 261122-210428-976f07; 5M cells pending |
-| A2 | 261122-210412-8d650b smoke passed; seals 261122-210428-976f07, 261122-210429-1ed7a8 (exclusive), 261123-073248-5fdf61 (strict) passed at bf55a099. Commit rows 261123-073250-7ccbac, 261123-073252-43c224 failed (bench NoChange bug, fixed 07ac6b63; proof 261123-102306-dab325 fails-without, 261123-102309-475fa8); replaced by 8 rotation jobs 261123-1023xx (see Doing). Round 2's 261122-210431-3080d5, -210432-93640e, -210434-c73864 (exclusive) were replaced by the lead's strict resubmissions. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
+| A2 | 261122-210412-8d650b smoke passed; seals 261122-210428-976f07, 261122-210429-1ed7a8 (exclusive), 261123-073248-5fdf61 (strict) passed at bf55a099. Commit rows 261123-073250-7ccbac, 261123-073252-43c224 failed (bench NoChange bug, fixed 07ac6b63; proof 261123-102546-6e81cf fails-without, 261123-102550-885bdd); replaced by 8 rotation jobs 261123-1025xx/1026xx (see Doing). Round 2's 261122-210431-3080d5, -210432-93640e, -210434-c73864 (exclusive) were replaced by the lead's strict resubmissions. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
 | A3 | docs/design/authority-pages.md, "Recommendation" (Limit 1, Q4, D6, D33/D34; quests added) - provisional |
 | A4 | [manual] open: the owner's decision, requested at the doc's end |
 
