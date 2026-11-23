@@ -1,36 +1,34 @@
-# journal-bound-first-open: The lost bound survives a power cut during the first open
+# journal-bound-first-open: the lost bound survives a power cut during the first open
 
 Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
 (status, branch, checks, reviews) is in `state.json`: `campaign status journal-bound-first-open`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Closes journal `docs/mechanisms/lost-bound.md`, Limits, second item (turn-log-parity durability
+review, N1): after rule-5 damage, the first open writes its new epoch's open record before
+`Host::open` stores the bound or the loss; a power cut between the two makes the next open report
+no damage, so acknowledged records the damage took are silently gone. Power cuts at every mutation
+of that first open disagree at 11 of 17 cuts (jobs 261121-141538-9a63b7, 261121-141627-fe334f).
+After this quest the verdict is durable before the open record, so every cut either reports the
+damage with its bound or the loss.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A power cut at every mutation of the first open after rule-5 damage: the next open reports the
+  same bound or loss at all 17 cuts (a test run by the suite)
+- A2 The test fails without the fix (a `--fails-without` job)
+- A3 [artifact] `docs/mechanisms/lost-bound.md` drops the limit and says how the verdict is stored
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Journal recovery and the group table (no format change). Lands after journal-turn-sector-checks, which changes the same recovery path; it may start now, its files are disjoint. The Detent authority suite runs at the landing commit (the suite gate).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- Owner, 2026-11-23 (Xapiand's campaign): turn-log-parity lands with this as a recorded limit; this quest fixes it.
+- Lead, 2026-11-23: taken over from xapiand:journal-bound-first-open (msg-268), so journal recovery fixes have one campaign.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
-
-## Tasks
-
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+Nothing: one durability fix, reviewed once.
