@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-111526-9ed1e8 261123-110240-386616 261123-110300-4e60a4 261123-110302-1a3102 261123-110305-7bd985 261123-110308-227199 261123-110311-3880be 261123-110314-6a9111 261123-110317-302949 261123-110319-e4bc35 261123-110321-d1c666 261123-110324-da98fe 261123-110327-126e80 261123-110329-5f54e1 261123-110331-009612 261123-110333-692380 261123-110344-ca7aa3
+State: waiting on jobs 261123-115748-542767 261123-115749-3be19d 261123-115751-5bff53 261123-115753-f3287a 261123-115755-5cd01d 261123-115757-c99c71 261123-115759-1641e1 261123-115802-d5ab2f 261123-115804-bf7616 261123-115806-c752e0 261123-115808-e4edc7 261123-115809-d73ef0 261123-115811-ea984a 261123-115813-9d3c88 261123-115815-a432cd 261123-115830-16b083
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,7 +18,11 @@ headers and the package files only; the consumer prints `count=7 on=1 missing=mi
 
 ## Next
 
-1. Read the jobs; fix failures.
+1. Read the jobs; fix failures. Round 1 (native 261123-110240-386616 at `Detent:daeca859`) failed:
+   `test_model_alloc_failure` still built `OverrideValue` (my targeted build skipped it), and
+   `run.sh` logged under `.scratch/`, absent in a job checkout (exit 126 on all 14 binding jobs).
+   Both fixed at `Detent:5610152f`; a full configure and build of every target (suite flags, bindings
+   and examples on) has 0 errors locally.
 2. Pushed for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
    A5 `bindings/tests/run.sh`; A10 `bindings/tests/legacy_grep.sh`; A12 the six
    `bindings/tests/mutants/*.patch` through `run.sh PATCH` with `--fails-without`; A13 `test_system_*`;
@@ -70,18 +74,18 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1, A2, A6-A8, A18, A19 | native 261123-110240-386616 |
-| A2-A5 | 261123-110300-4e60a4 (`bindings/tests/run.sh`, repeat until-fail:3) |
-| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:daeca859` |
+| A1, A2, A6-A8, A18, A19 | native 261123-115748-542767 |
+| A2-A5 | 261123-115749-3be19d (`bindings/tests/run.sh`, repeat until-fail:3) |
+| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:5610152f` |
 | A10 | 261123-111526-9ed1e8 (`bindings/tests/legacy_grep.sh`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
-| A12 | 261123-110302-1a3102, 261123-110305-7bd985, 261123-110308-227199, 261123-110311-3880be, 261123-110314-6a9111, 261123-110317-302949 (fails-without) |
-| A13 | 261123-110344-ca7aa3 |
+| A12 | 261123-115751-5bff53, 261123-115753-f3287a, 261123-115755-5cd01d, 261123-115757-c99c71, 261123-115759-1641e1, 261123-115802-d5ab2f (fails-without) |
+| A13 | 261123-115830-16b083 |
 | A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`: "share it; lookups are thread-safe on one reader."; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep) |
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
-| A20 | 261123-110319-e4bc35 (F1), 261123-110321-d1c666, 261123-110324-da98fe (F2), 261123-110327-126e80, 261123-110329-5f54e1 (F3), 261123-110333-692380 (F4, c3), 261123-110331-009612 (F7) (fails-without); design doc updated |
+| A20 | 261123-115804-bf7616 (F1), 261123-115806-c752e0, 261123-115808-e4edc7 (F2), 261123-115809-d73ef0, 261123-115811-ea984a (F3), 261123-115815-a432cd (F4, c3), 261123-115813-9d3c88 (F7) (fails-without); design doc updated |
 
 ## Result
 
