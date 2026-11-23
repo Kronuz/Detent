@@ -13875,9 +13875,27 @@
         "docs/mechanisms/lost-bound.md",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-23T10:49:13",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -13886,7 +13904,7 @@
       "risk": "high",
       "status": "planned",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-23T10:49:09"
+      "updated": "2026-11-23T10:49:13"
     },
     "journal-close-in-doubt": {
       "accepted": {
