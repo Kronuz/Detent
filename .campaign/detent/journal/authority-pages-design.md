@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261122-210412-8d650b 261122-210428-976f07 261122-210429-1ed7a8 261122-210431-3080d5 261122-210432-93640e 261122-210434-c73864
+State: waiting on jobs 261122-210429-1ed7a8 261122-210431-3080d5 261122-210432-93640e 261122-210434-c73864
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,9 +28,9 @@ Round 2 at bf55a099: smoke 261122-210412-8d650b (light), rows exclusive after it
 
 ## Next
 
-1. Smoke passes, then rows (exclusive, <=10 min each): seals 100K (4x25,000) and 5M (10x500,000) at 2,048
-   changes and at 16 (idle seals); commit 100K and 5M, 3 rounds of the four arms.
-2. Write docs/design/authority-pages.md from the rows; State "ready for review".
+1. The four 5M/commit rows (queued exclusive; host load 43-47 on 16 CPUs kept them from starting for 2 h):
+   fill the *pending* cells of docs/design/authority-pages.md, confirm or revise the recommendation
+   (the 5M cold build decides (b) against (c)), then State "design ready".
 
 ## Blocked on
 
@@ -45,7 +45,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | docs/design/authority-pages.md: 100K priced from 261122-210428-976f07; 5M cells pending |
+| A2 | 261122-210412-8d650b smoke passed; 261122-210428-976f07 passed (seals 100K, exclusive, bf55a099); pending 261122-210429-1ed7a8, 261122-210431-3080d5, 261122-210432-93640e, 261122-210434-c73864. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
+| A3 | docs/design/authority-pages.md, "Recommendation" (Limit 1, Q4, D6, D33/D34; quests added) - provisional |
+| A4 | [manual] open: the owner's decision, requested at the doc's end |
 
 ## Result
 
@@ -54,6 +57,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+5. Before/after for A2 is arm none against the builder arms, interleaved on one node (3 rounds each), and
+   seal p50 with min-max over 30 seals for the noise floor; (a) is the before for every option.
 
 1. rc3 write load = SCALE_TARGETS.md:117's proposed baseline (2,000 tx/s sustained, 10,000/s burst), one change
    per transaction, uniform keys; with seal_transactions 2,048 (state.hh:28) that is about 1 seal/s and 5/s.
