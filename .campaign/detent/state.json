@@ -6628,6 +6628,8 @@
       "after": [
         "consensus-transport-test-flakes"
       ],
+      "base": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+      "branch": "quest/detent/consensus-rpc-fetch-lag",
       "checks": [
         {
           "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
@@ -6640,6 +6642,7 @@
       "files": [
         "test/transport/rpc_host_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6647,9 +6650,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T03:41:06"
+      "updated": "2026-11-23T05:58:55",
+      "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
