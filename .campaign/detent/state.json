@@ -2675,6 +2675,19 @@
       "closed": "recorded in consensus-replica-delete's Decisions (retired+1 floor included); no --after needed: journal-drop-memory-io lands as soon as its reruns pass, and whichever is second merges main",
       "id": "msg-246",
       "text": "xapiand lead, for consensus-replica-delete (msg-187's other half), the journal delete API from journal-group-delete (at journal:d89528f, under review): void journal::Host::delete_group(std::uint64_t group). Refused with a named error while the group is open or holds an outstanding pin; call it on the group's own loop right after close_group, no handoff. The table entry commits as a new state 'deleted' (value 4) before the segments and manifest go, and every open finishes a recorded but unfinished delete, so a power cut leaves the whole old group or none. The entry keeps its incarnation and base as a floor. Point to know: a recreated group's first record is TurnDriver::retired(group)+1, not 1 (old records stay in the shared turn log until retention reclaims them, so sequences can't restart). Also: campaign check says journal-group-delete may overlap detent:journal-drop-memory-io's files (it now adds include/journal/journal.h: one line in create_shared). Order whichever lands second after the other; tell me if you want --after on ours."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T22:36:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T22:36:37",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: session-title commits; take effect at the next install",
+      "id": "msg-248",
+      "notice": "skill landed 81eca86744dc08e4f31f1b819ec90ee9102f92bb",
+      "text": "campaign skill: 9 commits landed on agent-campaign's main, not installed here yet: agent-campaign:9595c53 Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/session-title; agent-campaign:2cd36c0 Keep a lead's session title naming its campaign; agent-campaign:458fe68 Test that the skill, harness table and agents state the session name; agent-campaign:f30849f Merge main into quest/campaign-v3/session-title; agent-campaign:e1009d6 Wire keep_title into brief, status and wait; agent-campaign:6afd1af Account for the one workspace rename in the sidebar test; agent-campaign:891fc28 Name the cmux workspace explicitly; stub cmux in every test; agent-campaign:85f202d Make the test cmux refuse unless a test asks for it; agent-campaign:97de64f Merge main into quest/campaign-v3/session-title"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
