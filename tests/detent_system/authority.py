@@ -10,6 +10,7 @@ import socket
 import ssl
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -151,7 +152,9 @@ class Authority:
             reservation.close()
         self.reservations.clear()
 
-    async def start_member(self, index: int) -> Actor:
+    async def start_member(
+        self, index: int, observe: Callable[[bytes], None] | None = None
+    ) -> Actor:
         return await self.actors.start(
             f"authority-{index}",
             [
@@ -163,6 +166,7 @@ class Authority:
                 "--runtime-dir",
                 str(self.directory / f"runtime-{index}"),
             ],
+            observe=observe,
         )
 
     async def start(self) -> None:
@@ -180,13 +184,40 @@ class Authority:
             "member_killed", index=index, code=member.process.returncode
         )
 
-    async def restart_member(self, index: int) -> None:
+    async def restart_member(self, index: int, seconds: float = 20) -> None:
+        """Restarts a stopped member on its port and returns once it answers. Its port was
+        released after the reservation and another process may hold it for a while (bind:
+        Address already in use), so the member starts again until the port is free."""
         member = self.members[index]
         if member.process.returncode is None:
             raise ValueError("cannot restart a running member")
         await member.capture
         self.actors.children.remove(member)
-        self.members[index] = await self.start_member(index)
+        deadline = time.monotonic() + seconds
+        while True:
+            output = bytearray()
+            member = await self.start_member(index, output.extend)
+            self.members[index] = member
+            while member.process.returncode is None and not await self._answers(index):
+                await asyncio.sleep(0.05)
+            if member.process.returncode is None:
+                return
+            await member.capture
+            self.actors.children.remove(member)
+            if b"Address already in use" not in output or time.monotonic() > deadline:
+                raise RuntimeError(
+                    f"authority-{index} exited {member.process.returncode} on restart: "
+                    f"{output.decode(errors='replace')}"
+                )
+            self.actors.evidence.record("member_restart_port_busy", index=index)
+            await asyncio.sleep(0.1)
+
+    async def _answers(self, index: int) -> bool:
+        try:
+            await self.request(index, "/v1/health")
+        except (OSError, http.client.HTTPException):
+            return False
+        return True
 
     def _request(
         self,
