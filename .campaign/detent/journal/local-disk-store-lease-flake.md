@@ -1,6 +1,6 @@
 # local-disk-store-lease-flake: journal
 
-State: waiting on jobs 261122-001451-97bf01 261122-001501-95503f 261122-001517-639f92 261122-001527-9cad3c
+State: waiting on jobs 261122-211249-037174 261122-211458-6be91a 261122-211501-30df88
 Quest: .campaign/detent/quests/local-disk-store-lease-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,8 +23,8 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | cause: 261122-001517-639f92 (old test with the first generation's recovery held fails at line 191); before: 261122-001501-95503f (2000 runs under 4 burners at 5580bb6b, expected to fail; the CI flake is rare, so this may pass, and the deterministic job is the proof); after: 261122-001451-97bf01 (2000 runs, 4 burners, at 03583ece) |
-| A2 | suite 261122-001527-9cad3c; CI on the pushed branch |
+| A1 | cause 261122-001517-639f92 (done): old test with the first generation's recovery held across the pass fails "disk store invariant at line 192" (the inserted line shifts 191), as predicted: a held mapping lease defers the pass. Loops 261122-001451-97bf01 (fixed) and 261122-001501-95503f (before) hit the 30-minute deadline at load ~100-166, result invalid, not counted; timing probe 261122-211249-037174, then the 2000 runs are split into shards |
+| A2 | suite 261122-001527-9cad3c failed: only test_authority_history_ranges (215 tests, unrelated to local store); rechecked alone at the fix 261122-211458-6be91a and at main 261122-211501-30df88 |
 
 ## Result
 
