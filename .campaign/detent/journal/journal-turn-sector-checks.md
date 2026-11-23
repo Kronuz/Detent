@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-132656-758884 261123-132700-4d14e4 261123-132700-1f99e4 261123-132700-6bde99 261123-132701-1af7dc; ci:ci at journal:f1ca348
+State: waiting on jobs 261123-132656-758884 261123-132700-4d14e4; ci:ci and ci:macos-arm64 at journal:f1ca348 (CI run 45269807268)
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,10 +40,12 @@ defect:
 
 ## Next
 
-1. Jobs at journal:f1ca348 (pushed, CI running): 261123-132656-758884 (A4 bytes, strict),
-   261123-132700-4d14e4 (A4 latency rerun, strict), 261123-132700-1f99e4 (A1),
-   261123-132700-6bde99 (A2), 261123-132701-1af7dc (A3); `ci:ci` and `ci:macos-arm64` (suite) for
-   A6. Then the Evidence table from `campaign brief`, the Result, State "ready for review".
+1. Queued strict at journal:f1ca348: 261123-132656-758884 (A4 bytes), 261123-132700-4d14e4 (A4
+   latency rerun); CI run 45269807268 (`ci:ci`, `ci:macos-arm64` suite) for A6. Done at f1ca348,
+   exit 0, same numbers as before: 261123-132700-1f99e4 (A1: main newest SILENT 36, blocks 4807
+   reported; fix 0 SILENT, 6473 checks), 261123-132700-6bde99 (A2: 31268 T9 checks, 447 newest
+   damage reported, 0 failures), 261123-132701-1af7dc (A3: 5 checks, 0 failures). Then the
+   Evidence table from `campaign brief`, the Result, State "ready for review".
 
 ## Blocked on
 
