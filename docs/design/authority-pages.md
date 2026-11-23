@@ -5,8 +5,8 @@
 Should the authority build its own trie and pages, so that authorities and relays both serve pages or records by the range asked for?
 
 - Author: Germán Méndez Bravo. Created 2026-11-21.
-- Base: `Detent:bf55a09` (`src/` identical to `main`). Harness: [`bench/authority_pages/`](../../bench/authority_pages/) (`authority_pages_bench.cc`, `run.sh`, `check.py`).
-- Host: Intel Core i9-9980HK (8 cores, x86-64, no SHA-NI), macOS 15 (Darwin 24.6), APFS, release build; every row an exclusive `quiet` hold.
+- Base: seal rows at `Detent:bf55a09`, commit rows at `Detent:07ac6b6` (`main` at `Detent:1941ec8` merged; the relay builder is unchanged between them). Harness: [`bench/authority_pages/`](../../bench/authority_pages/) (`authority_pages_bench.cc`, `run.sh`, `check.py`).
+- Host: Intel Core i9-9980HK (8 cores, x86-64, no SHA-NI), macOS 15 (Darwin 24.6), APFS, release build; each row a strict or exclusive `quiet` hold, as its job says. The idle 5M job (strict) measured its own cold build at 20.1 s of CPU against the exclusive row's 9.0 s, so a strict row's absolute CPU carries up to 2x host noise; the commit rows compare arms inside one job, which this does not bias.
 - Depends on [dense-distribution.md](dense-distribution.md): D1 (one root digest, two encodings), D6 (pages or records per update), D7 (what a relay builds and serves), Limit 1, and Q4.
 
 ## Abstract
@@ -38,34 +38,38 @@ Per seal of 2,048 uniform one-key updates, over the relay's own builder (`detent
 
 | Per seal | 100K (4 × 25,000) | 5M (10 × 500,000) |
 | --- | --- | --- |
-| Build CPU, p50 (min-max of 30) | 78.8 ms (63.4-93.2) | *pending `210429-1ed7a8`* |
-| Build wall with writes and sync, p50 | 165.7 ms, of which sync 88.3 ms | *pending* |
-| Pages written, p50 | 2.42 MB (store 2.54 MB) | *pending* |
-| Relocations | 56 of 120 namespace builds | *pending* |
-| (d) records digest CPU, p50 | 97.3 ms (85.9-106.4) | *pending* |
-| Idle seal (16 changes) | not run | *pending `210431-3080d5`* |
-| Head generation in memory | 11.6 MB heap, 55.4 MB peak RSS | *pending* |
-| Cold build (restart, new leader) | 203.6 ms CPU, 2.54 MB | *pending* |
+| Job | `261122-210428-976f07` (exclusive) | `261122-210429-1ed7a8` (exclusive); idle row `261123-073248-5fdf61` (strict) |
+| Build CPU, p50 (min-max of 30) | 78.8 ms (63.4-93.2) | 604.8 ms (507.1-1,552.4) |
+| Build wall with writes and sync, p50 | 165.7 ms, of which sync 88.3 ms | 1,024.3 ms, of which sync 427.8 ms |
+| Pages written, p50 (mean) | 2.42 MB (2.40 MB); store 2.54 MB | 11.21 MB (19.03 MB); store 128.8 MB |
+| Relocations | 56 of 120 namespace builds | 20 of 300, all ten namespaces in the same two seals |
+| (d) records digest CPU, p50 | 97.3 ms (85.9-106.4) | 96.7 ms (85.4-141.8) |
+| Idle seal (16 changes): CPU, wall, written | *pending* | 33.8 ms, 265.1 ms, 171 KB; (d) 1.8 ms |
+| Head generation in memory | 11.6 MB heap, 55.4 MB peak RSS | 135.1 MB cold, 243.1 MB after 30 seals; 618.8 MB peak RSS |
+| Cold build (restart, new leader), one thread | 203.6 ms CPU, 300.1 ms wall, 2.54 MB | 9.00 s CPU, 12.04 s wall, 128.8 MB |
 
 At 100K a 2,048-key uniform seal touches nearly every leaf, so each seal rewrites about 95% of the store; this is the worst case per byte, and the 5M rows give the realistic one.
 
-At rc3's sustained 0.98 seal/s (2,000 / 2,048) and 100K keys:
+At rc3's sustained 0.98 seal/s (2,000 / 2,048), each cell 100K / 5M:
 
-| Option | Authority CPU | Memory | Disk written | Wire, authority to relay |
+| Option | Authority CPU | Memory | Disk written, if pages are persisted | Wire, authority to relay |
 | --- | --- | --- | --- | --- |
 | (a) | 0 | 0 | 0 | records, as today |
-| (b) | 7.7% of a core, leader only | 11.6 MB | 0 in memory; 2.36 MB/s if pages are persisted | +32 B per answer (the D1 root field) |
-| (c) | 7.7% of a core on each of 3 voters | 11.6 MB each | as (b), on each voter | as (b) |
-| (d) | 9.5% of a core on each voter, so a leader change costs nothing | 2 KiB per namespace | 0 | +2 KiB per namespace answer, or +32 B for its hash |
+| (b) | 7.7% / 59.1% of a core, leader only | 11.6 MB / 135-243 MB | 2.34 MB/s / 18.6 MB/s; 0 in memory | +32 B per answer (the D1 root field) |
+| (c) | as (b) on each of 3 voters: 23% / 177% of a core in all | as (b), each | as (b), on each voter | as (b) |
+| (d) | 9.5% / 9.4% of a core on each voter, so a leader change costs nothing | 2 KiB per namespace | 0 | +2 KiB per namespace answer, or +32 B for its hash |
 
-At the burst, 4.9 seals/s, (b) is 38% of a core for its 10 s; the builder thread falls behind and catches up, which delays roots, never commits (below).
+(b) grows with the store and (d) does not: (d) pays per change (two 2 KiB expansions), (b) rewrites each touched leaf and its path. At 5M a uniform seal rewrites 11.2 MB of the 128.8 MB store, and every 15 seals or so all ten namespaces relocate together (128.8 MB in one seal), which is why the mean is 19.0 MB.
 
-**Commit latency and elections.** The commit rows interleave four arms on one durable single-voter authority (100,000 keys, positions and history on): none, a builder thread, a builder thread that writes and syncs, and the build inline in the service loop. They report group commit p50/p99 and the longest gap between two service calls, against the consensus heartbeat of 100 ms and election timeout of 1,000-2,000 ms (`consensus/types.h:114-115`).
+At the 10,000/s burst, 4.9 seals/s, (b) needs 38% of a core at 100K and 2.95 cores at 5M. One builder thread builds 1.65 seals/s at 5M (3,390 transactions/s), so a 10 s burst leaves it 32 seals behind: the root of the burst's last seal comes 19.5 s after that seal commits, and the backlog drains in about 48 s at the sustained rate. The ten namespaces build independently, so a pool of builder threads divides this by up to ten (not measured here). The lag delays roots, never commits (below).
 
-| Arm, 3 rounds each | 100K builder corpus | 5M builder corpus |
+**Commit latency and elections.** The commit rows run four arms on one durable single-voter authority (100,000 keys, positions and history on, 64 producers committing 160 groups of one-change transactions per arm, 5 authority seals): none, a builder thread, a builder thread that writes and syncs, and the build inline in the service loop. Each authority seal triggers one builder seal of 2,048 changes over the 100K or 5M builder corpus. A row is four strict jobs, one per rotation of the arm order (each arm once in each position, so warm-up and neighbours fall on every arm alike); `check.py combine` gives each arm's group commit p50 as the median over the four jobs, and its paired delta against the none run of the same job. They are read against the consensus heartbeat of 100 ms and election timeout of 1,000-2,000 ms (`consensus/types.h:114-115`).
+
+| Arm, 4 rotations | 100K builder corpus | 5M builder corpus |
 | --- | --- | --- |
-| none: group p50 / p99, worst gap | *pending `210432-93640e`* | *pending `210434-c73864`* |
-| thread | *pending* | *pending* |
+| Jobs | `261123-102312-f68100`, `-102317-ee98d8`, `-102322-8a13d6`, `-102326-29e936` | `261123-102315-eeee65`, `-102319-d64d52`, `-102324-33f7d5`, `-102329-ff81c3` |
+| none: group p50 (min-max), p99, worst gap | *pending* | *pending* |
+| thread: delta p50 (min-max), worst gap | *pending* | *pending* |
 | write | *pending* | *pending* |
 | inline | *pending* | *pending* |
 
@@ -85,6 +89,8 @@ Relay-less pages are already bought by Q4 (b): the host relay builds the same pa
 
 A pass-through relay still mirrors records to answer D6's record deltas (dense-distribution D7.2), so it skips the build, not the records stream.
 
+The build is paid somewhere in every option but (d). Under (a) each relay, Q4's host relay included, pays 604.8 ms of CPU per seal at 5M; under (b) the leader pays it once and every relay that passes pages through pays nothing. With at least one pass-through relay, (b) moves the 5M cost onto the authority rather than adding it.
+
 ## Failure and recovery
 
 | Event | (b) leader builds | (c) every voter builds | (d) |
@@ -93,7 +99,7 @@ A pass-through relay still mirrors records to answer D6's record deltas (dense-d
 | Snapshot install, catch-up | nothing on followers | cold build from the installed state | rehash once |
 | Leader change | the new leader cold-builds; roots lag by one cold build, commits do not | none: the new leader has its head | none |
 
-The root is never on the commit path. The builder publishes the root of position *p* after *p* commits, so an answer for a position whose root is not ready waits for it or goes out as records with the root following. A cold build at 100K takes 203.6 ms of CPU, under the 1,000 ms election timeout; the 5M cold build is *pending* and decides whether (b)'s leader-change lag is acceptable or (c) is needed.
+The root is never on the commit path. The builder publishes the root of position *p* after *p* commits, so an answer for a position whose root is not ready waits for it or goes out as records with the root following. A cold build takes 203.6 ms of CPU at 100K and 9.00 s at 5M on one thread (12.04 s with writes and sync). Under (b) a new leader's roots therefore lag its election by about 9 s at 5M; answers in that window go out as records, which a relay applies and an agent verifies against the next root. (c) removes that lag for three times (b)'s sustained CPU, 1.77 cores against 0.59 at 5M; elections are rare enough that 9 s of late roots per election does not pay for 1.2 cores always on, and a builder pool shortens the cold build the same way it shortens a burst.
 
 ## Recommendation
 
