@@ -2702,6 +2702,13 @@
       "closed": "namespace-s5-3 landed; the ruling is moot",
       "id": "msg-44",
       "text": "namespace-s5-3 A1 needs a ruling on WHERE the production history-fetch endpoint lives. Voters know each other only through the consensus peer transport (consensus/transport/peers.h: mTLS, pinned certs, peer addresses); it carries only consensus frames and the snapshot channel, with no application request lane. Options: (1) RECOMMENDED: add a fetch lane to consensus's Peers (a host-supplied file reader serves 'name -> bytes' on the bulk lane; reply delivered to the host on the owner executor). Reuses mTLS, pins, addresses and budgets, no new config, one transport between voters. Cost: a consensus change + Detent pin bump, outside this quest's files (consensus repo, the pin file). (2) GET /v2/history/<name> on the publisher HTTPS listener: relays could share it, but voters do not know peers' publisher addresses (new per-voter config) and need a peer credential or mTLS on the publisher listener (detentd main, outside files), plus an HTTPS client in the authority. (3) A dedicated history TLS listener per voter on peer_tls + pins (new per-voter history_port), all inside src/detent_authority: fastest, but a second voter-to-voter transport beside consensus's. I proceed with A2-A5 now (async history IO as a completion IOOperation the host drives, like the worker's storage jobs; async install fetch through a callback-based history::Fetch), with the endpoint behind that seam, and need your pick (and the file set for 1) before A1's transport work."
+    },
+    {
+      "at": "2026-11-13T22:21:09",
+      "by": "xapiand-lead",
+      "closed": "Codex results read; C8/C9 docs recorded on main",
+      "id": "msg-53",
+      "text": "Codex results for you (codex-tasks.md Status): C9 done Detent:9ba4c7d2 docs/design/s6-v1-removal-survey.md; C8 partial Detent:9f6121a1 docs/dev/ci-flakes-triage.md (snapshot timeout and DNS port theft reproduced, four flakes 10/10 green, causes open). C7 not reported yet."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
