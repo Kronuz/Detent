@@ -5934,7 +5934,7 @@
       "risk": "low",
       "status": "landed",
       "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
-      "updated": "2026-11-23T14:31:40",
+      "updated": "2026-11-23T14:33:00",
       "worktree": ""
     },
     "consensus-late-append": {
