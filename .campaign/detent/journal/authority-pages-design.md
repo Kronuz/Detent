@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: ready for review
+State: waiting on jobs 261123-143701-b2823a 261123-143702-63a2df 261123-143702-dbe12a 261123-143703-1457d9 261123-143704-14eaf8 261123-143705-ac3113 261123-143706-4d9157 261123-143707-02c215 261123-143708-866493 261123-143709-e27543 261123-143709-c59049 261123-143710-993a49
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,7 +40,14 @@ the strict noise (the strict 5M idle cold build read 2.2x the exclusive one); it
 
 ## Next
 
-1. Design review (the lead launches it); fold in findings by id. A4 is the owner's.
+1. The doc and recommendation are final. Main's merge (f8805185) changed src/detent_local headers that the
+   bench's relay_page_window includes, so the brief counts the strict measurement jobs as other code; they
+   rerun at 392deab8: commit 100K b2823a 63a2df dbe12a 1457d9, 5M 14eaf8 ac3113 4d9157 02c215; seals 866493
+   (100K idle), e27543 (100K), c59049 (5M), 993a49 (5M idle), all 261123-1437xx. When they pass, re-combine,
+   confirm the doc's numbers within the noise floor (or update them), cite these ids in A1, State "ready for
+   review". The exclusive bf55a099 rows (976f07, 1ed7a8) stay cited in the doc as quiet-host CPU; the lead
+   decides whether they rerun exclusive.
+2. Design review can start now: the reruns only confirm.
 
 ## Blocked on
 
