@@ -60,11 +60,19 @@ void validate_replacement_funding(const NodeOptions &o) {
 		"retained_state.log_bytes and log_entries");
 }
 // A node whose retained or consensus log bounds are below the group's would refuse
-// entries its peers accept, or reach LogFull before a seal, so it refuses to start or
-// to keep applying (D6 "Seal").
-void check_retained_bounds(const NodeOptions &o, const State &s) {
+// entries its peers accept, or reach LogFull before a seal; one whose peer fetch is below
+// the group's history files could not fetch them (D141). It refuses to start or to keep
+// applying (D6 "Seal").
+void check_group_policy(const NodeOptions &o, const State &s) {
 	if (!s.positions_enabled())
 		return;
+	const auto &l = o.application;
+	const auto files = s.pending_policy() ? history::file_bytes(l, *s.pending_policy(), s.policy())
+										  : history::file_bytes(l, s.policy());
+	if (files > history::fetch_bytes(l))
+		throw std::runtime_error("authority application_limits.image_bytes " + std::to_string(l.image_bytes) +
+								 " is below the " + std::to_string(files) +
+								 "-byte history files the group's layout policy writes; raise it with state_bytes");
 	for (const auto *p : {&s.policy(), s.pending_policy() ? &*s.pending_policy() : nullptr})
 		for (const auto &[field, entries, bytes] :
 			 {std::tuple{"retained_state", o.scheduling.retained.log_entries, o.scheduling.retained.log_bytes},
@@ -187,7 +195,7 @@ void Node::recover() {
 			decoder.step();
 		}
 		state_ = decoder.take();
-		check_retained_bounds(options_, state_);
+		check_group_policy(options_, state_);
 		if (recorder_) recorder_->reset(state_.context(),state_.revision());
 	});
 	auto boundary = worker_.base_boundary();
@@ -515,7 +523,8 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				if (!application_->administrative)
 					application_->administrative.emplace(
 						state_, entry.index, entry.term,
-						decode_administrative(entry.payload, options_.application));
+						decode_administrative(entry.payload, options_.application),
+						recorded_limits(entry.payload, options_.application));
 				while (!application_->administrative->done()) {
 					if (!budget.updates || budget.bytes < 1024)
 						return;
@@ -541,8 +550,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 								return;
 							--budget.records;
 							budget.bytes -= 128;
+							// Each group applies under the limits it carries (D141).
 							application_->command.emplace(application_->decoder->next_bytes(),
-														  options_.application, options_.context);
+														  application_->decoder->limits(), options_.context);
 						}
 						application_->command->step(budget);
 						if (!application_->command->done())
@@ -605,7 +615,7 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				cover();
 			}
 			if (entry.kind != EntryKind::NoOp && is_administrative(entry.payload))
-				check_retained_bounds(options_, state_);
+				check_group_policy(options_, state_);
 			if (recorder_) recorder_->publish(state_.context(),entry.index,state_.revision());
 			for (auto &result : ready) {
 				pending_.erase(result.request);

@@ -47,6 +47,11 @@ struct Limits {
 	LayoutPolicy layout{};
 	bool operator==(const Limits &) const = default;
 };
+// Admits limits an entry or image recorded on a voter configured with `configured` (D141): keys,
+// state_bytes and image_bytes may have risen, the other seven are equal. Throws naming the field.
+void admit_limits(const Limits &recorded, const Limits &configured);
+// The limits a DTABAT02 or DTAADM01 entry carries, admitted under `configured`, whose layout it takes.
+Limits recorded_limits(std::string_view entry, const Limits &configured);
 struct Mutation {
 	std::string key;
 	std::optional<KnobDef> value;
@@ -260,6 +265,8 @@ class State {
 	NamespaceCursor namespace_cursor(std::string_view name) const;
 	CursorAnswer answer(std::string_view name, const NamespaceCursor &cursor) const;
 	const Producer *producer(std::string_view name) const;
+	// apply, apply_batch and administer take entries recorded under limits(); a node's replay
+	// applies each entry under the limits it carries (BatchDecoder::limits, recorded_limits).
 	Result apply(std::uint64_t index, const Command &command, std::uint64_t term = 1);
 	void advance(std::uint64_t index, std::uint64_t term = 1);
 	std::vector<Result> apply_batch(std::uint64_t index, const std::vector<Command> &commands,
@@ -338,6 +345,8 @@ struct BatchWork {
 class BatchDecoder {
   public:
 	BatchDecoder(std::string_view bytes, Limits limits = {}, std::size_t cap = 1024 * 1024);
+	// The limits the group carries: its commands decode and apply under them.
+	const Limits &limits() const noexcept { return limits_; }
 	std::size_t count() const noexcept { return count_; }
 	bool done() const noexcept { return !failed_ && decoded_ == count_; }
 	BatchWork next_work();
@@ -354,12 +363,16 @@ struct BatchResult {
 	State state;
 	std::vector<Result> results;
 };
-// Applies one administrative entry in bounded steps. Enabling assigns each
-// namespace present an incarnation and a directory position, in name order.
+// Applies one administrative entry in bounded steps, under the limits it carries (`profile`;
+// the source's own when absent). Enabling assigns each namespace present an incarnation and a
+// directory position, in name order.
 class AdministrativeApplication {
   public:
 	AdministrativeApplication(const State &source, std::uint64_t index, std::uint64_t term,
-							  AdministrativeCommand command);
+							  AdministrativeCommand command, Limits profile);
+	AdministrativeApplication(const State &source, std::uint64_t index, std::uint64_t term,
+							  AdministrativeCommand command)
+		: AdministrativeApplication(source, index, term, std::move(command), source.limits()) {}
 	void step(CommandWorkBudget &budget);
 	bool done() const noexcept { return phase_ == Phase::Complete && !consumed_; }
 	BatchResult finish();
@@ -370,13 +383,15 @@ class AdministrativeApplication {
 	State source_, candidate_;
 	std::uint64_t index_, term_;
 	AdministrativeCommand command_;
+	Limits profile_;
 	Result result_;
 	std::optional<decltype(State::namespaces_)::Cursor> cursor_;
 	Phase phase_ = Phase::Inspect;
 	bool consumed_ = false, retired_ = false;
 };
-// Owns one validated command and an unpublished candidate. Source roots and
-// command storage remain alive across every equality and receipt-copy yield.
+// Owns one validated command and an unpublished candidate, and decides under the limits the
+// command was decoded with. Source roots and command storage remain alive across every
+// equality and receipt-copy yield.
 class CommandApplication {
   public:
 	CommandApplication(const State &source, std::uint64_t index, std::uint64_t term,
