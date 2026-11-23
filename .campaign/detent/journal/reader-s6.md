@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: ready for review. Waiting on jobs at `Detent:a60e089` (merged main): gates native 15579c, tsan 4432db, t3-tsan bff807; t3-asan (4 readers) 1a9b50; reruns a1ad79 efe19d 57a878 0657dc ea231c c31340 377d11 d604f3 ebe627 54f6dc 77d230; A16 dbd4b2 034e64 3e6714 7c4359; A9 doc check 91bf27; CI at the head. Pushed.
+State: ready for review (round 3: C3, C4, N6). Head `Detent:c1c7498` (pushed). Waiting on jobs: native 261123-020546-339806, t3-tsan 261123-020547-63d2a8, plain `test_reader_core` 261123-020608-eda47a, probe 261123-020615-e1cb4e; fails without: RETAIN-1 261123-020610-c38819, ATFORK-2 261123-020612-66011f; CI at the head.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,6 +8,23 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Fix round 3 (2026-11-23, D146): correctness re-check at `Detent:80cde23` (CHANGES, C3 blocking).
+  - C3 `Detent:dece111`: `free_retired(keep)` frees every view outside slot `keep` that no lookup
+    pins; `refresh_locked` runs it first on every outcome (Published, Unchanged, Refused, Failed)
+    and again after a commit. The next-slot refusal check follows it; `AfterFree` still fires when
+    the next slot held a view that was freed. Test `test_reader_core` `retained` (the reviewer's
+    probe sequence): cap = 1.5 x one generation's whole charge, a lookup parked at `Pinned` across
+    rev 2's commit, then after the pin drops and a `detent_refresh`, all 60,000 rev-2 keys must
+    answer their values and one generation stay. Local (macOS Debug): fixed 60,000 of 60,000,
+    charged 1,435,136 of 2,152,704; RETAIN-1 15,564 of 60,000, generations 2, exit 134 (the
+    reviewer's 44,436 refused, reproduced).
+  - C4 `Detent:b490591`: `atfork_installed` is atomic; an open reads it (acquire) and locks only to
+    register. New hooked-build window `Registering` at that check. Test `fork_mid_open`: a thread
+    parked at `Registering` inside `detent_open`, fork, the child opens and reads under a 10 s
+    alarm. Local: fixed child exit 0; ATFORK-2 (lock first, window inside the lock) child signal 14.
+  - N6 `Detent:c1c7498`: the probe counts `no_memory` with `find`.
+  - Mutants at `refs/mutants/reader-s6/{RETAIN-1,ATFORK-2}`, each `Detent:c1c7498` with only its
+    fix removed from `core.cc` (`.scratch/detent/round3/mutate.py`).
 - Fix round 2 (2026-11-22, lead): C1, file set, A9's row, CI at `Detent:c6b1315`, t3-asan width.
   - C1 was fixed in round 1 (`Detent:c300e5f`, `refresh_memo`, MEMO-1 b558f2 `--fails-without`
     killed); the probe's sequence is that test's. Confirmed again at the merged head (Fixes since the review).
@@ -397,6 +414,17 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Blocked on
 
+0. C3 residual (lead, round 3): a refresh now frees a retired view, but a lookup pinned at a
+   commit that had already passed its sequence check (mid-answer, e.g. in a cold miss) answers the
+   old generation and unpins without refreshing; that view stays charged until the next refresh,
+   so until the next publish unless the application calls `detent_refresh`. Under concurrent
+   lookups this is likely at a commit. Fixing it touches the lookup path, beyond the free scan
+   (D146), so not done. Options: (a) keep: `detent_refresh` or the next publish releases it,
+   documented; (b) a lookup answered `DETENT_NO_MEMORY` while a non-current slot holds a view tries
+   `refreshing`, runs `free_retired`, and retries if anything was freed (about 15 lines; the warm
+   path gains one status compare; test: a reader parked at `LazyPageWindow::Miss` across the
+   commit, then every key answers with no refresh). Recommendation: (b), as its own small round.
+
 1. File set (lead): one file outside it, `docs/design/reader.md` (the brief's out-of-set list is the
    file set itself, then `: docs/design/reader.md`). It belongs: `Detent:07a77ec` records D143 in
    the design (Q5 "Ruled (a), D143", D3's mapping-cap paragraph) and corrects the verified bitmap
@@ -419,6 +447,9 @@ Correctness CHANGES and security APPROVE, both at `Detent:d8c0182`. Fixes in `De
 | S1 bounds (D143) | `Detent:07a77ec`: one mapping cap per handle, `detent_open_options.mapping_bytes` | `capped` | native 15579c, plain efe19d; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0 |
 | S2 atfork abort | `Detent:c300e5f`: a refused `pthread_atfork` fails `detent_open` with `DETENT_NO_MEMORY` | `atfork_refused` | native 15579c, plain efe19d; fails without: ATFORK-1 261121-133840-2a7bcc |
 | S4 note citation | `Detent:96a069c`: reader-core.md "Bounds", "Mapped bytes after verification", file-admission counts | doc check | 261122-214531-91bf27 |
+| C3 retained view charged (blocking, round 3) | `Detent:dece111`: every refresh first frees the views no lookup pins | `test_reader_core` `retained` | native 261123-020546-339806, plain 261123-020608-eda47a; fails without: RETAIN-1 261123-020610-c38819 |
+| C4 atfork lock on every open | `Detent:b490591`: atomic flag before the lock | `test_reader_core` `fork_mid_open` | native 339806, plain eda47a; fails without: ATFORK-2 261123-020612-66011f |
+| N6 probe `.at` | `Detent:c1c7498`: `find` | `reader_capacity_probe` | 261123-020615-e1cb4e |
 | CI linux-asan-ubsan at `Detent:c6b1315` | `Detent:a60e089`: `transient_miss` skips descriptor exhaustion under Linux UBSan (its vtable check needs a pipe) | CI at the head | CI linux-asan-ubsan at the pushed head |
 
 ## Evidence
@@ -491,6 +522,13 @@ Attribution (msg-1 regression):
   `verified_page_bytes` self time fell (446 samples in `resolve` before, 228 after).
 
 ## Rulings I made
+
+- Round 3, C3: one helper, `free_retired`, for both scans (refresh start and commit), so the
+  refresh frees on every outcome with one mechanism. The `Freeing` window now fires in either scan.
+- Round 3, C4: the window `Registering` (hooked build only) is the test seam; ATFORK-2 keeps it at
+  the same decision point, inside the lock, as the code before the fix.
+- Round 3, N6: the probe's job runs the "reads" branch on 60,000 records; the "refuses" branch
+  needs a store past 512 MiB (about 2M records), so the fix there rests on reading.
 
 - D143's open-time check: `detent_open` attaches nothing (D2), so no store-specific bitmap size is
   known there. The floor is the format's: one full pack and its bitmap, 1,048,576 + 6,560 =
