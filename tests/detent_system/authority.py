@@ -18,6 +18,9 @@ from capacity import CapacityProfile
 from http_activity import GeneratorAdmissionRefused, HTTPActivity
 from runtime import Actor, Actors
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports, release_ports  # noqa: E402
+
 READER_TOKEN = "ab" * 16
 READER_PRINCIPAL = "system-reader"
 CONTEXT = {
@@ -69,7 +72,6 @@ class Authority:
             sorted({self.namespace(producer) for producer in range(producers)})
         )
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
-        self.ports: list[int] = []
         self.members: list[Actor] = []
         self.leader_index = 0
         self.excluded: set[int] = set()
@@ -78,69 +80,56 @@ class Authority:
             raise ValueError("invalid HTTP worker admission")
         self.lane = asyncio.Semaphore(min(producers, workers))
         self.http_activity = HTTPActivity()
-        self.reservations: list[socket.socket] = []
-        try:
-            for _ in range(6):
-                reservation = socket.socket(
-                    socket.AF_INET6 if ":" in address else socket.AF_INET
-                )
-                self.reservations.append(reservation)
-                reservation.bind((address, 0))
-                self.ports.append(reservation.getsockname()[1])
-            names = ("one", "two", "three")
-            voters = []
-            for index, name in enumerate(names):
-                der = ssl.PEM_cert_to_DER_cert(
-                    (certificates / f"{name}.pem").read_text()
-                )
-                voters.append(
+        self.ports = lease_ports(6, address)
+        names = ("one", "two", "three")
+        voters = []
+        for index, name in enumerate(names):
+            der = ssl.PEM_cert_to_DER_cert((certificates / f"{name}.pem").read_text())
+            voters.append(
+                {
+                    "id": index + 1,
+                    "host": address,
+                    "port": self.ports[index],
+                    "certificate_sha256": hashlib.sha256(der).hexdigest(),
+                }
+            )
+        for index, name in enumerate(names):
+            tls = {
+                "certificate": str(certificates / f"{name}.pem"),
+                "key": str(certificates / f"{name}.key"),
+                "ca": str(certificates / "ca.pem"),
+            }
+            configuration: dict[str, Any] = CONTEXT | {
+                "node": index + 1,
+                "voters": voters,
+                "directory": str(directory / f"state-{index}"),
+                "peer_tls": tls,
+                "publisher_tls": tls,
+                "publisher_bind": address,
+                "publisher_name": "localhost",
+                "credentials": [
+                    credential(producer, shared_namespace)
+                    for producer in range(producers)
+                ]
+                + [
                     {
-                        "id": index + 1,
-                        "host": address,
-                        "port": self.ports[index],
-                        "certificate_sha256": hashlib.sha256(der).hexdigest(),
+                        "token": READER_TOKEN,
+                        "producer": READER_PRINCIPAL,
+                        "principal": READER_PRINCIPAL,
+                        "publish": False,
+                        "namespaces": list(self.namespaces),
                     }
-                )
-            for index, name in enumerate(names):
-                tls = {
-                    "certificate": str(certificates / f"{name}.pem"),
-                    "key": str(certificates / f"{name}.key"),
-                    "ca": str(certificates / "ca.pem"),
-                }
-                configuration: dict[str, Any] = CONTEXT | {
-                    "node": index + 1,
-                    "voters": voters,
-                    "directory": str(directory / f"state-{index}"),
-                    "peer_tls": tls,
-                    "publisher_tls": tls,
-                    "publisher_bind": address,
-                    "publisher_name": "localhost",
-                    "credentials": [
-                        credential(producer, shared_namespace)
-                        for producer in range(producers)
-                    ]
-                    + [
-                        {
-                            "token": READER_TOKEN,
-                            "producer": READER_PRINCIPAL,
-                            "principal": READER_PRINCIPAL,
-                            "publish": False,
-                            "namespaces": list(self.namespaces),
-                        }
-                    ],
-                }
-                if capacity is not None:
-                    configuration["application_limits"] = capacity.application
-                    configuration["delivery_limits"] = capacity.delivery
-                    configuration["journal_limits"] = capacity.journal
-                if sys.platform.startswith("linux"):
-                    configuration["storage_backend"] = "native"
-                path = directory / f"authority-{index}.json"
-                path.write_text(json.dumps(configuration))
-                path.chmod(0o600)
-        except BaseException:
-            self.release_ports()
-            raise
+                ],
+            }
+            if capacity is not None:
+                configuration["application_limits"] = capacity.application
+                configuration["delivery_limits"] = capacity.delivery
+                configuration["journal_limits"] = capacity.journal
+            if sys.platform.startswith("linux"):
+                configuration["storage_backend"] = "native"
+            path = directory / f"authority-{index}.json"
+            path.write_text(json.dumps(configuration))
+            path.chmod(0o600)
 
     def namespace(self, producer: int) -> str:
         if not 0 <= producer < self.producers:
@@ -148,9 +137,7 @@ class Authority:
         return self.shared_namespace or f"load{producer}"
 
     def release_ports(self) -> None:
-        for reservation in self.reservations:
-            reservation.close()
-        self.reservations.clear()
+        release_ports(self.ports)
 
     async def start_member(
         self, index: int, observe: Callable[[bytes], None] | None = None
@@ -170,7 +157,6 @@ class Authority:
         )
 
     async def start(self) -> None:
-        self.release_ports()
         for index in range(3):
             self.members.append(await self.start_member(index))
         await self.leader()
@@ -192,9 +178,9 @@ class Authority:
 
     async def restart_member(self, index: int, seconds: float = 20) -> None:
         """Restarts a stopped member on its port and returns once it answers, or raises
-        after `seconds` saying what it waited for. Its port was released after the
-        reservation and another process may hold it for a while (bind: Address already in
-        use), so the member starts again until the port is free."""
+        after `seconds` saying what it waited for. A process outside the tests may hold the
+        port for a while (bind: Address already in use), so the member starts again until it
+        is free."""
         member = self.members[index]
         if member.process.returncode is None:
             raise ValueError("cannot restart a running member")

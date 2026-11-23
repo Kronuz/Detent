@@ -7,7 +7,6 @@ import http.client
 import json
 import os
 import shutil
-import socket
 import ssl
 import subprocess
 import sys
@@ -15,6 +14,9 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, BinaryIO
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
 
 import readiness_load
 
@@ -26,39 +28,6 @@ CONTEXT = {
     "group": "67" + "00" * 15,
     "epoch": "65" + "00" * 15,
 }
-
-
-class StartupBindCollision(RuntimeError):
-    pass
-
-
-def bind_collisions(
-    children: dict[int, subprocess.Popen[bytes]], directory: Path
-) -> list[int]:
-    """Nodes that exited because another process bound their reserved port first."""
-    return [
-        index
-        for index, child in children.items()
-        if child.poll() is not None
-        and "bind: Address already in use"
-        in (directory / f"node-{index}.log").read_text()
-    ]
-
-
-def with_fresh_ports(run: Callable[[], None]) -> None:
-    """Runs a cluster on reserved-then-released ports, again on fresh ports when
-    another process takes one before startup (at most three attempts)."""
-    for attempt in range(3):
-        try:
-            run()
-            return
-        except StartupBindCollision:
-            if attempt == 2:
-                raise
-            print(
-                "Retrying initial startup with fresh ports after a bind collision",
-                file=sys.stderr,
-            )
 
 
 def request(
@@ -113,10 +82,7 @@ def main() -> None:
     snapshots = "--snapshots" in sys.argv[3:]
     directory = Path.cwd() / ".scratch" / f"authority-multivoter-{os.getpid()}"
     directory.mkdir(parents=True)
-    reservations = [socket.socket() for _ in range(6)]
-    for reservation in reservations:
-        reservation.bind(("127.0.0.1", 0))
-    ports = [reservation.getsockname()[1] for reservation in reservations]
+    ports = lease_ports(6)
     names = ["one", "two", "three"]
     voters = []
     for index, name in enumerate(names):
@@ -156,8 +122,6 @@ def main() -> None:
         path = directory / f"node-{index}.json"
         path.write_text(json.dumps(configuration))
         path.chmod(0o600)
-    for reservation in reservations:
-        reservation.close()
     children: dict[int, subprocess.Popen[bytes]] = {}
     logs: list[BinaryIO] = []
     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
@@ -234,18 +198,8 @@ def main() -> None:
     try:
         for index in range(3):
             start(index)
-        try:
-            await_startup()
-            successful(
-                "/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15}
-            )
-        except AssertionError as error:
-            collisions = bind_collisions(children, directory)
-            if collisions:
-                raise StartupBindCollision(
-                    f"reserved ports were taken before startup: nodes {collisions}"
-                ) from error
-            raise
+        await_startup()
+        successful("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
         status = subprocess.run(
             [
                 str(binary),
@@ -564,4 +518,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    with_fresh_ports(main)
+    main()

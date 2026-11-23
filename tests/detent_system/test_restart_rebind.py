@@ -3,8 +3,8 @@
 usage: test_restart_rebind.py TLS_FIXTURE SCRATCH
 
 A killed member restarts on the port it had. It sets SO_REUSEADDR, so its own sockets never block
-it, but the port was released after the harness reserved it and another process can take it
-meanwhile: the member then exits with "bind: Address already in use". The test kills each of the
+it, but a process outside the tests can hold the port while the member is down: the member
+then exits with "bind: Address already in use". The test kills each of the
 three members once, squats on its HTTP port for a random 0-1 s and requires
 Authority.restart_member to return with the member answering. (One kill per member and run: a
 port that has served a request stays in TIME_WAIT and refuses the squatter.) The stand-in daemon
@@ -87,7 +87,6 @@ async def rounds(certificates: Path, scratch: Path) -> None:
     )
     async with Actors(evidence, 10) as actors:
         authority = Authority(binary, certificates, scratch, actors, 1)
-        authority.release_ports()
         progress(f"starting 3 members on ports {authority.ports[3:]}")
         for index in range(3):
             authority.members.append(await authority.start_member(index))

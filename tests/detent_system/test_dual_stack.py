@@ -19,6 +19,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
+
 CONTEXT = {
     "cluster": "63" + "00" * 15,
     "group": "67" + "00" * 15,
@@ -34,14 +37,6 @@ def has_ipv6() -> bool:
     except OSError:
         return False
     return True
-
-
-def free_port() -> int:
-    # Reserved on :: for both families, so no IPv4 listener holds the port the daemon binds.
-    with socket.socket(socket.AF_INET6) as reservation:
-        reservation.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-        reservation.bind(("::", 0))
-        return int(reservation.getsockname()[1])
 
 
 def health(address: str, port: int, context: ssl.SSLContext) -> dict[str, Any]:
@@ -127,7 +122,7 @@ def relay_configuration(certificates: Path, directory: Path, port: int) -> Path:
             "directory": str(directory / "mirror"),
             "cluster": CONTEXT["cluster"],
             "namespaces": ["ns"],
-            "upstreams": [{"address": "::1", "port": free_port()}],
+            "upstreams": [{"address": "::1", "port": lease_ports(1, "::")[0]}],
             "token": TOKEN,
             "timeout_ms": 2000,
         },
@@ -153,7 +148,7 @@ def main() -> int:
     directory = Path.cwd() / ".scratch" / f"dual-stack-{time.monotonic_ns()}"
     directory.mkdir(parents=True)
     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
-    ports = [free_port() for _ in range(5)]
+    ports = lease_ports(5, "::")
     commands = {
         "authority": [
             str(authority),
