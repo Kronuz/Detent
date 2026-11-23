@@ -16464,17 +16464,51 @@
         "tests/detent_local/test_disk_store.cc",
         "src/detent_local/disk_store*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T06:51:10",
+          "ci": {
+            "commit": "7f8d06d5626794648147212190712e69b2f6da2f",
+            "runs": [
+              45161204159,
+              45161205061
+            ]
+          },
+          "commit": "be98a7ce6b2cd0ad6dbda83b511e36bab1bae591",
+          "criteria": {
+            "A1": "261123-025953-07f6cc, 261123-030012-e4eee7, 261123-030014-c96804, 261123-030016-e879bf, 261123-030018-17641a; fails without: 261122-001517-639f92",
+            "A2": "261123-061226-362034, 261122-211458-6be91a (passed at ef429b7607d0; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "7f8d06d5626794648147212190712e69b2f6da2f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-061226-362034",
+              "level": "light",
+              "seconds": 581.1,
+              "state": "done",
+              "what": "local-disk-store-lease-flake check suite at 7f8d06d56267"
+            }
+          ],
+          "final": true,
+          "from": "587b2cb0fbd49fcf068f197fdf16257725e8f93a",
+          "reason": "",
+          "tested": "7f8d06d5626794648147212190712e69b2f6da2f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "test_local_disk_store line 191 failed once on CI macos-arm64",
-      "updated": "2026-11-22T00:09:36",
-      "worktree": "../Detent-wt/detent/local-disk-store-lease-flake"
+      "updated": "2026-11-23T06:51:14",
+      "worktree": ""
     },
     "localhost-dial-everywhere": {
       "accepted": {},
