@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-110512-a95d5f (A2 suite) 261123-110507-e20eab 261123-110509-1a8eb1 261123-110511-1c5f4a (A1) A3 shards 261123-110520-1cfb2d 261123-110522-238036 261123-110524-4594da 261123-110526-624a20 261123-110527-56826a; diagnostics at main and head 261123-105628-3ecffd 261123-105633-b695c4 261123-105639-065983 261123-105643-9dfc85 261123-105647-143e38 261123-105651-2f7418
+State: waiting on jobs 261123-144444-2c2f0f 261123-144446-b837dd (A1) 261123-144447-4a796a 261123-144457-e9b628 261123-144458-6bbac6 261123-144500-9735b9 261123-144501-6e9104 261123-144502-8eb91d 261123-144504-9accef 261123-144506-f72452 (A3) 261123-144511-1ff0d9 (A2)
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -37,9 +37,29 @@ exception group; a load flake of the old reserve-and-release harness, not read f
 3. Merged origin/main (e7a38ef8), pushed.
 4. A2 suite and the five A3 shards resubmitted at 11ead2c3.
 
+## Round 3 (fresh contributor, after the lead's message on the round-2 results)
+
+- Merged main (e33e9b33).
+- A1 x96 at 24 parallel (1c5f4a) failed twice at the same instant: runs 23 and 24, member 0's
+  first restart, ps "S 00:20 /bin/sh .../detent-authority" and, one ps later, lsof shows the same
+  pid as Python LISTENing. The stand-in was not stuck: its exec through /bin/sh into Python took
+  over 20 s, beside 5 light holds. Fix (f62791e9), as consensus:2d42387: restart_member allows
+  20 s plus the longest a 1 ms sleeper thread in the harness went without running during the
+  wait, and its failure names both, the spawn time, and the stand-in's own "interpreter up" line,
+  so a slow exec (low lag, late start line) is told apart from a stalled host (high lag).
+  Whether 24 parallel is fair: decided by 2c2f0f. If it fails with low lag and a late start
+  line, the stall is the exec path, not the scheduler, and the ruling goes to the load.
+- A3 shards now run three plain rounds each (7 shards, 21 runs per test; until-fail stopped
+  repeating a test at its first failure) and exit non-zero only on EADDRINUSE / "Address already
+  in use" / errno 48 / 98, listing the test failures they saw.
+- A3 load timeouts in round 2's shards (1cfb2d, 238036, 624a20, 56826a; 0 bind errors in all six
+  logs): "managed agent 0 did not converge", "unreconciled producer 1 request after thirty
+  seconds" in test_system_managed_*, test_authority_multivoter, test_relay_service. Observation,
+  not this quest's (A3 asks for no EADDRINUSE).
+
 ## Next
 
-1. When the jobs named in State pass (A1 stress x48 at 8 parallel, 261123-100829-0846b2, passed),
+1. Read 2c2f0f (A1 at 24 parallel) and the shards' failure lists; then when the jobs named in State pass (A1 stress x48 at 8 parallel, 261123-100829-0846b2, passed),
    fill Evidence and Result, set State "ready for review". A shard over 10 min: resplit with fewer
    repeats.
 
