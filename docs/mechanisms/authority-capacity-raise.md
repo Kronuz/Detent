@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-21) how an authority group's limits rise at a coordinated restart (D141), read from `src/detent_authority/state.cc` and `node.cc`.
+> Status: CURRENT (2026-11-22) how an authority group's limits rise at a coordinated restart (D141), read from `src/detent_authority/state.cc` and `node.cc`.
 
 # Raising authority capacity at a restart
 
@@ -62,8 +62,8 @@ them; the node's replay does not.
 The peer fingerprint keeps binding `semantic_profile(application)` (`peers.hh`). Voters with
 different limits refuse each other, so a group runs one profile at a time. A rolling restart works
 but stops publication until a quorum shares the new limits; reads continue from relays and agents
-throughout ([actors](../ACTORS.md)). Snapshots between voters therefore carry an image of the
-receiver's own profile.
+throughout ([actors](../ACTORS.md)). Snapshots between voters therefore carry an image the
+receiver admits.
 
 ## Every use of `State::limits_`
 
@@ -90,26 +90,40 @@ this process (an allocation, an encoding, a decode), so it uses the configured l
 counts, request and mutation bounds, the history fetch lane (`fetch_bytes`), and the profile it
 validates at startup. All of them are local.
 
-## What it does not do
+## The layout in force under raised limits
 
-The in-force layout policy is not checked again under raised limits. `Node::checked` refuses a
-configured `layout` whose history files exceed a peer fetch, but a policy a `SetLayout` entry set,
-admitted under the old limits, could write larger files once `state_bytes` rises, since block
-files scale with α · `state_bytes`. Raising `image_bytes` with `state_bytes` keeps the default
-policy within a fetch.
+Block files scale with α · `state_bytes`, so a policy an enabling or `SetLayout` entry admitted
+under the old limits could write files above a peer fetch once `state_bytes` rises, and a lagging
+voter could not fetch them (`peer_history.hh`). `Node::checked` covers only the configured
+`layout`, which seeds an enabling entry. `check_group_policy` (`node.cc`) covers the group's: after
+an image recovers and after each administrative entry applies, it refuses when
+`history::file_bytes(configured, policy, pending)` exceeds `history::fetch_bytes(configured)`,
+naming the field that lifts the fetch:
+
+```text
+authority application_limits.image_bytes 33554432 is below the 42074367-byte history files the group's layout policy writes; raise it with state_bytes
+```
+
+Without a raise it never fires: an entry deciding under the configured limits already refuses a
+policy whose files would outgrow a fetch. Raising `image_bytes` with `state_bytes` keeps every
+admitted policy within a fetch.
 
 ## Tests
 
 1. `tests/detent_authority/test_state.cc` `restart_raise`: a group that failed `Capacity` at
    keys 2 replays with the same results under keys 4; its retry returns the receipt; a new group
    grows to three keys; an image recorded at keys 2 restores under keys 4 and then records them;
-   lowered and changed limits refuse images, groups and administrative entries with the messages
-   above; a `SetLayout` recorded under the old `image_bytes` gets `Conflict` under the raised
+   a group that failed `Capacity` on `state_bytes` 512 replays the same under 4096; lowered and
+   changed limits refuse images, groups and administrative entries with the messages above; a `SetLayout` recorded under the old `image_bytes` gets `Conflict` under the raised
    configuration too, and the same entry recorded under the raised limits applies.
 2. `tests/detent_authority/test_node.cc` `restart_raise`: a node at keys 2 checkpoints, fails a
    third key, restarts at keys 4, replays the failed group from its log tail, returns the
    original receipt to the retry and grows to four keys; restarted at keys 3 it refuses to
    recover, naming `keys`. The changed-profile case names `keys` and `results` in its fence.
+   `restart_raise_layout`: a `SetLayout` that got `Conflict` under the old `image_bytes` stays
+   in the log tail, replays after the raise with no pending policy, and applies when proposed
+   again; restarted with `state_bytes` raised alone, the node refuses to recover, naming
+   `image_bytes`.
 3. `tests/detent_system/test_restart_capacity.sh`: three voters at keys 1,000 refuse the
    1,001st, restart at keys 2,000 while a relay and two agents keep running, return the
    original receipt to the retry and grow to 2,000; both agents keep their cursor's cluster and

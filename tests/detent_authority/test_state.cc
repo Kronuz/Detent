@@ -966,22 +966,40 @@ void restart_raise() {
 	const std::vector<std::string> log{
 		encode_batch({open()}, old), encode_batch({transaction(1, {{"ns:a", KnobDef{1}, {}, {}}, {"ns:b", KnobDef{2}, {}, {}}})}, old),
 		encode_batch({full}, old)};
-	auto run = [&](State state) {
+	auto run = [&](State state, const std::vector<std::string> &groups) {
 		std::vector<Result> results;
 		std::uint64_t index = 0;
-		for (const auto &group : log) {
+		for (const auto &group : groups) {
 			auto outcome = replay(state, ++index, group);
 			state = std::move(outcome.state);
 			results.push_back(outcome.results.front());
 		}
 		return std::pair{std::move(state), std::move(results)};
 	};
-	auto [recorded, expected] = run(State(context(), old));
+	auto [recorded, expected] = run(State(context(), old), log);
 	assert(expected[2].status == Status::Capacity && recorded.size() == 2);
 	// A1: replayed under the raised configuration, the group that failed at the old ceiling fails again.
-	auto [replayed, results] = run(State(context(), raised));
+	auto [replayed, results] = run(State(context(), raised), log);
 	assert(results == expected && replayed.size() == 2 && replayed.limits() == raised);
 	assert(replayed.lookup("writer", 1, 2).status == Status::Capacity);
+	// A1: a group that failed Capacity on state_bytes replays with the same result once it rises.
+	Limits small;
+	small.request_bytes = 512;
+	small.definition_bytes = 256;
+	small.state_bytes = 512;
+	auto roomier = small;
+	roomier.state_bytes = 4096;
+	auto wide = [](std::uint64_t sequence, char fill) {
+		return transaction(sequence, {{"ns:" + std::string(197, fill), KnobDef{1}, {}, {}}});
+	};
+	const std::vector<std::string> sized{encode_batch({open()}, small), encode_batch({wide(1, 'a')}, small),
+										 encode_batch({wide(2, 'b')}, small), encode_batch({wide(3, 'c')}, small)};
+	auto [bounded, bounded_results] = run(State(context(), small), sized);
+	assert(bounded_results[3].status == Status::Capacity && bounded.size() == 2);
+	auto [roomy, roomy_results] = run(State(context(), roomier), sized);
+	assert(roomy_results == bounded_results && roomy.size() == 2);
+	auto fitted = replay(roomy, 5, encode_batch({wide(4, 'c')}, roomier));
+	assert(fitted.results.front().status == Status::Applied && fitted.state.size() == 3);
 	// A3: a retry of the pre-raise sequence, now proposed under the raised limits, returns its receipt.
 	assert(digest(full, old) == digest(full, raised));
 	auto retried = replay(replayed, 4, encode_batch({full}, raised));

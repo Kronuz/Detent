@@ -1,3 +1,4 @@
+#include "history_format.hh"
 #include "node.hh"
 #include "prepared.hh"
 #include <cassert>
@@ -7,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <sys/stat.h>
+#include <type_traits>
 #include <unistd.h>
 
 using namespace detent::authority;
@@ -74,9 +76,13 @@ std::vector<Completion> pump(Node &node, unsigned limit = 200) {
 	}
 	return completed;
 }
-void submit(Node &node, std::uint64_t request, const Command &c) {
+template <class C> void submit(Node &node, std::uint64_t request, const C &c) {
 	for (unsigned i = 0; i < 200; ++i) {
-		auto result = node.propose(request, {c});
+		SubmitResult result;
+		if constexpr (std::is_same_v<C, AdministrativeCommand>)
+			result = node.propose_administrative(request, c);
+		else
+			result = node.propose(request, {c});
 		if (result == SubmitResult::Accepted) {
 			return;
 		}
@@ -392,6 +398,85 @@ void restart_raise(const std::filesystem::path &directory) {
 	}
 	assert(reason == "authority application_limits.keys 3 is below the recorded 4; limits only rise");
 }
+// D141: an administrative entry replays under the limits it carries; a raise under which the
+// group's layout policy writes history files above a peer fetch refuses to start, naming image_bytes.
+void restart_raise_layout(const std::filesystem::path &directory) {
+	struct Cleanup {
+		std::filesystem::path directory;
+		~Cleanup() { std::filesystem::remove_all(directory); }
+	} cleanup{directory};
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	// Each policy alone writes files a fetch carries; files written across the change outgrow the
+	// old fetch and fit the raised one.
+	LayoutPolicy previous, next;
+	previous.seal_bytes = 1;
+	previous.alpha_num = 4;
+	previous.alpha_den = 1;
+	auto old = options();
+	old.application.layout = previous;
+	auto raised = old;
+	raised.application.image_bytes = 32 * 1024 * 1024;
+	raised.storage.replacement_pool.logical_bytes = funding_requirement(raised);
+	assert(history::file_bytes(old.application, previous) <= history::fetch_bytes(old.application) &&
+		   history::file_bytes(old.application, next) <= history::fetch_bytes(old.application) &&
+		   history::file_bytes(old.application, next, previous) > history::fetch_bytes(old.application) &&
+		   history::file_bytes(raised.application, next, previous) <= history::fetch_bytes(raised.application));
+	AdministrativeCommand enable{context(), AdministrativeKind::EnablePositions, {}, {}};
+	enable.nonce[0] = 'n';
+	const AdministrativeCommand layout{context(), AdministrativeKind::SetLayout, {}, {}, {}, next};
+	LayoutPolicy enabled;
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), old);
+		Identity id{};
+		id[0] = 'l';
+		node.create(id);
+		pump(node);
+		node.start();
+		pump(node);
+		submit(node, 1, enable);
+		auto on = pump(node);
+		assert(on.size() == 1 && on[0].results[0].status == Status::Applied && node.state().positions_enabled());
+		enabled = node.state().policy();
+		// The image records the old limits; the SetLayout that fails stays in the log tail.
+		assert(node.checkpoint());
+		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() > 0);
+		submit(node, 2, layout);
+		auto refused = pump(node);
+		assert(refused.size() == 1 && refused[0].results[0].status == Status::Conflict &&
+			   !node.state().pending_policy());
+	}
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), raised);
+		node.recover();
+		pump(node);
+		node.start();
+		pump(node);
+		assert(node.worker().role() == Role::Leader && node.state().limits() == raised.application);
+		// A2: the SetLayout replays from the log tail with the result it had under the old limits.
+		assert(node.state().policy() == enabled && !node.state().pending_policy());
+		// The same entry proposed under the raised limits applies.
+		submit(node, 3, layout);
+		auto applied = pump(node);
+		assert(applied.size() == 1 && applied[0].results[0].status == Status::Applied &&
+			   node.state().pending_policy());
+	}
+	// Raising state_bytes without image_bytes would let block files outgrow a peer fetch. The
+	// configured layout seeds only an enabling entry, so the default passes construction.
+	auto beyond = raised;
+	beyond.application.state_bytes = 24 * 1024 * 1024;
+	beyond.application.layout = {};
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), beyond);
+	std::string reason;
+	try {
+		node.recover();
+	} catch (const std::runtime_error &error) {
+		reason = error.what();
+	}
+	assert(reason == "authority application_limits.image_bytes 33554432 is below the 42074367-byte history "
+					 "files the group's layout policy writes; raise it with state_bytes");
+}
 } // namespace
 void terminal_state_retirement(const std::filesystem::path &path) {
 	struct Cleanup {
@@ -521,6 +606,7 @@ int main(int argc, char **argv) {
 	retained_application_range(path / "lowered-envelope-application", false, false, false, 5);
 	retained_application_range(path / "backlogged-application", false, false, true);
 	restart_raise(path / "restart-raise");
+	restart_raise_layout(path / "restart-raise-layout");
 	auto prepare = [](const Command &command) {
 		CommandEncoder encoder(command, options().application);
 		while (!encoder.done()) {
