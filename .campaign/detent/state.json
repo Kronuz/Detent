@@ -3071,6 +3071,28 @@
       "closed": "asked site-core to hold the site/ move until legacy-h (owns website/**) lands; lead tells it then",
       "id": "msg-275",
       "text": "Heads-up: I am moving the Astro/Starlight site from website/ to site/ on main while extracting the four-site shared engine. docs/ remains campaign/design records. I will update CI, Pages, tests/docs, brand scripts, edit links, and README paths, then push only the site migration. Please avoid landing new website/ edits until this lands; after it lands, use site/ for page ownership and change tested_docs from website/src/content/docs/** to site/src/content/docs/**."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T11:03:20",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-270",
+      "items": {
+        "consensus-simulation-asan-timeout": "frees test/simulation_test.cc, test/driver_simulation.cc, docs/mechanisms/simulation*.md for consensus-simulation-asan-timeout",
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "consensus-simulation-asan-timeout",
+          "first-read-1ms"
+        ]
+      },
+      "text": "set consensus-driver-flow: unlocks frees test/simulation_test.cc, test/driver_simulation.cc, docs/mechanisms/simulation*.md for consensus-simulation-asan-timeout; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4883,20 +4905,51 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-flow",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T14:33:17",
+          "ci": {
+            "carried": true,
+            "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+            "runs": [
+              45229726672
+            ]
+          },
+          "commit": "e58ea966e6351e0e240a11bca191bf608f54e072",
+          "criteria": {
+            "A1": "261123-133440-5b59b1 (passed at 39c7092e9352; only 1 merge from main since, none touching its files)",
+            "A2": "261123-133441-63a36f (passed at 39c7092e9352; only 1 merge from main since, none touching its files); fails without: 261123-063953-58e218, 261123-063957-782827, 261123-105043-139c3a, 261123-105047-a9361e",
+            "A3": "`docs/DRIVER.md` (Replication flow) names WorkerLimits::flow and GroupOptions::scheduling.flow as the option, Flow{} its default",
+            "A4": "`ci:macos-arm64`, `ci:ci` (CI 45229726672 at consensus:f7a44f3, green)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+          "reason": "",
+          "tested": "e58ea966e6351e0e240a11bca191bf608f54e072"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T11:47:36",
-      "worktree": "../consensus-wt/detent/consensus-driver-flow"
+      "updated": "2026-11-23T14:33:23",
+      "worktree": ""
     },
     "consensus-driver-install": {
       "accepted": {
