@@ -1,6 +1,6 @@
 # journal-tail-cut-header-design: journal
 
-State: waiting on jobs 261123-061004-47129e 261123-062108-d42575
+State: ready for review
 Quest: .campaign/detent/quests/journal-tail-cut-header-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,24 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Doc at journal:HEAD of the quest branch (not pushed): blocks rows, T9 rows, journal main d8453f6
-(turn_log.h unchanged since a3eecb5, checked). Two placeholders remain: BLOCKS_EXPLAIN and
-LIMIT_SCOPE. Finding: the blocks rows show silent loss *before* the clean log's newest turn (layout 0
-23 of 4807, l1 16 of 4429, l2 11 of 2988; O3 model 0). Hypothesis from the code: an unproven
-failure `break`s out of its block (turn_log.h:263-267), so every later turn of that block is unread,
-and the damaged turn becomes the newest epoch's torn tail (turn_log.h:833): silent loss reaches back
-to the damaged turn, wider than turn-log-damage.md's Limit ("in the last turn").
+Done: doc at journal:e69ce03 (pushed), placeholders filled, A2 at the quest head.
 
 ## Next
 
-1. Read 261123-061004-47129e (journal:dba8a7c, prints each earlier-turn silent case: segment,
-   newest or older, writes after it). If every case is in the newest segment's last block with later
-   writes after it, fill BLOCKS_EXPLAIN with that and LIMIT_SCOPE with "the Limit's text must say
-   every turn from the damaged one to its block's end, not the last turn" (a Q for the lead: the
-   mechanism doc is not this quest's file set). Else state what it shows.
-2. Read 261123-062108-d42575 (A2 at the quest head, prototype as `--ref PROTO`): counts must equal
-   cd9e33/8b1268/5f7c2a. Trim the doc to about 2000 words, revision pass, push, paste the brief's
-   Evidence table, Result, "ready for review".
+1. Durability review (lens `design`/`durability`), the lead's.
 
 ## Blocked on
 
@@ -37,7 +24,13 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/design/turn-log-cut-header.md` on quest/detent/journal-tail-cut-header-design (journal) |
-| A2 | pending: 261123-062108-d42575 (l0-l2 at the quest head, prototype as a ref). Supporting, at the prototype: 261122-211721-cd9e33 (l0), 261122-211725-8b1268 (l1), 261122-211728-5f7c2a (l2), 261122-212211-6e741f (l0 at journal main), 261122-211558-e05832 (T9 l1, 0 failures), 261122-211602-21b060 (T9 l2, 13 failures) |
+| A2 | 261123-062108-d42575 (passed at 35d4dd167345; ignores docs-only docs/design/turn-log-cut-header.md) |
+
+Supporting, at the prototype (journal:8485149, dba8a7c): 261122-211721-cd9e33 (l0),
+261122-211725-8b1268 (l1), 261122-211728-5f7c2a (l2), 261122-212211-6e741f (l0 at journal main),
+261122-211558-e05832 (T9 l1, 0 failures), 261122-211602-21b060 (T9 l2, 13 failures),
+261123-061004-47129e (earlier-turn silent cases located), 261121-132716-d4b057 (latency, exclusive).
+d42575's counts equal cd9e33/8b1268/5f7c2a line for line.
 
 Jobs examined, the first round (all at journal:e0e9c37 or 9b4a5a5):
 
@@ -60,9 +53,22 @@ Superseded and cancelled before running: 261122-211543-7dd050, 261122-211547-f80
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Design doc `docs/design/turn-log-cut-header.md` (journal:e69ce03). Recommendation: per-sector
+checks (O3b, format `RFTW0002`): 0 of 201 newest-tail damage cases silent in the model against 36
+of 201 today (O1 header alignment 30 of 189, O2 sector-aligned writes 36 of 159); bytes per turn
+-5.6 to -6.2% for records up to 700 B, +1.0% for 4 KiB records; latency unchanged within the 21 ms
+barrier (d4b057). O1 costs +0.15-0.18% and closes only U1/U2; O2 costs +28-31%.
+
+Finding: the silent loss is wider than turn-log-damage.md's Limit ("in the last turn"). In clean
+60-turn logs, 23 of 4807 damage cases before the newest turn are silent at layout 0 (47129e): all in
+the newest segment of 12 of 80 logs, 1-5 later writes after, 2-6 groups returned as of an earlier
+turn; 8 cases differ in 4-6 groups, more than one turn can touch, so later acknowledged turns drop
+too. Cause from the code: an unproven failure ends its block's scan (turn_log.h:263-267) and the
+damaged turn becomes the newest epoch's torn tail (turn_log.h:833). Q3 proposes a code-only fix
+(a verifying fragment of a later write proves the failing write durable). The mechanism doc and
+the fix quest are the lead's (msg from lead, this session).
+
+Open: Q1 (take O3b), Q2 (both streams), Q3; review items in the doc.
 
 ## Rulings I made
 
