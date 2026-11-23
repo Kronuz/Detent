@@ -9,11 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Step 1: RFTW0002 in `include/journal/turn_log.h` (journal worktree
+journal-wt/detent/journal-turn-sector-checks): own sector layer in `turn_log_detail` (Stream,
+Emitter writing whole sealed sectors from the kept partial sector, RecordReader verifying sectors,
+`verdict`), `scan_segment` on sector verdicts, `recover` without in-block `later`; turn bound
+scaled by 512/504.
 
 ## Next
 
-1. <step>
+1. Tests: turn_log_test.cc (format-agnostic: compiles at main too, for `--fails-without`),
+   T9 rewritten on sector verdicts, turn_buffers/turn_seal reference emitters.
+2. Fixtures regenerated (`journal_crc_fixture_test --generate`), fuzz target.
+3. Doc turn-log-damage.md, CHANGELOG; jobs A1-A6.
 
 ## Blocked on
 
