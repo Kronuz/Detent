@@ -12,6 +12,7 @@ Two red consensus CI jobs not caused by the quests they ran for: (1) run 4498940
 - A1 Sanitizer builds run no consensus_mutant_* test (or each fits with the job's time left, measured), and plain builds still run all 17: a job listing ctest -N in both configurations
 - A2 owe-order's cause is named; it passes 50 of 50 in a local TSan build under 4 burners, and the fix keeps what the test proves: jobs
 - A3 The suite and CI pass
+- A4 A mutant whose pattern no longer matches fails the mutant run loudly instead of passing silently, in test/driver_mutants.py and tools/mutants.sh alike; checkpoint-drops-suffix (stale since core.h reads `captured_ = std::make_unique<...>`, xapiand msg-243) applies again and is killed: a job that runs every mutant's apply step, plus the mutant's own run
 
 ## Contracts
 

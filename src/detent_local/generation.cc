@@ -87,14 +87,33 @@ std::string_view generation_name(const GenerationId &id, std::span<char> destina
 	return {destination.data(), length};
 }
 namespace {
-StoreTable read_table(int directory, uid_t owner, std::uint64_t bound) {
-	File table_file(::openat(directory, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+thread_local void (*record_hook)(std::string_view, void *) = nullptr;
+thread_local void *record_context = nullptr;
+} // namespace
+void detail::RecordTesting::install(void (*hook)(std::string_view, void *), void *context) noexcept {
+	record_hook = hook;
+	record_context = context;
+}
+void detail::record_opened(std::string_view name) noexcept {
+	if (record_hook) {
+		const int saved = errno;
+		record_hook(name, record_context);
+		errno = saved;
+	}
+}
+namespace {
+// nullopt when a publish renamed the next table over `selected` since its open: read it again.
+std::optional<StoreTable> read_table(int directory, uid_t owner, std::uint64_t bound) {
+	// Non-blocking, so a FIFO reaches the regular-file refusal without waiting for a writer.
+	File table_file(::openat(directory, "selected", O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 	if (table_file.fd < 0 && errno == ENOENT)
 		throw GenerationUnavailable("the store has no selected generation");
+	detail::record_opened("selected");
 	struct stat info{};
-	require(table_file.fd >= 0 && ::fstat(table_file.fd, &info) == 0 && info.st_size > 0 &&
-			std::uint64_t(info.st_size) <= bound);
-	trusted_file(table_file.fd, owner, std::uint64_t(info.st_size));
+	require(table_file.fd >= 0 && ::fstat(table_file.fd, &info) == 0);
+	if (!detail::checked_or_unlinked(table_file.fd, owner, std::uint64_t(info.st_size)))
+		return std::nullopt;
+	require(info.st_size > 0 && std::uint64_t(info.st_size) <= bound);
 	std::vector<char> bytes(std::size_t(info.st_size));
 	read_record(table_file.fd, bytes);
 	DETENT_COUNT(record_opens, 1);
@@ -106,7 +125,7 @@ StoreTable read_table(int directory, uid_t owner, std::uint64_t bound) {
 	} catch (const TableRefused &) {
 		require(false);
 	}
-	return {};
+	return std::nullopt;
 }
 // An entry's descriptor: the cursor is the image's paged root.
 using detail::GenerationFile;
@@ -118,10 +137,11 @@ std::optional<detail::Selected> select_entry(int directory, uid_t owner, const S
 	const GenerationName image_name(entry.generation, GenerationFile::Image);
 	std::array<char, 65> terminated{};
 	std::copy(image_name.view().begin(), image_name.view().end(), terminated.begin());
-	File image(::openat(directory, terminated.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+	File image(::openat(directory, terminated.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 	if (image.fd < 0 && errno == ENOENT)
 		return std::nullopt;
-	trusted_file(image.fd, owner, entry.root_length);
+	if (!detail::checked_or_unlinked(image.fd, owner, entry.root_length))
+		return std::nullopt;
 	std::array<char, paged::root_bytes> prefix{};
 	read_record(image.fd, prefix);
 	DETENT_COUNT(record_opens, 1);
@@ -155,7 +175,10 @@ std::optional<detail::Selected> select_entry(int directory, uid_t owner, const S
 }
 } // namespace
 std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner, std::string_view name) {
-	const auto table = read_table(directory, owner, table_bytes(name.empty() ? 1 : 1u << 20));
+	const auto read = read_table(directory, owner, table_bytes(name.empty() ? 1 : 1u << 20));
+	if (!read)
+		return std::nullopt;
+	const auto &table = *read;
 	const auto *found = name.empty() ? (table.entries.size() == 1 ? &table.entries.front() : nullptr) : table.find(name);
 	if (!found && !name.empty())
 		throw GenerationUnavailable("the store has no entry for the namespace");
@@ -166,7 +189,9 @@ std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
 	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
-	const auto table = read_table(dir.fd, info.st_uid, table_bytes(1u << 20));
+	const auto read = read_table(dir.fd, info.st_uid, table_bytes(1u << 20));
+	require(read.has_value());
+	const auto &table = *read;
 	std::vector<std::pair<std::string, Descriptor>> out;
 	out.reserve(table.entries.size());
 	for (const auto &entry : table.entries) {
@@ -206,7 +231,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesyst
 			continue;
 		const auto &descriptor = selected->descriptor;
 		const auto name = generation_name(descriptor.generation) + ".lease";
-		File lease(::openat(dir.fd, name.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+		File lease(::openat(dir.fd, name.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 		if (lease.fd < 0 && errno == ENOENT)
 			continue;
 		require(lease.fd >= 0);
@@ -323,7 +348,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				context.admission ? context.admission->take_root() : factory.make<Mapping>(mapping_account);
 			if (context.admission)
 				require(mapping->account == mapping_account && mapping->length == descriptor.length);
-			mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+			mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 			if (mapping->lease < 0 && errno == ENOENT)
 				continue;
 			require(mapping->lease >= 0);
@@ -347,7 +372,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			}
 			if (named_lease.st_dev != lease_info.st_dev || named_lease.st_ino != lease_info.st_ino)
 				continue;
-			mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+			mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 			trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 			mapping->length = descriptor.length;
 			if (!context.admission)
@@ -421,14 +446,14 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 						if (auto missing = discovery->missing()) {
 							const detail::SegmentNames names(*missing);
 							File record(
-								::openat(dir->fd, names.ownership.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+								::openat(dir->fd, names.ownership.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 							trusted_file(record.fd, directory_info.st_uid, segment_ownership_bytes);
 							std::array<char, segment_ownership_bytes> record_bytes;
 							read_record(record.fd, record_bytes);
 							const auto ownership = decode_segment_ownership(record_bytes);
 							require(ownership.segment == *missing);
 							File payload(
-								::openat(dir->fd, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+								::openat(dir->fd, names.payload.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 							auto segment =
 								context.admission
 									? context.admission->take_segment(ownership)
@@ -505,7 +530,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
 					const auto &segment = registry->mapping(i);
 					const detail::SegmentNames names(segment->ownership().segment);
-					File record(::openat(dir->fd, names.ownership.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+					File record(::openat(dir->fd, names.ownership.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 					trusted_file(record.fd, directory_info.st_uid, segment_ownership_bytes);
 					std::array<char, segment_ownership_bytes> record_bytes;
 					read_record(record.fd, record_bytes);

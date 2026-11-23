@@ -6,10 +6,12 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <random>
 #include <thread>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <vector>
 
@@ -32,7 +34,7 @@ struct Harness {
 	explicit Harness(std::shared_ptr<Fixture> shared, l::ViewLimits limits = big())
 	    : fixture(std::move(shared)), runtime(fixture->heap), domain(runtime.domain(fixture->heap)),
 	      access(domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
-	                                            fixture->root, limits, domain.factory(), fixture->heap,
+	                                            fixture->root, limits, fixture->heap,
 	                                            mappings)) {}
 	~Harness() {
 		access.reset();
@@ -338,6 +340,37 @@ void neighbour_corruption() {
 	check(cases == pages.size() * 4);
 	std::printf("neighbour corruption: %u cases refused\n", cases);
 }
+// Flips one byte of a mapped page in place: the private mapping takes a writable copy of its page.
+void flip_mapped(std::span<const char> mapped, std::size_t at, char mask) {
+	const auto size = static_cast<std::uintptr_t>(::getpagesize());
+	auto *byte = const_cast<char *>(mapped.data() + at);
+	auto *page = reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(byte) & ~(size - 1));
+	check(::mprotect(page, size, PROT_READ | PROT_WRITE) == 0);
+	*byte ^= mask;
+	check(::mprotect(page, size, PROT_READ) == 0);
+}
+// A page damaged after first touch is refused by the next lookup: at its logical digest by the hit
+// compare, at its external count's high byte (an end outside the page) by the node decode.
+void touched_corruption() {
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
+	const auto target = fixture->definitions[1];
+	const auto &name = fixture->definition_names[1];
+	for (const auto [at, mask] : {std::pair<std::size_t, char>{40, 1}, {12, char(0x80)}}) {
+		Harness harness(fixture);
+		const auto state = harness.state();
+		check(state.definition("b", name).has_value());
+		const auto mapped = harness.access->resolve(target);
+		flip_mapped(mapped, at, mask);
+		bool caught = false;
+		try {
+			state.definition("b", name);
+		} catch (const x::ReadSourceFailure &) {
+			caught = true;
+		}
+		check(caught);
+	}
+	std::puts("touched corruption: digest and external count refused after first touch");
+}
 // A forged physical digest on a never-verified page is refused and fails the generation.
 void forged_unverified() {
 	auto fixture = std::make_shared<Fixture>(3, 128, true);
@@ -364,7 +397,7 @@ void cap_miss() {
 } // namespace
 
 int main(int argc, char **argv) {
-	// An argument runs one case: stress, publish, mark, raced, corrupt, cap, neighbour or forged.
+	// An argument runs one case: stress, publish, mark, raced, corrupt, cap, neighbour, forged or touched.
 	const std::string_view only = argc > 1 ? argv[1] : "";
 	auto run = [&](std::string_view name, auto body) {
 		if (only.empty() || only == name)
@@ -381,5 +414,6 @@ int main(int argc, char **argv) {
 	run("cap", cap_miss);
 	run("neighbour", neighbour_corruption);
 	run("forged", forged_unverified);
+	run("touched", touched_corruption);
 	std::puts("lazy page bitmap: ok");
 }

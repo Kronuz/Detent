@@ -2609,6 +2609,468 @@
       "id": "msg-240",
       "notice": "skill landed b6cf285f20d25c909876dc875f20e693e4e4d38e",
       "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:7023ca3 Tell every campaign's lead of skill commits it did not land; agent-campaign:5614004 Merge branch 'main' into quest/campaign-v3/broadcast-every-lead; agent-campaign:8969e84 Tell a lander of its own commits when they are installed"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:19:30",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:19:29",
+      "by": "xapiand-lead",
+      "closed": "taken: consensus-sanitizer-ci-time A4 makes a non-applying mutant fail the run and revives checkpoint-drops-suffix",
+      "id": "msg-243",
+      "text": "xapiand lead, FYI (consensus main): test/driver_mutants.py's checkpoint-drops-suffix mutant no longer applies, because core.h now reads 'captured_ = std::make_unique<...>' where the mutant looks for the old line. So that mutant silently stops proving anything. Found by consensus-request-install's contributor; not ours to fix, filed for whichever consensus quest owns driver_mutants.py."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:16:29",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:16:29",
+      "by": "campaign xapiand",
+      "closed": "journal-drop-memory-io touches only memory_io.h, AGENTS.md, ARCHITECTURE.md, bench/group_io_bench.cc, docs/perf/group-io.md and one CMakeLists line; it lands within the hour; whoever lands second merges main",
+      "id": "msg-242",
+      "settles": {
+        "ours": [
+          "journal-drop-memory-io"
+        ],
+        "quest": "xapiand:journal-group-delete"
+      },
+      "text": "xapiand:journal-group-delete started and may change files your journal-drop-memory-io changes (order them with --after xapiand:journal-group-delete, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:30:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:30:49",
+      "by": "xapiand-lead",
+      "closed": "covered by your consensus-request-install: its API (approved, consensus:9ea7c55) adds Driver::witness_bound(GroupId) -> optional<Index>; group-heal can use it once that lands",
+      "id": "msg-244",
+      "text": "xapiand lead, finding for consensus (from group-heal's witness task): Driver does not expose Core::witness_bound, so a witness replica cannot compact its log. Also FYI: group-heal's damaged-replica repair will use consensus-request-install's install request (option c), so it's the one path for any replica that needs state."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:51:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:51:27",
+      "by": "journal-group-delete",
+      "closed": "noted: Host::delete_group API; consensus stages through Store/Journal, so a reborn group's first record after retired(group) needs nothing there; the rule is in journal's docs/mechanisms/host-delete.md for any future direct TurnRecord stager",
+      "id": "msg-245",
+      "text": "journal:host delete API, fixed (journal-group-delete, journal branch quest/xapiand/journal-group-delete at d89528f, not landed): `void journal::Host::delete_group(std::uint64_t group)`, synchronous and durable on return, on the group's loop thread right after close_group/Store::close with no handoff and no settle. Refused with std::logic_error unless status(group)==GroupStatus::closed; std::system_error(EWOULDBLOCK) while holding(group). After it status(group)==none and entry(group)->state==GroupState::deleted (new value 4 in the table); the next Store::create starts incarnation+1 empty. A power cut keeps the whole closed group or none; every open finishes a recorded delete. One thing consensus must know: the reborn group's first record is TurnDriver::retired(group)+1, not 1 (the deleted entry keeps the old floor so the log's old records stay superseded); Journal::create_shared does this, so code that stages through Store needs nothing, but anything staging TurnRecords itself must start after retired(group). No notification. Doc: docs/mechanisms/host-delete.md."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:53:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:53:53",
+      "by": "xapiand-lead",
+      "closed": "recorded in consensus-replica-delete's Decisions (retired+1 floor included); no --after needed: journal-drop-memory-io lands as soon as its reruns pass, and whichever is second merges main",
+      "id": "msg-246",
+      "text": "xapiand lead, for consensus-replica-delete (msg-187's other half), the journal delete API from journal-group-delete (at journal:d89528f, under review): void journal::Host::delete_group(std::uint64_t group). Refused with a named error while the group is open or holds an outstanding pin; call it on the group's own loop right after close_group, no handoff. The table entry commits as a new state 'deleted' (value 4) before the segments and manifest go, and every open finishes a recorded but unfinished delete, so a power cut leaves the whole old group or none. The entry keeps its incarnation and base as a floor. Point to know: a recreated group's first record is TurnDriver::retired(group)+1, not 1 (old records stay in the shared turn log until retention reclaims them, so sequences can't restart). Also: campaign check says journal-group-delete may overlap detent:journal-drop-memory-io's files (it now adds include/journal/journal.h: one line in create_shared). Order whichever lands second after the other; tell me if you want --after on ours."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T22:36:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T22:36:37",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: session-title commits; take effect at the next install",
+      "id": "msg-248",
+      "notice": "skill landed 81eca86744dc08e4f31f1b819ec90ee9102f92bb",
+      "text": "campaign skill: 9 commits landed on agent-campaign's main, not installed here yet: agent-campaign:9595c53 Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/session-title; agent-campaign:2cd36c0 Keep a lead's session title naming its campaign; agent-campaign:458fe68 Test that the skill, harness table and agents state the session name; agent-campaign:f30849f Merge main into quest/campaign-v3/session-title; agent-campaign:e1009d6 Wire keep_title into brief, status and wait; agent-campaign:6afd1af Account for the one workspace rename in the sidebar test; agent-campaign:891fc28 Name the cmux workspace explicitly; stub cmux in every test; agent-campaign:85f202d Make the test cmux refuse unless a test asks for it; agent-campaign:97de64f Merge main into quest/campaign-v3/session-title"
+    },
+    {
+      "at": "2026-11-10T19:35:55",
+      "by": "xapiand-lead",
+      "closed": "async-drivers was dropped",
+      "id": "msg-18",
+      "text": "Xapiand's review of async-drivers (Detent:73e96d6): CHANGES, 6 blocking. Full review and probes: /Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md. X1 defect: D4 'only on its loop thread' conflicts with task's phase-3 destroy_roots, which destroys suspended frames from the owner thread after join (Xapiand src/manager.cc:1101, 1119-1120); the probe aborts with exit 134 in Debug and is silent in Release. X2: D2 does not say when propose completes and has no wait for commit. X3: the Driver has no calls for checkpoint, membership, leadership transfer, repair or install activation, and quest 7 deletes try_submit, their only entry. X4 defect: the per-frame votes-in-group check drops learners, members being removed and appends to lagging followers (consensus core.h:155-156, Track C D5). X5: D10 contradicts Track C D16 (one connection per node pair) and costs L times more (377 MB vs 24 MB at 16 loops x 100 peers); it also does not say how a received frame reaches its group's loop. X6: Q3(b) is required for Xapiand, not just preferred, and needs build-plan criteria: 0 fds per idle group, opaque group-id names (nested index paths must not collide), independent of loop count, one lock shared with strata. Approved: 1.1, 1.4, 1.5 (7,926 B per member checks out; millions of groups need Q4 and a cold member state). Q6's list of Xapiand users is wrong (X7, non-blocking; the review lists the real ones)."
+    },
+    {
+      "at": "2026-11-13T00:15:04",
+      "by": "namespace-s5-3",
+      "closed": "namespace-s5-3 landed; the ruling is moot",
+      "id": "msg-44",
+      "text": "namespace-s5-3 A1 needs a ruling on WHERE the production history-fetch endpoint lives. Voters know each other only through the consensus peer transport (consensus/transport/peers.h: mTLS, pinned certs, peer addresses); it carries only consensus frames and the snapshot channel, with no application request lane. Options: (1) RECOMMENDED: add a fetch lane to consensus's Peers (a host-supplied file reader serves 'name -> bytes' on the bulk lane; reply delivered to the host on the owner executor). Reuses mTLS, pins, addresses and budgets, no new config, one transport between voters. Cost: a consensus change + Detent pin bump, outside this quest's files (consensus repo, the pin file). (2) GET /v2/history/<name> on the publisher HTTPS listener: relays could share it, but voters do not know peers' publisher addresses (new per-voter config) and need a peer credential or mTLS on the publisher listener (detentd main, outside files), plus an HTTPS client in the authority. (3) A dedicated history TLS listener per voter on peer_tls + pins (new per-voter history_port), all inside src/detent_authority: fastest, but a second voter-to-voter transport beside consensus's. I proceed with A2-A5 now (async history IO as a completion IOOperation the host drives, like the worker's storage jobs; async install fetch through a callback-based history::Fetch), with the endpoint behind that seam, and need your pick (and the file set for 1) before A1's transport work."
+    },
+    {
+      "at": "2026-11-13T22:21:09",
+      "by": "xapiand-lead",
+      "closed": "Codex results read; C8/C9 docs recorded on main",
+      "id": "msg-53",
+      "text": "Codex results for you (codex-tasks.md Status): C9 done Detent:9ba4c7d2 docs/design/s6-v1-removal-survey.md; C8 partial Detent:9f6121a1 docs/dev/ci-flakes-triage.md (snapshot timeout and DNS port theft reproduced, four flakes 10/10 green, causes open). C7 not reported yet."
+    },
+    {
+      "at": "2026-11-14T06:21:10",
+      "by": "xapiand-lead",
+      "closed": "Codex C7 noted; http idle baseline belongs to Xapiand's http work",
+      "id": "msg-54",
+      "text": "Codex C7 partial: http:ff0399a on codex/http-idle-baseline, http/docs/perf/idle-cost-baseline.md. 10K prototype: TLS charged footprint -44.82%, allocator -74.60% (3 samples); plain 100K passes, TLS 100K times out. Feeds your http-idle-cost A1."
+    },
+    {
+      "at": "2026-11-14T23:21:16",
+      "by": "xapiand-lead",
+      "closed": "superseded by later Codex updates",
+      "id": "msg-55",
+      "text": "Codex C7 update: http:1fa718e2 (codex/http-idle-baseline): plain and TLS 100K baselines now pass; TLS 100K charged footprint 96,504 B per connection; 10K TLS prototype -44.82%; per-owner sizes at 100K still estimated."
+    },
+    {
+      "at": "2026-11-15T07:06:46",
+      "by": "xapiand-lead",
+      "closed": "noted; local-only codex/idle-wakeups branch left as is",
+      "id": "msg-56",
+      "text": "FYI from xapiand lead: Codex left a local-only Detent branch codex/idle-wakeups (be0d12b9, never pushed); its scratch worktree was removed, the branch and commits are intact in ~/code/Kronuz/Detent. Your Codex branches codex/ci-flakes-triage, codex/s6-v1-removal-survey and http codex/http-idle-baseline are pushed and untouched."
+    },
+    {
+      "at": "2026-11-18T09:17:54",
+      "by": "reader-s6",
+      "closed": "reader-s6's file set includes src/detent_local/generation.cc",
+      "id": "msg-79",
+      "text": "reader-s6 needs src/detent_local/generation.cc in its file set. Main moved the reader's selected-table read into detail::read_selected (generation.cc:93); it opens 'selected' and the image with O_RDONLY and no O_NONBLOCK (SR1: a FIFO named selected blocks the open; A10), and trusted_file throws on a 'selected' renamed over between open and fstat (nlink 0) instead of reading again (FIX-2; A8). Recommended: add generation.cc to reader-s6 (no in-flight quest holds it); fix there, one shape for every caller. Alternative: a reader-private copy of read_selected in prepared_reader.cc (duplicate table decode). I proceed with the merge and the rest meanwhile."
+    },
+    {
+      "at": "2026-11-20T04:54:14",
+      "by": "namespace-local-cursor",
+      "closed": "namespace-local-cursor was dropped",
+      "id": "msg-144",
+      "text": "namespace-local-cursor needs two lead calls (continuing the bulk meanwhile).\n1. File set: the local types change shape (Descriptor/Root/ReadView cursor -> NamespaceCursor, ImageBuilder deleted), so these out-of-set callers must change: src/detent_relay/bundle.cc + include/detent_relay/bundle.hh (relay maps W1 head back to its v1 cache cursor from configuration; it also calls local make_snapshot_source), src/detent_agent/main.cc (view.cursor().revision, GenerationReader identity; server-composition-adoption also owns it), src/detent_agent/managed_host.cc (image_format, descriptor cursor; dd3 owns it but waits), tests/detent_agent/**, tests/detent_relay/**, tools/w5/** (w5_store.cc uses flat ImageBuilder), README.md:209 (flat-v1 text). Please add them; edits are minimal.\n2. A2 'free of the old Cursor': three v1 seams cannot leave until P4/P5 without editing detent_distribution: (a) local::detail::make_snapshot_source implements distribution::SnapshotSource, whose cursor() returns the v1 Cursor (relay re-encodes its head as v1); (b) detent_testing GenerationWriter encodes v1 wire and must give SnapshotDecoder/DeltaDecoder a v1 Cursor; (c) benchmarks delta_decode_bench and local_corpus.hh drive the v1 decoders. Options: A) allowlist exactly these seams in the grep job (they take the v1 cursor from their caller, never store it in local types); B) move the SnapshotSource adapter into the relay and decoders' callers into tests (more out-of-set edits, same v1 type still used). Recommend A: the local layer's own types, files and read API carry only W1; the seams die with v1 in P5."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:07:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:07:13",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice; superseded by msg-239",
+      "id": "msg-222",
+      "notice": "skill landed f0c8c3afaa59a32728a99c7a44f82eabeef09c83",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:45cee6d Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/generator-clash; agent-campaign:629af58 Remove a slot's build trees another CMake generator configured; agent-campaign:51e2499 Keep a build tree whose source is a directory inside a source root; agent-campaign:2c4c43c Merge branch 'main' into quest/campaign-v3/generator-clash; agent-campaign:c2f3f95 Merge main into quest/campaign-v3/generator-clash"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T00:26:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T00:26:09",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice, read",
+      "id": "msg-239",
+      "notice": "skill installed 47dfb508a86af0a94fd18d85d6a6c6bf94d9b4aa",
+      "text": "campaign skill: agent-campaign:47dfb50 installed here, 12 commits: agent-campaign:6918f4a Merge branch 'quest/campaign-v3/verify-land-agree' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:d1d4057 Carry a quest's green CI and review across a clean merge from main; agent-campaign:59d1995 Merge branch 'main' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:f8a9f29 Wire main's CI into problems and the [ci] criterion into ci_gate; agent-campaign:cacdd3f Name main's side of the merge in a red main after a carried landing; agent-campaign:07c8772 Clear a fixed-forward landing for good; clean merges a failed journal; agent-campaign:778ed50 Bound main's CI reads after a carried landing; agent-campaign:ff6942f Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:2dffe40 Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:9cd0ccf Land reads CI fresh; a carried head's running CI is a live waiter; agent-campaign:43d103c Keep the host's good CI answer when a fresh ask fails; agent-campaign:91f67b3 Refuse land when a fresh gh ask fails; readers keep the good answer"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:05:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:05:58",
+      "by": "campaign",
+      "closed": "land notice, read",
+      "id": "msg-241",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "split-journal": "frees test/** for split-journal",
+        "system-failover-port-reuse": "frees tests/detent_system/test_managed_failover.sh for system-failover-port-reuse"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "split-journal",
+          "system-failover-port-reuse"
+        ]
+      },
+      "text": "set system-failover-port-reuse: unlocks frees tests/detent_system/test_managed_failover.sh for system-failover-port-reuse; frees test/** for split-journal; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T22:02:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T22:02:42",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice",
+      "id": "msg-247",
+      "notice": "skill landed 3fc989dbaff8185fe734f9ef986e80623164c45a",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:3fc989d"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T23:51:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T23:51:48",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: unversioned --ref fix; takes effect at the next install",
+      "id": "msg-249",
+      "notice": "skill landed d968c3aa035a86f7864c7f4841feb0e9cebe2457",
+      "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:c49431d Check out an unversioned job's --ref instead of dropping it"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T00:45:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T00:45:31",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: set --check/--later edit by name; keep passing full lists until installed",
+      "id": "msg-250",
+      "notice": "skill landed 2bc50596133605928d4592b71a3d75133872facd",
+      "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:b87abed Edit set --check and --later checks by name; agent-campaign:5e85680 Merge main into quest/campaign-v3/check-set-by-name"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T01:54:48",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T01:54:48",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: gate-check job spec in one place (msg-28); takes effect at the next install",
+      "id": "msg-251",
+      "notice": "skill landed 7b3a0fa378554ffbec92e25e6797e15772c1ca67",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, not installed here yet: agent-campaign:ee7a4d2 Build a gate check's job spec in one place; agent-campaign:42f63aa Digest a check's scripts only when its command names a file; agent-campaign:f50c120 Match brief's not-green line with its commit; agent-campaign:0b3bf5f Merge main into quest/campaign-v3/check-spec-one; agent-campaign:82eb635 Merge main into quest/campaign-v3/check-spec-one; agent-campaign:56700bf Merge main into quest/campaign-v3/check-spec-one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T03:26:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T03:26:16",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: evidence rows follow the land gate (msg-32 fix); takes effect at the next install",
+      "id": "msg-252",
+      "notice": "skill landed bd54f12b7ff3c0c19fdd4f95714358abb9118517",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, not installed here yet: agent-campaign:c72a1c2 Evidence rows and their hints follow the land gate; agent-campaign:05a9e8e Read a cited fails-without job by its own rule; share ci_named; agent-campaign:b4ee5cf Revert A4 and the ci_named move; land A1-A3 first; agent-campaign:8ab02c3 Merge main into quest/campaign-v3/evidence-hints; agent-campaign:2cfe40c Merge main into quest/campaign-v3/evidence-hints; agent-campaign:8f4d92b Merge main into quest/campaign-v3/evidence-hints"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T03:40:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T03:40:38",
+      "by": "xapiand-lead",
+      "closed": "taken as quest consensus-rpc-fetch-lag (after consensus-transport-test-flakes): fetch's heartbeat bound becomes 1,000 ms plus the measured host lag, as group-full; a mutant moving heartbeats to Bulk must still fail it. Starts when transport-flakes lands (same file).",
+      "id": "msg-253",
+      "text": "rpc_host_fetch flake (consensus_transport_rpc_host_fetch): fails without xapiand's quests. Heartbeat longest gap 4711 ms on macos-x86_64 at consensus:304bb1e (run 44925311406), 4092 ms on linux-tsan at consensus main 5a114dd (run 44930858682), 1358-4592 ms on 9 other tsan runs; 2 of 65 macos-x86_64 attempts. Bulk stalls as long as Control (fetch = its usual ~2.2 s + the gap; stalled-peer beside it 8.3 s vs 4.8 s), so it is a whole-runner or two-process stall at fetch start, not head-of-line blocking. Your consensus-transport-test-flakes (consensus:3d7738f) fix does not cover a stall of every thread; suggestion: give fetch the allowance group-full has (heartbeat bound plus measured host lag). It reds consensus-request-install's CI at consensus:1869826 (run 45150071779), on xapiand's critical path. Evidence jobs 4c866b (main), 45c17f, 79fa97 (your fix)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T05:58:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T05:58:20",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-255",
+      "items": {
+        "consensus-driver-flow": "frees docs/mechanisms/** for consensus-driver-flow",
+        "consensus-rpc-fetch-lag": "frees test/transport/rpc_host_test.cc for consensus-rpc-fetch-lag"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-flow",
+          "consensus-rpc-fetch-lag"
+        ]
+      },
+      "text": "consensus-transport-test-flakes landed: unlocks frees docs/mechanisms/** for consensus-driver-flow; frees test/transport/rpc_host_test.cc for consensus-rpc-fetch-lag"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T06:52:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T06:52:44",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-257",
+      "items": {
+        "journal-earlier-turn-loss": "frees include/journal/turn_log.h, test/turn_log_test.cc, docs/mechanisms/turn-log-damage.md, CHANGELOG.md for journal-earlier-turn-loss"
+      },
+      "settles": {
+        "start": [
+          "journal-earlier-turn-loss"
+        ]
+      },
+      "text": "set journal-earlier-turn-loss: unlocks frees include/journal/turn_log.h, test/turn_log_test.cc, docs/mechanisms/turn-log-damage.md, CHANGELOG.md for journal-earlier-turn-loss"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T09:35:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T09:35:07",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-263",
+      "items": {
+        "journal-turn-sector-checks": "journal-turn-sector-checks"
+      },
+      "settles": {
+        "start": [
+          "journal-turn-sector-checks"
+        ]
+      },
+      "text": "journal-earlier-turn-loss landed: unlocks journal-turn-sector-checks"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:15:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:15:37",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-265",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms"
+        ]
+      },
+      "text": "reader-s6 landed: unlocks frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:49:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:49:24",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-269",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms",
+        "journal-bound-first-open": "frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-bound-first-open"
+        ]
+      },
+      "text": "set journal-bound-first-open: unlocks frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T11:10:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T11:10:38",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice read (agent-campaign:a51bfc2)",
+      "id": "msg-271",
+      "notice": "skill installed a51bfc2a1c240f6e7ec0fe3a66f0e89703d8eb61",
+      "text": "campaign skill: agent-campaign:a51bfc2 installed here, 3 commits: agent-campaign:42099a5 Order a task's jobs by submit time, not by id; agent-campaign:d14ecd5 Drop the job index after editing a spec in the id-order test; agent-campaign:a51bfc2 Merge main into quest/campaign-v3/task-jobs-order"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:31:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:31:26",
+      "by": "legacy-h contributor",
+      "closed": "file set widened: src/detent_local/evaluation.hh",
+      "id": "msg-266",
+      "text": "legacy-h: deleting detent::detail::evaluate (the first evaluator, per the Outcome) leaves one comment in src/detent_local/evaluation.hh:11 naming it (\"in detent::detail::evaluate's order\"), which A10's grep catches; that file is outside legacy-h's file set. I keep detail::ramp (the one percentage rule) in include/detent/detail/evaluation.hh, its only other user being src/detent_local/evaluation.hh. Request: add src/detent_local/evaluation.hh to legacy-h's files so I can reword the comment (one line, no code change)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:44:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:44:57",
+      "by": "legacy-h",
+      "closed": "file set widened: include/detent_testing/**",
+      "id": "msg-267",
+      "text": "legacy-h (D149/A19): the installed C++ testing face is header-only include/detent_testing/store.hh (detent::testing::Store over generation_writer.h, beside its C face); please add include/detent_testing/store.hh to legacy-h's file set (with src/detent_local/evaluation.hh from msg-266). Fallback if refused: move it to include/detent/test_store.hh."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T12:31:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T12:31:49",
+      "by": "xapiand-lead",
+      "closed": "taken: quest consensus-fetch-alongside-flake started",
+      "id": "msg-272",
+      "text": "consensus test fetch-alongside-consensus fails on CI macos-x86_64, pre-existing: main a068ba06 (run 44996244171, 2026-11-22) and quest/xapiand/consensus-request-install 6e1122c (run 45240308075; the branch touches only transport/codec.h and codec_test). Both: '13 of 16 exact', commits beside the fetches NO within 2 s (slowest 7077 ms and 4410 ms), assertion groups_test.cc:2543. The 13/16 inexact fetches look like more than runner slowness. Not tracked in either hunt list; yours (consensus transport, D102/D106). I reran the job for our landing."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:10:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:10:07",
+      "by": "campaign xapiand",
+      "closed": "faultfs is landing now (CI rerun pending), ahead of xapiand:consensus-join-v2, which merges it; none of driver-flow, fetch-alongside-flake, faultfs or simulation-asan-timeout changes consensus:node-admission (tests and docs only, plus the Driver's Flow option)",
+      "id": "msg-273",
+      "settles": {
+        "ours": [
+          "consensus-driver-flow",
+          "consensus-fetch-alongside-flake",
+          "consensus-install-test-faultfs",
+          "consensus-simulation-asan-timeout"
+        ],
+        "quest": "xapiand:consensus-join-v2"
+      },
+      "text": "xapiand:consensus-join-v2 started and may change files your consensus-install-test-faultfs changes (order them with --after xapiand:consensus-join-v2, or narrow the files); builds against contract consensus:node-admission, which your consensus-driver-flow is changing; builds against contract consensus:node-admission, which your consensus-fetch-alongside-flake is changing; builds against contract consensus:node-admission, which your consensus-install-test-faultfs is changing; builds against contract consensus:node-admission, which your consensus-simulation-asan-timeout is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:15:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:15:19",
+      "by": "xapiand:consensus-join-v2",
+      "closed": "Peers stays DER: worker-pump-removal deletes it; its A4 moves Detent's voter pin to key_pin then",
+      "id": "msg-274",
+      "text": "consensus-join-v2 (Xapiand campaign) moves NodePins/HostTransport pins from the leaf certificate's DER SHA-256 to the SHA-256 of the key's SubjectPublicKeyInfo (new consensus::transport::key_pin(X509*)), so a renewed certificate keeps its pin (review F11). Peers, session.h's authenticated_voter and certificate_fingerprint stay as they are, so Detent's certificate_sha256 voter config is unchanged. Question for your lead (F11): should Peers move to SPKI pins too, or does it stay DER until worker-pump-removal deletes it? Default: it stays DER; nothing changes for Detent now. Any Detent code that builds NodePins (your Seeds wiring) would compute pins with key_pin after this lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:32:36",
+      "by": "site-core",
+      "closed": "asked site-core to hold the site/ move until legacy-h (owns website/**) lands; lead tells it then",
+      "id": "msg-275",
+      "text": "Heads-up: I am moving the Astro/Starlight site from website/ to site/ on main while extracting the four-site shared engine. docs/ remains campaign/design records. I will update CI, Pages, tests/docs, brand scripts, edit links, and README paths, then push only the site migration. Please avoid landing new website/ edits until this lands; after it lands, use site/ for page ownership and change tested_docs from website/src/content/docs/** to site/src/content/docs/**."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4339,14 +4801,42 @@
       "worktree": ""
     },
     "consensus-driver-flow": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T11:47:36",
+          "base": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "blobs": {
+            "CHANGELOG.md": "100644:bd84a0223055adb98995cb705f8fbd31f72014ca",
+            "docs/DRIVER.md": "100644:146b9e41dc5e0818514f6e2bbcf01fa28ef2297e",
+            "docs/mechanisms/append-pacing.md": "100644:f8ce0fa1602f7a07f213669aeb66ceead8995dfb",
+            "include/consensus/worker.h": "100644:552b192442e2532bb9dfc65e3cbf7877eef467ab",
+            "test/driver_test.cc": "100644:3293696f9cf1669ceac74439d478d8c79b055e14"
+          },
+          "by": "review",
+          "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "criteria": "925db7f3d9178032",
+          "diffs": {
+            "CHANGELOG.md": "01295c24678090af",
+            "docs/DRIVER.md": "6a5d372bb3b071a5",
+            "docs/mechanisms/append-pacing.md": "cee224a423037fc8",
+            "include/consensus/worker.h": "f39c0568811c57ba",
+            "test/driver_test.cc": "41002cb8f13dc8d1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "b9b31fabd24d641e539910d1b01571cf7ed5c76f",
+          "reviewed": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-install",
         "consensus-full-window-stall",
         "consensus-quiescence",
-        "split-consensus",
         "xapiand:consensus-request-install"
       ],
+      "base": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+      "branch": "quest/detent/consensus-driver-flow",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -4362,7 +4852,7 @@
         "test/worker_test.cc",
         "test/driver_test.cc",
         "docs/DRIVER.md",
-        "docs/mechanisms/**",
+        "docs/mechanisms/append-pacing.md",
         "CHANGELOG.md"
       ],
       "history": [
@@ -4393,16 +4883,20 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-flow",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-21T21:51:26"
+      "updated": "2026-11-23T11:47:36",
+      "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
       "accepted": {
@@ -4604,6 +5098,42 @@
       "updated": "2026-11-21T13:31:24",
       "worktree": ""
     },
+    "consensus-driver-pipelined-sim": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_simulation.cc",
+        "test/simulation_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "consensus-driver-flow",
+        "consensus-simulation-asan-timeout"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The driver simulation runs pipelined appends end to end",
+      "updated": "2026-11-23T11:47:39"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
@@ -4787,6 +5317,43 @@
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
       "updated": "2026-11-20T21:51:09",
       "worktree": ""
+    },
+    "consensus-fetch-alongside-flake": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-fetch-alongside-flake",
+      "checks": [
+        {
+          "cmd": "ci:macos-x86_64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
+      "updated": "2026-11-23T12:32:17",
+      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -5950,7 +6517,38 @@
       "worktree": ""
     },
     "consensus-quiesce-election-stall": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-22T23:52:24",
+          "base": "a068ba067362beaa4b27c4943b95a70fbfb32e18",
+          "blobs": {
+            "CHANGELOG.md": "100644:46710a1c94e6fef357de2ed055daa52c10093b1d",
+            "CMakeLists.txt": "100644:920ff8787fe0b06f7d3aea87dc76f3df3f628c5d",
+            "docs/mechanisms/quiescence.md": "100644:ffeeb48bd666ff57529a513528adb09e21bb0ef5",
+            "include/consensus/core.h": "100644:05def458a49ae91fdd0d524538dca318e5a211cb",
+            "test/driver_mutants.py": "100644:890e2f2f1f44856eb9e6e879ebb5618a56d63877",
+            "test/driver_replace_test.cc": "100644:56fb84ac9173fbeb97384306472429375d0f7f54",
+            "test/quiescence_test.cc": "100644:bfe03a76e10fe6629095f912b3706570e0faecc9"
+          },
+          "by": "review",
+          "commit": "ca24f8063c4f0d27a5681f1154d1a16163b2ba5a",
+          "criteria": "32d399d0230b3bee",
+          "diffs": {
+            "CHANGELOG.md": "64ce91aad75092ec",
+            "CMakeLists.txt": "44b8cf8dc9468801",
+            "docs/mechanisms/quiescence.md": "6dbb99a230348949",
+            "include/consensus/core.h": "c36b1f667b221182",
+            "test/driver_mutants.py": "c8586c6bc92d3f98",
+            "test/driver_replace_test.cc": "27f0d626afb15242",
+            "test/quiescence_test.cc": "3d8fe51c269c4c08"
+          },
+          "findings": {},
+          "note": "",
+          "review": "38f543748f47aa61f2ee5d1c7f595ad13214da11",
+          "reviewed": "ab47d8a60570c125eb351ce319b7a85f83fa455d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-leaving-removal"
       ],
@@ -6002,11 +6600,42 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-quiesce-election-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T02:27:46",
+          "ci": {
+            "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+            "runs": [
+              45140901210
+            ]
+          },
+          "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+          "criteria": {
+            "A1": "261123-004317-e854ed, 261123-004318-fd8898, 261123-004318-0cff1a, 261123-004319-ad72d1",
+            "A2": "261123-004320-5f6e4f; fails without: 261121-141023-81b8cd, 261121-141837-c1601b, 261121-215921-70138c, 261121-215924-1cf081, 261121-215927-4866dd, 261121-215930-dc004e, 261121-215933-7dd2bc, 261121-215936-868140",
+            "A3": "261123-004319-ad72d1, 261123-004319-f39d51, 261123-004320-9908ae",
+            "A4": "consensus docs/mechanisms/quiescence.md, Rest, \"A follower that leaves rest under its leader re-acknowledges\" and \"A follower's running timer is fed\"",
+            "A5": "CI run 44991647211 green at consensus:ab47d8a (all 8 jobs), the same tree as the clean merge ca24f80 but for main's peers-wake files; CI at ca24f80 (pushed) is running: `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`, `ci:linux-x86_64-gcc`, `ci:linux-x86_64-clang`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e396c1e342bef76924a38b08c6a226cb48f82214",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "42a8cde325912df0cd463dabc39af0d15d2f8923",
+          "reason": "",
+          "tested": "e396c1e342bef76924a38b08c6a226cb48f82214"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-driver-install"
@@ -6014,10 +6643,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T19:33:33",
-      "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
+      "updated": "2026-11-23T02:28:04",
+      "worktree": ""
     },
     "consensus-quiescence": {
       "accepted": {
@@ -6297,6 +6926,76 @@
       "title": "A replica that leaves a group removes its state, so it can rejoin fresh",
       "updated": "2026-11-21T00:05:04"
     },
+    "consensus-rpc-fetch-lag": {
+      "accepted": {},
+      "after": [
+        "consensus-transport-test-flakes"
+      ],
+      "base": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+      "branch": "quest/detent/consensus-rpc-fetch-lag",
+      "checks": [
+        {
+          "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+          "level": "light",
+          "minutes": 60,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/rpc_host_test.cc",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T10:35:24",
+          "ci": {
+            "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+            "runs": [
+              45229501082
+            ]
+          },
+          "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+          "criteria": {
+            "A1": "261123-093627-64939a, 261123-093627-f49f89",
+            "A2": "261123-102708-24df25; fails without: 261123-093621-880c1c",
+            "A3": "261123-060909-e27d55 (passed at 2d423871a13d; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/rpc-lane.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+              "commit": "2d423871a13deaf4164c38acce11940f86ff6f92",
+              "docs": [
+                "docs/mechanisms/rpc-lane.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060909-e27d55",
+              "level": "light",
+              "seconds": 1726.9,
+              "state": "done",
+              "what": "consensus-rpc-fetch-lag check suite at 2d423871a13d"
+            }
+          ],
+          "final": true,
+          "from": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "reason": "",
+          "tested": "531b655cf337a49e328b470aaa5c5955b3a07262"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "landed",
+      "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
+      "updated": "2026-11-23T10:36:53",
+      "worktree": ""
+    },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
       "after": [],
@@ -6314,21 +7013,94 @@
       "files": [
         "CMakeLists.txt",
         "tools/mutants.sh",
-        "test/transport/groups_test.cc"
+        "test/transport/groups_test.cc",
+        "test/driver_mutants.py"
       ],
-      "journal": "../Detent-wt/detent/consensus-sanitizer-ci-time",
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T07:22:07",
+          "ci": {
+            "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+            "runs": [
+              45189461775
+            ]
+          },
+          "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "criteria": {
+            "A1": "261123-055947-405885",
+            "A2": "261123-055946-b75c94",
+            "A3": "261123-055946-a5f911",
+            "A4": "261123-055947-f7bc13; fails without: 261122-212244-62ba1e, 261123-020912-132abe, 261123-024607-59f0bd"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "df4f8f8324eae486260b9038bb937e9923dfba61",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-055946-a5f911",
+              "level": "light",
+              "seconds": 1702.3,
+              "state": "done",
+              "what": "consensus-sanitizer-ci-time check suite at df4f8f8324ea"
+            }
+          ],
+          "final": true,
+          "from": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+          "reason": "",
+          "tested": "df4f8f8324eae486260b9038bb937e9923dfba61"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "landed",
+      "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
+      "updated": "2026-11-23T07:22:17",
+      "worktree": ""
+    },
+    "consensus-simulation-asan-timeout": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-simulation-asan-timeout",
+      "checks": [
+        {
+          "cmd": "ci:linux-asan-ubsan",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/simulation_test.cc",
+        "test/driver_simulation.cc",
+        "docs/mechanisms/simulation*.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "started by force: shared file is CMakeLists.txt's test block only (mutant registration); the others edit other blocks and trial-merge clean, as with xapiand's msg-236 pairs",
       "repo": "../consensus",
-      "risk": "low",
+      "risk": "normal",
       "status": "active",
-      "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
-      "updated": "2026-11-22T21:06:51",
-      "worktree": "../consensus-wt/detent/consensus-sanitizer-ci-time"
+      "title": "consensus_simulation stays well inside its timeout under ASan",
+      "updated": "2026-11-23T11:03:23",
+      "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
       "accepted": {
@@ -6683,18 +7455,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-transport-test-flakes",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T05:57:55",
+          "ci": {
+            "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+            "runs": [
+              45163583887
+            ]
+          },
+          "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+          "criteria": {
+            "A1": "Causes in Result below; fix passes 261123-001439-fbd373 (carried across main's merges); the pre-fix reproducers are A2's `--fails-without` jobs (A2 row), not cited here: a row's job must pass at the head's code, which a pre-fix job never does",
+            "A2": "261123-001439-fbd373 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-892f73 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-30cd55 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-591e3d (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001441-c98947 (passed at 90321baf4286; only 1 merge from main since, none touching its files); fails without: 261121-143436-5d5a0f, 261121-143443-734524, 261121-143509-02c420, 261121-212631-ac045b, 261121-212632-5bcdd7, 261122-220503-cbf63a, 261122-220506-6b6202",
+            "A3": "`ci:linux-tsan`, `ci:macos-x86_64` (run 44989408833: attempts 1, 2, 3 green on both)",
+            "A4": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e396c1e342bef76924a38b08c6a226cb48f82214",
+          "reason": "",
+          "tested": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T21:26:41",
-      "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
+      "updated": "2026-11-23T05:58:20",
+      "worktree": ""
     },
     "consensus-wave-open": {
       "accepted": {
@@ -11665,13 +12467,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-20T18:25:25"
+      "updated": "2026-11-23T10:18:44"
     },
     "fixture-500k": {
       "accepted": {},
@@ -12262,13 +13066,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 240,
           "name": "tsan"
@@ -12290,6 +13094,109 @@
         "tests/detent_authority/CMakeLists.txt",
         "tests/detent_delivery/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:10",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:28",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "security"
@@ -12305,7 +13212,7 @@
       "until": [
         "owner"
       ],
-      "updated": "2026-11-08T17:30:06"
+      "updated": "2026-11-22T22:05:28"
     },
     "http-coroutines": {
       "accepted": {},
@@ -13218,6 +14125,89 @@
       "updated": "2026-11-19T18:05:08",
       "worktree": ""
     },
+    "journal-bound-first-open": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T11:45:07",
+          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "blobs": {
+            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
+            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
+            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+          },
+          "by": "review",
+          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "criteria": "2c746bd6f8489691",
+          "diffs": {
+            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
+            "include/journal/host.h": "04df3faad6d22e7e",
+            "test/lost_bound_test.cc": "37292cd506bcefe2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
+          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "journal-turn-sector-checks"
+      ],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-bound-first-open",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/lost_bound_test.cc",
+        "docs/mechanisms/lost-bound.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T10:49:13",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-bound-first-open",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "active",
+      "title": "The lost bound survives a power cut during the first open",
+      "updated": "2026-11-23T11:45:07",
+      "worktree": "../journal-wt/detent/journal-bound-first-open"
+    },
     "journal-close-in-doubt": {
       "accepted": {
         "correctness": {
@@ -13729,10 +14719,8 @@
         "AGENTS.md",
         "ARCHITECTURE.md",
         "CMakeLists.txt",
-        "docs/**",
         "bench/group_io_bench.cc",
-        "docs/perf/group-io.md",
-        "CMakeLists.txt"
+        "docs/perf/group-io.md"
       ],
       "history": [
         {
@@ -13786,8 +14774,129 @@
       "risk": "low",
       "status": "active",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-21T22:24:16",
+      "updated": "2026-11-23T06:52:42",
       "worktree": "../journal-wt/detent/journal-drop-memory-io"
+    },
+    "journal-earlier-turn-loss": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T07:57:56",
+          "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "blobs": {
+            "CHANGELOG.md": "100644:0e38a5947f68ec1cc893d17b9f6661656d535500",
+            "docs/mechanisms/turn-log-damage.md": "100644:ed567af278bbc8cb7a7e81cc1bf2a3b14cec85e5",
+            "include/journal/turn_log.h": "100644:b23f42cef2a117cb372f1ba0439cd26fe11c8c9e",
+            "test/turn_log_test.cc": "100644:3509d1dae6c73322ab86d042fed87adea27065a4"
+          },
+          "by": "review",
+          "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+          "criteria": "6efea81d3e26be11",
+          "diffs": {
+            "CHANGELOG.md": "d9e9535d3a312feb",
+            "docs/mechanisms/turn-log-damage.md": "1473f02995a8deab",
+            "include/journal/turn_log.h": "cfe4eb4fbbbf335e",
+            "test/turn_log_test.cc": "8e906d68a8abe865"
+          },
+          "findings": {},
+          "note": "",
+          "review": "8a57a5a5cab3b78efd6e9218256e8f909cb3c107",
+          "reviewed": "921301d6f55362fd17d8718ae3e058d2287f926f",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+      "branch": "quest/detent/journal-earlier-turn-loss",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_log.h",
+        "test/turn_log_test.cc",
+        "docs/mechanisms/turn-log-damage.md",
+        "CHANGELOG.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T06:52:45",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions too (as journal-tail-cut-header-design)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T09:35:01",
+          "ci": {
+            "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+            "runs": [
+              45205524348
+            ]
+          },
+          "commit": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "criteria": {
+            "A1": "261123-072804-625133 (passed at e0a47a309834; only 1 merge from main since, none touching its files); fails without: 261123-072807-0eb04a",
+            "A2": "261123-072809-40f146 (passed at e0a47a309834; only 1 merge from main since, none touching its files)",
+            "A3": "261123-072811-92707d (passed at e0a47a309834; only 1 merge from main since, none touching its files)",
+            "A4": "[artifact] `docs/mechanisms/turn-log-damage.md`: \"Damage to any earlier turn is reported\" (Limits; rule 6 in the same file; the newest turn's 36 of 201 stay for O3b)",
+            "A5": "`ci:ci` (run 45205524348 at e0a47a3, green), suite 261123-072811-92707d"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "reason": "",
+          "tested": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53"
+        }
+      ],
+      "lenses": [
+        "durability"
+      ],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "landed",
+      "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
+      "updated": "2026-11-23T09:35:07",
+      "worktree": ""
     },
     "journal-faultfs": {
       "accepted": {},
@@ -14913,6 +16022,67 @@
       "updated": "2026-11-21T08:29:19",
       "worktree": ""
     },
+    "journal-open-single-read": {
+      "accepted": {},
+      "after": [
+        "journal-bound-first-open",
+        "journal-turn-sector-checks"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "test/lost_bound_test.cc",
+        "bench/**",
+        "docs/mechanisms/lost-bound.md",
+        "docs/perf/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T11:45:11",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "An open reads each turn log once",
+      "updated": "2026-11-23T11:45:11"
+    },
     "journal-power-silent-loss": {
       "accepted": {
         "durability": {
@@ -15320,7 +16490,26 @@
       "worktree": ""
     },
     "journal-tail-cut-header-design": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T07:36:44",
+          "base": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "blobs": {
+            "docs/design/turn-log-cut-header.md": "100644:15d65d3c33e25bbeaf37b63c24ae2facb28289da"
+          },
+          "by": "review",
+          "commit": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "criteria": "f20fb96ff7c62a13",
+          "diffs": {
+            "docs/design/turn-log-cut-header.md": "7dbf625f474acbff"
+          },
+          "findings": {},
+          "note": "",
+          "review": "c7e72c1ba0fa59589f29eb16c68471d8aa0af75d",
+          "reviewed": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "journal-tail-second-sector"
       ],
@@ -15356,20 +16545,57 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-tail-cut-header-design",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T07:36:57",
+          "ci": {
+            "carried": true,
+            "commit": "35d4dd16734561a25446af5b1edd9046ec935e01",
+            "runs": [
+              45117618081
+            ]
+          },
+          "commit": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "criteria": {
+            "A1": "`docs/design/turn-log-cut-header.md` on quest/detent/journal-tail-cut-header-design (journal)",
+            "A2": "261123-062108-d42575 (passed at 35d4dd167345; 1 merge from main since, none touching its files; ignores docs-only docs/design/turn-log-cut-header.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "ca953019d546469a7c4bbec080306ff70f5f0823",
+              "docs": [
+                "docs/design/turn-log-cut-header.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-172817-4dd987",
+              "level": "light",
+              "seconds": 288.2,
+              "state": "done",
+              "what": "journal-loop-handoff check suite at ca953019d546"
+            }
+          ],
+          "final": true,
+          "from": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "reason": "",
+          "tested": "9e0649dea76f66e5b7a799a0672df5e3fcd21953"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-21T13:06:45",
-      "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
+      "updated": "2026-11-23T07:37:24",
+      "worktree": ""
     },
     "journal-tail-second-sector": {
       "accepted": {
@@ -15650,9 +16876,85 @@
       "updated": "2026-11-18T02:09:19",
       "worktree": ""
     },
+    "journal-turn-sector-checks": {
+      "accepted": {},
+      "after": [],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-turn-sector-checks",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_log.h",
+        "test/turn_log_test.cc",
+        "test/turn_*_test.cc",
+        "test/fixtures/crc32c/turn-log/**",
+        "fuzz/fuzz_turn_log.cc",
+        "docs/mechanisms/turn-log-damage.md",
+        "docs/mechanisms/turn-log*.md",
+        "CHANGELOG.md",
+        "test/host_test.cc",
+        "test/lost_bound_test.cc",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "bench/turn_bench.cc",
+        "docs/design/host-layout.md",
+        "docs/mechanisms/framing.md",
+        "docs/mechanisms/turn-seal.md",
+        "include/journal/framing.h"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T07:39:14",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions too (as its design and journal-earlier-turn-loss)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-turn-sector-checks",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [
+        "journal-earlier-turn-loss"
+      ],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "active",
+      "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
+      "updated": "2026-11-23T10:56:14",
+      "worktree": "../journal-wt/detent/journal-turn-sector-checks"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
+      "base": "87687327e0cb84c291b04f4e6e35a9055e4cd9a5",
+      "branch": "quest/detent/legacy-h",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -15661,13 +16963,13 @@
           "name": "native"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 150,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 180,
           "name": "tsan"
@@ -15712,7 +17014,100 @@
         "tests/detent_reader/**",
         "tests/detent_system/**",
         "tools/w5/**",
-        "website/**"
+        "website/**",
+        "docs/design/client-local-source.md",
+        "src/detent_local/evaluation.hh",
+        "include/detent_testing/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:24",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+                "level": "light",
+                "minutes": 150,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+                "level": "light",
+                "minutes": 180,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:39",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
       ],
       "landed": [],
       "lenses": [
@@ -15730,9 +17125,10 @@
       ],
       "repo": ".",
       "risk": "critical",
-      "status": "planned",
+      "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-08T15:38:08"
+      "updated": "2026-11-23T11:14:53",
+      "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
       "accepted": {},
@@ -15858,17 +17254,51 @@
         "tests/detent_local/test_disk_store.cc",
         "src/detent_local/disk_store*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T06:51:10",
+          "ci": {
+            "commit": "7f8d06d5626794648147212190712e69b2f6da2f",
+            "runs": [
+              45161204159,
+              45161205061
+            ]
+          },
+          "commit": "be98a7ce6b2cd0ad6dbda83b511e36bab1bae591",
+          "criteria": {
+            "A1": "261123-025953-07f6cc, 261123-030012-e4eee7, 261123-030014-c96804, 261123-030016-e879bf, 261123-030018-17641a; fails without: 261122-001517-639f92",
+            "A2": "261123-061226-362034, 261122-211458-6be91a (passed at ef429b7607d0; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "7f8d06d5626794648147212190712e69b2f6da2f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-061226-362034",
+              "level": "light",
+              "seconds": 581.1,
+              "state": "done",
+              "what": "local-disk-store-lease-flake check suite at 7f8d06d56267"
+            }
+          ],
+          "final": true,
+          "from": "587b2cb0fbd49fcf068f197fdf16257725e8f93a",
+          "reason": "",
+          "tested": "7f8d06d5626794648147212190712e69b2f6da2f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "test_local_disk_store line 191 failed once on CI macos-arm64",
-      "updated": "2026-11-22T00:09:36",
-      "worktree": "../Detent-wt/detent/local-disk-store-lease-flake"
+      "updated": "2026-11-23T06:51:14",
+      "worktree": ""
     },
     "localhost-dial-everywhere": {
       "accepted": {},
@@ -16859,11 +18289,12 @@
         "dense-distribution-build"
       ],
       "provides": [],
+      "reason": "not reproducible: 0 failures in 52 local runs (16 CPUs, 4 burners) and 10x2 CI repeats (run 45116414557, macos-x86_64 and linux-x86_64-gcc) at the pre-fix tree after main's merge; the three failing trees (610565fc, 7d1fad45, c2e83169) predate the relay turn-scheduling changes Detent:59206705 and 563c5c31, the plausible fix (not bisected). Result in its journal at Detent:5691dd3c; reopen with a new quest if it recurs",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "dropped",
       "title": "test_system_managed_relay_ipv6 passes every time on macOS x86_64",
-      "updated": "2026-11-21T13:12:29",
+      "updated": "2026-11-22T22:11:04",
       "worktree": "../Detent-wt/detent/managed-relay-ipv6-flake"
     },
     "msgpack-adoption": {
@@ -16883,13 +18314,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 240,
           "name": "tsan"
@@ -16916,6 +18347,109 @@
         "tests/detent_local/test_state_equivalence.cc",
         "tests/detent_local/test_identity_reset.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:14",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:31",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "security"
@@ -16931,14 +18465,13 @@
       "until": [
         "owner"
       ],
-      "updated": "2026-11-08T17:30:06"
+      "updated": "2026-11-22T22:05:31"
     },
     "multi-voter-idle-wake": {
       "accepted": {},
       "after": [
-        "pin-wave",
-        "consensus-peers-wake",
-        "restart-capacity"
+        "restart-capacity",
+        "server-composition-adoption"
       ],
       "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
       "branch": "quest/detent/multi-voter-idle-wake",
@@ -16987,13 +18520,19 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
+      "reason": "B1 resolved (consensus:a068ba0 PeerOptions::wake); B2 the consensus bump moves task and completion too, so it rides pin-wave; B3 service.cc is held by restart-capacity (server-composition-adoption already lands after this quest)",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-21T23:00:58",
+      "until": [
+        "pin-wave"
+      ],
+      "updated": "2026-11-22T21:36:39",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
@@ -21443,13 +22982,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 120,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 150,
           "name": "tsan"
@@ -21457,6 +22996,109 @@
       ],
       "consumes": [],
       "files": [],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:27",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+                "level": "light",
+                "minutes": 120,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+                "level": "light",
+                "minutes": 150,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 120,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:42",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 120,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 120,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 150,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -21471,7 +23113,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Namespace S9-S10: detent-image seeding and the group count",
-      "updated": "2026-11-10T13:11:10"
+      "updated": "2026-11-22T22:05:42"
     },
     "ninja-only": {
       "accepted": {},
@@ -23035,13 +24677,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 240,
           "name": "tsan"
@@ -23058,6 +24700,109 @@
         "src/detent_authority/persistent_map.hh",
         "tests/detent_authority/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:17",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:34",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "durability"
@@ -23073,7 +24818,7 @@
       "until": [
         "owner"
       ],
-      "updated": "2026-11-08T12:45:08"
+      "updated": "2026-11-22T22:05:34"
     },
     "pin-wave": {
       "accepted": {},
@@ -23092,13 +24837,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 240,
           "name": "tsan"
@@ -23112,10 +24857,112 @@
         "docs/DEPENDENCY_UPGRADES.md",
         "docs/SHARED_LIBRARY_DECISIONS.md",
         "docs/perf/**",
-        "tools/w5/**",
         "website/src/content/docs/architecture/dependencies.md",
         "website/src/content/docs/installation.md",
         "website/src/content/docs/roadmap.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:07",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:26",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
       ],
       "landed": [],
       "lenses": [
@@ -23136,7 +24983,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-08T12:45:02"
+      "updated": "2026-11-22T22:05:26"
     },
     "post-w2": {
       "accepted": {},
@@ -24281,7 +26128,204 @@
       "updated": "2026-11-08T15:38:06"
     },
     "reader-s6": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T06:08:54",
+          "base": "72bb559e15d25fe71c73221b24baaad611ab2f0a",
+          "blobs": {
+            "benchmarks/CMakeLists.txt": "100644:8e2fcc776b966dbd63117a6dcc96d62dc30f1f15",
+            "benchmarks/reader_bench.cc": "100644:9cc03bf88862dcdc2254ecf3243c522fc687e45d",
+            "docs/design/reader.md": "100644:dfa5b336e88ec5db586c258f401697499dd9cc77",
+            "docs/mechanisms/reader-core.md": "100644:8b4db7c6839a138ad52639b3d2fc84336ab11c28",
+            "docs/perf/first-read-gate.md": "100644:d46be78f59b3c03cf59053ba3a2404a385814bd7",
+            "docs/perf/first-read-gate.sh": "100755:46c859ecbae8fb052eb5b649d905668619d5d93e",
+            "docs/perf/reader-lookup.md": "100644:897b509d69756cdc9df2430eec30a15041187a7c",
+            "docs/status/reader-s5-s6.md": "100644:f5a12e8bcaac804148579c43a33d780e23d2d36f",
+            "include/detent/reader.h": "100644:8cf31c29679ca9a4b23db2d58ab1ff7b019500db",
+            "include/detent/reader.hh": "100644:49d5412eb184ff2f921824b825f8d65f6f43d5ea",
+            "include/detent_local/paged_layout.hh": "100644:1c967306173f2b02d94588d0795bafea0a6fb14b",
+            "include/detent_local/read_counters.hh": "100644:9ab8be511af54eb3ab227904bb91e62831bc9f1a",
+            "src/CMakeLists.txt": "100644:5227e5a879fd05a0ac1f8c5b6052529834ff64f2",
+            "src/detent_local/change_file.cc": "100644:5be7a5c9fb5f05ecb616392a5115df2cbe2a320d",
+            "src/detent_local/change_file.hh": "100644:f8c0dac903742d99b2b7f064a99231addc0ec71b",
+            "src/detent_local/generation.cc": "100644:9b34831e1b8fbf998a96746b8967203adb386941",
+            "src/detent_local/generation_file_access.hh": "100644:56efc2c7c7fbf2563a755672193a92f57da5a0c4",
+            "src/detent_local/lazy_page_access.cc": "100644:0179d74853b217839f5c94488edbbec5c192bae9",
+            "src/detent_local/lazy_page_access.hh": "100644:ee1c46cbf65d555829fae5d5ac546c1867d0b80c",
+            "src/detent_local/paged_layout.cc": "100644:003e2af4470caf6cf93745cea4048b2cc7a4bb97",
+            "src/detent_local/paged_navigation.hh": "100644:c5c21893f8cf7fdd95c8ed096e56fc3f1289c442",
+            "src/detent_local/paged_node_step.hh": "100644:f6fffd109e23579b5f5a2f2f56610aa10a0d6c29",
+            "src/detent_local/paged_read_state.cc": "100644:a3d9f44ef8c69d5645cc0329b3431a1c3ba0d2ca",
+            "src/detent_local/prepared_reader.cc": "100644:7de60a78816a4832e40c19f9810a872f931a7698",
+            "src/detent_local/prepared_reader.hh": "100644:69be05133f57853dc768d85ca02fab6ca09c9889",
+            "src/detent_reader/CMakeLists.txt": "100644:7002a4874e55e9ed69d2901e33b541a0a32e3bea",
+            "src/detent_reader/core.cc": "100644:fdbf90269ca46a8697bcc7ca1817d658ebe068b0",
+            "src/detent_reader/testing.hh": "100644:d08e19c221852cd8f0b09e763517aae226300240",
+            "tests/CMakeLists.txt": "100644:06b371627da5de9d0bf6785fe25b5e041968dfe2",
+            "tests/detent_local/test_dense_reads.cc": "100644:1ca7734999d630e38ab4365e350421aeaaa1563a",
+            "tests/detent_local/test_foreign_generation.cc": "100644:83b961b9576cbc65608e0681c2f8e10fdb35b13b",
+            "tests/detent_local/test_lazy_page_access.cc": "100644:e11c81e5bc31e5d1fed5336cb1f0b23037410df4",
+            "tests/detent_local/test_lazy_page_bitmap.cc": "100644:2be6d14555caf9ce9a5e5e165813112e1559c926",
+            "tests/detent_reader/CMakeLists.txt": "100644:3f8b3aa78b35d355e8defcf84af0a5b97063dd8b",
+            "tests/detent_reader/reader_capacity_probe.cc": "100644:8066e970c5868eca37dc569a697054d10ed34e03",
+            "tests/detent_reader/test_reader_core.cc": "100644:6afd58eb208a0f2e20939a914107e1f6cbbde1c3",
+            "tests/detent_reader/test_reader_files.cc": "100644:8267e2439629980b1a674c249c36f21f0589a868",
+            "tests/detent_reader/test_reader_switch.cc": "100644:8af8cd3a2035a392156126ed298ea94c9dc8c677",
+            "tests/detent_reader/test_reader_syscalls.cc": "100644:ce28c3e7b59c6e65f96a93ee2cb26c6267d6d2b7",
+            "tests/detent_system/first_read_gate.py": "deleted",
+            "tests/detent_system/first_read_phases.cc": "100644:1b3ae57f1ef4009a4f1518bbafd90008f91e9113"
+          },
+          "by": "review",
+          "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+          "criteria": "43f38b912d6a88ad",
+          "diffs": {
+            "benchmarks/CMakeLists.txt": "55386ece431593ee",
+            "benchmarks/reader_bench.cc": "41d3f10c7f75c876",
+            "docs/design/reader.md": "83c736cd74777b32",
+            "docs/mechanisms/reader-core.md": "95477260221d09b7",
+            "docs/perf/first-read-gate.md": "eb861694528af0de",
+            "docs/perf/first-read-gate.sh": "287b698c5b520f76",
+            "docs/perf/reader-lookup.md": "dba3d106be1e6262",
+            "docs/status/reader-s5-s6.md": "119f3e40d62c120c",
+            "include/detent/reader.h": "57b94486319d2600",
+            "include/detent/reader.hh": "75017a35a34062ad",
+            "include/detent_local/paged_layout.hh": "3df195d2e2e2a34c",
+            "include/detent_local/read_counters.hh": "f38545f4baec0e86",
+            "src/CMakeLists.txt": "7c0d6a3feea1cf92",
+            "src/detent_local/change_file.cc": "fd0f6b3f97415524",
+            "src/detent_local/change_file.hh": "36b4da6f44551610",
+            "src/detent_local/generation.cc": "6690b1c179178bac",
+            "src/detent_local/generation_file_access.hh": "fc2c70a884b93076",
+            "src/detent_local/lazy_page_access.cc": "edd2303ff71ec7b7",
+            "src/detent_local/lazy_page_access.hh": "3093a8daf0424736",
+            "src/detent_local/paged_layout.cc": "5722a1e8bab4eb17",
+            "src/detent_local/paged_navigation.hh": "f634e659f00d68f7",
+            "src/detent_local/paged_node_step.hh": "eae2479f00ccf15d",
+            "src/detent_local/paged_read_state.cc": "449225f2bd2e39c8",
+            "src/detent_local/prepared_reader.cc": "d8c09f65e9bcfd9d",
+            "src/detent_local/prepared_reader.hh": "c701b6af38676842",
+            "src/detent_reader/CMakeLists.txt": "68f0280810dd2e95",
+            "src/detent_reader/core.cc": "8c4aea2630cf1d06",
+            "src/detent_reader/testing.hh": "d60400e233a59f86",
+            "tests/CMakeLists.txt": "53664c5524d281da",
+            "tests/detent_local/test_dense_reads.cc": "b8e9c170d846b766",
+            "tests/detent_local/test_foreign_generation.cc": "f8df61d76ec974cb",
+            "tests/detent_local/test_lazy_page_access.cc": "bc324a943a18be22",
+            "tests/detent_local/test_lazy_page_bitmap.cc": "f4b49fa9195833cc",
+            "tests/detent_reader/CMakeLists.txt": "40b497d2b920ea46",
+            "tests/detent_reader/reader_capacity_probe.cc": "df97556e4731d706",
+            "tests/detent_reader/test_reader_core.cc": "3e37038b1af10183",
+            "tests/detent_reader/test_reader_files.cc": "d4a49bb626d2f48d",
+            "tests/detent_reader/test_reader_switch.cc": "c3b2fefad4adf97d",
+            "tests/detent_reader/test_reader_syscalls.cc": "cc89f76dc2173956",
+            "tests/detent_system/first_read_gate.py": "8cbc78c55fb12653",
+            "tests/detent_system/first_read_phases.cc": "6e882cfa9c3b3de5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "ec3c565e012a6316682d3d5e56d6b1800cdcd88e",
+          "reviewed": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+          "verdict": "APPROVE"
+        },
+        "security": {
+          "at": "2026-11-23T06:05:54",
+          "base": "72bb559e15d25fe71c73221b24baaad611ab2f0a",
+          "blobs": {
+            "benchmarks/CMakeLists.txt": "100644:8e2fcc776b966dbd63117a6dcc96d62dc30f1f15",
+            "benchmarks/reader_bench.cc": "100644:9cc03bf88862dcdc2254ecf3243c522fc687e45d",
+            "docs/design/reader.md": "100644:dfa5b336e88ec5db586c258f401697499dd9cc77",
+            "docs/mechanisms/reader-core.md": "100644:8b4db7c6839a138ad52639b3d2fc84336ab11c28",
+            "docs/perf/first-read-gate.md": "100644:d46be78f59b3c03cf59053ba3a2404a385814bd7",
+            "docs/perf/first-read-gate.sh": "100755:46c859ecbae8fb052eb5b649d905668619d5d93e",
+            "docs/perf/reader-lookup.md": "100644:897b509d69756cdc9df2430eec30a15041187a7c",
+            "docs/status/reader-s5-s6.md": "100644:f5a12e8bcaac804148579c43a33d780e23d2d36f",
+            "include/detent/reader.h": "100644:8cf31c29679ca9a4b23db2d58ab1ff7b019500db",
+            "include/detent/reader.hh": "100644:49d5412eb184ff2f921824b825f8d65f6f43d5ea",
+            "include/detent_local/paged_layout.hh": "100644:1c967306173f2b02d94588d0795bafea0a6fb14b",
+            "include/detent_local/read_counters.hh": "100644:9ab8be511af54eb3ab227904bb91e62831bc9f1a",
+            "src/CMakeLists.txt": "100644:5227e5a879fd05a0ac1f8c5b6052529834ff64f2",
+            "src/detent_local/change_file.cc": "100644:5be7a5c9fb5f05ecb616392a5115df2cbe2a320d",
+            "src/detent_local/change_file.hh": "100644:f8c0dac903742d99b2b7f064a99231addc0ec71b",
+            "src/detent_local/generation.cc": "100644:9b34831e1b8fbf998a96746b8967203adb386941",
+            "src/detent_local/generation_file_access.hh": "100644:56efc2c7c7fbf2563a755672193a92f57da5a0c4",
+            "src/detent_local/lazy_page_access.cc": "100644:0179d74853b217839f5c94488edbbec5c192bae9",
+            "src/detent_local/lazy_page_access.hh": "100644:ee1c46cbf65d555829fae5d5ac546c1867d0b80c",
+            "src/detent_local/paged_layout.cc": "100644:003e2af4470caf6cf93745cea4048b2cc7a4bb97",
+            "src/detent_local/paged_navigation.hh": "100644:c5c21893f8cf7fdd95c8ed096e56fc3f1289c442",
+            "src/detent_local/paged_node_step.hh": "100644:f6fffd109e23579b5f5a2f2f56610aa10a0d6c29",
+            "src/detent_local/paged_read_state.cc": "100644:a3d9f44ef8c69d5645cc0329b3431a1c3ba0d2ca",
+            "src/detent_local/prepared_reader.cc": "100644:7de60a78816a4832e40c19f9810a872f931a7698",
+            "src/detent_local/prepared_reader.hh": "100644:69be05133f57853dc768d85ca02fab6ca09c9889",
+            "src/detent_reader/CMakeLists.txt": "100644:7002a4874e55e9ed69d2901e33b541a0a32e3bea",
+            "src/detent_reader/core.cc": "100644:fdbf90269ca46a8697bcc7ca1817d658ebe068b0",
+            "src/detent_reader/testing.hh": "100644:d08e19c221852cd8f0b09e763517aae226300240",
+            "tests/CMakeLists.txt": "100644:06b371627da5de9d0bf6785fe25b5e041968dfe2",
+            "tests/detent_local/test_dense_reads.cc": "100644:1ca7734999d630e38ab4365e350421aeaaa1563a",
+            "tests/detent_local/test_foreign_generation.cc": "100644:83b961b9576cbc65608e0681c2f8e10fdb35b13b",
+            "tests/detent_local/test_lazy_page_access.cc": "100644:e11c81e5bc31e5d1fed5336cb1f0b23037410df4",
+            "tests/detent_local/test_lazy_page_bitmap.cc": "100644:2be6d14555caf9ce9a5e5e165813112e1559c926",
+            "tests/detent_reader/CMakeLists.txt": "100644:3f8b3aa78b35d355e8defcf84af0a5b97063dd8b",
+            "tests/detent_reader/reader_capacity_probe.cc": "100644:8066e970c5868eca37dc569a697054d10ed34e03",
+            "tests/detent_reader/test_reader_core.cc": "100644:6afd58eb208a0f2e20939a914107e1f6cbbde1c3",
+            "tests/detent_reader/test_reader_files.cc": "100644:8267e2439629980b1a674c249c36f21f0589a868",
+            "tests/detent_reader/test_reader_switch.cc": "100644:8af8cd3a2035a392156126ed298ea94c9dc8c677",
+            "tests/detent_reader/test_reader_syscalls.cc": "100644:ce28c3e7b59c6e65f96a93ee2cb26c6267d6d2b7",
+            "tests/detent_system/first_read_gate.py": "deleted",
+            "tests/detent_system/first_read_phases.cc": "100644:1b3ae57f1ef4009a4f1518bbafd90008f91e9113"
+          },
+          "by": "review",
+          "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+          "criteria": "43f38b912d6a88ad",
+          "diffs": {
+            "benchmarks/CMakeLists.txt": "55386ece431593ee",
+            "benchmarks/reader_bench.cc": "41d3f10c7f75c876",
+            "docs/design/reader.md": "83c736cd74777b32",
+            "docs/mechanisms/reader-core.md": "95477260221d09b7",
+            "docs/perf/first-read-gate.md": "eb861694528af0de",
+            "docs/perf/first-read-gate.sh": "287b698c5b520f76",
+            "docs/perf/reader-lookup.md": "dba3d106be1e6262",
+            "docs/status/reader-s5-s6.md": "119f3e40d62c120c",
+            "include/detent/reader.h": "57b94486319d2600",
+            "include/detent/reader.hh": "75017a35a34062ad",
+            "include/detent_local/paged_layout.hh": "3df195d2e2e2a34c",
+            "include/detent_local/read_counters.hh": "f38545f4baec0e86",
+            "src/CMakeLists.txt": "7c0d6a3feea1cf92",
+            "src/detent_local/change_file.cc": "fd0f6b3f97415524",
+            "src/detent_local/change_file.hh": "36b4da6f44551610",
+            "src/detent_local/generation.cc": "6690b1c179178bac",
+            "src/detent_local/generation_file_access.hh": "fc2c70a884b93076",
+            "src/detent_local/lazy_page_access.cc": "edd2303ff71ec7b7",
+            "src/detent_local/lazy_page_access.hh": "3093a8daf0424736",
+            "src/detent_local/paged_layout.cc": "5722a1e8bab4eb17",
+            "src/detent_local/paged_navigation.hh": "f634e659f00d68f7",
+            "src/detent_local/paged_node_step.hh": "eae2479f00ccf15d",
+            "src/detent_local/paged_read_state.cc": "449225f2bd2e39c8",
+            "src/detent_local/prepared_reader.cc": "d8c09f65e9bcfd9d",
+            "src/detent_local/prepared_reader.hh": "c701b6af38676842",
+            "src/detent_reader/CMakeLists.txt": "68f0280810dd2e95",
+            "src/detent_reader/core.cc": "8c4aea2630cf1d06",
+            "src/detent_reader/testing.hh": "d60400e233a59f86",
+            "tests/CMakeLists.txt": "53664c5524d281da",
+            "tests/detent_local/test_dense_reads.cc": "b8e9c170d846b766",
+            "tests/detent_local/test_foreign_generation.cc": "f8df61d76ec974cb",
+            "tests/detent_local/test_lazy_page_access.cc": "bc324a943a18be22",
+            "tests/detent_local/test_lazy_page_bitmap.cc": "f4b49fa9195833cc",
+            "tests/detent_reader/CMakeLists.txt": "40b497d2b920ea46",
+            "tests/detent_reader/reader_capacity_probe.cc": "df97556e4731d706",
+            "tests/detent_reader/test_reader_core.cc": "3e37038b1af10183",
+            "tests/detent_reader/test_reader_files.cc": "d4a49bb626d2f48d",
+            "tests/detent_reader/test_reader_switch.cc": "c3b2fefad4adf97d",
+            "tests/detent_reader/test_reader_syscalls.cc": "cc89f76dc2173956",
+            "tests/detent_system/first_read_gate.py": "8cbc78c55fb12653",
+            "tests/detent_system/first_read_phases.cc": "6e882cfa9c3b3de5"
+          },
+          "findings": {},
+          "note": "",
+          "review": "124b673b5119ce680f9a0c45cef4ff96b14d19d7",
+          "reviewed": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "dense-pages"
       ],
@@ -24295,30 +26339,30 @@
           "name": "native"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
-          "later": true,
-          "level": "light",
-          "minutes": 90,
-          "name": "asan"
-        },
-        {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 90,
           "name": "tsan"
-        },
-        {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
-          "later": true,
-          "level": "light",
-          "minutes": 80,
-          "name": "t3-asan"
         },
         {
           "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
           "level": "light",
           "minutes": 110,
           "name": "t3-tsan"
+        },
+        {
+          "cmd": "ci:linux-asan-ubsan",
+          "later": true,
+          "level": "light",
+          "minutes": 90,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+          "later": true,
+          "level": "light",
+          "minutes": 80,
+          "name": "t3-asan"
         }
       ],
       "consumes": [
@@ -24354,7 +26398,8 @@
         "src/detent_local/paged_read_state.cc",
         "tests/detent_local/test_foreign_generation.cc",
         "tests/detent_local/test_dense_reads.cc",
-        "docs/perf/reader-lookup.md"
+        "docs/perf/reader-lookup.md",
+        "docs/design/reader.md"
       ],
       "history": [
         {
@@ -24433,12 +26478,280 @@
             "gate check asan deferred",
             "gate check t3-asan deferred"
           ]
+        },
+        {
+          "at": "2026-11-22T21:48:25",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "later": true,
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              }
+            ]
+          ],
+          "reason": "msg-17: T3 under ASan runs 4 readers, not 16, so its 4-thread hold matches what it runs; t3-tsan keeps 16 readers and proves the contention claim (A4)",
+          "voided": [],
+          "weakened": [
+            "deferred check asan removed",
+            "deferred check t3-asan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:04:31",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [
+            "security"
+          ],
+          "weakened": [
+            "gate check native removed",
+            "gate check tsan changed",
+            "gate check t3-tsan removed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:23",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 45,
+                "name": "native"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 90,
+                "name": "tsan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "level": "light",
+                "minutes": 110,
+                "name": "t3-tsan"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "later": true,
+                "level": "light",
+                "minutes": 90,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && DETENT_READER_SWITCH_READERS=4 ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+                "later": true,
+                "level": "light",
+                "minutes": 80,
+                "name": "t3-asan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T10:15:35",
+          "ci": {
+            "carried": true,
+            "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+            "runs": [
+              45189633970
+            ]
+          },
+          "commit": "2416ff80511b387342d26a250d35aeb9021576f6",
+          "criteria": {
+            "A1": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133829-b558f2, 261121-133832-23f97d, 261123-020610-c38819, 261123-020612-66011f",
+            "A10": "261123-060127-6575ae (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094528-862642, 261118-094529-cc96ed, 261118-094531-9d6c47, 261118-094532-ea240d, 261118-094533-4d9871, 261118-150210-e182b0, 261118-150213-4bef61, 261118-150215-b73f2b, 261118-150218-e176e3, 261118-150220-736a52, 261119-045632-5a285e, 261119-045636-1ae4f6, 261119-045639-da21c3, 261119-045642-44ae68, 261119-045646-c6bb0c",
+            "A11": "261123-060126-b8a2c8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094534-ef5614, 261118-150222-c9e640, 261119-045649-0b8176",
+            "A12": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-095700-c09e87, 261118-095701-fc5e6e, 261118-095703-2934a2, 261118-095704-ba2018, 261118-150223-3a55c5, 261118-150225-822725, 261118-150227-533ecf, 261118-150229-2e752f, 261119-045653-7df812, 261119-045656-100c83, 261119-045700-c2d927, 261119-045703-fdfa80",
+            "A13": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A14": "261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-ba7596 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-140d4c (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133836-91d1e5, 261121-141042-a5d80c, 261121-141044-9b81e0, 261121-141047-4552ff, 261123-020610-c38819",
+            "A15": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A16": "261123-100115-16c6c5, 261123-060129-5230e0 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060129-0caffb (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A2": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A3": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A4": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-4b687d (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060124-994ab8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-185553-58fade, 261119-045706-676367, 261120-150455-acc366",
+            "A5": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133840-2a7bcc",
+            "A6": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A7": "261123-060126-21529a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A8": "261123-060128-fc8519 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094515-9b4bb9, 261118-094516-4e137b, 261118-094517-f5658e, 261118-094518-855a2e, 261118-094519-347eee, 261118-094521-4baa90, 261118-094522-34bd94, 261118-094523-363cb7, 261118-094525-7ae4a1, 261118-094527-d7fb02, 261118-100900-90e1ea, 261118-150142-8445c8, 261118-150144-1fe887, 261118-150147-6a8a03, 261118-150149-092144, 261118-150152-431265, 261118-150154-2d19f4, 261118-150157-b4eafd, 261118-150200-3c206c, 261118-150203-bfde28, 261118-150205-3f55ca, 261118-150208-3f52f6, 261118-150230-adf29d, 261118-150232-7b363f, 261119-045253-bf6dfc, 261119-045549-d0abbe, 261119-045552-74046b, 261119-045556-e9c3f2, 261119-045600-a76c88, 261119-045604-2ff884, 261119-045607-3738a8, 261119-045611-ba7bfb, 261119-045614-7f9b83, 261119-045618-1bbf8d, 261119-045621-ab977b, 261119-045625-a52560, 261119-045629-33a983, 261119-111418-48b91f, 261119-111420-6f99e1",
+            "A9": "[artifact] `docs/mechanisms/reader-core.md`: \"## Fork and cold preparation\" (also its sections Fork (D10), Bounds and Mapped bytes after verification; doc check job 261122-225652-b8b8ac)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060124-6b8f76",
+              "level": "light",
+              "seconds": 443.1,
+              "state": "done",
+              "what": "reader-s6 check native at 1d7f04f26ec9"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "state": "done"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060125-5f2b20",
+              "level": "light",
+              "seconds": 4120.4,
+              "state": "done",
+              "what": "reader-s6 check t3-tsan at 1d7f04f26ec9"
+            }
+          ],
+          "final": true,
+          "from": "1941ec85caa231e88076640fb1fc3d3429400543",
+          "later": [
+            "261123-101536-f6fb44"
+          ],
+          "reason": "",
+          "tested": "28c442b5644e931c833c3831e362fe59799e607e"
+        }
+      ],
       "lenses": [
         "security",
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T13:03:02",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Observability bench (job 261109-120858-28cd50, Detent:d1ce742 on reader S6 b1d281c): S6 core hot-int lookup is 889 ns at 1 thread, 3.3x reader.md D3's 268.5 ns pinned-view number. Check against S6's T1 gate before landing."
+        },
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T17:15:15",
+          "by": "lead",
+          "id": "msg-2",
+          "text": "When reader-s6 rebases onto landed dense-pages (review dense-pages-design DES-10, DES-7 at Detent:81a3232): lazy_page_access.cc:147,228 page_header_bytes is now 64, use minimum_page_bytes; :233 the bitmap test must follow the header compare; prepared_reader.cc:172 layout_version == 2; :232 and prepared_reader.hh:10 root.logical (renamed per DES-9). Merge LazyPageAccess::resolve with paged_navigation.hh checked_page_bytes when rewriting resolve (DES-7). Its T1 gate carries D4's hit compare."
+        }
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
@@ -24450,9 +26763,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-21T11:38:43",
+      "updated": "2026-11-23T10:15:37",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -24946,13 +27259,13 @@
           "name": "pins"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
           "name": "asan"
         },
         {
-          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 240,
           "name": "tsan"
@@ -24976,6 +27289,109 @@
         "tests/detent_local/snapshot_fixture.hh",
         "tests/detent_local/test_paged_segment_collection.cc"
       ],
+      "history": [
+        {
+          "at": "2026-11-22T22:04:20",
+          "checks": [
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes",
+          "voided": [],
+          "weakened": [
+            "gate check native removed",
+            "gate check pins removed",
+            "gate check asan changed",
+            "gate check tsan changed"
+          ]
+        },
+        {
+          "at": "2026-11-22T22:05:37",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
+        }
+      ],
       "landed": [],
       "lenses": [
         "correctness"
@@ -24991,10 +27407,83 @@
       "until": [
         "owner"
       ],
-      "updated": "2026-11-08T17:30:07"
+      "updated": "2026-11-22T22:05:37"
     },
     "restart-capacity": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T00:06:59",
+          "base": "704deb42513ad6843b5f87ae7058e30bc1319e7e",
+          "blobs": {
+            "docs/CAPACITY_QUALIFICATION.md": "100644:13392b6889670954d110c8981a8de122996c51f9",
+            "docs/CAPACITY_RUNTIME.md": "100644:a34fddd6a62b8d8971c69f8daf87796f3eabb9b5",
+            "docs/mechanisms/authority-capacity-raise.md": "100644:5f7146c114031acdbb1476981b7e8840d0a7b856",
+            "docs/status/README.md": "100644:89f3e2051a8d679528006c3c994d87bfd6e395c9",
+            "src/detent_authority/node.cc": "100644:12ba7426d60a1b983bc964a67fb3f4616b0cfcca",
+            "src/detent_authority/service.cc": "100644:3fcd0da1c954ebb5b08d320cda04f61a845e7736",
+            "src/detent_authority/state.cc": "100644:69feff6deecb8c42b920861753f237d424d12705",
+            "src/detent_authority/state.hh": "100644:bbf42161f33fc5dc6a1244c7b125312b0a6ec985",
+            "tests/detent_authority/test_node.cc": "100644:037a5fc1657390961450e5ee13364cbac97e6e11",
+            "tests/detent_authority/test_service.cc": "100644:96cda20dc217784c3e2b797f5e681f896541bdb3",
+            "tests/detent_authority/test_state.cc": "100644:57cd5521c572ec55fa893d3a7d88eac82595ff0f",
+            "tests/detent_system/test_restart_capacity.py": "100644:f0aaaac6ba15514acc407f7061b2b8d0d183ad96",
+            "tests/detent_system/test_restart_capacity.sh": "100755:5a84b10a4415aa669da86fd191e2e18cc85b5bec",
+            "tests/docs/docs_exceptions.txt": "100644:46bf03e2ee3d22d29514fc5d2c6d36c39015aaf5",
+            "website/src/content/docs/reference/configuration.md": "100644:dd56971770bd8cc4e1be6d09d705509e9843ba6c"
+          },
+          "by": "review",
+          "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+          "criteria": "ea1a0af663cccff5",
+          "diffs": {
+            "docs/CAPACITY_QUALIFICATION.md": "e5d59a5c745b84a6",
+            "docs/CAPACITY_RUNTIME.md": "fdadb8bdcf949fd5",
+            "docs/mechanisms/authority-capacity-raise.md": "3bb31a2fab25ecbb",
+            "docs/status/README.md": "7dbb8a166c06cec4",
+            "src/detent_authority/node.cc": "e4ce8567321727e0",
+            "src/detent_authority/service.cc": "d2cb6cfa6cd8b52e",
+            "src/detent_authority/state.cc": "db954b74bf7c7093",
+            "src/detent_authority/state.hh": "dc0df6e2b1aabdbf",
+            "tests/detent_authority/test_node.cc": "327a98f6e6b19e41",
+            "tests/detent_authority/test_service.cc": "b35f8edd9c6e7566",
+            "tests/detent_authority/test_state.cc": "caa45786f2b90dba",
+            "tests/detent_system/test_restart_capacity.py": "5b5fedbb29e2d940",
+            "tests/detent_system/test_restart_capacity.sh": "a32253990e99a489",
+            "tests/docs/docs_exceptions.txt": "b27df7b21ee79fc4",
+            "website/src/content/docs/reference/configuration.md": "d7904f9e872efa35"
+          },
+          "findings": {
+            "R1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 --target test_authority_state test_authority_node test_authority_service && ctest --test-dir .scratch/build --output-on-failure --stop-on-failure -R \"^test_authority_(state|node|node_completion|service)$\"'",
+                  "commit": "c68022e84eb8bc4816eb9c2bf03331dd5bf6d876",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "inputs": [
+                    "src/**",
+                    "include/**",
+                    "tests/detent_authority/**",
+                    "tests/CMakeLists.txt",
+                    "CMakeLists.txt",
+                    "cmake/**"
+                  ],
+                  "job": "261122-212055-71549d",
+                  "level": "light",
+                  "seconds": 69.5,
+                  "state": "done",
+                  "what": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Rel at c68022e84eb8"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "6b4af68380e8bcace719d12f3db01c93dc1b147a",
+          "reviewed": "230019777e59be4fac89c350bd738c8b403197b8",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "online-capacity"
       ],
@@ -25053,19 +27542,52 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T01:22:58",
+          "ci": {
+            "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+            "runs": [
+              45117348500,
+              45117348283
+            ]
+          },
+          "commit": "d0e9e700af4e4daadae5eee3c02c2e8878748597",
+          "criteria": {
+            "A1": "261122-212055-71549d; fails without: 261121-134017-55739f, 261121-160304-c2e302, 261121-212136-f963d5, 261122-212102-17f15d",
+            "A2": "261122-212055-71549d; fails without: 261121-134021-7685c2, 261121-160309-c65da6, 261121-212139-b4d7b2, 261122-212058-43a074, 261122-212105-5555a9",
+            "A3": "261122-212055-71549d, 261122-212119-72d34c",
+            "A4": "261122-212119-72d34c",
+            "A5": "[artifact] `docs/mechanisms/authority-capacity-raise.md` \"Every use of `State::limits_`\"",
+            "A6": "`ci:macos-arm64`, `ci:linux-asan-ubsan`, `ci:linux-tsan` at the pushed head; the Docs workflow is read by the land gate"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "22a5307bf052b239b30ae1c018c67e10926ce197",
+          "reason": "",
+          "tested": "ef3f1fbf6431384d6f5d93ad271928641ec11037"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-22T00:09:05",
-      "worktree": "../Detent-wt/detent/restart-capacity"
+      "updated": "2026-11-23T01:23:03",
+      "worktree": ""
     },
     "retained-byte-limit-test": {
       "accepted": {},
@@ -25591,8 +28113,7 @@
         "loop-idle-waits",
         "rename-detentd",
         "xapiand:task-lifecycle",
-        "pin-wave",
-        "multi-voter-idle-wake"
+        "pin-wave"
       ],
       "base": "f47ef2201754b8dae9686d7c784a00d65f04fd20",
       "branch": "quest/detent/server-composition-adoption",
@@ -25617,7 +28138,47 @@
         "src/detent_agent/config.cc",
         "tests/*/CMakeLists.txt",
         "docs/mechanisms/server-composition.md",
-        "website/src/content/docs/reference/**"
+        "website/src/content/docs/reference/**",
+        "QUICKSTART.md",
+        "README.md",
+        "bench/idle-wakeups/pair.py",
+        "docs/ACTORS.md",
+        "docs/LOGGING.md",
+        "docs/READER_CAPACITY_ARCHITECTURE.md",
+        "docs/RELAY.md",
+        "docs/SERVICES.md",
+        "docs/USAGE.md",
+        "packaging/launchd/org.detent.detent-agent.plist",
+        "packaging/launchd/org.detent.detent-relay.plist",
+        "packaging/rc.d/detent_agent",
+        "packaging/rc.d/detent_relay",
+        "packaging/systemd/detent-agent.service",
+        "packaging/systemd/detent-relay.service",
+        "src/detent_agent/managed_host.hh",
+        "src/detent_relay/host.hh",
+        "tests/detent_agent/test_agent_cli.cmake",
+        "tests/detent_agent/test_reader_capacity.cc",
+        "tests/detent_agent/test_secrets_mode.sh",
+        "tests/detent_authority/test_daemon_sigterm.sh",
+        "tests/detent_delivery/test_managed_process.sh",
+        "tests/detent_relay/test_relay_config.cc",
+        "tests/detent_relay/test_relay_service.py",
+        "tests/detent_system/first_read_gate.py",
+        "tests/detent_system/managed.py",
+        "tests/detent_system/run_agent_sigterm.py",
+        "tests/detent_system/run_trust_negatives.py",
+        "tests/detent_system/test_agent_sigterm.sh",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_system/test_relay_sigterm.py",
+        "tests/docs/link_exceptions.txt",
+        "tools/w5/first_read.py",
+        "website/src/components/PageTitle.astro",
+        "website/src/content/docs/architecture/agent.md",
+        "website/src/content/docs/architecture/relay.md",
+        "website/src/content/docs/guides/durable-relay.md",
+        "website/src/content/docs/guides/shell-and-agent.md",
+        "website/src/content/docs/operations/logging.md",
+        "website/src/content/docs/operations/services.md"
       ],
       "history": [
         {
@@ -25656,7 +28217,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-21T13:14:25",
+      "updated": "2026-11-22T21:57:47",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
@@ -25816,7 +28377,8 @@
         "consensus-peers-wake",
         "consensus-transport-test-flakes",
         "xapiand:consensus-request-install",
-        "xapiand:split-check-members"
+        "xapiand:split-check-members",
+        "consensus-driver-flow"
       ],
       "checks": [
         {
@@ -25869,7 +28431,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T22:26:09"
+      "updated": "2026-11-23T06:07:43"
     },
     "split-detent": {
       "accepted": {},
@@ -26445,7 +29007,22 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_system/test_managed_failover.sh"
+        "tests/detent_system/test_managed_failover.sh",
+        "tests/detent_system/authority.py",
+        "tests/detent_system/test_restart_rebind.py",
+        "tests/detent_system/CMakeLists.txt",
+        "tests/detent_authority/test_daemon_alone.py",
+        "tests/detent_authority/test_dns_voters.py",
+        "tests/detent_authority/test_lost_quorum.py",
+        "tests/detent_authority/test_multivoter.py",
+        "tests/detent_relay/test_relay_service.py",
+        "tests/detent_system/first_read_gate.py",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_system/test_localhost_dial.py",
+        "tests/detent_system/test_managed_case.sh",
+        "tests/docs/run_e2e.py",
+        "tests/support/**",
+        "tests/detent_system/managed.py"
       ],
       "landed": [],
       "lenses": [],
@@ -26456,7 +29033,7 @@
       "risk": "low",
       "status": "active",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-22T21:06:31",
+      "updated": "2026-11-23T10:15:54",
       "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {

@@ -700,6 +700,64 @@ int main() {
 		owner.reset();
 		assert(canceled >= 10);
 	}
+	{
+		// D141: a voter restarted below its recorded limits refuses to start and names the field;
+		// restarted above them it keeps its receipts and grows past the old ceiling.
+		const auto raise = std::filesystem::path(directory.string() + "-raise");
+		std::filesystem::remove_all(raise);
+		std::filesystem::remove_all(raise.string() + ".history");
+		auto keyed = [](unsigned sequence, const std::string &key) {
+			return "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
+				   ",\"namespace\":\"ns\",\"operations\":[{\"key\":\"" + key + "\",\"value\":{\"default\":1}}]";
+		};
+		auto ready = [&](Service &service) {
+			Writer opened;
+			for (unsigned attempt = 0; attempt < 100 && opened.code != 200; ++attempt) {
+				opened = call(service, "/v2/open", open);
+				if (opened.code != 200)
+					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			assert(opened.code == 200);
+		};
+		auto limited = [&](std::size_t keys) {
+			auto o = options(raise);
+			o.node.application.keys = keys;
+			return o;
+		};
+		std::string refused;
+		{
+			Service service(limited(1));
+			ready(service);
+			assert(call(service, "/v2/transactions", keyed(1, "ns:a")).code == 200);
+			auto full = call(service, "/v2/transactions", keyed(2, "ns:b"));
+			assert(full.code == 429 && full.body.find("\"capacity\"") != std::string::npos);
+			refused = full.body;
+		}
+		std::string lowered;
+		try {
+			auto o = limited(1);
+			o.node.application.mutations = 64;
+			Service service(std::move(o));
+		} catch (const std::exception &error) {
+			lowered = error.what();
+		}
+		if (lowered.find("application_limits.mutations 64 differs from the recorded 128") == std::string::npos)
+			std::cerr << "refusal: " << lowered << "\n";
+		assert(lowered.find("application_limits.mutations 64 differs from the recorded 128") != std::string::npos);
+		{
+			Service service(limited(2));
+			Writer retried;
+			for (unsigned attempt = 0; attempt < 100 && retried.code != 429; ++attempt) {
+				retried = call(service, "/v2/transactions", keyed(2, "ns:b"));
+				if (retried.code != 429)
+					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			assert(retried.body == refused);
+			assert(call(service, "/v2/transactions", keyed(3, "ns:b")).code == 200);
+		}
+		std::filesystem::remove_all(raise);
+		std::filesystem::remove_all(raise.string() + ".history");
+	}
 	std::filesystem::remove_all(directory);
 	std::cout << "authority ingress, quota and replay passed\n";
 }
