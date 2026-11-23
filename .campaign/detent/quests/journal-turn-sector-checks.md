@@ -30,7 +30,9 @@ earlier-turn rule from journal-earlier-turn-loss (rule 6) stays (design D4, F3).
   goes back to the lead.
 - A5 [artifact] `docs/mechanisms/turn-log-damage.md` describes RFTW0002's verdicts and states the
   Limit after it, including the review's F6 (a sector more than 2^32 segments old reads as damage)
-  and F7 (an all-zero sector is not "verifies under neither").
+  and F7 (an all-zero sector is not "verifies under neither"), and journal-earlier-turn-loss's
+  review F1 (a CRC-valid fragment forged inside a torn write's payload reads as damage: every
+  unmanifested group is reported lost, never silently).
 - A6 The turn-log fixtures are regenerated as RFTW0002 and the fuzz target reads them; the suite
   passes and `ci:ci` is green at the landed commit.
 
