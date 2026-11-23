@@ -47,7 +47,8 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
    light, 5M 4,679 s, which needs --long) and resubmit the rows; the rows wait on the probes.
 2. When the rows finish: tabulate them (table.py reads summary.jsonl; it needs the new mirror and
    agent-publication fields), commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
-   (A2) for the mirror relay, then ready for review.
+   (A2) for the mirror relay with the bundle-relay rows at 3a57661b beside it as the before
+   (lead), then ready for review.
 
 ## Blocked on
 
@@ -78,7 +79,8 @@ Open: fetch vs decode vs build are one span (the agent logs no mark between them
 
 - A1's "durable bundles ready" maps to the mirror relay's "the namespace mirror is ready" plus a
   ready /v1/health (main removed bundles in 30c2d65b); the relay health has no revision, so the
-  agent's convergence to every namespace's position is the revision check. Lead: confirm.
+  agent's convergence to every namespace's position is the revision check. Lead confirmed; A1
+  amended on home main.
 - One mode per exclusive job (lead's direction); A2's relay "publication files" become the
   agent's own publication files and device flushes, plus the mirror's fetched files and bytes.
 
