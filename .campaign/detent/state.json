@@ -12154,13 +12154,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-20T18:25:25"
+      "updated": "2026-11-23T10:18:44"
     },
     "fixture-500k": {
       "accepted": {},
