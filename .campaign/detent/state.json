@@ -16003,20 +16003,57 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-tail-cut-header-design",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T07:36:57",
+          "ci": {
+            "carried": true,
+            "commit": "35d4dd16734561a25446af5b1edd9046ec935e01",
+            "runs": [
+              45117618081
+            ]
+          },
+          "commit": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "criteria": {
+            "A1": "`docs/design/turn-log-cut-header.md` on quest/detent/journal-tail-cut-header-design (journal)",
+            "A2": "261123-062108-d42575 (passed at 35d4dd167345; 1 merge from main since, none touching its files; ignores docs-only docs/design/turn-log-cut-header.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "ca953019d546469a7c4bbec080306ff70f5f0823",
+              "docs": [
+                "docs/design/turn-log-cut-header.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261120-172817-4dd987",
+              "level": "light",
+              "seconds": 288.2,
+              "state": "done",
+              "what": "journal-loop-handoff check suite at ca953019d546"
+            }
+          ],
+          "final": true,
+          "from": "d8453f6b67da28c01266485f0d046ce917d34736",
+          "reason": "",
+          "tested": "9e0649dea76f66e5b7a799a0672df5e3fcd21953"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Design: can the turn log tell a damaged cut-header fragment from a tear in the newest tail",
-      "updated": "2026-11-23T07:36:44",
-      "worktree": "../journal-wt/detent/journal-tail-cut-header-design"
+      "updated": "2026-11-23T07:37:24",
+      "worktree": ""
     },
     "journal-tail-second-sector": {
       "accepted": {
