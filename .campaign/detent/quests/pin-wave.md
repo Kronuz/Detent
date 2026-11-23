@@ -49,3 +49,7 @@ None.
 
 - 2026-11-20, from xapiand (msg-193): take completion:714186e (task 95798a0, landed 2026-11-21); declare task 95798a0 at Detent top level before completion so one task resolves until journal and consensus move their completion pins; faultlab stops fetching journal (faultlab-journal-oracle) before journal step 8.
 - 2026-11-21, msg-191: task main is task:dc2be96 (fire_pending deadlock fixes; wait rule narrowed in docs/API.md). Consider taking it at the top-level task declaration instead of 95798a0, if completion, journal and consensus compile against it.
+
+- Note (lead, 2026-11-22, from multi-voter-idle-wake B2): journal 9e11713 sets `COMPLETION_ASIO OFF` as a plain variable, which overrides Detent's cached ON (CMakeLists.txt:94), so `completion::asio` is never built; load completion before consensus in Detent's CMakeLists.txt as part of this wave.
+
+- Note (lead, 2026-11-22, from server-composition-adoption): task moves to task:f937bc2 or later (task::lifecycle, lifecycle.hh and process.hh), which server-composition-adoption needs; that quest holds the pin line on its branch only until this wave lands. tools/w5/** left this set (server-composition-adoption renames agent.json there).
