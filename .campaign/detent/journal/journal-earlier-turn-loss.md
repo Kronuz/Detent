@@ -24,8 +24,8 @@ Nothing.
 | A1 | 261123-072804-625133 (fix, exit 0), 261123-072807-0eb04a (fails-without at fca82bb, exit 1) |
 | A2 | pending: 261123-072809-40f146 |
 | A3 | pending: 261123-072811-92707d; CI suite on push |
-| A4 | `docs/mechanisms/turn-log-damage.md`: "Damage to the newest turn ... reads as a torn tail ... **The newest turn drops silently**: 36 of 201 such cases in the cut-header probe. Only a per-sector checksum (the cut-header design's O3b, a format change) tells this damage from a tear. Damage to any earlier turn is reported (rule 6), and costs the groups rules 3 and 5 name: every group when the damaged block is the newest, whose manifest no later header holds yet." |
-| A5 | pending: CI at e0a47a3 |
+| A4 | [artifact] `docs/mechanisms/turn-log-damage.md`: "Damage to any earlier turn is reported" (Limits; rule 6 in the same file; the newest turn's 36 of 201 stay for O3b) |
+| A5 | `ci:ci` (run 45205524348 at e0a47a3, green), suite 261123-072811-92707d |
 
 Local, not evidence (journal-wt build/): at main the new test fails 30 checks (seeds 4, 6 at
 4096 B, 22 at 2048 B: U1, U2, U3, same block and later block; the large header); at the fix 317
