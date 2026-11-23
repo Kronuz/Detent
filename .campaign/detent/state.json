@@ -2873,6 +2873,28 @@
       "closed": "taken as quest consensus-rpc-fetch-lag (after consensus-transport-test-flakes): fetch's heartbeat bound becomes 1,000 ms plus the measured host lag, as group-full; a mutant moving heartbeats to Bulk must still fail it. Starts when transport-flakes lands (same file).",
       "id": "msg-253",
       "text": "rpc_host_fetch flake (consensus_transport_rpc_host_fetch): fails without xapiand's quests. Heartbeat longest gap 4711 ms on macos-x86_64 at consensus:304bb1e (run 44925311406), 4092 ms on linux-tsan at consensus main 5a114dd (run 44930858682), 1358-4592 ms on 9 other tsan runs; 2 of 65 macos-x86_64 attempts. Bulk stalls as long as Control (fetch = its usual ~2.2 s + the gap; stalled-peer beside it 8.3 s vs 4.8 s), so it is a whole-runner or two-process stall at fetch start, not head-of-line blocking. Your consensus-transport-test-flakes (consensus:3d7738f) fix does not cover a stall of every thread; suggestion: give fetch the allowance group-full has (heartbeat bound plus measured host lag). It reds consensus-request-install's CI at consensus:1869826 (run 45150071779), on xapiand's critical path. Evidence jobs 4c866b (main), 45c17f, 79fa97 (your fix)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T05:58:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T05:58:20",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-255",
+      "items": {
+        "consensus-driver-flow": "frees docs/mechanisms/** for consensus-driver-flow",
+        "consensus-rpc-fetch-lag": "frees test/transport/rpc_host_test.cc for consensus-rpc-fetch-lag"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-flow",
+          "consensus-rpc-fetch-lag"
+        ]
+      },
+      "text": "consensus-transport-test-flakes landed: unlocks frees docs/mechanisms/** for consensus-driver-flow; frees test/transport/rpc_host_test.cc for consensus-rpc-fetch-lag"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4610,6 +4632,8 @@
         "consensus-quiescence",
         "xapiand:consensus-request-install"
       ],
+      "base": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+      "branch": "quest/detent/consensus-driver-flow",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -4656,6 +4680,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-flow",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -4663,9 +4688,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T06:07:30"
+      "updated": "2026-11-23T06:08:22",
+      "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
       "accepted": {
