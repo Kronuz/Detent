@@ -8,6 +8,7 @@ import http.client
 import json
 import socket
 import ssl
+import subprocess
 import sys
 import time
 from collections.abc import Callable
@@ -204,7 +205,8 @@ class Authority:
                     raise RuntimeError(
                         f"authority-{index} alive (pid {member.process.pid}) but not answering "
                         f"{seconds} s after restart attempt {attempts}: last {refusal}; "
-                        f"output {output[-400:].decode(errors='replace')!r}"
+                        f"output {output[-400:].decode(errors='replace')!r}; "
+                        f"{self._sockets(index, member.process.pid)}"
                     )
                 await asyncio.sleep(0.05)
             await member.capture
@@ -216,6 +218,22 @@ class Authority:
                 )
             self.actors.evidence.record("member_restart_port_busy", index=index)
             await asyncio.sleep(0.1)
+
+    def _sockets(self, index: int, pid: int) -> str:
+        """What the OS says about the member and its port, for a member that does not answer."""
+        report = []
+        for command in (
+            ["ps", "-o", "pid,stat,etime,command", "-p", str(pid)],
+            ["lsof", "-nP", f"-iTCP:{self.ports[index + 3]}"],
+        ):
+            try:
+                result = subprocess.run(
+                    command, capture_output=True, text=True, timeout=10
+                )
+                report.append(f"{command[0]}: {result.stdout.strip()!r}")
+            except (OSError, subprocess.SubprocessError) as error:
+                report.append(f"{command[0]}: {error!r}")
+        return "; ".join(report)
 
     def _request(
         self,
