@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261121-211232-9a4c8d (system SIGTERM, dual stack, managed; builds all), 261121-211235-2e7c08 (authority-only and relay-only builds, docs check, site build and links); both at 820f6a91; CI at 820f6a91 (A3). fdcc66 passed at 0cfe0ecd (13 of 13).
+State: waiting on jobs 261122-210356-e066ca (fdcc66 rerun), 261122-210358-8be4f9 (system suite), 261122-210359-436a7d (builds, docs, links), 261122-210409-68087b (relay SIGTERM x20), 261122-210411-d3d9f7 (old test fails, --fails-without); all at 4ad9fdbf; CI at the pushed head.
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,9 +19,18 @@ secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
 
-0. ba8bec failed: main was already merged; the tests were wrong. test_relay_sigterm started one authority voter (refused: three required, so the relay mirrored nothing); run_agent_sigterm wrote 4096-key batches over the default operation bound (400 operation count bound). Fixed in 820f6a91 (three voters; widen()). a74726's check_links.py needs DIST: the job now builds the site first.
-1. Read the jobs listed in State; fix failures (a fix gets a test that fails without it). The four earlier jobs failed in the build: src/detent_authority/main.cc used `kMaxDuration`, declared only in detent-relay's main.cc (fixed in 0cfe0ecd; the build itself is the test).
-2. After pin-wave and multi-voter-idle-wake land: merge main, drop the task pin line, apply
+0. Read the jobs in State. 9a4c8d and CI (every platform) failed only test_system_relay_sigterm. Cause: the
+   test's classification, not the relay. An instrumented copy of the test on the 820f6a91 binaries found
+   every "torn" outcome (14 over 8 runs) was a clean EOF after 0 response bytes, on connections opened at
+   most 125 ms before SIGTERM: the stop ends the TLS handshake and the read of a request not yet read
+   (Kronuz/http: the session token reaches only those waits), so no request was admitted. None was a
+   partial response. c218fe2b counts only a begun-and-unfinished response as torn, fails on any
+   unanswered close before the signal, and reports requests sent before and answered after it; 10 of 10
+   local runs passed. d3d9f7 runs the old test at the head (passes when it fails).
+1. Links: 4ad9fdbf fixed both listed exceptions (splash home's #_top, durable-relay's relative .md link).
+2. CI macos-x86_64 also failed test_local_disk_store (line 191, lease collection) at 820f6a91; detent_local
+   is untouched here and it passed on macos-arm64. If it recurs, show it at main.
+3. After pin-wave and multi-voter-idle-wake land: merge main, drop the task pin line, apply
    `.scratch/server-composition/d125-authority-service.patch` (service.cc loader: process fields skipped,
    `secrets` file for the credentials; unverified, not compiled) and finish the authority half of D125
    (main.cc `--authority` gone, every test that starts an authority passes `--config`).
@@ -33,7 +42,18 @@ Nothing new; the lead's rulings stand. Still true:
 - The authority half of D125 waits on service.cc (multi-voter-idle-wake holds it); with it, `--authority`
   is replaced by `--config` in every test that starts an authority (authority.py, tests/detent_authority/*,
   bench) and `authority.json` fixtures split their credentials into a secrets file.
-- Files changed outside the widened set, each mechanical and named for the lead: `src/detent_relay/host.hh`,
+- Widen the file set (none reverted; each follows from D125's file names, the hosts' signatures, the
+  A2/A4 tests, or the link fixes): `QUICKSTART.md`, `README.md`, `bench/idle-wakeups/pair.py`,
+  `cmake/dependencies.json` (task pin, ruling 1), `docs/{ACTORS,LOGGING,READER_CAPACITY_ARCHITECTURE,RELAY,SERVICES,USAGE}.md`,
+  `packaging/**`, `src/detent_agent/managed_host.hh`, `src/detent_relay/host.hh`,
+  `tests/detent_agent/{test_agent_cli.cmake,test_reader_capacity.cc,test_secrets_mode.sh}`,
+  `tests/detent_authority/test_daemon_sigterm.sh`, `tests/detent_delivery/test_managed_process.sh`,
+  `tests/detent_relay/{test_relay_config.cc,test_relay_service.py}`,
+  `tests/detent_system/{first_read_gate,managed,run_agent_sigterm,run_trust_negatives,test_dual_stack,test_relay_sigterm}.py`,
+  `tests/detent_system/test_agent_sigterm.sh`, `tools/w5/first_read.py`,
+  `website/src/content/docs/{architecture,guides,operations}/*`, `website/src/components/PageTitle.astro`,
+  `tests/docs/link_exceptions.txt`.
+- Earlier list, for the record: `src/detent_relay/host.hh`,
   `src/detent_agent/managed_host.hh` (their `run_host`/`run_managed` signatures), `src/detent_cli/config.*`
   (in set), `tests/detent_relay/test_relay_config.cc` and `test_relay_service.py`,
   `tests/detent_system/{managed,test_dual_stack,first_read_gate,run_trust_negatives}.py`, the new tests,
@@ -49,15 +69,23 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: test_authority_daemon_sigterm in 261121-155450-fdcc66 (passed); relay and agent: test_system_relay_sigterm and test_system_agent_sigterm in 261121-211232-9a4c8d |
-| A3 | ci:macos-arm64 at 820f6a91; 261121-211235-2e7c08 (authority-only and relay-only builds, docs check, links); pin-check red until pin-wave |
-| A4 | jobs 261121-155450-fdcc66 (passed), 261121-211232-9a4c8d. relay: test_relay_config (secrets mode, link, missing, token in main file refused) and test_system_relay_sigterm (starts from detent-relay.json plus secrets); agent: existing managed-process and CLI tests on detent-agent.json plus managed.json (private-file rule); authority: not done (Blocked) |
+| A2 | authority: test_authority_daemon_sigterm in 261122-210356-e066ca; relay: test_system_relay_sigterm in 261122-210358-8be4f9 and x20 in 261122-210409-68087b, old classification fails at the same relay in 261122-210411-d3d9f7 (--fails-without); agent: test_system_agent_sigterm in 261122-210358-8be4f9 |
+| A3 | 261122-210359-436a7d (authority-only and relay-only builds, docs check, links with no exceptions left); CI at 4ad9fdbf; pin-check red until pin-wave |
+| A4 | relay and agent: 261122-210356-e066ca (test_relay_config: secrets mode, link, missing, token in main file refused; test_agent_cli, test_agent_secrets_mode) and 261122-210358-8be4f9 (relay started from detent-relay.json plus secrets; managed-process on detent-agent.json plus managed.json). authority: not done, waits on service.cc (multi-voter-idle-wake holds it) |
 
 ## Result
 
 Not ready for review.
 
 ## Rulings I made
+
+- The relay SIGTERM failure was the test's: a connection closed before any response byte after the signal
+  is the stop refusing an unread request (Kronuz/http's contract), not a cut response. Kept the http
+  contract; a Go-style wait for a fresh connection's first request would be a Kronuz/http change. Noted:
+  closing with pipelined requests unread sends RST, which can drop a written reply (lingering close),
+  also Kronuz/http's.
+- Merge conflict in test_managed_process.sh: took main's wait_until helpers, renamed agent.json to
+  detent-agent.json in them.
 
 - Authority exit codes: a bad option value exits EX_USAGE (note step 1); other errors still exit 1.
 - Defaults max_clients 1024, max_in_flight 1024, idle_timeout_ms 75000 (the note's Settled 5): the authority gains a 75 s idle close it did not have.
