@@ -26137,7 +26137,80 @@
       "updated": "2026-11-22T22:05:37"
     },
     "restart-capacity": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T00:06:59",
+          "base": "704deb42513ad6843b5f87ae7058e30bc1319e7e",
+          "blobs": {
+            "docs/CAPACITY_QUALIFICATION.md": "100644:13392b6889670954d110c8981a8de122996c51f9",
+            "docs/CAPACITY_RUNTIME.md": "100644:a34fddd6a62b8d8971c69f8daf87796f3eabb9b5",
+            "docs/mechanisms/authority-capacity-raise.md": "100644:5f7146c114031acdbb1476981b7e8840d0a7b856",
+            "docs/status/README.md": "100644:89f3e2051a8d679528006c3c994d87bfd6e395c9",
+            "src/detent_authority/node.cc": "100644:12ba7426d60a1b983bc964a67fb3f4616b0cfcca",
+            "src/detent_authority/service.cc": "100644:3fcd0da1c954ebb5b08d320cda04f61a845e7736",
+            "src/detent_authority/state.cc": "100644:69feff6deecb8c42b920861753f237d424d12705",
+            "src/detent_authority/state.hh": "100644:bbf42161f33fc5dc6a1244c7b125312b0a6ec985",
+            "tests/detent_authority/test_node.cc": "100644:037a5fc1657390961450e5ee13364cbac97e6e11",
+            "tests/detent_authority/test_service.cc": "100644:96cda20dc217784c3e2b797f5e681f896541bdb3",
+            "tests/detent_authority/test_state.cc": "100644:57cd5521c572ec55fa893d3a7d88eac82595ff0f",
+            "tests/detent_system/test_restart_capacity.py": "100644:f0aaaac6ba15514acc407f7061b2b8d0d183ad96",
+            "tests/detent_system/test_restart_capacity.sh": "100755:5a84b10a4415aa669da86fd191e2e18cc85b5bec",
+            "tests/docs/docs_exceptions.txt": "100644:46bf03e2ee3d22d29514fc5d2c6d36c39015aaf5",
+            "website/src/content/docs/reference/configuration.md": "100644:dd56971770bd8cc4e1be6d09d705509e9843ba6c"
+          },
+          "by": "review",
+          "commit": "7342a77774f958827b5752556add1b0fd67b18e9",
+          "criteria": "ea1a0af663cccff5",
+          "diffs": {
+            "docs/CAPACITY_QUALIFICATION.md": "e5d59a5c745b84a6",
+            "docs/CAPACITY_RUNTIME.md": "fdadb8bdcf949fd5",
+            "docs/mechanisms/authority-capacity-raise.md": "3bb31a2fab25ecbb",
+            "docs/status/README.md": "7dbb8a166c06cec4",
+            "src/detent_authority/node.cc": "e4ce8567321727e0",
+            "src/detent_authority/service.cc": "d2cb6cfa6cd8b52e",
+            "src/detent_authority/state.cc": "db954b74bf7c7093",
+            "src/detent_authority/state.hh": "dc0df6e2b1aabdbf",
+            "tests/detent_authority/test_node.cc": "327a98f6e6b19e41",
+            "tests/detent_authority/test_service.cc": "b35f8edd9c6e7566",
+            "tests/detent_authority/test_state.cc": "caa45786f2b90dba",
+            "tests/detent_system/test_restart_capacity.py": "5b5fedbb29e2d940",
+            "tests/detent_system/test_restart_capacity.sh": "a32253990e99a489",
+            "tests/docs/docs_exceptions.txt": "b27df7b21ee79fc4",
+            "website/src/content/docs/reference/configuration.md": "d7904f9e872efa35"
+          },
+          "findings": {
+            "R1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 --target test_authority_state test_authority_node test_authority_service && ctest --test-dir .scratch/build --output-on-failure --stop-on-failure -R \"^test_authority_(state|node|node_completion|service)$\"'",
+                  "commit": "c68022e84eb8bc4816eb9c2bf03331dd5bf6d876",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "inputs": [
+                    "src/**",
+                    "include/**",
+                    "tests/detent_authority/**",
+                    "tests/CMakeLists.txt",
+                    "CMakeLists.txt",
+                    "cmake/**"
+                  ],
+                  "job": "261122-212055-71549d",
+                  "level": "light",
+                  "seconds": 69.5,
+                  "state": "done",
+                  "what": "bash -c 'cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Rel at c68022e84eb8"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "6b4af68380e8bcace719d12f3db01c93dc1b147a",
+          "reviewed": "230019777e59be4fac89c350bd738c8b403197b8",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "online-capacity"
       ],
@@ -26207,7 +26280,7 @@
       "risk": "high",
       "status": "review",
       "title": "Raise authority capacity at a coordinated restart",
-      "updated": "2026-11-22T00:09:05",
+      "updated": "2026-11-23T00:06:59",
       "worktree": "../Detent-wt/detent/restart-capacity"
     },
     "retained-byte-limit-test": {
