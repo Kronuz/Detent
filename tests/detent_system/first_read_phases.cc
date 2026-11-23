@@ -1,29 +1,26 @@
-// First-read attribution for the A15 gate (docs/perf/first-read-gate.md): the pre-S6 Client's
-// first read split into the steps it takes, built from each tree's own reader like first_read_export.
-// Usage: first_read_phases --phases DIR NAMESPACE KEY EXPECTED   one fresh-process sample
-//        first_read_phases --micro DIR ITERATIONS                warm per-operation means
-#include "generation_file_access.hh"
-#include "lazy_page_access.hh"
-#include "prepared_reader.hh"
-#include "resources.hh"
+// First-read gate (A16, docs/perf/first-read-gate.sh) and its attribution: one fresh-process first
+// read, built from each tree. Built as first_read_core (FIRST_READ_CORE) it reads through
+// libdetent_reader; otherwise through the pre-S6 Client's steps, and it also builds and publishes the
+// gate's store.
+// Usage: first_read_core --core DIR NAME EXPECTED                    detent_open, first detent_get
+//        first_read_phases --client DIR NAMESPACE KEY EXPECTED       the Client's first read
+//        first_read_phases --phases DIR NAMESPACE KEY EXPECTED       the same, trust walk split out
+//        first_read_phases --micro DIR ITERATIONS                    warm per-operation means
+//        first_read_phases --generate DIR NAMESPACES KNOBS           the gate's store
+//        first_read_phases --publish DIR NAMESPACES                  a running publisher, until killed
 #include <charconv>
 #include <chrono>
-#include <condition_variable>
-#include <fcntl.h>
 #include <filesystem>
 #include <iostream>
-#include <sha256.h>
-#include <sys/file.h>
-#include <sys/mman.h>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <sys/resource.h>
-#include <thread>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
-namespace l = detent::local;
-namespace x = l::detail;
 using Clock = std::chrono::steady_clock;
-
 namespace {
 template <class Integer> Integer integer(std::string_view text) {
 	Integer value{};
@@ -45,6 +42,74 @@ Mark mark() {
 std::int64_t ns(Clock::time_point from, Clock::time_point to) {
 	return std::chrono::duration_cast<std::chrono::nanoseconds>(to - from).count();
 }
+unsigned components(const std::filesystem::path &path) {
+	unsigned count = 0;
+	for (const auto &part : std::filesystem::absolute(path).relative_path())
+		count += !part.empty();
+	return count;
+}
+using Marks = std::vector<std::pair<const char *, Mark>>;
+// One JSON line: each phase's wall time, CPU and minor faults, then total_ns; the caller closes it.
+void print(const std::filesystem::path &directory, const Marks &marks) {
+	std::cout << "{\"components\":" << components(directory);
+	for (std::size_t i = 1; i < marks.size(); ++i) {
+		const auto &[phase, at] = marks[i];
+		const auto &before = marks[i - 1].second;
+		std::cout << ",\"" << phase << "_ns\":" << ns(before.at, at.at) << ",\"" << phase
+				  << "_user_us\":" << at.user_us - before.user_us << ",\"" << phase
+				  << "_system_us\":" << at.system_us - before.system_us << ",\"" << phase
+				  << "_faults\":" << at.minor_faults - before.minor_faults;
+	}
+	std::cout << ",\"total_ns\":" << ns(marks.front().second.at, marks.back().second.at);
+}
+} // namespace
+
+#ifdef FIRST_READ_CORE
+#include "detent/reader.h"
+int main(int argc, char **argv) try {
+	if (argc != 5 || std::string_view(argv[1]) != "--core")
+		throw std::invalid_argument("use --core DIR NAME EXPECTED");
+	const std::string_view directory(argv[2]), name(argv[3]);
+	const auto expected = integer<std::int64_t>(argv[4]);
+	Marks marks{{"start", mark()}};
+	const detent_open_options options{sizeof options, {directory.data(), directory.size()}, nullptr, 0,
+									  std::uint32_t(::getuid())};
+	detent_reader *reader = nullptr;
+	if (const auto status = detent_open(&options, &reader); status != DETENT_OK)
+		throw std::runtime_error(std::string("detent_open: ") + detent_status_name(status));
+	marks.emplace_back("open", mark());
+	std::int64_t value = 0;
+	const auto status = detent_get(reader, {name.data(), name.size()}, {}, {}, -1, &value);
+	marks.emplace_back("lookup", mark());
+	if (status != DETENT_OK || value != expected)
+		throw std::runtime_error(std::string("first value differs: ") + detent_status_name(status));
+	print(directory, marks);
+	std::cout << "}\n";
+	detent_close(reader);
+	return 0;
+} catch (const std::exception &e) {
+	std::cerr << "first_read_core: " << e.what() << '\n';
+	return 1;
+}
+#else
+#include "detent_testing/generation_writer.hh"
+#include "generation_file_access.hh"
+#include "lazy_page_access.hh"
+#include "prepared_reader.hh"
+#include "resources.hh"
+#include <algorithm>
+#include <array>
+#include <condition_variable>
+#include <fcntl.h>
+#include <sha256.h>
+#include <sys/file.h>
+#include <sys/mman.h>
+#include <thread>
+
+namespace l = detent::local;
+namespace x = l::detail;
+
+namespace {
 struct Mapping {
 	Clock::time_point miss;
 	std::int64_t ns = 0, count = 0;
@@ -70,26 +135,23 @@ struct Worker {
 		});
 	}
 };
-unsigned components(const std::filesystem::path &path) {
-	unsigned count = 0;
-	for (const auto &part : std::filesystem::absolute(path).relative_path())
-		count += !part.empty();
-	return count;
-}
-void phases(char **argv) {
+// The Client's first read; `walks` adds the directory trust walk cold and warm ahead of attach.
+void phases(char **argv, bool walks) {
 	const std::filesystem::path directory(argv[2]);
 	const std::string_view name_space(argv[3]), key(argv[4]);
 	const auto expected = integer<std::int64_t>(argv[5]);
 	const auto uid = ::getuid();
 	Mapping mapping;
 	x::LazyPageTesting::install(on_window, &mapping);
-	std::vector<std::pair<const char *, Mark>> marks{{"start", mark()}};
+	Marks marks{{"start", mark()}};
 	(void)l::resources::domain(l::ViewLimits::prepared());
 	marks.emplace_back("runtime", mark());
-	::close(x::open_publisher_directory(directory, uid));
-	marks.emplace_back("trust_cold", mark());
-	::close(x::open_publisher_directory(directory, uid));
-	marks.emplace_back("trust_warm", mark());
+	if (walks) {
+		::close(x::open_publisher_directory(directory, uid));
+		marks.emplace_back("trust_cold", mark());
+		::close(x::open_publisher_directory(directory, uid));
+		marks.emplace_back("trust_warm", mark());
+	}
 	auto generation = x::PreparedReader::open(directory, uid, l::ViewLimits::prepared());
 	marks.emplace_back("attach", mark());
 	Worker worker;
@@ -100,17 +162,40 @@ void phases(char **argv) {
 	if (!value || !*value || value->value() != expected)
 		throw std::runtime_error("first value differs");
 	x::LazyPageTesting::install(nullptr, nullptr);
-	std::cout << "{\"components\":" << components(directory);
-	for (std::size_t i = 1; i < marks.size(); ++i) {
-		const auto &[phase, at] = marks[i];
-		const auto &before = marks[i - 1].second;
-		std::cout << ",\"" << phase << "_ns\":" << ns(before.at, at.at) << ",\"" << phase
-				  << "_user_us\":" << at.user_us - before.user_us << ",\"" << phase
-				  << "_system_us\":" << at.system_us - before.system_us << ",\"" << phase
-				  << "_faults\":" << at.minor_faults - before.minor_faults;
+	print(directory, marks);
+	std::cout << ",\"mapping_ns\":" << mapping.ns << ",\"mappings\":" << mapping.count << "}\n";
+}
+// The gate's store: KNOBS int knobs `n<i % NAMESPACES>:k<i>` = 3i + 1, and `n0:tick` = 0.
+std::vector<std::string> scope(std::uint64_t namespaces) {
+	std::vector<std::string> names;
+	for (std::uint64_t j = 0; j != namespaces; ++j)
+		names.push_back("n" + std::to_string(j));
+	std::sort(names.begin(), names.end());
+	return names;
+}
+void generate(char **argv) {
+	const auto namespaces = integer<std::uint64_t>(argv[3]), knobs = integer<std::uint64_t>(argv[4]);
+	std::string json = R"({"schema_version":1,"knobs":{"n0:tick":{"default":0})";
+	for (std::uint64_t i = 0; i != knobs; ++i)
+		json += ",\"n" + std::to_string(i % namespaces) + ":k" + std::to_string(i) +
+				"\":{\"default\":" + std::to_string(3 * i + 1) + "}";
+	json += "}}";
+	detent::testing::GenerationWriter writer(argv[2]);
+	std::cout << "{\"revision\":" << writer.publish_json(json) << ",\"namespaces\":" << namespaces
+			  << ",\"knobs\":" << knobs << "}\n";
+}
+// A running publisher: a one-knob delta to `n0` every 20 ms, collected every 16, until killed.
+[[noreturn]] void publish(char **argv) {
+	detent::testing::GenerationWriter writer(argv[2]);
+	const auto names = scope(integer<std::uint64_t>(argv[3]));
+	for (std::int64_t tick = 1;; ++tick) {
+		writer.publish_delta(names, "n0", {{"n0:tick", tick}}, {});
+		if (tick == 1)
+			std::cout << "publishing" << std::endl;
+		if (tick % 16 == 0)
+			writer.collect();
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	}
-	std::cout << ",\"total_ns\":" << ns(marks.front().second.at, marks.back().second.at)
-			  << ",\"mapping_ns\":" << mapping.ns << ",\"mappings\":" << mapping.count << "}\n";
 }
 template <class F> double mean_ns(std::uint64_t iterations, F &&f) {
 	for (std::uint64_t i = 0; i != std::min<std::uint64_t>(iterations, 16); ++i)
@@ -172,14 +257,21 @@ void micro(char **argv) {
 } // namespace
 
 int main(int argc, char **argv) try {
-	if (argc == 6 && std::string_view(argv[1]) == "--phases")
-		phases(argv);
-	else if (argc == 4 && std::string_view(argv[1]) == "--micro")
+	const std::string_view mode = argc > 1 ? argv[1] : "";
+	if (argc == 6 && (mode == "--phases" || mode == "--client"))
+		phases(argv, mode == "--phases");
+	else if (argc == 4 && mode == "--micro")
 		micro(argv);
+	else if (argc == 5 && mode == "--generate")
+		generate(argv);
+	else if (argc == 4 && mode == "--publish")
+		publish(argv);
 	else
-		throw std::invalid_argument("use --phases DIR NAMESPACE KEY EXPECTED or --micro DIR ITERATIONS");
+		throw std::invalid_argument("use --client|--phases DIR NAMESPACE KEY EXPECTED, --micro DIR ITERATIONS, "
+									"--generate DIR NAMESPACES KNOBS or --publish DIR NAMESPACES");
 	return 0;
 } catch (const std::exception &e) {
 	std::cerr << "first_read_phases: " << e.what() << '\n';
 	return 1;
 }
+#endif

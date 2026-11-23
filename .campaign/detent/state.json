@@ -2935,6 +2935,164 @@
         ]
       },
       "text": "journal-earlier-turn-loss landed: unlocks journal-turn-sector-checks"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:15:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:15:37",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-265",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms"
+        ]
+      },
+      "text": "reader-s6 landed: unlocks frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:49:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:49:24",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-269",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms",
+        "journal-bound-first-open": "frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-bound-first-open"
+        ]
+      },
+      "text": "set journal-bound-first-open: unlocks frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T11:10:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T11:10:38",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice read (agent-campaign:a51bfc2)",
+      "id": "msg-271",
+      "notice": "skill installed a51bfc2a1c240f6e7ec0fe3a66f0e89703d8eb61",
+      "text": "campaign skill: agent-campaign:a51bfc2 installed here, 3 commits: agent-campaign:42099a5 Order a task's jobs by submit time, not by id; agent-campaign:d14ecd5 Drop the job index after editing a spec in the id-order test; agent-campaign:a51bfc2 Merge main into quest/campaign-v3/task-jobs-order"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:31:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:31:26",
+      "by": "legacy-h contributor",
+      "closed": "file set widened: src/detent_local/evaluation.hh",
+      "id": "msg-266",
+      "text": "legacy-h: deleting detent::detail::evaluate (the first evaluator, per the Outcome) leaves one comment in src/detent_local/evaluation.hh:11 naming it (\"in detent::detail::evaluate's order\"), which A10's grep catches; that file is outside legacy-h's file set. I keep detail::ramp (the one percentage rule) in include/detent/detail/evaluation.hh, its only other user being src/detent_local/evaluation.hh. Request: add src/detent_local/evaluation.hh to legacy-h's files so I can reword the comment (one line, no code change)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:44:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:44:57",
+      "by": "legacy-h",
+      "closed": "file set widened: include/detent_testing/**",
+      "id": "msg-267",
+      "text": "legacy-h (D149/A19): the installed C++ testing face is header-only include/detent_testing/store.hh (detent::testing::Store over generation_writer.h, beside its C face); please add include/detent_testing/store.hh to legacy-h's file set (with src/detent_local/evaluation.hh from msg-266). Fallback if refused: move it to include/detent/test_store.hh."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T12:31:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T12:31:49",
+      "by": "xapiand-lead",
+      "closed": "taken: quest consensus-fetch-alongside-flake started",
+      "id": "msg-272",
+      "text": "consensus test fetch-alongside-consensus fails on CI macos-x86_64, pre-existing: main a068ba06 (run 44996244171, 2026-11-22) and quest/xapiand/consensus-request-install 6e1122c (run 45240308075; the branch touches only transport/codec.h and codec_test). Both: '13 of 16 exact', commits beside the fetches NO within 2 s (slowest 7077 ms and 4410 ms), assertion groups_test.cc:2543. The 13/16 inexact fetches look like more than runner slowness. Not tracked in either hunt list; yours (consensus transport, D102/D106). I reran the job for our landing."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:10:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:10:07",
+      "by": "campaign xapiand",
+      "closed": "faultfs is landing now (CI rerun pending), ahead of xapiand:consensus-join-v2, which merges it; none of driver-flow, fetch-alongside-flake, faultfs or simulation-asan-timeout changes consensus:node-admission (tests and docs only, plus the Driver's Flow option)",
+      "id": "msg-273",
+      "settles": {
+        "ours": [
+          "consensus-driver-flow",
+          "consensus-fetch-alongside-flake",
+          "consensus-install-test-faultfs",
+          "consensus-simulation-asan-timeout"
+        ],
+        "quest": "xapiand:consensus-join-v2"
+      },
+      "text": "xapiand:consensus-join-v2 started and may change files your consensus-install-test-faultfs changes (order them with --after xapiand:consensus-join-v2, or narrow the files); builds against contract consensus:node-admission, which your consensus-driver-flow is changing; builds against contract consensus:node-admission, which your consensus-fetch-alongside-flake is changing; builds against contract consensus:node-admission, which your consensus-install-test-faultfs is changing; builds against contract consensus:node-admission, which your consensus-simulation-asan-timeout is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:15:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:15:19",
+      "by": "xapiand:consensus-join-v2",
+      "closed": "Peers stays DER: worker-pump-removal deletes it; its A4 moves Detent's voter pin to key_pin then",
+      "id": "msg-274",
+      "text": "consensus-join-v2 (Xapiand campaign) moves NodePins/HostTransport pins from the leaf certificate's DER SHA-256 to the SHA-256 of the key's SubjectPublicKeyInfo (new consensus::transport::key_pin(X509*)), so a renewed certificate keeps its pin (review F11). Peers, session.h's authenticated_voter and certificate_fingerprint stay as they are, so Detent's certificate_sha256 voter config is unchanged. Question for your lead (F11): should Peers move to SPKI pins too, or does it stay DER until worker-pump-removal deletes it? Default: it stays DER; nothing changes for Detent now. Any Detent code that builds NodePins (your Seeds wiring) would compute pins with key_pin after this lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:32:36",
+      "by": "site-core",
+      "closed": "asked site-core to hold the site/ move until legacy-h (owns website/**) lands; lead tells it then",
+      "id": "msg-275",
+      "text": "Heads-up: I am moving the Astro/Starlight site from website/ to site/ on main while extracting the four-site shared engine. docs/ remains campaign/design records. I will update CI, Pages, tests/docs, brand scripts, edit links, and README paths, then push only the site migration. Please avoid landing new website/ edits until this lands; after it lands, use site/ for page ownership and change tested_docs from website/src/content/docs/** to site/src/content/docs/**."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T11:03:20",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-270",
+      "items": {
+        "consensus-simulation-asan-timeout": "frees test/simulation_test.cc, test/driver_simulation.cc, docs/mechanisms/simulation*.md for consensus-simulation-asan-timeout",
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "consensus-simulation-asan-timeout",
+          "first-read-1ms"
+        ]
+      },
+      "text": "set consensus-driver-flow: unlocks frees test/simulation_test.cc, test/driver_simulation.cc, docs/mechanisms/simulation*.md for consensus-simulation-asan-timeout; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4665,7 +4823,34 @@
       "worktree": ""
     },
     "consensus-driver-flow": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T11:47:36",
+          "base": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "blobs": {
+            "CHANGELOG.md": "100644:bd84a0223055adb98995cb705f8fbd31f72014ca",
+            "docs/DRIVER.md": "100644:146b9e41dc5e0818514f6e2bbcf01fa28ef2297e",
+            "docs/mechanisms/append-pacing.md": "100644:f8ce0fa1602f7a07f213669aeb66ceead8995dfb",
+            "include/consensus/worker.h": "100644:552b192442e2532bb9dfc65e3cbf7877eef467ab",
+            "test/driver_test.cc": "100644:3293696f9cf1669ceac74439d478d8c79b055e14"
+          },
+          "by": "review",
+          "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "criteria": "925db7f3d9178032",
+          "diffs": {
+            "CHANGELOG.md": "01295c24678090af",
+            "docs/DRIVER.md": "6a5d372bb3b071a5",
+            "docs/mechanisms/append-pacing.md": "cee224a423037fc8",
+            "include/consensus/worker.h": "f39c0568811c57ba",
+            "test/driver_test.cc": "41002cb8f13dc8d1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "b9b31fabd24d641e539910d1b01571cf7ed5c76f",
+          "reviewed": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-install",
         "consensus-full-window-stall",
@@ -4689,7 +4874,7 @@
         "test/worker_test.cc",
         "test/driver_test.cc",
         "docs/DRIVER.md",
-        "docs/mechanisms/**",
+        "docs/mechanisms/append-pacing.md",
         "CHANGELOG.md"
       ],
       "history": [
@@ -4720,18 +4905,51 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-flow",
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T14:33:17",
+          "ci": {
+            "carried": true,
+            "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+            "runs": [
+              45229726672
+            ]
+          },
+          "commit": "e58ea966e6351e0e240a11bca191bf608f54e072",
+          "criteria": {
+            "A1": "261123-133440-5b59b1 (passed at 39c7092e9352; only 1 merge from main since, none touching its files)",
+            "A2": "261123-133441-63a36f (passed at 39c7092e9352; only 1 merge from main since, none touching its files); fails without: 261123-063953-58e218, 261123-063957-782827, 261123-105043-139c3a, 261123-105047-a9361e",
+            "A3": "`docs/DRIVER.md` (Replication flow) names WorkerLimits::flow and GroupOptions::scheduling.flow as the option, Flow{} its default",
+            "A4": "`ci:macos-arm64`, `ci:ci` (CI 45229726672 at consensus:f7a44f3, green)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+          "reason": "",
+          "tested": "e58ea966e6351e0e240a11bca191bf608f54e072"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T06:08:22",
-      "worktree": "../consensus-wt/detent/consensus-driver-flow"
+      "updated": "2026-11-23T14:33:23",
+      "worktree": ""
     },
     "consensus-driver-install": {
       "accepted": {
@@ -4933,6 +5151,42 @@
       "updated": "2026-11-21T13:31:24",
       "worktree": ""
     },
+    "consensus-driver-pipelined-sim": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_simulation.cc",
+        "test/simulation_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "consensus-driver-flow",
+        "consensus-simulation-asan-timeout"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The driver simulation runs pipelined appends end to end",
+      "updated": "2026-11-23T11:47:39"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
@@ -5116,6 +5370,43 @@
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
       "updated": "2026-11-20T21:51:09",
       "worktree": ""
+    },
+    "consensus-fetch-alongside-flake": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-fetch-alongside-flake",
+      "checks": [
+        {
+          "cmd": "ci:macos-x86_64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
+      "updated": "2026-11-23T12:32:17",
+      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -5656,19 +5947,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-install-test-faultfs",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T14:31:36",
+          "ci": {
+            "carried": true,
+            "commit": "3dd556a58513b215a6c86d8d7244c12e190be772",
+            "runs": [
+              45244702695
+            ]
+          },
+          "commit": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+          "criteria": {
+            "A1": "261123-133342-b92a57, 261123-133343-a718bf",
+            "A2": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: green at consensus:bf429c0 (run 44993461293; TSan rerun after an unrelated owe-order abort, consensus-sanitizer-ci-time)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "973fada1e7ea2414c7a4c014485750d555cb2a1a",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "6e1122cc691ddcdd3b5e527a1d4ac037cd7add57",
+          "reason": "",
+          "tested": "973fada1e7ea2414c7a4c014485750d555cb2a1a"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "started by force: one test file's journal backend; CMakeLists is listed only in case a link line changes, and quiesce-stall/peers-wake touch other blocks",
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "driver_install_test builds its journal on faultfs, not MemoryIO",
-      "updated": "2026-11-21T22:18:38",
-      "worktree": "../consensus-wt/detent/consensus-install-test-faultfs"
+      "updated": "2026-11-23T14:33:00",
+      "worktree": ""
     },
     "consensus-late-append": {
       "accepted": {
@@ -6708,18 +7028,55 @@
         "test/transport/rpc_host_test.cc",
         "docs/mechanisms/rpc-lane.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T10:35:24",
+          "ci": {
+            "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+            "runs": [
+              45229501082
+            ]
+          },
+          "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+          "criteria": {
+            "A1": "261123-093627-64939a, 261123-093627-f49f89",
+            "A2": "261123-102708-24df25; fails without: 261123-093621-880c1c",
+            "A3": "261123-060909-e27d55 (passed at 2d423871a13d; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/rpc-lane.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+              "commit": "2d423871a13deaf4164c38acce11940f86ff6f92",
+              "docs": [
+                "docs/mechanisms/rpc-lane.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060909-e27d55",
+              "level": "light",
+              "seconds": 1726.9,
+              "state": "done",
+              "what": "consensus-rpc-fetch-lag check suite at 2d423871a13d"
+            }
+          ],
+          "final": true,
+          "from": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "reason": "",
+          "tested": "531b655cf337a49e328b470aaa5c5955b3a07262"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T08:59:14",
-      "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
+      "updated": "2026-11-23T10:36:53",
+      "worktree": ""
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
@@ -6788,6 +7145,44 @@
       "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
       "updated": "2026-11-23T07:22:17",
       "worktree": ""
+    },
+    "consensus-simulation-asan-timeout": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-simulation-asan-timeout",
+      "checks": [
+        {
+          "cmd": "ci:linux-asan-ubsan",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/simulation_test.cc",
+        "test/driver_simulation.cc",
+        "docs/mechanisms/simulation*.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "consensus_simulation stays well inside its timeout under ASan",
+      "updated": "2026-11-23T11:03:23",
+      "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
       "accepted": {
@@ -12154,13 +12549,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-20T18:25:25"
+      "updated": "2026-11-23T10:18:44"
     },
     "fixture-500k": {
       "accepted": {},
@@ -13809,6 +14206,89 @@
       "title": "journal turn driver: the blocking entry sees a cross-thread wake at once",
       "updated": "2026-11-19T18:05:08",
       "worktree": ""
+    },
+    "journal-bound-first-open": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T11:45:07",
+          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "blobs": {
+            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
+            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
+            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+          },
+          "by": "review",
+          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "criteria": "2c746bd6f8489691",
+          "diffs": {
+            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
+            "include/journal/host.h": "04df3faad6d22e7e",
+            "test/lost_bound_test.cc": "37292cd506bcefe2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
+          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "journal-turn-sector-checks"
+      ],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-bound-first-open",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/lost_bound_test.cc",
+        "docs/mechanisms/lost-bound.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T10:49:13",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-bound-first-open",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "active",
+      "title": "The lost bound survives a power cut during the first open",
+      "updated": "2026-11-23T11:45:07",
+      "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
       "accepted": {
@@ -15624,6 +16104,67 @@
       "updated": "2026-11-21T08:29:19",
       "worktree": ""
     },
+    "journal-open-single-read": {
+      "accepted": {},
+      "after": [
+        "journal-bound-first-open",
+        "journal-turn-sector-checks"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "test/lost_bound_test.cc",
+        "bench/**",
+        "docs/mechanisms/lost-bound.md",
+        "docs/perf/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T11:45:11",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "An open reads each turn log once",
+      "updated": "2026-11-23T11:45:11"
+    },
     "journal-power-silent-loss": {
       "accepted": {
         "durability": {
@@ -16445,7 +16986,16 @@
         "fuzz/fuzz_turn_log.cc",
         "docs/mechanisms/turn-log-damage.md",
         "docs/mechanisms/turn-log*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/host_test.cc",
+        "test/lost_bound_test.cc",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "bench/turn_bench.cc",
+        "docs/design/host-layout.md",
+        "docs/mechanisms/framing.md",
+        "docs/mechanisms/turn-seal.md",
+        "include/journal/framing.h"
       ],
       "history": [
         {
@@ -16479,12 +17029,14 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T09:35:32",
+      "updated": "2026-11-23T10:56:14",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
       "accepted": {},
       "after": [],
+      "base": "87687327e0cb84c291b04f4e6e35a9055e4cd9a5",
+      "branch": "quest/detent/legacy-h",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -16544,7 +17096,10 @@
         "tests/detent_reader/**",
         "tests/detent_system/**",
         "tools/w5/**",
-        "website/**"
+        "website/**",
+        "docs/design/client-local-source.md",
+        "src/detent_local/evaluation.hh",
+        "include/detent_testing/**"
       ],
       "history": [
         {
@@ -16652,9 +17207,10 @@
       ],
       "repo": ".",
       "risk": "critical",
-      "status": "planned",
+      "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-22T22:05:39"
+      "updated": "2026-11-23T11:14:53",
+      "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
       "accepted": {},
@@ -26191,10 +26747,93 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T10:15:35",
+          "ci": {
+            "carried": true,
+            "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+            "runs": [
+              45189633970
+            ]
+          },
+          "commit": "2416ff80511b387342d26a250d35aeb9021576f6",
+          "criteria": {
+            "A1": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133829-b558f2, 261121-133832-23f97d, 261123-020610-c38819, 261123-020612-66011f",
+            "A10": "261123-060127-6575ae (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094528-862642, 261118-094529-cc96ed, 261118-094531-9d6c47, 261118-094532-ea240d, 261118-094533-4d9871, 261118-150210-e182b0, 261118-150213-4bef61, 261118-150215-b73f2b, 261118-150218-e176e3, 261118-150220-736a52, 261119-045632-5a285e, 261119-045636-1ae4f6, 261119-045639-da21c3, 261119-045642-44ae68, 261119-045646-c6bb0c",
+            "A11": "261123-060126-b8a2c8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094534-ef5614, 261118-150222-c9e640, 261119-045649-0b8176",
+            "A12": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-095700-c09e87, 261118-095701-fc5e6e, 261118-095703-2934a2, 261118-095704-ba2018, 261118-150223-3a55c5, 261118-150225-822725, 261118-150227-533ecf, 261118-150229-2e752f, 261119-045653-7df812, 261119-045656-100c83, 261119-045700-c2d927, 261119-045703-fdfa80",
+            "A13": "261123-060127-e4b07b (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A14": "261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-ba7596 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-140d4c (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133836-91d1e5, 261121-141042-a5d80c, 261121-141044-9b81e0, 261121-141047-4552ff, 261123-020610-c38819",
+            "A15": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A16": "261123-100115-16c6c5, 261123-060129-5230e0 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060129-0caffb (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A2": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A3": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A4": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-4b687d (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060124-994ab8 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-185553-58fade, 261119-045706-676367, 261120-150455-acc366",
+            "A5": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-b2d25e (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060123-04a67a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261121-133840-2a7bcc",
+            "A6": "261123-060124-6b8f76 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files), 261123-060125-5f2b20 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A7": "261123-060126-21529a (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files)",
+            "A8": "261123-060128-fc8519 (passed at 1d7f04f26ec9; only 1 merge from main since, none touching its files); fails without: 261118-094515-9b4bb9, 261118-094516-4e137b, 261118-094517-f5658e, 261118-094518-855a2e, 261118-094519-347eee, 261118-094521-4baa90, 261118-094522-34bd94, 261118-094523-363cb7, 261118-094525-7ae4a1, 261118-094527-d7fb02, 261118-100900-90e1ea, 261118-150142-8445c8, 261118-150144-1fe887, 261118-150147-6a8a03, 261118-150149-092144, 261118-150152-431265, 261118-150154-2d19f4, 261118-150157-b4eafd, 261118-150200-3c206c, 261118-150203-bfde28, 261118-150205-3f55ca, 261118-150208-3f52f6, 261118-150230-adf29d, 261118-150232-7b363f, 261119-045253-bf6dfc, 261119-045549-d0abbe, 261119-045552-74046b, 261119-045556-e9c3f2, 261119-045600-a76c88, 261119-045604-2ff884, 261119-045607-3738a8, 261119-045611-ba7bfb, 261119-045614-7f9b83, 261119-045618-1bbf8d, 261119-045621-ab977b, 261119-045625-a52560, 261119-045629-33a983, 261119-111418-48b91f, 261119-111420-6f99e1",
+            "A9": "[artifact] `docs/mechanisms/reader-core.md`: \"## Fork and cold preparation\" (also its sections Fork (D10), Bounds and Mapped bytes after verification; doc check job 261122-225652-b8b8ac)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060124-6b8f76",
+              "level": "light",
+              "seconds": 443.1,
+              "state": "done",
+              "what": "reader-s6 check native at 1d7f04f26ec9"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "state": "done"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+              "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060125-5f2b20",
+              "level": "light",
+              "seconds": 4120.4,
+              "state": "done",
+              "what": "reader-s6 check t3-tsan at 1d7f04f26ec9"
+            }
+          ],
+          "final": true,
+          "from": "1941ec85caa231e88076640fb1fc3d3429400543",
+          "later": [
+            "261123-101536-f6fb44"
+          ],
+          "reason": "",
+          "tested": "28c442b5644e931c833c3831e362fe59799e607e"
+        }
+      ],
       "lenses": [
         "security",
         "correctness"
+      ],
+      "messages": [
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T13:03:02",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Observability bench (job 261109-120858-28cd50, Detent:d1ce742 on reader S6 b1d281c): S6 core hot-int lookup is 889 ns at 1 thread, 3.3x reader.md D3's 268.5 ns pinned-view number. Check against S6's T1 gate before landing."
+        },
+        {
+          "answered": "2416ff80511b",
+          "at": "2026-11-09T17:15:15",
+          "by": "lead",
+          "id": "msg-2",
+          "text": "When reader-s6 rebases onto landed dense-pages (review dense-pages-design DES-10, DES-7 at Detent:81a3232): lazy_page_access.cc:147,228 page_header_bytes is now 64, use minimum_page_bytes; :233 the bitmap test must follow the header compare; prepared_reader.cc:172 layout_version == 2; :232 and prepared_reader.hh:10 root.logical (renamed per DES-9). Merge LazyPageAccess::resolve with paged_navigation.hh checked_page_bytes when rewriting resolve (DES-7). Its T1 gate carries D4's hit compare."
+        }
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
@@ -26206,9 +26845,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-23T06:08:54",
+      "updated": "2026-11-23T10:15:37",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
@@ -28464,7 +29103,8 @@
         "tests/detent_system/test_localhost_dial.py",
         "tests/detent_system/test_managed_case.sh",
         "tests/docs/run_e2e.py",
-        "tests/support/**"
+        "tests/support/**",
+        "tests/detent_system/managed.py"
       ],
       "landed": [],
       "lenses": [],
@@ -28475,7 +29115,7 @@
       "risk": "low",
       "status": "active",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-23T10:01:35",
+      "updated": "2026-11-23T10:15:54",
       "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {

@@ -35,6 +35,9 @@ set by the lead) and Step H's B1-B6.
 - A15 [decision] Removing both legacy Client sources (wave decision 8): D13
 - A16 [decision] Deleting `detent::Client` and `health()`, `Reader` the one read API: D14
 - A17 [decision] `detent get` keeps `GenerationReader` and loses `--defaults` until S7; position-independent code build-wide (H "Design vs code" 1; handoff owner question 5): D21
+- A18 `detent get` reads through `detent::Reader` (D148): it accepts `--reader-mapping-bytes` and refuses the other `--reader-*` flags, `--reader-validation full` and `--defaults`; a test checks both by value, and no `GenerationReader` path remains in `get`: the `native` gate
+- A19 `libdetent_testing` installs as an opt-in development component (D149): `tests/cmake_consumer` (or a sibling consumer) builds an application test against the installed library that publishes knob values into a test store and reads them through `Reader`, and the Python and Rust tests do the same through the C face: the `native` gate
+- A20 The design review's F1-F4 and F7 (`.campaign/detent/reviews/legacy-h-design.md`) are fixed, each with a test or job that fails without it; `docs/design/client-local-source.md` describes the bindings over the current ABI
 
 CI (wave 7, "CI green"; handoff step 2) is the landing's CI gate (REPORT O2), on the merged head
 after `reader-s6` lands; the macos-15 bindings fix is unproven until it runs.

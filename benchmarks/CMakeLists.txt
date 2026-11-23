@@ -85,3 +85,10 @@ if(APPLE AND TARGET detent::relay_mirror AND TARGET detent::authority)
   target_include_directories(detent_relay_window_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_authority")
   target_link_libraries(detent_relay_window_bench PRIVATE detent::relay_mirror detent::authority)
 endif()
+
+# T1 and T4 (reader.md): warm lookups through libdetent_reader beside a pinned ReadView.
+if(TARGET detent::testing_store)
+  add_executable(reader_bench reader_bench.cc)
+  target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
+endif()
