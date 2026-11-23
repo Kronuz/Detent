@@ -29,7 +29,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261121-222240-06c746 (ctest -R consensus_driver_install, the five cases); 261121-222221-9081aa (the `crash` sweep, outside ctest); `git grep memory_io` in consensus: empty |
-| A2 | CI on bf429c0 (pending) |
+| A2 | `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: green at consensus:bf429c0 (run 44993461293; TSan rerun after an unrelated owe-order abort, consensus-sanitizer-ci-time) |
 
 ## Result
 
