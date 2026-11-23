@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261122-210356-e066ca (fdcc66 rerun), 261122-210358-8be4f9 (system suite), 261122-210359-436a7d (builds, docs, links), 261122-210409-68087b (relay SIGTERM x20), 261122-210411-d3d9f7 (old test fails, --fails-without); all at 4ad9fdbf; CI at the pushed head.
+State: waiting on jobs 261123-061026-3c4e62 (authority SIGTERM x20), 261123-061028-5a97da (relay_pages x3); CI at ddc4f263 (pushed)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,6 +19,16 @@ secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
 
+00. Round 3. CI at 25458690: macos x2, linux x86_64 clang and gcc, tsan passed (relay SIGTERM fixed). Failed:
+   pin-check (task pin, pin-wave's); test_authority_daemon_sigterm on linux asan and arm64-gcc ("1
+   responses were cut short": curl 52, an unread request declined by the stop, the relay's cause);
+   test_system_relay_pages on asan only ("did not send the delta as pages", relay deltas 0, delta_records
+   1 after a 5 s paused rewrite; passed at 820f6a91 and on every other platform, no failure on main).
+   ddc4f263 merged main and made the authority test count only curl 18 as torn, and require every
+   request before the signal to complete (per-client line counts). 3c4e62 runs it x20; 5a97da runs relay_pages
+   x3 locally (Release). Next: read both and the CI at ddc4f263; if relay_pages fails again on asan, run it
+   at main's commit in CI terms before touching the relay. The old authority script did not reproduce
+   locally (CI only: slow runners), so no --fails-without job for it.
 0. Read the jobs in State. 9a4c8d and CI (every platform) failed only test_system_relay_sigterm. Cause: the
    test's classification, not the relay. An instrumented copy of the test on the 820f6a91 binaries found
    every "torn" outcome (14 over 8 runs) was a clean EOF after 0 response bytes, on connections opened at
