@@ -14327,9 +14327,27 @@
         "docs/mechanisms/turn-log-damage.md",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-23T06:52:45",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions too (as journal-tail-cut-header-design)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -14338,7 +14356,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
-      "updated": "2026-11-23T06:52:44"
+      "updated": "2026-11-23T06:52:45"
     },
     "journal-faultfs": {
       "accepted": {},
