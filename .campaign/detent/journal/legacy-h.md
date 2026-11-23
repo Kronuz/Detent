@@ -18,7 +18,7 @@ headers and the package files only; the consumer prints `count=7 on=1 missing=mi
 
 ## Next
 
-1. Read the jobs; fix failures; A10 job once msg-266 widens the file set.
+1. Read the jobs; fix failures.
 2. Pushed for CI (A9, CI gate); `campaign verify legacy-h --for A1,A2,A3,A4,A6,A7,A8,A18,A19`; jobs:
    A5 `bindings/tests/run.sh`; A10 `bindings/tests/legacy_grep.sh`; A12 the six
    `bindings/tests/mutants/*.patch` through `run.sh PATCH` with `--fails-without`; A13 `test_system_*`;
@@ -27,10 +27,8 @@ headers and the package files only; the consumer prints `count=7 on=1 missing=mi
 
 ## Blocked on
 
-- msg-266 (to the lead): `src/detent_local/evaluation.hh:11` names the deleted `detail::evaluate` in a
-  comment; the file is outside the file set. A10's grep hits it until the lead widens the set.
-- msg-267 (to the lead): add `include/detent_testing/store.hh` (D149's header-only C++ face) to the
-  file set; fallback `include/detent/test_store.hh`.
+Nothing. msg-266 and msg-267 closed: the lead added `src/detent_local/evaluation.hh` (comment fixed)
+and `include/detent_testing/**` (store.hh stays) to the file set.
 
 ## Design review (legacy-h-design.md) findings
 
@@ -75,11 +73,11 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 | A1, A2, A6-A8, A18, A19 | native 261123-110240-386616 |
 | A2-A5 | 261123-110300-4e60a4 (`bindings/tests/run.sh`, repeat until-fail:3) |
 | A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:daeca859` |
-| A10 | pending msg-266 (`bindings/tests/legacy_grep.sh`; one hit, `src/detent_local/evaluation.hh:11`) |
+| A10 | A10_JOB (`bindings/tests/legacy_grep.sh`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
 | A12 | 261123-110302-1a3102, 261123-110305-7bd985, 261123-110308-227199, 261123-110311-3880be, 261123-110314-6a9111, 261123-110317-302949 (fails-without) |
 | A13 | 261123-110344-ca7aa3 |
-| A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`; `client.md`, `sources.md`, `global-and-testing.md`, `guides/live-updates.md`, `06_adapters` deleted |
+| A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`: "share it; lookups are thread-safe on one reader."; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep) |
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
