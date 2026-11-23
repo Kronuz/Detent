@@ -4748,9 +4748,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T06:08:22",
+      "updated": "2026-11-23T11:02:39",
       "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
