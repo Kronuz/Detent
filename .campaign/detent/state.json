@@ -14305,6 +14305,45 @@
       "updated": "2026-11-21T22:24:16",
       "worktree": "../journal-wt/detent/journal-drop-memory-io"
     },
+    "journal-earlier-turn-loss": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_log.h",
+        "test/turn_log_test.cc",
+        "test/turn_log_damage_test.cc",
+        "docs/mechanisms/turn-log-damage.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
+      "updated": "2026-11-23T06:52:08"
+    },
     "journal-faultfs": {
       "accepted": {},
       "after": [
