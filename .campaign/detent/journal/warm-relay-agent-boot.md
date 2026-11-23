@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261123-141834-bbcc84 261123-141838-0c7abd and the 14 rows under Doing
+State: waiting on jobs 261123-151051-06b0df 261123-151055-68ee44
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -27,6 +27,13 @@ the 100K probe), 5M round 1 warm, cold (after the 5M probe, D85): 261123-142309-
 Worst case per 5M job: clone + authority ~60 s, mirror ~15 s, settle <=120 s, agent <=300 s, so
 no job needs --long.
 
+Probes at 10474914 on the old fixtures: 261123-141834-bbcc84 (100K) and 261123-141838-0c7abd (5M)
+never converged (wait_selected timeout). 100K: mirror ready 2.4 s after relay start; relay never
+idled (21 s CPU over the 120 s settle bound; the mirror syncs every 10 ms); the agent logged
+"1 namespaces selected", two publications and 4 page transfers (2.47 MB) within 0.4 s of start,
+then nothing, while the authority answered /v2/read version 784 for each of load0..load3. The 14
+rows were cancelled (12 skipped while queued, 2 cancelled).
+
 Earlier rounds (history):
 
 Harness in docs/measurements/warm-relay-agent-boot/ (boot.py one run warm|cold; row.sh in-job
@@ -39,16 +46,13 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Probe 261123-141834-bbcc84 (queued behind load 56-82 at submit) answers the lead's fixture
-   question: at dc0315b5 main's authorities opened the old fixtures (100K seeded at ea1fddc8, 1M at
-   78d69fa6, 5M at ea1fddc8), answered /v2/read at or above the seeded revision, and the mirror
-   synced and logged ready, so the hang is the renamed line; whether the agent converges on them
-   is what the probe shows. If it fails on the fixture, reseed at main (seed.sh; 1M took 1,115 s
-   light, 5M 4,679 s, which needs --long) and resubmit the rows; the rows wait on the probes.
-2. When the rows finish: tabulate them (table.py reads summary.jsonl; it needs the new mirror and
-   agent-publication fields), commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
-   (A2) for the mirror relay with the bundle-relay rows at 3a57661b beside it as the before
-   (lead), then ready for review.
+1. Fresh 100K seed at main 261123-151051-06b0df (fixture 100000-mirror, light) then probe
+   261123-151055-68ee44 (light, warm+cold, at 15951a88: marks keep the agent's selected table).
+   Agent selects: the old fixtures are stale; reseed 1M (light) and 5M (--long "5M seed takes
+   ~4,700 s"), then resubmit the rows. Agent does not select: product regression, report to the
+   lead at once with the logs.
+2. When the rows finish: tabulate, commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
+   for the mirror relay with the bundle-relay rows at 3a57661b as the before, then ready for review.
 
 ## Blocked on
 
