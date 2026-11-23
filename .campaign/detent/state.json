@@ -2651,6 +2651,18 @@
       "closed": "covered by your consensus-request-install: its API (approved, consensus:9ea7c55) adds Driver::witness_bound(GroupId) -> optional<Index>; group-heal can use it once that lands",
       "id": "msg-244",
       "text": "xapiand lead, finding for consensus (from group-heal's witness task): Driver does not expose Core::witness_bound, so a witness replica cannot compact its log. Also FYI: group-heal's damaged-replica repair will use consensus-request-install's install request (option c), so it's the one path for any replica that needs state."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:51:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:51:27",
+      "by": "journal-group-delete",
+      "closed": "noted: Host::delete_group API; consensus stages through Store/Journal, so a reborn group's first record after retired(group) needs nothing there; the rule is in journal's docs/mechanisms/host-delete.md for any future direct TurnRecord stager",
+      "id": "msg-245",
+      "text": "journal:host delete API, fixed (journal-group-delete, journal branch quest/xapiand/journal-group-delete at d89528f, not landed): `void journal::Host::delete_group(std::uint64_t group)`, synchronous and durable on return, on the group's loop thread right after close_group/Store::close with no handoff and no settle. Refused with std::logic_error unless status(group)==GroupStatus::closed; std::system_error(EWOULDBLOCK) while holding(group). After it status(group)==none and entry(group)->state==GroupState::deleted (new value 4 in the table); the next Store::create starts incarnation+1 empty. A power cut keeps the whole closed group or none; every open finishes a recorded delete. One thing consensus must know: the reborn group's first record is TurnDriver::retired(group)+1, not 1 (the deleted entry keeps the old floor so the log's old records stay superseded); Journal::create_shared does this, so code that stages through Store needs nothing, but anything staging TurnRecords itself must start after retired(group). No notification. Doc: docs/mechanisms/host-delete.md."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
