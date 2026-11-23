@@ -33,7 +33,7 @@ stale locally.
 | A3 | unit 261122-212055-71549d; system 261122-212119-72d34c |
 | A4 | system 261122-212119-72d34c (rerun of 261121-212132-5fb9e1 at Detent:c68022e8) |
 | A5 | [artifact] `docs/mechanisms/authority-capacity-raise.md` "Every use of `State::limits_`" |
-| A6 | CI at the pushed head: macos-arm64 (gate suite), ASan/UBSan, TSan, Docs |
+| A6 | `ci:macos-arm64`, `ci:linux-asan-ubsan`, `ci:linux-tsan` at the pushed head; the Docs workflow is read by the land gate |
 
 ### Fixes since the review
 
