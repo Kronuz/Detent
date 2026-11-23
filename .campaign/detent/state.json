@@ -5041,6 +5041,42 @@
       "updated": "2026-11-21T13:31:24",
       "worktree": ""
     },
+    "consensus-driver-pipelined-sim": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_simulation.cc",
+        "test/simulation_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "consensus-driver-flow",
+        "consensus-simulation-asan-timeout"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The driver simulation runs pipelined appends end to end",
+      "updated": "2026-11-23T11:47:39"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
