@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-104119-1fb4f2 261123-104121-0dca59 261123-104123-1ecb5a 261123-104126-e17d15 261123-104128-58508b 261123-104143-3708f8 261123-104146-ca1f89
+State: waiting on jobs 261123-104143-3708f8 261123-104146-ca1f89; blocked on the lead: file set (see Blocked on)
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,11 +14,10 @@ CHANGELOG), pushed for ci:ci. Jobs queued for A1-A4.
 
 ## Next
 
-1. When the jobs finish: read A1's main baseline (newest SILENT 36 of 201) and the fix's 0 SILENT;
-   A4's numbers against the design (bytes -5.6 to -6.2% at <=700 B, about +1.0% at 4 KiB; latency
-   within the A/A band); fill Evidence and Result.
-2. After the lead widens the file set (Blocked on): fix lost_bound_test.cc and host_test.cc, run
-   the suite, ci:ci green (A6).
+1. A4 jobs 261123-104143-3708f8 (bytes, main vs fix) and 261123-104146-ca1f89 (strict latency,
+   A/A band): compare with the design (bytes -5.6 to -6.2% at <=700 B, about +1.0% at 4 KiB);
+   fill A4's row and the Result.
+2. After the lead widens the file set: fix lost_bound_test.cc and host_test.cc, suite, ci:ci (A6).
 
 ## Blocked on
 
@@ -48,7 +47,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261123-104119-1fb4f2: main e58f977 with b335b69's probe: newest tail SILENT 36 of 201, earlier turns 4807 reported, 0 silent (blocks-newest-turn SILENT 29 of 108). Fix, its port (`turn_log_power_test probe 24 40`): newest crossing 258 reported, every changed sector 436 reported + 5 harmless, earlier turns 5525 reported + 2 harmless, newest turn of the clean log 103 reported: 0 SILENT; 6473 checks, 0 failures. Counts differ with the layout (Ruling 6) |
+| A2 | 261123-104121-0dca59 (sector_verdicts 17 checks, stale_alias 5, newest_turn_damage 447 reported and 487 tears, T9 at 8 seeds 31268 checks, 0 failures); fails without: 261123-104123-1ecb5a (newest_turn_damage at main: 41 SILENT, exit 1) |
+| A3 | 261123-104126-e17d15; fails without: 261123-104128-58508b (sector_check binding 32 bits: "a sector of segment S - 2^32 reads as stale, never as current: W is torn", exit 1) |
+| A4 | pending: 261123-104143-3708f8, 261123-104146-ca1f89. Local cost case at the fix: T9 workload 838.2 / 816.1 / 790.8 log bytes per turn at 2/4/32 KiB blocks; turn_bench 256 B 2366.7, 4 KiB 33673.8 |
+| A5 | `docs/mechanisms/turn-log-damage.md`: "A sector more than 2^32 segments older than the file's segment reads as damage, not as stale" (F6); "An all-zero sector is never written, not damage, and this is not \"verifies under neither\"" (F7); "A fragment never verifies on its own, so bytes inside a torn write's payload that once formed a valid fragment cannot forge a record" ... "reports every group lost" (journal-earlier-turn-loss F1) |
+| A6 | blocked: fixtures regenerated (journal:2e17407; journal_crc_fixture_test 87 checks, 0 failures locally); ci:ci pending, the suite fails in lost_bound_test and host_test outside the file set |
 
 ## Result
 
