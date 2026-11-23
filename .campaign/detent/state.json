@@ -2737,6 +2737,13 @@
       "closed": "reader-s6's file set includes src/detent_local/generation.cc",
       "id": "msg-79",
       "text": "reader-s6 needs src/detent_local/generation.cc in its file set. Main moved the reader's selected-table read into detail::read_selected (generation.cc:93); it opens 'selected' and the image with O_RDONLY and no O_NONBLOCK (SR1: a FIFO named selected blocks the open; A10), and trusted_file throws on a 'selected' renamed over between open and fstat (nlink 0) instead of reading again (FIX-2; A8). Recommended: add generation.cc to reader-s6 (no in-flight quest holds it); fix there, one shape for every caller. Alternative: a reader-private copy of read_selected in prepared_reader.cc (duplicate table decode). I proceed with the merge and the rest meanwhile."
+    },
+    {
+      "at": "2026-11-20T04:54:14",
+      "by": "namespace-local-cursor",
+      "closed": "namespace-local-cursor was dropped",
+      "id": "msg-144",
+      "text": "namespace-local-cursor needs two lead calls (continuing the bulk meanwhile).\n1. File set: the local types change shape (Descriptor/Root/ReadView cursor -> NamespaceCursor, ImageBuilder deleted), so these out-of-set callers must change: src/detent_relay/bundle.cc + include/detent_relay/bundle.hh (relay maps W1 head back to its v1 cache cursor from configuration; it also calls local make_snapshot_source), src/detent_agent/main.cc (view.cursor().revision, GenerationReader identity; server-composition-adoption also owns it), src/detent_agent/managed_host.cc (image_format, descriptor cursor; dd3 owns it but waits), tests/detent_agent/**, tests/detent_relay/**, tools/w5/** (w5_store.cc uses flat ImageBuilder), README.md:209 (flat-v1 text). Please add them; edits are minimal.\n2. A2 'free of the old Cursor': three v1 seams cannot leave until P4/P5 without editing detent_distribution: (a) local::detail::make_snapshot_source implements distribution::SnapshotSource, whose cursor() returns the v1 Cursor (relay re-encodes its head as v1); (b) detent_testing GenerationWriter encodes v1 wire and must give SnapshotDecoder/DeltaDecoder a v1 Cursor; (c) benchmarks delta_decode_bench and local_corpus.hh drive the v1 decoders. Options: A) allowlist exactly these seams in the grep job (they take the v1 cursor from their caller, never store it in local types); B) move the SnapshotSource adapter into the relay and decoders' callers into tests (more out-of-set edits, same v1 type still used). Recommend A: the local layer's own types, files and read API carry only W1; the seams die with v1 in P5."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
