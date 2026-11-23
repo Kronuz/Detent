@@ -1,6 +1,6 @@
 # consensus-sanitizer-ci-time: journal
 
-State: waiting on jobs 261122-210931-de7473 261122-210949-fe3a3e 261122-212240-272db5 261122-212244-62ba1e
+State: waiting on jobs 261122-210949-fe3a3e 261122-212240-272db5 261122-212244-62ba1e
 Quest: .campaign/detent/quests/consensus-sanitizer-ci-time.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,6 +10,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Worktree ../consensus-wt/detent/consensus-sanitizer-ci-time. A1 committed (consensus-sanitizer-ci-time:0338620): CMakeLists.txt skips the mutant tests when CMAKE_CXX_FLAGS, CMAKE_CXX_FLAGS_<BUILD_TYPE> or CMAKE_EXE_LINKER_FLAGS holds -fsanitize (the shared CI sets them there). A1 job 261122-210931-de7473; scripts in ~/.scratch/detent/consensus-sanitizer-ci-time/. A2 probe job 261122-210949-fe3a3e (owe-order x5 under TSan with 4 burners) to read where the 10 s goes (the `arrived` until in owe_order, groups_test.cc).
+
+A1 job 261122-210931-de7473 done at 0338620 (exit 0): mutant tests plain=17 asan-ubsan=0 tsan=0; total tests plain=132 asan-ubsan=115.
 
 A4 (lead's addition) committed consensus-sanitizer-ci-time:48ced0e: driver_mutants.py and tools/mutants.sh require each pattern to match exactly once (mutants.sh was `in`, now count==1; driver_mutants.py already exited, but its caller in a job reads that as a kill), a `check` / `--check` mode applies every mutant without building, ctest entries consensus_mutants_apply_driver and _core run it in every build; checkpoint-drops-suffix pattern updated to core.h's make_unique. Jobs: apply-all 261122-212240-272db5, mutant run 261122-212244-62ba1e (--fails-without: driver_test must fail on it; script exits 0 on configure/build failure). A1 job ran at 0338620; rerun at HEAD if the table says stale.
 
