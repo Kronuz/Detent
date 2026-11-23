@@ -78,6 +78,8 @@ struct Answer {
 	std::size_t span = 0;	 // Blocks: the span holding R + 1
 	bool operator==(const Answer &) const = default;
 };
-// Checks the history's shape (HistoryFailure) and picks the tier for `store`.
-Answer select_answer(const NamespaceHistory &, const std::optional<NamespaceCursor> &store);
+// Checks the history's shape (HistoryFailure) and picks the tier for `store`. With `repair`, `store`
+// is no store but the position its reader last published (D139): a full copy, Ahead (no answer)
+// while head is below it, so a reader never publishes a position older than one it published.
+Answer select_answer(const NamespaceHistory &, const std::optional<NamespaceCursor> &store, bool repair = false);
 } // namespace detent::distribution

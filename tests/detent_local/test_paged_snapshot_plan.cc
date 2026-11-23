@@ -217,7 +217,7 @@ int main() {
 		}
 		check(rejected && reset_plan.descriptor() == reset_target && store->selection().descriptor == wanted);
 		auto configured = reset_target.cursor;
-		configured.restore_epoch.fill('q');
+		configured.incarnation.fill('q');
 		rejected = false;
 		try {
 			store->begin_reset(std::move(reset_plan), {wanted, configured, reset_target.profile});
@@ -242,7 +242,7 @@ int main() {
 			l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store));
 		store->confirm_recovered(restored);
 		check(restored.descriptor() == reset_target &&
-			  restored.descriptor().cursor.revision < newer.descriptor().cursor.revision);
+			  restored.descriptor().cursor.position < newer.descriptor().cursor.position);
 		check(base.view().get("app", "count").value() == INT64_MIN &&
 			  newer.view().get("app", "count").value() == INT64_MIN);
 		store->close();

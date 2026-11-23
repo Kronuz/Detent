@@ -151,7 +151,7 @@ struct GraphValidator::Impl {
 			value.length = parsed.name_space.size();
 			std::copy(parsed.name_space.begin(), parsed.name_space.end(), value.name.begin());
 			value.revision = read_integer(body, 0, 8);
-			require(value.revision <= expected.cursor.revision &&
+			require(value.revision <= expected.cursor.position &&
 					(namespaces.empty() || namespaces.back().text() > value.text()));
 			namespaces.push_back(value);
 		} else {

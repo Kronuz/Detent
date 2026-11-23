@@ -129,16 +129,6 @@ int main() {
 	require(navigator.discard(disposal));
 	require(account->used() == baseline);
 	{
-		l::ImageBuilder flat(source);
-		while (!flat.done()) {
-			l::ValidationBudget b;
-			flat.step(b);
-		}
-		trusted_records::install(directory, flat.descriptor(), flat.bytes()->view());
-		auto legacy = l::recover_generation(directory);
-		rejects<std::invalid_argument>([&] { l::detail::PagedPlanBuilder::reuse(legacy, account, target); });
-	}
-	{
 		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(50000)));
 		l::GenerationId id{};
 		id.fill('m');

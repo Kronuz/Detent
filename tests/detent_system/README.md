@@ -34,9 +34,13 @@ A native macOS 60-second development run with 16 producers and 1,000 records rec
 
 ## Managed failover checks
 
-CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, polling failover, relay fanout and terminal trust rejection. Each managed cohort uses an independent C++ SDK reader to compare every expected integer against the durable local generation. Unavailable cases also compare the selected-generation record before and after the outage. Cohorts stop before the publisher connection-drain assertion.
+CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, relay fanout and terminal trust rejection. Agents follow each producer's namespace on W5/W6 sessions, from the voters or from two relays mirroring them. The cohort waits until every agent's table entry for each namespace reaches the writers' last revision there; an independent C++ SDK reader then opens each namespace's entry by name and compares every expected integer. Unavailable cases also compare the selected table before and after the outage. Cohorts stop before the publisher connection-drain assertion.
 
-The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, invalid Next profile, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
+The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, malformed Next frames, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.
+
+## Relay pages
+
+`test_system_relay_pages` (`run_relay_pages.py`) runs dense distribution DD3 end to end on three voters, one relay and two agents: one agent reads the authority and builds from records, the other boots 100,000 keys from the relay's page transfer, logging zero bytes hashed to build, to the same root (the root page's content entry at the same position). A clustered rewrite of 55,555 keys made while the relay is stopped (SIGSTOP) then reaches the warm agent as one pages delta, counted in the relay's `/v1/health` `mirror.pages`. `forcing/relay-root-forced.patch` makes every full copy the relay sends name a wrong root; `forcing/relay_pages_forced.sh` runs the test under it with `--expect-refusal`: the agent refuses the transfer and boots from records, to the same root, and its session then takes the delta as records.
 
 ## Flake forcings
 

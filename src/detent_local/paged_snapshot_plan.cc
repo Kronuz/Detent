@@ -16,9 +16,25 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 	limits_.retirement_domain = nullptr;
 	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	// A snapshot is a full copy, so its name has a zero base (D8.1).
-	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->cursor(),
+	const auto name = next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, source->namespace_cursor(),
 									  source->profile(), true);
 	encoder_.emplace(std::move(source), name, bounds);
+}
+PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(PagedImage &&image, std::optional<RecoveredGeneration> base,
+												   DirectoryIdentity directory, d::RetirementFactory factory,
+												   std::shared_ptr<d::StorageLedger> heap, ViewLimits limits,
+												   bool repair)
+	: base_(std::move(base)), factory_(std::move(factory)), heap_(std::move(heap)), directory_(directory),
+	  limits_(limits), repair_(repair) {
+	if ((base_ && base_->directory_identity() != directory_) || limits_.bytes < paged::root_bytes)
+		throw std::invalid_argument("snapshot plan requires actual bindings and exact resources");
+	limits_.retirement_domain = nullptr;
+	const auto &descriptor = image.descriptor();
+	if (DerivedGeneration{descriptor.generation, descriptor.ordinal} !=
+		next_generation(base_ ? std::optional(base_->descriptor()) : std::nullopt, descriptor.cursor,
+						descriptor.profile, true))
+		throw std::invalid_argument("received image is not named as a full copy over its base");
+	validator_.emplace(std::move(image), factory_, heap_, limits_);
 }
 bool PagedSnapshotPlanBuilder::grant(std::size_t amount, ValidationBudget &budget) {
 	if (!budget.rows)
@@ -76,21 +92,16 @@ void PagedSnapshotPlanBuilder::step(ValidationBudget &budget) {
 			++histogram_;
 		}
 		if (state_->intent_ == PagedPlanIntent::Maintenance) {
-			if (!equality_)
-				equality_.emplace(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
-			equality_->step(budget);
-			if (!equality_->done())
-				return;
-			if (!equality_->equal())
+			StateEquivalence equality(StateCursor(*base_, heap_), StateCursor(validator_->take(), heap_));
+			if (!equality.equal())
 				throw std::invalid_argument("same-cursor snapshot changes logical state");
-			unchanged_proof_.emplace(equality_->take_proof());
+			unchanged_proof_.emplace(equality.take_proof());
 			if (!unchanged_proof_->binds_construction(*base_, state_->descriptor_))
 				throw std::invalid_argument("unchanged snapshot proof binding mismatch");
 		} else
 			state_->sealed_ = true;
 		finished_ = true;
 		validator_.reset();
-		equality_.reset();
 	} catch (...) {
 		failed_ = true;
 		throw;

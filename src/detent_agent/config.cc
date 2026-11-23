@@ -54,10 +54,6 @@ Config load_config(const std::vector<std::string>& args) {
 											{"generation_dir", {"--generation-dir", Path}},
 											{"publisher_user", {"--publisher-user", StringOrUint64, true}},
 											{"reader_validation", {"--reader-validation", String, true}},
-											{"generation_cluster", {"--generation-cluster", String}},
-											{"generation_group", {"--generation-group", String}},
-											{"generation_epoch", {"--generation-epoch", String}},
-											{"generation_scope", {"--generation-scope", String}},
 										};
 	for (auto field : reader_fields) {
 		std::string suffix(field);

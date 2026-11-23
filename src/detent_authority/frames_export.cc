@@ -10,8 +10,10 @@ FramesExport::FramesExport(std::vector<FramesRequest> requests, std::optional<d:
 	: owned_(std::move(requests)), account_(std::move(account)), maximum_(maximum_bytes), update_(update),
 	  compress_(compress) {
 	requests_.reserve(owned_.size());
-	for (const auto &request : owned_)
+	for (const auto &request : owned_) {
 		requests_.push_back({request.name, request.history.get(), request.store, request.dropped});
+		requests_.back().repair = request.repair;
+	}
 	encoder_.emplace(directory, requests_, account_);
 	empty_ = !directory || directory->entries.empty();
 	for (const auto &answer : encoder_->answers())
@@ -30,9 +32,9 @@ FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d:
 					   const State &sealed, const history::Table &table, history::Files &files,
 					   const ChangeHistory &ring) {
 	FramesPlan plan;
-	auto request = [&](const std::string &name, const std::optional<d::NamespaceCursor> &store) {
+	auto request = [&](const std::string &name, const std::optional<d::NamespaceCursor> &store, bool repair) {
 		if (auto frozen = AuthorityHistory::freeze(name, cluster, state, sealed, table, files, ring)) {
-			plan.requests.push_back({name, std::move(frozen), store, std::nullopt});
+			plan.requests.push_back({name, std::move(frozen), store, std::nullopt, repair});
 			return;
 		}
 		const auto *entry = state.namespace_entry(name);
@@ -44,8 +46,8 @@ FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d:
 		if (store && !(store->cluster == cluster && store->position > entry->position))
 			plan.requests.push_back({name, nullptr, store, d::NamespaceCursor{cluster, entry->incarnation, entry->position}});
 	};
-	for (const auto &[name, store] : follows)
-		request(name, store);
+	for (const auto &[name, store, repair] : follows)
+		request(name, store, repair);
 	if (all) {
 		d::DirectoryUpdate update;
 		update.from = all->cluster == cluster ? all->position : 0;
@@ -56,9 +58,9 @@ FramesPlan plan_frames(std::span<const Followed> follows, const std::optional<d:
 					return;
 				update.entries.push_back({name, entry.incarnation, entry.live});
 				const bool followed = std::any_of(follows.begin(), follows.end(),
-												  [&](const auto &f) { return f.first == name; });
+												  [&](const auto &f) { return f.name == name; });
 				if (entry.live && !followed)
-					request(name, std::nullopt);
+					request(name, std::nullopt, false);
 			});
 			plan.directory = std::move(update);
 		}

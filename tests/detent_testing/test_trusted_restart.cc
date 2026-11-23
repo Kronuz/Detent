@@ -279,7 +279,7 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		detent::testing::GenerationWriter writer(store);
 		writer.publish_json(json(revision + 1));
 	}
-	const int after = int(selected(store).cursor.revision);
+	const int after = int(selected(store).cursor.position);
 	CHECK(after == revision + 1);
 	{
 		Session session;

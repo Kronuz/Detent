@@ -302,8 +302,8 @@ void after_cuts(const std::string &self, const std::filesystem::path &root, cons
 		{
 			Agent agent(directory);
 			const auto selected = agent.store->selection().descriptor;
-			require(selected && (selected->cursor.revision == R || selected->cursor.revision == h));
-			if (selected->cursor.revision == h) {
+			require(selected && (selected->cursor.position == R || selected->cursor.position == h));
+			if (selected->cursor.position == h) {
 				require(Agent::state_of(agent.recover(directory)) == expected);
 			} else {
 				++from_r;

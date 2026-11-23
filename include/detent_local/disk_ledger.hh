@@ -50,7 +50,7 @@ class DiskLedger {
 	// replacement table, staged under a `.tmp-` name before it is renamed over `selected`.
 	static DiskUsage generation_peak(std::uint64_t image_length, std::uint64_t read_bytes, std::uint64_t live_bytes) {
 		constexpr std::uint64_t table = 64 + 137 + 255 + 32;
-		if (image_length < header_bytes || read_bytes > (1u << 16) || live_bytes > (std::uint64_t(1) << 40) ||
+		if (image_length < paged::root_bytes || read_bytes > (1u << 16) || live_bytes > (std::uint64_t(1) << 40) ||
 			image_length > std::numeric_limits<std::uint64_t>::max() - table - read_bytes - live_bytes)
 			throw std::length_error("invalid managed generation extent");
 		return {image_length + read_bytes + live_bytes + table, 5, 1};

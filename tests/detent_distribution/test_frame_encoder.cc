@@ -102,8 +102,12 @@ int main() {
 					expected.final = true;
 					expected.bytes = "end";
 					check(last->view() == d::encode_fragment(expected));
-				} else
-					check(first->size() < first->storage_capacity());
+				}
+				// take() holds a fragment that fills at most half its buffer at its own size.
+				const auto page = d::make_owned_buffer(account, 1)->storage_capacity() - 1;
+				check(last->storage_capacity() == last->size() + page);
+				check(first->storage_capacity() ==
+					  (compressed ? first->size() : d::OwnedFragmentEncoder::maximum_wire_bytes()) + page);
 				const auto pinned = account->used();
 				drain(encoder);
 				check(first->view() == std::string_view(wire).substr(0, first->size()));

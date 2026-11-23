@@ -279,6 +279,38 @@ void period_change() {
 	assert(run.steps.back().table && run.steps.back().table->ordinal == 6);
 }
 
+void seal_entry() {
+	// D136: the leader's seal entry seals pending changes where it applies, as the next ordinal;
+	// with nothing pending, or before positions, it changes nothing.
+	State before(context());
+	AdministrativeCommand seal{context(), AdministrativeKind::Seal, {}, {}, {}, {}};
+	assert(before.administer(1, seal).status == Status::Conflict && !before.close_entry(64));
+	assert(decode_administrative(encode(seal)) == seal);
+	AdministrativeCommand bad = seal;
+	bad.name_space = "a";
+	assert(throws([&] { encode(bad); }));
+	Run run(LayoutPolicy{});
+	assert(run.state.administer(++run.index, seal).status == Status::NoChange);
+	run.entry(64);
+	assert(run.steps.size() == 1);
+	run.write("a", "x", 1);
+	assert(run.steps.size() == 1 && run.state.pending_changes() == 1);
+	assert(run.state.administer(++run.index, seal).status == Status::Applied && run.state.seal().forced);
+	// A checkpoint between the entry and its close keeps the forced seal.
+	auto restored = State::restore(run.state.checkpoint(), context());
+	assert(restored.seal() == run.state.seal());
+	run.entry(64);
+	assert(run.steps.size() == 2 && run.state.seal().ordinal == 1 && !run.state.seal().forced);
+	assert(run.steps.back().seal.namespaces.size() == 1 && !run.state.pending_changes());
+	assert(run.state.administer(++run.index, seal).status == Status::NoChange);
+	run.entry(64);
+	assert(run.steps.size() == 2);
+	run.write("a", "y", 2);
+	assert(run.state.administer(++run.index, seal).status == Status::Applied);
+	run.entry(64);
+	assert(run.steps.size() == 3 && run.state.seal().ordinal == 2);
+}
+
 // An independent model of one namespace's layout (the design's rules, as the
 // key-level model writes them), compared with the table after every seal.
 struct Model {
@@ -498,6 +530,7 @@ int main() {
 	formats();
 	seal_trigger();
 	period_change();
+	seal_entry();
 	LayoutPolicy small; // A small group: seals every 16 transactions, short periods.
 	small.seal_transactions = 16;
 	small.period = 4;

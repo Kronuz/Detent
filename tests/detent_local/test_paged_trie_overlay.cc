@@ -202,7 +202,7 @@ int main() {
 	{
 		const auto baseline = source->storage_account()->used();
 		p::Root empty;
-		empty.cursor = cursor();
+		empty.cursor = local_cursor();
 
 		l::detail::TrieOverlay overlay(source->storage_account(), input, {}, empty);
 		std::array<char, 202> key{};

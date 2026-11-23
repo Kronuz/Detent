@@ -15,7 +15,6 @@ void qualify(const detent::KnobDef &definition) {
 	p::encode_definition(body, definition, 42);
 	p::validate_definition(body, 42);
 	const auto view = l::detail::BorrowedDefinition::from_paged(body);
-	check(view.qualified_key().empty());
 	check(view.default_value() == definition.default_value && view.rollout() == definition.rollout_pct);
 	check(view.rollout_value() == definition.rollout_value.value_or(definition.default_value));
 	for (const auto &[key, expected] : definition.overrides)

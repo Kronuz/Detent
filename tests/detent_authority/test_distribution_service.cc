@@ -2,7 +2,7 @@
 #include "detent_distribution/framing.hh"
 #include "service.hh"
 #ifdef DETENT_TEST_MANAGED_DELIVERY
-#include "detent_delivery/client.hh"
+#include "detent_delivery/namespace_session.hh"
 #include "detent_transport/await_io.hh"
 #endif
 #include "consensus/transport/tls.h"
@@ -182,6 +182,72 @@ int main(int argc, char **argv) {
 				}
 				check(elected);
 			}
+#ifdef DETENT_TEST_MANAGED_DELIVERY
+			// W5 first: its next answers once the leader enabled positions, so the v1 requests below
+			// never race the enabling entry.
+			auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+			reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
+											 reactor::tls::Role::Client);
+			for (bool compressed : {false, true}) {
+				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+				{
+					asio::io_context client_io;
+					task::asio_scheduler client_scheduler(client_io.get_executor());
+					detent::delivery::ClientOptions receive_options;
+					receive_options.scheduler = &client_scheduler;
+					receive_options.endpoint = endpoint;
+					receive_options.hostname = "localhost";
+					receive_options.token = token;
+					receive_options.tls_context = client_tls;
+					receive_options.compression = compressed;
+					receive_options.limits.storage_account = account;
+					// W5/W6: a first open and next for `ns` is one full copy at the authority's head.
+					struct Copy final : detent::delivery::FramePreparer {
+						std::vector<std::string> keys;
+						std::optional<d::NamespaceCursor> at;
+						struct Frame final : Prepared {
+							Copy &owner;
+							d::NamespaceCursor to;
+							std::vector<std::string> keys;
+							Frame(Copy &copy, const d::NamespaceCursor &cursor) : owner(copy), to(cursor) {}
+							void piece(d::PieceKind, std::uint64_t, std::uint64_t) override {}
+							void record(std::string_view key, std::uint64_t, const detent::KnobDef *value) override {
+								if (value)
+									keys.emplace_back(key);
+							}
+							std::size_t bytes() const noexcept override { return 64 * (keys.size() + 1); }
+							void publish() override {
+								owner.keys = std::move(keys);
+								owner.at = to;
+							}
+						};
+						std::unique_ptr<Prepared> prepare(std::string_view, d::FrameKind kind, std::uint64_t,
+														  const d::NamespaceCursor &to) override {
+							check(kind == d::FrameKind::FullCopy);
+							return std::make_unique<Frame>(*this, to);
+						}
+					} copy;
+					const detent::delivery::Following following{{{"ns", {}}}, {}};
+					auto session = detent::transport::run_until_done(
+						client_io, client_scheduler, detent::delivery::open_namespace_session(receive_options, following));
+					// The history answers once the write is sealed: idle until then.
+					auto outcome = detent::delivery::FramesOutcome::Idle;
+					for (int attempt = 0; attempt < 50 && outcome == detent::delivery::FramesOutcome::Idle; ++attempt) {
+						client_io.restart();
+						outcome = detent::transport::run_until_done(
+							client_io, client_scheduler,
+							detent::delivery::next_namespace_session(receive_options, session, following, 200ms, copy));
+					}
+					check(outcome == detent::delivery::FramesOutcome::Frames);
+					check(copy.at && copy.at->cluster == cursor.cluster);
+					check(copy.keys == std::vector<std::string>{"ns:a"});
+					client_io.restart();
+					detent::transport::run_until_done(
+						client_io, client_scheduler, detent::delivery::close_namespace_session(receive_options, session));
+				}
+				check(account->used() == 0);
+			}
+#endif
 			for (bool compressed : {false, true}) {
 				const auto response =
 					request(endpoint, cert, "/v2/distribution",
@@ -199,23 +265,19 @@ int main(int argc, char **argv) {
 			}
 			auto response = request(endpoint, cert, "/v2/distribution",
 									"{" + common + base(0) + "\"coding\":\"raw\"}", token);
-			// The ring is refilled by replay, so a restart loses no cursor (D6).
-			decoded(response, d::UpdateKind::Delta, false);
+			// Past the enabling entry, replay refills no v1 ring: a restart answers a v1 base with a
+			// snapshot. W5 sessions carry their cursors across restarts instead.
+			decoded(response, run ? d::UpdateKind::Snapshot : d::UpdateKind::Delta, false);
 			if (!run) {
 				check(call("/v2/transactions",
 						   "\"generation\":1,\"sequence\":2,\"namespace\":\"secret\",\"operations\":[{"
 						   "\"key\":\"secret:a\",\"value\":{\"default\":99}}]")
 						  .status == 200);
+				// Positions are enabled (the W5 check above): a v1 base before the enabling entry is
+				// answered with a snapshot.
 				response = request(endpoint, cert, "/v2/distribution",
 								   "{" + common + base(1) + "\"coding\":\"raw\"}", token);
-				auto bytes = decoded(response, d::UpdateKind::Progress, false);
-				d::DeltaDecoder decoder(cursor, {"ns"}, {}, d::UpdateKind::Progress);
-				auto input = std::span<const char>(bytes.data(), bytes.size());
-				while (!input.empty()) {
-					d::WorkBudget work;
-					decoder.feed(input, work);
-				}
-				check(decoder.finish().target().revision == 2);
+				decoded(response, d::UpdateKind::Snapshot, false);
 			}
 			response = request(endpoint, cert, "/v2/distribution",
 							   "{" + common + base(2) + "\"coding\":\"raw\"}", token);
@@ -223,39 +285,6 @@ int main(int argc, char **argv) {
 			check(request(endpoint, cert, "/v2/distribution",
 						  "{" + common + "\"coding\":\"raw\",\"profile\":1}", token)
 					  .status == 400);
-#ifdef DETENT_TEST_MANAGED_DELIVERY
-			auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-			reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
-											 reactor::tls::Role::Client);
-			for (bool compressed : {false, true}) {
-				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
-				{
-					asio::io_context client_io;
-					task::asio_scheduler client_scheduler(client_io.get_executor());
-					detent::delivery::ClientOptions receive_options;
-					receive_options.scheduler = &client_scheduler;
-					receive_options.endpoint = endpoint;
-					receive_options.hostname = "localhost";
-					receive_options.token = token;
-					receive_options.tls_context = client_tls;
-					receive_options.configured = cursor;
-					receive_options.namespaces = {"ns"};
-					receive_options.compression = compressed;
-					receive_options.limits.storage_account = account;
-					auto received = detent::transport::run_until_done(
-						client_io, client_scheduler, detent::delivery::receive(std::move(receive_options)));
-					check(received.snapshot && received.target.revision == 2 &&
-						  received.snapshot->records().size() == 1 &&
-						  received.snapshot->records()[0].key == "ns:a");
-					for (;;) {
-						d::WorkBudget work;
-						if (received.snapshot->discard(work))
-							break;
-					}
-				}
-				check(account->used() == 0);
-			}
-#endif
 			server.stop();
 		}
 		std::filesystem::remove_all(directory);

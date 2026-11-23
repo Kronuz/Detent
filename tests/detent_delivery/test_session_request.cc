@@ -145,7 +145,8 @@ int main() {
 				opened = v2(h::RequestKind::Open,
 							"{\"version\":2,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[],\"all\":0}");
 				check(opened->request().positions.empty() && opened->request().all == d::DirectoryCursor{} &&
-					  opened->request().wait_ms == 30000);
+					  opened->request().wait_ms == 30000 && !opened->request().pages &&
+					  opened->request().records.empty());
 				opened.reset();
 				opened = v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') + ",\"cluster\":" +
 													  identity('1') + ",\"namespaces\":[[\"pay\"," + identity('2') +
@@ -153,6 +154,12 @@ int main() {
 				check(opened->request().session[0] == '\xaa' && opened->request().positions.size() == 1 &&
 					  opened->request().positions[0].cursor->position == 42 && !opened->request().all &&
 					  opened->request().wait_ms == 250);
+				opened.reset();
+				// DD3: open asks for page transfers and names the namespaces asked as records; next does not.
+				opened = v2(h::RequestKind::Open, "{\"version\":2,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[[\"a\"],"
+												  "[\"b\"]],\"pages\":true,\"records\":[\"a\",\"z\"]}");
+				check(opened->request().pages && opened->request().records.size() == 2 &&
+					  opened->request().records[0] == "a" && opened->request().records[1] == "z");
 				opened.reset();
 				opened = v2(h::RequestKind::Close, "{\"version\":2,\"session\":" + identity('a') + "}");
 				check(opened->request().version == 2);
@@ -172,10 +179,18 @@ int main() {
 						 open2 + "\"namespaces\":[[\"a\"]],\"wait_ms\":30001}",			   // wait bound
 						 open2 + "\"namespaces\":[[\"a\"]],\"scope\":" + identity('4', 64) + "}", // v1 field
 						 std::string("{\"version\":3,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[[\"a\"]]}"),
+						 open2 + "\"namespaces\":[[\"a\"]],\"pages\":false}",						   // pages is true or absent
+						 open2 + "\"namespaces\":[[\"a\"]],\"records\":[]}",						   // empty records
+						 open2 + "\"namespaces\":[[\"a\"]],\"records\":[\"b\",\"a\"]}",			   // records out of order
+						 open2 + "\"namespaces\":[[\"a\"]],\"records\":[\"a b\"]}",					   // records name
 					 })
 					check(refused_v2(h::RequestKind::Open, bad));
 				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
 														   ",\"namespaces\":[[\"a\"]],\"after\":1}"));
+				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
+														   ",\"namespaces\":[[\"a\"]],\"pages\":true}")); // open only
+				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
+														   ",\"namespaces\":[[\"a\"]],\"records\":[\"a\"]}"));
 				check(refused_v2(h::RequestKind::Close, "{\"version\":2,\"session\":" + identity('a') +
 															",\"namespaces\":[]}"));
 			}

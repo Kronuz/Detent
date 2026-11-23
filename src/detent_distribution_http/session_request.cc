@@ -111,14 +111,19 @@ struct ParsedSessionRequest::Impl {
 					limits.namespaces <= 4096 && limits.maximum_wait_ms <= 60000,
 				"invalid session parser admission");
 	}
-	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?};
-	// next {version, session, cluster?, namespaces, all?, wait_ms?}; close {version, session}.
-	// A namespace is [name] or [name, incarnation, position].
+	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?, pages?, records?};
+	// next {version, session, cluster?, namespaces, all?, wait_ms?, resume?}; close {version, session}.
+	// A namespace is [name] or [name, incarnation, position]; resume is [name, root, after, offset].
 	void parse_positions() {
 		switch (result.kind) {
 		case RequestKind::Open:
-			fields(document, {"version", "profile", "coding", "cluster", "namespaces", "all", "wait_ms"});
+			fields(document,
+				   {"version", "profile", "coding", "cluster", "namespaces", "all", "wait_ms", "pages", "records"});
 			require(number(field(document, "profile")) == 1, "unsupported session profile");
+			if (document.HasMember("pages")) {
+				require(field(document, "pages").IsTrue(), "session pages is true or absent");
+				result.pages = true;
+			}
 			{
 				auto coding = text(field(document, "coding"), 4);
 				require(coding == "raw" || coding == "zstd", "unsupported session coding");
@@ -126,8 +131,18 @@ struct ParsedSessionRequest::Impl {
 			}
 			break;
 		case RequestKind::Next:
-			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms"});
+			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms", "resume"});
 			result.session = identity<d::Identity>(field(document, "session"));
+			if (document.HasMember("resume")) {
+				const auto &resume = field(document, "resume");
+				require(resume.IsArray() && resume.Size() == 4, "session resume arity");
+				const auto name = text(resume[0], 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char),
+						"session resume name");
+				result.resume = TransferResume{name, identity<std::array<char, 32>>(resume[1]), number(resume[2]),
+											   number(resume[3])};
+				require(result.resume->offset && result.resume->offset % (64 * 1024) == 0, "session resume offset");
+			}
 			break;
 		case RequestKind::Close:
 			fields(document, {"version", "session"});
@@ -149,21 +164,37 @@ struct ParsedSessionRequest::Impl {
 		std::size_t size = 0;
 		std::string_view previous;
 		for (const auto &entry : names.GetArray()) {
-			require(entry.IsArray() && (entry.Size() == 1 || entry.Size() == 3), "session namespace entry arity");
+			require(entry.IsArray() && (entry.Size() == 1 || entry.Size() == 3 || entry.Size() == 4),
+					"session namespace entry arity");
 			auto name = text(entry[0], 198);
 			require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
 						(previous.empty() || previous < name),
 					"session namespaces are not valid names in order");
 			previous = name;
 			std::optional<d::NamespaceCursor> at;
-			if (entry.Size() == 3) {
+			if (entry.Size() >= 3) {
 				require(cluster != d::Identity{}, "a namespace cursor needs the cluster");
 				at = d::NamespaceCursor{cluster, identity<d::Identity>(entry[1]), number(entry[2])};
 			}
-			std::construct_at(positions + size++, NamespacePosition{name, at});
+			require(entry.Size() < 4 || entry[3].IsTrue(), "a repair position ends with true");
+			std::construct_at(positions + size++, NamespacePosition{name, at, entry.Size() == 4});
 		}
 		result.positions = {positions, size};
 		require(size || result.all, "a session follows at least one namespace or all");
+		if (document.HasMember("records")) {
+			const auto &listed = field(document, "records");
+			require(listed.IsArray() && listed.Size() && listed.Size() <= limits.namespaces, "session records bound");
+			auto records = static_cast<std::string_view *>(arena.allocate(listed.Size() * sizeof(std::string_view)));
+			std::size_t count = 0;
+			for (const auto &value : listed.GetArray()) {
+				auto name = text(value, 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+							(!count || records[count - 1] < name),
+						"session records are not valid names in order");
+				std::construct_at(records + count++, name);
+			}
+			result.records = {records, count};
+		}
 	}
 	void parse(std::string_view bytes) {
 		require(!parsed && !retiring, "session parser already consumed");

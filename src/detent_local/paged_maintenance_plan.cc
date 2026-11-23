@@ -62,21 +62,16 @@ void PagedMaintenanceBuilder::step(ValidationBudget &budget) {
 			state_->histogram_[histogram_] = validator_->override_histogram()[histogram_];
 			++histogram_;
 		}
-		if (!equality_)
-			equality_.emplace(StateCursor(base_, heap_), StateCursor(validator_->take(), heap_));
-		equality_->step(budget);
-		if (!equality_->done())
-			return;
-		if (!equality_->equal())
+		StateEquivalence equality(StateCursor(base_, heap_), StateCursor(validator_->take(), heap_));
+		if (!equality.equal())
 			throw std::invalid_argument("maintenance changes logical state");
-		auto proof = equality_->take_proof();
+		auto proof = equality.take_proof();
 		if (!proof.binds_construction(base_, state_->descriptor_))
 			throw std::invalid_argument("maintenance equality proof binding mismatch");
 		state_->maintenance_proof_.emplace(std::move(proof));
 		state_->sealed_ = true;
 		sealed_ = true;
 		validator_.reset();
-		equality_.reset();
 	} catch (...) {
 		failed_ = true;
 		throw;

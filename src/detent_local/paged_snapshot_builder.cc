@@ -88,7 +88,7 @@ struct PagedSnapshotBuilder::Impl {
 		require(!count ||
 				(limits.pages && limits.segments && limits.bytes >= p::minimum_page_bytes));
 		auto &root = output.impl_->root;
-		root.cursor = source->cursor();
+		root.cursor = source->namespace_cursor();
 		root.profile = source->profile();
 		root.records = source->records().size();
 		root.namespaces = source->namespaces().size();

@@ -11,7 +11,7 @@ Since consensus-transport landed (consensus:9bbd632), two transport tests fail i
 
 - A1 Each failure's cause, with the log lines or a reproducing job, in the journal's Result: jobs
 - A2 A reproducer for each under load (TSan build for fetch; repeat runs under the quiet light load for group-full) failing at the pre-fix commit and passing at the fix: a --fails-without job and a job each
-- A3 Ten CI passes in a row of both tests on linux-tsan and macos-x86_64 at the fix: CI run ids
+- A3 Three CI passes in a row of both tests on linux-tsan and macos-x86_64 at the fix (lead, 2026-11-21: was ten; each run takes 1-3 h serially, and A2 already holds 240 local runs plus forced pauses at 23 offsets): CI run ids
 - A4 CI passes
 
 ## Contracts
@@ -32,3 +32,5 @@ everything waits for the review; `land --upto` refuses then.>
 
 <The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
 after T0)`. Each merges into the quest branch on its own tests.>
+
+- 2026-11-21, Xapiand lead: rpc_host_fetch failed linux-tsan on quest/xapiand/node-admission at consensus:de51801 (run 44940676266, job 136956946787): heartbeats worst gap 1358 ms vs the 1000 ms bound, 16 MiB fetch took 28,600 ms of 30 s beside 49 MiB of group uploads, dropped 4529, overrun 0. Same shape as this quest's TSan case; decide whether TSan gets its own bound or the fetch starves heartbeats on a slow host.

@@ -32,8 +32,7 @@ int main() {
 			check(pressure && cache->stats().leased == 1 && cache->stats().pressure == 1);
 			cache->mark_connected(slot);
 			cache->release(slot, true);
-			options.base = options.configured;
-			options.base->revision = 42;
+			options.timeout = std::chrono::milliseconds(1234);
 			check(cache->acquire(options, io.get_executor()) == slot);
 			cache->release(slot, true);
 			check(cache->stats().reuses == 1 && cache->stats().reuse_attempts == 1);
@@ -46,8 +45,6 @@ int main() {
 				cache->release(acquired, true);
 			};
 			options.token += "different";
-			changed(options);
-			options.configured.scope[0] = 's';
 			changed(options);
 			options.hostname = "elsewhere.localhost";
 			changed(options);
