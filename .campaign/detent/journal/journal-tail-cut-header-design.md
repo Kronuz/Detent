@@ -1,6 +1,6 @@
 # journal-tail-cut-header-design: journal
 
-State: waiting on jobs 261122-211721-cd9e33 261122-211725-8b1268 261122-211728-5f7c2a 261122-212211-6e741f 261122-211558-e05832 261122-211602-21b060
+State: working
 Quest: .campaign/detent/quests/journal-tail-cut-header-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,17 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Doc `docs/design/turn-log-cut-header.md` (journal quest branch, journal:35d4dd1, pushed) filled except BLOCKS and
-the T9 rows; prototype `scratch/cut-header-proto` at journal:8485149 (off e912a28); layout 0 probe at
-journal main on `scratch/cut-header-probe-main` at journal:b335b69 (a3eecb5 plus the probe).
+Second session. Read the six jobs: newest counts match the doc (36/201, 30/189, 36/159); 6e741f equals
+cd9e33; T9 l1 0 failures; T9 l2 13 failures (below). The blocks rows show 23 silent cases at layout 0
+*before* the clean log's newest turn, against the doc's claim: debug job 261123-061004-47129e at
+journal:dba8a7c (proto + a print of each such case) says where they sit.
 
 ## Next
 
-1. Read the six jobs: confirm the l0/l1/l2 newest counts equal the doc's table (36/201, 30/189, 36/159),
-   PROBE_MAIN equals l0, fill BLOCKS from `blocks` vs `blocks-newest-turn` rows (the claim: no silent
-   case before the newest turn), and the T9 rows (l1 0 failures; l2 debug: root-cause or state it).
-2. Trim the doc to about 2000 words (2537 now, tables included), run the revision pass, write
-   "design ready".
+1. Read 261123-061004-47129e; fill BLOCKS and the T9 rows; trim the doc to about 2000 words.
+2. A2 at the quest head: one job at the doc's head with `--ref PROTO=dba8a7c` building and running
+   l0-l2 (the brief accepts only jobs at the quest's code; the probe lives off the file set).
 
 ## Blocked on
 
