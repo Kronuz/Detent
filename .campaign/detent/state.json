@@ -4744,7 +4744,34 @@
       "worktree": ""
     },
     "consensus-driver-flow": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T11:47:36",
+          "base": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "blobs": {
+            "CHANGELOG.md": "100644:bd84a0223055adb98995cb705f8fbd31f72014ca",
+            "docs/DRIVER.md": "100644:146b9e41dc5e0818514f6e2bbcf01fa28ef2297e",
+            "docs/mechanisms/append-pacing.md": "100644:f8ce0fa1602f7a07f213669aeb66ceead8995dfb",
+            "include/consensus/worker.h": "100644:552b192442e2532bb9dfc65e3cbf7877eef467ab",
+            "test/driver_test.cc": "100644:3293696f9cf1669ceac74439d478d8c79b055e14"
+          },
+          "by": "review",
+          "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "criteria": "925db7f3d9178032",
+          "diffs": {
+            "CHANGELOG.md": "01295c24678090af",
+            "docs/DRIVER.md": "6a5d372bb3b071a5",
+            "docs/mechanisms/append-pacing.md": "cee224a423037fc8",
+            "include/consensus/worker.h": "f39c0568811c57ba",
+            "test/driver_test.cc": "41002cb8f13dc8d1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "b9b31fabd24d641e539910d1b01571cf7ed5c76f",
+          "reviewed": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-install",
         "consensus-full-window-stall",
@@ -4801,7 +4828,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-driver-flow",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -4809,7 +4838,7 @@
       "risk": "normal",
       "status": "review",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T11:03:20",
+      "updated": "2026-11-23T11:47:36",
       "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
