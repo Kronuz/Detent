@@ -1,15 +1,57 @@
 # reader-s6 review: correctness
 
-Commit: Detent:80cde23b062be51a291268b2428334c021903b1e (code of `Detent:f3261943`; round 2 of
-this review, round 1 was at `Detent:d8c01825`)
-Verdict: CHANGES
+Commit: Detent:c1c7498e82f1e6fe0cd5f17bc258c40ccac41cf4 (round 3; the quest head `Detent:1718a25a`
+differs only in the journal. Round 2 was at `Detent:80cde23b`, round 1 at `Detent:d8c01825`)
+Verdict: APPROVE
 Date: 2026-11-23
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-## Scope of this round
+## Round 3 (fix round D146)
+
+Re-checked only `Detent:dece1118` (C3), `Detent:b490591d` (C4) and `Detent:c1c7498e` (N6), plus the
+contributor's C3 residual (journal, Blocked on, item 0). Diffs read whole.
+
+- Gates at `Detent:c1c7498e`: native 261123-020546-339806 exit 0, t3-tsan 261123-020547-63d2a8
+  exit 0, plain `test_reader_core` 261123-020608-eda47a exit 0.
+- C3 fix: `free_retired` frees every zero-sum view outside the installed slot at the start of every
+  `refresh_locked`, whatever its outcome, and after a publish outside the new slot. Same Dekker
+  argument as the old commit-time scan: a reader can only keep a pin on the slot `current` names,
+  and that slot is the one kept; a reader that pinned a stale slot fails its recheck before reading.
+  The Refused check now follows the scan, so a zero-sum next slot is freed as before. Test
+  `retained` (park at `Pinned` across the commit, cap 1.5 generations, then every rev-2 key);
+  RETAIN-1 261123-020610-c38819 at `Detent:0b19b62f` (fix reverted) exits 134 with "revision 2
+  reads 15564 of 60000". My `probe_retained_cap` now exits 0: 60,000 of 60,000 at rev 2 (job
+  261123-021428-e9d6ef).
+- C4 fix: an acquire load of an atomic `atfork_installed` before the lock; the lock only while
+  registering. `fork_mid_open` parks an opener at `Registering` and forks; ATFORK-2
+  261123-020612-66011f at `Detent:528e67ca`, which moves the window inside the lock and drops the
+  fast path, ends its child with SIGALRM (exit 134). Left open: a fork during the very first
+  registration (lock held around `pthread_atfork`) still deadlocks a child that opens; that is
+  `pthread_once`'s old hazard, once per process.
+- N6 fix: `find` in place of `at`; read.
+- C3 residual, probed (`probe_midanswer_cap`, same job 261123-021428-e9d6ef, exit 1 by design):
+  a lookup parked at `LazyPageWindow::Miss` in rev 1 (past its sequence check) across the commit
+  of rev 2 answers rev 1's value (41, correct for its snapshot) and unpins without refreshing. Rev 2
+  then reads 15,564 of 60,000 keys, the rest `no_memory` with the fallback, twice over, charged
+  1,814,976 of 2,152,716 with 2 generations; one `detent_refresh` releases it: 60,000 of 60,000, one
+  generation, charged 1,435,144. No wrong value anywhere.
+
+Ruling on the residual: not blocking (R1). D143's contract is a bound on mapped bytes with
+`DETENT_NO_MEMORY` past it (reader.md D3, reader-core.md Bounds); the retired generation is still
+mapped, so the charge is true, and reader-core.md step 1 now states when it leaves: at the first
+refresh after the pin drops. What made C3 blocking was that nothing short of a publish released
+it, `detent_refresh` included; now `detent_refresh` does, the window is bounded by the next
+publish or refresh (at most three retired views), and the miss is reported, never silent. The cost
+is real, though: under concurrent lookups a commit usually finds a reader mid-answer, so a hot
+handle whose read set exceeds about half its cap answers part of the store with fallbacks until
+the application refreshes or the publisher publishes. Option (b) in the journal, a lookup refused
+with `DETENT_NO_MEMORY` while a non-current slot holds a view running `free_retired` and retrying,
+removes that and is what I recommend; (a), keep and document, is acceptable.
+
+## Scope of round 2
 
 The quest's own commits after `Detent:d8c01825` that touch `src/` or `include/` (first parent,
 main's merges `Detent:78706fc6` and `Detent:f3261943` excluded): `Detent:c300e5fa` (C1, C2, S1
@@ -66,12 +108,16 @@ defect is in when a retained generation is released (C3).
 | C2 | no | defect | Round 1: a transient cold miss failed the whole generation. Fixed at `Detent:c300e5fa`: resource errnos on `openat`, and `fstat`/`mmap` failures, raise `system_error` (`DETENT_IO`), rethrown past the catch-alls without setting `failed`. | `transient_miss` in 15579c; MISS-1 261121-133832-23f97d | Done. |
 | N1 | no | nit | Round 1: ledger refusals reported `DETENT_SOURCE_FAILURE`. Fixed at `Detent:5957f287` (`ReadAdmissionRefused` maps to `DETENT_NO_MEMORY`). | `capped` in 15579c; NOMEM-1 261121-141047-4552ff | Done. |
 | N2-N4 | no | nit | Round 1 nits (first lookup refused by a pinned slot, grown-`change` `seen`, A16 baseline), left by the lead. | round 1 | As round 1. |
-| C3 | yes | defect | D143's cap refuses a new generation's keys while the handle holds only an unreachable old generation. A lookup pinned on the installed view when a publish commits keeps that view (`core.cc:516-518`); the old view, its `Generation` and every pack it mapped stay charged until the next `Published` outcome, since an `Unchanged` refresh returns before the free scan (`core.cc:473`), so neither the stale reader's own refresh nor `detent_refresh` releases it. Under concurrent lookups that pin is the common case at a commit, so a store whose read set exceeds about half the cap answers existing keys with the fallback and `DETENT_NO_MEMORY` for a whole publish interval. The test comment "frees the unpinned older views" (`test_reader_switch.cc:725`) states what the code does not do. Introduced by this round: with `SIZE_MAX / 4` ledgers the retention cost memory, not answers. | `probe_retained_cap`, job 261123-014705-863bc2: 44,436 of 60,000 keys `no_memory` at rev 2, unchanged after `detent_refresh`, all read at rev 3 | Run the free scan of zero-sum non-current slots on every `refresh_locked` that holds `refreshing`, `Unchanged` and `Refused` included (or at least in `detent_refresh`), so the stale reader's own refresh frees it. Test: the probe's sequence in `test_reader_switch` (`Pinned` park), with a mutant that keeps the early return. |
-| C4 | no | defect | `install_atfork` locks `atfork_mutex` on every `detent_open` (`core.cc:256`), and the fork handlers do not take it. A fork while another thread is inside that lock leaves it held in the child, whose next `detent_open` deadlocks. `pthread_once` had this hazard only around the first open. Narrow window, so not blocking. | `core.cc:214-260` | Read an atomic `atfork_installed` (acquire) before locking; lock only to install. Not by taking `atfork_mutex` in `fork_prepare`: libc may hold its atfork lock there while `pthread_atfork` waits on it. |
+| C3 | yes | defect | Round 2: a view pinned at a commit kept its generation charged to the D143 cap until the next publish; `detent_refresh` did not release it, so the new generation's keys answered `no_memory`. **Fixed at `Detent:dece1118`** (`free_retired` on every refresh outcome). Confirmed. | Found: 261123-014705-863bc2. Fix: `retained` in 261123-020546-339806 and 261123-020608-eda47a; fails without: RETAIN-1 261123-020610-c38819; `probe_retained_cap` exit 0 in 261123-021428-e9d6ef | Done. |
+| C4 | no | defect | Round 2: `atfork_mutex` locked on every open; a child forked mid-open deadlocked on its next open. **Fixed at `Detent:b490591d`** (atomic fast path). Only the first registration still holds the lock, as `pthread_once` did. | `fork_mid_open` in 339806; fails without: ATFORK-2 261123-020612-66011f | Done. |
 | N5 | no | nit | `DETENT_MINIMUM_MAPPING_BYTES` equals one full pack plus its bitmap exactly (`core.cc:58`), but the same ledger is charged first for the page table's `State` and slot table (`lazy_page_access.cc:105`, `271`) and then the segment object, each with an allocator header (`allocator.hh:32`). At the floor no pack whose rounded mapping is 1 MiB can be mapped, so the open succeeds and every lookup in such a pack answers `DETENT_NO_MEMORY`. The docs do not promise one readable pack, only the open refusal. | `core.cc:58`, `lazy_page_access.cc:105`, `199-207`, `271` | Say "below which no pack can be read" or add a fixed page-table allowance to the floor; or keep. |
-| N6 | no | nit | `reader_capacity_probe` with `refuses` calls `statuses.at("no_memory")`, which throws (exit 134, not 1) when the default cap refuses with another status. | `reader_capacity_probe.cc:111` | Use `find` or `operator[]`. |
+| N6 | no | nit | `reader_capacity_probe` with `refuses` calls `statuses.at("no_memory")`, which throws (exit 134, not 1) when the default cap refuses with another status. | `reader_capacity_probe.cc:111` | **Fixed at `Detent:c1c7498e`** (`find`). |
+| R1 | no | defect | C3 residual: a lookup mid-answer at a commit (past its sequence check, e.g. in a cold miss) unpins without refreshing, so the retired view and its generation stay charged until the next refresh or publish. Bounded, reported (`DETENT_NO_MEMORY`, fallback, never a wrong value), released by `detent_refresh`, and described by reader-core.md step 1; see the round-3 ruling. | `probe_midanswer_cap`, job 261123-021428-e9d6ef: rev 2 reads 15,564 of 60,000 with no refresh, 60,000 after one `detent_refresh` | Owner's call: (b) a lookup refused with `DETENT_NO_MEMORY` while a non-current slot holds a view tries `refreshing`, runs `free_retired` and retries (recommended; test: the probe's `Miss` park, no refresh), or (a) keep, with one line in reader.h telling callers `detent_refresh` returns retired generations' charge. |
 
 ## Not run
+
+- Round 3: no ASan, Linux or CI result read (CI 45152925089 was running); no `reader_capacity_probe`
+  run (its job 261123-020615-e1cb4e was queued).
 
 - No rerun of the gates, TSan, A16, the soak or `reader_capacity_probe` at a 5M scale; no Linux run
   of the new probe (deterministic, single park, Debug on macOS).
