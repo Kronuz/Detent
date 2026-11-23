@@ -5371,6 +5371,32 @@
       "updated": "2026-11-20T21:51:09",
       "worktree": ""
     },
+    "consensus-faultlab-repin": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "consensus pins faultlab at 5d4df9b (stale at_mark fix)",
+      "updated": "2026-11-23T15:00:52"
+    },
     "consensus-fetch-alongside-flake": {
       "accepted": {},
       "after": [],
