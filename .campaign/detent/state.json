@@ -15893,9 +15893,27 @@
         "docs/mechanisms/lost-bound.md",
         "docs/perf/**"
       ],
+      "history": [
+        {
+          "at": "2026-11-23T11:45:11",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [],
@@ -15904,7 +15922,7 @@
       "risk": "high",
       "status": "planned",
       "title": "An open reads each turn log once",
-      "updated": "2026-11-23T11:45:09"
+      "updated": "2026-11-23T11:45:11"
     },
     "journal-power-silent-loss": {
       "accepted": {
