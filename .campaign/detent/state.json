@@ -2757,6 +2757,19 @@
       "id": "msg-222",
       "notice": "skill landed f0c8c3afaa59a32728a99c7a44f82eabeef09c83",
       "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:45cee6d Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/generator-clash; agent-campaign:629af58 Remove a slot's build trees another CMake generator configured; agent-campaign:51e2499 Keep a build tree whose source is a directory inside a source root; agent-campaign:2c4c43c Merge branch 'main' into quest/campaign-v3/generator-clash; agent-campaign:c2f3f95 Merge main into quest/campaign-v3/generator-clash"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T00:26:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T00:26:09",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice, read",
+      "id": "msg-239",
+      "notice": "skill installed 47dfb508a86af0a94fd18d85d6a6c6bf94d9b4aa",
+      "text": "campaign skill: agent-campaign:47dfb50 installed here, 12 commits: agent-campaign:6918f4a Merge branch 'quest/campaign-v3/verify-land-agree' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:d1d4057 Carry a quest's green CI and review across a clean merge from main; agent-campaign:59d1995 Merge branch 'main' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:f8a9f29 Wire main's CI into problems and the [ci] criterion into ci_gate; agent-campaign:cacdd3f Name main's side of the merge in a red main after a carried landing; agent-campaign:07c8772 Clear a fixed-forward landing for good; clean merges a failed journal; agent-campaign:778ed50 Bound main's CI reads after a carried landing; agent-campaign:ff6942f Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:2dffe40 Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:9cd0ccf Land reads CI fresh; a carried head's running CI is a live waiter; agent-campaign:43d103c Keep the host's good CI answer when a fresh ask fails; agent-campaign:91f67b3 Refuse land when a fresh gh ask fails; readers keep the good answer"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
