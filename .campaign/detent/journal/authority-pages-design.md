@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261123-102550-885bdd 261123-102553-3c089f 261123-102555-afdabb 261123-102558-6f96c6 261123-102602-d23ae1 261123-102605-a63417 261123-102608-7ae2b2 261123-102610-fdd616 261123-102613-0c4d8c 261123-102616-53d93e 261123-103432-c20472 261123-103435-b1e0ae 261123-103438-3b96b1
+State: ready for review
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,9 +40,7 @@ the strict noise (the strict 5M idle cold build read 2.2x the exclusive one); it
 
 ## Next
 
-1. When the jobs land: `check.py combine` the 4 commit logs per corpus (~/.scratch/campaign/jobs/<id>/a1/log),
-   fill the commit table, the 100K idle cell and the seal rows' head jobs; confirm the recommendation's
-   builder-thread line (doc says *pending*); A1/A2 rows cite head jobs; State "ready for review".
+1. Design review (the lead launches it); fold in findings by id. A4 is the owner's.
 
 ## Blocked on
 
@@ -51,22 +49,25 @@ Nothing.
 ## Evidence
 
 Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | docs/design/authority-pages.md: 100K priced from 261122-210428-976f07; 5M cells pending |
-| A2 | 261122-210412-8d650b smoke passed; seals 261122-210428-976f07, 261122-210429-1ed7a8 (exclusive), 261123-073248-5fdf61 (strict) passed at bf55a099. Commit rows 261123-073250-7ccbac, 261123-073252-43c224 failed (bench NoChange bug, fixed 07ac6b63; proof 261123-102546-6e81cf fails-without, 261123-102550-885bdd); replaced by 8 rotation jobs 261123-1025xx/1026xx (see Doing). Round 2's 261122-210431-3080d5, -210432-93640e, -210434-c73864 (exclusive) were replaced by the lead's strict resubmissions. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
-| A3 | docs/design/authority-pages.md, "Recommendation" (Limit 1, Q4, D6, D33/D34; quests added) - provisional |
+| A1 | docs/design/authority-pages.md prices (a)-(d) at 100K and 5M, every number citing its job: seals 261123-103432-c20472, 261123-103435-b1e0ae, 261123-103438-3b96b1, 261123-102616-53d93e (strict, at head) with the exclusive bf55a099 rows 261122-210428-976f07, 261122-210429-1ed7a8 as the quiet-host CPU; commit rows 261123-102553-3c089f, -102558-6f96c6, -102605-a63417, -102610-fdd616 (100K), 261123-102555-afdabb, -102602-d23ae1, -102608-7ae2b2, -102613-0c4d8c (5M) |
+| A2 | 261123-102550-885bdd (passed at 300f296b399a; 1 merge from main since, none touching its files; ignores docs-only docs/design/authority-pages.md); fails without: 261123-102546-6e81cf. Measurements: the A1 jobs, all strict at 07ac6b63-equivalent code (300f296b), passed; noise floor = none arm spread and paired-delta ranges (commit), min-max of 30 seals (seals). Earlier: 261122-210412-8d650b smoke; 261123-073248-5fdf61 (replaced by 261123-103438-3b96b1); 261123-073250-7ccbac, 261123-073252-43c224 failed (bench NoChange bug, fixed 07ac6b63); 261122-210431-3080d5, -210432-93640e, -210434-c73864 cancelled; 261123-102306 to -102331 cancelled unrun (zsh option parsing); round 1 261121-214353-49cebb failed in build, its rows skipped |
+| A3 | docs/design/authority-pages.md, "Recommendation" and "What it changes": Limit 1 closed, Q4 (b) stands with roots added, D6 unchanged, D33/D34 unchanged; quests added (builder pool + root publication, relay pass-through, agent root check), none dropped |
 | A4 | [manual] open: the owner's decision, requested at the doc's end |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+docs/design/authority-pages.md, bench/authority_pages/. Recommendation: (b) the leader builds on a builder pool,
+pages in memory, root in D1's frame-header field; (d) the fallback.
+- Per seal (exclusive): build 78.8 ms CPU at 100K, 604.8 ms at 5M (59% of a core at rc3 sustained, 2.95 cores
+  at burst, beyond one thread); (d) 97.3 / 96.7 ms, flat in store size. 5M cold build 9.0 s. Strict reruns at
+  head read 29-64% more CPU, same bytes, same ordering.
+- Commit rows (4 rotations, paired deltas): builder thread -2.0 ms (-5.0..+4.8) group p50 at 5M, inside noise;
+  persisted pages +13.1 ms (up to +154.9); inline worst service gap 2,650 ms > 2,000 ms election timeout.
+- Open: A4 (owner); builder pool and coalescing not measured (implementation quest's); CI run 45238187347
+  failed in linux-tsan Configure on a github.com connect timeout (infrastructure, not this branch's files).
 
 ## Rulings I made
 
