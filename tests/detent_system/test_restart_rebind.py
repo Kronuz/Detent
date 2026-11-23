@@ -18,6 +18,7 @@ import asyncio
 import json
 import random
 import socket
+import socketserver
 import ssl
 import sys
 import threading
@@ -48,6 +49,11 @@ class Handler(BaseHTTPRequestHandler):
 
 class Server(ThreadingHTTPServer):
     allow_reuse_address = True  # the daemon's acceptors set SO_REUSEADDR
+
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind also reverse-resolves the address before the socket listens.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def handle_error(self, *_: object) -> None:
         pass  # a peer's failed handshake is not an event
