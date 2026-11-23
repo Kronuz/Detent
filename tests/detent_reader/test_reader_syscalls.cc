@@ -1,7 +1,8 @@
 // T1's no-syscall and no-allocation checks on warm lookups (reader.md D3, T1).
 // Linux: a forked child installs a seccomp filter that allows only `write` on its result pipe and
-// `exit`/`exit_group`, runs 1M lookups and reports. macOS: the task's BSD syscall count over 1M
-// lookups. Both: the allocation probe counts zero allocations across 1M lookups.
+// `exit`/`exit_group` (any other call kills the whole process, sanitizer threads included), runs 1M
+// lookups and reports. macOS: the task's BSD syscall count over 1M lookups. Both: the allocation
+// probe counts zero allocations across 1M lookups.
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
 #include <atomic>
@@ -107,11 +108,11 @@ int main() {
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_exit, 0, 1),
 		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 1, 0),
-		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 		    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, args[0])),
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, fd, 0, 1),
 		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 		};
 		sock_fprog program{static_cast<unsigned short>(sizeof filter / sizeof filter[0]), filter};
 		if (::prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 || ::prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) != 0)
