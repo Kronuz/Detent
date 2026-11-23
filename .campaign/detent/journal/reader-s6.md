@@ -1,6 +1,6 @@
 # reader-s6: journal
 
-State: waiting on jobs at `Detent:07a77ec` (D143 mapping cap): gates f01043 5021f2 4c4f68; plain ae1873 and mutants a5d80c 9b81e0 4552ff passed; with MEMO-1 b558f2, MISS-1 23f97d, ATFORK-1 2a7bcc at their own commits; 5M probes c1450e (2M) 765d93 (600K); probes 778bbf 467e2e; reruns (Doing); CI at the head. Pushed.
+State: ready for review. Waiting on jobs at `Detent:a60e089` (merged main): gates native 15579c, tsan 4432db, t3-tsan bff807; t3-asan (4 readers) 1a9b50; reruns a1ad79 efe19d 57a878 0657dc ea231c c31340 377d11 d604f3 ebe627 54f6dc 77d230; A16 dbd4b2 034e64 3e6714 7c4359; A9 doc check 91bf27; CI at the head. Pushed.
 Question for the security reviewer (lead, 2026-11-19): "Is in-place reading of mapped pages after verification acceptable given who can write the mapping (file ownership and permissions of generation files)? If not, the fix is option (c), private copies, as its own quest." What the code provides instead is memory safety: any mapped bytes, damaged or not, give a read inside the page or a refusal (`docs/mechanisms/reader-core.md`, "Mapped bytes after verification", added at `Detent:96a069c`).
 Risk questions for the reviewers:
 - Security: (1) `Detent:09be4f1` places a page's nodes end from its raw external count: can a page changed after first touch (a Linux private mapping shows file writes until copy-on-write) steer any `decode_node`/`decode_external` read outside the page? (2) SR1: does any open of `change`, `selected`, the image, lease or pack files still block on a FIFO or follow a planted symlink? (3) SR2: can a replacement between `mmap` and the identity `fstat` bind a mapping to the wrong file? (4) Fork: can a child see a half-prepared page or inherit a ledger entry for a mapping it lacks? (5) Is `testing::stats` compiled only with `DETENT_READER_TEST_HOOKS`?
@@ -8,20 +8,44 @@ Risk questions for the reviewers:
 Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Doing
+- Fix round 2 (2026-11-22, lead): C1, file set, A9's row, CI at `Detent:c6b1315`, t3-asan width.
+  - C1 was fixed in round 1 (`Detent:c300e5f`, `refresh_memo`, MEMO-1 b558f2 `--fails-without`
+    killed); the probe's sequence is that test's. Confirmed again at the merged head (Fixes since the review).
+  - CI 44955216762 at `Detent:07a77ec` (code of `Detent:c6b1315`): linux-asan-ubsan failed
+    `test_reader_core`, the rest green, linux-tsan cancelled behind it. Cause: `transient_miss`
+    (this quest's C2 test) exhausts descriptors; on Linux UBSan's vtable check
+    (`IsAccessibleMemoryRange`) needs a pipe, fails with EMFILE, reports "invalid vptr" on
+    `std::generic_category()` in the `system_error` constructor, and the report's own
+    `pthread_getattr_np` CHECK aborts ("Can't create a socket pair ... errno: 24"). The reader is
+    correct; the test is this quest's. Fix: the test skips its exhausted step, saying so, when
+    `__ubsan_handle_dynamic_type_cache_miss` is linked on Linux. Native Linux, macOS native and
+    macOS ASan+UBSan keep it.
+  - msg-17 (t3-asan at ~974% CPU): `test_reader_switch` reads `DETENT_READER_SWITCH_READERS`
+    (default 16). Check change for the lead: t3-asan's ctest prefixed with
+    `DETENT_READER_SWITCH_READERS=4`, job `--cpus 4`.
+  - Merged main (361 files): conflicts in `generation.cc`, `lazy_page_access.cc`,
+    `prepared_reader.{cc,hh}`, `first_read_gate.py`. Main's W1 cursor (`position`), flat-v1
+    removal and named table entries (D8) taken; the branch's FIFO-safe opens, unlinked-table
+    retry (`read_table` returns nullopt) and `attach` kept, `attach`/`selected` gain main's `name`.
+    `first_read_gate.py` stays deleted (the branch retired it for `docs/perf/first-read-gate.sh`).
+  - For the security re-check, code since `Detent:d8c0182` on the in-place mapped read path:
+    1. `lazy_page_access.cc` segment miss: `openat` resource errnos, `fstat` and `mmap` failures
+       raise `system_error` (C2), before any mapping exists; `mmap` failure no longer sets `failed`.
+    2. `lazy_page_access.cc` `resolve`: `catch (system_error) { throw; }` ahead of the catch-all, so
+       a `system_error` during a page's verification or first-touch walk leaves `failed` unset and
+       the page unmarked; the verified bit is still set only after both. To check: no decode or
+       verify path over mapped bytes throws `system_error`.
+    3. `paged_read_state.cc` `lookup`: the walk over mapped pages rethrows `system_error` as is
+       (DETENT_IO) instead of `ReadSourceFailure`.
+    4. D143 mapping cap (`core.cc`): one ledger for mappings and page-table allocations; a refusal
+       is `ReadAdmissionRefused` (DETENT_NO_MEMORY). Bounds what is mapped, not what is read.
+    5. The merge: the first-touch walk's revision bound reads `root.cursor.position` (main's W1
+       cursor) in place of `revision`; same check.
+    Not on that path: C1's memo clear, `install_atfork`, the open option and its floor
+    (`reader.h`/`.hh`), `testing.hh` (stats and the atfork hook, hooked build only).
 - Review fix round 1 (2026-11-21, lead): correctness CHANGES, security APPROVE with notes, both at
-  `Detent:d8c0182`. Fixed C1, C2, S1, S2, S4 in one batch; S3, S5, N1-N4 left (lead).
-
-  Fixes since the reviews:
-
-  | Finding | Fix | Test | Confirming jobs |
-  |---|---|---|---|
-  | C1 refresh memo | `Detent:c300e5f`: `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` | plain 261121-133825-4bda7a; mutant MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2; probe rerun 261121-133754-893ca0 |
-  | C2 transient miss | `Detent:c300e5f`: `openat` (EMFILE, ENFILE, ENOMEM, EAGAIN, EINTR), `fstat` and `mmap` errno raise `system_error`; `resolve` and the walk rethrow it without setting `failed`; the lookup answers `DETENT_IO` | `transient_miss` (60,000 knobs, 2 packs, descriptors exhausted) | plain 4bda7a; mutant MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d; probe rerun 261121-133754-54b604 |
-  | S1 ledger bounds | `Detent:c300e5f`, then D143 at `Detent:07a77ec`: one mapping cap per handle, `detent_open_options.mapping_bytes` (0: 512 MiB), covering mappings and page-table allocations (bitmaps); no heap ledger, no `testing::bounds`; a cap below `DETENT_MINIMUM_MAPPING_BYTES` fails `detent_open` with `DETENT_INVALID_ARGUMENT` | `capped`: default 512 MiB, also for an options struct without the field; minimum - 1 refused at open; cap at the minimum: `t:k10` `DETENT_NO_MEMORY` (charged 379,880), `t:k0` answers; raised cap 1 TiB reads every key (charged 1,435,184). Local run at `Detent:07a77ec` passed | plain 261121-140946-ae1873; mutants CAP-1 (`Detent:0cbff6c`, cap unbounded) 261121-141042-a5d80c, CAP-2 (`Detent:39ef0b1`, no floor) 261121-141044-9b81e0; 5M probes 261121-141059-c1450e (2M, default refuses, 3 GiB reads all), 261121-141102-765d93 (600K, both read all) |
-  | S2 atfork abort | `Detent:c300e5f`: `install_atfork` under its own mutex; a refusal fails `detent_open` with `DETENT_NO_MEMORY` and the next open retries; hook `testing::refuse_atfork` | `atfork_refused` (first in `main`) | plain 4bda7a; mutant ATFORK-1 (`Detent:fe39db7`) 261121-133840-2a7bcc |
-  | N1 cap status (lead, msg) | `Detent:5957f28`: `ReadAdmissionRefused` (a `ReadSourceFailure`) for ledger refusals; the core maps it to `DETENT_NO_MEMORY`; client and delivery unchanged | `capped` checks `DETENT_NO_MEMORY` | plain ae1873; mutant NOMEM-1 rebuilt at `Detent:8dc96d0` (head minus the catch) 261121-141047-4552ff |
-  | S4 A9 citation | `Detent:96a069c`: reader-core.md gains "Bounds" and "Mapped bytes after verification"; file-admission counts (six shapes of five files) and `RecordTesting` corrected | [artifact] | — |
-
+  `Detent:d8c0182`. Fixed C1, C2, S1, S2, S4 in one batch; S3, S5, N1-N4 left (lead). Fixes and
+  their jobs: Fixes since the review.
   - Mutants at `refs/mutants/reader-s6/{MEMO-1,MISS-1,CAP-1,CAP-2,ATFORK-1,NOMEM-1}`, each its fix
     head minus that fix; CAP-1, CAP-2 and NOMEM-1 at `Detent:07a77ec`, since `capped` changed. The
     old CAP-1 91d1e5 was killed (exit 134) before D143; old NOMEM-1 f1d342 cancelled.
@@ -368,35 +392,58 @@ Quest: .campaign/detent/quests/reader-s6.md (the lead's; never edit it)
 
 ## Next
 
-- Lead (2026-11-21): t3-asan's test_reader_switch ran at ~974% CPU in one light hold (cab068). Cap its threads at 4 in the t3-asan and t3-tsan check commands. Changing a check is the lead's: name the cap in your report, and the lead sets it.
-
-1. Read the jobs in State; fill Evidence at `Detent:07a77ec`; CI at the head green.
-2. Then "ready for review" (correctness re-review of C1, C2, S1/D143, N1; `campaign accept`).
+1. Read the jobs in State; refill Evidence from `campaign brief` at `Detent:a60e089`; CI green.
+2. Security re-check of the mapped-read-path changes (Doing, fix round 2); `campaign accept`.
 
 ## Blocked on
 
-Nothing. The p99 floor is ruled: D142 (option a), applied at `Detent:45db5f7`.
+1. File set (lead): one file outside it, `docs/design/reader.md` (the brief's out-of-set list is the
+   file set itself, then `: docs/design/reader.md`). It belongs: `Detent:07a77ec` records D143 in
+   the design (Q5 "Ruled (a), D143", D3's mapping-cap paragraph) and corrects the verified bitmap
+   ratio to the code (1/640 to 1/160, `VerifiedPages` keeps a nibble per granule; D3 and T4).
+   Widen the set by that one file; nothing to revert.
+2. t3-asan check (lead, msg-17): prefix its ctest with `DETENT_READER_SWITCH_READERS=4` and give
+   the job `--cpus 4`. T3 then runs 4 readers under ASan; A4 says 16, which native and t3-tsan
+   keep. Recommendation: apply to t3-asan only; leave t3-tsan at 16 (its races need the readers).
+
+## Fixes since the review
+
+Correctness CHANGES and security APPROVE, both at `Detent:d8c0182`. Fixes in `Detent:c300e5f`,
+`Detent:5957f28` and `Detent:07a77ec`; the confirming suite runs are at the merged head `Detent:a60e089`.
+
+| Finding | Fix | Test | Confirming jobs |
+|---|---|---|---|
+| C1 refresh memo (blocking) | `Detent:c300e5f`: a `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` (the probe's sequence) | suite native 261122-214347-15579c, plain 261122-214406-efe19d; fails without: MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2 |
+| C2 transient miss | `Detent:c300e5f`: `openat` resource errnos, `fstat` and `mmap` raise `system_error`, `failed` stays unset, the lookup answers `DETENT_IO` | `transient_miss` (skipped under Linux UBSan, `Detent:a60e089`) | native 15579c, plain efe19d; fails without: MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d |
+| N1 cap status | `Detent:5957f28`: `ReadAdmissionRefused` maps to `DETENT_NO_MEMORY` | `capped` | native 15579c, plain efe19d; fails without: NOMEM-1 261121-141047-4552ff |
+| S1 bounds (D143) | `Detent:07a77ec`: one mapping cap per handle, `detent_open_options.mapping_bytes` | `capped` | native 15579c, plain efe19d; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0 |
+| S2 atfork abort | `Detent:c300e5f`: a refused `pthread_atfork` fails `detent_open` with `DETENT_NO_MEMORY` | `atfork_refused` | native 15579c, plain efe19d; fails without: ATFORK-1 261121-133840-2a7bcc |
+| S4 note citation | `Detent:96a069c`: reader-core.md "Bounds", "Mapped bytes after verification", file-admission counts | doc check | 261122-214531-91bf27 |
+| CI linux-asan-ubsan at `Detent:c6b1315` | `Detent:a60e089`: `transient_miss` skips descriptor exhaustion under Linux UBSan (its vtable check needs a pipe) | CI at the head | CI linux-asan-ubsan at the pushed head |
 
 ## Evidence
 
-Code at the head `Detent:7bcab3a` = `Detent:4eeef65` + docs. Mutants stay at `Detent:e77b31d`
-(A8, A10-A12) and `Detent:dc004dc` (SEL-1/SEL-2, DROP-1 at `Detent:1136d31`).
+At the merged head `Detent:a60e089`; mutants (fails without) at their own commits.
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native f65acc, tsan 2603c5 (head, pending); native ef4078, tsan cafe29, asan 598ac8, t3-asan 93c07d (`Detent:4eeef65`) |
-| A4 | t3-tsan 9e75c5 (head, pending), 74eeff (`Detent:4eeef65`); mutant STATS-1 676367; `unreadable_table` in native, mutant DROP-1 acc366 killed |
-| A7 | cccaca |
-| A8 | mutants D5-1 d0abbe, D5-2 74046b, D5-3 e9c3f2, D10-1 a76c88, D10-2 2ff884, D10-3 3738a8, D2-1 ba7bfb, D4-1 7f9b83, FIX-1 1bbf8d, FIX-2 ab977b, Q6-1 a52560, HDR-1 33a983, SEL-1 48b91f, SEL-2 6f99e1; memory safety: ASan dense reads 5dd6f7, BOUND-1 bf6dfc killed |
-| A9 | [artifact] `docs/mechanisms/reader-core.md` at `Detent:96a069c`, sections "Fork (D10)", "Fork and cold preparation", "Bounds" and "Mapped bytes after verification" |
-| A10 | 1187fe; mutants SR1-selected 5a285e, SR1-image 1ae4f6, SR1-change da21c3, SR1-record 44ae68, SR1-pack c6bb0c |
-| A11 | 32e96c; mutant SR2 0b8176 |
-| A12 | cold dd95f8, soak e7e113; mutants F1 7df812, F2 100c83, F3 c2d927, F4 fdfa80 |
-| A13 | dd95f8 |
-| A14 | 5e46f2 |
-| A16 | D142, exclusive 5ee6cc (stopped), 0233d1 (running), pass in all 4 cells (Doing); count 3cc4bb |
+| A1-A3, A5, A6, A15 | native 261122-214347-15579c, tsan 261122-214348-4432db, asan 261122-214406-a1ad79, plain `test_reader_core` 261122-214406-efe19d |
+| A4 | t3-tsan 261122-214348-bff807, t3-asan (4 readers) 261122-214431-1a9b50, 261122-214407-57a878; fails without: STATS-1 261119-045706-676367, DROP-1 261120-150455-acc366 |
+| A7 | 261122-214407-0657dc |
+| A8 | dense ASan 261122-214408-ea231c; mutants as `campaign brief` lists (D5-1..3, D10-1..3, D2-1, D4-1, FIX-1, FIX-2, Q6-1, HDR-1, SEL-1, SEL-2, BOUND-1) |
+| A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation", "Bounds" and "Mapped bytes after verification" (written at Detent:96a069c); doc check 261122-214531-91bf27 |
+| A10 | 261122-214408-c31340; mutants SR1-selected, -image, -change, -record, -pack (brief) |
+| A11 | 261122-214408-377d11; mutant SR2 (brief) |
+| A12 | cold 261122-214409-d604f3, soak 261122-214409-ebe627; mutants F1-F4 (brief) |
+| A13 | 261122-214409-d604f3 |
+| A14 | 261122-214410-54f6dc, 261122-214406-efe19d; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0, NOMEM-1 261121-141047-4552ff |
+| A16 | D142 against main `Detent:005f84b`: exclusive 261122-214454-dbd4b2 (running), 261122-214458-034e64 (stopped); counts 261122-214501-3e6714, 261122-214505-7c4359; A/B 261122-214410-77d230 |
 
 ## Messages
+
+- msg-17 (lead, t3-asan at ~974% CPU, cab068): `test_reader_switch` reads
+  `DETENT_READER_SWITCH_READERS` (default 16); the check change is under Blocked on 2. The
+  t3-asan job at the merged head runs with it set to 4 and `--cpus 4`.
 
 - Lead (2026-11-20), D142: applied at `Detent:45db5f7`; A16 resubmitted exclusive; alarm change kept;
   disk store ASan attribution running (head 40/40 passed, main pending).
