@@ -16936,8 +16936,6 @@
     "multi-voter-idle-wake": {
       "accepted": {},
       "after": [
-        "pin-wave",
-        "consensus-peers-wake",
         "restart-capacity"
       ],
       "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
@@ -16987,13 +16985,19 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
+      "reason": "B1 resolved (consensus:a068ba0 PeerOptions::wake); B2 the consensus bump moves task and completion too, so it rides pin-wave; B3 service.cc is held by restart-capacity (server-composition-adoption already lands after this quest)",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-21T23:00:58",
+      "until": [
+        "pin-wave"
+      ],
+      "updated": "2026-11-22T21:10:46",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
