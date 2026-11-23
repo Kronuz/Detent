@@ -2744,6 +2744,19 @@
       "closed": "namespace-local-cursor was dropped",
       "id": "msg-144",
       "text": "namespace-local-cursor needs two lead calls (continuing the bulk meanwhile).\n1. File set: the local types change shape (Descriptor/Root/ReadView cursor -> NamespaceCursor, ImageBuilder deleted), so these out-of-set callers must change: src/detent_relay/bundle.cc + include/detent_relay/bundle.hh (relay maps W1 head back to its v1 cache cursor from configuration; it also calls local make_snapshot_source), src/detent_agent/main.cc (view.cursor().revision, GenerationReader identity; server-composition-adoption also owns it), src/detent_agent/managed_host.cc (image_format, descriptor cursor; dd3 owns it but waits), tests/detent_agent/**, tests/detent_relay/**, tools/w5/** (w5_store.cc uses flat ImageBuilder), README.md:209 (flat-v1 text). Please add them; edits are minimal.\n2. A2 'free of the old Cursor': three v1 seams cannot leave until P4/P5 without editing detent_distribution: (a) local::detail::make_snapshot_source implements distribution::SnapshotSource, whose cursor() returns the v1 Cursor (relay re-encodes its head as v1); (b) detent_testing GenerationWriter encodes v1 wire and must give SnapshotDecoder/DeltaDecoder a v1 Cursor; (c) benchmarks delta_decode_bench and local_corpus.hh drive the v1 decoders. Options: A) allowlist exactly these seams in the grep job (they take the v1 cursor from their caller, never store it in local types); B) move the SnapshotSource adapter into the relay and decoders' callers into tests (more out-of-set edits, same v1 type still used). Recommend A: the local layer's own types, files and read API carry only W1; the seams die with v1 in P5."
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T20:07:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T20:07:13",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice; superseded by msg-239",
+      "id": "msg-222",
+      "notice": "skill landed f0c8c3afaa59a32728a99c7a44f82eabeef09c83",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:45cee6d Merge branch 'quest/campaign-v3/split-big-files' into quest/campaign-v3/generator-clash; agent-campaign:629af58 Remove a slot's build trees another CMake generator configured; agent-campaign:51e2499 Keep a build tree whose source is a directory inside a source root; agent-campaign:2c4c43c Merge branch 'main' into quest/campaign-v3/generator-clash; agent-campaign:c2f3f95 Merge main into quest/campaign-v3/generator-clash"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
