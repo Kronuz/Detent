@@ -78,7 +78,7 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 | A1, A2, A6-A8, A18, A19 | native 261123-115748-542767 |
 | A2-A5 | 261123-115749-3be19d (`bindings/tests/run.sh`, repeat until-fail:3) |
 | A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:5610152f` |
-| A10 | 261123-111526-9ed1e8 (`bindings/tests/legacy_grep.sh`) |
+| A10 | 261123-132715-96b85d (`bindings/tests/legacy_grep.sh`, passed at `Detent:62293129`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
 | A12 | 261123-115751-5bff53, 261123-115753-f3287a, 261123-115755-5cd01d, 261123-115757-c99c71, 261123-115759-1641e1, 261123-115802-d5ab2f (fails-without) |
 | A13 | 261123-115830-16b083 |
