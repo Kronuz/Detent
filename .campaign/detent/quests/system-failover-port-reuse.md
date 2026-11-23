@@ -5,16 +5,11 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+CI run 44989878521 (restart-capacity's branch, ASan) failed test_system_managed_authority_failover because the killed leader's restart died with 'bind: Address already in use' (restart-capacity's reviewer, Detent:e433d313). This is not D144's isolated-voter defect. After this quest a restarted process in the system tests either rebinds its port (SO_REUSEADDR in the server, if it lacks it) or the harness waits for the port, whichever is the real cause.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause is named from the server's socket options and the harness; a test or loop that hit it fails before and passes after: jobs\n- A2 The suite and CI pass
 
 ## Contracts
 
