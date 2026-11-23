@@ -232,8 +232,15 @@ void switching(const std::filesystem::path &root) {
 	for (auto deadline = std::chrono::steady_clock::now() + 60s;
 	     !std::filesystem::exists(store / "selected") || !std::filesystem::exists(store / "change");)
 		CHECK(std::chrono::steady_clock::now() < deadline);
-	std::thread([] {}).join(); // a sanitizer runtime starts its own thread on the first pthread_create
-	std::this_thread::sleep_for(100ms); // a joined thread leaves /proc/self/task only after it exits
+	std::this_thread::sleep_for(100ms);
+	// A sanitizer runtime starts its own thread on the first pthread_create; the primer counts it.
+	// A joined thread stays listed until it exits, so wait for the count without the primer.
+	std::size_t primed = 0;
+	std::thread([&] { primed = threads() - 1; }).join();
+	if (!threads_settle(primed)) {
+		std::fprintf(stderr, "primer still listed after 5 s: threads %zu (expected %zu)\n", threads(), primed);
+		CHECK(false);
+	}
 	const auto fds = descriptors(), maps = mappings(store), before = threads();
 	const auto open_before = open_descriptors();
 	std::atomic<bool> stop{false};

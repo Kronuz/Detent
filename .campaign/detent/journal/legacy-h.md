@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-132656-1c173d 261123-132712-88becb 261123-132715-96b85d 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 and CI at `Detent:62293129`
+State: waiting on jobs 261123-132656-1c173d 261123-132712-88becb 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 and CI run 45269732772 at `Detent:62293129`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,13 +19,16 @@ CI run 45254351645 at `Detent:5610152f` failed on Linux only:
   without the sanitizer runtime (`undefined reference to __tsan_unaligned_write16`); it now gets the
   build's `CMAKE_CXX_FLAGS[_<TYPE>]` and `CMAKE_EXE_LINKER_FLAGS`.
 - `test_reader_switch` (linux-x86_64-gcc, T3 "threads 1 (before 2)"): the baseline counted the
-  joined priming thread still in `/proc/self/task`; the 100 ms settle now follows the join.
+  joined priming thread still in `/proc/self/task`; the primer records the count less itself and
+  the test polls `threads()` to it (5 s deadline, prints the count on a miss).
 Mutant f3-python built `int` into a `detent_status` member (exit 126); the patch casts it.
 Local (Release, macOS): the three export tests, `test_installed_testing_component` and
 `test_reader_switch` pass; a non-matching failure of the export script does not match the pattern.
 
 ## Next
 
+0. When CI run 45269732772 finishes (not before: a push cancels it), push the unpushed
+   `test_reader_switch` commit (coordinator: poll the thread count, no fixed sleep); CI again.
 1. Read jobs 261123-132656-1c173d 261123-132712-88becb 261123-132715-96b85d 261123-132719-d878b9 261123-132722-52d35a 261123-132740-6858e4 (native, bindings plain for A2-A5/A12/A20, A10 grep, A13, F3-python and F7
    mutants) and CI at `Detent:62293129` (`ci:linux-asan-ubsan`, `ci:linux-tsan`, `ci:ci`).
 2. Evidence table from `campaign brief`; Result; ready for review.
