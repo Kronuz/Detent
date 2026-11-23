@@ -16978,7 +16978,8 @@
     "multi-voter-idle-wake": {
       "accepted": {},
       "after": [
-        "restart-capacity"
+        "restart-capacity",
+        "server-composition-adoption"
       ],
       "base": "5048c17d15caad0e24c2c2356c69cbdb71b50d47",
       "branch": "quest/detent/multi-voter-idle-wake",
@@ -17039,7 +17040,7 @@
       "until": [
         "pin-wave"
       ],
-      "updated": "2026-11-22T21:10:46",
+      "updated": "2026-11-22T21:36:39",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
