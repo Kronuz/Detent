@@ -16564,7 +16564,16 @@
         "fuzz/fuzz_turn_log.cc",
         "docs/mechanisms/turn-log-damage.md",
         "docs/mechanisms/turn-log*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/host_test.cc",
+        "test/lost_bound_test.cc",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "bench/turn_bench.cc",
+        "docs/design/host-layout.md",
+        "docs/mechanisms/framing.md",
+        "docs/mechanisms/turn-seal.md",
+        "include/journal/framing.h"
       ],
       "history": [
         {
@@ -16598,7 +16607,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T09:35:32",
+      "updated": "2026-11-23T10:56:14",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
