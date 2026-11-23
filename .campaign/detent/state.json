@@ -6016,7 +6016,38 @@
       "worktree": ""
     },
     "consensus-quiesce-election-stall": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-22T21:58:33",
+          "base": "e35356a97d8fc849bd017ba718e625435f3ec10d",
+          "blobs": {
+            "CHANGELOG.md": "100644:2e63425fda51f236f44ca9659d65bb28a0df3a60",
+            "CMakeLists.txt": "100644:e88f104b91662b14256caef38e9d4896cb885bcb",
+            "docs/mechanisms/quiescence.md": "100644:ffeeb48bd666ff57529a513528adb09e21bb0ef5",
+            "include/consensus/core.h": "100644:05def458a49ae91fdd0d524538dca318e5a211cb",
+            "test/driver_mutants.py": "100644:890e2f2f1f44856eb9e6e879ebb5618a56d63877",
+            "test/driver_replace_test.cc": "100644:56fb84ac9173fbeb97384306472429375d0f7f54",
+            "test/quiescence_test.cc": "100644:bfe03a76e10fe6629095f912b3706570e0faecc9"
+          },
+          "by": "review",
+          "commit": "ab47d8a60570c125eb351ce319b7a85f83fa455d",
+          "criteria": "32d399d0230b3bee",
+          "diffs": {
+            "CHANGELOG.md": "64ce91aad75092ec",
+            "CMakeLists.txt": "44b8cf8dc9468801",
+            "docs/mechanisms/quiescence.md": "6dbb99a230348949",
+            "include/consensus/core.h": "c36b1f667b221182",
+            "test/driver_mutants.py": "c8586c6bc92d3f98",
+            "test/driver_replace_test.cc": "27f0d626afb15242",
+            "test/quiescence_test.cc": "3d8fe51c269c4c08"
+          },
+          "findings": {},
+          "note": "",
+          "review": "aba967088d3dbc740abdcea820dbcc5483502490",
+          "reviewed": "ab47d8a60570c125eb351ce319b7a85f83fa455d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-leaving-removal"
       ],
@@ -6082,7 +6113,7 @@
       "risk": "high",
       "status": "review",
       "title": "With quiescence on, a group whose removal committed elects a leader within its election bound",
-      "updated": "2026-11-21T19:33:33",
+      "updated": "2026-11-22T21:58:33",
       "worktree": "../consensus-wt/detent/consensus-quiesce-election-stall"
     },
     "consensus-quiescence": {
