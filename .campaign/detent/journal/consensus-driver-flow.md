@@ -31,8 +31,8 @@ jobs no journal names), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261123-063949-57aa77 (passed at 10eb12e; the merge touched none of its files) |
 | A2 | 261123-105043-139c3a (create drops the Flow), 261123-105047-a9361e (recover drops it), --fails-without on mutant branches rebuilt on f7a44f3; first round 58e218, 782827 passed at 10eb12e |
-| A3 | docs/DRIVER.md: `WorkerLimits::flow` and `GroupOptions::scheduling.flow` name the option, `Flow{}` its default |
-| A4 | ci:macos-arm64, ci:ci (CI 45229726672 at consensus:f7a44f3, green) |
+| A3 | `docs/DRIVER.md` names `WorkerLimits::flow` and `GroupOptions::scheduling.flow` name the option, `Flow{}` its default |
+| A4 | `ci:macos-arm64`, `ci:ci` (CI 45229726672 at consensus:f7a44f3, green) |
 
 ## Result
 
