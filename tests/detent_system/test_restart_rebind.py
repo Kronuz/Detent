@@ -64,6 +64,7 @@ def serve(arguments: list[str]) -> int:
         Path(arguments[arguments.index("--authority") + 1]).read_text()
     )
     port = int(arguments[arguments.index("--port") + 1])
+    print(f"stand-in: interpreter up at {time.time():.3f}", flush=True)
     # A reverse lookup of the bound address can stall a CI runner for longer than the test waits.
     socket.getfqdn = lambda *_: time.sleep(60)  # type: ignore[assignment]
     try:

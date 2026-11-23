@@ -10,6 +10,7 @@ import socket
 import ssl
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -29,6 +30,27 @@ CONTEXT = {
     "group": "67" + "00" * 15,
     "epoch": "65" + "00" * 15,
 }
+
+
+class HostLag:
+    """The longest a thread asleep for 1 ms went without running, from start to stop."""
+
+    def __init__(self) -> None:
+        self.worst = 0.0
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self) -> None:
+        last = time.monotonic()
+        while not self._stop.wait(0.001):
+            now = time.monotonic()
+            self.worst = max(self.worst, now - last - 0.001)
+            last = now
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join()
 
 
 def credential(index: int, shared_namespace: str | None = None) -> dict[str, Any]:
@@ -179,19 +201,31 @@ class Authority:
 
     async def restart_member(self, index: int, seconds: float = 20) -> None:
         """Restarts a stopped member on its port and returns once it answers, or raises
-        after `seconds` saying what it waited for. A process outside the tests may hold the
-        port for a while (bind: Address already in use), so the member starts again until it
-        is free."""
+        after `seconds` plus the host's measured lag, saying what it waited for. A process
+        outside the tests may hold the port for a while (bind: Address already in use), so
+        the member starts again until it is free."""
+        lag = HostLag()
+        try:
+            await self._restart(index, seconds, lag)
+        finally:
+            lag.stop()
+
+    async def _restart(self, index: int, seconds: float, lag: HostLag) -> None:
         member = self.members[index]
         if member.process.returncode is None:
             raise ValueError("cannot restart a running member")
         await member.capture
         self.actors.children.remove(member)
-        deadline = time.monotonic() + seconds
+        began = time.monotonic()
         attempts = 0
+
+        def late() -> bool:
+            return time.monotonic() - began > seconds + lag.worst
+
         while True:
             attempts += 1
             output = bytearray()
+            spawned = time.time()
             member = await self.start_member(index, output.extend)
             self.members[index] = member
             refusal = "no request yet"
@@ -201,17 +235,19 @@ class Authority:
                     return
                 except (OSError, http.client.HTTPException) as error:
                     refusal = repr(error)
-                if time.monotonic() > deadline:
+                if late():
                     raise RuntimeError(
                         f"authority-{index} alive (pid {member.process.pid}) but not answering "
-                        f"{seconds} s after restart attempt {attempts}: last {refusal}; "
+                        f"{time.monotonic() - began:.1f} s after restart ({seconds} s plus "
+                        f"{lag.worst:.1f} s of host lag allowed), attempt {attempts} spawned "
+                        f"at {spawned:.3f}: last {refusal}; "
                         f"output {output[-400:].decode(errors='replace')!r}; "
                         f"{self._sockets(index, member.process.pid)}"
                     )
                 await asyncio.sleep(0.05)
             await member.capture
             self.actors.children.remove(member)
-            if b"Address already in use" not in output or time.monotonic() > deadline:
+            if b"Address already in use" not in output or late():
                 raise RuntimeError(
                     f"authority-{index} exited {member.process.returncode} on restart "
                     f"attempt {attempts}: {output[-400:].decode(errors='replace')!r}"
@@ -228,7 +264,7 @@ class Authority:
         ):
             try:
                 result = subprocess.run(
-                    command, capture_output=True, text=True, timeout=10
+                    command, capture_output=True, text=True, timeout=10, check=False
                 )
                 report.append(f"{command[0]}: {result.stdout.strip()!r}")
             except (OSError, subprocess.SubprocessError) as error:
