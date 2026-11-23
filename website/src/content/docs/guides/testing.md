@@ -16,7 +16,7 @@ exercises exactly the defaults written at each call:
 ```cpp
 detent::Reader reader((test_dir / "no-store").string(), getuid());
 assert(reader.get("search:max_results", 25) == 25);
-assert(reader.lookup("search:max_results").status == DETENT_UNAVAILABLE);
+assert(reader.lookup("search:max_results", 25).status == DETENT_UNAVAILABLE);
 ```
 
 ---
@@ -33,8 +33,8 @@ set and returns the next revision:
 
 detent::testing::GenerationWriter writer(test_dir / "store");
 writer.publish_json(R"({"schema_version":1,"knobs":{
-  "search:max_results":{"type":"int","default":3},
-  "payments:new_processor":{"type":"bool","default":false,"rollout_pct":10}}})");
+  "search:max_results":{"default":3},
+  "payments:new_processor":{"default":0,"rollout_pct":10,"rollout_value":1}}})");
 
 detent::Reader reader((test_dir / "store").string(), getuid());
 assert(reader.get("search:max_results", 25) == 3);

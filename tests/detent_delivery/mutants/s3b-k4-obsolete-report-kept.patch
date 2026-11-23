@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..84c8cde2 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -720,8 +720,6 @@ struct Coordinator::Impl {
+ 						scrub_pause.reset();
+ 					if (closing)
+ 						break;
+-					if (store->selection().descriptor != result->root->descriptor())
+-						continue;
+ 					auto &scrubber = result->scrub;
+ 					diagnostic.scrub.passes = scrubber.passes();
+ 					diagnostic.scrub.bytes_hashed = scrubber.bytes_hashed();

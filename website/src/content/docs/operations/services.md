@@ -2,7 +2,7 @@
 title: "System Services"
 ---
 
-On servers, run `detentd` and `detent-agent` under the platform's service
+On servers, run `detent-authority` and `detent-agent` under the platform's service
 manager, as a dedicated unprivileged account. The repository ships templates
 for systemd, launchd and FreeBSD rc.d in `packaging/`, installed to
 `share/detent/` by `cmake --install`.
@@ -26,7 +26,7 @@ for systemd, launchd and FreeBSD rc.d in `packaging/`, installed to
 The units pass explicit configuration files, so create them first. Create the authority and agent configurations:
 
 ```sh
-echo '{"authority": "/etc/detent/authority.json"}' | sudo tee /etc/detent/detentd.json
+echo '{"authority": "/etc/detent/authority.json"}' | sudo tee /etc/detent/detent-authority.json
 echo '{"managed_path": "/etc/detent/managed.json"}' | sudo tee /etc/detent/agent.json
 ```
 
@@ -49,7 +49,7 @@ the units:
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin detent
 sudo cp /usr/local/share/detent/systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now detentd detent-agent
+sudo systemctl enable --now detent-authority detent-agent
 ```
 
 systemd creates and owns the runtime and state directories through
@@ -57,7 +57,7 @@ systemd creates and owns the runtime and state directories through
 journal:
 
 ```sh
-journalctl -u detentd -u detent-agent
+journalctl -u detent-authority -u detent-agent
 detent get search:max_results --system
 ```
 
@@ -77,7 +77,7 @@ Configuration changes take effect on restart.
 
 ```sh
 sudo launchctl bootstrap system /Library/LaunchDaemons/org.detent.prepare-runtime.plist
-sudo launchctl bootstrap system /Library/LaunchDaemons/org.detent.detentd.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/org.detent.detent-authority.plist
 sudo launchctl bootstrap system /Library/LaunchDaemons/org.detent.detent-agent.plist
 ```
 
@@ -93,10 +93,10 @@ directory after a reboot. launchd doesn't order jobs, so the agent relies on
 
 ```sh
 sudo pw useradd detent -d /nonexistent -s /usr/sbin/nologin
-sudo install -m 0755 /usr/local/share/detent/rc.d/detentd /usr/local/etc/rc.d/
+sudo install -m 0755 /usr/local/share/detent/rc.d/detent-authority /usr/local/etc/rc.d/
 sudo install -m 0755 /usr/local/share/detent/rc.d/detent_agent /usr/local/etc/rc.d/
-sudo sysrc detentd_enable=YES detent_agent_enable=YES
-sudo service detentd start
+sudo sysrc detent_authority_enable=YES detent_agent_enable=YES
+sudo service detent-authority start
 sudo service detent_agent start
 ```
 

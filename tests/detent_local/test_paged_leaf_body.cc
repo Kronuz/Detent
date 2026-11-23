@@ -39,10 +39,10 @@ void discard(l::detail::LeafBody &body) {
 } // namespace
 int main() {
 	auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
-	std::vector<p::Override> rows{{"beta", false, 1}, {"tést", true, 17}};
+	std::vector<p::Override> rows{{"beta", std::int64_t{1}}, {"tést", detent::GroupRollout{17}}};
 	p::Definition definition;
 	definition.revision = 42;
-	definition.boolean = true;
+	definition.rollout_value = 1;
 	definition.overrides = rows.size();
 	{
 		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);
@@ -74,7 +74,7 @@ int main() {
 		discard(body);
 		require(account->used() == 0);
 	}
-	rows = {{"a", false, 1}};
+	rows = {{"a", std::int64_t{1}}};
 	definition.overrides = 1;
 	{
 		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);
@@ -85,10 +85,31 @@ int main() {
 		discard(body);
 	}
 	{
-		l::detail::LeafBody body(account, definition, &rows, 17, row, 24);
+		l::detail::LeafBody body(account, definition, &rows, 17, row, 16);   // the body is 17 bytes
 		rejects<std::length_error>([&] { encode(body); });
 		discard(body);
 	}
+	// A rollout value needs some percentage among the rows, and a group percentage needs a value.
+	rows = {{"a", std::int64_t{1}}};
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);   // value, no percentage
+		rejects<std::invalid_argument>([&] { encode(body); });
+		discard(body);
+	}
+	rows = {{"a", detent::GroupRollout{5}}};
+	definition.rollout_value.reset();
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);   // percentage, no value
+		rejects<std::invalid_argument>([&] { encode(body); });
+		discard(body);
+	}
+	definition.rollout_value = 1;
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);
+		encode(body);
+		discard(body);
+	}
+	require(account->used() == 0);
 	{
 		auto pressure = account->admit(account->limit());
 		l::detail::LeafBody body(account, std::uint64_t{1});

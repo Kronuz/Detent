@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 222dc996..3fe0d9b2 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -194,7 +194,7 @@ SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
+ 		if (std::none_of(layouts.begin(), layouts.end(), [&](const auto &layout) { return layout.name == name; })) {
+ 			if (const auto *held = table.find(name); held && held->seal >= answer.seal)
+ 				throw UpstreamBehind("relay: the upstream lacks a namespace at the mirror's seal: " + name);
+-			dropped.push_back(name);
++			continue;
+ 		}
+ 	for (const auto &layout : layouts) {
+ 		if (!std::binary_search(names.begin(), names.end(), layout.name) || layout.seal > answer.seal)

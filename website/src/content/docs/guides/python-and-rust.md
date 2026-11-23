@@ -30,18 +30,20 @@ import detent
 
 reader = detent.Reader("agent-state", agent_uid)
 
-reader.eval("checkout:killswitch_new_path", False)
-reader.eval("payments:new_processor", False, hash="user-42")
-reader.eval("checkout:new_flow", False, switch_value="beta_testers")
+reader.get_bool("checkout:killswitch_new_path", False)
+reader.get_bool("payments:new_processor", False, hash="user-42")
+reader.get_bool("checkout:new_flow", False, switch_value="beta_testers")
 reader.get("search:max_results", 25)
 ```
 
-Every lookup returns its fallback on any error. `lookup()` says why:
+`get` returns the knob's integer. `get_bool` returns `False` for 0 and `True`
+for 1, and its fallback for any other value. Every lookup returns its fallback
+on any error. `lookup()` says why:
 
 ```python
-result = reader.lookup("search:nope")
+result = reader.lookup("search:nope", 0)
 result.status   # <Status.MISSING: 1>
-result.value    # None
+result.value    # 0, the fallback
 ```
 
 A failed open raises `detent.ReaderError`, with the reason in `.status`. See the
@@ -52,19 +54,22 @@ A failed open raises `detent.ReaderError`, with the reason in `.status`. See the
 ## Rust
 
 ```rust
-let reader = detent::Reader::open("agent-state", agent_uid, &[])?;
+let reader = detent::Reader::open("agent-state", agent_uid, &[], 0)?;
 
-let on = reader.eval("payments:new_processor", false, Some("user-42"), None);
-let beta = reader.eval("checkout:new_flow", false, None, Some("beta_testers"));
-let max = reader.get("search:max_results", 25);
+let on = reader.get_bool("payments:new_processor", false, Some("user-42"), None);
+let beta = reader.get_bool("checkout:new_flow", false, None, Some("beta_testers"));
+let max = reader.get("search:max_results", 25, None, None);
 
-match reader.lookup("search:nope", None, None) {
-    Ok(value) => println!("{value:?}"),
+match reader.lookup("search:nope", 0, None, None) {
+    Ok(value) => println!("{value}"),
     Err(status) => println!("fallback: {}", status.name()),
 }
 ```
 
-See the [Rust API reference](/Detent/reference/bindings/rust/).
+`get` returns an `i64` and `get_bool` a `bool`, each its fallback on any error;
+`get_bool` also falls back for a value other than 0 or 1. `lookup` returns
+`Result<i64, Status>`. See the
+[Rust API reference](/Detent/reference/bindings/rust/).
 
 ---
 

@@ -1,8 +1,7 @@
-// Golden hash-bucket vectors for the Section 8 stable-hash rule. Generated
+// Golden hash-bucket vectors for the stable-hash rule. Generated
 // once, independently, via a small Python script using hashlib.sha256 (NOT
-// derived from this C++ implementation), per the spec's testing plan: "commit
-// at least 20 input/digest-prefix/bucket vectors generated once by an
-// independent tool" and "run the same vectors in [every] implementation".
+// derived from this C++ implementation), committed as input/digest-prefix/bucket vectors generated once by an
+// independent tool, to be run by every implementation.
 //
 // bucket = big-endian-u64(SHA256(name || 0x00 || hash_val))[0..8] % 100
 #include <cassert>
@@ -59,7 +58,7 @@ int main() {
 	assert(detent::stable_bucket(std::string_view{}, std::string_view{}) == 92);
 
 	// Independence: changing only the knob name changes the cohort for the
-	// same hash_val, for at least one of these vectors (Section 13).
+	// same hash_val, for at least one of these vectors.
 	assert(detent::stable_bucket("checkout:killswitch_new_path", "user-42") !=
 		   detent::stable_bucket("search:max_results", "user-42"));
 

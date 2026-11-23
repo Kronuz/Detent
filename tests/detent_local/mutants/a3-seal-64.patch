@@ -1,0 +1,13 @@
+diff --git a/include/detent_local/paged_layout.hh b/include/detent_local/paged_layout.hh
+index dd1e8f0..d04958c 100644
+--- a/include/detent_local/paged_layout.hh
++++ b/include/detent_local/paged_layout.hh
+@@ -20,7 +20,7 @@ inline constexpr std::size_t content_bytes = 48, placement_bytes = 20,
+ 							 maximum_leaf_body_bytes = page_bytes - 80;
+ // D5's sealing choice: only a cluster larger than a child entry may seal, and of two
+ // candidates the lower one seals first, then the larger; equal ones keep label order.
+-constexpr bool seal_eligible(std::size_t size) noexcept { return size > child_bytes; }
++constexpr bool seal_eligible(std::size_t size) noexcept { return size >= 64; }
+ constexpr bool seals_before(unsigned height, std::size_t size, unsigned other_height,
+ 							std::size_t other_size) noexcept {
+ 	return height < other_height || (height == other_height && size > other_size);

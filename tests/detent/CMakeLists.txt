@@ -4,7 +4,8 @@ set(DETENT_TESTS
   test_json_patch
   test_json_strings
   test_flat_map
-  test_duplicate_precedence)
+  test_duplicate_precedence
+  test_one_knob_differential)
 
 if(NOT DETENT_TSAN)
   list(APPEND DETENT_TESTS test_model_alloc_failure)
@@ -15,6 +16,10 @@ foreach(test_name ${DETENT_TESTS})
   target_link_libraries(${test_name} PRIVATE detent::detent)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+target_include_directories(test_one_knob_differential PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_one_knob_differential PRIVATE detent::local_view)
+target_compile_definitions(test_one_knob_differential PRIVATE
+  DETENT_ONE_KNOB_MAIN="${CMAKE_CURRENT_SOURCE_DIR}/one_knob_main.hex")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   add_executable(test_config_acl_policy test_config_acl_policy.cc)

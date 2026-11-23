@@ -1,15 +1,19 @@
 #include "detent_distribution_http/reply_pump.hh"
 
 namespace detent::distribution_http {
-void OwnedReplyPump::callbacks(http::StreamOptions &options, std::weak_ptr<OwnedReplyPump> weak) {
-	options.on_writable = [weak] {
-		if (auto held = weak.lock())
+void OwnedReplyPump::callbacks(http::StreamOptions &options, std::weak_ptr<OwnedReplyPump> weak,
+								std::function<void()> changed) {
+	options.on_writable = [weak, changed] {
+		if (auto held = weak.lock()) {
 			held->writable.store(true);
+			changed();
+		}
 	};
-	options.reply.on_settled = [weak](http::ReplySettlement outcome) {
+	options.reply.on_settled = [weak, changed = std::move(changed)](http::ReplySettlement outcome) {
 		if (auto held = weak.lock()) {
 			held->written.store(outcome == http::ReplySettlement::Written);
 			held->settled.store(true);
+			changed();
 		}
 	};
 }

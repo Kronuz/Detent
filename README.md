@@ -1,15 +1,15 @@
 # Detent (C++)
 
-Detent is a C++ runtime-configuration library for namespaced boolean and integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). It implements the model in [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md) and adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
+A detent is the click-stop that holds a knob at its setting. Detent is a C++ runtime-configuration library for namespaced 64-bit integer knobs, plus a durable authority daemon (`detent-authority`) and a host-local managed agent (`detent-agent`). Its model (knobs, namespaces, groups, overrides, rollout and evaluation) is specified in [`docs/design/knob-model.md`](docs/design/knob-model.md); around it Detent adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network distribution, configuration, and library examples.
 
 ## What this is
 
 - Applications read through `libdetent_reader`, one reader core behind a C ABI (`include/detent/reader.h`). C++ wraps it as `detent::Reader`; the Python and Rust bindings wrap the same ABI. A lookup maps the agent's generation read-only, never touches the network, and never allocates once warm.
-- Every lookup takes the caller's fallback and returns it on any error: a missing knob, a wrong type, a store with no generation yet. `lookup()` also reports the status. Defaults live in each call's fallback.
-- Bool knobs support exact-match group overrides and stable SHA-256 percentage rollouts. Integer knobs do not support per-group overrides in v1.
-- `detentd` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
+- Every lookup takes the caller's fallback and returns it on any error: a missing knob, a store with no generation yet. `lookup()` also reports the status. Defaults live in each call's fallback.
+- Every knob holds one `int64` value; a feature flag is a knob whose values are 0 and 1. Any knob supports exact-match group overrides and a stable SHA-256 percentage rollout to a `rollout_value`.
+- `detent-authority` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
 - `detent-agent` receives authenticated deliveries from the authority and publishes immutable local generations, which `detent get` maps read-only for shell scripts and other non-C++ callers.
 
 ## How Detent fits together
@@ -19,9 +19,9 @@ Detent is a C++ runtime-configuration library for namespaced boolean and integer
 A knob change moves through five actors:
 
 - **Producer**: your service, writing changes as namespaced transactions with `POST /v2/transactions` over HTTPS.
-- **Authority**: `detentd --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
-- **Relay** (optional): `detent-relay`, subscribed to the authority, keeps a durable copy per bundle and serves snapshots and deltas to many agents.
-- **Agent**: `detent-agent`, one per host. It receives snapshots and deltas and publishes immutable local generations on disk.
+- **Authority**: `detent-authority --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
+- **Relay** (optional): `detent-relay`, following the authority, mirrors each namespace's sealed history and serves full copies and changes to many agents.
+- **Agent**: `detent-agent`, one per host. It receives full copies and changes per namespace and publishes immutable local generations on disk.
 - **Client**: your application, through `detent::Reader` (or the Python and Rust `Reader`), mapping the agent's selected generation and reading in memory. `detent get` is the command-line client.
 
 This is the managed profile, the topology the [production contract](docs/PRODUCTION_CONTRACT.md) targets. [Detent's actors](docs/ACTORS.md) says what each actor does, how, when and where, including ports, files, build options and restart behavior.
@@ -50,20 +50,20 @@ For reproducible builds, replace `main` with the commit you have qualified. A lo
 // The agent's generation directory, and the uid the agent runs as.
 detent::Reader reader(generation_dir, agent_uid);
 
-bool killswitch = reader.eval("checkout:killswitch_new_path", false);
+bool killswitch = reader.get_as<bool>("checkout:killswitch_new_path", false);
 std::int64_t max_results = reader.get("search:max_results", 25);
-bool enabled = reader.eval("payments:new_processor", false, user_id, user_group);
+bool enabled = reader.get_as<bool>("payments:new_processor", false, user_id, user_group);
 
-auto result = reader.lookup("search:max_results");
+auto result = reader.lookup("search:max_results", 25);
 if (!result)
     log(detent_status_name(result.status));
 ```
 
-Open one `Reader` per process and share it; lookups are thread-safe. Only the constructor throws (`detent::ReaderError`, whose `status()` says why); every lookup returns its fallback on any error. A store that does not exist yet opens, and lookups return the fallback with `DETENT_UNAVAILABLE` until the agent publishes. An optional third argument limits the handle to a list of namespaces. `refresh()` attaches a newer generation now instead of on the next lookup, and `revision(namespace)` reports the attached revision. The worked example is [`examples/demo.cc`](examples/demo.cc).
+Open one `Reader` per process and share it; lookups are thread-safe. Only the constructor throws (`detent::ReaderError`, whose `status()` says why); every lookup returns its fallback on any error. A store that does not exist yet opens, and lookups return the fallback with `DETENT_UNAVAILABLE` until the agent publishes. An optional third argument limits the handle to a list of namespaces, and a fourth caps the bytes it maps (0 means 512 MiB). `refresh()` attaches a newer generation now instead of on the next lookup, and `revision(namespace)` reports the attached revision. The worked example is [`examples/demo.cc`](examples/demo.cc).
 
 ### 3. Run the authority
 
-Start a voter with `detentd --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](website/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
+Start a voter with `detent-authority --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](website/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
 
 ### 4. Testing
 
@@ -73,19 +73,19 @@ Tests publish real generations with `detent::testing::GenerationWriter` (`includ
 #include "detent_testing/generation_writer.hh"
 
 detent::testing::GenerationWriter writer(store);  // creates the store directory (0700)
-writer.publish_json(R"({"schema_version":1,"knobs":{"search:max_results":{"type":"int","default":3}}})");
+writer.publish_json(R"({"schema_version":1,"knobs":{"search:max_results":{"default":3}}})");
 detent::Reader reader(store.string(), ::getuid());
 ```
 
 Directory trust refuses a store with a group- or world-writable ancestor, so keep test stores under the build tree, not `/tmp`.
 
-## Scope vs. the spec
+## What the repository contains
 
-This repository implements the spec's client model and adds a concrete distribution layer:
+The client implements the [knob model](docs/design/knob-model.md), and a distribution layer carries it to hosts:
 
 - `detent`: the knob model, schema validation and rollout hashing.
 - `libdetent_reader`: the reader core and its C ABI, wrapped by `detent::Reader`.
-- `detentd`: the durable authority daemon.
+- `detent-authority`: the durable authority daemon.
 - `detent-agent`: host-local managed agent that publishes immutable generations for non-C++ readers.
 - Python and Rust bindings over the reader core's C ABI.
 
@@ -106,7 +106,7 @@ detent-agent (exe)
   `-- detent
 ```
 
-`detent` has no networking dependencies. `detentd` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent` links the managed delivery libraries; `detent get` links only the local reader.
+`detent` has no networking dependencies. `detent-authority` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent` links the managed delivery libraries; `detent get` links only the local reader.
 
 ## Dependencies
 
@@ -121,8 +121,8 @@ All dependencies are fetched with CMake `FetchContent`.
 | [`random`](https://github.com/Kronuz/random) | Full-jitter reconnect backoff |
 | [`compressors`](https://github.com/Kronuz/compressors) | zstd/gzip: distribution frame codecs |
 | [RapidJSON](https://github.com/Tencent/rapidjson) | Strict JSON parsing |
-| [`http`](https://github.com/Kronuz/http) (+ `reactor`, `http-parser`, `radix-router`) | `detentd`'s HTTP service |
-| [`consensus`](https://github.com/Kronuz/consensus) | `detentd`'s durable Raft, with journal and completion I/O |
+| [`http`](https://github.com/Kronuz/http) (+ `reactor`, `http-parser`, `radix-router`) | `detent-authority`'s HTTP service |
+| [`consensus`](https://github.com/Kronuz/consensus) | `detent-authority`'s durable Raft, with journal and completion I/O |
 | standalone Asio | Pulled transitively by `http` and `consensus` |
 
 RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are rejected rather than partially applied. It is pinned to upstream commit `24b5e7a8b27f42fa16b96fc70aade9106cf7102f`; the older 1.1.0 release contains a `GenericStringRef` assignment operator that fails to compile with Clang 23.
@@ -142,9 +142,8 @@ include/
 src/
   detent/              Model and schema implementation
   detent_reader/       Reader core (libdetent_reader)
-  detentd/             Authority daemon host
   detent_agent/        Agent host and managed configuration
-  detent_authority/    Durable authority, transactions and distribution
+  detent_authority/    Durable authority, transactions, distribution and its daemon
   detent_distribution/ Protocol and session implementation
   detent_distribution_http/ Shared server parsing and reply pumping
   detent_relay/        Durable relay core
@@ -163,7 +162,7 @@ bindings/
 
 The model and the reader have no networking dependency. Binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
-Managed agents and relay bundle sources write `"image_format": "paged-v2"` by default, for incremental immutable local publication; `"flat-v1"` selects one self-contained image. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
+Managed agents write paged generations, one store entry per namespace, for incremental immutable local publication. See [the local image format](docs/LOCAL_IMAGE_FORMAT.md) for collection and disk accounting.
 
 | Module | Main target | Purpose |
 | --- | --- | --- |
@@ -172,10 +171,9 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
 | Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
 | Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies |
-| Relay host | `detent_relay_host`, `detent-relay` | Optional finite-bundle TLS daemon; [qualification and configuration](docs/RELAY.md) |
-| Relay core | `detent::relay` | Durable bundle caches and authorized session adapters |
+| Relay host | `detent_relay_host`, `detent-relay` | Optional TLS daemon serving mirrored namespaces; [qualification and configuration](docs/RELAY.md) |
+| Relay mirror | `detent::relay_mirror` | The relay's namespace mirror: sealed history, blocks and bases |
 | Immutable local view | `detent::local_view` | Read mapped durable generations |
-| Pinned local export | `detent::local_export` | Encode public definitions from a recovered immutable image |
 | Local publication | `detent::local_publication` | Reconcile and publish durable generations |
 | Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
 | Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |
@@ -186,7 +184,7 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Binary | Built from | Links | What it is |
 |---|---|---|---|
 | `detent_demo` | `examples/demo.cc` | `detent::reader` | Opens a `Reader` over an agent's store and reads with fallbacks |
-| `detentd` | `src/detentd/main.cc` | `detent_authority_service` -> authority, `http::http`, `consensus::consensus` | Durable authority daemon |
+| `detent-authority` | `src/detent_authority/main.cc` | `detent_authority_service` -> authority, `http::http`, `consensus::consensus` | Durable authority daemon |
 | `detent-relay` | `src/detent_relay/main.cc` | Relay host, private configuration and bounded TLS distribution | Optional durable fan-out daemon; Stage 5B qualification |
 | `detent-agent` | `src/detent_agent/main.cc` | CLI and managed delivery libraries | Host-local managed agent |
 | `detent` | `src/detent_agent/main.cc` | CLI and local reader libraries | Host-local `get` reader |
@@ -205,7 +203,7 @@ ctest --test-dir build --output-on-failure
 ./build/examples/detent_demo STORE_DIR AGENT_UID
 ```
 
-`DETENT_BUILD_AUTHORITY` defaults to `ON`. Set `-DDETENT_BUILD_AUTHORITY=OFF` to skip `detentd` and its HTTP and consensus dependency chain. `DETENT_BUILD_PYTHON` and `DETENT_BUILD_RUST` default to `OFF`.
+`DETENT_BUILD_AUTHORITY` defaults to `ON`. Set `-DDETENT_BUILD_AUTHORITY=OFF` to skip `detent-authority` and its HTTP and consensus dependency chain. `DETENT_BUILD_PYTHON` and `DETENT_BUILD_RUST` default to `OFF`.
 
 ### Binary size
 
@@ -219,13 +217,13 @@ Measured on macOS/arm64 for `detent-agent`:
 
 Most of the difference comes from RapidJSON and ordinary C++ runtime support.
 
-### Running detentd
+### Running detent-authority
 
 ```sh
-./build/src/detentd --authority authority.json
+./build/src/detent-authority --authority authority.json
 ```
 
-`detentd` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detentd.json`). `detentd.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENTD_*` environment variables, which override config. `detentd --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detentd` reference](website/src/content/docs/reference/cli/detentd.md).
+`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](website/src/content/docs/reference/cli/detent-authority.md).
 
 ### Running detent-agent
 
@@ -258,8 +256,8 @@ cmake --build build -j
 
 Both bindings mirror `detent::Reader` over the same C ABI ([design](docs/design/client-local-source.md) D1-D3): only opening raises (`ReaderError`), every lookup returns its fallback on any error, and the handle closes when the object ends, with no `close()`.
 
-- **Python** (`bindings/python/`): a C extension, `detent.Reader(store, publisher_uid, namespaces=())`, with `Status` and `Lookup`.
-- **Rust** (`bindings/rust/`): `detent::Reader::open(store, publisher_uid, &[..])` returning `Result<Reader, ReaderError>`, with `Status` and `Value`. The crate links the CMake-built shared `libdetent_reader` and compiles no C++.
+- **Python** (`bindings/python/`): a C extension, `detent.Reader(store, publisher_uid, namespaces=(), mapping_bytes=0)`, with `Status` and `Lookup`.
+- **Rust** (`bindings/rust/`): `detent::Reader::open(store, publisher_uid, &[..], mapping_bytes)` returning `Result<Reader, ReaderError>`, with `Status`. The crate links the CMake-built shared `libdetent_reader` and compiles no C++.
 
 Python example:
 
@@ -267,20 +265,20 @@ Python example:
 import detent
 
 reader = detent.Reader(generation_dir, agent_uid)
-reader.eval("payments:new_processor", False, hash="user-42")
-reader.eval("checkout:new_flow", False, switch_value="beta_testers")
+reader.get_bool("payments:new_processor", False, hash="user-42")
+reader.get_bool("checkout:new_flow", False, switch_value="beta_testers")
 reader.get("search:max_results", 25)
-reader.lookup("search:max_results").status
+reader.lookup("search:max_results", 25).status
 ```
 
 Rust example:
 
 ```rust
-let reader = detent::Reader::open(generation_dir, agent_uid, &[])?;
-reader.eval("payments:new_processor", false, Some("user-42"), None);
-reader.eval("checkout:new_flow", false, None, Some("beta_testers"));
-reader.get("search:max_results", 25);
-reader.lookup("search:max_results", None, None);
+let reader = detent::Reader::open(generation_dir, agent_uid, &[], 0)?;
+reader.get_bool("payments:new_processor", false, Some("user-42"), None);
+reader.get_bool("checkout:new_flow", false, None, Some("beta_testers"));
+reader.get("search:max_results", 25, None, None);
+reader.lookup("search:max_results", 25, None, None);
 ```
 
 ## Testing
@@ -304,7 +302,7 @@ Benchmarks in `benchmarks/` build by default. Measured output on one 14-core arm
 
 ### Security boundary
 
-`detentd` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](website/src/content/docs/operations/security.md). Host-local reads trust the host.
+`detent-authority` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](website/src/content/docs/operations/security.md). Host-local reads trust the host.
 
 ### Consistency model
 
@@ -327,13 +325,14 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 
 ### Rollouts by group
 
-Boolean overrides may be `true` or `false`, or an object containing only `rollout_pct` (an integer from 0 to 100):
+An override is an integer that forces the group's value, or an object containing only `rollout_pct` (an integer from 0 to 100). A knob with any percentage also carries `rollout_value`, the value callers inside the percentage get:
 
 ```json
-"overrides": {"employees": true, "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}}
+"overrides": {"employees": 1, "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}},
+"rollout_pct": 10, "rollout_value": 1
 ```
 
-A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Boolean overrides still force their value. The behavior is shared by the reader core, the language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
+A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket: a caller inside it gets `rollout_value`, and a caller outside it gets the default. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Integer overrides force their value. The behavior is shared by the reader core, the language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
 
 Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal colors, service configuration, and measured footprint. The logger is linked only into daemon executables.
 

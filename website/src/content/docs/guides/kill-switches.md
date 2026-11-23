@@ -2,7 +2,7 @@
 title: "Kill Switches"
 ---
 
-A kill switch is a bool knob that guards a risky code path so you can turn it
+A kill switch is a knob with values 0 and 1 that guards a risky code path so you can turn it
 off without a deploy. This guide walks a change through its whole life: introduce,
 roll out, revert if needed, stabilize, and remove.
 
@@ -13,14 +13,14 @@ roll out, revert if needed, stabilize, and remove.
 Add the knob read around the new path, with the safe value as its fallback:
 
 ```cpp
-if (reader.eval("checkout:killswitch_new_path", false)) {
+if (reader.get_as<bool>("checkout:killswitch_new_path", false)) {
     return new_checkout(cart);
 }
 return old_checkout(cart);
 ```
 
 The fallback means a host that has no generation yet, or a name that isn't
-published, takes the old path. `reader.lookup("checkout:killswitch_new_path")`
+published, takes the old path. `reader.lookup("checkout:killswitch_new_path", 0)`
 reports why, as a status such as `MISSING` or `UNAVAILABLE`.
 
 ---
@@ -32,12 +32,12 @@ definition for `checkout:killswitch_new_path`, as an operation in a
 [durable authority](/Detent/guides/durable-authority/) transaction:
 
 ```json
-{ "type": "bool", "default": false, "rollout_pct": 1,
-  "overrides": { "employees": true } }
+{ "default": 0, "overrides": { "employees": 1 },
+  "rollout_pct": 1, "rollout_value": 1 }
 ```
 
 ```cpp
-bool on = reader.eval("checkout:killswitch_new_path", false, account_id, account_group);
+bool on = reader.get_as<bool>("checkout:killswitch_new_path", false, account_id, account_group);
 ```
 
 Ramp the percentage in steps while you watch error rates and latency. See
@@ -47,11 +47,11 @@ Ramp the percentage in steps while you watch error rates and latency. See
 
 ## 3. Revert
 
-If anything looks wrong, publish the safe state. Leaving out `rollout_pct` and
-`overrides` removes them:
+If anything looks wrong, publish the safe state. Leaving out `overrides`, `rollout_pct` and
+`rollout_value` removes them:
 
 ```json
-{ "type": "bool", "default": false }
+{ "default": 0 }
 ```
 
 Every process takes the old path once its agent publishes the new generation,
@@ -73,7 +73,7 @@ Once the new path is at 100% and has been healthy long enough, publish it as
 the default so hash-less callers get it too:
 
 ```json
-{ "type": "bool", "default": true }
+{ "default": 1 }
 ```
 
 ---

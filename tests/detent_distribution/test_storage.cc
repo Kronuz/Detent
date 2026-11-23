@@ -41,6 +41,20 @@ template <class Exception, class F> void rejects(F action) {
 int main() {
 	try {
 		{
+			// absorb: tickets of one ledger refund together; another ledger's are refused.
+			StorageLedger ledger(100), other(100);
+			auto held = ledger.admit(10);
+			held.absorb(ledger.admit(30));
+			check(held.bytes() == 40 && ledger.used() == 40);
+			StorageLedger::Ticket empty;
+			empty.absorb(ledger.admit(5));
+			check(empty.bytes() == 5 && ledger.used() == 45);
+			rejects<std::invalid_argument>([&] { held.absorb(other.admit(1)); });
+			held.reset();
+			empty.reset();
+			check(ledger.used() == 0);
+		}
+		{
 			auto account = std::make_shared<StorageLedger>(1024 * 1024);
 			StorageAllocator<int> allocator(account, allocate, release);
 			auto raw = allocator.allocate(2);

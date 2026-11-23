@@ -1,0 +1,12 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..dbbf264b 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -738,7 +738,6 @@ struct Coordinator::Impl {
+ 							++diagnostic.failures;
+ 							diagnostic.error = std::make_exception_ptr(std::runtime_error(
+ 								"scrub: a pack of the selected generation differs from its owner record"));
+-							request_repair(true);
+ 						}
+ 					}
+ 				}

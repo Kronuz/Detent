@@ -14,20 +14,20 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("maintenance invariant at " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	for (unsigned turns = 0; store->operation() || store->needs_work(); ++turns) {
-		check(turns < 1000000);
-		if (auto operation = store->operation()) {
-			const auto &request = operation->request();
-			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
-		}
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
+	for (unsigned turns = 0;; ++turns) {
+		check(turns < 100000);
 		store->advance();
+		auto work = store->work();
+		if (!work)
+			break;
+		work->run();
 	}
 }
-void run(bool paged_base) {
+void run() {
 	const auto directory =
 		std::filesystem::current_path() / ".scratch" /
-		("paged-maintenance-" + std::to_string(::getpid()) + "-" + std::to_string(paged_base));
+		("paged-maintenance-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
@@ -42,31 +42,13 @@ void run(bool paged_base) {
 		l::GenerationId original{}, next{};
 		original.fill('f');
 		next.fill('p');
-		l::StorageIdentity storage{};
-		storage.fill('s');
-		if (paged_base) {
-			l::detail::PagedSnapshotBuilder builder(source, storage, original);
+		{
+			l::detail::PagedSnapshotBuilder builder(source, original);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
-			install(directory, builder.take(), storage);
-		} else {
-			l::ImageBuilder builder(source, original);
-			while (!builder.done()) {
-				l::ValidationBudget budget;
-				builder.step(budget);
-			}
-			std::filesystem::create_directories(directory);
-			check(::chmod(directory.c_str(), 0700) == 0);
-			const auto name = l::generation_name(original);
-			write(directory / (name + ".image"), *builder.bytes());
-			write(directory / "storage.meta", l::encode_storage_identity(storage));
-			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership(
-					  {storage, original, builder.descriptor().length, builder.descriptor().checksum, 1}));
-			write(directory / (name + ".descriptor"), l::encode_descriptor(builder.descriptor()));
-			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			install(directory, builder.take());
 		}
 		write(directory / "owner.lock", {});
 		l::DiskStoreOptions options;
@@ -80,7 +62,6 @@ void run(bool paged_base) {
 			std::rethrow_exception(store->error());
 		check(store->status() == l::StoreStatus::Ready);
 		l::detail::PagedMaintenanceBuilder builder(base, domain.factory(), heap,
-												   l::detail::ManagedRecovery::capture(*store).storage, next,
 												   options.recovery_limits);
 		unsigned turns = 0;
 		while (!builder.done()) {
@@ -107,9 +88,7 @@ void run(bool paged_base) {
 		}
 		l::GenerationId stale_id{};
 		stale_id.fill('q');
-		l::detail::PagedMaintenanceBuilder stale_builder(base, domain.factory(), heap,
-														 l::detail::ManagedRecovery::capture(*store).storage,
-														 stale_id, options.recovery_limits);
+		l::detail::PagedMaintenanceBuilder stale_builder(base, domain.factory(), heap, options.recovery_limits);
 		while (!stale_builder.done()) {
 			l::ValidationBudget budget;
 			stale_builder.step(budget);
@@ -134,8 +113,8 @@ void run(bool paged_base) {
 		check(store->stats().reserved == l::DiskUsage{});
 		check(!std::filesystem::exists(directory / (l::generation_name(stale_id) + ".image")));
 		check(base.view().get("app", "count").value() == INT64_MIN);
-		check(recovered.view().eval("app", "flag", "host-a", "beta").value() ==
-			  base.view().eval("app", "flag", "host-a", "beta").value());
+		check(recovered.view().get("app", "flag", "host-a", "beta").value() ==
+			  base.view().get("app", "flag", "host-a", "beta").value());
 		store->close();
 		drive(store);
 		check(store->drained());
@@ -158,6 +137,5 @@ void run(bool paged_base) {
 	check(mappings->used() == 0);
 }
 int main() {
-	run(false);
-	run(true);
+	run();
 }

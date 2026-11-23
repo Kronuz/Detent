@@ -5,11 +5,8 @@ namespace p = paged;
 namespace {
 p::Override delta_override(const void *context, std::uint64_t ordinal, std::uint32_t index) {
 	const auto &source = *static_cast<const d::ValidatedDelta *>(context);
-	const auto &definition = std::get<d::WireBoolDef>(*source.mutation(ordinal).value);
-	const auto &row = source.overrides(definition)[index];
-	const auto *rollout = std::get_if<GroupRollout>(&row.second);
-	return {row.first, rollout != nullptr,
-			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+	const auto &row = source.overrides(*source.mutation(ordinal).value)[index];
+	return {row.first, row.second};
 }
 std::shared_ptr<d::StorageLedger> account(const std::shared_ptr<const d::ValidatedDelta> &source) {
 	if (!source)
@@ -24,7 +21,17 @@ struct DeltaLeaves::Impl {
 		std::uint64_t original = 0, revision = 0;
 		std::string_view name() const { return {text.data(), length}; }
 	};
-	enum class Phase { Namespaces, Collect, Sort, Watermarks, Definitions, Body, Ready, Release, Done };
+	enum class Phase {
+		Namespaces,
+		Collect,
+		Sort,
+		Watermarks,
+		Definitions,
+		Body,
+		Ready,
+		Release,
+		Done
+	};
 	std::shared_ptr<const d::ValidatedDelta> source;
 	d::PagedStorage arena;
 	d::StableRows<Namespace> namespaces;
@@ -38,12 +45,29 @@ struct DeltaLeaves::Impl {
 	p::Limits limits;
 	Phase phase = Phase::Namespaces, after = Phase::Watermarks;
 	bool failed = false, discarding = false;
-	Impl(const RecoveredGeneration &base, std::shared_ptr<const d::ValidatedDelta> delta, p::Limits bounds)
-		: source(std::move(delta)), arena(*account(source), 8192), namespaces(arena), index(arena, *source),
+	Impl(const RecoveredGeneration &base, std::shared_ptr<const d::ValidatedDelta> delta,
+		 p::Limits bounds)
+		: source(std::move(delta)), arena(*account(source), 8192), namespaces(arena),
+		  index(arena, *source),
 		  cursor(std::in_place, account(source), base, p::PageKind::Namespace), limits(bounds) {
-		if (base.descriptor().cursor != source->base() || base.descriptor().profile != source->profile() ||
+		if (base.descriptor().cursor.position != source->base().revision ||
+			base.descriptor().profile != source->profile() ||
 			(source->kind() != d::UpdateKind::Delta && source->kind() != d::UpdateKind::Progress))
 			throw std::invalid_argument("paged delta does not match recovered base");
+	}
+	Impl(std::string_view name, std::uint64_t watermark, std::shared_ptr<const d::ValidatedDelta> delta,
+		 p::Limits bounds)
+		: source(std::move(delta)), arena(*account(source), 8192), namespaces(arena),
+		  index(arena, *source), limits(bounds) {
+		if (watermark != source->base().revision || name.empty() || name.size() > 198 ||
+			(source->kind() != d::UpdateKind::Delta && source->kind() != d::UpdateKind::Progress))
+			throw std::invalid_argument("paged delta does not match its namespace's base");
+		Namespace row;
+		row.length = name.size();
+		std::copy(name.begin(), name.end(), row.text.begin());
+		row.original = row.revision = watermark;
+		namespaces.push_back(row);
+		phase = Phase::Collect;
 	}
 	bool grant(std::size_t n, ValidationBudget &budget) {
 		if (!budget.rows)
@@ -91,8 +115,9 @@ struct DeltaLeaves::Impl {
 			if (mutation.namespace_index >= namespaces.size())
 				throw std::invalid_argument("delta namespace index outside recovered scope");
 			const auto &ns = namespaces[mutation.namespace_index];
-			if (mutation.key.size() <= ns.length || mutation.key.substr(0, ns.length) != ns.name() ||
-				mutation.key[ns.length] != ':' || (mutation.value && tx.revision > ns.revision))
+			if (mutation.key.size() <= ns.length ||
+				mutation.key.substr(0, ns.length) != ns.name() || mutation.key[ns.length] != ':' ||
+				(mutation.value && tx.revision > ns.revision))
 				throw std::invalid_argument("delta definition outside namespace watermark");
 			index.append(ordinal, tx.revision);
 		} else {
@@ -101,9 +126,14 @@ struct DeltaLeaves::Impl {
 		}
 	}
 };
-DeltaLeaves::DeltaLeaves(const RecoveredGeneration &base, std::shared_ptr<const d::ValidatedDelta> source,
-						 p::Limits limits)
-	: impl_(d::make_storage_owner<Impl>(account(source), std::malloc, std::free, base, source, limits)) {}
+DeltaLeaves::DeltaLeaves(const RecoveredGeneration &base,
+						 std::shared_ptr<const d::ValidatedDelta> source, p::Limits limits)
+	: impl_(d::make_storage_owner<Impl>(account(source), std::malloc, std::free, base, source,
+										limits)) {}
+DeltaLeaves::DeltaLeaves(std::string_view name, std::uint64_t watermark,
+						 std::shared_ptr<const d::ValidatedDelta> source, p::Limits limits)
+	: impl_(d::make_storage_owner<Impl>(account(source), std::malloc, std::free, name, watermark, source,
+										limits)) {}
 DeltaLeaves::~DeltaLeaves() = default;
 DeltaLeaves::DeltaLeaves(DeltaLeaves &&) noexcept = default;
 void DeltaLeaves::step(ValidationBudget &budget) {
@@ -180,17 +210,11 @@ void DeltaLeaves::step(ValidationBudget &budget) {
 						s.phase = Impl::Phase::Ready;
 						break;
 					}
-					p::Definition definition;
-					definition.revision = entry.revision;
-					if (const auto *boolean = std::get_if<d::WireBoolDef>(&*mutation.value)) {
-						definition.boolean = true;
-						definition.default_bool = boolean->default_value;
-						definition.rollout = boolean->rollout_pct;
-						definition.overrides = boolean->overrides.count;
-					} else
-						definition.default_int = std::get<IntDef>(*mutation.value).default_value;
+					const auto definition = p::Definition{entry.revision, mutation.value->default_value,
+														  mutation.value->rollout_pct, mutation.value->rollout_value,
+														  static_cast<std::uint32_t>(mutation.value->overrides.count)};
 					s.body.emplace(account(s.source), definition, s.source.get(), entry.ordinal,
-								   delta_override, p::page_bytes - p::page_header_bytes - s.length);
+								   delta_override, p::maximum_leaf_body_bytes - s.length);
 					s.phase = Impl::Phase::Body;
 				}
 				break;

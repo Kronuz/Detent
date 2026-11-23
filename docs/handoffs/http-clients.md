@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: consolidate HTTP client transport into the existing HTTP library
 
 **Priority:** P2 · Rank 5 of 7 · Required consolidation after resource adoption.

@@ -82,7 +82,7 @@ int main() {
 				history->publish(context, index, state.revision());
 		};
 		command.sequence = 1;
-		command.mutations = {{"ns:a", detent::IntDef{1}, {}, {}}};
+		command.mutations = {{"ns:a", detent::KnobDef{1}, {}, {}}};
 		apply();
 		check(history->covers(context, 0, 1) && history->size() == 1);
 		check(history->continuity(*initial_handoff, 1) == a::ChangeHistory::Continuity::Ready);
@@ -99,14 +99,16 @@ int main() {
 		m::array(expected, 3);
 		m::string(expected, "ns:a");
 		m::unsigned_integer(expected, 0);
-		m::array(expected, 2);
-		m::unsigned_integer(expected, 1);
+		m::array(expected, 4);
 		m::signed_integer(expected, 1);
+		expected.push_back('\xc0');
+		expected.push_back('\xc0');
+		m::array(expected, 0);
 		check(held->body->view() == expected);
 		apply(); // Idempotent retry has no new revision or cache entry.
 		check(history->size() == 1 && history->through() == 1);
 		command.sequence = 2;
-		command.mutations = {{"ns:a", detent::IntDef{1}, {}, {}}, {"ns:b", detent::IntDef{2}, {}, {}}};
+		command.mutations = {{"ns:a", detent::KnobDef{1}, {}, {}}, {"ns:b", detent::KnobDef{2}, {}, {}}};
 		apply();
 		check(history->find(2)->mutations == 1);
 		command.sequence = 3;
@@ -121,7 +123,7 @@ int main() {
 		held.reset();
 		check(account->used() < retained);
 		command.sequence = 4;
-		command.mutations = {{"ns:b", detent::IntDef{4}, {}, {}}};
+		command.mutations = {{"ns:b", detent::KnobDef{4}, {}, {}}};
 		apply(false);
 		check(history->through() == 3 && !history->find(4));
 		history->abandon_batch();
@@ -163,7 +165,7 @@ int main() {
 		history = std::make_shared<a::ChangeHistory>(account, a::HistoryOptions{2, 4096, 1});
 		history->reset(context, state.revision());
 		command.sequence = 5;
-		command.mutations = {{"ns:b", detent::IntDef{5}, {}, {}}};
+		command.mutations = {{"ns:b", detent::KnobDef{5}, {}, {}}};
 		apply();
 		drain(*history);
 		check(state.revision() == 5 && history->size() == 0 && history->coverage_floor() == 5);
@@ -174,11 +176,12 @@ int main() {
 		history = std::make_shared<a::ChangeHistory>(account);
 		history->reset(context, state.revision());
 		command.sequence = 6;
-		detent::BoolDef flag;
-		flag.default_value = true;
+		detent::KnobDef flag;
+		flag.default_value = 1;
 		flag.rollout_pct = 25;
+		flag.rollout_value = 1;
 		flag.overrides.emplace("blue", detent::GroupRollout{50});
-		flag.overrides.emplace("green", false);
+		flag.overrides.emplace("green", std::int64_t{0});
 		command.mutations = {{"ns:flag", flag, {}, {}}};
 		a::State candidate(state);
 		check(candidate.apply(++index, command).status == a::Status::Applied);
@@ -210,6 +213,34 @@ int main() {
 		check(turns > 1 && account->used() < charged);
 		draft.reset();
 		history->abandon_batch();
+		history.reset();
+		check(account->used() == 0);
+		// The ring evicts only at its bound, and only entries the durable layout covers.
+		history = std::make_shared<a::ChangeHistory>(account, a::HistoryOptions{3, 1 << 20, 4096});
+		history->reset(context, state.revision());
+		history->covered(0);
+		const auto first = state.revision();
+		auto lazy = [&](int value) {
+			command.sequence = 6 + static_cast<std::uint64_t>(value);
+			command.mutations = {{"ns:lazy", detent::KnobDef{value}, {}, {}}};
+			apply();
+			drain(*history);
+		};
+		for (int i = 0; i < 4; ++i)
+			lazy(i);
+		const auto incarnation = state.namespace_entry("ns")->incarnation;
+		auto head = state.namespace_revision("ns");
+		check(state.revision() == first + 4 && head == first + 4);
+		// Full of entries no layout covers: they stay, and the newest is refused.
+		check(history->size() == 3 && history->floor("ns", incarnation, head) == head);
+		check(history->entries("ns", incarnation, first).size() == 3);
+		history->covered(first + 2);
+		lazy(4);
+		head = state.namespace_revision("ns");
+		// One covered entry went to make room; the refused one leaves the ring serving only above it.
+		check(history->size() == 3 && history->floor("ns", incarnation, head) == head - 1);
+		check(history->entries("ns", incarnation, first).size() == 3 &&
+			  history->entries("ns", incarnation, first).front()->position == first + 2);
 		history.reset();
 		check(account->used() == 0);
 		std::cout << "canonical payload, staged publication, retries, eviction, pinned accounting, gaps and "

@@ -1,0 +1,68 @@
+name: Docs
+on:
+  push:
+    branches: [main, 'quest/**']
+    paths:
+      - 'website/**'
+      - 'tests/docs/**'
+      - 'src/**'
+      - 'include/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'docs/dev/docs-e2e.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'tests/docs/**'
+      - 'src/**'
+      - 'include/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check-docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -I tests/docs/check_docs.py
+  site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install D2 (build-time diagram renderer)
+        run: |
+          mkdir -p .scratch/d2
+          curl --fail --location --retry 3 --output .scratch/d2/release.tar.gz \
+            https://github.com/d2lang/d2/releases/download/v0.9.0/d2-v0.9.0-linux-amd64.tar.gz
+          echo '5669ddc46b99e942cc96078f4a4e36d5e62103348f4c05179ede27802fdd87a9  .scratch/d2/release.tar.gz' | sha256sum --check
+          tar -xzf .scratch/d2/release.tar.gz -C .scratch/d2
+          echo "$GITHUB_WORKSPACE/.scratch/d2/d2-v0.9.0/bin" >> "$GITHUB_PATH"
+      - run: cd website && npm ci && npm run build
+      - run: python3 -I tests/docs/check_links.py website/dist
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++-13 openssl lsof
+      - run: python3 -I tests/docs/run_e2e.py --fresh-build
+        env:
+          CXX: g++-13

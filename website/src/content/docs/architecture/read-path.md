@@ -2,11 +2,11 @@
 title: "Read Path"
 ---
 
-The read path is the code that runs every time your application calls `eval`,
-`get` or `lookup` on a `detent::Reader`. Its contract is strict: once warm, no
-lock, syscall, sleep, logging I/O or heap allocation, and no thread of its own.
-The core is `libdetent_reader` (`src/detent_reader/core.cc`), behind the C ABI
-in `include/detent/reader.h` that C++, Python and Rust all call.
+The read path is the code that runs every time your application calls `get`,
+`get_as` or `lookup` on a `detent::Reader`. Its contract is strict: once warm,
+no lock, syscall, sleep, logging I/O or heap allocation, and no thread of its
+own. The core is `libdetent_reader` (`src/detent_reader/core.cc`), behind the C
+ABI in `include/detent/reader.h` that C++, Python and Rust all call.
 
 ---
 
@@ -14,12 +14,12 @@ in `include/detent/reader.h` that C++, Python and Rust all call.
 
 ```d2 alt="A lookup validates the name, pins the installed view, compares the namespace's change sequence, walks the mapped generation, evaluates, and unpins; a moved sequence makes one thread refresh while the others keep reading"
 direction: down
-app: "reader.eval() / get() / lookup()"
+app: "reader.get() / get_as() / lookup()"
 validate: "validate ns:key\nand the handle's namespaces"
 pin: "pin the installed view\n(striped counter)"
 seq: "load the\nchange sequence" {shape: diamond}
 walk: "walk the mapped generation\n(verified pages)"
-eval: "type check + precedence\n(group > rollout > default)"
+eval: "precedence\n(group > rollout > default)"
 refresh: "one thread refreshes;\nthe rest keep reading"
 app -> validate -> pin -> seq
 seq -> walk: "unchanged"
@@ -39,7 +39,8 @@ walk -> eval
 4. **Walk and evaluate.** The lookup walks the memory-mapped generation and
    evaluates with the [precedence rules](/Detent/reference/evaluation/). A
    page is verified once, the first time any lookup touches it; later lookups
-   test one bit. Only a rollout with a hash value pays for SHA-256.
+   test one bit. Only a percentage with a hash value pays for SHA-256.
+   `get_as<T>` then range-checks the `int64` into `T`.
 5. **Unpin** and return the value, or the caller's fallback with the status.
 
 ---

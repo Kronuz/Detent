@@ -91,9 +91,11 @@ std::string snapshot() {
 		std::snprintf(key, sizeof(key), "app:%030u", i);
 		m::string(out, key);
 		m::unsigned_integer(out, 42);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
+		m::array(out, 4);   // [default, no percentage, no rollout value, no overrides]
 		m::signed_integer(out, i);
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		m::array(out, 0);
 	}
 	return out;
 }

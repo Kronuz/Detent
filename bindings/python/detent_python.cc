@@ -23,17 +23,7 @@ import enum
 
 
 class Status(enum.IntEnum):
-    OK = 0
-    MISSING = 1
-    WRONG_TYPE = 2
-    INVALID_NAME = 3
-    NOT_OPENED = 4
-    SOURCE_FAILURE = 5
-    UNAVAILABLE = 6
-    UNTRUSTED = 7
-    INVALID_ARGUMENT = 8
-    NO_MEMORY = 9
-    IO = 10
+@STATUS_MEMBERS@
 
     @classmethod
     def _missing_(cls, value):
@@ -66,6 +56,31 @@ class Lookup:
     def __repr__(self):
         return "Lookup(status=%r, value=%r)" % (self.status, self.value)
 )PY";
+
+// Status's members take their values from reader.h, so a renumbered header cannot drift from them.
+constexpr struct {
+    const char *name;
+    detent_status value;
+} kStatuses[] = {{"OK", DETENT_OK},
+                 {"MISSING", DETENT_MISSING},
+                 {"INVALID_NAME", DETENT_INVALID_NAME},
+                 {"NOT_OPENED", DETENT_NOT_OPENED},
+                 {"SOURCE_FAILURE", DETENT_SOURCE_FAILURE},
+                 {"UNAVAILABLE", DETENT_UNAVAILABLE},
+                 {"UNTRUSTED", DETENT_UNTRUSTED},
+                 {"INVALID_ARGUMENT", DETENT_INVALID_ARGUMENT},
+                 {"NO_MEMORY", DETENT_NO_MEMORY},
+                 {"IO", DETENT_IO}};
+
+std::string prelude() {
+    std::string members;
+    for (const auto &status : kStatuses)
+        members += "    " + std::string(status.name) + " = " + std::to_string(int(status.value)) + "\n";
+    std::string text = kPrelude;
+    const std::string marker = "@STATUS_MEMBERS@\n";
+    text.replace(text.find(marker), marker.size(), members);
+    return text;
+}
 
 PyObject *status_type = nullptr;
 PyObject *error_type = nullptr;
@@ -112,11 +127,21 @@ bool text_arg(PyObject *object, const char *what, bool optional, detent_str *out
 }
 
 PyObject *reader_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
-    static const char *keywords[] = {"store", "publisher_uid", "namespaces", nullptr};
-    PyObject *store = nullptr, *uid_object = nullptr, *namespaces = nullptr;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|O", const_cast<char **>(keywords), &store, &uid_object,
-                                     &namespaces))
+    static const char *keywords[] = {"store", "publisher_uid", "namespaces", "mapping_bytes", nullptr};
+    PyObject *store = nullptr, *uid_object = nullptr, *namespaces = nullptr, *mapping_object = nullptr;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|OO", const_cast<char **>(keywords), &store, &uid_object,
+                                     &namespaces, &mapping_object))
         return nullptr;
+    std::uint64_t mapping_bytes = 0;
+    if (mapping_object) {
+        if (!PyLong_Check(mapping_object) || PyBool_Check(mapping_object)) {
+            PyErr_SetString(PyExc_TypeError, "mapping_bytes must be int");
+            return nullptr;
+        }
+        mapping_bytes = PyLong_AsUnsignedLongLong(mapping_object);
+        if (PyErr_Occurred())
+            return nullptr;  // OverflowError: negative or above 64 bits
+    }
     PyObject *path = nullptr;
     if (!PyUnicode_FSConverter(store, &path))
         return nullptr;
@@ -166,7 +191,8 @@ PyObject *reader_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
                                 {PyBytes_AS_STRING(path), static_cast<size_t>(PyBytes_GET_SIZE(path))},
                                 names.data(),
                                 names.size(),
-                                static_cast<std::uint32_t>(uid)};
+                                static_cast<std::uint32_t>(uid),
+                                mapping_bytes};
     detent_reader *handle = nullptr;
     detent_status status;
     Py_BEGIN_ALLOW_THREADS
@@ -193,25 +219,19 @@ void reader_dealloc(PyObject *object) {
     Py_TYPE(object)->tp_free(object);
 }
 
-// Parses (name, [fallback,] hash=None, switch_value=None) from a fastcall vector.
+// Parses (name, fallback, hash=None, switch_value=None) from a fastcall vector.
 struct Call {
     detent_str name{}, hash{nullptr, 0}, switch_value{nullptr, 0};
     PyObject *fallback = nullptr;
 };
 
-bool parse_call(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, bool fallback, bool optionals, Call *out) {
-    const Py_ssize_t positional_max = 1 + (fallback ? 1 : 0) + (optionals ? 2 : 0);
-    if (nargs > positional_max) {
-        PyErr_Format(PyExc_TypeError, "takes at most %zd arguments (%zd given)", positional_max, nargs);
+bool parse_call(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, Call *out) {
+    static const char *const names[4] = {"name", "fallback", "hash", "switch_value"};
+    if (nargs > 4) {
+        PyErr_Format(PyExc_TypeError, "takes at most 4 arguments (%zd given)", nargs);
         return false;
     }
     PyObject *values[4] = {nullptr, nullptr, nullptr, nullptr};
-    const char *names[4] = {"name", fallback ? "fallback" : "hash", "hash", "switch_value"};
-    if (!fallback) {
-        names[1] = "hash";
-        names[2] = "switch_value";
-    }
-    const int total = 1 + (fallback ? 1 : 0) + (optionals ? 2 : 0);
     for (Py_ssize_t i = 0; i < nargs; ++i)
         values[i] = args[i];
     if (kwnames) {
@@ -220,7 +240,7 @@ bool parse_call(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, bool
             if (!key)
                 return false;
             int slot = -1;
-            for (int i = 0; i < total; ++i)
+            for (int i = 0; i < 4; ++i)
                 if (std::string(names[i]) == key)
                     slot = i;
             if (slot < 0) {
@@ -234,79 +254,80 @@ bool parse_call(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, bool
             values[slot] = args[nargs + k];
         }
     }
-    for (int i = 0; i < 1 + (fallback ? 1 : 0); ++i)
+    for (int i = 0; i < 2; ++i)
         if (!values[i]) {
             PyErr_Format(PyExc_TypeError, "missing argument '%s'", names[i]);
             return false;
         }
     if (!text_arg(values[0], "name", false, &out->name))
         return false;
-    int next = 1;
-    if (fallback)
-        out->fallback = values[next++];
-    if (optionals) {
-        if (values[next] && !text_arg(values[next], "hash", true, &out->hash))
-            return false;
-        if (values[next + 1] && !text_arg(values[next + 1], "switch_value", true, &out->switch_value))
-            return false;
-    }
+    out->fallback = values[1];
+    if (values[2] && !text_arg(values[2], "hash", true, &out->hash))
+        return false;
+    if (values[3] && !text_arg(values[3], "switch_value", true, &out->switch_value))
+        return false;
     return true;
 }
 
-PyObject *reader_eval(PyObject *object, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+// An int fallback (not bool) as int64; raises TypeError or OverflowError.
+bool integer_fallback(PyObject *object, std::int64_t *out) {
+    if (!PyLong_Check(object) || PyBool_Check(object)) {
+        PyErr_SetString(PyExc_TypeError, "fallback must be int");
+        return false;
+    }
+    const long long value = PyLong_AsLongLong(object);
+    if (value == -1 && PyErr_Occurred())
+        return false;  // OverflowError: outside int64
+    *out = value;
+    return true;
+}
+
+PyObject *reader_get(PyObject *object, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Call call;
-    if (!parse_call(args, nargs, kwnames, true, true, &call))
+    std::int64_t fallback = 0;
+    if (!parse_call(args, nargs, kwnames, &call) || !integer_fallback(call.fallback, &fallback))
+        return nullptr;
+    std::int64_t out = fallback;
+    detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash, call.switch_value, fallback,
+               &out);
+    return PyLong_FromLongLong(out);
+}
+
+// The knob as a flag: the fallback unless the value is 0 or 1, as C++'s get_as<bool>.
+PyObject *reader_get_bool(PyObject *object, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    Call call;
+    if (!parse_call(args, nargs, kwnames, &call))
         return nullptr;
     if (!PyBool_Check(call.fallback)) {
         PyErr_SetString(PyExc_TypeError, "fallback must be bool");
         return nullptr;
     }
-    const bool fallback = call.fallback == Py_True;
-    bool out = fallback;
-    detent_eval(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash, call.switch_value, fallback,
-                &out);
-    return PyBool_FromLong(out);
-}
-
-PyObject *reader_get(PyObject *object, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    Call call;
-    if (!parse_call(args, nargs, kwnames, true, false, &call))
-        return nullptr;
-    if (!PyLong_Check(call.fallback) || PyBool_Check(call.fallback)) {
-        PyErr_SetString(PyExc_TypeError, "fallback must be int");
-        return nullptr;
-    }
-    const long long fallback = PyLong_AsLongLong(call.fallback);
-    if (fallback == -1 && PyErr_Occurred())
-        return nullptr;  // OverflowError: outside int64
+    const std::int64_t fallback = call.fallback == Py_True;
     std::int64_t out = fallback;
-    detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, fallback, &out);
-    return PyLong_FromLongLong(out);
+    detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash, call.switch_value, fallback,
+               &out);
+    return PyBool_FromLong(out == 0 || out == 1 ? out : fallback);
 }
 
 PyObject *reader_lookup(PyObject *object, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Call call;
-    if (!parse_call(args, nargs, kwnames, false, true, &call))
+    std::int64_t fallback = 0;
+    if (!parse_call(args, nargs, kwnames, &call) || !integer_fallback(call.fallback, &fallback))
         return nullptr;
-    detent_value value{};
-    const detent_status status = detent_read(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash,
-                                             call.switch_value, &value);
+    std::int64_t out = fallback;
+    const detent_status status = detent_get(reinterpret_cast<ReaderObject *>(object)->handle, call.name, call.hash,
+                                            call.switch_value, fallback, &out);
     PyObject *code = status_object(status);
     if (!code)
         return nullptr;
-    PyObject *payload = Py_None;
-    Py_INCREF(payload);
-    if (status == DETENT_OK) {
-        Py_DECREF(payload);
-        payload = value.kind == DETENT_KIND_BOOL ? PyBool_FromLong(value.boolean) : PyLong_FromLongLong(value.integer);
-        if (!payload) {
-            Py_DECREF(code);
-            return nullptr;
-        }
+    PyObject *value = PyLong_FromLongLong(out);
+    if (!value) {
+        Py_DECREF(code);
+        return nullptr;
     }
-    PyObject *result = PyObject_CallFunctionObjArgs(lookup_type, code, payload, nullptr);
+    PyObject *result = PyObject_CallFunctionObjArgs(lookup_type, code, value, nullptr);
     Py_DECREF(code);
-    Py_DECREF(payload);
+    Py_DECREF(value);
     return result;
 }
 
@@ -334,12 +355,12 @@ PyObject *reader_revision(PyObject *object, PyObject *const *args, Py_ssize_t na
 }
 
 PyMethodDef reader_methods[] = {
-    {"eval", reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(reader_eval)), METH_FASTCALL | METH_KEYWORDS,
-     "eval(name, fallback, hash=None, switch_value=None) -> bool"},
     {"get", reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(reader_get)), METH_FASTCALL | METH_KEYWORDS,
-     "get(name, fallback) -> int"},
+     "get(name, fallback, hash=None, switch_value=None) -> int"},
+    {"get_bool", reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(reader_get_bool)),
+     METH_FASTCALL | METH_KEYWORDS, "get_bool(name, fallback, hash=None, switch_value=None) -> bool"},
     {"lookup", reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(reader_lookup)),
-     METH_FASTCALL | METH_KEYWORDS, "lookup(name, hash=None, switch_value=None) -> Lookup"},
+     METH_FASTCALL | METH_KEYWORDS, "lookup(name, fallback, hash=None, switch_value=None) -> Lookup"},
     {"refresh", reader_refresh, METH_NOARGS, "refresh() -> Status"},
     {"revision", reinterpret_cast<PyCFunction>(reinterpret_cast<void (*)()>(reader_revision)),
      METH_FASTCALL | METH_KEYWORDS, "revision(namespace) -> int | None"},
@@ -355,7 +376,7 @@ int module_exec(PyObject *module) {
     PyObject *globals = PyModule_GetDict(module);
     if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0)
         return -1;
-    PyObject *ran = PyRun_String(kPrelude, Py_file_input, globals, globals);
+    PyObject *ran = PyRun_String(prelude().c_str(), Py_file_input, globals, globals);
     if (!ran)
         return -1;
     Py_DECREF(ran);
@@ -367,7 +388,7 @@ int module_exec(PyObject *module) {
     reader_type.tp_name = "detent.Reader";
     reader_type.tp_basicsize = sizeof(ReaderObject);
     reader_type.tp_flags = Py_TPFLAGS_DEFAULT;  // not BASETYPE: no subclassing
-    reader_type.tp_doc = "Reader(store, publisher_uid, namespaces=()): a lock-free reader over an agent's store.";
+    reader_type.tp_doc = "Reader(store, publisher_uid, namespaces=(), mapping_bytes=0): a lock-free reader over an agent's store.";
     reader_type.tp_new = reader_new;
     reader_type.tp_dealloc = reader_dealloc;
     reader_type.tp_methods = reader_methods;
@@ -385,9 +406,6 @@ PyModuleDef_Slot module_slots[] = {
     {Py_mod_exec, reinterpret_cast<void *>(module_exec)},
 #ifdef Py_mod_multiple_interpreters
     {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
-#endif
-#ifdef Py_mod_gil
-    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
 #endif
     {0, nullptr}};
 

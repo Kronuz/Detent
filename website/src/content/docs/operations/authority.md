@@ -114,12 +114,12 @@ and filesystem-level qualification on specific hardware hasn't been done.
 
 ## Service Management
 
-Run `detentd --authority CONFIG` in the foreground under the service manager;
+Run `detent-authority --authority CONFIG` in the foreground under the service manager;
 see [System Services](/Detent/operations/services/). Use a private state
 directory owned by the service account.
 
 ```sh
-detentd --status --authority /etc/detent/authority.json
+detent-authority --status --authority /etc/detent/authority.json
 ```
 
 With publisher TLS, `--status` checks the HTTPS endpoint with CA and name

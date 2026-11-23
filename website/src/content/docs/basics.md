@@ -9,10 +9,11 @@ outset will make everything else much easier to follow.
 
 ## Knob
 
-A knob is a single named configuration value that a running process reads. It
-is either a **bool** knob (a feature flag or kill switch) or an **int** knob (a
-limit, a size, a timeout). Knobs never hold strings, floats or structured data;
-that restriction keeps evaluation trivial and the read path allocation-free.
+A knob is a single named configuration value that a running process reads.
+Every knob holds one signed 64-bit integer: 0 or 1 for a feature flag or kill
+switch, any value for a limit, a size or a timeout. Knobs never hold strings,
+floats or structured data; that restriction keeps evaluation trivial and the
+read path allocation-free.
 
 Every knob name has exactly two parts separated by one colon:
 
@@ -28,14 +29,14 @@ team. See [Knobs and Names](/Detent/reference/knobs/) for the exact rules.
 
 ## Knob Definition
 
-A definition describes a knob's type and how to evaluate it. An int definition
-is just a default value. A bool definition is a default plus two optional
-refinements: a rollout percentage and per-group overrides.
+A definition describes how to evaluate a knob: a default plus two optional
+refinements, per-group overrides and a rollout percentage. A percentage comes
+with a `rollout_value`, the value callers inside it get.
 
 ```json
-{ "type": "int", "default": 25 }
-{ "type": "bool", "default": false, "rollout_pct": 10,
-  "overrides": { "employees": true, "beta": { "rollout_pct": 50 } } }
+{ "default": 25 }
+{ "default": 0, "overrides": { "employees": 1, "beta": { "rollout_pct": 50 } },
+  "rollout_pct": 10, "rollout_value": 1 }
 ```
 
 A definition is atomic. Publishing a knob always replaces its **whole**
@@ -76,7 +77,7 @@ with the uid the agent runs as and maps the generations read-only.
 
 ## Authority
 
-The durable authority, `detentd --authority`, is the server that publishers
+The durable authority, `detent-authority --authority`, is the server that publishers
 write to. It authenticates each publisher, applies atomic, per-namespace
 transactions, commits them through durable Raft consensus, and delivers the
 result to managed agents.
@@ -90,6 +91,6 @@ without talking to the network or to the daemon.
 
 ## Group Override
 
-A group override lives in a bool knob's definition and applies when the caller
+A group override lives in a knob's definition and applies when the caller
 passes a matching group, the `switch_value`. It is published like any other
 part of a definition.

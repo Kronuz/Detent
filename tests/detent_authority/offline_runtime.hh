@@ -54,6 +54,8 @@ class OfflineRuntime {
 		node.service({0, election_delay_});
 		if (auto job = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
+		if (auto job = node.take_history_operation())
+			kronuz::journal::drive_synchronously(*job);
 		for (const auto &action : node.take_network_actions())
 			check(!std::holds_alternative<kronuz::consensus::Send>(action), "offline runtime requires one voter");
 		check(!node.worker().fenced(), "authority storage fenced");

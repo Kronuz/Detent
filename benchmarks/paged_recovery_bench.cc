@@ -4,6 +4,7 @@
 #include "recovery_context.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -105,12 +106,13 @@ int main(int argc, char **argv) {
 		} cleanup{directory};
 		std::filesystem::create_directories(directory);
 		check(::chmod(directory.c_str(), 0700) == 0);
-		l::StorageIdentity storage{}, generation{};
-		storage.fill('s');
+		l::GenerationId generation{};
 		generation.fill('g');
 		l::Descriptor original;
+		d::Cursor configured; // the corpus's v1 cursor, which its deltas name
 		{
 			auto corpus = detent::bench::local_corpus(count);
+			configured = corpus.cursor;
 			d::SnapshotDecoder decoder(corpus.cursor, {"app"});
 			auto input = std::span<const char>(corpus.wire);
 			while (!input.empty()) {
@@ -118,25 +120,17 @@ int main(int argc, char **argv) {
 				decoder.feed(input, budget);
 			}
 			auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-			l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+			l::detail::PagedSnapshotBuilder builder(source, generation);
 			while (!builder.done()) {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
 			auto image = builder.take();
 			original = image.descriptor();
-			write(directory / "storage.meta", l::encode_storage_identity(storage));
-			write(directory / "selected", l::encode_descriptor(original));
-			const auto name = l::generation_name(generation);
-			write(directory / (name + ".image"), {image.bytes()->data(), image.bytes()->size()});
-			write(
-				directory / (name + ".lease"),
-				l::encode_generation_ownership({storage, generation, original.length, original.checksum, 2}));
-			for (const auto &segment : image.segments()) {
-				const l::detail::SegmentNames names(segment.ownership.segment);
-				write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-				write(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
-			}
+			std::vector<trusted_records::Segment> segments;
+			for (const auto &segment : image.segments())
+				segments.push_back({segment.ownership, segment.bytes->view()});
+			trusted_records::stage(directory, original, image.bytes()->view(), segments);
 		}
 		auto controls = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 		auto heap = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
@@ -149,18 +143,15 @@ int main(int argc, char **argv) {
 			limits.mapping_account = mappings;
 			auto base = l::recover_generation(directory, limits);
 			l::detail::StoreCore core(heap, {}, domain.factory());
-			core.retain_recovered(base);
+			core.retain_recovered("", base);
 			const auto mapping_baseline = mappings->used();
 			for (const unsigned changes : {0, 1, 10, 1000}) {
 				if (changes && std::uint64_t(changes - 1) * 4 >= count)
 					continue;
-				l::GenerationId next;
-				next.fill('a');
-				next[0] = changes ? (changes == 1 ? 'b' : changes == 10 ? 'c' : 'd') : 'a';
-				auto update = delta(original.cursor, changes, heap);
+				auto update = delta(configured, changes, heap);
 				std::optional<l::detail::PagedPlan> plan;
 				if (changes) {
-					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), next, domain);
+					l::detail::PagedDeltaPlanBuilder builder(base, std::move(update), domain);
 					while (!builder.done()) {
 						l::ValidationBudget budget;
 						builder.step(budget);
@@ -168,7 +159,7 @@ int main(int argc, char **argv) {
 					plan.emplace(builder.take());
 				} else {
 					l::detail::PagedPlanBuilder builder(
-						base, std::make_shared<const d::ValidatedDelta>(std::move(update)), next, domain);
+						base, std::make_shared<const d::ValidatedDelta>(std::move(update)), domain);
 					while (!builder.done()) {
 						l::ValidationBudget budget;
 						builder.step(budget);
@@ -177,21 +168,16 @@ int main(int argc, char **argv) {
 				}
 				auto admission =
 					domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, domain.factory());
-				admission->populate(*plan, core.verified_paged);
+				admission->populate(*plan, core.namespaces[""].verified);
 				const auto reserved = admission->reserved_bytes();
 				std::uint64_t fresh_bytes = 0;
-				const auto name = l::generation_name(next);
-				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
-				write(directory / (name + ".lease"),
-					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, 2}));
+				std::vector<trusted_records::Segment> segments;
 				for (const auto &segment : plan->segments()) {
-					const l::detail::SegmentNames names(segment.ownership.segment);
-					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
-					write(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
+					segments.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 					fresh_bytes += segment.bytes->size();
 				}
-				write(directory / "selected", l::encode_descriptor(plan->descriptor()));
+				trusted_records::stage(directory, plan->descriptor(), {plan->bytes()->data(), plan->bytes()->size()},
+									   segments);
 				std::optional<l::RecoveredGeneration> warm, cold;
 				for (bool reuse : {true, false}) {
 					auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
@@ -200,7 +186,7 @@ int main(int argc, char **argv) {
 						heap,
 						mappings,
 						limits,
-						reuse ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
+						reuse ? core.namespaces[""].verified : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						reuse ? admission : d::RetirementHandle<l::detail::MappedRecoveryAdmission>{}};
 					context.metrics = metrics;
 					const auto heap_before = heap->used(), mapped_before = mappings->used();
@@ -245,13 +231,13 @@ int main(int argc, char **argv) {
 							  cold->view().get("app", knob).value() == expected);
 					} else {
 						for (const auto scope : {"beta", "production"}) {
-							const auto expected = base.view().eval("app", knob, "host-a", scope).value();
-							check(warm->view().eval("app", knob, "host-a", scope).value() == expected &&
-								  cold->view().eval("app", knob, "host-a", scope).value() == expected);
+							const auto expected = base.view().get("app", knob, "host-a", scope).value();
+							check(warm->view().get("app", knob, "host-a", scope).value() == expected &&
+								  cold->view().get("app", knob, "host-a", scope).value() == expected);
 						}
 					}
 				}
-				write(directory / "selected", l::encode_descriptor(original));
+				trusted_records::select(directory, original);
 				warm.reset();
 				cold.reset();
 				admission.reset();

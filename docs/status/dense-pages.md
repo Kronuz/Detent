@@ -1,0 +1,78 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Dense-only implementation; complementary pieces run in parallel and whole-feature proof gates landing.
+
+# dense-pages
+
+- Design: docs/design/dense-pages.md; model: docs/design/dense-pages-model.py. Preliminary review: [dense-pages-design.md](../reviews/dense-pages-design.md), APPROVE WITH REQUIRED CHANGES (2026-11-04).
+- Branch / worktree: `phase/dense-pages` at `.claude/worktrees/dense-pages-series`; base `Detent:d5fa05d`.
+- State: codec and resumable packer implemented; complete feature integration in progress. The owner narrows the campaign to Dense pages on 2026-11-05.
+- Done criteria: K1 through K15 below are set by the lead. Contributors attach evidence and tick them; they do not weaken or remove them.
+- Done:
+  1. The model and this ledger (`Detent:b6932c2`). The model's rebuild of today's trie matches the r12 store exactly (7,000,007 pages, 1,479,001,197 page bytes, 1,441 segments and 1,509,994,805 pack bytes in postorder).
+  2. The draft: decisions D1 to D10, gate rows T1 to T10, Q1 and Q2, with the second sweep's 5M figures (`Detent:505d0c0`).
+  3. The draft checked against the code it changes: D3's root check (`paged_layout.cc:74`), S3b's repair marked open, and namespace-delivery's D8, D9 and D11 named as such (`Detent:8e1399b`).
+  4. The definition-page first touch in the figures, D6 and Limit 2 (`Detent:3afb8ba`).
+  5. The build plan in place of the first steps: S1 to S5 with files, done criteria, mutants and the numbers to hit, the landing order against reader S6, S3b and namespace S1, S2 and S7, and every count marked projected (this commit).
+- Doing: full snapshot/segment construction consumes the resumable packer. Native full-build corpus tooling checks actual generations and separate page/pack/metadata hash totals. Readers/validators and deltas/relocation run on complementary branches.
+- Next:
+  1. Compose native builders with peer reader/validator and delta checkpoints; reproduce the 100K and 5M model pages and hash boundaries with actual `PagedSnapshotBuilder` output.
+  2. Finish whole-feature value, decoder, resource, sanitizer and quantitative reader proof; execute the bounded decoder fuzz hour and retain raw results.
+  3. Run whole-feature code/security/optimization reviews, fix findings, obtain the architect's merge ruling and final composed-head CI.
+- Scope: the owner's Dense-only plan at `Detent:785fb34` supersedes S6/S3b-first landing and per-step reviews/CI. Existing main APIs are the integration baseline; unrelated campaigns are outside this work.
+- Blocked on: no design blocker. Individual compile gaps are exchanged directly with the peer owning them; no legacy-format compatibility path is retained.
+- Findings folded in: DP-1 corresponding-path occurrence reuse with single extent ownership; DP-2 exact reference/root and derived empty commitment; DP-3 summary/header equality and proved warm skips; DP-4 accepted S3b bounded reads and SourceFailure; DP-5 separate counters/resource/proof contracts; DP-6 T5 before merge. Review confirmation and implementation evidence remain open.
+- Last verified (2026-11-04):
+  - Ruff format, ruff check and pyrefly strict are clean on the model.
+  - `dense-pages-model.py check .scratch/dense/check2` passes on the final model ("check: ok", exit 0), under the light hold dense-check2.
+  - CI does not run for this branch: `.github/workflows/ci.yml:5` ignores `docs/**`.
+
+## Owner workflow (2026-11-05)
+
+The sole deliverable is a complete, measured and optimized Dense pages implementation. Developers implement complementary pieces concurrently, then code, decoder-safety and optimization reviews assess the complete feature. Developers address findings, and the architect gives the final merge ruling. No per-step review or proof-auditor gate is required. Earlier S6/S3b landing dependencies and per-step review requirements below are superseded by this ruling; feature-level correctness, resource safety, compatibility refusal and measured acceptance remain required.
+
+## Implementation done criteria
+
+1. [ ] K1 Design contracts: DP-1 through DP-6 have explicit resolutions in the design and model, with builds-on findings closed before affected implementation. Keep pack checksums and record full copies.
+2. [ ] K2 S1 codec: exact DTPAGE03/DTROOT03/reference fixtures, reserved-byte refusal, empty-state commitment, initially empty/restart/delete-last/add-first tests, maximum bodies and 256-way branches.
+3. [ ] K3 S1 packing: synthetic and 100K page identities/counts/bytes match the corrected model, including repeated-content occurrences; sealing-order, boundary and height mutants die.
+4. [ ] K4 S1 decoder proof: checksum-correct malformed summaries and external arithmetic are refused; first touch, walk, graph and warm validators have bounded fuzz harnesses with live checks. One CPU-hour of decoder fuzzing has zero findings and the corpus replays in CI.
+5. [ ] K5 S2 build: every full-build consumer uses the one format and one digest; 100K and 5M model projections are reproduced or an evidenced discrepancy is resolved before acceptance. Placement-free identity and seal-order offsets pass; complete file identity remains conditional on derived ids.
+6. [ ] K6 S2 validation: reference length/keys/height equal reached headers, warm skipped subtrees use proved summaries, canonical replay has checked arithmetic, and false-height/keys/canonicity/order mutants die.
+7. [ ] K7 S2 accounting: separate page, pack and metadata hash counters have exact boundaries and tests; full build, validation and relocation report each separately. Admission, cancellation, yields and bounded retained-cluster memory remain exercised.
+8. [ ] K8 S3 reading: landed S6 interfaces are preserved; redirected verified-page placement fails; removing the hit comparison fails its test; first touch counts one digest per page. All reader and trusted-restart regressions pass.
+9. [ ] K9 S3 mutation containment: carry S3b's selected bounds/exception behavior through every dense walk visit, with progress bounds; mapped node framing, back edges, table arithmetic and interior placements cannot crash or hang. The residual for undetectable content changes remains documented.
+10. [ ] K10 S4 deltas: 1,000 seeded rounds of 1 to 500 changes equal full rebuilds in values and canonical page occurrences. Repeated-content fixtures prove single ownership of physical extents and correct off-path sealing; corrected one-update/mixed-churn model commands and raw outputs establish actual write targets.
+11. [ ] K11 S4 relocation: partial and complete relocation preserve all values, root commitment, graph counts and live accounting with zero page hashing; off-path, no-op rewrite and relocation mutants die.
+12. [ ] K12 S5 refusal/removal: old root and embedded old page formats trigger refusal/refetch, including interrupted copy and restart. Removed logical-digest fields/domain and Overflow kind have no live callers. Mechanism and public docs describe the resulting single format.
+13. [ ] K13 Proof: fixes have failing revert checks and claims have dying mutants; separate ASan+UBSan and threaded-path TSan pass; S3b byte-flip regressions pass on DTPAGE03. CI is green on every required executed job at the final merged head.
+14. [ ] K14 Landing reviews: independent proof audit, decoder-safety review and architect landing review clear all blockers and required conditions. A new mechanism receives the corresponding design review before it lands.
+15. [ ] K15 Quantitative gate: capture the accepted preceding S6/main baseline; before merging, candidate T5 meets reader T1/T2, including 200/200 resident-data first reads below 1 ms for both namespace counts on the named platform. Lead records 100K/5M projections beside actual measurements, retains A/A and interleaved run evidence where comparing cost, and repeats accepted results on main. T8 file identity follows derived ids, with its remaining dependency explicit.
+
+## Log
+
+- 2026-11-04: started on `Detent:bea5c43`. Read the codec, builder, overlay, readers, validators and the designs this touches (reader.md, namespace-delivery.md, the S3 and S6 ledgers, the cold-bootstrap note at `Detent:d995e86`). Model written; runs queued behind the exclusive hold.
+- 2026-11-04: first sweep under light holds. Extract of the r12 store: 5,000,004 records, packs zstd-1 529,843,307 B and zstd-3 526,744,244 B (Python 3.15 `compression.zstd`). Today rebuilt exactly (above). Dense, 64-byte externals: 4 KiB gives 162,100 to 162,383 pages and 62.9 to 63.0 B per record by rule; pages per lookup 6/7 (largest), 5/7 (density), 5/6 (height) at median/p99; 16 KiB gives 60.0 to 60.2 B per record and the same 5/6 with four times the first-touch bytes. The height rule is the candidate; it needs the child's height in the content entry (68-byte externals).
+- 2026-11-04: second sweep, 68-byte externals, height rule. 4 KiB: 162,367 pages, 315,432,480 page bytes (63.1 B per record), 302 segments of 315,759,038 B, zstd-1 31,671,463 B and zstd-3 30,775,854 B, 5/6 pages per lookup, SHA-256 input at build 622,748,454 B. 2 to 64 KiB swept (D6). Deltas: one key writes 14,811 B against today's 7,936; 10,000 uniform keys 42,812,457 B against 25,504,788; 10,000 clustered 595,962 against 2,916,424. Churn diff of two full builds: 9,800 updates, 100 inserts and 100 deletes write 16,616 pages of 42,821,363 B, 99 pages (220,903 B) off every changed path. Decoder check: 200,000 keys exact through encoded 4 KiB pages. One namespace alone and hashed names give 5/6 pages per lookup at 4 KiB.
+- 2026-11-04: third sweep, partial. The definition-page first touch at 4 KiB is 2,360 B at the median and 3,641 B at p99, against today's 270 and 272; it is in D6 and Limit 2. Node tags moved to today's page kinds (branch 1, definition 2, namespace 3), which changes every digest and no count. The mixed-churn rerun was stopped at wrap-up.
+- 2026-11-04: wrap-up for hand-off to the implementing lead. The build plan replaces the first steps, and every count is marked projected. The final `check` passes. State: designing (ready for preliminary review).
+- 2026-11-04: Preliminary review requires DP-1 through DP-6. Lead sets K1 through K15 without relaxing the draft's proof obligations. Exact model targets remain projections pending contract corrections and C++ reproduction.
+- 2026-11-05: Owner limits scope to Dense pages and replaces per-step reviews with integrated feature reviews followed by the architect's merge ruling. Recovered S1 Debug and ASan/UBSan fixtures pass 3/3. Synthetic and 100K C++ pages, bytes, placement and root match the model (100K: 3,245 pages, 6,209,298 bytes). Full product integration is incomplete; earlier stale design-only state does not describe the working tree.
+
+## Contract correction evidence and handoff
+
+1. **Design versus code.** Only the Python projection model and design are changed. Production C++ still uses DTPAGE02/DTROOT02. The model compares two full builds; it does not execute incremental allocation or certify C++ reuse, decoder safety, cancellation or read latency.
+2. **Occurrence mechanism.** Each modeled page retains the trie path before its top-node prefix. Reuse requires matching path and digest/length/keys/height; no base extent can satisfy two target occurrences. Digest novelty is a separate diagnostic. The model also preserves paths in today's comparison, rather than collapsing its repeated nodes by digest.
+3. **Tiny probes.** `contracts DIR` covers empty packing/commitment, adding/removing a watermark-only state, repeated oversized equal-content leaves, identical-build occurrence reuse, cold/warm false keys and heights, and growing a sibling to seal a clean cluster beside an equal retained page. These are model probes; initially-empty/restart/delete-last/add-first exact C++ root fixtures remain K2 work. Competing false-height canonicity fixtures remain K6 work.
+4. **Execution status.** Ruff formatting and `git diff --check` completed. Model execution, Ruff lint and strict Pyrefly are queued, not passed. Bounded job: main `.scratch/overnight/queue/detent-dense-contracts.sh`; results appear in `done/detent-dense-contracts.log` and `.rc`, with detail in this worktree's `.scratch/dense-contracts/proof.log`. The job times out at 27 minutes and uses one 30-minute light hold. Read its result before S1 implementation.
+5. **Exact projections.** Existing density/hop figures remain projections. Historical one-update/mixed-churn T4 counts are explicitly pending corrected occurrence-oracle output. Before accepting exact targets, save full U/I/D command, corpus SHA-256, model commit and raw output. No local build, test or timing ran during the exclusive hold.
+6. **Next contributor.** Implement S1 on this series only after the lead confirms the foundational contracts and the queued proof passes. K1 through K15 are unchanged. Keep independent review files untouched; execute S2 to S5 and the premerge reader/proof gates before landing the sole-format switch.
+
+## Dense-only implementation, 2026-11-05
+
+1. `Detent:8b041fa`: exact codec/root/reference fixtures, synthetic and real 100K packer identity, 256-way/max-body/repeated-content cases, admitted resumable clusters, cancellation and quota tests. Debug and separate ASan+UBSan targets passed 3/3. Four sealing/digest mutants failed and the original passed. Decoder smoke: 678,914 inputs in 91 seconds, zero findings; 143 corpus seeds replay in CTest. Raw evidence: `.scratch/dense-s1/`.
+2. Model SHA-256 `96dfd0a7aad2af1f8bd8dead7f85729ddd5e6aeac4ba03ce49ce1b7ea3906bd1`, Python 3.15.2: the queued job passed Ruff, strict Pyrefly, contracts and synthetic self-check. Lead DP-1 probes at main `.scratch/lead-dense-model/` passed original/restored and rejected digest-global physical ownership and digest-set write filtering. This is model evidence, not incremental C++ allocator proof.
+3. Fresh projections and exact C++ packer pages: synthetic 20,205 records, 913 pages, 1,266,995 page bytes, root `30a019eb55b13776fcda2fa164dae35e64ffd8b1aa9dffc8ed4a66a8160997bf`; real 100,004 records, 3,245 pages, 6,209,298 page bytes, root `7c0f7d1b4a8d6e036895fc120a38a5deca5ec25b8778866b48dd636070d23464`. Retained peaks at the S1 fixture boundary: 123,988 and 122,605 bytes. Synthetic wide keys are raw structural inputs; production `TrieCursor` checks typed keys on the real corpus. Full generation counts remain pending native integration.
+4. `Detent:384d84f`: structural-only verification, exact hash categories, clean open-cluster and intrinsically sealed-reference injection, sealed-page segment input. Targeted Debug codec/packer tests passed, including one-byte injection budgets. Native full-build target and corpus adapter are in progress. No complete-product build, final-head CI, whole-feature review or reader acceptance is claimed.
+
+## Parked for Campaign 2.0 (2026-11-05)
+
+The owner requests migration before further feature work. The contributor reached a usage limit mid-step; the lead preserves its current files without claiming final integration passed. Full-build implementation and native 100K model identity exist; builder/segment fixtures, global composed builds, 5M measurements and final feature checks remain. Worktree: `.claude/worktrees/dense-pages-series`, branch `phase/dense-pages`. No live command or hold remains at 14:54 PST. Resume full-build integration from this checkpoint under the new quest journal.

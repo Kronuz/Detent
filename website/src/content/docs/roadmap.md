@@ -57,10 +57,9 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
 ## Knob Model
 
 1. String, float and structured (JSON) knob types.
-2. Group overrides for int knobs.
-3. Knob metadata: owner, description, creation date and expiry, with stale-flag
+2. Knob metadata: owner, description, creation date and expiry, with stale-flag
    reporting.
-4. Rule-based targeting beyond exact group names, such as attribute matching
+3. Rule-based targeting beyond exact group names, such as attribute matching
    or segments.
 
 ## Reader and Bindings

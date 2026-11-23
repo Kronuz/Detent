@@ -2,18 +2,19 @@
 #include "paged_contextual_reuse.hh"
 #include "paged_cursor.hh"
 namespace detent::local::detail {
-// Graph validity reuses actual-base proofs; durable dependency checks remain separate.
+// Graph validity reuses actual-base proofs; durable dependency checks remain separate. `own_build` says the
+// new segments are the ones this process just built, whose digests the build computed: they are not compared.
 class WarmGraphValidator {
   public:
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>, const RecoveredGeneration &,
 					   std::shared_ptr<const void> new_segments_owner,
-					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {});
+					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits,
+					   PagedSemanticLimits, bool own_build = false);
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>,
 					   distribution::RetirementHandle<LeasedPagedRoot>,
 					   std::shared_ptr<const void> new_segments_owner,
-					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {});
+					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits,
+					   PagedSemanticLimits, bool own_build = false);
 	~WarmGraphValidator();
 	WarmGraphValidator(WarmGraphValidator &&) noexcept;
 	WarmGraphValidator(const WarmGraphValidator &) = delete;
@@ -24,8 +25,11 @@ class WarmGraphValidator {
 	SegmentReachability removed(std::size_t base_segment) const;
 	SegmentReachability added(std::size_t new_segment) const;
 	std::uint64_t hashed_segment_bytes() const;
+	// Leaf work: definitions validated on new pages, old ones read on removed pages, and definitions the
+	// delta moved unchanged, matched to their old leaves and read on neither side.
 	std::uint64_t definitions_validated() const noexcept;
 	std::uint64_t old_definition_headers() const noexcept;
+	std::uint64_t moved_definitions() const noexcept;
 	std::span<const std::int64_t, 257> override_histogram() const;
 	bool record_reachability(SegmentRegistry &, ValidationBudget &);
 	bool discard(ValidationBudget &);

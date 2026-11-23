@@ -6,16 +6,16 @@ namespace detent::local::detail {
 class DependencyDiscovery {
   public:
 	DependencyDiscovery(std::shared_ptr<distribution::StorageLedger>, distribution::RetirementDomain &,
-						paged::Root, StorageIdentity, paged::Limits = {});
+						paged::Root, paged::Limits = {});
 	DependencyDiscovery(std::shared_ptr<distribution::StorageLedger>, distribution::RetirementFactory,
-						paged::Root, StorageIdentity, paged::Limits = {},
+						paged::Root, paged::Limits = {},
 						distribution::RetirementHandle<SegmentRegistry> prior = {},
 						distribution::RetirementHandle<SegmentRegistry> admitted = {});
 	~DependencyDiscovery();
 	DependencyDiscovery(DependencyDiscovery &&) noexcept;
 	DependencyDiscovery(const DependencyDiscovery &) = delete;
 	void step(ValidationBudget &);
-	std::optional<StorageIdentity> missing() const;
+	std::optional<SegmentId> missing() const;
 	void supply(distribution::RetirementHandle<SegmentMapping>);
 	bool done() const noexcept;
 	std::uint64_t hashed_segment_bytes() const noexcept;

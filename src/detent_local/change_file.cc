@@ -12,10 +12,13 @@ namespace detent::local::detail {
 namespace {
 void (*publish_hook)(void *) noexcept = nullptr;
 void *publish_context = nullptr;
+// Whether a file passes the shape checks other than its size.
+bool owned(const struct stat &info, uid_t owner) {
+	return S_ISREG(info.st_mode) && info.st_uid == owner && info.st_nlink == 1 && !(info.st_mode & 0022);
+}
 // Words in a file that passes the shape checks, or 0.
 std::size_t checked_words(const struct stat &info, uid_t owner) {
-	if (!S_ISREG(info.st_mode) || info.st_uid != owner || info.st_nlink != 1 || (info.st_mode & 0022) ||
-	    info.st_size < std::int64_t(change_bytes(0)) || info.st_size % 8)
+	if (!owned(info, owner) || info.st_size < std::int64_t(change_bytes(0)) || info.st_size % 8)
 		return 0;
 	return std::size_t(info.st_size) / 8;
 }
@@ -37,13 +40,21 @@ ChangeWriter::ChangeWriter(int directory, std::size_t slots, uid_t owner, unsign
 	if (fd_ < 0)
 		throw std::system_error(errno, std::generic_category(), "open change file");
 	try {
-		if (created && (::fchmod(fd_, mode) != 0 || ::ftruncate(fd_, off_t(change_bytes(0))) != 0))
+		if (created && ::fchmod(fd_, mode) != 0)
 			throw std::system_error(errno, std::generic_category(), "create change file");
 		struct stat info{};
 		if (::fstat(fd_, &info) != 0)
 			throw std::system_error(errno, std::generic_category(), "inspect change file");
+		if (!owned(info, owner) || !internal::mode_only_acl(fd_))
+			throw ChangeRefused("unsafe change file");
+		// Under one word, `change` is this writer's own, cut between its creation and sizing: extend it.
+		if (info.st_size < std::int64_t(change_bytes(0))) {
+			if (::ftruncate(fd_, off_t(change_bytes(0))) != 0)
+				throw std::system_error(errno, std::generic_category(), "size change file");
+			info.st_size = off_t(change_bytes(0));
+		}
 		const auto words = checked_words(info, owner);
-		if (!words || !internal::mode_only_acl(fd_))
+		if (!words)
 			throw ChangeRefused("unsafe change file");
 		map(words);
 		reserve(slots);
@@ -98,7 +109,7 @@ std::uint64_t ChangeWriter::word(std::size_t index) const noexcept {
 }
 
 ChangeMapping::Open ChangeMapping::open(int directory, uid_t publisher, ChangeMapping &out) {
-	const int fd = ::openat(directory, change_name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	const int fd = ::openat(directory, change_name, O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0) {
 		if (errno == ENOENT)
 			return Open::Absent;
@@ -118,6 +129,8 @@ ChangeMapping::Open ChangeMapping::open(int directory, uid_t publisher, ChangeMa
 	ChangeMapping mapped;
 	mapped.words_ = static_cast<const ChangeWord *>(address);
 	mapped.count_ = words;
+	mapped.device_ = std::uint64_t(info.st_dev);
+	mapped.inode_ = std::uint64_t(info.st_ino);
 	out = std::move(mapped);
 	return Open::Mapped;
 }
@@ -126,12 +139,15 @@ ChangeMapping::~ChangeMapping() {
 		::munmap(const_cast<ChangeWord *>(words_), count_ * 8);
 }
 ChangeMapping::ChangeMapping(ChangeMapping &&other) noexcept
-    : words_(std::exchange(other.words_, nullptr)), count_(std::exchange(other.count_, 0)) {}
+    : words_(std::exchange(other.words_, nullptr)), count_(std::exchange(other.count_, 0)),
+      device_(std::exchange(other.device_, 0)), inode_(std::exchange(other.inode_, 0)) {}
 ChangeMapping &ChangeMapping::operator=(ChangeMapping &&other) noexcept {
 	if (this != &other) {
 		this->~ChangeMapping();
 		words_ = std::exchange(other.words_, nullptr);
 		count_ = std::exchange(other.count_, 0);
+		device_ = std::exchange(other.device_, 0);
+		inode_ = std::exchange(other.inode_, 0);
 	}
 	return *this;
 }

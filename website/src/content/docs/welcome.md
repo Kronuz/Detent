@@ -15,16 +15,16 @@ a host-local agent receives from a durable authority and publishes on disk;
 each read sees one whole validated generation, and a new one replaces it
 atomically.
 
-A *detent* is the mechanism that makes a rotary knob click into discrete,
-stable positions. That's the idea: your process always sees a complete,
-validated configuration, never something half-turned.
+A *detent* is the click-stop that holds a knob at its setting. That's the
+idea: your process always sees a complete, validated configuration, never
+something half-turned.
 
 Detent has three moving parts:
 
 1. **`detent::Reader`**, the library your application links (C++, with Python
    and Rust bindings over the same C ABI). It owns the read path and the
    evaluation rules, and starts no thread.
-2. **`detentd`**, the durable authority. Publishers open authenticated
+2. **`detent-authority`**, the durable authority. Publishers open authenticated
    sessions and submit atomic, per-namespace transactions; it commits them
    through durable Raft consensus and delivers them to managed agents.
 3. **`detent-agent`** and **`detent`**, the host-local agent and its shell
@@ -32,15 +32,9 @@ Detent has three moving parts:
    generations, so `detent get NAME` reads local files rather than the network,
    from any script or language.
 
-:::hint[Where the name comes from]{.info}
-Detent began as a faithful, independent clone of the publicly observable
-behavior of Meta's JustKnobs, and the original specification is kept in the
-repository as
-[`justknobs-implementation-spec.md`](https://github.com/Kronuz/Detent/blob/main/justknobs-implementation-spec.md).
-Detent is not a Meta product. Every identifier in the code is `detent`, and
-everything beyond the spec, from the agent to the durable authority, is
-Detent's own design.
-:::
+The knob model, with its names, groups, overrides, rollout and evaluation
+rules, is specified in
+[`docs/design/knob-model.md`](https://github.com/Kronuz/Detent/blob/main/docs/design/knob-model.md).
 
 ---
 
@@ -58,7 +52,7 @@ GET /v1/health
 ```
 
 For those, you can always copy the equivalent _curl_ command, aimed at a local
-`detentd` on its default port `8317`, by hovering over the snippet and clicking
+`detent-authority` on its default port `8317`, by hovering over the snippet and clicking
 the copy-to-clipboard button.
 
 ### Helpful Hints

@@ -115,10 +115,10 @@ def measure(
     logfile = folder / "daemon.log"
     environment = {**os.environ, "NO_COLOR": "1", "COLORTERM": "truecolor"}
     for name in (
-        "DETENTD_PORT",
-        "DETENTD_PERSIST_PATH",
-        "DETENTD_REACTORS",
-        "DETENTD_WORKERS",
+        "DETENT_AUTHORITY_PORT",
+        "DETENT_AUTHORITY_PERSIST_PATH",
+        "DETENT_AUTHORITY_REACTORS",
+        "DETENT_AUTHORITY_WORKERS",
     ):
         environment.pop(name, None)
     with logfile.open("wb") as output:
@@ -230,7 +230,7 @@ def main() -> None:
             "schema_version": 1,
             "version": 1,
             "knobs": {
-                f"bench:key_{index}": {"type": "bool", "default": False}
+                f"bench:key_{index}": {"default": 0}
                 for index in range(knobs)
             },
         },

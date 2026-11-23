@@ -46,7 +46,7 @@ export function restToCurl(code, host = DEFAULT_HOST) {
 }
 
 // Per-site: pass `{ host }` to set the base URL used for the copied curl (defaults
-// to detentd's http://localhost:8317), e.g. pluginRestCurl({ host: 'https://api.example' }).
+// to detent-authority's http://localhost:8317), e.g. pluginRestCurl({ host: 'https://api.example' }).
 export function pluginRestCurl({ host = DEFAULT_HOST } = {}) {
 	return {
 		name: "rest-curl",

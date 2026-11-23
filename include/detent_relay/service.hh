@@ -1,6 +1,8 @@
 #pragma once
+#include "mirror_service.hh"
 #include "registry.hh"
 #include "service_limits.hh"
+#include <functional>
 #include <http_handler.h>
 
 namespace detent::relay {
@@ -10,18 +12,23 @@ struct ServiceAccounts {
 };
 struct ServiceStatus {
 	std::array<std::size_t, 3> requests{};
-	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
-	std::size_t sessions = 0;
 	bool closing = false;
 };
 class ServiceRuntime {
   public:
-	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::span<const SessionBinding>,
-				   ServiceLimits = {});
+	// `mirror` answers W5 sessions (version 2) and the history routes a downstream relay reads.
+	// `wake` runs on any thread once a request, a reply or a mirror answer gives step() work: the owner's wake.
+	ServiceRuntime(ServiceAccounts, std::shared_ptr<const Registry>, std::shared_ptr<MirrorService>,
+				   ServiceLimits = {}, std::function<void()> wake = {});
 	~ServiceRuntime();
 	// Close is thread-safe; step, status and drained belong to the owner executor.
 	void close() noexcept;
-	bool step(Sessions::Clock::time_point);
+	// One turn's share of the requests (32 polls, 8 opens, 8 closes, round robin) and 64 sessions; true
+	// when it changed anything. rescan() starts a round over every occupied slot and session; swept() is
+	// true once the turns since have visited them all.
+	bool step(std::chrono::steady_clock::time_point);
+	void rescan() noexcept;
+	bool swept() const noexcept;
 	ServiceStatus status() const noexcept;
 	void health(std::shared_ptr<const distribution::OwnedBuffer>);
 	bool drained() const noexcept;

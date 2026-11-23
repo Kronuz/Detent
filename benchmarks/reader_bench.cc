@@ -2,8 +2,8 @@
 // pinned ReadView (reader.md T1, T4). The lead runs it; see docs/mechanisms/reader-core.md.
 //
 //   reader_bench --store DIR [--publisher UID] --keys FILE [--hot NAME] [--calls N] [--repetitions N]
-//                [--threads N] [--seed N] [--operation int|bool|hashed] [--reader core|pinned|both]
-//   reader_bench --store DIR --generate N   (writes N int and N bool knobs and a keys file, then exits)
+//                [--threads N] [--seed N] [--operation int|hashed] [--reader core|pinned|both]
+//   reader_bench --store DIR --generate N   (writes N plain and N rollout knobs and a keys file, then exits)
 //
 // FILE holds one `ns:key` per line. Each case prints one JSON line: per-call p50/p99 in ns (each
 // call timed with steady_clock, so the clock's own cost is included), heap allocations inside the
@@ -142,8 +142,8 @@ int generate(const Options &o) {
 	for (std::size_t i = 0; i != o.generate; ++i) {
 		const auto n = std::to_string(i);
 		json += (i ? "," : "") + std::string("\"n") + std::to_string(i % 64) + ":i" + n +
-		        R"(":{"type":"int","default":)" + n + "},\"n" + std::to_string(i % 64) + ":b" + n +
-		        R"(":{"type":"bool","default":false,"rollout_pct":50})";
+		        R"(":{"default":)" + n + "},\"n" + std::to_string(i % 64) + ":b" + n +
+		        R"(":{"default":0,"rollout_pct":50,"rollout_value":1})";
 		keys << 'n' << i % 64 << ":i" << n << '\n';
 	}
 	json += "}}";
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
 		return generate(o);
 	const auto scattered = sample(o, o.calls);
 	const std::vector<std::string> hot{o.hot.empty() ? scattered.front() : o.hot};
-	const bool boolean = o.operation != "int", hashed = o.operation == "hashed";
+	const bool hashed = o.operation == "hashed";
 	const std::string hash = "benchmark-user";
 
 	detent_reader *core = nullptr;
@@ -168,21 +168,13 @@ int main(int argc, char **argv) {
 		throw std::runtime_error("detent_open failed");
 	auto pinned = x::PreparedReader::open(o.store, o.publisher, detent::local::ViewLimits::prepared());
 	auto core_call = [&](const std::string &name) {
-		if (boolean) {
-			bool out;
-			detent_eval(core, {name.data(), name.size()}, hashed ? detent_str{hash.data(), hash.size()} : detent_str{},
-			            {}, false, &out);
-		} else {
-			std::int64_t out;
-			detent_get(core, {name.data(), name.size()}, 0, &out);
-		}
+		std::int64_t out;
+		detent_get(core, {name.data(), name.size()}, hashed ? detent_str{hash.data(), hash.size()} : detent_str{},
+		           {}, 0, &out);
 	};
 	auto pinned_call = [&](const std::string &name) {
 		const auto [ns, key] = split(name);
-		if (boolean)
-			(void)pinned.view.try_eval(ns, key, hashed ? std::optional<std::string_view>(hash) : std::nullopt);
-		else
-			(void)pinned.view.try_get(ns, key);
+		(void)pinned.view.try_get(ns, key, hashed ? std::optional<std::string_view>(hash) : std::nullopt);
 	};
 	for (std::size_t rep = 0; rep != o.repetitions; ++rep)
 		for (const auto *set : {&hot, &scattered})

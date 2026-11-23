@@ -37,6 +37,17 @@ class StorageLedger {
 		}
 		~Ticket() { reset(); }
 		std::size_t bytes() const noexcept { return bytes_; }
+		// Takes over `other`'s bytes, admitted by the same ledger, to be refunded together.
+		void absorb(Ticket &&other) {
+			if (!other.ledger_)
+				return;
+			if (ledger_ && ledger_ != other.ledger_)
+				throw std::invalid_argument("distribution tickets of different ledgers");
+			if (!ledger_)
+				ledger_ = other.ledger_;
+			bytes_ += std::exchange(other.bytes_, 0);
+			other.ledger_ = nullptr;
+		}
 		void reset() noexcept {
 			for (auto ledger = ledger_; ledger; ledger = ledger->parent_.get())
 				ledger->used_.fetch_sub(bytes_, std::memory_order_relaxed);

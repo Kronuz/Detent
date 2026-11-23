@@ -15,29 +15,19 @@
 #include <vector>
 
 // The two paths measured side by side: the reader core, and a pinned view of one generation. Each says
-// whether a lookup returned the expected value; the core's fallback is the opposite value, so a failed
-// lookup cannot pass.
+// whether a lookup returned the expected value; the core's fallback differs from it, so a failed lookup
+// cannot pass.
 struct CoreApi {
 	const detent::Reader &reader;
-	bool integer_is(std::string_view key, std::int64_t expected) const { return reader.get(key, ~expected) == expected; }
-	bool boolean_is(std::string_view key, std::optional<std::string_view> hash, bool expected) const {
-		return reader.eval(key, !expected, hash) == expected;
+	bool is(std::string_view key, std::optional<std::string_view> hash, std::int64_t expected) const {
+		return reader.get(key, ~expected, hash) == expected;
 	}
 };
 struct PinnedApi {
 	const detent::local::ReadView &view;
-	static std::pair<std::string_view, std::string_view> split(std::string_view key) {
+	bool is(std::string_view key, std::optional<std::string_view> hash, std::int64_t expected) const {
 		const auto colon = key.find(':');
-		return {key.substr(0, colon), key.substr(colon + 1)};
-	}
-	bool integer_is(std::string_view key, std::int64_t expected) const {
-		const auto [name_space, name] = split(key);
-		const auto result = view.get(name_space, name);
-		return result && result.value() == expected;
-	}
-	bool boolean_is(std::string_view key, std::optional<std::string_view> hash, bool expected) const {
-		const auto [name_space, name] = split(key);
-		const auto result = view.eval(name_space, name, hash);
+		const auto result = view.get(key.substr(0, colon), key.substr(colon + 1), hash);
 		return result && result.value() == expected;
 	}
 };
@@ -121,9 +111,8 @@ class ReaderBenchmark {
 	void measure(const Api &api, const std::vector<const Query *> &queries,
 				 unsigned kind, bool hot, const char *path, unsigned repetition) const {
 		auto lookup = [&](const Query &query) {
-			const bool correct = !kind ? api.integer_is(query.key, query.value)
-				: kind == 1 ? api.boolean_is(query.key, std::nullopt, bool(query.value))
-				            : api.boolean_is(query.key, std::string_view("cohort-A"), query.rollout);
+			const bool correct = kind != 2 ? api.is(query.key, std::nullopt, query.value)
+			                               : api.is(query.key, std::string_view("cohort-A"), std::int64_t(query.rollout));
 			if (!correct)
 				throw std::runtime_error("reader benchmark result mismatch: " + query.key);
 		};

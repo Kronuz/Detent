@@ -7,7 +7,7 @@ voter: "Authority (3 machines)" {
   label.near: top-left
   style.fill: "#F4F1EA"
   direction: down
-  proc: "detentd --authority\nauthority.json"
+  proc: "detent-authority --authority\nauthority.json"
   disk: "directory\nmanifest, journal,\ncheckpoints" {shape: cylinder; style.fill: "#E8E2F0"}
   proc -> disk: "durable before ack"
 }

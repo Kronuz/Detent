@@ -60,7 +60,7 @@ def fresh(name):
 
 
 def knobs(**values):
-    return {"schema_version": 1, "knobs": {f"t:{key}": {"type": "int", "default": value}
+    return {"schema_version": 1, "knobs": {f"t:{key}": {"default": value}
                                            for key, value in values.items()}}
 
 
@@ -94,35 +94,37 @@ def check_case(reader, case):
         assert reader.revision(case["namespace"]) == want, where
         return
     hash_, switch = case.get("hash"), case.get("switch")
-    if op == "eval":
-        got = reader.eval(case["name"], case["fallback"], hash=hash_, switch_value=switch)
+    if op == "get_as":
+        if case["type"] != "bool":
+            return  # Python ints have no width: only the bool rows apply (get_bool)
+        got = reader.get_bool(case["name"], case["fallback"], hash=hash_, switch_value=switch)
         assert got is want, where
     elif op == "get":
-        got = reader.get(case["name"], case["fallback"])
+        got = reader.get(case["name"], case["fallback"], hash_, switch)
         assert got == want and type(got) is int, where
     else:
-        got = reader.lookup(case["name"], hash=hash_, switch_value=switch)
+        got = reader.lookup(case["name"], case["fallback"], hash=hash_, switch_value=switch)
         assert got.status.name.lower() == case["status"], (where, got)
         assert bool(got) == (case["status"] == "ok"), where
-        assert got.value == want and type(got.value) is type(want), (where, got)
+        assert got.value == want and type(got.value) is int, (where, got)
 
 
 # T2: an absent store opens and answers UNAVAILABLE until a generation appears; an untrusted store refuses.
 def test_store_states():
     store = fresh("states")
     reader = detent.Reader(store, UID)
-    miss = reader.lookup("t:rev")
-    assert miss.status == detent.Status.UNAVAILABLE and miss.value is None and not miss, miss
-    assert reader.eval("t:flag", True) is True and reader.get("t:rev", -9) == -9
+    miss = reader.lookup("t:rev", -1)
+    assert miss.status == detent.Status.UNAVAILABLE and miss.value == -1 and not miss, miss
+    assert reader.get_bool("t:flag", True) is True and reader.get("t:rev", -9) == -9
     assert reader.revision("t") is None
     writer = Writer(store)
     writer.publish(knobs(rev=1))
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:  # the core retries an absent store at most once per 200 ms
-        if reader.lookup("t:rev"):
+        if reader.lookup("t:rev", -1):
             break
         time.sleep(0.05)
-    assert reader.lookup("t:rev").value == 1
+    assert reader.lookup("t:rev", -1).value == 1
     assert reader.refresh() == detent.Status.OK
 
     os.chmod(store, 0o777)
@@ -141,6 +143,20 @@ def test_store_states():
         assert error.status == detent.Status.UNTRUSTED
     writer.close()
 
+    # A store absent at open and created untrusted later answers UNTRUSTED from a lookup.
+    late = fresh("late-untrusted")
+    reader = detent.Reader(late, UID)
+    writer = Writer(late)
+    writer.publish(knobs(rev=1))
+    os.chmod(late, 0o777)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and reader.lookup("t:rev", -1).status != detent.Status.UNTRUSTED:
+        time.sleep(0.05)
+    refused = reader.lookup("t:rev", -1)
+    assert refused.status == detent.Status.UNTRUSTED and refused.value == -1, refused
+    os.chmod(late, 0o700)
+    writer.close()
+
 
 # T3: eight threads read while the writer publishes 100 revisions.
 def test_threads():
@@ -156,7 +172,7 @@ def test_threads():
         seen = 0
         try:
             while True:
-                result = reader.lookup("t:rev")
+                result = reader.lookup("t:rev", -1)
                 if result.status != detent.Status.OK or result.value < seen:
                     failures.append((result, seen))
                     return
@@ -224,26 +240,36 @@ def test_arguments():
         assert opened.get("t:rev", 0) == 7
 
     reader = detent.Reader(store, UID)
-    for bad in (lambda: reader.eval("t:flag", 1), lambda: reader.eval("t:flag", "yes"),
+    for bad in (lambda: reader.get_bool("t:flag", 1), lambda: reader.get_bool("t:flag", "yes"),
                 lambda: reader.get("t:rev", True), lambda: reader.get("t:rev", 1.5),
-                lambda: reader.get(b"t:rev", 0), lambda: reader.eval("t:flag", False, hash=1),
-                lambda: reader.lookup(None), lambda: reader.revision(3),
-                lambda: reader.eval("t:flag"), lambda: reader.get("t:rev", 0, 1),
+                lambda: reader.get(b"t:rev", 0), lambda: reader.get_bool("t:flag", False, hash=1),
+                lambda: reader.lookup(None, 0), lambda: reader.lookup("t:rev", True), lambda: reader.revision(3),
+                lambda: reader.get_bool("t:flag"), lambda: reader.lookup("t:rev"), lambda: reader.get("t:rev", 0, 1),
+                lambda: reader.get("t:rev", 0, None, 1), lambda: reader.get("t:rev", 0, hash_value="h"),
                 lambda: detent.Reader(store, "0"), lambda: detent.Reader(store, UID, "t"),
-                lambda: detent.Reader(store, UID, [3]), lambda: detent.Reader()):
+                lambda: detent.Reader(store, UID, [3]), lambda: detent.Reader(store, UID, (), "1"),
+                lambda: detent.Reader(store, UID, mapping_bytes=True), lambda: detent.Reader()):
         try:
             bad()
             raise AssertionError("expected TypeError")
         except TypeError:
             pass
     for bad in (lambda: reader.get("t:rev", 2 ** 63), lambda: reader.get("t:rev", -2 ** 63 - 1),
-                lambda: detent.Reader(store, 2 ** 32), lambda: detent.Reader(store, -1)):
+                lambda: detent.Reader(store, 2 ** 32), lambda: detent.Reader(store, -1),
+                lambda: detent.Reader(store, UID, mapping_bytes=-1)):
         try:
             bad()
             raise AssertionError("expected OverflowError")
         except OverflowError:
             pass
     assert reader.get("t:rev", -2 ** 63) == 7 and reader.get("t:missing", 2 ** 63 - 1) == 2 ** 63 - 1
+    # A mapping cap below one pack and its bitmap refuses the open; one at the minimum opens.
+    try:
+        detent.Reader(store, UID, mapping_bytes=1)
+        raise AssertionError("a one-byte mapping cap opened")
+    except detent.ReaderError as error:
+        assert error.status == detent.Status.INVALID_ARGUMENT, error
+    assert detent.Reader(store, UID, (), 1055136).get("t:rev", 0) == 7
 
     try:
         class Subclass(detent.Reader):

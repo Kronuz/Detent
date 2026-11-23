@@ -15,7 +15,7 @@ JSON  -> detent::parse_defaults -> Snapshot (ns:name -> KnobDef)
       -> ManagedRecovery::recover + confirm_recovered
 ```
 
-This is the agent's path: the store writes the segments, root image, lease, `.read` reader metadata and the `selected` descriptor. Each call publishes the next cursor revision with exactly the given knobs (not a merge). A knob set is replaced whole, so a test that wants to change one value publishes the set again.
+This is the agent's path: the store writes the segments, root image, empty lease, `.read` and `.live`, and the `selected` table. Each call publishes the next cursor revision with exactly the given knobs (not a merge). A knob set is replaced whole, so a test that wants to change one value publishes the set again.
 
 ## Surfaces
 
@@ -24,4 +24,4 @@ This is the agent's path: the store writes the segments, root image, lease, `.re
 
 ## Not yet
 
-The `change` file and its per-namespace sequences belong to S5, so the writer moves only the selected generation. The hand-built fixture (`tests/detent_local/prepared_reader_fixture.hh`) stays for malformed-input tests.
+The writer publishes through `DiskStore` and the agent store, so `change` moves as the agent's does. The hand-built fixture (`tests/detent_local/prepared_reader_fixture.hh`) stays for malformed-input tests.

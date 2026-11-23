@@ -38,13 +38,11 @@ int main(int argc, char **argv) {
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 		auto account = source->storage_account();
 		auto source_bytes = account->used();
-		l::StorageIdentity storage{};
-		storage.fill('s');
 		l::GenerationId generation{};
 		generation.fill('a');
 		auto start = Clock::now();
 		auto cpu = std::clock();
-		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		l::detail::PagedSnapshotBuilder builder(source, generation);
 		while (!builder.done()) {
 			l::ValidationBudget b;
 			builder.step(b);
@@ -63,7 +61,7 @@ int main(int argc, char **argv) {
 		d::RetirementRuntime runtime{controls, 1};
 		auto domain = runtime.domain(controls, 16);
 		cpu = std::clock();
-		l::detail::GraphValidator validator(account, lease, lease->segments, root, storage);
+		l::detail::GraphValidator validator(account, lease, lease->segments, root, {}, l::detail::paged_format_semantics);
 		while (!validator.done()) {
 			l::ValidationBudget b;
 			validator.step(b);

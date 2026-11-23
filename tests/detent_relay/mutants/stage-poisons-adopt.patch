@@ -1,0 +1,12 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index a29de5a9..8266e20f 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -232,6 +232,7 @@ AdoptStats MirrorStore::adopt(std::uint64_t seal, std::span<const NamespaceLayou
+ 			stats.fetched_bytes += bytes.size();
+ 		} catch (...) {
+ 			clean();
++			s.poisoned = true;
+ 			throw;
+ 		}
+ 	}

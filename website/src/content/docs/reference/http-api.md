@@ -2,7 +2,7 @@
 title: "HTTP API"
 ---
 
-`detentd --authority CONFIG` runs the durable authority, which speaks HTTP/1.1
+`detent-authority --authority CONFIG` runs the durable authority, which speaks HTTP/1.1
 with JSON bodies, over TLS when its configuration enables publisher TLS.
 
 | Endpoints | Authentication |
@@ -15,6 +15,11 @@ Examples on these pages are written as REST snippets:
 ```rest
 GET /v1/health
 ```
+
+<!-- e2e:begin
+ca: build/quickstart/certs/ca.pem
+json.mode: "durable_single_voter"
+e2e:end -->
 
 Hover a snippet and use the copy button to get the equivalent `curl` command
 against `http://localhost:8317`.

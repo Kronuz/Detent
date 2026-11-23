@@ -13,7 +13,7 @@ namespace detent::local::detail {
 // table that reaches the generation; docs/mechanisms/trusted-restart.md has the byte layout.
 inline constexpr std::size_t live_header_bytes = 1152, live_row_bytes = 72, live_digest_bytes = 32;
 struct LiveRow {
-	StorageIdentity segment{};
+	SegmentId segment{};
 	std::uint64_t length = 0;
 	std::array<char, 32> checksum{};
 	SegmentReachability live;

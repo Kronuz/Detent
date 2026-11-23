@@ -45,7 +45,7 @@ option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
 option(DETENT_BUILD_RELAY "Build the optional durable relay daemon" OFF)
 option(DETENT_BUILD_MANAGED_AGENT "Build managed binary authority delivery support" ON)
-option(DETENT_BUILD_AUTHORITY "Build detentd, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
+option(DETENT_BUILD_AUTHORITY "Build detent-authority, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
 option(DETENT_BUILD_PYTHON "Build the Python binding (a C extension over libdetent_reader; requires Python3 dev headers)" OFF)
 option(DETENT_BUILD_RUST "Build the Rust binding (over libdetent_reader; requires cargo/rustc)" OFF)
@@ -55,7 +55,7 @@ if(DETENT_READ_COUNTERS)
   add_compile_definitions(DETENT_READ_COUNTERS=1)
 endif()
 
-# Must precede any add_subdirectory() that calls add_test() (detentd/,
+# Must precede any add_subdirectory() that calls add_test() (src/,
 # tests/): CMake only wires a subdirectory's CTestTestfile.cmake into the
 # root aggregate for subdirectories added AFTER enable_testing() runs.
 if(DETENT_BUILD_TESTS)
@@ -80,7 +80,8 @@ FetchContent_MakeAvailable(
   sha256
   atomic_shared_ptr
   random_lib
-  compressors)
+  compressors
+  varint)
 
 ########################################################################
 # detent core library
@@ -103,12 +104,20 @@ endif()
 
 FetchContent_MakeAvailable(detent_logger)
 
-# Limits a shared library to the symbols named in <prefix>.map (GNU ld and lld) or <prefix>.txt (Apple ld).
-function(detent_export_only target prefix)
+# Limits a shared library to exactly the C functions LIST names, one per line: a version script for
+# GNU ld and lld, an exported-symbols list for Apple ld, both written from LIST at configure time.
+function(detent_export_only target list)
+  file(STRINGS "${list}" names)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${list}")
   if(APPLE)
-    target_link_options(${target} PRIVATE "LINKER:-exported_symbols_list,${prefix}.txt")
+    list(TRANSFORM names PREPEND "_")
+    string(JOIN "\n" text ${names})
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${target}.exports" "${text}\n")
+    target_link_options(${target} PRIVATE "LINKER:-exported_symbols_list,${CMAKE_CURRENT_BINARY_DIR}/${target}.exports")
   else()
-    target_link_options(${target} PRIVATE "LINKER:--version-script=${prefix}.map")
+    string(JOIN "; " text ${names})
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${target}.map" "{ global: ${text}; local: *; };\n")
+    target_link_options(${target} PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
   endif()
 endfunction()
 

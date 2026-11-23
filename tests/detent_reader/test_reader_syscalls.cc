@@ -1,7 +1,8 @@
 // T1's no-syscall and no-allocation checks on warm lookups (reader.md D3, T1).
 // Linux: a forked child installs a seccomp filter that allows only `write` on its result pipe and
-// `exit`/`exit_group`, runs 1M lookups and reports. macOS: the task's BSD syscall count over 1M
-// lookups. Both: the allocation probe counts zero allocations across 1M lookups.
+// `exit`/`exit_group` (any other call kills the whole process, sanitizer threads included), runs 1M
+// lookups and reports. macOS: the task's BSD syscall count over 1M lookups. Both: the allocation
+// probe counts zero allocations across 1M lookups.
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
 #include <atomic>
@@ -50,29 +51,17 @@ constexpr std::size_t calls = 1'000'000;
 #define DETENT_SANITIZED 1
 #endif
 
-// 1M lookups across get, eval with a hash and a switch, and read; returns the sum of the answers.
+// 1M lookups: plain, with a hash and a switch, and a hashed rollout; returns the sum of the answers.
 std::int64_t lookups(detent_reader *h) {
 	std::int64_t total = 0;
 	for (std::size_t i = 0; i != calls; ++i) {
 		std::int64_t value = 0;
-		bool flag = false;
-		detent_value read{};
-		switch (i % 3) {
-		case 0:
-			if (detent_get(h, S("t:rev"), 0, &value) != DETENT_OK)
-				return -1;
-			total += value;
-			break;
-		case 1:
-			if (detent_eval(h, S("t:flag"), S("user"), S("vip"), false, &flag) != DETENT_OK)
-				return -1;
-			total += flag;
-			break;
-		default:
-			if (detent_read(h, S("u:ramp"), S("user"), none, &read) != DETENT_OK)
-				return -1;
-			total += read.boolean;
-		}
+		const auto status = i % 3 == 0   ? detent_get(h, S("t:rev"), none, none, 0, &value)
+		                    : i % 3 == 1 ? detent_get(h, S("t:flag"), S("user"), S("vip"), 0, &value)
+		                                 : detent_get(h, S("u:ramp"), S("user"), none, 0, &value);
+		if (status != DETENT_OK)
+			return -1;
+		total += value;
 	}
 	return total;
 }
@@ -87,9 +76,9 @@ int main() {
 	{
 		// The writer's store threads end before anything is counted.
 		detent::testing::GenerationWriter writer(root);
-		CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"type":"int","default":3},)"
-		                          R"("t:flag":{"type":"bool","default":false,"overrides":{"vip":true}},)"
-		                          R"("u:ramp":{"type":"bool","default":false,"rollout_pct":100}}})") == 1);
+		CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":3},)"
+		                          R"("t:flag":{"default":0,"overrides":{"vip":1}},)"
+		                          R"("u:ramp":{"default":0,"rollout_pct":100,"rollout_value":1}}})") == 1);
 	}
 	const auto path = root.string();
 	detent_open_options options{sizeof options, S(path), nullptr, 0, uint32_t(::getuid())};
@@ -119,11 +108,11 @@ int main() {
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_exit, 0, 1),
 		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 1, 0),
-		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 		    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, args[0])),
 		    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, fd, 0, 1),
 		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+		    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 		};
 		sock_fprog program{static_cast<unsigned short>(sizeof filter / sizeof filter[0]), filter};
 		if (::prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 || ::prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) != 0)

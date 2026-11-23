@@ -4,13 +4,12 @@
 #include <stdexcept>
 namespace detent::local::detail {
 SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> account,
-								 StorageIdentity storage, paged::Limits limits)
+								 paged::Limits limits)
 	: mappings_(distribution::StorageAllocator<MappingHandle>(account)),
 	  inputs_(distribution::StorageAllocator<SegmentInput>(account)),
-	  reachable_(distribution::StorageAllocator<SegmentReachability>(account)), storage_(storage),
+	  reachable_(distribution::StorageAllocator<SegmentReachability>(account)),
 	  limits_(limits) {
-	if (!std::any_of(storage.begin(), storage.end(), [](char c) { return c != 0; }) ||
-		limits.segments > mappings_.max_size() || limits.segments > inputs_.max_size() ||
+	if (limits.segments > mappings_.max_size() || limits.segments > inputs_.max_size() ||
 		limits.segments > reachable_.max_size())
 		throw std::invalid_argument("invalid segment registry admission");
 	identity_ =
@@ -22,7 +21,7 @@ SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> ac
 void SegmentRegistry::append(MappingHandle mapping) {
 	if (sealed_)
 		throw std::logic_error("sealed segment registry");
-	if (!mapping || !mapping->has_ownership() || inputs_.size() == limits_.segments || mapping->ownership().storage != storage_ ||
+	if (!mapping || !mapping->has_ownership() || inputs_.size() == limits_.segments ||
 		mapping->ownership().length > limits_.bytes - physical_bytes_ ||
 		(!inputs_.empty() &&
 		 std::memcmp(inputs_.back().ownership.segment.data(), mapping->ownership().segment.data(), 16) >= 0))

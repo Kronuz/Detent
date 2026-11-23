@@ -35,7 +35,7 @@ Command transaction(std::uint64_t sequence) {
 	c.generation = 1;
 	c.sequence = sequence;
 	c.name_space = "ns";
-	c.mutations.push_back({"ns:key", detent::IntDef{static_cast<std::int64_t>(sequence)}, {}, {}});
+	c.mutations.push_back({"ns:key", detent::KnobDef{static_cast<std::int64_t>(sequence)}, {}, {}});
 	return c;
 }
 std::uint64_t clock_value = 0;

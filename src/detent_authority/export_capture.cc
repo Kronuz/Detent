@@ -11,7 +11,7 @@ Revision ExportCapture::namespace_revision(std::uint64_t ordinal) const {
 		throw std::logic_error("retired export capture");
 	auto name = scope_->name(ordinal);
 	const auto *value = namespaces_.find(name);
-	return value ? *value : 0;
+	return value ? value->position : 0;
 }
 ExportCapture::RecordCursor::RecordCursor(const Records &records,
 										  std::shared_ptr<const AuthorizedScope> scope,

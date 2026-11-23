@@ -1,6 +1,6 @@
 #pragma once
 
-// Section 4: strict JSON decoding of both the baked-defaults file and a
+// Strict JSON decoding of both the baked-defaults file and a
 // source snapshot payload, into the in-memory Snapshot model. Every schema
 // violation rejects the *whole* input -- there is no partial acceptance.
 
@@ -19,7 +19,7 @@ namespace detent {
 inline constexpr std::size_t kDefaultMaxKnobs = 100'000;
 inline constexpr std::size_t kDefaultMaxBytes = 16u * 1024 * 1024; // 16 MiB
 
-// Parses `just_knobs.json`-shaped bytes into a version-0 Snapshot.
+// Parses `defaults.json`-shaped bytes into a version-0 Snapshot.
 [[nodiscard]] Result<Snapshot, UpdateError> parse_defaults(
 	std::string_view json_text,
 	std::string source_id = "defaults",
@@ -28,7 +28,7 @@ inline constexpr std::size_t kDefaultMaxBytes = 16u * 1024 * 1024; // 16 MiB
 
 // Parses a source snapshot payload. Requires `version` to be a positive
 // integer; the caller is responsible for checking it is strictly greater
-// than the last accepted version (Section 4: version rules).
+// than the last accepted version (docs/design/knob-model.md, "Snapshots and versions").
 [[nodiscard]] Result<Snapshot, UpdateError> parse_source_snapshot(
 	std::string_view json_text,
 	std::string source_id,

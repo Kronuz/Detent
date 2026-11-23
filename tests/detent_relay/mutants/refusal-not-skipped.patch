@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/http_upstream.cc b/src/detent_relay/http_upstream.cc
+index a6b01160..c3ca49c7 100644
+--- a/src/detent_relay/http_upstream.cc
++++ b/src/detent_relay/http_upstream.cc
+@@ -242,7 +242,7 @@ MirrorTable HttpUpstream::layouts(std::span<const std::string> names) {
+ 	auto &p = *impl_;
+ 	auto response = p.exchange("/v2/history/layouts", body);
+ 	// A voter that knows no live leader, or whose history is not ready: the next source may answer.
+-	if (response.status == 503)
++	if (false && response.status == 503)
+ 		throw UpstreamBehind("relay upstream: /v2/history/layouts answered 503: " + response.body.substr(0, 256));
+ 	p.require("/v2/history/layouts", response, 200, "application/vnd.detent.layouts");
+ 	try {

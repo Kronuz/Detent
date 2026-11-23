@@ -2,11 +2,13 @@
 // Header-only C++ face of libdetent_reader (docs/design/reader.md D7; docs/mechanisms/reader-core.md).
 // Every lookup returns the caller's default on any error; lookup() also gives the status (Q2 (a)).
 #include "detent/reader.h"
+#include <concepts>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -21,7 +23,7 @@ class ReaderError : public std::runtime_error {
 };
 struct Lookup {
 	detent_status status;
-	detent_value value;
+	std::int64_t value; // the caller's default for any status but DETENT_OK
 	explicit operator bool() const noexcept { return status == DETENT_OK; }
 };
 // One handle per process, owned by the application (R4). Lookups are thread-safe; moving or
@@ -29,8 +31,9 @@ struct Lookup {
 class Reader {
   public:
 	// Throws ReaderError when the library's ABI differs from this header's or the open fails.
+	// `mapping_bytes` caps mapped packs and their bitmaps (detent_open_options); 0: 512 MiB.
 	explicit Reader(std::string_view store, std::uint32_t publisher_uid,
-	                const std::vector<std::string_view> &namespaces = {}) {
+	                const std::vector<std::string_view> &namespaces = {}, std::uint64_t mapping_bytes = 0) {
 		if (detent_abi_version() != DETENT_ABI_VERSION)
 			throw ReaderError(DETENT_INVALID_ARGUMENT, "libdetent_reader ABI version differs from its header");
 		std::vector<detent_str> names;
@@ -38,7 +41,7 @@ class Reader {
 		for (const auto ns : namespaces)
 			names.push_back(str(ns));
 		detent_open_options options{sizeof(detent_open_options), str(store), names.data(), names.size(),
-		                            publisher_uid};
+		                            publisher_uid, mapping_bytes};
 		const auto status = detent_open(&options, &handle_);
 		if (status != DETENT_OK)
 			throw ReaderError(status, std::string("detent_open: ") + detent_status_name(status));
@@ -55,21 +58,24 @@ class Reader {
 	Reader &operator=(const Reader &) = delete;
 	~Reader() { detent_close(handle_); }
 
-	bool eval(std::string_view name, bool fallback, std::optional<std::string_view> hash = {},
-	          std::optional<std::string_view> switch_value = {}) const noexcept {
-		bool out = fallback;
-		detent_eval(handle_, str(name), str(hash), str(switch_value), fallback, &out);
-		return out;
+	std::int64_t get(std::string_view name, std::int64_t fallback, std::optional<std::string_view> hash = {},
+	                 std::optional<std::string_view> switch_value = {}) const noexcept {
+		return lookup(name, fallback, hash, switch_value).value;
 	}
-	std::int64_t get(std::string_view name, std::int64_t fallback) const noexcept {
-		std::int64_t out = fallback;
-		detent_get(handle_, str(name), fallback, &out);
-		return out;
+	// The value as T, or `fallback` when it is out of T's range (for bool, other than 0 or 1).
+	template <std::integral T>
+	T get_as(std::string_view name, T fallback, std::optional<std::string_view> hash = {},
+	         std::optional<std::string_view> switch_value = {}) const noexcept {
+		const auto found = lookup(name, std::int64_t(fallback), hash, switch_value);
+		if constexpr (std::is_same_v<T, bool>)
+			return found.value == 0 || found.value == 1 ? found.value == 1 : fallback;
+		else
+			return std::in_range<T>(found.value) ? T(found.value) : fallback;
 	}
-	Lookup lookup(std::string_view name, std::optional<std::string_view> hash = {},
+	Lookup lookup(std::string_view name, std::int64_t fallback, std::optional<std::string_view> hash = {},
 	              std::optional<std::string_view> switch_value = {}) const noexcept {
-		Lookup out{DETENT_OK, {}};
-		out.status = detent_read(handle_, str(name), str(hash), str(switch_value), &out.value);
+		Lookup out{DETENT_OK, fallback};
+		out.status = detent_get(handle_, str(name), str(hash), str(switch_value), fallback, &out.value);
 		return out;
 	}
 	detent_status refresh() const noexcept { return detent_refresh(handle_); }

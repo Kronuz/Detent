@@ -8,7 +8,8 @@
 #include <vector>
 
 namespace detent::distribution {
-enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3 };
+// Frames: a W6 session-frames body (session_frames.hh).
+enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3, Frames = 4 };
 struct Limits {
 	std::uint64_t bytes = 256ull * 1024 * 1024, string_bytes = 128ull * 1024 * 1024;
 	std::uint32_t records = 500000, namespaces = 4096, overrides_per_definition = 256;
@@ -61,16 +62,19 @@ struct SnapshotStorage {
 };
 } // namespace detail
 class SnapshotDecoder;
+class FrameInput;
 // Only a complete semantic decoder mints this capability. Records contain
 // subscriber definitions only, never producer receipts or Raft recovery state.
 class ValidatedSnapshot {
   public:
 	ValidatedSnapshot(ValidatedSnapshot &&other) noexcept
-		: cursor_(std::exchange(other.cursor_, {})), profile_(other.profile_),
-		  storage_(std::move(other.storage_)) {}
+		: cursor_(std::exchange(other.cursor_, {})), namespace_cursor_(std::exchange(other.namespace_cursor_, {})),
+		  profile_(other.profile_), storage_(std::move(other.storage_)) {}
 	ValidatedSnapshot(const ValidatedSnapshot &) = delete;
 	ValidatedSnapshot &operator=(ValidatedSnapshot &&) = delete;
 	const Cursor &cursor() const noexcept { return cursor_; }
+	// The W1 cursor a local build of this copy publishes at.
+	const NamespaceCursor &namespace_cursor() const noexcept { return namespace_cursor_; }
 	const Profile &profile() const noexcept { return profile_; }
 	const StableRows<NamespaceRevision> &namespaces() const {
 		if (!storage_)
@@ -84,7 +88,7 @@ class ValidatedSnapshot {
 	}
 	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->arena.used() : 0; }
 	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
-	OverrideRange overrides(const WireBoolDef &definition) const {
+	OverrideRange overrides(const WireDefinition &definition) const {
 		if (!storage_ || definition.overrides.start > storage_->overrides.size() ||
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
 			throw std::out_of_range("distribution override range");
@@ -105,9 +109,11 @@ class ValidatedSnapshot {
 				  bounds.storage_account, bounds.storage_allocate, bounds.storage_release, bounds);
 		  }()) {}
 	Cursor cursor_;
+	NamespaceCursor namespace_cursor_;
 	Profile profile_;
 	StorageOwner<detail::SnapshotStorage> storage_;
 	friend class SnapshotDecoder;
+	friend class FrameInput;
 };
 class SnapshotDecoder {
   public:
@@ -177,7 +183,7 @@ class ValidatedDelta {
 	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
 	const Mutation &mutation(std::uint64_t ordinal) const;
 	const NamespaceRevision &touched(std::uint64_t ordinal) const;
-	OverrideRange overrides(const WireBoolDef &definition) const {
+	OverrideRange overrides(const WireDefinition &definition) const {
 		if (!storage_ || definition.overrides.start > storage_->overrides.size() ||
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
 			throw std::out_of_range("distribution override range");
@@ -202,6 +208,7 @@ class ValidatedDelta {
 	UpdateKind kind_ = UpdateKind::Delta;
 	StorageOwner<detail::DeltaStorage> storage_;
 	friend class DeltaDecoder;
+	friend class FrameInput;
 };
 class DeltaDecoder {
   public:

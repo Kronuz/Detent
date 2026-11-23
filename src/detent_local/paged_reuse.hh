@@ -8,10 +8,9 @@ class StateEquivalenceProof;
 class PagedPlanBuilder {
   public:
 	PagedPlanBuilder(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
-					 GenerationId, distribution::RetirementDomain &);
+					 distribution::RetirementDomain &);
 	PagedPlanBuilder(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
-					 GenerationId, distribution::RetirementFactory,
-					 std::shared_ptr<distribution::StorageLedger>);
+					 distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>);
 	~PagedPlanBuilder();
 	PagedPlanBuilder(PagedPlanBuilder &&) noexcept;
 	PagedPlanBuilder(const PagedPlanBuilder &) = delete;

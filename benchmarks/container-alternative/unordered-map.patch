@@ -3,8 +3,8 @@ index 5b02978..565d369 100644
 --- a/include/detent/model.hh
 +++ b/include/detent/model.hh
 @@ -5,7 +5,9 @@
- // instant. Both are FILLED BLANK per the spec -- the shape is a clone choice,
- // not a claim about Meta's private representation.
+ // union (bool or int); Snapshot is the immutable, fully validated map readers
+ // see at one instant.
  
 -#include <btree/map.h>
 +#include <map>
@@ -74,7 +74,7 @@ index b40a949..0f6405c 100644
 +	std::map<std::string, OverrideValue, std::less<>> values;
  };
  
- // Parses repeatable "name=value" pairs (the part after "--just-knob "; CLI
+ // Parses repeatable "name=value" pairs (the part after "--knob "; CLI
 diff --git a/src/detent/json_schema.cc b/src/detent/json_schema.cc
 index e50a9c6..ad949f2 100644
 --- a/src/detent/json_schema.cc

@@ -29,7 +29,8 @@ class ChangeWriter {
   public:
 	// Opens `change` in the store directory, creating it with `mode` when absent, and grows it to
 	// hold `slots` sequences. Refuses a file not owned by `owner`, linked twice, group or other
-	// writable, or not a whole number of words.
+	// writable, or not a whole number of words. One shorter than a word was cut short at its creation
+	// and is extended.
 	ChangeWriter(int directory, std::size_t slots, uid_t owner, unsigned mode);
 	~ChangeWriter();
 	ChangeWriter(const ChangeWriter &) = delete;
@@ -68,10 +69,13 @@ class ChangeMapping {
 		return slot + 1 < count_ ? words_ + slot + 1 : nullptr;
 	}
 	std::size_t slots() const noexcept { return count_ ? count_ - 1 : 0; }
+	std::uint64_t device() const noexcept { return device_; }
+	std::uint64_t inode() const noexcept { return inode_; }
 	explicit operator bool() const noexcept { return words_ != nullptr; }
 
   private:
 	const ChangeWord *words_ = nullptr;
 	std::size_t count_ = 0;
+	std::uint64_t device_ = 0, inode_ = 0;
 };
 } // namespace detent::local::detail

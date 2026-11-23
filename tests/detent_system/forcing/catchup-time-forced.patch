@@ -1,0 +1,10 @@
+--- a/tests/detent_authority/test_multivoter.py
++++ b/tests/detent_authority/test_multivoter.py
+@@ -381,6 +381,7 @@
+                         break
+                 if last < 100:
+                     last += 1
++                    time.sleep(2)  # forced: a loaded host's degraded commit
+                     _, last_receipt = successful(
+                         "/v2/transactions",
+                         {

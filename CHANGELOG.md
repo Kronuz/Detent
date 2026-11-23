@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+### detent-authority
+
+- The authority daemon `detentd` is renamed `detent-authority`, so the daemons are `detent-authority`,
+  `detent-relay` and `detent-agent`. With it: the CMake target, `detent-authority.json`, the
+  `DETENT_AUTHORITY_PORT`, `DETENT_AUTHORITY_REACTORS` and `DETENT_AUTHORITY_RUNTIME_DIR` variables,
+  `detent-authority-<port>.pid` and `.log`, and the service files (`detent-authority.service`,
+  `org.detent.detent-authority`, rc.d `detent_authority`). No alias keeps the old names.
+
+### Pins: workpool, no scheduler
+
+- The logger pin moves to logger:907d27f: it links `workpool::workpool` (the library formerly named
+  threadpool; no alias keeps the old names) and files deferred lines on a LOG-thread-owned
+  Kronuz/wheel with per-thread queues (D86). The manifest pins workpool:640c66b and wheel:bfd72bc
+  as the logger declares them, and drops scheduler, stash (declared only by scheduler) and
+  threadpool (D72). Detent's sources use none of them.
+
+### One knob type
+
+- One knob type: every knob is a signed 64-bit integer with a default, group overrides (a forced
+  value or a percentage) and an optional rollout serving `rollout_value`; a flag is default 0,
+  rollout value 1. `BoolDef`, `IntDef`, the JSON `type` field, `eval` and `eval_or_panic` are
+  gone; reads are `get`, `get_as<T>` (`get_as<bool>` takes 0 and 1) and `get_or_panic`. A hashed
+  caller outside a percentage gets `default` (D68). JSON, wire, paged body (varint, 20% fewer page
+  bytes than the two-type body), flat image and reader metadata change with no compatibility.
+
+### IPv6
+
+- Every address Detent takes or listens on works over IPv6 as over IPv4: voter hosts, `publisher_bind`,
+  the relay's `address`, and the `address` of the agent's and delivery client's upstreams take an IPv6
+  literal (`"::1"` in JSON). A listener on `::` serves IPv4 and IPv6
+  clients on every OS, and a named local voter listens on `::` whenever the host has IPv6 (else
+  `0.0.0.0`). The consensus pin moves to 3d988d1 (dual-stack `::` listeners, staggered dial). Tests:
+  a three-voter authority, relay and agent over `::1` deliver a generation; a relay and an authority
+  on `::` answer IPv4 and IPv6 clients.
+
+### detent-authority readiness
+
+- `detent-authority --status` and `/v1/health` report `"ready":true` only once the node has a leader: it leads,
+  or it follows a known leader. `detent-authority --daemonize` waits for that when the node alone is a quorum
+  (the single-voter configuration, the quick-start case), so the first `/v2/open` after it succeeds
+  without a retry and the quick-start no longer loops on it. With a fixed voter set, `--daemonize`
+  returns once the listener is up, as before, and `--status` reports `"ready":false` until a leader
+  exists. A follower stays ready only while it hears from its leader within `election_max` (2 s); a
+  node that loses its leader and its quorum reports `"ready":false` within that window plus a health
+  interval. A `--daemonize` stopped by SIGTERM, or whose runtime fails, during the wait exits non-zero
+  with the cause instead of reporting ready or timing out after 30 s.
+
+### Hash once per tier (namespace S4)
+
+- A tier no longer hashes its own build twice more. The plan builders compared every pack checksum and
+  page digest of the image the encoder had just written, and the recovery after a publication hashed and
+  walked the generation again; both now trust the build (the walk that derives the live counts stays, the
+  digest comparisons go). The recovery opens a freshly published generation through `.read` and `.live`
+  like a restart. Cold bootstrap, 10K knobs: the agent hashes 698,201 bytes of pages and packs, its own
+  build's, instead of 2,094,603; it re-hashes 0 bytes instead of 1,396,402. No format or wire byte changes;
+  frame SHA-256 is unchanged.
+- Hash counters per tier: `paged::built_hash_counts()` and `paged::checked_hash_counts()` (disjoint, each
+  only growing), `distribution::frame_hash_counts()` and
+  `delivery::HashStats`, in `CoordinatorStatus::hash`, the relay's `/v1/health` bundle fields
+  `hash_*_bytes` and the agent's log line after each publication.
+
 ### Trusted restart (namespace S3)
 
 - The agent's cold start no longer hashes or walks the packs. Each paged generation now carries
@@ -16,9 +77,29 @@
 - A paced scrub task hashes the selected generation's packs against their owner records at
   `scrub_bytes_per_second` (managed configuration; default 524,288; 0 disables). A damaged pack
   is reported in the coordinator status, the agent's log and the relay's `/v1/health` bundles
-  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`). Repair is not built.
+  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`).
 - Removed the coordinator's "republish a missing `.read`" path and `PagedPlanBuilder::Republish`;
   `migrate_flat_head` now acts only on a flat (layout 1) base.
+
+### Repair of a damaged generation (namespace S3b)
+
+- A scrub report of a damaged pack, or a first-touch failure in the update path, makes the
+  coordinator ask upstream for a Replace and publish it as a repair: a fresh generation at the
+  selected cursor or later, built without the equality check (so unchanged content still
+  publishes), recovered without reading the damaged generation, and sharing no pack with it.
+  Reads of the damaged pages fail with `SourceFailure` until it is selected; nothing is fenced.
+  The agent no longer needs a bootstrap to recover from a damaged pack, and a delta that crosses a
+  damaged page no longer fails every round. `CoordinatorStatus::repair` reports `requested`,
+  `completed` and `pending`.
+- The collector removes a pack whose checksum differs from its owner record once no generation
+  reaches it (the owner record, the file's ownership and its identity are still proved); the
+  coordinator asks for a collection when a repair completes.
+- The scrub hashes the pack files (pread, uncached: `F_NOCACHE` on macOS, `posix_fadvise` on
+  Linux) instead of the agent's private mapping, so damage that lands after the packs were mapped
+  is found; a pack that is missing, resized or unreadable is reported too. A mismatch withdraws
+  the pack's verified-page bits, so later reads verify their pages again.
+- The relay's `Bundle` takes a repair at its own cursor (`PublicationSink::selected_repaired`)
+  without rebuilding its cache.
 
 ### Legacy removal (wave 2)
 
@@ -28,13 +109,13 @@
   recovery runtime that `test_authority_cluster` used is now a test helper.
 - Removed the classic distributor and classic Raft: `detentd.cc`, `raft_delegate`,
   `CLUSTERING.md`, `tests/detentd`, `detentd_fanout_bench`, the
-  `publication_bench` probe and `test_agent_http`. `detentd` is the durable
+  `publication_bench` probe and `test_agent_http`. `detent-authority` is the durable
   authority daemon only: `--authority CONFIG` is required, and `--persist-path`,
   `--cluster`, `--raft-timing` and the positional `<port> <persist_path>` form
-  are gone. `detentd --status` probes the authority's health endpoint over plain
+  are gone. `detent-authority --status` probes the authority's health endpoint over plain
   HTTP, or over HTTPS when the publisher uses TLS.
 - `DETENT_BUILD_DISTRIBUTOR` is removed. `DETENT_BUILD_AUTHORITY` is on by
-  default and builds `detentd`, the authority libraries that need consensus,
+  default and builds `detent-authority`, the authority libraries that need consensus,
   and their tests and benchmarks.
 - The `cluster`, `generation_cache` and `http_log` pins are removed from
   `cmake/dependencies.json`.
@@ -47,13 +128,15 @@
   (`source_path`, `source_poll`, `SourcePayload`, `on_update`, `read_source`, CLI
   overrides, baked defaults), `health()`, `ClientReadView`, `make_local_read_source`,
   `make_managed_read_source`, `detent::global`, `TestKnobs`, `OverrideTable`,
-  `SnapshotRef` and the file and poll sources. `detent::Reader` over the reader core
-  is the one read API in C++, Python and Rust.
+  `SnapshotRef`, the first evaluator (`detail::evaluate`) and the file and poll sources.
+  `detent::Reader` over the reader core is the one read API in C, C++, Python and Rust.
 - The Python module is a C extension over `libdetent_reader`, and the Rust crate
   calls the same C ABI; pybind11, `cxx` and `cxx-build` are gone. Both expose
-  `Reader(store, publisher_uid, namespaces)` with `eval`, `get`, `lookup`, `refresh`
-  and `revision`; every lookup returns the caller's fallback on any error, and only
-  opening raises.
+  `Reader(store, publisher_uid, namespaces, mapping_bytes)` with `get`, `get_bool`,
+  `lookup`, `refresh` and `revision`; every lookup takes the caller's fallback and
+  returns it on any error (`get_bool` also when the value is neither 0 nor 1), and only
+  opening raises. `bindings/tests/scenarios.json` is the one table the C++, Python
+  and Rust tests run.
 - `libdetent_reader` and `libdetent_testing` build as shared libraries that export
   only their `detent_*` C symbols (`test_reader_exports`, `test_testing_exports`).
   Static dependencies build position-independent.
@@ -84,8 +167,8 @@
   set.
 - Roadmap item 4 (a path for unmanaged agents and clients to receive authority
   data) is dropped.
-- The systemd `detentd` unit and the Homebrew caveats and test no longer call
-  `detentd` a distributor.
+- The systemd `detent-authority` unit and the Homebrew caveats and test no longer call
+  `detent-authority` a distributor.
 
 ### Legacy removal (wave 2, step F)
 
@@ -215,7 +298,7 @@ Results that changed (old build against new, same inputs):
 - **http-parser strictness** (`http-parser:21c8f30`, `ab8377c`, `62ac7f3`, `0aeec14`, `e2f23b9`,
   `5cb4409`). Detent does not set `lenient_http_headers`, so a request with a bare LF, an obs-fold line,
   a `Transfer-Encoding` other than exactly `chunked`, a missing or odd HTTP version, or a
-  `Content-Length` in a trailer is now rejected: `detentd` closes the connection without a response
+  `Content-Length` in a trailer is now rejected: `detent-authority` closes the connection without a response
   where it answered before (200, or 400 for the three that reached the body parser). In lenient mode the
   parser reports what it reported before. Requests that were well formed are answered byte for byte as
   before.
@@ -246,16 +329,16 @@ Owner decisions taken:
 - **Pushes to library mains**: the library commits in `docs/status/m1-pins.md` (completion, hashes, reactor,
   repr, sha256, term-color, enum-reflection, strings, cluster, http-parser, http, journal, consensus), each
   CI-green before the next; the owner authorized the scheduler, logger and http-log pushes explicitly.
-- **Post-W2 ports**: `detentd --port 0` and the relay's `"port": 0` bind a free port and log it
+- **Post-W2 ports**: `detent-authority --port 0` and the relay's `"port": 0` bind a free port and log it
   (`docs/mechanisms/bound-port-report.md`); system fixtures start on port 0.
 
-Open for the owner: the http-parser strictness above changes what clients of `detentd` see for
+Open for the owner: the http-parser strictness above changes what clients of `detent-authority` see for
 malformed requests (connection closed, no response). Setting `lenient_http_headers` restores the old
 answers.
 
 ### Behavior changes (W2)
 
-- `detentd` has no worker pool: `--workers`, `DETENTD_WORKERS` and the `workers` config field
+- `detent-authority` has no worker pool: `--workers`, `DETENT_AUTHORITY_WORKERS` and the `workers` config field
   are removed, and naming one fails with an error that says so.
 - A PUT or PATCH over 16 MiB (and an authority body over `request_bytes`) is answered 413
   instead of dropping the connection.

@@ -14,7 +14,7 @@ cmake -B build
 cmake --build build -j
 ```
 
-That produces `build/src/detentd`, `build/src/detent-agent`, `build/src/detent`, the static libraries, the examples, the bindings targets, and the tests.
+That produces `build/src/detent-authority`, `build/src/detent-agent`, `build/src/detent`, the static libraries, the examples, the bindings targets, and the tests.
 
 ---
 
@@ -34,7 +34,7 @@ int main() {
     std::printf("search:max_results = %lld\n",
                 (long long)reader.get("search:max_results", 25));
     std::printf("checkout:killswitch_new_path = %s\n",
-                reader.eval("checkout:killswitch_new_path", false) ? "true" : "false");
+                reader.get_as<bool>("checkout:killswitch_new_path", false) ? "true" : "false");
 }
 ```
 
@@ -45,39 +45,39 @@ search:max_results = 25
 checkout:killswitch_new_path = false
 ```
 
-A store that does not exist yet opens, and every lookup returns its fallback with `DETENT_UNAVAILABLE` until a generation appears. Lookups never throw; `reader.lookup(name)` returns the status beside the value (`DETENT_MISSING`, `DETENT_WRONG_TYPE`, `DETENT_UNTRUSTED`, and so on), and `reader.revision(namespace)` the attached revision. A lookup sees a new generation on its own; `reader.refresh()` attaches it earlier, from a thread the caller picks. The reader starts no thread. [`examples/demo.cc`](../examples/demo.cc) is the complete program.
+A store that does not exist yet opens, and every lookup returns its fallback with `DETENT_UNAVAILABLE` until a generation appears. Lookups never throw; `reader.lookup(name, fallback)` returns the status beside the value (`DETENT_MISSING`, `DETENT_UNAVAILABLE`, `DETENT_UNTRUSTED`, and so on), and `reader.revision(namespace)` the attached revision. A lookup sees a new generation on its own; `reader.refresh()` attaches it earlier, from a thread the caller picks. The reader starts no thread. [`examples/demo.cc`](../examples/demo.cc) is the complete program.
 
 Link `detent::reader`. Python's `detent.Reader(store, publisher_uid, namespaces=())` and Rust's `detent::Reader::open(store, publisher_uid, &[..])` have the same shape over the same C ABI (`include/detent/reader.h`).
 
 ### Gradual rollouts and per-group overrides
 
-Bool knobs can combine a rollout percentage with named overrides. Overrides accept a boolean or `{"rollout_pct": 50}` for a group-specific rollout. The group percentage uses the same hash bucket; without a hash it uses the knob default. Unknown groups fall through to the knob-wide rollout:
+Any knob can combine a rollout percentage with named overrides. Callers inside the percentage get `rollout_value`, and callers outside it get the default. Overrides accept an integer or `{"rollout_pct": 50}` for a group-specific rollout. The group percentage uses the same hash bucket; without a hash it uses the knob default. Unknown groups fall through to the knob-wide rollout:
 
 ```json
 {
   "schema_version": 1,
   "knobs": {
     "payments:new_processor": {
-      "type": "bool",
-      "default": false,
+      "default": 0,
+      "overrides": { "internal_employees": 1 },
       "rollout_pct": 10,
-      "overrides": { "internal_employees": true }
+      "rollout_value": 1
     }
   }
 }
 ```
 
 ```cpp
-reader.eval("payments:new_processor", false);                                 // false
-reader.eval("payments:new_processor", false, "user-1");                       // false
-reader.eval("payments:new_processor", false, "user-42");                      // true
-reader.eval("payments:new_processor", false, "user-2", "internal_employees"); // true
+reader.get("payments:new_processor", 0);                                 // 0
+reader.get("payments:new_processor", 0, "user-1");                       // 0
+reader.get("payments:new_processor", 0, "user-42");                      // 1
+reader.get("payments:new_processor", 0, "user-2", "internal_employees"); // 1
 ```
 
 Evaluation order is:
 
-1. Exact-match `switch_value` override.
-2. `rollout_pct` gate, when `hash` is present.
+1. Exact-match `switch_value` override: a forced value, or a group percentage when `hash` is present.
+2. `rollout_pct` gate, when `hash` is present: `rollout_value` inside the percentage, the default outside it.
 3. The knob's default.
 
 The rollout bucket is stable for the same `(knob_name, hash)` pair across processes and restarts.
@@ -100,7 +100,7 @@ A managed `detent-agent` receives authenticated deliveries from a durable author
 ./build/src/detent-agent --status --managed managed.json
 ```
 
-`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies the fallback for that read: it prints for a knob the generation does not hold, a wrong type, or no generation, but not for a generation that fails verification.
+`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies the fallback for that read: it prints for a knob the generation does not hold or no generation, but not for a generation that fails verification.
 
 With no `--managed` and no `--generation-dir` (or `managed_path` and `generation_dir` in `agent.json`), both `detent get` and `detent-agent` exit with `no source configured`.
 
@@ -144,7 +144,7 @@ kill -TERM "$(./build/src/detent-agent --status --managed managed.json | awk '/^
 ## Where to go next
 
 - [`README.md`](../README.md): architecture, dependencies, bindings, benchmarks, test coverage, and production-readiness notes.
-- [`justknobs-implementation-spec.md`](../justknobs-implementation-spec.md): the source specification.
+- [`design/knob-model.md`](design/knob-model.md): the knob model: names, groups, overrides, rollout, evaluation and the JSON formats.
 
 System-wide deployment: see [System services](SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 
@@ -152,7 +152,7 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 
 ## Durable authority profile
 
-`detentd --authority CONFIG` uses a durable store and a loopback transaction API. It runs in the foreground, accepts `--daemonize` and provides read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration.
+`detent-authority --authority CONFIG` uses a durable store and a loopback transaction API. It runs in the foreground, accepts `--daemonize` and provides read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration.
 
 ### Managed authority delivery
 
@@ -180,15 +180,15 @@ Initialize an empty directory explicitly once. Missing directory components are 
 ./build/src/detent-agent --managed managed.json --generation-dir ./agent-state --initialize-managed
 ```
 
-Later starts omit `--initialize-managed` and require an existing managed store. `--upgrade-managed` explicitly adopts a compatible legacy generation directory. Neither mode silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
+Later starts omit `--initialize-managed` and require an existing managed store. A start never silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
 
-A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). Distribute this public identity separately from the private token.
+A public `agent.json` can select `managed_path` and `generation_dir`. A shell read attaches to its knob's namespace entry.
 
 `detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. A knob the generation does not hold is an error unless `--default VALUE` is given. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
 
-Optional bounds default to 256 MiB managed heap, 512 MiB mapped virtual space, 1 GiB named disk space, 4,096 disk entries, and 1,024 generations. Configure them with `heap_bytes`, `mapping_bytes`, `disk_bytes`, `disk_entries`, and `disk_generations`. These accounts exclude immutable configuration/startup parsing, Asio/TLS internals, thread stacks, and operating-system memory. `poll_interval_ms` defaults to 200 and `timeout_ms` to 60,000; `compression` defaults to true. Unknown or duplicate fields are rejected. `artifact_mode` accepts decimal `384`, `416`, or `420` (octal `0600`, `0640`, or `0644`); user mode defaults to `0600`, system mode to `0644`.
+Optional bounds default to 256 MiB managed heap, 512 MiB mapped virtual space, 1 GiB named disk space, 4,096 disk entries, and 1,024 generations. Configure them with `heap_bytes`, `mapping_bytes`, `disk_bytes`, `disk_entries`, and `disk_generations`. These accounts exclude immutable configuration/startup parsing, Asio/TLS internals, thread stacks, and operating-system memory. `retry_interval_ms` defaults to 200 and `timeout_ms` to 60,000; `compression` defaults to true. Unknown or duplicate fields are rejected. `artifact_mode` accepts decimal `384`, `416`, or `420` (octal `0600`, `0640`, or `0644`); user mode defaults to `0600`, system mode to `0644`.
 
-Changing authority identity requires an explicit `reset_from` object containing the old `cluster`, `group`, `epoch`, and `scope`. The selected old identity must match it. A trusted reset publishes a new snapshot while preserving the local storage UUID; an unconfigured transition fails startup. This is an administrative trust decision, not an automatic fallback.
+A new cluster or a new incarnation of a namespace arrives as a full copy of that namespace; no configured identity transition exists.
 
 Fresh macOS provisioning requires all traversed writable namespace edges to be on one filesystem, so the store's final owner-file `F_FULLFSYNC` covers them, including interrupted initialization retries. Read-only system ancestors are skipped only after filesystem inspection. An unsupported cross-filesystem path fails initialization; start from the intended volume and use a relative generation path. A preexisting final symlink is rejected, including one spelled with a trailing slash. Existing trusted ancestor links, such as macOS `/var`, remain supported.
 

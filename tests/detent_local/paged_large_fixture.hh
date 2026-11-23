@@ -34,9 +34,11 @@ inline std::string many(unsigned count, std::uint64_t revision = 42, bool change
 		n(0);
 		s(name);
 		n(changed_first && i == 0 ? revision : 1);
-		a(2);
-		n(1);
+		a(4);
 		m::signed_integer(out, changed_first && i == 0 ? -9 : std::int64_t(i));
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		a(0);
 	}
 	return out;
 }

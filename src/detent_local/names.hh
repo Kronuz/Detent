@@ -6,7 +6,7 @@
 #include <string_view>
 
 namespace detent::local::detail {
-enum class GenerationFile { Lease, Image, Descriptor, ReaderMetadata, Live };
+enum class GenerationFile { Lease, Image, ReaderMetadata, Live };
 struct NamedGeneration {
 	GenerationId generation;
 	GenerationFile kind;
@@ -17,8 +17,6 @@ inline std::string_view suffix(GenerationFile kind) {
 		return ".lease";
 	case GenerationFile::Image:
 		return ".image";
-	case GenerationFile::Descriptor:
-		return ".descriptor";
 	case GenerationFile::ReaderMetadata:
 		return ".read";
 	case GenerationFile::Live:
@@ -55,8 +53,6 @@ inline std::optional<NamedGeneration> parse_generation_name(std::string_view nam
 		kind = GenerationFile::Lease;
 	else if (ending == ".image")
 		kind = GenerationFile::Image;
-	else if (ending == ".descriptor")
-		kind = GenerationFile::Descriptor;
 	else if (ending == ".read")
 		kind = GenerationFile::ReaderMetadata;
 	else if (ending == ".live")

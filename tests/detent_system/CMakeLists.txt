@@ -13,19 +13,27 @@ if(Python3_FOUND)
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} TIMEOUT 30)
 endif()
 
-if(Python3_FOUND AND TARGET detentd AND DETENT_BUILD_AUTHORITY)
+if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
+  add_test(NAME test_system_localhost_dial
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_localhost_dial.py
+      ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
+  set_tests_properties(test_system_localhost_dial PROPERTIES
+    FIXTURES_REQUIRED authority_tls TIMEOUT 60 SKIP_RETURN_CODE 77)
+endif()
+
+if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)
   add_test(NAME test_system_authority_writers
     COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_writers.sh
-      ${Python3_EXECUTABLE} $<TARGET_FILE:detentd>
+      ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority>
       ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
   set_tests_properties(test_system_authority_writers PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
 
-if(Python3_FOUND AND TARGET detentd AND DETENT_BUILD_AUTHORITY)
+if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)
   add_test(NAME test_system_authority_writer_failover
     COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_writers.sh
-      ${Python3_EXECUTABLE} $<TARGET_FILE:detentd>
+      ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority>
       ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} failover)
   set_tests_properties(test_system_authority_writer_failover PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 120)
@@ -33,40 +41,58 @@ endif()
 
 if(Python3_FOUND AND TARGET detent::local_view)
   add_executable(detent_system_local_oracle local_oracle.cc)
-  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_view)
+  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_view detent::distribution)
   add_executable(detent_system_mixed_oracle mixed_oracle.cc)
   target_link_libraries(detent_system_mixed_oracle PRIVATE detent::reader detent::local_view)
   add_executable(detent_system_prepared_client_probe prepared_client_probe.cc)
   target_include_directories(detent_system_prepared_client_probe PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(detent_system_prepared_client_probe PRIVATE detent::reader detent::local_view)
 endif()
-if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
+if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   add_test(NAME test_system_managed_authority_failover
     COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_failover.sh
-      ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+      ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
       $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
   set_tests_properties(test_system_managed_authority_failover PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 180)
 endif()
 
-if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
-  foreach(mode IN ITEMS partition all-down no-quorum poll trust)
+if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
+  foreach(mode IN ITEMS partition all-down no-quorum trust)
     add_test(NAME test_system_managed_${mode}
       COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_case.sh ${mode}
-        ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
     set_tests_properties(test_system_managed_${mode} PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 180)
   endforeach()
   if(TARGET detent-relay)
     add_test(NAME test_system_managed_relay
       COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_case.sh relay
-        ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_system_managed_relay PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 180)
+    add_test(NAME test_system_managed_relay_ipv6
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_case.sh relay-ipv6
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
+    set_tests_properties(test_system_managed_relay_ipv6 PROPERTIES
+      FIXTURES_REQUIRED authority_tls TIMEOUT 180 SKIP_RETURN_CODE 77)
+    # Dense distribution DD3 end to end: a 100K cold agent boots from a real relay over pages with
+    # no build, to the root a records agent builds; a clustered delta goes as pages.
+    add_test(NAME test_system_relay_pages
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_pages.sh
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
+    set_tests_properties(test_system_relay_pages PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 300)
+    add_test(NAME test_system_dual_stack
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_dual_stack.py
+        $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-relay> ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
+    set_tests_properties(test_system_dual_stack PROPERTIES
+      FIXTURES_REQUIRED authority_tls TIMEOUT 120 SKIP_RETURN_CODE 77)
   endif()
 endif()
 
-if(Python3_FOUND AND TARGET detent_fleet_load AND TARGET detentd AND TARGET detent-agent AND TARGET detent-relay AND TARGET detent_system_mixed_oracle AND DETENT_BUILD_AUTHORITY)
+if(Python3_FOUND AND TARGET detent_fleet_load AND TARGET detent-authority AND TARGET detent-agent AND TARGET detent-relay AND TARGET detent_system_mixed_oracle AND DETENT_BUILD_AUTHORITY)
   foreach(mode IN ITEMS raw zstd warm mixed partial-launch cancel delayed parked-cancel)
     if(mode STREQUAL "mixed")
       set(fleet_oracle detent_system_mixed_oracle)
@@ -75,7 +101,7 @@ if(Python3_FOUND AND TARGET detent_fleet_load AND TARGET detentd AND TARGET dete
     endif()
     add_test(NAME test_system_fleet_${mode}
       COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_fleet.sh ${mode}
-        ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-agent>
         $<TARGET_FILE:detent-relay> $<TARGET_FILE:${fleet_oracle}>
         $<TARGET_FILE:detent_fleet_load> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
     set_tests_properties(test_system_fleet_${mode} PROPERTIES

@@ -180,7 +180,7 @@ int main() {
 			for (unsigned revision = 1; revision <= 3; ++revision) {
 				command.sequence = revision;
 				command.name_space = revision == 2 ? "secret" : "ns";
-				command.mutations = {{revision == 2 ? "secret:x" : "ns:a", detent::IntDef{revision}, {}, {}}};
+				command.mutations = {{revision == 2 ? "secret:x" : "ns:a", detent::KnobDef{revision}, {}, {}}};
 				history.begin_batch(context, revision + 1, state.revision());
 				check(state.apply(revision + 1, command).status == a::Status::Applied);
 				auto draft = history.capture(state, command, changed);

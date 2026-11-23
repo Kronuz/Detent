@@ -17,8 +17,10 @@ d::Cursor cursor() {
 	value.revision = 42;
 	return value;
 }
+// `count_value` gives the integer a rollout value with no percentage; `flag_value` false leaves the
+// ramped definition without one. Both shapes are invalid.
 std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, std::uint64_t percentage = 25,
-					std::uint64_t revision = 42) {
+					std::uint64_t revision = 42, bool count_value = false, bool flag_value = true) {
 	std::string out;
 	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
 	auto a = [&](std::uint32_t value) { m::array(out, value); };
@@ -49,17 +51,25 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	n(0);
 	s("app:count");
 	n(41);
-	a(2);
-	n(1);
+	a(4);
 	m::signed_integer(out, std::numeric_limits<std::int64_t>::min());
+	out.push_back('\xc0');
+	if (count_value)
+		n(5);
+	else
+		out.push_back('\xc0');
+	a(0);
 	a(4);
 	n(0);
 	s("app:flag");
 	n(42);
 	a(4);
-	n(0);
-	out.push_back('\xc3');
+	n(1);
 	n(percentage);
+	if (flag_value)
+		n(1);
+	else
+		out.push_back('\xc0');
 	a(1);
 	a(3);
 	s("beta");
@@ -87,10 +97,10 @@ int main() {
 		auto snapshot = decode(bytes);
 		require(snapshot.cursor() == cursor() && snapshot.records().size() == 2 &&
 				snapshot.namespaces().size() == 1);
-		require(std::get<detent::IntDef>(snapshot.records()[0].definition).default_value ==
-				std::numeric_limits<std::int64_t>::min());
-		auto &flag = std::get<detent::distribution::WireBoolDef>(snapshot.records()[1].definition);
-		require(flag.default_value && flag.rollout_pct == 25 &&
+		require(snapshot.records()[0].definition.default_value == std::numeric_limits<std::int64_t>::min() &&
+				!snapshot.records()[0].definition.rollout_pct && !snapshot.records()[0].definition.rollout_value);
+		auto &flag = snapshot.records()[1].definition;
+		require(flag.default_value == 1 && flag.rollout_pct == 25 && flag.rollout_value == 1 &&
 				std::get<detent::GroupRollout>(snapshot.overrides(flag).at("beta")).rollout_pct == 17);
 		for (std::size_t length = 0; length < bytes.size(); ++length) {
 			bool rejected = false;
@@ -102,7 +112,8 @@ int main() {
 			require(rejected);
 		}
 		for (auto malformed : {fixture(2), fixture(1, 23), fixture(1, 25), fixture(1, 24, 101),
-							   fixture(1, 24, 25, 41), bytes + "\xc0"}) {
+							   fixture(1, 24, 25, 41), fixture(1, 24, 25, 42, true),
+							   fixture(1, 24, 25, 42, false, false), bytes + "\xc0"}) {
 			bool rejected = false;
 			try {
 				decode(malformed);

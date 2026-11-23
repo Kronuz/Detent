@@ -41,14 +41,10 @@ struct Qualified {
 		const auto colon = key.find(':');
 		return {key.substr(0, colon), key.substr(colon + 1)};
 	}
-	detent::Result<bool, detent::KnobError> eval(std::string_view key, std::optional<std::string_view> hash = {},
-												 std::optional<std::string_view> switch_value = {}) const {
+	detent::Result<std::int64_t, detent::KnobError> get(std::string_view key, std::optional<std::string_view> hash = {},
+														 std::optional<std::string_view> switch_value = {}) const {
 		const auto [name_space, name] = split(key);
-		return view.eval(name_space, name, hash, switch_value);
-	}
-	detent::Result<std::int64_t, detent::KnobError> get(std::string_view key) const {
-		const auto [name_space, name] = split(key);
-		return view.get(name_space, name);
+		return view.get(name_space, name, hash, switch_value);
 	}
 };
 std::uint64_t bucket(std::string_view key, std::string_view cohort) {
@@ -70,7 +66,7 @@ int main(int argc, char **argv) {
 		ReaderBenchmark benchmark(argc, argv);
 		if (argc != 7 && argc != 16)
 			throw std::invalid_argument("mixed oracle requires directory, recipes and four identity components");
-		OracleCapacity capacity(argc, argv);
+		OracleCapacity capacity(argc, argv, 7);
 		std::ifstream expected(argv[2], std::ios::binary);
 		std::array<char, 8> magic{};
 		expected.read(magic.data(), magic.size());
@@ -87,11 +83,12 @@ int main(int argc, char **argv) {
 			!detent::is_valid_knob_name(shared_namespace + ":key" + std::to_string(records - 1))))
 			throw std::invalid_argument("mixed oracle namespace");
 		benchmark.prepare(records);
-		detent::distribution::Cursor identity;
-		identity.cluster = detent::distribution::parse_identity_hex<16>(argv[3]);
-		identity.group = detent::distribution::parse_identity_hex<16>(argv[4]);
-		identity.restore_epoch = detent::distribution::parse_identity_hex<16>(argv[5]);
-		identity.scope = detent::distribution::parse_identity_hex<32>(argv[6]);
+		detent::distribution::Cursor configured;
+		configured.cluster = detent::distribution::parse_identity_hex<16>(argv[3]);
+		configured.group = detent::distribution::parse_identity_hex<16>(argv[4]);
+		configured.restore_epoch = detent::distribution::parse_identity_hex<16>(argv[5]);
+		configured.scope = detent::distribution::parse_identity_hex<32>(argv[6]);
+		const auto identity = detent::distribution::namespace_cursor(configured);
 		const auto open_usage = ReaderBenchmark::usage();
 		const auto open_begin = std::chrono::steady_clock::now();
 		detent::local::GenerationReader generations(argv[1], capacity.limits, identity);
@@ -100,7 +97,7 @@ int main(int argc, char **argv) {
 		const auto ready_usage = ReaderBenchmark::usage();
 		const auto pinned = generations.read_view();
 		const Qualified view{pinned};
-		if (!pinned || !pinned.cursor().same_identity(identity) || pinned.cursor().revision < revision)
+		if (!pinned || !pinned.cursor().same_identity(identity) || pinned.cursor().position < revision)
 			throw std::runtime_error("mixed SDK oracle generation has not converged");
 		std::uint64_t booleans = 0, integers = 0, deleted = 0;
 		for (std::uint64_t ordinal = 0; ordinal != records; ++ordinal) {
@@ -114,7 +111,6 @@ int main(int argc, char **argv) {
 			const auto key = name_space + ":key" + std::to_string(ordinal);
 			if (generation < 0) {
 				++deleted;
-				error(view.eval(key), detent::ErrorCategory::MissingKnob, key);
 				error(view.get(key), detent::ErrorCategory::MissingKnob, key);
 			} else if ((ordinal + counter) % 2) {
 				++integers;
@@ -122,32 +118,34 @@ int main(int argc, char **argv) {
 				const auto value = ((ordinal + counter) & 2) ? -magnitude : magnitude;
 				equal(view.get(key), value, key);
 				benchmark.add(key, false, value);
-				error(view.eval(key), detent::ErrorCategory::WrongType, key);
+				equal(view.get(key, {}, "ramp"), value, key);
 			} else {
+				// A former bool: default 0 or 1, rollout value 1; outside a bucket is the default (D68).
 				++booleans;
-				const bool default_value = (ordinal / 2 + counter) & 1;
-				equal(view.eval(key), default_value, key);
-				equal(view.eval(key, {}, "force-off"), false, key);
-				equal(view.eval(key, {}, "force-on"), true, key);
-				equal(view.eval(key, {}, std::string_view("opaque\0group", 12)), !default_value, key);
-				equal(view.eval(key, {}, "ramp"), default_value, key);
-				error(view.get(key), detent::ErrorCategory::WrongType, key);
+				const std::int64_t default_value = (ordinal / 2 + counter) & 1;
+				const auto ramp = [&](bool inside) { return inside ? std::int64_t(1) : default_value; };
+				equal(view.get(key), default_value, key);
+				equal(view.get(key, {}, "force-off"), std::int64_t(0), key);
+				equal(view.get(key, {}, "force-on"), std::int64_t(1), key);
+				equal(view.get(key, {}, std::string_view("opaque\0group", 12)), 1 - default_value, key);
+				equal(view.get(key, {}, "ramp"), default_value, key);
 				for (const auto cohort : {std::string_view("cohort-A"), std::string_view("cohort-B")}) {
 					const auto sample = bucket(key, cohort);
-					const bool global = (ordinal + counter) % 3 == 0 ? default_value
-														: sample < (ordinal * 13 + counter * 7) % 101;
+					const auto global = (ordinal + counter) % 3 == 0
+											? default_value
+											: ramp(sample < (ordinal * 13 + counter * 7) % 101);
 					if (cohort == std::string_view("cohort-A"))
 						benchmark.add(key, true, default_value, global);
-					equal(view.eval(key, cohort), global, key);
-					equal(view.eval(key, cohort, "unknown"), global, key);
-					equal(view.eval(key, cohort, "ramp"), sample < (ordinal * 17 + counter * 11) % 101, key);
-					equal(view.eval(key, cohort, "force-off"), false, key);
-					equal(view.eval(key, cohort, "force-on"), true, key);
-					equal(view.eval(key, cohort, std::string_view("opaque\0group", 12)), !default_value, key);
+					equal(view.get(key, cohort), global, key);
+					equal(view.get(key, cohort, "unknown"), global, key);
+					equal(view.get(key, cohort, "ramp"), ramp(sample < (ordinal * 17 + counter * 11) % 101), key);
+					equal(view.get(key, cohort, "force-off"), std::int64_t(0), key);
+					equal(view.get(key, cohort, "force-on"), std::int64_t(1), key);
+					equal(view.get(key, cohort, std::string_view("opaque\0group", 12)), 1 - default_value, key);
 				}
 			}
 		}
-		if (pinned.bool_count() != booleans || pinned.int_count() != integers)
+		if (pinned.size() != booleans + integers)
 			throw std::runtime_error("mixed SDK oracle corpus cardinality mismatch");
 		const auto verified = std::chrono::steady_clock::now();
 		if (benchmark.enabled()) {
@@ -156,7 +154,7 @@ int main(int argc, char **argv) {
 		}
 		std::cout << "{\"records\":" << records << ",\"bool_knobs\":" << booleans
 				  << ",\"int_knobs\":" << integers << ",\"deleted\":" << deleted
-				  << ",\"revision\":" << pinned.cursor().revision
+				  << ",\"revision\":" << pinned.cursor().position
                   << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
                   << ",\"open_cpu_seconds\":" << ReaderBenchmark::cpu(ready_usage) - ReaderBenchmark::cpu(open_usage)
                   << ",\"open_minor_faults\":" << ready_usage.ru_minflt - open_usage.ru_minflt

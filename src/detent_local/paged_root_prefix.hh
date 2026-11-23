@@ -3,7 +3,7 @@
 #include <optional>
 namespace detent::local::detail {
 // Structural prefix checks supply no graph or segment deletion authority.
-std::optional<std::pair<distribution::Cursor, distribution::Profile>>
+std::optional<std::pair<distribution::NamespaceCursor, distribution::Profile>>
 	validate_paged_root_prefix(std::span<const char>);
 inline paged::Limits paged_format_limits() noexcept {
 	paged::Limits limits;

@@ -25,7 +25,7 @@ a bug, a typo or a knob that was never published, so `lookup` reports it as
 
 ### Can I store strings or JSON in a knob?
 
-Not yet. Detent supports bool and int knobs only, which keeps evaluation
+Not yet. Detent supports 64-bit integer knobs only, which keeps evaluation
 trivial and reads allocation-free. See the [Roadmap](/Detent/roadmap/#knob-model).
 
 ### Is the same user always in the same rollout bucket?
@@ -51,14 +51,6 @@ from overwriting another's change.
 The durable authority authenticates publishers with bearer tokens, serves them
 over TLS when it isn't bound to loopback, and authenticates voters with mutual
 TLS. See [Security](/Detent/operations/security/).
-
-### Is Detent JustKnobs?
-
-No. Detent started as an independent implementation of the publicly observable
-behavior of Meta's JustKnobs, and keeps its knob model: namespaced bool and int
-knobs, percentage rollouts, per-group overrides, and whole-snapshot
-replacement. It's not a Meta product, and the agent, authority
-and delivery system are Detent's own design.
 
 ### How does Detent relate to Xapiand?
 

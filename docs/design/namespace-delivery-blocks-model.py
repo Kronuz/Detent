@@ -14,8 +14,13 @@ Status: DRAFT (2026-11-04). Numbers for docs/design/namespace-delivery.md D6.
   files   Seal files, roll-ups and tables over a group of namespaces, against
           the seal-file packing the roll-up replaces: bytes written, files
           created, and dead bytes held.
+  wire    The `layout` simulation at roll-up periods 16 and 64, level-0
+          merged at answer time, for the moderate and hot-heavy churns and
+          the 0.30 C key set, stores also 2-64 seals behind: answer, read and
+          written bytes per period (docs/perf/namespace-measure.md).
 
 Run: python3 -I docs/design/namespace-delivery-blocks-model.py [seal|layout|files]
+     python3 -I docs/design/namespace-delivery-blocks-model.py wire SHAPE [ALPHA ...]
 """
 
 from __future__ import annotations
@@ -135,6 +140,8 @@ class Namespace:
     level0: list[Block] = field(default_factory=list)  # sections of seal files
     carries: int = 0
     over_cap: float = 0.0  # worst blocks above the base / (cap * alpha * live)
+    level0_peak: int = 0  # deepest level-0 seen, in sections
+    level0_bytes: int = 0  # largest level-0 seen, in bytes
     live: dict[int, int] = field(default_factory=dict)
     last: Recs = field(default_factory=dict)
     unsealed: Recs = field(default_factory=dict)
@@ -169,6 +176,8 @@ class Namespace:
         self.level0.append(Block(self.pos - self.seal_every + 1, self.pos, recs, size))
         self.written += size
         self.seals += 1
+        self.level0_peak = max(self.level0_peak, len(self.level0))
+        self.level0_bytes = max(self.level0_bytes, sum(b.size for b in self.level0))
         limit = self.budget() / 4
         if self.seals % self.rollup and sum(b.size for b in self.level0) < limit:
             return  # roll up every `rollup` seals, or once level-0 reaches L
@@ -278,9 +287,11 @@ def simulate(
     ages: list[int],
     samples: int = 20,
     seal_every: int = SEAL,
+    rollup: int = ROLLUP,
+    behind: tuple[int, ...] = (2, 8, 16, 32),
 ) -> tuple[Namespace, Report]:
     rng = random.Random(1)
-    ns = Namespace(alpha, seal_every=seal_every)
+    ns = Namespace(alpha, seal_every=seal_every, rollup=rollup)
     for k in range(initial):
         ns.live[k] = 0
     ns.base = dict(ns.live)
@@ -292,7 +303,7 @@ def simulate(
             rep.reach.append(ns.pos - ns.base_p)
             copy = len(ns.live) * RECORD
             stores = [ns.pos - age for age in ages]
-            stores += [ns.pos - k * ns.seal_every for k in (2, 8, 16, 32)]
+            stores += [ns.pos - k * ns.seal_every for k in behind]
             if ns.base_p:
                 stores += [
                     ns.base_p - 1,
@@ -711,8 +722,67 @@ def files_main() -> None:
                 )
 
 
+# --- wire ------------------------------------------------------------------
+
+
+def mean(xs: list[float]) -> float:
+    return sum(xs) / len(xs)
+
+
+WIRE_PERIODS = (16, 64)
+WIRE_BEHIND = (2, 8, 16, 32, 64)  # seals behind, beside the shape's ages
+
+
+def wire_main(shape: str, alphas: list[float]) -> None:
+    """One shape at each alpha and period; one line per run, then the ratios to period 16."""
+    churns = {c.name: c for c in CHURNS}
+    days = {"moderate": 200, "hot-heavy": 150}
+    for alpha in alphas:
+        rows: dict[int, tuple[Namespace, Report]] = {}
+        for period in WIRE_PERIODS:
+            if shape in churns:
+                c = churns[shape]
+                day, unit, label = c.per_day, c.per_day, "days"
+                ages = [day, 7 * day, 30 * day, 182 * day]
+                steps, gen = days[shape] * day, churn_gen(c)
+            elif shape == "keyset-0.30":
+                n = 600_000
+                unit, label = 1, "positions"
+                ages = [n // 100, n // 20, n // 10, n // 4]
+                steps, gen = n, keyset(0.30)
+            else:
+                raise SystemExit(f"unknown wire shape {shape!r}")
+            ns, rep = simulate(
+                alpha, KEYS, steps, gen, ages, rollup=period, behind=WIRE_BEHIND
+            )
+            rows[period] = (ns, rep)
+            per = unit if label == "days" else 10_000
+            print(
+                f"{shape}, alpha {alpha:g}, period {period}: "
+                f"sent/missing mean {mean(rep.over):.3f} worst {max(rep.over):.3f}; "
+                f"read/missing mean {mean(rep.read):.3f} worst {max(rep.read):.3f}; "
+                f"worst sent/copy {rep.above_copy:.3f}; "
+                f"written {ns.written * per / ns.pos / C:.3f} C per {'day' if label == 'days' else '10,000 positions'}; "
+                f"level-0 at most {ns.level0_peak} sections, {ns.level0_bytes / C:.4f} C; "
+                f"cuts cost {ns.cuts['cost']} cap {ns.cuts['cap']}; samples {len(rep.over)}",
+                flush=True,
+            )
+        (a, ra), (b, rb) = rows[16], rows[64]
+        print(
+            f"{shape}, alpha {alpha:g}, period 64 / period 16: "
+            f"sent mean {mean(rb.over) / mean(ra.over):.3f} worst {max(rb.over) / max(ra.over):.3f}; "
+            f"read mean {mean(rb.read) / mean(ra.read):.3f}; "
+            f"written {b.written / b.pos / (a.written / a.pos):.3f}; "
+            f"worst sent/copy {rb.above_copy:.3f} against {ra.above_copy:.3f}",
+            flush=True,
+        )
+
+
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if which == "wire":
+        wire_main(sys.argv[2], [float(a) for a in sys.argv[3:]] or [0.5, 1.0, 2.0])
+        sys.exit(0)
     if which in ("seal", "all"):
         seal_main()
     if which in ("layout", "all"):

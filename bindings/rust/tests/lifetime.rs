@@ -11,11 +11,11 @@ fn open_lookup_drop_leaks_no_descriptor() {
     let writer = Writer::open(&store);
     writer.publish(&knobs(1));
     // One warm-up cycle so lazily created process state is not counted.
-    drop(Reader::open(&store, uid(), &[]).unwrap());
+    drop(Reader::open(&store, uid(), &[], 0).unwrap());
     let before = descriptors();
     for _ in 0..20 {
-        let reader = Reader::open(&store, uid(), &[]).unwrap();
-        assert_eq!(reader.get("t:rev", -1), 1);
+        let reader = Reader::open(&store, uid(), &[], 0).unwrap();
+        assert_eq!(reader.get("t:rev", -1, None, None), 1);
         assert_eq!(reader.revision("t"), Some(1));
     }
     assert_eq!(descriptors(), before);

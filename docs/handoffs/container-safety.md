@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: qualify an ordered-container implementation or select a replacement
 
 **Priority:** P0 · Rank 1 of 7 · Correctness blocker.

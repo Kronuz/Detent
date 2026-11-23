@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 944c3c62..a811cb39 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -701,7 +701,7 @@ struct Coordinator::Impl {
+ 						try {
+ 							const auto passes = result->scrub.passes();
+ 							// A new root keeps the progress the pass made over the packs it shares.
+-							if (changed)
++							if (false)
+ 								result->scrub.rebase(result->root->registry()->inputs(), now, result->directory);
+ 							else if (begin)
+ 								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);

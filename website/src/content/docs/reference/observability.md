@@ -14,20 +14,20 @@ questions:
 
 ```cpp
 auto revision = reader.revision("checkout");   // std::optional<std::uint64_t>
-auto result = reader.lookup("checkout:new_path");
+auto result = reader.lookup("checkout:new_path", 0);
 if (!result) log(detent_status_name(result.status));
 ```
 
 1. **Freshness.** `revision(namespace)` is the revision of the namespace's
    attached generation, or empty when none is attached yet. Compare it with
    the revision the authority committed.
-2. **Read health.** `lookup(name).status` says why a read returned its
-   fallback: `MISSING`, `WRONG_TYPE`, `UNAVAILABLE`, `SOURCE_FAILURE` and the
-   rest in [Errors and Failures](/Detent/reference/errors/#lookup-statuses).
+2. **Read health.** `lookup(name, fallback).status` says why a read returned
+   its fallback: `MISSING`, `UNAVAILABLE`, `SOURCE_FAILURE` and the rest in
+   [Errors and Failures](/Detent/reference/errors/#lookup-statuses).
 
 Python returns `revision()` as an `int` or `None` and `lookup()` as a `Lookup`
 with `.status` and `.value`; Rust returns `Option<u64>` and
-`Result<Value, Status>`.
+`Result<i64, Status>`.
 
 ## Suggested Alerts
 
@@ -53,7 +53,7 @@ through your own metrics library.
 ## Daemon Health
 
 1. `GET /v1/health` on the [authority](/Detent/reference/http-api/health/).
-2. `detentd --status` and `detent-agent --status` from the command line.
+2. `detent-authority --status` and `detent-agent --status` from the command line.
 3. Daemon logs, described in [Logging](/Detent/operations/logging/).
 
 ## What's Never Logged

@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Salvage follow-ups, 2026-11-03
 
 **State:** branch `phase/salvage-followups` (from `github/main` `Detent:5207f96`). Item 3 (docs) is committed; item 2 (one FNV) is in progress; item 1 (port race at the root) is blocked on a shared-library API, see "Blocked on".

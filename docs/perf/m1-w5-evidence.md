@@ -21,7 +21,7 @@ Everything else is identical or inside the A/A band. Nothing was fixed on this b
 The two arms differ by more than the pins. Between them main took the W2 coroutine rewrite (`task::task`
 handlers), the authority on task and its owner loop, the retained-state envelope, the reader's S1 to S4
 (verified-page bitmap, read counters), digest-once recovery, the bound-port work and the classic removal. The A/B
-measures M1 as a whole; it does not attribute a change to a pin. The old arm's `detentd` still has the classic
+measures M1 as a whole; it does not attribute a change to a pin. The old arm's authority daemon still has the classic
 profile, which the new arm lacks, so the classic HTTP replay below compares old against `Detent:f7267d5` (the last
 main with it, same pins).
 
@@ -48,7 +48,7 @@ except where the table says otherwise.
 | random | 31 | 0 | Ranges stay inclusive and in range (11 ranges, `random_time`, `random_real`, `random_string`), draws stay uniform. The sequence differs between any two runs of either build (no seed API). |
 | logger transcript | 476 lines | 6 lines | Everything up to the last step is identical. After `Logging::finish()` the new logger writes the later lines at the call (`after finish`, a slow watchdog, a severe line); the old pin dropped them. Cause: `logger:a48bce8` ("Never lose a line the scheduler refuses", 2026-10-20), which the old pin of 2026-10-17 predates, read from the logger CHANGELOG. The guide's own logger changes (the 1 ms burst delay, timestamps) are not visible in a one-producer transcript. |
 | daemon log (classic, `f7267d5`) | 118 lines | 35 | The new daemon logs `committed snapshot version N in X us` for each accepted write (Detent's W2 owner commit, not a library), and a rejected request is no longer logged as a request. The glyphs, columns and message formats are the same. |
-| Snapshot JSON (parse, serialize, merge, diff, patch, 300 knobs x 200 users x 5 groups of evaluation) | 112 | 11 | Serialized snapshots, patches, applied results, the evaluation digest and 46 malformed-input error texts are identical. The 11 are `--just-knob` integers of 64 bytes or more (strict-stox above), accepted now. |
+| Snapshot JSON (parse, serialize, merge, diff, patch, 300 knobs x 200 users x 5 groups of evaluation) | 112 | 11 | Serialized snapshots, patches, applied results, the evaluation digest and 46 malformed-input error texts are identical. The 11 are `--knob` integers of 64 bytes or more (strict-stox above), accepted now. |
 | Wire frames (raw and zstd, snapshot, delta, progress) and local images (1, 7, 1,000, 100,000 records) | 14 files | 0 | Byte-identical (`diff -r`). |
 | Persisted `snapshot.json` after 65 HTTP exchanges | 1 | 0 | Byte-identical. |
 | Prepared reader metadata of the 5M store (each build's agent publishes its own) | 4 files | 2 | The 320-byte root image is byte-identical, the 1,441 packs are reused unchanged. `selected` differs in the 16-byte generation id; `.read` and `.lease` differ in the generation id and in one 32-byte digest each. Each probe reads the other build's store with no failure (40 reads). |
@@ -67,7 +67,7 @@ because both arms parse with the same strict parser from the first request it se
 
 `tools/w5/ab_rounds.py` runs A, B and A again every round with the order rotating; `ab_compare.py compare` reads
 the saved outputs. "old/new" above 1 means new is faster; a row counts only when it clears the A/A band.
-The classic detentd is deleted on main, so the daemon rows use the authority path both arms have: the
+The classic daemon is deleted on main, so the daemon rows use the authority path both arms have: the
 authority state machine and durable ack benches, the reply encoder, and three real voters over HTTPS.
 
 | Row | old | new | old/new (range) | A/A | n | Verdict |
@@ -126,9 +126,9 @@ done
 # 2. Input classes (drivers write .scratch/id/{old,new}); the reports go to docs/perf/m1-w5-evidence.
 quiet light id 40 "identity drivers" -- tools/w5/run_both.sh .scratch/build-old .scratch/build-new .scratch/id
 tools/w5/identity_report.sh .scratch/id docs/perf/m1-w5-evidence
-# 3. Classic replay: needs a detentd that still has the classic profile, one per arm (old, and Detent:f7267d5).
-python3 -I tools/w5/http_replay.py --detentd OLD/detentd --out .scratch/replay-old --port 18402
-python3 -I tools/w5/http_replay.py --detentd F7267D5/detentd --out .scratch/replay-new --port 18401
+# 3. Classic replay: needs an authority daemon that still has the classic profile, one per arm (OLD_DAEMON, and F7267D5_DAEMON built at Detent:f7267d5).
+python3 -I tools/w5/http_replay.py --daemon OLD_DAEMON --out .scratch/replay-old --port 18402
+python3 -I tools/w5/http_replay.py --daemon F7267D5_DAEMON --out .scratch/replay-new --port 18401
 python3 -I tools/w5/replay_compare.py .scratch/replay-old .scratch/replay-new
 # 4. Hot path (each under quiet exclusive, at most ten minutes).
 quiet exclusive ab-read 10 "A/B read" -- tools/w5/run_ab.sh read 6 .scratch/ab/read

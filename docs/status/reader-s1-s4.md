@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-03) Ledger for reader steps S1, S2 and S4. Workstream: reader-s1-s4. Design: [reader.md](../design/reader.md) "First steps".
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-03) Ledger for reader steps S1, S2 and S4. Workstream: reader-s1-s4. Design: [reader.md](../design/reader.md) "First steps".
 
 # reader-s1-s4
 

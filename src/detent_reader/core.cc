@@ -9,15 +9,16 @@
 #include "lazy_page_access.hh"
 #include "paged_read_state.hh"
 #include "prepared_reader.hh"
+#include "verified_pages.hh"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <cstring>
 #include <exception>
 #include <iterator>
-#include <limits>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <pthread.h>
 #include <string>
 #include <sys/stat.h>
@@ -52,6 +53,15 @@ thread_local std::string failure_text;
 #endif
 
 constexpr std::size_t ring_size = 4, stripes = 64;
+// Main's client mapping account (view.cc). The cap also covers each page table's allocations.
+constexpr std::uint64_t default_mapping_bytes = std::uint64_t(512) << 20;
+static_assert(DETENT_MINIMUM_MAPPING_BYTES ==
+              l::paged::segment_bytes + (l::paged::segment_bytes / x::VerifiedPages::granule_bytes + 16) / 16 * 8);
+#ifdef DETENT_READER_TEST_HOOKS
+bool atfork_refused = false;
+#else
+constexpr bool atfork_refused = false;
+#endif
 constexpr std::uint64_t millisecond = 1'000'000;
 constexpr std::uint64_t store_retry_ns = 200 * millisecond, backoff_min_ns = millisecond,
                         backoff_max_ns = 200 * millisecond;
@@ -87,6 +97,8 @@ detent_status classify(std::exception_ptr error) noexcept {
 		return DETENT_NO_MEMORY;
 	} catch (const d::StoragePressure &) {
 		return DETENT_NO_MEMORY;
+	} catch (const x::ReadAdmissionRefused &) {
+		return DETENT_NO_MEMORY;
 	} catch (const std::system_error &) {
 		return DETENT_IO;
 	} catch (...) {
@@ -101,15 +113,14 @@ struct Generation {
 	x::PagedReadState state;
 	std::size_t views = 0; // views holding it; changed only by the holder of `refreshing`
 	Generation(x::AttachedGeneration generation, int directory, uid_t publisher,
-	           const std::shared_ptr<d::StorageLedger> &heap, const std::shared_ptr<d::StorageLedger> &mappings)
+	           const std::shared_ptr<d::StorageLedger> &mappings)
 	    : attached(std::move(generation)),
-	      pages(directory, publisher, attached.storage, attached.root, attached.limits, heap, mappings),
+	      pages(directory, publisher, attached.root, attached.limits, mappings, mappings),
 	      state{attached.root, {}, std::shared_ptr<const x::PagedPageAccess>(std::shared_ptr<void>(), &pages)} {}
 };
 // One mapping of `change`, a member of every view built over it (reader.md D4 rule 4).
 struct Change {
 	x::ChangeMapping mapping;
-	std::uint64_t device = 0, inode = 0;
 	std::size_t views = 0;
 };
 // Today's store table has one entry, the selected generation, serving every namespace at slot 0.
@@ -123,7 +134,8 @@ struct Entry {
 struct View {
 	Change *change = nullptr; // null while the store has no change file (Q6)
 	std::uint64_t store_seen = 0;
-	bool table = false; // `selected` was present when the view was built
+	std::uint64_t seen = 0;           // the whole-store sequence, loaded with `store_seen` (D4 rule 1)
+	std::optional<x::Selected> table; // `selected` as read after those loads; empty when absent
 	std::vector<Entry> entries;
 	const Entry *find(std::string_view) const noexcept { return entries.empty() ? nullptr : &entries.front(); }
 };
@@ -151,8 +163,7 @@ struct detent_reader {
 	std::vector<std::string> namespaces; // sorted; empty: all
 	uid_t publisher = 0;
 	int directory = -1; // the trusted store directory, opened once
-	std::shared_ptr<d::StorageLedger> heap, mappings;
-	std::optional<l::StorageIdentity> storage;
+	std::shared_ptr<d::StorageLedger> mappings; // the mapping cap: packs, bitmaps and page tables
 	std::array<Slot, ring_size> ring;
 	alignas(64) std::atomic<std::uint64_t> current{0};
 	alignas(64) std::atomic<bool> refreshing{false};
@@ -185,6 +196,19 @@ struct detent_reader {
 		bool idle = false;
 		return refreshing.compare_exchange_strong(idle, true, std::memory_order_acquire, std::memory_order_relaxed);
 	}
+	// Frees every view outside slot `keep` that no lookup pins; only the holder of `refreshing` runs it.
+	void free_retired(std::size_t keep) noexcept {
+		for (std::size_t k = 0; k != ring_size; ++k) {
+			auto &slot = ring[k];
+			if (k == keep)
+				continue;
+			if (auto *old = slot.view.load(std::memory_order_relaxed); old && slot.sum() == 0) {
+				DETENT_WINDOW(Freeing);
+				slot.view.store(nullptr, std::memory_order_relaxed);
+				free_view(old);
+			}
+		}
+	}
 	void release_refreshing() noexcept {
 		refreshing.store(false, std::memory_order_release);
 		refreshing.notify_all();
@@ -201,34 +225,58 @@ namespace {
 // Fork (reader.md D10): live handles under one mutex; the handlers take every `refreshing`.
 std::mutex registry_mutex;
 detent_reader *registry = nullptr;
-pthread_once_t atfork_once = PTHREAD_ONCE_INIT;
+std::mutex atfork_mutex; // taken only until the handlers register; never with `registry_mutex`
+std::atomic<bool> atfork_installed{false};
 void fork_prepare() noexcept {
 	registry_mutex.lock();
 	for (auto *handle = registry; handle; handle = handle->next)
 		while (!handle->try_refreshing())
 			handle->refreshing.wait(true, std::memory_order_relaxed);
+	for (auto *handle = registry; handle; handle = handle->next)
+		for (auto &slot : handle->ring)
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.prepare_fork();
+	DETENT_WINDOW(ForkPrepared);
 }
 void fork_parent() noexcept {
-	for (auto *handle = registry; handle; handle = handle->next)
+	for (auto *handle = registry; handle; handle = handle->next) {
+		for (auto &slot : handle->ring)
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.parent_after_fork();
 		handle->release_refreshing();
+	}
 	registry_mutex.unlock();
 }
 // The child runs one thread, the one that forked, which is not inside a lookup (D1 item 8): counts
 // left by the parent's threads would pin their slots forever.
 void fork_child() noexcept {
 	for (auto *handle = registry; handle; handle = handle->next) {
-		for (auto &slot : handle->ring)
+		for (auto &slot : handle->ring) {
 			for (auto &stripe : slot.counts)
 				stripe.count.store(0, std::memory_order_relaxed);
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.child_after_fork();
+		}
 		handle->refreshing.store(false, std::memory_order_release);
 	}
 	registry_mutex.unlock();
 }
-void register_handle(detent_reader *handle) {
-	pthread_once(&atfork_once, [] {
-		if (pthread_atfork(fork_prepare, fork_parent, fork_child) != 0)
-			std::abort();
-	});
+// Registers the fork handlers once; a refusal (ENOMEM) is retried by the next open. Once registered,
+// an open takes no lock here, so a child forked during another thread's open can open too.
+bool install_atfork() noexcept {
+	DETENT_WINDOW(Registering);
+	if (atfork_installed.load(std::memory_order_acquire))
+		return true;
+	std::lock_guard lock(atfork_mutex);
+	if (!atfork_installed.load(std::memory_order_relaxed) && !atfork_refused &&
+	    pthread_atfork(fork_prepare, fork_parent, fork_child) == 0)
+		atfork_installed.store(true, std::memory_order_release);
+	return atfork_installed.load(std::memory_order_relaxed);
+}
+void register_handle(detent_reader *handle) noexcept {
 	std::lock_guard lock(registry_mutex);
 	handle->next = registry;
 	registry = handle;
@@ -300,14 +348,14 @@ enum class Outcome { Published, Unchanged, Refused, Failed };
 // Opens the store directory and `change` (Q6 (a): an absent store is not an error).
 void open_store(detent_reader &handle, Change *&change) {
 	if (handle.directory < 0) {
-		struct stat info{};
-		if (::stat(handle.store.c_str(), &info) != 0 && errno == ENOENT)
-			throw l::GenerationUnavailable("store directory does not exist yet");
 		try {
 			handle.directory = x::open_publisher_directory(handle.store, handle.publisher);
 		} catch (const std::bad_alloc &) {
 			throw;
 		} catch (...) {
+			struct stat info{};
+			if (::stat(handle.store.c_str(), &info) != 0 && errno == ENOENT)
+				throw l::GenerationUnavailable("store directory does not exist yet");
 			throw Failure{DETENT_UNTRUSTED};
 		}
 	}
@@ -325,10 +373,8 @@ void open_store(detent_reader &handle, Change *&change) {
 			throw Failure{DETENT_SOURCE_FAILURE};
 		throw l::GenerationUnavailable("store has no change file yet");
 	}
-	struct stat info{};
-	if (::fstatat(handle.directory, x::change_name, &info, AT_SYMLINK_NOFOLLOW) != 0)
-		throw Failure{DETENT_SOURCE_FAILURE};
-	change = new Change{std::move(mapping), std::uint64_t(info.st_dev), std::uint64_t(info.st_ino), 0};
+	DETENT_WINDOW(ChangeMapped);
+	change = new Change{std::move(mapping), 0};
 }
 
 // The publisher half of D5. Only the holder of `refreshing` runs it. `want` attaches the whole-store
@@ -338,19 +384,19 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	const auto s = handle.current.load(std::memory_order_relaxed);
 	const View *installed = handle.ring[s % ring_size].view.load(std::memory_order_relaxed);
 	auto &next = handle.ring[(s + 1) % ring_size];
-	// Checked before attaching, so a refusal has built nothing to free.
-	if (auto *old = next.view.load(std::memory_order_relaxed)) {
-		if (next.sum() != 0) {
-			handle.refused.fetch_add(1, std::memory_order_relaxed);
-			DETENT_COUNT(refused_publishes, 1);
-			handle.backoff = std::clamp(handle.backoff * 2, backoff_min_ns, backoff_max_ns);
-			handle.retry_at.store(now_ns() + handle.backoff, std::memory_order_relaxed);
-			return Outcome::Refused;
-		}
-		next.view.store(nullptr, std::memory_order_relaxed);
-		handle.free_view(old);
-		DETENT_WINDOW(AfterFree);
+	// Every outcome first frees the retired views no lookup pins, refunding their mapping charge.
+	const bool occupied = next.view.load(std::memory_order_relaxed) != nullptr;
+	handle.free_retired(s % ring_size);
+	// The next slot is checked before attaching, so a refusal has built nothing to free.
+	if (next.view.load(std::memory_order_relaxed)) {
+		handle.refused.fetch_add(1, std::memory_order_relaxed);
+		DETENT_COUNT(refused_publishes, 1);
+		handle.backoff = std::clamp(handle.backoff * 2, backoff_min_ns, backoff_max_ns);
+		handle.retry_at.store(now_ns() + handle.backoff, std::memory_order_relaxed);
+		return Outcome::Refused;
 	}
+	if (occupied)
+		DETENT_WINDOW(AfterFree);
 	View *built = nullptr;
 	Generation *fresh = nullptr;
 	Change *new_change = nullptr;
@@ -369,7 +415,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 				// Limit 2: detent_refresh re-stats `change` and remaps a replaced file.
 				struct stat info{};
 				if (::fstatat(handle.directory, x::change_name, &info, AT_SYMLINK_NOFOLLOW) != 0 ||
-				    std::uint64_t(info.st_dev) != change->device || std::uint64_t(info.st_ino) != change->inode)
+				    std::uint64_t(info.st_dev) != change->mapping.device() || std::uint64_t(info.st_ino) != change->mapping.inode())
 					open_store(handle, new_change);
 			} else
 				open_store(handle, new_change);
@@ -380,17 +426,27 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		const auto store_word = change->mapping.store().load(std::memory_order_acquire);
 		attempted = store_word;
 		const x::ChangeWord *sequence = change->mapping.sequence(whole_store_slot);
-		const auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
-		std::optional<l::Descriptor> table;
-		try {
-			table = x::PreparedReader::selected(handle.directory, handle.publisher);
-		} catch (const l::GenerationUnavailable &) {
-		}
+		auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
 		const Entry *had = installed ? installed->find({}) : nullptr;
+		std::optional<x::Selected> table;
+		if (!force && !had && installed && installed->change == change && installed->store_seen == store_word) {
+			// D4: a first attach at an unchanged store word uses the view's table and the sequence
+			// loaded before it, so a publish since then still moves that sequence.
+			table = installed->table;
+			seen = installed->seen;
+		} else
+			try {
+				table = x::PreparedReader::selected(handle.directory, handle.publisher);
+			} catch (const l::GenerationUnavailable &) {
+				// An attached namespace keeps answering, stale, rather than drop with the table (D4).
+				if (had)
+					throw;
+			}
 		built = new View;
 		built->change = change;
 		built->store_seen = store_word;
-		built->table = table.has_value();
+		built->seen = seen;
+		built->table = table;
 		if (table && (had || want)) {
 			if (!sequence) {
 				// A slot past the mapping: only the winner remaps (D4 rule 4).
@@ -405,29 +461,30 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 					throw Failure{DETENT_SOURCE_FAILURE};
 			}
 			Generation *generation = nullptr;
-			if (had && had->generation->attached.descriptor.generation == table->generation)
+			if (had && had->generation->attached.descriptor.generation == table->descriptor.generation)
 				generation = had->generation;
 			else {
 				DETENT_WINDOW(Attaching);
 				auto attached = x::PreparedReader::attach(handle.directory, handle.publisher,
-				                                          l::ViewLimits::prepared());
+				                                          l::ViewLimits::prepared(), {}, &*table);
 				const auto &cursor = attached.descriptor.cursor;
 				if (had) {
 					// A4: no regression within an incarnation.
 					const auto &previous = had->generation->attached.descriptor.cursor;
-					if (previous.same_identity(cursor) && cursor.revision < previous.revision)
+					if (previous.same_identity(cursor) && cursor.position < previous.position)
 						throw Failure{DETENT_SOURCE_FAILURE};
 				}
-				if (handle.storage && *handle.storage != attached.storage)
-					throw Failure{DETENT_SOURCE_FAILURE}; // a store identity change
-				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.heap,
-				                       handle.mappings);
+				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.mappings);
 				generation = fresh;
 			}
 			built->entries.push_back({generation, sequence, seen});
 		}
+		const auto same_table = [](const std::optional<x::Selected> &a, const std::optional<x::Selected> &b) {
+			return a.has_value() == b.has_value() && (!a || a->descriptor.generation == b->descriptor.generation);
+		};
 		if (installed && built->change == installed->change && built->store_seen == installed->store_seen &&
-		    built->table == installed->table && built->entries.size() == installed->entries.size() &&
+		    built->seen == installed->seen && same_table(built->table, installed->table) &&
+		    built->entries.size() == installed->entries.size() &&
 		    (built->entries.empty() || (built->entries[0].generation == installed->entries[0].generation &&
 		                                built->entries[0].seen == installed->entries[0].seen))) {
 			delete built;
@@ -465,8 +522,6 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		handle.generations.fetch_add(1, std::memory_order_relaxed);
 		handle.attached.fetch_add(1, std::memory_order_relaxed);
 		DETENT_COUNT(namespaces_attached, 1);
-		if (!handle.storage)
-			handle.storage = fresh->attached.storage;
 	}
 	next.view.store(built, std::memory_order_release);
 	handle.current.store(s + 1, std::memory_order_seq_cst);
@@ -474,16 +529,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	handle.backoff = 0;
 	handle.retry_at.store(0, std::memory_order_relaxed);
 	handle.failed_store.store(UINT64_MAX, std::memory_order_relaxed);
-	for (std::size_t k = 0; k != ring_size; ++k) {
-		auto &slot = handle.ring[k];
-		if (&slot == &next)
-			continue;
-		if (auto *old = slot.view.load(std::memory_order_relaxed); old && slot.sum() == 0) {
-			DETENT_WINDOW(Freeing);
-			slot.view.store(nullptr, std::memory_order_relaxed);
-			handle.free_view(old);
-		}
-	}
+	handle.free_retired((s + 1) % ring_size);
 	return Outcome::Published;
 }
 
@@ -567,7 +613,6 @@ const char *detent_status_name(detent_status status) {
 	switch (status) {
 	case DETENT_OK: return "ok";
 	case DETENT_MISSING: return "missing";
-	case DETENT_WRONG_TYPE: return "wrong_type";
 	case DETENT_INVALID_NAME: return "invalid_name";
 	case DETENT_NOT_OPENED: return "not_opened";
 	case DETENT_SOURCE_FAILURE: return "source_failure";
@@ -589,6 +634,14 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 	    view_of(options->store).find('\0') != std::string_view::npos ||
 	    (options->namespace_count && !options->namespaces))
 		return DETENT_INVALID_ARGUMENT;
+	// An options struct from before `mapping_bytes` gets the default cap.
+	constexpr auto with_cap = offsetof(detent_open_options, mapping_bytes) + sizeof(uint64_t);
+	auto cap = options->size >= with_cap && options->mapping_bytes ? options->mapping_bytes : default_mapping_bytes;
+	if (cap < DETENT_MINIMUM_MAPPING_BYTES)
+		return DETENT_INVALID_ARGUMENT;
+	cap = std::min<std::uint64_t>(cap, SIZE_MAX);
+	if (!install_atfork())
+		return DETENT_NO_MEMORY;
 	detent_reader *handle = nullptr;
 	try {
 		handle = new detent_reader;
@@ -605,9 +658,7 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 		std::sort(handle->namespaces.begin(), handle->namespaces.end());
 		handle->namespaces.erase(std::unique(handle->namespaces.begin(), handle->namespaces.end()),
 		                         handle->namespaces.end());
-		constexpr auto unbounded = std::numeric_limits<std::size_t>::max() / 4;
-		handle->heap = std::make_shared<d::StorageLedger>(unbounded);
-		handle->mappings = std::make_shared<d::StorageLedger>(unbounded);
+		handle->mappings = std::make_shared<d::StorageLedger>(std::size_t(cap));
 	} catch (...) {
 		delete handle;
 		return DETENT_NO_MEMORY;
@@ -624,18 +675,13 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 		}
 		handle->store_try_at.store(now_ns() + store_retry_ns, std::memory_order_relaxed);
 	}
-	try {
-		register_handle(handle);
-	} catch (...) {
-		delete handle;
-		return DETENT_NO_MEMORY;
-	}
+	register_handle(handle);
 	*out = handle;
 	return DETENT_OK;
 }
 
-detent_status detent_eval(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
-                          bool fallback, bool *out) {
+detent_status detent_get(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
+                         int64_t fallback, int64_t *out) {
 	if (!handle || !out)
 		return fail(DETENT_INVALID_ARGUMENT, out, fallback);
 	std::string_view ns, key;
@@ -644,14 +690,12 @@ detent_status detent_eval(detent_reader *handle, detent_str name, detent_str has
 	if (!opened(*handle, ns))
 		return fail(DETENT_NOT_OPENED, out, fallback);
 	const auto h = optional_of(hash), sw = optional_of(switch_value);
-	bool value = fallback;
+	int64_t value = fallback;
 	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
 		try {
 			const auto definition = generation.state.definition(ns, key);
 			if (!definition)
 				return DETENT_MISSING;
-			if (!definition->boolean())
-				return DETENT_WRONG_TYPE;
 			value = l::evaluate(*definition, ns, key, h, sw);
 			return DETENT_OK;
 		} catch (...) {
@@ -659,62 +703,6 @@ detent_status detent_eval(detent_reader *handle, detent_str name, detent_str has
 		}
 	});
 	*out = status == DETENT_OK ? value : fallback;
-	return status;
-}
-
-detent_status detent_get(detent_reader *handle, detent_str name, int64_t fallback, int64_t *out) {
-	if (!handle || !out)
-		return fail(DETENT_INVALID_ARGUMENT, out, fallback);
-	std::string_view ns, key;
-	if (!split(name, ns, key))
-		return fail(DETENT_INVALID_NAME, out, fallback);
-	if (!opened(*handle, ns))
-		return fail(DETENT_NOT_OPENED, out, fallback);
-	int64_t value = fallback;
-	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		try {
-			const auto definition = generation.state.definition(ns, key);
-			if (!definition)
-				return DETENT_MISSING;
-			if (definition->boolean())
-				return DETENT_WRONG_TYPE;
-			value = definition->default_int();
-			return DETENT_OK;
-		} catch (...) {
-			return classify(std::current_exception());
-		}
-	});
-	*out = status == DETENT_OK ? value : fallback;
-	return status;
-}
-
-detent_status detent_read(detent_reader *handle, detent_str name, detent_str hash, detent_str switch_value,
-                          detent_value *out) {
-	const detent_value none{};
-	if (!handle || !out)
-		return fail(DETENT_INVALID_ARGUMENT, out, none);
-	std::string_view ns, key;
-	if (!split(name, ns, key))
-		return fail(DETENT_INVALID_NAME, out, none);
-	if (!opened(*handle, ns))
-		return fail(DETENT_NOT_OPENED, out, none);
-	const auto h = optional_of(hash), sw = optional_of(switch_value);
-	detent_value value = none;
-	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		try {
-			const auto definition = generation.state.definition(ns, key);
-			if (!definition)
-				return DETENT_MISSING;
-			if (definition->boolean())
-				value = {DETENT_KIND_BOOL, l::evaluate(*definition, ns, key, h, sw), 0};
-			else
-				value = {DETENT_KIND_INT, false, definition->default_int()};
-			return DETENT_OK;
-		} catch (...) {
-			return classify(std::current_exception());
-		}
-	});
-	*out = status == DETENT_OK ? value : none;
 	return status;
 }
 
@@ -728,7 +716,7 @@ detent_status detent_revision(detent_reader *handle, detent_str name_space, uint
 		return fail(DETENT_NOT_OPENED, out, uint64_t(0));
 	uint64_t revision = 0;
 	const auto status = lookup(*handle, ns, [&](const Generation &generation) noexcept {
-		revision = generation.attached.descriptor.cursor.revision;
+		revision = generation.attached.descriptor.cursor.position;
 		return DETENT_OK;
 	});
 	*out = status == DETENT_OK ? revision : 0;
@@ -744,6 +732,9 @@ detent_status detent_refresh(detent_reader *handle) {
 	const auto status = outcome == Outcome::Failed
 	                        ? detent_status(handle->failed_status.load(std::memory_order_relaxed))
 	                        : DETENT_OK;
+	// A refresh that does not fail forgets a remembered failure, so the next first lookup attaches (D4).
+	if (outcome != Outcome::Failed)
+		handle->failed_store.store(UINT64_MAX, std::memory_order_relaxed);
 	handle->release_refreshing();
 	return status;
 }
@@ -763,6 +754,7 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_hook = hook;
 }
 const char *last_failure() noexcept { return failure_text.c_str(); }
+void refuse_atfork(bool refused) noexcept { atfork_refused = refused; }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;
 	Stats stats{handle->live_views(), handle->publishes.load(relaxed), handle->refused.load(relaxed),
@@ -770,6 +762,13 @@ Stats stats(detent_reader *handle) noexcept {
 	static_assert(std::size(Stats{}.pins) == ring_size);
 	for (std::size_t k = 0; k != ring_size; ++k)
 		stats.pins[k] = handle->ring[k].sum();
+	stats.mapped_bytes = handle->mappings->used();
+	stats.mapped_limit = handle->mappings->limit();
+	// Pinned as a lookup is, so the view is published to this thread and not freed under it.
+	const char frame = 0;
+	Pin pin(stripe_of(&frame));
+	if (const auto *view = pin.acquire(*handle); view && view->change)
+		stats.change_bytes = (view->change->mapping.slots() + 1) * 8;
 	return stats;
 }
 } // namespace detent::reader::testing

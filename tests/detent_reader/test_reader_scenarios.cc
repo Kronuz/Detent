@@ -31,23 +31,6 @@ std::string dump(const rapidjson::Value &value) {
 	return buffer.GetString();
 }
 
-// Compares a looked-up or expected value with the table's `value` (bool, integer or null).
-void expect_value(const rapidjson::Value &want, bool present, const detent_value &got, const std::string &where) {
-	if (want.IsNull()) {
-		if (present)
-			fail(where + ": expected no value");
-		return;
-	}
-	if (!present)
-		fail(where + ": expected a value");
-	if (want.IsBool()) {
-		if (got.kind != DETENT_KIND_BOOL || got.boolean != want.GetBool())
-			fail(where + ": bool differs");
-	} else if (got.kind != DETENT_KIND_INT || got.integer != want.GetInt64()) {
-		fail(where + ": integer differs");
-	}
-}
-
 void run(const rapidjson::Value &c, const detent::Reader &reader) {
 	const std::string op = c["op"].GetString();
 	const auto &want = c["value"];
@@ -61,17 +44,33 @@ void run(const rapidjson::Value &c, const detent::Reader &reader) {
 	const std::string_view name = c["name"].GetString();
 	const auto hash = text(c, "hash");
 	const auto switch_value = text(c, "switch");
-	if (op == "eval") {
-		if (reader.eval(name, c["fallback"].GetBool(), hash, switch_value) != want.GetBool())
-			fail(where + ": bool differs");
-	} else if (op == "get") {
-		if (reader.get(name, c["fallback"].GetInt64()) != want.GetInt64())
+	if (op == "get") {
+		if (reader.get(name, c["fallback"].GetInt64(), hash, switch_value) != want.GetInt64())
 			fail(where + ": integer differs");
+	} else if (op == "get_as") {
+		const std::string type = c["type"].GetString();
+		const auto &fallback = c["fallback"];
+		bool same = false;
+		if (type == "bool")
+			same = reader.get_as<bool>(name, fallback.GetBool(), hash, switch_value) == want.GetBool();
+		else if (type == "int8")
+			same = reader.get_as<std::int8_t>(name, std::int8_t(fallback.GetInt()), hash, switch_value) == want.GetInt();
+		else if (type == "uint8")
+			same = reader.get_as<std::uint8_t>(name, std::uint8_t(fallback.GetUint()), hash, switch_value) == want.GetUint();
+		else if (type == "int64")
+			same = reader.get_as<std::int64_t>(name, fallback.GetInt64(), hash, switch_value) == want.GetInt64();
+		else if (type == "uint64")
+			same = reader.get_as<std::uint64_t>(name, fallback.GetUint64(), hash, switch_value) == want.GetUint64();
+		else
+			fail(where + ": unknown type " + type);
+		if (!same)
+			fail(where + ": " + type + " differs");
 	} else if (op == "lookup") {
-		const auto got = reader.lookup(name, hash, switch_value);
+		const auto got = reader.lookup(name, c["fallback"].GetInt64(), hash, switch_value);
 		if (std::string(detent_status_name(got.status)) != c["status"].GetString())
 			fail(where + ": status " + detent_status_name(got.status));
-		expect_value(want, got.status == DETENT_OK, got.value, where);
+		if (got.value != want.GetInt64())
+			fail(where + ": value differs");
 	} else {
 		fail("unknown op " + op);
 	}

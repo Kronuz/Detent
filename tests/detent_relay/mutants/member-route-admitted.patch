@@ -1,0 +1,15 @@
+diff --git a/src/detent_relay/service.cc b/src/detent_relay/service.cc
+index 509dd21b..7942c03c 100644
+--- a/src/detent_relay/service.cc
++++ b/src/detent_relay/service.cc
+@@ -39,7 +39,9 @@ std::string hex(const d::Identity &identity) {
+ 	throw http::RequestRejected(status, body, http::RejectionContent::Json);
+ }
+ // W8: what a downstream relay reads, answered from the mirror like the authority's own routes.
+-bool history_route(std::string_view path) { return path == "/v2/history/layouts" || path == "/v2/history/file"; }
++bool history_route(std::string_view path) {
++	return path == "/v2/history/layouts" || path == "/v2/history/file" || path == "/v2/transactions";
++}
+ void require(bool condition) {
+ 	if (!condition)
+ 		throw std::invalid_argument("invalid history request");

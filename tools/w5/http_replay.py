@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Replay one fixed set of raw HTTP requests against a detentd and record every response byte.
+"""Replay one fixed set of raw HTTP requests against an authority daemon and record every response byte.
 
-  http_replay.py --detentd BINARY --out DIR [--port N]
+  http_replay.py --daemon BINARY --out DIR [--port N]
 
 Starts the daemon on a fresh state directory, sends each request on its own connection (and a few
 pipelined or split ones), and writes the response bytes to DIR/responses.txt with the Date header
 removed, the persisted snapshot.json to DIR/snapshot.json and the daemon's log to DIR/daemon.log.
 The requests include the request-smuggling and malformed-message classes http-parser rejects, the
 zstd and gzip encodings of a snapshot, and conditional and partial updates. Run it with the old
-and the new detentd, then compare the files.
+and the new daemon, then compare the files.
 """
 
 from __future__ import annotations
@@ -29,15 +29,15 @@ def snapshot(version: int, count: int) -> bytes:
     for i in range(count):
         if i % 3 == 0:
             knobs[f"ns{i % 5}:flag_{i}"] = {
-                "type": "bool",
-                "default": i % 2 == 0,
+                "default": int(i % 2 == 0),
+                "overrides": {"internal": 1},
                 "rollout_pct": (i * 7) % 101,
-                "overrides": {"internal": True},
+                "rollout_value": 1,
             }
         elif i % 3 == 1:
-            knobs[f"ns{i % 5}:int_{i}"] = {"type": "int", "default": i * 1000 - 5}
+            knobs[f"ns{i % 5}:int_{i}"] = {"default": i * 1000 - 5}
         else:
-            knobs[f"ns{i % 5}:plain_{i}"] = {"type": "bool", "default": False}
+            knobs[f"ns{i % 5}:plain_{i}"] = {"default": 0}
     return json.dumps(
         {"schema_version": 1, "version": version, "knobs": knobs}, separators=(",", ":")
     ).encode()
@@ -132,7 +132,7 @@ def cases(first: bytes, second: bytes) -> list[tuple[str, list[bytes]]]:
                 request(
                     "PATCH",
                     "/v1/snapshot",
-                    b'{"schema_version":1,"version":3,"knobs":{"ns0:new_flag":{"type":"bool","default":true}}}',
+                    b'{"schema_version":1,"version":3,"knobs":{"ns0:new_flag":{"default":1}}}',
                 )
             ],
         ),
@@ -295,11 +295,11 @@ def cases(first: bytes, second: bytes) -> list[tuple[str, list[bytes]]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--detentd", type=Path, required=True)
+    parser.add_argument("--daemon", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18317)
     args = parser.parse_args()
-    args.detentd = args.detentd.resolve()
+    args.daemon = args.daemon.resolve()
     args.out = args.out.resolve()
     if args.out.exists():
         shutil.rmtree(args.out)
@@ -310,7 +310,7 @@ def main() -> int:
     log = (args.out / "daemon.log").open("wb")
     daemon = subprocess.Popen(
         [
-            str(args.detentd),
+            str(args.daemon),
             "--port",
             str(args.port),
             "--persist-path",
@@ -334,7 +334,7 @@ def main() -> int:
             except OSError:
                 time.sleep(0.1)
         else:
-            print("detentd did not start", file=sys.stderr)
+            print("the daemon did not start", file=sys.stderr)
             return 2
         first, second = snapshot(1, 40), snapshot(2, 45)
         with (args.out / "responses.txt").open("wb") as out:

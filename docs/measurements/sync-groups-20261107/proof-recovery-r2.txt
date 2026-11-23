@@ -1,0 +1,7 @@
+Snapshot: Detent:522452a; baseline instrumentation fix Detent:0cd1527
+closed-session rc=139
+phase-counts rc=134
+empty-payload-group rc=134
+unsynced-descriptor rc=134
+startup-before-barrier rc=134
+S2 positives, lifecycle/accounting reverts, three T7 mutants, and restored positives passed

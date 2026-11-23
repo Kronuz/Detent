@@ -6,7 +6,7 @@ struct Source {
 	bool available = false;
 	mutable unsigned lookups = 0;
 	explicit Source(l::detail::PagedImage image) : image(std::move(image)) {}
-	static std::optional<l::detail::SegmentInput> lookup(const void *owner, const l::StorageIdentity &id) {
+	static std::optional<l::detail::SegmentInput> lookup(const void *owner, const l::GenerationId &id) {
 		const auto &source = *static_cast<const Source *>(owner);
 		++source.lookups;
 		if (!source.available)
@@ -21,10 +21,9 @@ struct Source {
 };
 int main() {
 	auto input = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
+	l::GenerationId generation{};
 	generation.fill('g');
-	l::detail::PagedSnapshotBuilder builder(input, storage, generation);
+	l::detail::PagedSnapshotBuilder builder(input, generation);
 	while (!builder.done()) {
 		l::ValidationBudget budget;
 		builder.step(budget);
@@ -39,7 +38,7 @@ int main() {
 		source->replacement.reset();
 		if (variant == 1) {
 			++root.pages;
-			root.bytes += l::paged::page_header_bytes;
+			root.bytes += l::paged::minimum_page_bytes;
 		}
 		if (variant == 2) {
 			const auto &original = source->image.segments().front();
@@ -54,9 +53,8 @@ int main() {
 		if (variant == 3) {
 			root.bytes = root.pages = root.segments = root.records = root.namespaces = 0;
 			root.tree = {};
-			root.logical = l::paged::empty_commitment();
 		}
-		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root, storage);
+		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root);
 		l::ValidationBudget zero{0, 0};
 		walk.step(zero);
 		require(!walk.done() && !walk.missing() && source->lookups == 0);

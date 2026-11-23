@@ -37,7 +37,7 @@ for ((i=0;i<200;i++)); do
     sleep 0.05
 done
 grep -Eq '"generation":1' "$root/open.json"
-transaction="{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}"
+transaction="{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}"
 post /v2/transactions "$transaction" > "$root/ack.json"
 grep -Eq '"status":"applied"' "$root/ack.json"
 "$binary" --status --port "$port" --runtime-dir "$root/runtime" > "$root/status.txt"

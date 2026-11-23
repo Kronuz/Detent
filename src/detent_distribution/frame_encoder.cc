@@ -1,4 +1,5 @@
 #include "detent_distribution/framing.hh"
+#include "detent_distribution/frame_hash_counts.hh"
 #include <algorithm>
 #include <cstring>
 #include <sha256.h>
@@ -30,7 +31,8 @@ struct OwnedFragmentEncoder::Impl {
 		 std::shared_ptr<StorageLedger> ledger)
 		: kind(type), update(id), total(length), compress(coding), account(std::move(ledger)),
 		  workspace(*account) {
-		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress,
+		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress ||
+					kind == UpdateKind::Frames,
 				"invalid owned frame kind");
 		require(update != Identity{}, "empty owned frame identity");
 		output = make_owned_buffer(account, OwnedFragmentEncoder::maximum_wire_bytes());
@@ -72,6 +74,7 @@ struct OwnedFragmentEncoder::Impl {
 		put(48, total, 8);
 		hash.reset();
 		hash.add(bytes.data(), 64);
+		count_frame_hash(64);
 		position = frame_header_bytes;
 	}
 };
@@ -168,6 +171,7 @@ void OwnedFragmentEncoder::step(WorkBudget &budget) {
 				const auto n = std::min(extent - p.position, budget.bytes);
 				if (n) {
 					p.hash.add(p.output->data() + p.position, n);
+					count_frame_hash(n);
 					p.position += n;
 					budget.bytes -= n;
 				}
@@ -198,7 +202,21 @@ std::shared_ptr<const OwnedBuffer> OwnedFragmentEncoder::take() {
 	p.terminal = p.final;
 	p.active = p.ready = false;
 	p.input.reset();
-	return std::exchange(p.output, {});
+	auto output = std::exchange(p.output, {});
+	// A fragment that fills at most half its buffer (compressed, or a short last one) is held at its
+	// own size, so an answer admits the bytes it sends; the full buffer stays when the copy is refused.
+	if (2 * output->size() > maximum_wire_bytes())
+		return output;
+	try {
+		auto fitted = make_owned_buffer(p.account, output->size());
+		fitted->append(output->view());
+		fitted->seal();
+		return fitted;
+	} catch (const StoragePressure &) {
+		return output;
+	} catch (const std::bad_alloc &) {
+		return output;
+	}
 }
 bool OwnedFragmentEncoder::discard(WorkBudget &budget) noexcept {
 	auto &p = *impl_;

@@ -52,20 +52,23 @@ its agent.
 Every read takes the value to use when the knob can't be read:
 
 ```cpp
-bool killswitch = reader.eval("checkout:killswitch_new_path", false);
+bool killswitch = reader.get_as<bool>("checkout:killswitch_new_path", false);
 std::int64_t max_results = reader.get("search:max_results", 25);
 ```
 
 Pass a hash value for rollouts and a switch value for group overrides:
 
 ```cpp
-bool enabled = reader.eval("payments:new_processor", false,
-                           /*hash=*/user_id, /*switch_value=*/user_group);
+bool enabled = reader.get_as<bool>("payments:new_processor", false,
+                                   /*hash=*/user_id, /*switch_value=*/user_group);
 ```
 
-A read never throws. A missing knob, a wrong type, a bad name or no generation
-yet all return the fallback, so the safe default lives next to the code that
-reads the knob.
+Every knob holds one `int64`; a flag is a knob whose values are 0 and 1. `get`
+returns the value, and `get_as<T>` converts it, returning the fallback when it
+doesn't fit `T` (for `bool`, any value other than 0 or 1).
+
+A read never throws. A missing knob, a bad name or no generation yet all return
+the fallback, so the safe default lives next to the code that reads the knob.
 
 :::hint[Read where you decide]{.tip}
 Read the knob at the point where you branch on it, rather than caching the
@@ -80,7 +83,7 @@ generation and switches to it, so an update takes effect without a restart.
 `lookup()` returns the status with the value:
 
 ```cpp
-auto result = reader.lookup("search:max_results");
+auto result = reader.lookup("search:max_results", 25);
 if (!result)
     log("search:max_results: %s", detent_status_name(result.status));
 ```

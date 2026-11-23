@@ -15,7 +15,7 @@ if(DETENT_BUILD_PYTHON OR DETENT_BUILD_RUST OR DETENT_BUILD_TESTS)
                              PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(detent_reader_shared PRIVATE detent::local_view)
   target_compile_features(detent_reader_shared PUBLIC cxx_std_20)
-  detent_export_only(detent_reader_shared "${CMAKE_CURRENT_SOURCE_DIR}/exports")
+  detent_export_only(detent_reader_shared "${CMAKE_CURRENT_SOURCE_DIR}/exports.list")
   add_library(detent::reader_shared ALIAS detent_reader_shared)
 endif()
 # Test-only twin with the park hooks and stats (DETENT_READER_TEST_HOOKS); never installed or shipped.

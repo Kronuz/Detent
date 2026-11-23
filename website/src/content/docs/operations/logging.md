@@ -5,8 +5,8 @@ title: "Logging"
 The authority daemon, agent and relay log to stderr with a severity marker and an ISO 8601 timestamp with milliseconds, using [Kronuz/logger](https://github.com/Kronuz/logger), the logging library extracted from Xapiand.
 
 ```text
-▎2026-10-09 09:16:59.331 detentd: durable single-voter authority listening with HTTP on 127.0.0.1:8317
-▌2026-10-09 09:17:01.943 detentd: rejected publish (version)
+▎2026-10-09 09:16:59.331 detent-authority: durable single-voter authority listening with HTTP on 127.0.0.1:8317
+▌2026-10-09 09:17:01.943 detent-authority: rejected publish (version)
 ▍2026-10-09 09:19:24.916 detent-agent: source connected
 ```
 
@@ -17,12 +17,12 @@ On a terminal, messages use Xapiand's severity tint and timestamps use a grey gr
 ## Verbosity
 
 ```sh
-detentd                         # lifecycle messages and warnings (default: info)
-detentd -v                      # verbosity 1
+detent-authority                         # lifecycle messages and warnings (default: info)
+detent-authority -v                      # verbosity 1
 detent-agent -v                 # also agent publication details
 detent-agent -vv                # also source metric samples, every 200 ms
-detentd --log-level warning     # quiet service logs
-detentd --color never           # plain output even on a terminal
+detent-authority --log-level warning     # quiet service logs
+detent-authority --color never           # plain output even on a terminal
 ```
 
 | Flag | Effect |
@@ -32,7 +32,7 @@ detentd --color never           # plain output even on a terminal
 | `--color auto\|always\|never`, `--no-color` | Color policy; `auto` honors `NO_COLOR` |
 | `--color truecolor\|256\|16` | Force RGB, 256-color or ANSI 16-color output, including when redirected |
 
-The same settings work in `agent.json` and `detentd.json`; command-line flags win:
+The same settings work in `agent.json` and `detent-authority.json`; command-line flags win:
 
 ```json
 {"log_level": "info", "verbosity": 0, "color": "auto"}
@@ -41,7 +41,7 @@ The same settings work in `agent.json` and `detentd.json`; command-line flags wi
 `always` and explicit color depths override `NO_COLOR`. As in Xapiand, `24bit`, `256color` and `ansi` alias the corresponding depths; `on`/`off` alias `always`/`never`. `stacked` preserves all three portable color tiers.
 
 ```sh
-detentd --color truecolor -v >detent.log 2>&1
+detent-authority --color truecolor -v >detent.log 2>&1
 ```
 
 ---
@@ -62,7 +62,7 @@ HTTP logging omits headers, bodies, query values and exception descriptions. Met
 | Mode | Destination |
 | --- | --- |
 | Foreground | stderr |
-| `--daemonize` | `agent.log` (or a per-port `detentd` log) in the runtime directory |
+| `--daemonize` | `agent.log` (or a per-port `detent-authority` log) in the runtime directory |
 | systemd | The journal |
 | launchd, rc.d | `/var/log/detent` |
 

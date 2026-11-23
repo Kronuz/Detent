@@ -1,17 +1,28 @@
 // The reader core's C ABI and C++ header (reader.md D1, D2, D4, D7; docs/mechanisms/reader-core.md).
 #include "detent/reader.hh"
 #include "detent_testing/generation_writer.hh"
+#include "generation_file_access.hh"
 #include "prepared_reader.hh"
 #include "testing.hh"
+#include <algorithm>
+#include <atomic>
 #include <climits>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <fcntl.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
+// UBSan's vtable check on Linux reads through a pipe, so it aborts once descriptors run out.
+extern "C" [[gnu::weak]] void __ubsan_handle_dynamic_type_cache_miss(void *, std::uintptr_t, std::uintptr_t);
 namespace x = detent::local::detail;
 namespace t = detent::reader::testing;
 namespace {
@@ -24,31 +35,347 @@ detent_str S(std::string_view s) { return {s.data(), s.size()}; }
 constexpr detent_str none{nullptr, 0};
 std::string knobs(std::int64_t rev) {
 	return R"({"schema_version":1,"knobs":{)"
-	       R"("t:rev":{"type":"int","default":)" + std::to_string(rev) + R"(},)"
-	       R"("t:min":{"type":"int","default":-9223372036854775808},)"
-	       R"("t:max":{"type":"int","default":9223372036854775807},)"
-	       R"("t:flag":{"type":"bool","default":false,"overrides":{"vip":true,"half":{"rollout_pct":50}}},)"
-	       R"("t:on":{"type":"bool","default":true},)"
-	       R"("u:ramp":{"type":"bool","default":false,"rollout_pct":30},)"
-	       R"("u:all":{"type":"bool","default":false,"rollout_pct":100}}})";
+	       R"("t:rev":{"default":)" + std::to_string(rev) + R"(},)"
+	       R"("t:min":{"default":-9223372036854775808},)"
+	       R"("t:max":{"default":9223372036854775807},)"
+	       R"("t:flag":{"default":0,"overrides":{"vip":1,"half":{"rollout_pct":50}},"rollout_value":1},)"
+	       R"("t:on":{"default":1},)"
+	       R"("t:size":{"default":25,"overrides":{"big":{"rollout_pct":40}},"rollout_pct":10,"rollout_value":50},)"
+	       R"("u:ramp":{"default":0,"rollout_pct":30,"rollout_value":1},)"
+	       R"("u:all":{"default":0,"rollout_pct":100,"rollout_value":1}}})";
 }
 struct Opened {
 	detent_reader *handle = nullptr;
 	detent_status status;
-	Opened(const std::filesystem::path &store, std::vector<detent_str> namespaces = {}, uid_t uid = ::getuid()) {
+	Opened(const std::filesystem::path &store, std::vector<detent_str> namespaces = {}, uid_t uid = ::getuid(),
+	       std::uint64_t mapping_bytes = 0, std::size_t size = sizeof(detent_open_options)) {
 		const auto path = store.string();
-		detent_open_options options{sizeof options, S(path), namespaces.data(), namespaces.size(), uint32_t(uid)};
+		detent_open_options options{size, S(path), namespaces.data(), namespaces.size(), uint32_t(uid), mapping_bytes};
 		status = detent_open(&options, &handle);
 	}
 	~Opened() { detent_close(handle); }
 };
-std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, std::int64_t fallback = -7) {
+std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, std::int64_t fallback = -7,
+                 detent_str hash = none, detent_str switch_value = none) {
 	std::int64_t out = 0;
-	const auto status = detent_get(h, S(name), fallback, &out);
+	const auto status = detent_get(h, S(name), hash, switch_value, fallback, &out);
 	if (status != expect)
 		throw std::runtime_error(std::string(name) + ": status " + detent_status_name(status) + ", expected " +
 		                         detent_status_name(expect));
 	return out;
+}
+void replaced_selected(const std::filesystem::path &root) {
+	const auto store = root / "replaced-selected";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	x::RecordTesting::install([](std::string_view name, void *context) {
+		if (name != "selected")
+			return;
+		x::RecordTesting::install(nullptr, nullptr);
+		auto &writer = *static_cast<detent::testing::GenerationWriter *>(context);
+		CHECK(writer.publish_json(knobs(2)) == 2);
+	}, &writer);
+	struct Reset {
+		~Reset() { x::RecordTesting::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
+}
+// `selected` is read once per table: at open, which the first lookup attaches from while the store
+// word holds (D4), and once per switch, which attaches from that read.
+void selected_reads(const std::filesystem::path &root) {
+	const auto store = root / "selected-reads";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	unsigned reads = 0;
+	x::RecordTesting::install([](std::string_view name, void *context) {
+		if (name == "selected")
+			++*static_cast<unsigned *>(context);
+	}, &reads);
+	struct Reset {
+		~Reset() { x::RecordTesting::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && reads == 1);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1 && reads == 1);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	reads = 0;
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2 && reads == 1);
+	// A publish between the open and the first lookup moves the store word: the lookup reads again.
+	Opened late(store);
+	CHECK(late.status == DETENT_OK && writer.publish_json(knobs(3)) == 3);
+	reads = 0;
+	CHECK(get(late.handle, "t:rev", DETENT_OK) == 3 && reads == 1);
+}
+// A switch that cannot read the table, as when a publish storm outruns `selected`'s retries, keeps
+// the attached generation answering, stale (D4), until a read succeeds.
+void unreadable_table(const std::filesystem::path &root) {
+	const auto store = root / "unreadable-table";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	std::filesystem::rename(store / "selected", store / "held-selected");
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 1);
+	CHECK(detent_refresh(r.handle) == DETENT_UNAVAILABLE && get(r.handle, "t:rev", DETENT_OK) == 1);
+	std::filesystem::rename(store / "held-selected", store / "selected");
+	CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 2);
+}
+// A failure remembered by a namespace's first attach lasts until the store word moves or a
+// detent_refresh that does not fail (D4), then the next lookup attaches.
+void refresh_memo(const std::filesystem::path &root) {
+	const auto store = root / "refresh-memo";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK);
+	const auto selected = x::PreparedReader::selection(store, ::getuid()).descriptor.generation;
+	const auto metadata = store / (detent::local::generation_name(selected) + ".read");
+	std::filesystem::rename(metadata, root / "memo-hidden.read");
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7);
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // remembered
+	std::filesystem::rename(root / "memo-hidden.read", metadata);
+	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // still remembered: the word holds
+	CHECK(detent_refresh(r.handle) == DETENT_OK);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1 && t::stats(r.handle).attached == 1);
+}
+// A store of two packs: the first lookup maps one, and some key lives only in the other.
+constexpr int wide_knobs = 60000;
+std::string wide_name(int i) { return "t:k" + std::to_string(i); }
+std::string wide_json(int rev) {
+	std::string json = R"({"schema_version":1,"knobs":{)";
+	for (int i = 0; i != wide_knobs; ++i)
+		json += (i ? ",\"" : "\"") + wide_name(i) + R"(":{"default":)" + std::to_string(3 * i + rev) + "}";
+	return json + "}}";
+}
+std::filesystem::path wide_store(const std::filesystem::path &root) {
+	const auto store = root / "wide";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(wide_json(1)) == 1);
+	return store;
+}
+// How many keys of revision `rev` answer, each with its value.
+int wide_reads(detent_reader *h, int rev) {
+	int ok = 0;
+	for (int i = 0; i != wide_knobs; ++i) {
+		std::int64_t out = 0;
+		const auto name = wide_name(i);
+		const auto status = detent_get(h, S(name), none, none, -7, &out);
+		CHECK(status == DETENT_OK ? out == 3 * i + rev : status == DETENT_NO_MEMORY && out == -7);
+		ok += status == DETENT_OK;
+	}
+	return ok;
+}
+// The first key past k0 whose lookup does not answer, and its status.
+std::pair<int, detent_status> first_refused(detent_reader *h) {
+	for (int i = 1; i != wide_knobs; ++i) {
+		std::int64_t out = 0;
+		const auto name = wide_name(i);
+		if (const auto status = detent_get(h, S(name), none, none, -7, &out); status != DETENT_OK) {
+			CHECK(out == -7);
+			return {i, status};
+		}
+		CHECK(out == 3 * i + 1);
+	}
+	return {-1, DETENT_OK};
+}
+// A cold miss that fails for want of a descriptor is DETENT_IO for that lookup alone: the generation
+// keeps answering, and the same key answers once descriptors return.
+void transient_miss(const std::filesystem::path &store) {
+#ifdef __linux__
+	if (&__ubsan_handle_dynamic_type_cache_miss) {
+		std::cout << "transient_miss: skipped, UBSan's vtable check needs descriptors\n";
+		return;
+	}
+#endif
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:k0", DETENT_OK) == 1);
+	rlimit saved{};
+	CHECK(::getrlimit(RLIMIT_NOFILE, &saved) == 0);
+	auto lowered = saved;
+	lowered.rlim_cur = std::min<rlim_t>(saved.rlim_cur, 256);
+	CHECK(::setrlimit(RLIMIT_NOFILE, &lowered) == 0);
+	std::vector<int> held{::open("/dev/null", O_RDONLY)};
+	CHECK(held.front() >= 0);
+	for (int fd; (fd = ::dup(held.front())) >= 0;)
+		held.push_back(fd);
+	const auto [cold, status] = first_refused(r.handle);
+	for (const int fd : held)
+		::close(fd);
+	CHECK(::setrlimit(RLIMIT_NOFILE, &saved) == 0);
+	CHECK(cold > 0 && status == DETENT_IO);
+	CHECK(get(r.handle, "t:k0", DETENT_OK) == 1);
+	CHECK(get(r.handle, wide_name(cold), DETENT_OK) == 3 * cold + 1);
+	CHECK(first_refused(r.handle).first < 0 && detent_refresh(r.handle) == DETENT_OK);
+}
+// The mapping cap (detent_open_options): 512 MiB by default, also for options without the field;
+// below one pack and its bitmap the open fails. Past the cap a cold miss is refused with the fallback
+// and the mapped segments keep answering; a raised cap reads every key.
+void capped(const std::filesystem::path &store) {
+	constexpr std::uint64_t minimum = DETENT_MINIMUM_MAPPING_BYTES;
+	const auto uid = ::getuid();
+	CHECK(t::stats(Opened(store).handle).mapped_limit == 512u << 20);
+	const Opened old(store, {}, uid, minimum, offsetof(detent_open_options, mapping_bytes));
+	CHECK(old.status == DETENT_OK && t::stats(old.handle).mapped_limit == 512u << 20);
+	CHECK(Opened(store, {}, uid, minimum - 1).status == DETENT_INVALID_ARGUMENT);
+	Opened mapped(store, {}, uid, minimum);
+	CHECK(mapped.status == DETENT_OK && t::stats(mapped.handle).mapped_limit == minimum);
+	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
+	const auto [cold, status] = first_refused(mapped.handle);
+	const auto charged = t::stats(mapped.handle).mapped_bytes;
+	std::cout << "mapping cap " << minimum << ": " << wide_name(cold) << " " << detent_status_name(status)
+	          << ", charged " << charged << "\n";
+	CHECK(cold > 0 && status == DETENT_NO_MEMORY && charged > 0 && charged <= minimum);
+	CHECK(get(mapped.handle, "t:k0", DETENT_OK) == 1);
+	Opened raised(store, {}, uid, std::uint64_t(1) << 40);
+	CHECK(raised.status == DETENT_OK && t::stats(raised.handle).mapped_limit == std::uint64_t(1) << 40);
+	CHECK(get(raised.handle, "t:k0", DETENT_OK) == 1 && first_refused(raised.handle).first < 0);
+	std::cout << "raised cap: every key, charged " << t::stats(raised.handle).mapped_bytes << "\n";
+}
+// A view a lookup pinned across a commit is freed by the next refresh once the pin drops, Unchanged
+// or not, and returns its mapping charge: with room for one generation, the new one reads whole.
+void retained(const std::filesystem::path &root) {
+	const auto store = root / "retained";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(wide_json(1)) == 1);
+	std::uint64_t whole = 0;
+	{
+		Opened wide(store, {}, ::getuid(), std::uint64_t(1) << 40);
+		CHECK(wide_reads(wide.handle, 1) == wide_knobs);
+		whole = t::stats(wide.handle).mapped_bytes;
+	}
+	Opened r(store, {}, ::getuid(), whole + whole / 2);
+	CHECK(r.status == DETENT_OK && wide_reads(r.handle, 1) == wide_knobs);
+	struct Park {
+		std::atomic<int> state{0}; // 1 parked, 2 released
+	} park;
+	static thread_local Park *armed = nullptr;
+	t::install([](t::Window at, void *) noexcept {
+		if (at != t::Window::Pinned || !armed)
+			return;
+		auto &park = *std::exchange(armed, nullptr);
+		park.state = 1;
+		while (park.state.load() != 2)
+			std::this_thread::yield();
+	}, nullptr);
+	std::int64_t seen = 0;
+	std::thread reader([&] {
+		armed = &park;
+		detent_get(r.handle, S("t:k0"), none, none, -7, &seen);
+	});
+	while (park.state.load() != 1)
+		std::this_thread::yield();
+	CHECK(writer.publish_json(wide_json(2)) == 2 && detent_refresh(r.handle) == DETENT_OK);
+	CHECK(t::stats(r.handle).generations == 2); // the pinned view keeps revision 1
+	park.state = 2;
+	reader.join();
+	t::install(nullptr, nullptr);
+	CHECK(seen == 2 && detent_refresh(r.handle) == DETENT_OK);
+	const int ok = wide_reads(r.handle, 2);
+	const auto stats = t::stats(r.handle);
+	std::cout << "retained: revision 2 reads " << ok << " of " << wide_knobs << ", generations " << stats.generations
+	          << ", charged " << stats.mapped_bytes << " of " << stats.mapped_limit << "\n";
+	CHECK(ok == wide_knobs && stats.generations == 1 && stats.live_views == 1);
+}
+// A refused fork-handler registration fails the open; the next open registers them.
+void atfork_refused(const std::filesystem::path &root) {
+	const auto store = root / "atfork";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	t::refuse_atfork(true);
+	{
+		Opened refused(store);
+		CHECK(refused.status == DETENT_NO_MEMORY && refused.handle == nullptr);
+	}
+	t::refuse_atfork(false);
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
+}
+// Once the fork handlers registered, an open takes no lock: a child forked while another thread is
+// inside detent_open opens its own handle instead of waiting on a lock no thread of it holds.
+void fork_mid_open(const std::filesystem::path &root) {
+	const auto store = root / "fork-open";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	static std::atomic<int> state{0}; // 1 parked, 2 released
+	static thread_local bool armed = false;
+	t::install([](t::Window at, void *) noexcept {
+		if (at != t::Window::Registering || !std::exchange(armed, false))
+			return;
+		state = 1;
+		while (state.load() != 2)
+			std::this_thread::yield();
+	}, nullptr);
+	detent_status opened = DETENT_INVALID_ARGUMENT;
+	std::thread opener([&] {
+		armed = true;
+		Opened r(store);
+		opened = r.status;
+	});
+	while (state.load() != 1)
+		std::this_thread::yield();
+	const pid_t pid = ::fork();
+	CHECK(pid >= 0);
+	if (pid == 0) {
+		::alarm(10); // the deadlock this checks: SIGALRM ends the child
+		detent_reader *h = nullptr;
+		const auto path = store.string();
+		detent_open_options options{sizeof options, S(path), nullptr, 0, uint32_t(::getuid()), 0};
+		std::int64_t out = 0;
+		const bool ok = detent_open(&options, &h) == DETENT_OK &&
+		                detent_get(h, S("t:rev"), none, none, -7, &out) == DETENT_OK && out == 1;
+		std::_Exit(ok ? 0 : 1);
+	}
+	int status = 0;
+	CHECK(::waitpid(pid, &status, 0) == pid);
+	state = 2;
+	opener.join();
+	t::install(nullptr, nullptr);
+	std::cout << "fork mid-open: child " << (WIFEXITED(status) ? "exit " : "signal ")
+	          << (WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status)) << "\n";
+	CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0 && opened == DETENT_OK);
+}
+void replaced_change(const std::filesystem::path &root) {
+	const auto store = root / "replaced-change";
+	{
+		detent::testing::GenerationWriter writer(store);
+		CHECK(writer.publish_json(knobs(1)) == 1);
+	}
+	struct Race {
+		std::filesystem::path store;
+		unsigned calls = 0;
+	} race{store};
+	t::install([](t::Window at, void *context) noexcept {
+		if (at != t::Window::ChangeMapped)
+			return;
+		auto &race = *static_cast<Race *>(context);
+		if (race.calls++ == 0) {
+			const auto change = race.store / "change";
+			const auto old = race.store / "old-change";
+			std::filesystem::rename(change, old);
+			std::filesystem::copy_file(old, change);
+		}
+	}, &race);
+	struct Reset {
+		~Reset() { t::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && race.calls == 1);
+	CHECK(detent_refresh(r.handle) == DETENT_OK && race.calls == 2);
+	t::install(nullptr, nullptr);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1);
+	// The next publisher writes inode B; a reader still mapped to A cannot see its sequence move.
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
 }
 void values(const std::filesystem::path &root) {
 	const auto store = root / "values";
@@ -63,50 +390,42 @@ void values(const std::filesystem::path &root) {
 	CHECK(get(r.handle, "t:min", DETENT_OK) == INT64_MIN && get(r.handle, "t:max", DETENT_OK) == INT64_MAX);
 	CHECK(get(r.handle, "t:absent", DETENT_MISSING) == -7);
 	CHECK(get(r.handle, "zz:absent", DETENT_MISSING) == -7);
-	CHECK(get(r.handle, "t:flag", DETENT_WRONG_TYPE) == -7);
+	CHECK(get(r.handle, "t:flag", DETENT_OK) == 0);
 	for (const auto bad : {"t", "t:", ":rev", "t:rev:x", "t rev", "t:r*v"})
 		CHECK(get(r.handle, bad, DETENT_INVALID_NAME) == -7);
 	std::int64_t out = 0;
-	CHECK(detent_get(r.handle, none, 5, &out) == DETENT_INVALID_NAME && out == 5);
-	CHECK(detent_get(r.handle, S("t:rev"), 5, nullptr) == DETENT_INVALID_ARGUMENT);
-	CHECK(detent_get(nullptr, S("t:rev"), 5, &out) == DETENT_INVALID_ARGUMENT && out == 5);
-	bool flag = true;
-	CHECK(detent_eval(r.handle, S("t:flag"), none, none, true, &flag) == DETENT_OK && !flag);
-	CHECK(detent_eval(r.handle, S("t:flag"), none, S("vip"), false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("t:on"), none, none, false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("t:rev"), none, none, true, &flag) == DETENT_WRONG_TYPE && flag);
-	CHECK(detent_eval(r.handle, S("t:nope"), none, none, true, &flag) == DETENT_MISSING && flag);
-	CHECK(detent_eval(r.handle, S("u:all"), S("anyone"), none, false, &flag) == DETENT_OK && flag);
-	CHECK(detent_eval(r.handle, S("u:all"), none, none, true, &flag) == DETENT_OK && !flag); // no hash: default
-	detent_value value{};
-	CHECK(detent_read(r.handle, S("t:max"), none, none, &value) == DETENT_OK && value.kind == DETENT_KIND_INT &&
-	      value.integer == INT64_MAX);
-	CHECK(detent_read(r.handle, S("t:flag"), none, S("vip"), &value) == DETENT_OK &&
-	      value.kind == DETENT_KIND_BOOL && value.boolean);
-	CHECK(detent_read(r.handle, S("t:none"), none, none, &value) == DETENT_MISSING && value.kind == 0);
+	CHECK(detent_get(r.handle, none, none, none, 5, &out) == DETENT_INVALID_NAME && out == 5);
+	CHECK(detent_get(r.handle, S("t:rev"), none, none, 5, nullptr) == DETENT_INVALID_ARGUMENT);
+	CHECK(detent_get(nullptr, S("t:rev"), none, none, 5, &out) == DETENT_INVALID_ARGUMENT && out == 5);
+	// One knob type: every knob takes the hash and switch alike (D1 item 3).
+	CHECK(get(r.handle, "t:flag", DETENT_OK, -7, none, S("vip")) == 1);
+	CHECK(get(r.handle, "t:on", DETENT_OK) == 1);
+	CHECK(get(r.handle, "t:rev", DETENT_OK, -7, S("anyone"), S("vip")) == 1); // no override: default
+	CHECK(get(r.handle, "t:nope", DETENT_MISSING, 3) == 3);
+	CHECK(get(r.handle, "u:all", DETENT_OK, -7, S("anyone")) == 1);
+	CHECK(get(r.handle, "u:all", DETENT_OK) == 0); // no hash: default
+	CHECK(get(r.handle, "t:max", DETENT_OK, -7, S("x"), S("y")) == INT64_MAX);
 	std::uint64_t revision = 0;
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 1);
 	CHECK(detent_revision(r.handle, S("t:x"), &revision) == DETENT_INVALID_NAME && revision == 0);
-	// Oracle: every bool across hashes and switches matches the prepared reader's view.
+	// Oracle: every knob across hashes and switches matches the prepared reader's view.
 	auto oracle = x::PreparedReader::open(store, ::getuid(), {});
 	std::size_t compared = 0;
-	for (const auto name : {"t:flag", "t:on", "u:ramp", "u:all"})
+	for (const auto name : {"t:flag", "t:on", "t:size", "t:rev", "u:ramp", "u:all"})
 		for (int h = -1; h != 200; ++h)
-			for (const auto sw : {"", "vip", "half", "other"}) {
+			for (const auto sw : {"", "vip", "half", "big", "other"}) {
 				const std::string hash = "user" + std::to_string(h);
 				const std::string_view qualified(name);
 				const auto colon = qualified.find(':');
 				const auto expected =
-				    oracle.view.eval(qualified.substr(0, colon), qualified.substr(colon + 1),
-				                     h < 0 ? std::nullopt : std::optional<std::string_view>(hash),
-				                     *sw ? std::optional<std::string_view>(sw) : std::nullopt);
-				bool got = !expected.value();
-				CHECK(detent_eval(r.handle, S(name), h < 0 ? none : S(hash), *sw ? S(sw) : none, !got, &got) ==
-				      DETENT_OK);
-				CHECK(got == expected.value());
+				    oracle.view.get(qualified.substr(0, colon), qualified.substr(colon + 1),
+				                    h < 0 ? std::nullopt : std::optional<std::string_view>(hash),
+				                    *sw ? std::optional<std::string_view>(sw) : std::nullopt);
+				CHECK(get(r.handle, name, DETENT_OK, ~expected.value(), h < 0 ? none : S(hash), *sw ? S(sw) : none) ==
+				      expected.value());
 				++compared;
 			}
-	CHECK(compared == 4 * 201 * 4);
+	CHECK(compared == 6 * 201 * 5);
 	// A publish switches the next lookup through the namespace's sequence (D4).
 	CHECK(writer.publish_json(knobs(2)) == 2);
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
@@ -123,7 +442,7 @@ void values(const std::filesystem::path &root) {
 	Opened listed(store, {S("u")});
 	CHECK(listed.status == DETENT_OK);
 	CHECK(get(listed.handle, "t:rev", DETENT_NOT_OPENED) == -7);
-	CHECK(detent_eval(listed.handle, S("u:all"), S("x"), none, false, &flag) == DETENT_OK && flag);
+	CHECK(get(listed.handle, "u:all", DETENT_OK, -7, S("x")) == 1);
 	CHECK(detent_revision(listed.handle, S("t"), &revision) == DETENT_NOT_OPENED);
 	// A failed switch keeps the installed view (D4): hide the new generation's reader metadata.
 	CHECK(writer.publish_json(knobs(4)) == 4);
@@ -185,11 +504,15 @@ void wrapper(const std::filesystem::path &root) {
 	CHECK(writer.publish_json(knobs(5)) == 1);
 	detent::Reader reader(store.string(), ::getuid());
 	CHECK(reader.get("t:rev", 0) == 5 && reader.get("t:absent", 9) == 9 && reader.get("bad", 8) == 8);
-	CHECK(reader.eval("t:flag", true, std::nullopt, "vip") && !reader.eval("t:flag", true));
-	CHECK(reader.eval("t:rev", true) && !reader.eval("t:rev", false));
-	auto found = reader.lookup("t:min");
-	CHECK(found && found.value.kind == DETENT_KIND_INT && found.value.integer == INT64_MIN);
-	CHECK(reader.lookup("t:zz").status == DETENT_MISSING && !reader.lookup("t:zz"));
+	CHECK(reader.get("t:flag", 7, std::nullopt, "vip") == 1 && reader.get("t:flag", 7) == 0);
+	CHECK(reader.get_as<bool>("t:flag", false, std::nullopt, "vip") && !reader.get_as<bool>("t:flag", true));
+	CHECK(reader.get_as<bool>("t:rev", true) && !reader.get_as<bool>("t:rev", false)); // 5 is not a flag
+	CHECK(reader.get_as<std::int8_t>("t:max", 3) == 3 && reader.get_as<std::uint8_t>("t:rev", 0) == 5);
+	CHECK(reader.get_as<std::uint64_t>("t:min", 4) == 4 && reader.get_as<std::int64_t>("t:min", 4) == INT64_MIN);
+	auto found = reader.lookup("t:min", 0);
+	CHECK(found && found.value == INT64_MIN);
+	CHECK(reader.lookup("t:zz", 6).status == DETENT_MISSING && !reader.lookup("t:zz", 6) &&
+	      reader.lookup("t:zz", 6).value == 6);
 	CHECK(reader.revision("t") == 1u && !reader.revision("t:x"));
 	detent::Reader moved(std::move(reader));
 	CHECK(moved.get("t:rev", 0) == 5 && reader.native() == nullptr && reader.get("t:rev", 6) == 6);
@@ -281,6 +604,17 @@ int main() {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
+	atfork_refused(root); // first: the fork handlers register at the first open that succeeds
+	fork_mid_open(root);
+	replaced_selected(root);
+	selected_reads(root);
+	unreadable_table(root);
+	refresh_memo(root);
+	replaced_change(root);
+	const auto wide = wide_store(root);
+	transient_miss(wide);
+	capped(wide);
+	retained(root);
 	values(root);
 	wrapper(root);
 	opens(root);

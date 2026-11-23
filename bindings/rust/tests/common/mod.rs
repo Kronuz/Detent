@@ -58,7 +58,7 @@ pub fn fresh(name: &str) -> PathBuf {
 }
 
 pub fn knobs(rev: i64) -> String {
-    format!(r#"{{"schema_version":1,"knobs":{{"t:rev":{{"type":"int","default":{rev}}}}}}}"#)
+    format!(r#"{{"schema_version":1,"knobs":{{"t:rev":{{"default":{rev}}}}}}}"#)
 }
 
 pub fn descriptors() -> usize {

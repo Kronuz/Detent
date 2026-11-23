@@ -1,23 +1,25 @@
 #include "paged_limits.hh"
+#include "paged_page_access.hh"
 #include "detent_delivery/coordinator.hh"
-#include "candidate_flat_validator.hh"
 #include "coordinator_internal.hh"
 #include "detent_delivery/reconnect_backoff.hh"
+#include "detent_distribution/frame_input.hh"
+#include "detent_local/derived_ids.hh"
 #include "managed_recovery.hh"
 #include "pack_scrub.hh"
 #include "paged_compaction_plan.hh"
-#include "scrub_source.hh"
 #include "paged_delta_plan.hh"
-#include "paged_maintenance_plan.hh"
-#include "paged_reuse.hh"
 #include "paged_snapshot_plan.hh"
-#include "prepared_reader.hh"
+#include "delta_transfer.hh"
+#include "paged_navigation.hh"
+#include "paged_transfer_plan.hh"
+#include "scrub_source.hh"
 #include "source_selection.hh"
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
-#include <openssl/rand.h>
-#include <unistd.h>
+#include <map>
+#include <set>
 
 namespace detent::delivery {
 namespace d = distribution;
@@ -27,22 +29,10 @@ bool fatal_source_reset(SessionResetReason reason) noexcept {
 	return reason == SessionResetReason::Forbidden || reason == SessionResetReason::Unauthorized ||
 		   reason == SessionResetReason::IdentityChanged || reason == SessionResetReason::InvalidRequest;
 }
-// The directory-bearing recovery result is destroyed on the cleanup worker.
-// Builders may borrow it only while its retirement handle remains retained.
-struct RecoveryResult : d::RetirementNode {
-	explicit RecoveryResult(const CoordinatorOptions &options)
-		: directory(options.directory), limits(options.view_limits) {}
-	const std::filesystem::path directory;
-	const l::ViewLimits limits;
-	std::optional<l::RecoveredGeneration> generation;
-	bool prepared = false;
-	l::GenerationId next_id{};
-	std::exception_ptr failure;
-	std::atomic<bool> ready{false};
-};
-struct MaintenanceFailure {
-	std::exception_ptr cause;
-};
+bool unavailable_reset(SessionResetReason reason) noexcept {
+	return reason == SessionResetReason::NotLeader || reason == SessionResetReason::Unavailable ||
+		   reason == SessionResetReason::SourceBehind;
+}
 struct ConstructionControl {
 	std::atomic<bool> stop{false};
 	std::atomic<std::uint64_t> steps{0};
@@ -52,24 +42,107 @@ struct ConstructionControl {
 		steps.fetch_add(1, std::memory_order_relaxed);
 	}
 };
-struct PagedCandidateResult : d::RetirementNode {
+// One task on the worker: the owner waits for `ready`, then reads the result or the failure.
+struct WorkerResult : d::RetirementNode {
 	ConstructionControl control;
-	bool compaction = false;
-	std::optional<l::detail::PagedPlan> plan;
-	std::optional<l::detail::StateEquivalenceProof> unchanged;
-	std::shared_ptr<const l::detail::StateEquivalenceProof> maintenance;
-	std::optional<l::Descriptor> descriptor;
-	std::optional<l::Descriptor> selected_base;
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
-struct CandidateComparisonResult : d::RetirementNode {
-	ConstructionControl control;
-	std::optional<l::detail::StateEquivalenceProof> proof;
+struct RecoveryResult : WorkerResult {
+	std::optional<l::RecoveredGeneration> generation;
+};
+struct BuildResult : WorkerResult {
+	std::optional<l::detail::PagedPlan> plan;
+	bool unchanged = false, repair = false, compaction = false;
+};
+struct ScrubResult : d::RetirementNode {
+	explicit ScrubResult(const CoordinatorOptions &options)
+		: scrub(options.scrub_bytes_per_second), directory(options.directory) {}
+	l::detail::PackScrub scrub;
+	const std::filesystem::path directory;
+	std::string name;
+	d::RetirementHandle<l::detail::LeasedPagedRoot> root;
 	std::exception_ptr failure;
-	std::atomic<bool> ready{false};
+	std::atomic<bool> ready{true};
+};
+// The frames of one response (W6), each held as the paged builders read it; none is visible until
+// next returns Frames and the coordinator publishes them in one cycle.
+// A pages frame's prefix outlives a response cut short (D8): `held` keeps its whole chunks, the next
+// request asks the rest from there, and a frame resuming at that offset continues it.
+class Response final : public FramePreparer {
+  public:
+	Response(const d::Limits &limits, std::unique_ptr<d::FrameInput> &held) : limits_(limits), held_(held) {}
+	class Frame final : public Prepared {
+	  public:
+		Frame(Response &owner, std::string name, std::unique_ptr<d::FrameInput> input)
+			: owner_(owner), name_(std::move(name)), input_(std::move(input)) {}
+		~Frame() override {
+			if (input_ && input_->kind() == d::FrameKind::Pages && input_->hold_whole_chunks())
+				owner_.held_ = std::move(input_);
+		}
+		void piece(d::PieceKind kind, std::uint64_t first, std::uint64_t last) override {
+			if (input_)
+				input_->piece(kind, first, last);
+		}
+		void record(std::string_view key, std::uint64_t revision, const KnobDef *value) override {
+			if (input_)
+				input_->record(key, revision, value);
+		}
+		void root(const d::RootDigest &root) override {
+			if (input_)
+				input_->root(root);
+		}
+		void pages(std::uint64_t offset) override {
+			if (!input_)
+				return;
+			auto &held = owner_.held_;
+			if (offset) {
+				if (!held || held->name() != input_->name() || held->after() != input_->after() ||
+					held->target() != input_->target() || held->root() != input_->root())
+					throw std::invalid_argument("a pages frame resumes a transfer this agent does not hold");
+				input_ = std::move(held);
+			} else if (held && held->name() == input_->name())
+				held.reset();
+			input_->pages(offset);
+		}
+		void chunk(std::string_view bytes) override {
+			if (input_)
+				input_->chunk(bytes);
+		}
+		// The input's storage admits its bytes to the heap as it grows: nothing to charge twice.
+		std::size_t bytes() const noexcept override { return 0; }
+		void publish() override {
+			if (input_)
+				owner_.frames.push_back(std::move(input_));
+			else
+				owner_.dropped.push_back(std::move(name_));
+		}
+
+	  private:
+		Response &owner_;
+		std::string name_;
+		std::unique_ptr<d::FrameInput> input_;
+	};
+	std::unique_ptr<Prepared> prepare(std::string_view name, d::FrameKind kind, std::uint64_t after,
+									  const d::NamespaceCursor &to) override {
+		if (held_ && held_->name() == name && kind != d::FrameKind::Pages)
+			held_.reset();
+		if (kind == d::FrameKind::Dropped)
+			return std::make_unique<Frame>(*this, std::string(name), nullptr);
+		return std::make_unique<Frame>(*this, std::string(name),
+									   std::make_unique<d::FrameInput>(name, kind, after, to, d::Profile{}, limits_));
+	}
+	void directory(const d::DirectoryUpdate &update) override { directory_update = update; }
+	std::vector<std::unique_ptr<d::FrameInput>> frames;
+	std::vector<std::string> dropped;
+	std::optional<d::DirectoryUpdate> directory_update;
+
+  private:
+	d::Limits limits_;
+	std::unique_ptr<d::FrameInput> &held_;
 };
 } // namespace
+
 struct Coordinator::Impl {
 	CoordinatorOptions options;
 	detail::SourceSelection sources;
@@ -84,36 +157,53 @@ struct Coordinator::Impl {
 	std::uint64_t steps_at_stop = 0, settled_construction_steps = 0;
 	bool construction_stopped = false;
 	bool terminal_fenced = false;
-	std::exception_ptr injected_worker_failure, injected_maintenance_failure;
+	std::exception_ptr injected_worker_failure, injected_maintenance_failure, injected_build_failure;
 	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
-	d::RetirementHandle<RecoveryResult> base;
-	std::optional<l::Descriptor> confirmed_prepared;
-	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause;
-	d::StorageOwner<l::ImageBuilder> builder;
-	d::RetirementHandle<PagedCandidateResult> paged_candidate;
-	bool paged_writer = options.image_format == LocalImageFormat::PagedV2;
-	bool pending_paged_confirmation = false, compaction_requested = false;
-	bool compaction_admission_refused = false, fail_compaction_admission = false;
+	std::uint64_t wakes = 0;
+	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause, scrub_pause;
+	// Per followed namespace (C1): its recovered base, whether a full copy is asked for it (D10), and
+	// the newest position it published, which the full copy never goes below (D139).
+	struct Followed {
+		d::RetirementHandle<RecoveryResult> base;
+		bool repair = false;
+		std::optional<d::NamespaceCursor> published;
+	};
+	// Keeps the newest position each selected namespace published.
+	void note_published() {
+		for (const auto &entry : store->selection().namespaces) {
+			auto &published = followed[entry.name].published;
+			if (!published || published->cluster != entry.descriptor.cursor.cluster ||
+				published->position < entry.descriptor.cursor.position)
+				published = entry.descriptor.cursor;
+		}
+	}
+	std::map<std::string, Followed, std::less<>> followed;
+	// Namespaces whose page transfer was refused: asked as records until records publish them (D9).
+	std::set<std::string, std::less<>> records_only;
+	// A pages transfer's prefix from a response cut short: the next request resumes it (D8).
+	std::unique_ptr<d::FrameInput> held_transfer;
+	bool retains_candidate = false;
+	bool compaction_requested = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
+	std::string compaction_cursor;
 	task::cancel_source network_cancel;
 	std::optional<asio::steady_timer> candidate_wake, disk_wake, scrub_wake;
-	std::optional<l::detail::PackScrub> scrubber;
-	d::RetirementHandle<l::detail::LeasedPagedRoot> scrub_root;
+	d::RetirementHandle<ScrubResult> scrub_result;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
-	bool closing = false, running = false, settled = false, publication_started = false;
-	std::chrono::steady_clock::time_point publication_retry{};
-	Impl(CoordinatorOptions config, std::shared_ptr<l::DiskStore> disk,
-		 std::shared_ptr<NativeDriver> completion, d::RetirementDomain &retirement, asio::thread_pool &pool)
+	bool closing = false, running = false, settled = false;
+	bool repair_woke = false;
+	Impl(CoordinatorOptions config, std::shared_ptr<l::DiskStore> disk, std::shared_ptr<NativeDriver> completion,
+		 d::RetirementDomain &retirement, asio::thread_pool &pool)
 		: options(std::move(config)),
 		  sources(options.authority_endpoints, options.source.endpoint, options.quorum_refresh,
 				  options.reconnect_seed ^ UINT64_C(0x6a09e667f3bcc909)),
-		  store(std::move(disk)), driver(std::move(completion)), domain(retirement), worker(pool),
-		  base(domain.make<RecoveryResult>(options)) {
-		if (options.completion_port && !options.completion_port->uses(driver))
-			throw std::invalid_argument("coordinator completion port driver mismatch");
+		  store(std::move(disk)), driver(std::move(completion)), domain(retirement), worker(pool) {
+		for (const auto &name : options.namespaces)
+			followed.try_emplace(name);
 	}
+	bool cancelled() const noexcept { return closing || candidate_cancellation != cancellation; }
 	void stop_construction() noexcept {
 		if (construction) {
 			construction->stop.store(true, std::memory_order_release);
@@ -125,12 +215,9 @@ struct Coordinator::Impl {
 		settled_construction_steps = control.steps.load(std::memory_order_relaxed);
 		construction = nullptr;
 	}
-	bool cancelled() const noexcept { return closing || candidate_cancellation != cancellation; }
 	void fence(std::exception_ptr failure) noexcept {
 		if (!terminal_fenced) {
 			terminal_fenced = true;
-			if (options.publication_sink)
-				options.publication_sink->fence();
 			terminal_failure = failure;
 			++diagnostic.failures;
 		}
@@ -138,13 +225,47 @@ struct Coordinator::Impl {
 		diagnostic.phase = CoordinatorPhase::Fenced;
 		close();
 	}
+	void fail(std::exception_ptr failure) noexcept {
+		++diagnostic.failures;
+		diagnostic.error = failure;
+	}
+	// Asks a full copy of `name` at the next build ordinal (D10.3); a network wait in progress ends.
+	void request_repair(const std::string &name, bool wake) noexcept {
+		try {
+			note_published();
+		} catch (...) {
+			// Out of memory: the floor stays the one following() noted at the last request.
+		}
+		auto &state = followed[name];
+		if (state.repair)
+			return;
+		state.repair = true;
+		state.base = {};
+		++diagnostic.repair.requested;
+		diagnostic.repair.pending = true;
+		if (wake && diagnostic.phase == CoordinatorPhase::Receiving) {
+			repair_woke = true;
+			network_cancel.request();
+		}
+		notify_candidate();
+	}
 	std::chrono::milliseconds next_reconnect_delay(ReconnectBackoff &backoff) noexcept {
 		reconnect_observation.delay = backoff.next();
 		++reconnect_observation.count;
 		return reconnect_observation.delay;
 	}
+	// Waits out `duration`: disk progress does not end it; a close, a cancelled update or a wake does.
 	task::task<void> pause(std::chrono::milliseconds duration) {
-		co_await wait_candidate(std::chrono::steady_clock::now() + duration);
+		const auto expires = std::chrono::steady_clock::now() + duration;
+		const auto epoch = cancellation, woken = wakes;
+		do
+			co_await wait_candidate(expires);
+		while (!closing && cancellation == epoch && wakes == woken && std::chrono::steady_clock::now() < expires);
+	}
+	// Ends a pause so the loop asks again now.
+	void wake() noexcept {
+		++wakes;
+		notify_candidate();
 	}
 	task::task<void> wait_candidate(std::chrono::steady_clock::time_point expires) {
 		candidate_wake->expires_at(expires);
@@ -152,6 +273,12 @@ struct Coordinator::Impl {
 			[&](auto handler) { candidate_wake->async_wait(std::move(handler)); });
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
+	}
+	// A worker job ends by setting its event on the owner, never on the worker: the waiting frame lives on
+	// the owner, so no set() can race its destruction at teardown. The job holds the owner's io_context as
+	// outstanding work until then, so a loop with nothing else queued cannot return under the wait.
+	asio::any_io_executor owner_executor() const {
+		return asio::prefer(options.source.scheduler->executor(), asio::execution::outstanding_work.tracked);
 	}
 	void notify_candidate() noexcept {
 		if (candidate_wake)
@@ -162,464 +289,526 @@ struct Coordinator::Impl {
 			disk_wake->cancel();
 	}
 	task::task<void> wait_disk() {
-		auto expires = std::chrono::steady_clock::time_point::max();
-		if (diagnostic.phase == CoordinatorPhase::WaitingPublication && !cancelled() &&
-			publication_retry > std::chrono::steady_clock::now())
-			expires = publication_retry;
-		disk_wake->expires_at(expires);
+		disk_wake->expires_at(store->collection_retry_at());
 		const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
 			[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
-	task::task<d::RetirementHandle<RecoveryResult>> recover(bool selected) {
-		auto result = base;
-		result->failure = {};
-		if (selected)
-			result->prepared = false;
-		result->ready.store(false, std::memory_order_relaxed);
-		std::optional<l::detail::ManagedRecoveryContext> recovery;
-		if (selected) {
-			recovery.emplace(l::detail::ManagedRecovery::capture(*store));
-			for (auto *context : {&recovery->legacy, &recovery->paged}) {
-				auto &limits = context->limits;
-				limits.bytes = std::min(limits.bytes, result->limits.bytes);
-				limits.strings = std::min(limits.strings, result->limits.strings);
-				limits.namespaces = std::min(limits.namespaces, result->limits.namespaces);
-				limits.records = std::min(limits.records, result->limits.records);
-				limits.overrides = std::min(limits.overrides, result->limits.overrides);
-			}
-		}
-		// One candidate coroutine admits at most one configuration-worker task.
-		// The task retains its result through authentic worker completion even
-		// when request interest has been cancelled on the owner executor.
-		const auto settlement = recovery;
-		asio::post(worker, [result, selected, recovery = std::move(recovery),
-							probe_pause = selected ? std::exchange(prepared_probe_pause, {}) : nullptr,
-							injected = std::exchange(injected_worker_failure, {})]() mutable {
-			try {
-				if (injected)
-					std::rethrow_exception(injected);
-				if (selected) {
-					auto candidate =
-						l::detail::ManagedRecovery::recover(result->directory, std::move(*recovery));
-					result->generation.emplace(std::move(candidate));
-					if (probe_pause) {
-						probe_pause->reached.store(true, std::memory_order_release);
-						probe_pause->resume.wait();
-					}
-					if (l::detail::StateCursor::logical_commitment(*result->generation))
-						result->prepared = l::detail::PreparedReader::metadata_ready(
-							result->directory, *result->generation, ::geteuid());
-				}
-				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),
-							   result->next_id.size()) != 1)
-					throw std::runtime_error("managed generation identity generation failed");
-			} catch (...) {
-				result->failure = std::current_exception();
-			}
-			result->ready.store(true, std::memory_order_release);
-		});
+	// Waits for a worker task; scheduler failure never abandons accepted worker work.
+	task::task<void> settle(WorkerResult &result, task::event &worker_done, bool construction_task) {
+		if (construction_task)
+			construction = &result.control;
 		diagnostic.worker_pending = true;
 		try {
 			if (fail_worker_wait) {
 				fail_worker_wait = false;
 				throw std::bad_alloc();
 			}
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await worker_done;
 			if (std::exchange(fail_settled_worker_wait, false))
 				throw std::bad_alloc();
 		} catch (...) {
-			// Scheduler failure cannot manufacture authentic worker settlement.
-			if (!result->ready.load(std::memory_order_acquire))
+			if (!result.ready.load(std::memory_order_acquire))
 				std::terminate();
+			if (construction_task)
+				settle_construction(result.control);
 			diagnostic.worker_pending = false;
-			if (result->failure) {
-				if (settlement)
-					l::detail::ManagedRecovery::settle_failure(*store, *settlement, result->failure);
-				std::rethrow_exception(result->failure);
-			}
+			if (result.failure)
+				std::rethrow_exception(result.failure);
 			throw;
 		}
+		if (construction_task)
+			settle_construction(result.control);
 		diagnostic.worker_pending = false;
-		if (result->failure) {
-			if (settlement)
-				l::detail::ManagedRecovery::settle_failure(*store, *settlement, result->failure);
-			std::rethrow_exception(result->failure);
+		if (result.failure)
+			std::rethrow_exception(result.failure);
+	}
+	// Recovers namespace `name`'s selected generation on the worker, through the store's admission
+	// when a publication of it awaits confirmation.
+	task::task<d::RetirementHandle<RecoveryResult>> recover(const std::string &name) {
+		auto result = domain.make<RecoveryResult>();
+		auto context = l::detail::ManagedRecovery::capture(*store, name);
+		const auto settlement = context;
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), directory = options.directory,
+							context = std::move(context),
+							probe = std::exchange(prepared_probe_pause, {}),
+							injected = std::exchange(injected_worker_failure, {})]() mutable {
+			try {
+				if (injected)
+					std::rethrow_exception(injected);
+				result->generation.emplace(l::detail::ManagedRecovery::recover(directory, std::move(context)));
+				if (probe) {
+					probe->reached.store(true, std::memory_order_release);
+					probe->resume.wait();
+				}
+			} catch (...) {
+				result->failure = std::current_exception();
+			}
+			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
+		});
+		try {
+			co_await settle(*result, *worker_done, false);
+		} catch (...) {
+			if (result->failure && settlement.paged.admission)
+				l::detail::ManagedRecovery::settle_failure(*store, settlement, result->failure);
+			else if (result->failure && damaged(result->failure)) {
+				// A selected entry that does not recover fails alone; a fresh full copy replaces it (D136),
+				// at or above the position it published (D139).
+				request_repair(name, false);
+				store->fail(name);
+			}
+			throw;
 		}
 		co_return result;
 	}
-	task::task<l::detail::StateEquivalenceProof> compare_candidate() {
-		if (!base->generation || !builder || !builder->done())
-			throw std::logic_error("same-cursor comparison lacks completed input");
-		auto input = l::detail::CandidateFlatInput::capture(*builder);
-		auto source = *base->generation;
-		const auto descriptor = source.descriptor();
-		const auto directory = source.directory_identity();
-		auto factory = domain.factory();
-		auto heap = domain.storage_account();
-		auto limits = options.view_limits;
-		limits.retirement_domain = nullptr;
-		auto result = factory.make<CandidateComparisonResult>();
-		asio::post(worker, [result, input = std::move(input), source = std::move(source), factory, heap,
-							limits]() mutable {
+	// Whether a recovery failure is the entry's bytes, not memory or disk pressure.
+	static bool damaged(std::exception_ptr failure) noexcept {
+		try {
+			std::rethrow_exception(failure);
+		} catch (const d::StoragePressure &) {
+		} catch (const l::DiskPressure &) {
+		} catch (const std::bad_alloc &) {
+		} catch (...) {
+			return true;
+		}
+		return false;
+	}
+	// The recovered base of `name`, recovered now when not held or when the selection moved.
+	task::task<const l::RecoveredGeneration *> base_of(const std::string &name) {
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
+		if (!selected)
+			co_return nullptr;
+		auto &state = followed[name];
+		if (!state.base || !state.base->generation || state.base->generation->descriptor() != *selected)
+			state.base = co_await recover(name);
+		co_return &*state.base->generation;
+	}
+	template <class Work> task::task<d::RetirementHandle<BuildResult>> build(Work work) {
+		auto result = domain.make<BuildResult>();
+		auto injected_build = std::exchange(injected_build_failure, {});
+		auto worker_done = std::make_shared<task::event>();
+		asio::post(worker, [result, worker_done, owner = owner_executor(), work = std::move(work),
+							injected = injected_build ? injected_build : std::exchange(injected_worker_failure, {})]() mutable {
 			try {
-				l::detail::CandidateFlatValidator validator(std::move(input), factory, heap, limits);
-				while (!validator.done()) {
-					result->control.step();
-					l::ValidationBudget budget;
-					validator.step(budget);
-				}
-				l::detail::StateEquivalence equality(l::detail::StateCursor(std::move(source), heap),
-													 l::detail::StateCursor(validator.take(), heap));
-				while (!equality.done()) {
-					result->control.step();
-					l::ValidationBudget budget;
-					equality.step(budget);
-				}
-				if (!equality.equal())
-					throw std::invalid_argument("same-cursor managed state conflict");
-				result->proof.emplace(equality.take_proof());
+				if (injected)
+					std::rethrow_exception(injected);
+				work(*result);
 			} catch (...) {
 				result->failure = std::current_exception();
 			}
 			result->ready.store(true, std::memory_order_release);
+			asio::post(owner, [worker_done] { worker_done->set(); });
 		});
-		construction = &result->control;
-		diagnostic.worker_pending = true;
+		retains_candidate = true;
 		try {
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
+			co_await settle(*result, *worker_done, true);
 		} catch (...) {
-			if (!result->ready.load(std::memory_order_acquire))
-				std::terminate();
-			settle_construction(result->control);
-			diagnostic.worker_pending = false;
-			if (result->failure)
-				std::rethrow_exception(result->failure);
+			retains_candidate = false;
 			throw;
 		}
-		settle_construction(result->control);
-		diagnostic.worker_pending = false;
-		if (result->failure)
-			std::rethrow_exception(result->failure);
-		if (store->selection().descriptor != descriptor || store->directory_identity() != directory)
-			throw std::invalid_argument("same-cursor comparison base changed");
-		co_return std::move(*result->proof);
+		retains_candidate = false;
+		co_return result;
 	}
-
-	task::task<void> build_paged(const ReceivedUpdate *update, bool compact = false,
-									  bool force = false) {
-		auto result = domain.make<PagedCandidateResult>();
-		result->compaction = compact;
-		std::optional<ReceivedUpdate> source;
-		if (update)
-			source = *update;
-		auto actual = base->generation;
-		result->selected_base = actual ? std::optional(actual->descriptor()) : std::nullopt;
-		const auto generation = base->next_id;
-		const auto context = l::detail::ManagedRecovery::capture(*store);
+	template <class Builder> static void drive(Builder &builder, ConstructionControl &control) {
+		while (!builder.done()) {
+			control.step();
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+	}
+	// One namespace's frame as a plan: a full copy builds fresh (or on its base, at the same incarnation);
+	// entries and blocks apply to the namespace's base.
+	task::task<d::RetirementHandle<BuildResult>> build_frame(d::FrameInput &input) {
+		const auto name = input.name();
+		const auto target = input.target();
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
+		const auto at = selected ? std::optional(selected->cursor) : std::nullopt;
 		auto factory = domain.factory();
 		auto heap = domain.storage_account();
 		auto limits = options.view_limits;
 		limits.retirement_domain = nullptr;
-		asio::post(worker, [result, source = std::move(source), actual = std::move(actual), generation,
-							directory = context.directory, storage = context.storage,
-							prior = context.paged.prior, compact, force, factory, heap, limits]() mutable {
-			try {
-				if (!source && compact) {
-					if (!actual || !prior || prior->descriptor() != actual->descriptor())
-						throw std::invalid_argument("compaction lacks actual captured head");
-					std::array<l::StorageIdentity, 8> selected{};
-					std::size_t count = 0;
-					const auto inputs = prior->registry()->inputs();
-					for (std::size_t i = 0; i < inputs.size() && count < selected.size(); ++i) {
-						const auto live = prior->registry()->reachability(i);
-						if (live.pages && (force || live.bytes < inputs[i].ownership.length / 2)) {
-							selected[count++] = inputs[i].ownership.segment;
-							if (force)
-								break;
-						}
-					}
-					if (!count)
-						result->descriptor = actual->descriptor();
-					else {
-						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
-						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
-																	generation, factory, heap,
-																	l::detail::CompactionLimits{}, bounds);
-						while (!candidate.done()) {
-							result->control.step();
-							l::ValidationBudget budget;
-							candidate.step(budget);
-						}
-						result->maintenance = candidate.evidence();
-						result->plan.emplace(candidate.take());
-						result->descriptor = result->plan->descriptor();
-					}
-
-				} else if (!source) {
-					if (!actual)
-						throw std::invalid_argument("migration requires actual recovered base");
-					l::detail::PagedMaintenanceBuilder candidate(*actual, factory, heap, storage, generation,
-																 limits);
-					while (!candidate.done()) {
-						result->control.step();
-						l::ValidationBudget budget;
-						candidate.step(budget);
-					}
-					result->maintenance = candidate.evidence();
-					result->plan.emplace(candidate.take());
-					result->descriptor = result->plan->descriptor();
-				} else if (source->snapshot) {
-					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory,
-																  storage, generation, factory, heap, limits);
-					while (!candidate.done()) {
-						result->control.step();
-						l::ValidationBudget budget;
-						candidate.step(budget);
-					}
-					if (candidate.unchanged()) {
-						result->unchanged.emplace(candidate.take_unchanged_proof());
-						result->descriptor = actual->descriptor();
-					} else {
-						result->plan.emplace(candidate.take());
-						result->descriptor = result->plan->descriptor();
-					}
+		const bool repair = followed[name].repair;
+		if (options.cluster != d::Identity{} && target.cluster != options.cluster)
+			throw SourceTrustError("namespace frame of another cluster");
+		if (input.kind() == d::FrameKind::Pages && input.after())
+			co_return co_await build_delta(input);
+		if (input.kind() == d::FrameKind::Pages) {
+			std::optional<l::RecoveredGeneration> actual;
+			if (at && at->same_identity(target))
+				actual = *co_await base_of(name);
+			const auto directory = store->directory_identity();
+			l::paged::Digest root;
+			std::copy(input.root().begin(), input.root().end(), root.begin());
+			co_return co_await build([transfer = input.transfer(), name, root, target, actual = std::move(actual),
+									  directory, factory, heap, limits, repair](BuildResult &result) mutable {
+				const auto generation = l::next_generation(actual ? std::optional(actual->descriptor()) : std::nullopt,
+														   target, d::Profile{}, true);
+				result.control.step();
+				auto image = l::detail::receive_image(heap, transfer, name, root, target, d::Profile{}, generation,
+													  l::detail::paged_limits(limits, l::paged::root_bytes),
+													  limits.overrides);
+				l::detail::PagedSnapshotPlanBuilder candidate(std::move(image), std::move(actual), directory, factory,
+															  heap, limits, repair);
+				drive(candidate, result.control);
+				if (candidate.unchanged()) {
+					candidate.take_unchanged_proof();
+					result.unchanged = true;
 				} else {
-					if (!actual || !l::detail::StateCursor::logical_commitment(*actual))
-						throw std::invalid_argument("paged delta requires a migrated actual base");
-					if (source->kind == d::UpdateKind::Progress) {
-						l::detail::PagedPlanBuilder candidate(*actual, source->delta, generation, factory,
-															  heap);
-						while (!candidate.done()) {
-							result->control.step();
-							l::ValidationBudget budget;
-							candidate.step(budget);
-						}
-						result->plan.emplace(candidate.take());
-					} else {
-						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
-						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, generation,
-																   factory, heap, bounds);
-						while (!candidate.done()) {
-							result->control.step();
-							l::ValidationBudget budget;
-							candidate.step(budget);
-						}
-						result->plan.emplace(candidate.take());
-					}
-					result->descriptor = result->plan->descriptor();
+					result.plan.emplace(candidate.take());
+					result.repair = result.plan->intent() == l::detail::PagedPlanIntent::Repair;
 				}
-			} catch (...) {
-				result->failure = std::current_exception();
-			}
-			result->ready.store(true, std::memory_order_release);
+			});
+		}
+		if (input.kind() == d::FrameKind::FullCopy) {
+			std::optional<l::RecoveredGeneration> actual;
+			if (at && at->same_identity(target))
+				actual = *co_await base_of(name);
+			const auto directory = store->directory_identity();
+			co_return co_await build([snapshot = std::shared_ptr<const d::ValidatedSnapshot>(input.snapshot()),
+									  actual = std::move(actual), directory, factory, heap, limits,
+									  repair](BuildResult &result) mutable {
+				l::detail::PagedSnapshotPlanBuilder candidate(std::move(snapshot), std::move(actual), directory, factory,
+															  heap, limits, repair);
+				drive(candidate, result.control);
+				if (candidate.unchanged()) {
+					candidate.take_unchanged_proof();
+					result.unchanged = true;
+				} else {
+					result.plan.emplace(candidate.take());
+					result.repair = result.plan->intent() == l::detail::PagedPlanIntent::Repair;
+				}
+			});
+		}
+		if (!at || *at != d::NamespaceCursor{target.cluster, target.incarnation, input.after()})
+			throw std::invalid_argument("namespace frame of " + name + " after " + std::to_string(input.after()) +
+										" does not start at the store's cursor " +
+										(at ? std::to_string(at->position) + (at->same_identity(target) ? "" : " of another incarnation")
+											: std::string("(none)")));
+		const auto *base = co_await base_of(name);
+		if (!base)
+			throw std::invalid_argument("namespace delta requires a base");
+		const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
+		co_return co_await build([base = *base, delta = std::shared_ptr<const d::ValidatedDelta>(input.delta()),
+								  factory, heap, bounds](BuildResult &result) mutable {
+			l::detail::PagedDeltaPlanBuilder candidate(base, std::move(delta), factory, heap, bounds);
+			drive(candidate, result.control);
+			result.plan.emplace(candidate.take());
 		});
-		construction = &result->control;
-		diagnostic.worker_pending = true;
-		try {
-			while (!result->ready.load(std::memory_order_acquire))
-				co_await pause(std::chrono::milliseconds(1));
-		} catch (...) {
-			if (!result->ready.load(std::memory_order_acquire))
-				std::terminate();
-			settle_construction(result->control);
-			diagnostic.worker_pending = false;
-			if (result->failure)
-				std::rethrow_exception(result->failure);
-			throw;
-		}
-		settle_construction(result->control);
-		diagnostic.worker_pending = false;
-		if (result->failure)
-			std::rethrow_exception(result->failure);
-		if (store->selection().descriptor != result->selected_base ||
-			store->directory_identity() != context.directory)
-			throw std::invalid_argument("paged construction actual base changed");
-		paged_candidate = std::move(result);
 	}
-
-	void bind_base(d::RetirementHandle<RecoveryResult> recovered) {
-		const auto actual = store->selection();
-		if (actual.knowledge == l::SelectionKnowledge::Uncertain)
-			throw std::runtime_error("managed selection requires startup recovery");
-		if (actual.knowledge == l::SelectionKnowledge::Known) {
-			if (!recovered->generation || recovered->generation->descriptor() != actual.descriptor ||
-				recovered->generation->directory_identity() != store->directory_identity())
-				throw std::runtime_error("managed recovery differs from actual selection");
-			const auto &cursor = recovered->generation->descriptor().cursor;
-			if (!cursor.same_identity(options.source.configured) &&
-				(!options.reset_from || !cursor.same_identity(*options.reset_from)))
-				throw std::invalid_argument("managed identity transition is not configured");
-			diagnostic.recoverable = cursor;
-		} else {
-			if (recovered->generation)
-				throw std::runtime_error("unexpected managed recovery for absent selection");
-			diagnostic.recoverable.reset();
-		}
-		bool equivalent = false;
-		if (pending_paged_confirmation) {
-			if (!paged_candidate)
-				throw std::invalid_argument("paged recovered selection differs from candidate");
-			if (recovered->generation && recovered->generation->descriptor() == paged_candidate->descriptor) {
-				store->confirm_recovered(*recovered->generation);
-				equivalent = bool(paged_candidate->maintenance);
-				if (equivalent && paged_candidate->compaction)
-					++completed_compactions;
-			} else if (actual.descriptor != paged_candidate->selected_base)
-				throw std::invalid_argument("paged rejection changed actual selection");
-			pending_paged_confirmation = false;
-			notify_disk();
-		}
-		base = std::move(recovered);
-		confirmed_prepared.reset();
-		if (base->prepared && base->generation &&
-			base->generation->descriptor().cursor.same_identity(options.source.configured))
-			confirmed_prepared = base->generation->descriptor();
-		if (options.publication_sink && base->generation) {
-			if (equivalent)
-				options.publication_sink->selected_equivalent(*base->generation,
-															  *paged_candidate->maintenance);
-			else
-				options.publication_sink->selected(*base->generation);
-		}
+	// A delta transfer over the namespace's base (D6): DD1's receiver through receive_delta, then a
+	// plan over the base. A base that lacks a reused page, or fails first touch, asks a full copy
+	// (D10.3); any other refusal asks records.
+	task::task<d::RetirementHandle<BuildResult>> build_delta(d::FrameInput &input) {
+		const auto name = input.name();
+		const auto target = input.target();
+		const auto selection = store->selection();
+		const auto *selected = selection.find(name);
+		if (!selected || selected->cursor != d::NamespaceCursor{target.cluster, target.incarnation, input.after()})
+			throw std::invalid_argument("pages delta of " + name + " does not start at the store's cursor");
+		const auto *base = co_await base_of(name);
+		if (!base)
+			throw std::invalid_argument("pages delta requires a base");
+		auto limits = options.view_limits;
+		const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
+		l::paged::Digest root;
+		std::copy(input.root().begin(), input.root().end(), root.begin());
+		co_return co_await build([transfer = input.transfer(), space = name, root, target, base = *base,
+								  factory = domain.factory(),
+								  heap = domain.storage_account(), bounds,
+								  overrides = limits.overrides](BuildResult &result) mutable {
+			const auto leased = l::detail::ScrubSource::root(base);
+			const auto inputs = leased->registry()->inputs();
+			const l::detail::TransferBase on{leased->root().tree, [inputs](const l::paged::Reference &reference) {
+												 const auto i = l::detail::find_segment(inputs, reference.segment);
+												 if (i == inputs.size())
+													 throw l::detail::ReadSourceFailure("base lacks a page's segment");
+												 return l::detail::checked_page_bytes(inputs[i], reference);
+											 }};
+			const auto name = l::next_generation(base.descriptor(), target, base.descriptor().profile, false);
+			result.control.step();
+			auto receipt = receive_delta(heap, transfer, on, {root, target.position, overrides, space},
+										 l::detail::transfer_segment_ids(name), bounds, 1);
+			if (receipt.outcome == DeltaOutcome::FullCopy)
+				throw l::detail::ReadSourceFailure(receipt.reason.c_str());
+			if (receipt.outcome != DeltaOutcome::Published)
+				throw l::detail::TransferRefused(receipt.refusal.value_or(l::detail::TransferRefusal::Page),
+												 receipt.reason.c_str());
+			l::detail::PagedTransferPlanBuilder candidate(base, std::move(*receipt.received), target, factory, heap,
+														  bounds);
+			drive(candidate, result.control);
+			result.plan.emplace(candidate.take());
+		});
 	}
-	task::task<bool> publish_candidate() {
-		compaction_admission_refused = false;
+	// Publishes one cycle and confirms each published namespace's recovery.
+	task::task<bool> publish(std::vector<l::NamespacePublication> cycle, std::vector<std::string> dropped,
+							 std::optional<d::DirectoryCursor> directory) {
 		diagnostic.phase = CoordinatorPhase::WaitingPublication;
-		notify_disk();
 		const auto expires = std::chrono::steady_clock::now() + options.source.timeout;
-		while (!cancelled() && !publication_started && !compaction_admission_refused) {
+		for (;;) {
+			if (cancelled())
+				co_return false;
 			if (std::chrono::steady_clock::now() >= expires)
 				throw std::runtime_error("managed publication admission deadline");
-			co_await wait_candidate(expires);
-		}
-		while (publication_started && store->publication_status() == l::DiskPublicationStatus::Preparing)
-			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
-		if (!cancelled() && store->publication_status() == l::DiskPublicationStatus::Published)
-			co_return true;
-		if (!cancelled() && store->publication_error())
-			std::rethrow_exception(store->publication_error());
-		co_return false;
-	}
-	task::task<void> recover_maintenance(bool changed) {
-		try {
-			if (injected_maintenance_failure) {
-				injected_worker_failure = std::exchange(injected_maintenance_failure, {});
-				fail_settled_worker_wait = true;
+			if (store->status() != l::StoreStatus::Ready)
+				throw std::runtime_error("managed store is not ready");
+			if (!store->publication_ready()) {
+				co_await wait_candidate(expires); // the disk loop notifies after every advance
+				continue;
 			}
-			auto recovered = co_await recover(changed);
-			if (!closing)
-				bind_base(std::move(recovered));
-		} catch (...) {
-			throw MaintenanceFailure{std::current_exception()};
+			try {
+				store->begin(std::move(cycle), std::move(dropped), directory);
+				break;
+			} catch (const l::DiskPressure &) {
+			} catch (const d::StoragePressure &) {
+			}
+			store->request_collection();
+			notify_disk();
+			co_await pause(options.retry_interval);
+		}
+		diagnostic.phase = CoordinatorPhase::Publishing;
+		notify_disk();
+		while (store->publication_status() == l::DiskPublicationStatus::Preparing)
+			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
+		if (store->publication_status() != l::DiskPublicationStatus::Published) {
+			if (auto error = store->publication_error())
+				std::rethrow_exception(error);
+			co_return false;
+		}
+		diagnostic.phase = CoordinatorPhase::Reconciling;
+		diagnostic.recovery_started_at = std::chrono::steady_clock::now();
+		for (const auto &name : store->pending()) {
+			auto recovered = co_await recover(name);
+			store->confirm_recovered(name, *recovered->generation);
+			followed[name].base = std::move(recovered);
+		}
+		notify_disk();
+		co_return true;
+	}
+	// The names followed now: the configured ones, and with `all` every name the store holds.
+	Following following() {
+		const auto selection = store->selection();
+		std::set<std::string, std::less<>> names(options.namespaces.begin(), options.namespaces.end());
+		if (options.all)
+			for (const auto &entry : selection.namespaces)
+				names.insert(entry.name);
+		note_published();
+		Following out;
+		for (const auto &name : names) {
+			FollowedNamespace entry{name, {}};
+			const auto found = followed.find(name);
+			if (found != followed.end() && found->second.repair) {
+				entry.cursor = found->second.published;
+				entry.repair = entry.cursor.has_value();
+			} else if (const auto *selected = selection.find(name))
+				entry.cursor = selected->cursor;
+			out.namespaces.push_back(std::move(entry));
+		}
+		if (options.all)
+			out.all = selection.directory;
+		out.pages = true;
+		out.records.assign(records_only.begin(), records_only.end());
+		if (held_transfer)
+			out.resume = Following::Resume{held_transfer->name(), held_transfer->root(), held_transfer->after(),
+										   held_transfer->transfer().size()};
+		return out;
+	}
+	void refresh_status() {
+		const auto selection = store->selection();
+		diagnostic.namespaces.clear();
+		std::set<std::string, std::less<>> names(options.namespaces.begin(), options.namespaces.end());
+		for (const auto &entry : selection.namespaces)
+			names.insert(entry.name);
+		bool repair = false;
+		for (const auto &name : names) {
+			NamespaceStatus status{name, {}, false};
+			if (const auto *selected = selection.find(name))
+				status.cursor = selected->cursor;
+			if (const auto found = followed.find(name); found != followed.end())
+				status.repair = found->second.repair;
+			repair = repair || status.repair;
+			diagnostic.namespaces.push_back(std::move(status));
+		}
+		diagnostic.repair.pending = repair;
+		if (options.all)
+			diagnostic.directory = selection.directory;
+		// A restart is ready from its store when every configured namespace is published (C4).
+		if (!diagnostic.ready && !options.all &&
+			std::all_of(options.namespaces.begin(), options.namespaces.end(),
+						[&](const auto &name) { return selection.find(name) != nullptr; }))
+			diagnostic.ready = true;
+	}
+	// Applies one response: each frame built in name order, then one cycle.
+	task::task<void> apply(Response &response) {
+		diagnostic.phase = CoordinatorPhase::Building;
+		std::vector<l::NamespacePublication> cycle;
+		std::vector<std::string> repaired, as_records;
+		std::uint64_t transferred = 0, transferred_bytes = 0;
+		for (auto &input : response.frames) {
+			if (cancelled())
+				throw asio::system_error(asio::error::operation_aborted);
+			const auto name = input->name();
+			const bool pages = input->kind() == d::FrameKind::Pages;
+			// D139: a repair publishes at or above the position the namespace published.
+			if (const auto found = followed.find(name); found != followed.end() && found->second.repair &&
+														found->second.published &&
+														found->second.published->cluster == input->target().cluster &&
+														input->target().position < found->second.published->position) {
+				++diagnostic.repair.below;
+				continue;
+			}
+			d::RetirementHandle<BuildResult> built;
+			try {
+				built = co_await build_frame(*input);
+			} catch (const l::detail::ReadSourceFailure &) {
+				// A page of the base failed first touch: the namespace is asked as a full copy.
+				request_repair(name, false);
+				throw;
+			} catch (const l::detail::TransferRefused &) {
+				// The sender's transfer is wrong: the namespace is asked as records (D9).
+				records_only.insert(name);
+				++diagnostic.transfers.refused;
+				throw;
+			} catch (const std::invalid_argument &) {
+				// A delta that does not apply to the namespace's base: the namespace is asked as a full
+				// copy (D10.3), so a wrong base never fails every later delta.
+				if (input->after())
+					request_repair(name, false);
+				throw;
+			}
+			// D1: a records frame that names its sender's root publishes only a build that reaches it;
+			// otherwise the namespace is fetched again as a full copy, as pages when the source has them.
+			if (!pages && input->root() != d::RootDigest{} && built->plan) {
+				const auto commitment = l::paged::state_commitment(built->plan->root());
+				if (!std::equal(commitment.begin(), commitment.end(), input->root().begin())) {
+					++diagnostic.transfers.diverged;
+					records_only.erase(name);
+					request_repair(name, false);
+					throw std::runtime_error("the records build of " + name + " diverges from its frame's root");
+				}
+			}
+			if (pages) {
+				++transferred;
+				transferred_bytes += input->transfer().size();
+			} else if (records_only.contains(name))
+				as_records.push_back(name);
+			input.reset();
+			if (built->unchanged)
+				continue;
+			if (built->repair)
+				repaired.push_back(name);
+			cycle.push_back({name, std::make_unique<l::detail::PagedPlan>(std::move(*built->plan))});
+		}
+		std::vector<std::string> dropped;
+		const auto selection = store->selection();
+		for (auto &name : response.dropped)
+			if (selection.find(name))
+				dropped.push_back(std::move(name));
+		if (!options.all)
+			for (const auto &entry : selection.namespaces)
+				if (!followed.contains(entry.name) &&
+					std::find(dropped.begin(), dropped.end(), entry.name) == dropped.end())
+					dropped.push_back(entry.name);
+		std::sort(dropped.begin(), dropped.end());
+		std::optional<d::DirectoryCursor> directory;
+		if (response.directory_update)
+			directory = response.directory_update->to;
+		if (cycle.empty() && dropped.empty() && !directory)
+			co_return;
+		if (co_await publish(std::move(cycle), dropped, directory)) {
+			diagnostic.transfers.received += transferred;
+			diagnostic.transfers.bytes += transferred_bytes;
+			for (const auto &name : as_records)
+				records_only.erase(name);
+			for (const auto &name : dropped) {
+				followed.erase(name);
+				records_only.erase(name);
+			}
+			for (const auto &name : repaired) {
+				followed[name].repair = false;
+				++diagnostic.repair.completed;
+			}
+			if (!repaired.empty())
+				store->request_collection();
+			++diagnostic.responses;
 		}
 	}
-	task::task<void> migrate_flat_head() {
-		// Only a flat (layout 1) base migrates; a paged base is already in the writer's format.
-		if (!paged_writer || !base->generation ||
-			l::detail::StateCursor::logical_commitment(*base->generation) ||
-			!base->generation->descriptor().cursor.same_identity(options.source.configured))
-			co_return;
-		diagnostic.phase = CoordinatorPhase::Building;
-		co_await build_paged(nullptr);
-		if (!cancelled())
-			co_await publish_candidate();
-		if (closing)
-			co_return;
-		const auto actual = store->selection();
-		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
-		co_await recover_maintenance(changed);
-		paged_candidate.reset();
-		publication_started = false;
-		publication_retry = {};
-	}
-
-	task::task<void> compact_head() {
+	task::task<void> compact() {
 		const auto now = std::chrono::steady_clock::now();
-		if (!paged_writer ||
-			(!compaction_requested && (options.compaction_interval == std::chrono::milliseconds::zero() ||
-									   now < next_compaction_check)) ||
-			!base->generation || !l::detail::StateCursor::logical_commitment(*base->generation))
+		if (!compaction_requested &&
+			(options.compaction_interval == std::chrono::milliseconds::zero() || now < next_compaction_check))
 			co_return;
 		const bool force = std::exchange(compaction_requested, false);
 		next_compaction_check = now + options.compaction_interval;
+		// One namespace per check, in name order.
+		const auto selection = store->selection();
+		if (selection.namespaces.empty())
+			co_return;
+		auto next = std::upper_bound(selection.namespaces.begin(), selection.namespaces.end(), compaction_cursor,
+									 [](const std::string &key, const auto &entry) { return key < entry.name; });
+		if (next == selection.namespaces.end())
+			next = selection.namespaces.begin();
+		const auto name = next->name;
+		compaction_cursor = name;
+		if (followed[name].repair)
+			co_return;
 		diagnostic.phase = CoordinatorPhase::Building;
-		std::exception_ptr refusal;
+		d::RetirementHandle<BuildResult> built;
 		try {
-			co_await build_paged(nullptr, true, force);
+			const auto *base = co_await base_of(name);
+			if (!base)
+				co_return;
+			auto factory = domain.factory();
+			auto heap = domain.storage_account();
+			auto limits = options.view_limits;
+			limits.retirement_domain = nullptr;
+			built = co_await build([base = *base, force, factory, heap, limits](BuildResult &result) mutable {
+				result.compaction = true;
+				std::array<l::SegmentId, 8> chosen{};
+				std::size_t count = 0;
+				const auto &root = l::detail::ScrubSource::root(base);
+				const auto inputs = root->registry()->inputs();
+				for (std::size_t i = 0; i < inputs.size() && count < chosen.size(); ++i) {
+					const auto live = root->registry()->reachability(i);
+					if (live.pages && (force || live.bytes < inputs[i].ownership.length / 2)) {
+						chosen[count++] = inputs[i].ownership.segment;
+						if (force)
+							break;
+					}
+				}
+				if (!count)
+					return;
+				const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
+				l::detail::PagedCompactionBuilder candidate(base, {chosen.data(), count}, factory, heap,
+															l::detail::CompactionLimits{}, bounds);
+				drive(candidate, result.control);
+				result.plan.emplace(candidate.take());
+			});
 		} catch (const d::StoragePressure &) {
-			refusal = std::current_exception();
+			fail(std::current_exception());
+			co_return;
 		} catch (const std::bad_alloc &) {
-			refusal = std::current_exception();
+			fail(std::current_exception());
+			co_return;
 		} catch (const std::length_error &) {
-			refusal = std::current_exception();
-		}
-		if (refusal) {
-			l::detail::ManagedRecovery::yield_optional(*store);
-			++diagnostic.failures;
-			diagnostic.error = refusal;
-			paged_candidate.reset();
+			fail(std::current_exception());
 			co_return;
 		}
-		if (!paged_candidate->plan) {
-			paged_candidate.reset();
+		if (!built->plan)
+			co_return;
+		if (std::exchange(fail_compaction_admission, false)) {
+			fail(std::make_exception_ptr(d::StoragePressure("injected compaction admission pressure")));
 			co_return;
 		}
-		if (!cancelled())
-			co_await publish_candidate();
-		if (compaction_admission_refused && !publication_started) {
-			paged_candidate.reset();
-			publication_retry = {};
-			co_return;
-		}
-		if (closing)
-			co_return;
-		const auto actual = store->selection();
-		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
-		co_await recover_maintenance(changed);
-		paged_candidate.reset();
-		publication_started = false;
-		publication_retry = {};
+		std::vector<l::NamespacePublication> cycle;
+		cycle.push_back({name, std::make_unique<l::detail::PagedPlan>(std::move(*built->plan))});
+		if (co_await publish(std::move(cycle), {}, {}))
+			++completed_compactions;
 	}
-
-	void offer_publication() {
-		if (diagnostic.phase != CoordinatorPhase::WaitingPublication || cancelled() ||
-			!store->publication_ready() || compaction_admission_refused ||
-			std::chrono::steady_clock::now() < publication_retry)
-			return;
-		const auto actual = store->selection();
-		if (paged_candidate) {
-			if (paged_candidate->compaction && std::exchange(fail_compaction_admission, false))
-				throw d::StoragePressure("injected compaction admission pressure");
-			if (!paged_candidate->plan)
-				throw std::logic_error("paged candidate has no publication plan");
-			if (paged_candidate->plan->intent() == l::detail::PagedPlanIntent::TrustedReset) {
-				if (!actual.descriptor || !options.reset_from ||
-					!actual.descriptor->cursor.same_identity(*options.reset_from))
-					throw std::invalid_argument("managed paged reset is not configured");
-				store->begin_reset(std::move(*paged_candidate->plan),
-								   {*actual.descriptor, options.source.configured, {}});
-			} else
-				store->begin(std::move(*paged_candidate->plan));
-			pending_paged_confirmation = true;
-		} else if (actual.knowledge == l::SelectionKnowledge::Known &&
-				   !actual.descriptor->cursor.same_identity(options.source.configured)) {
-			if (!options.reset_from || !actual.descriptor->cursor.same_identity(*options.reset_from))
-				throw std::invalid_argument("managed reset is not configured");
-			store->begin_reset(*builder, {*actual.descriptor, options.source.configured, {}});
-		} else {
-			store->begin(*builder,
-						 actual.descriptor ? std::optional(actual.descriptor->cursor) : std::nullopt);
-		}
-		publication_started = true;
-		diagnostic.phase = CoordinatorPhase::Publishing;
-		notify_candidate();
-	}
-	// One owner-executor task, paced by its own timer: the scrub hashes the selected generation's packs
-	// at options.scrub_bytes_per_second and starts the next pass as one ends.
 	task::task<void> scrub_loop() {
 		try {
 			co_await scrub_loop_body();
@@ -627,41 +816,97 @@ struct Coordinator::Impl {
 			std::terminate();
 		}
 	}
+	// One pass at a time over each namespace's selected generation, in name order (D10.2).
 	task::task<void> scrub_loop_body() {
 		if (!options.scrub_bytes_per_second)
 			co_return;
 		constexpr auto tick = std::chrono::milliseconds(20);
 		constexpr std::uint64_t per_tick = 2 * 1024 * 1024;
-		scrubber.emplace(options.scrub_bytes_per_second);
+		try {
+			scrub_result = domain.make<ScrubResult>(options);
+		} catch (...) {
+			fence(std::current_exception());
+			co_return;
+		}
 		std::uint64_t reported_passes = 0;
 		while (!closing) {
 			const auto now = std::chrono::steady_clock::now();
-			// The recovery worker rewrites base->generation until `ready`; the loop never reads it before.
-			if (diagnostic.initialized && base->ready.load(std::memory_order_acquire) && base->generation) {
-				auto root = l::detail::ScrubSource::root(*base->generation);
-				if (root && root.get() != scrub_root.get()) {
-					scrub_root = std::move(root);
-					scrubber->begin(scrub_root->registry()->inputs(), now);
-					reported_passes = scrubber->passes();
-					diagnostic.scrub.damaged_packs = 0;
-					diagnostic.scrub.source_failure = false;
-				} else if (scrub_root && !scrubber->running())
-					scrubber->begin(scrub_root->registry()->inputs(), now);
-				if (scrub_root) {
-					scrubber->step(now, per_tick);
-					diagnostic.scrub.passes = scrubber->passes();
-					diagnostic.scrub.bytes_hashed = scrubber->bytes_hashed();
-					// One report per completed pass: the packs that pass found, not a running total.
-					if (scrubber->passes() != reported_passes) {
-						reported_passes = scrubber->passes();
-						diagnostic.scrub.damaged_packs = scrubber->failures().size();
-						diagnostic.scrub.source_failure = !scrubber->failures().empty();
-						if (diagnostic.scrub.source_failure) {
-							++diagnostic.failures;
-							diagnostic.error = std::make_exception_ptr(std::runtime_error(
-								"scrub: a pack of the selected generation differs from its owner record"));
-						}
+			auto result = scrub_result;
+			if (diagnostic.initialized && !result->scrub.running()) {
+				// The next namespace whose base the coordinator holds.
+				std::string next;
+				for (const auto &[name, state] : followed)
+					if (state.base && state.base->generation && name > result->name) {
+						next = name;
+						break;
 					}
+				if (next.empty())
+					for (const auto &[name, state] : followed)
+						if (state.base && state.base->generation) {
+							next = name;
+							break;
+						}
+				if (!next.empty()) {
+					auto root = l::detail::ScrubSource::root(*followed[next].base->generation);
+					if (root) {
+						result->name = next;
+						result->root = std::move(root);
+						result->failure = {};
+						result->ready.store(false, std::memory_order_relaxed);
+						auto worker_done = std::make_shared<task::event>();
+						asio::post(worker, [result, worker_done, owner = owner_executor(), now] {
+							try {
+								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);
+							} catch (...) {
+								result->failure = std::current_exception();
+							}
+							result->ready.store(true, std::memory_order_release);
+							asio::post(owner, [worker_done] { worker_done->set(); });
+						});
+						co_await *worker_done;
+						reported_passes = result->scrub.passes();
+					}
+				}
+			}
+			if (result->root && result->scrub.running() && !closing) {
+				result->failure = {};
+				result->ready.store(false, std::memory_order_relaxed);
+				auto worker_done = std::make_shared<task::event>();
+				asio::post(worker, [result, worker_done, owner = owner_executor(), now, paused = scrub_pause] {
+					try {
+						const auto passes = result->scrub.passes();
+						result->scrub.step(now, per_tick);
+						if (paused && result->scrub.passes() != passes) {
+							paused->reached.store(true, std::memory_order_release);
+							paused->resume.wait();
+						}
+					} catch (...) {
+						result->failure = std::current_exception();
+					}
+					result->ready.store(true, std::memory_order_release);
+					asio::post(owner, [worker_done] { worker_done->set(); });
+				});
+				co_await *worker_done;
+				if (scrub_pause && scrub_pause->reached.load(std::memory_order_acquire))
+					scrub_pause.reset();
+				if (closing)
+					break;
+				auto &scrubber = result->scrub;
+				diagnostic.scrub.passes = scrubber.passes();
+				diagnostic.scrub.bytes_hashed = scrubber.bytes_hashed();
+				if (result->failure)
+					fail(result->failure);
+				// One report per completed pass: the packs that pass found.
+				if (scrubber.passes() != reported_passes) {
+					reported_passes = scrubber.passes();
+					diagnostic.scrub.damaged_packs = scrubber.failures().size();
+					diagnostic.scrub.source_failure = !scrubber.failures().empty();
+					if (diagnostic.scrub.source_failure) {
+						fail(std::make_exception_ptr(std::runtime_error(
+							"scrub: a pack of " + result->name + "'s generation differs from its owner record")));
+						request_repair(result->name, true);
+					}
+					result->root = {};
 				}
 			}
 			scrub_wake->expires_after(tick);
@@ -670,7 +915,7 @@ struct Coordinator::Impl {
 			if (error && error != asio::error::operation_aborted)
 				throw asio::system_error(error);
 		}
-		scrub_root.reset();
+		scrub_result.reset();
 	}
 	task::task<void> disk_loop() {
 		try {
@@ -682,45 +927,17 @@ struct Coordinator::Impl {
 	task::task<void> disk_loop_body() {
 		unsigned burst = 0;
 		while (!store->drained()) {
-			// Publication gets the settled boundary before advance resumes GC.
-			std::exception_ptr failure;
-			try {
-				offer_publication();
-			} catch (const l::DiskPressure &) {
-				store->request_collection();
-				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
-				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
-			} catch (const d::StoragePressure &) {
-				store->request_collection();
-				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
-				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
-			} catch (const std::bad_alloc &) {
-				store->request_collection();
-				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
-				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
-			} catch (const SessionResetError &error) {
-				failure = std::current_exception();
-				if (options.publication_sink && fatal_source_reset(error.reason()))
-					options.publication_sink->fence();
-			} catch (...) {
-				failure = std::current_exception();
-			}
-			if (failure) {
-				fence(failure);
-			}
 			store->advance();
 			notify_candidate();
-			if (auto operation = store->operation()) {
-				try {
-					if (options.completion_port)
-						co_await options.completion_port->run_one(operation);
-					else
-						co_await driver->run_one(operation);
-				} catch (...) {
-					// A failed original driver cannot manufacture settlement.
-					// Follow the native authority driver's fail-stop policy.
-					std::terminate();
-				}
+			if (auto work = store->work()) {
+				// The worker runs the store's disk work; the owner settles it once the work is done.
+				auto worker_done = std::make_shared<task::event>();
+				asio::post(worker, [work, worker_done, owner = owner_executor()] {
+					work->run();
+					asio::post(owner, [worker_done] { worker_done->set(); });
+				});
+				co_await *worker_done;
+				store->advance();
 				if (store->error() || store->publication_status() == l::DiskPublicationStatus::Fenced)
 					fence(store->error() ? store->error() : store->publication_error());
 				notify_candidate();
@@ -728,8 +945,6 @@ struct Coordinator::Impl {
 					burst = 0;
 					co_await task::yield();
 				}
-			} else if (store->needs_work()) {
-				co_await task::yield();
 			} else {
 				burst = 0;
 				if (store->status() == l::StoreStatus::Fenced)
@@ -742,8 +957,6 @@ struct Coordinator::Impl {
 	void close() noexcept {
 		stop_construction();
 		closing = true;
-		if (options.publication_sink)
-			options.publication_sink->fence();
 		++cancellation;
 		network_cancel.request();
 		notify_candidate();
@@ -753,74 +966,15 @@ struct Coordinator::Impl {
 		if (store)
 			store->close();
 	}
-	void record_cleanup(std::size_t index, std::chrono::steady_clock::time_point started,
-						std::size_t bytes, bool done) noexcept {
-		auto &slice = diagnostic.cleanup[index];
-		if (slice.last_resume != std::chrono::steady_clock::time_point{})
-			slice.maximum_gap_ns = std::max(slice.maximum_gap_ns, static_cast<std::uint64_t>(
-				std::chrono::duration_cast<std::chrono::nanoseconds>(started - slice.last_resume).count()));
-		slice.last_resume = started;
-		++slice.turns;
-		slice.charged_bytes += bytes;
-		if (done)
-			slice.finished = std::chrono::steady_clock::now();
-	}
-	void acknowledge(const d::Cursor &cursor) noexcept {
-		diagnostic.acknowledged = cursor;
-		diagnostic.publication_acknowledged_at = std::chrono::steady_clock::now();
-	}
-	task::task<void> discard(std::optional<ReceivedUpdate> &update) {
-		diagnostic.phase = CoordinatorPhase::Discarding;
-		diagnostic.discard_started_at = std::chrono::steady_clock::now();
-		diagnostic.cleanup = {};
-		if (options.publication_sink) {
-			for (;;) {
-				const auto started = std::chrono::steady_clock::now();
-				d::WorkBudget budget;
-				const auto before = budget.bytes;
-				const bool done = options.publication_sink->release_stage(budget);
-				record_cleanup(0, started, before - budget.bytes, done);
-				if (done)
-					break;
-				co_await task::yield();
-			}
-		}
-		if (builder) {
-			for (;;) {
-				const auto started = std::chrono::steady_clock::now();
-				l::ValidationBudget budget;
-				const auto before = budget.bytes;
-				const bool done = builder->discard(budget);
-				record_cleanup(1, started, before - budget.bytes, done);
-				if (done)
-					break;
-				co_await task::yield();
-			}
-			builder.reset();
-		}
-		if (update) {
-			for (;;) {
-				const auto started = std::chrono::steady_clock::now();
-				d::WorkBudget budget;
-				const auto before = budget.bytes;
-				const bool done = update->snapshot ? update->snapshot->discard(budget)
-												: update->delta->discard(budget);
-				record_cleanup(2, started, before - budget.bytes, done);
-				if (done)
-					break;
-				co_await task::yield();
-			}
-			update.reset();
-		}
-	}
 	task::task<void> candidate_loop();
 };
 
 namespace {
-task::task<void> release_session(ClientOptions options, SessionHandle &session, bool strict) {
+// A malformed close from a pooled source fails closed (`strict`), as any malformed answer does.
+task::task<void> release_session(ClientOptions options, NamespaceSession session, bool strict) {
 	options.timeout = std::min(options.timeout, std::chrono::milliseconds(1000));
 	try {
-		co_await close_session(std::move(options), session);
+		co_await close_namespace_session(std::move(options), session);
 	} catch (const SourceTrustError &) {
 		throw;
 	} catch (const SessionResetError &error) {
@@ -834,7 +988,7 @@ task::task<void> release_session(ClientOptions options, SessionHandle &session, 
 }
 } // namespace
 task::task<void> Coordinator::Impl::candidate_loop() {
-	SessionHandle session;
+	NamespaceSession session;
 	auto opening_endpoint = options.source.endpoint;
 	auto session_source = [&] {
 		auto source = options.source;
@@ -842,9 +996,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 		return source;
 	};
 	bool revalidating = false;
-	std::optional<PublicationFeedback> feedback;
-	bool force_snapshot = false;
-	ReconnectBackoff reconnect(options.poll_interval, options.reconnect_maximum, options.reconnect_seed);
+	ReconnectBackoff reconnect(options.retry_interval, options.reconnect_maximum, options.reconnect_seed);
 	std::exception_ptr fatal;
 	try {
 		if (!options.source.connections)
@@ -853,218 +1005,104 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 		while (!closing && store->status() == l::StoreStatus::Starting)
 			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
 		if (!closing) {
+			if (store->status() != l::StoreStatus::Ready)
+				throw std::runtime_error("managed store is not recoverable");
 			diagnostic.phase = CoordinatorPhase::Recovering;
-			auto recovered = co_await recover(store->selection().knowledge == l::SelectionKnowledge::Known);
-			if (!closing) {
-				bind_base(std::move(recovered));
-				diagnostic.initialized = true;
-			}
+			// An entry that did not verify at startup is fetched again as a full copy (D10).
+			for (const auto &name : store->failed())
+				request_repair(name, false);
+			diagnostic.initialized = true;
+			refresh_status();
 		}
 		while (!closing) {
 			candidate_cancellation = cancellation;
 			network_cancel = task::cancel_source{};
-			publication_started = false;
-			paged_candidate.reset();
-			publication_retry = {};
-			std::optional<ReceivedUpdate> update;
-			std::optional<PublicationFeedback> offered;
-			bool reset_session = false, idle = false, offered_snapshot = false;
-			bool network_attempt = false, unavailable = false, round_complete = true;
+			bool network_attempt = false, unavailable = false, round_complete = true, idle = false;
 			std::exception_ptr failure;
 			try {
-				co_await migrate_flat_head();
-				co_await compact_head();
+				co_await compact();
 				if (cancelled())
 					throw asio::system_error(asio::error::operation_aborted);
 				if (session.valid() && sources.refresh_due(std::chrono::steady_clock::now())) {
 					revalidating = true;
 					co_await release_session(session_source(), session, sources.pooled());
 					session = {};
-					feedback.reset();
 				}
 				auto request = options.source;
 				request.endpoint = sources.endpoint();
-				const auto actual = store->selection();
-				request.base =
-					actual.descriptor && actual.descriptor->cursor.same_identity(request.configured)
-						? std::optional(actual.descriptor->cursor)
-						: std::nullopt;
 				diagnostic.phase = CoordinatorPhase::Receiving;
-				if (options.delivery_mode == DeliveryMode::Subscription) {
-					if (!session.valid()) {
-						network_attempt = true;
-						session = co_await open_session(request, force_snapshot, network_cancel.token());
-						opening_endpoint = request.endpoint;
-						const auto opened = std::chrono::steady_clock::now();
-						sources.opened(opened);
-						if (sources.pooled())
-							diagnostic.last_quorum_open = opened;
-						revalidating = false;
-						feedback.reset();
-						if (options.publication_sink && !cancelled())
-							options.publication_sink->authenticated();
-						if (std::exchange(close_after_session_open, false))
-							close();
-					}
-					if (cancelled())
-						throw asio::system_error(asio::error::operation_aborted);
-					const auto wait =
-						sources.wait(std::chrono::steady_clock::now(),
-									 std::min({session.maximum_wait(), std::chrono::milliseconds(30000),
-											   request.timeout / 2}));
+				if (!session.valid()) {
 					network_attempt = true;
-					auto event = co_await next_session(request, session, feedback, wait, network_cancel.token());
-					if (auto *offer = std::get_if<SessionOffer>(&event)) {
-						offered = PublicationFeedback{offer->window, offer->update.target};
-						offered_snapshot = offer->update.kind == d::UpdateKind::Snapshot;
-						update.emplace(std::move(offer->update));
-					} else if (std::holds_alternative<SessionIdle>(event)) {
-						idle = true;
-						sources.successful();
-						reconnect.reset();
-					} else {
-						const auto reason = std::get<SessionReset>(event).reason;
-						if (sources.pooled() && (reason == SessionResetReason::NotLeader ||
-												 reason == SessionResetReason::Unavailable ||
-												 reason == SessionResetReason::SourceBehind))
-							throw SessionResetError(reason);
-						if (reason == SessionResetReason::Forbidden ||
-							reason == SessionResetReason::Unauthorized ||
-							reason == SessionResetReason::IdentityChanged ||
-							reason == SessionResetReason::InvalidRequest)
-							throw SessionResetError(reason);
-						reset_session = !session.valid();
-						force_snapshot = force_snapshot || reason == SessionResetReason::HistoryLost ||
-										 reason == SessionResetReason::RepresentationLimit;
-					}
-					network_attempt = false;
-					if (!update && !cancelled()) {
-						if (reset_session) {
-							co_await release_session(session_source(), session, sources.pooled());
-							session = {};
-							feedback.reset();
-						}
-						if (idle && sources.pooled() && wait == std::chrono::milliseconds::zero())
-							co_await task::yield();
-						else if (!idle || wait == std::chrono::milliseconds::zero())
-							co_await pause(idle ? options.poll_interval : next_reconnect_delay(reconnect));
-						continue;
-					}
-				} else {
-					network_attempt = true;
-					update.emplace(co_await receive(std::move(request), network_cancel.token()));
+					session = co_await open_namespace_session(request, following(), network_cancel.token());
+					opening_endpoint = request.endpoint;
+					const auto opened = std::chrono::steady_clock::now();
+					sources.opened(opened);
+					if (sources.pooled())
+						diagnostic.last_quorum_open = opened;
+					revalidating = false;
+					if (std::exchange(close_after_session_open, false))
+						close();
 				}
+				if (cancelled())
+					throw asio::system_error(asio::error::operation_aborted);
+				const auto wait = sources.wait(std::chrono::steady_clock::now(),
+											   std::min({session.maximum_wait, std::chrono::milliseconds(30000),
+														 request.timeout / 2}));
+				Response response(request.limits, held_transfer);
+				network_attempt = true;
+				const auto outcome =
+					co_await next_namespace_session(request, session, following(), wait, response, network_cancel.token());
 				network_attempt = false;
 				sources.successful();
-				if (!update)
-					throw asio::system_error(asio::error::operation_aborted);
-				diagnostic.received = update->target;
-				diagnostic.validated = update->target;
+				if (outcome == FramesOutcome::Idle) {
+					idle = true;
+					++diagnostic.idle;
+				} else
+					co_await apply(response);
 				if (!cancelled()) {
-					if (options.publication_sink) {
-						options.publication_sink->begin_stage(*update);
-						while (!cancelled()) {
-							d::WorkBudget budget;
-							if (options.publication_sink->stage_step(budget))
-								break;
-							co_await task::yield();
-						}
-					}
-					if (cancelled())
-						throw asio::system_error(asio::error::operation_aborted);
-					diagnostic.phase = CoordinatorPhase::Building;
-					auto account = store->storage_account();
-					if (paged_writer)
-						co_await build_paged(&*update);
-					else {
-						if (update->snapshot)
-							builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
-																			 update->snapshot, base->next_id,
-																			 options.view_limits);
-						else {
-							if (!base->generation || base->generation->descriptor() != actual.descriptor)
-								throw std::invalid_argument("managed delta has no exact recovered base");
-							builder = d::make_storage_owner<l::ImageBuilder>(
-								account, std::malloc, std::free, update->delta, *base->generation,
-								base->next_id, options.view_limits);
-						}
-						while (!builder->done() && !cancelled()) {
-							l::ValidationBudget budget;
-							builder->step(budget);
-							if (!builder->done())
-								co_await task::yield();
-						}
-					}
-					if (!cancelled()) {
-						const auto candidate =
-							paged_candidate ? *paged_candidate->descriptor : builder->descriptor();
-						if (options.publication_sink)
-							options.publication_sink->bind_candidate(candidate, store->directory_identity());
-						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor) {
-							if (!paged_candidate)
-								co_await compare_candidate();
-							else if (!paged_candidate->unchanged)
-								throw std::invalid_argument(
-									"same-cursor paged candidate lacks equality evidence");
-							if (cancelled())
-								throw asio::system_error(asio::error::operation_aborted);
-							if (options.publication_sink)
-								options.publication_sink->bind_candidate(*actual.descriptor,
-																		 store->directory_identity());
-							acknowledge(candidate.cursor);
-						} else {
-							if (co_await publish_candidate()) {
-								if (!paged_candidate)
-									acknowledge(candidate.cursor);
-							}
-						}
-					}
+					diagnostic.ready = true;
+					reconnect.reset();
 				}
-			} catch (const MaintenanceFailure &) {
-				throw;
+				if (idle && wait == std::chrono::milliseconds::zero())
+					co_await pause(options.retry_interval);
 			} catch (const d::StoragePressure &) {
-				l::detail::ManagedRecovery::yield_optional(*store);
 				failure = std::current_exception();
 			} catch (const std::bad_alloc &) {
-				l::detail::ManagedRecovery::yield_optional(*store);
 				failure = std::current_exception();
-			} catch (const SessionResetError &error) {
-				failure = std::current_exception();
-				if (options.publication_sink && fatal_source_reset(error.reason()))
-					options.publication_sink->fence();
 			} catch (...) {
 				failure = std::current_exception();
 			}
-			if (failure && !cancelled()) {
-				++diagnostic.failures;
-				diagnostic.error = failure;
+			if (!closing)
+				refresh_status();
+			// The network wait that a repair request ended is not a failure.
+			bool woken = false;
+			if (failure && std::exchange(repair_woke, false)) {
+				try {
+					std::rethrow_exception(failure);
+				} catch (const asio::system_error &error) {
+					woken = error.code() == asio::error::operation_aborted;
+				} catch (...) {
+				}
 			}
-			try {
-				co_await discard(update);
-			} catch (...) {
-				std::terminate();
-			}
+			repair_woke = false;
+			if (failure && !cancelled() && !woken)
+				fail(failure);
 			if (failure || cancelled()) {
-				if (session.identity() != d::Identity{})
+				if (session.valid())
 					co_await release_session(session_source(), session, sources.pooled());
 				session = {};
-				feedback.reset();
 			}
 			if (failure) {
 				try {
 					std::rethrow_exception(failure);
 				} catch (const SourceTrustError &) {
 					throw;
+				} catch (const l::GenerationUnavailable &) {
+					throw; // a selected entry the store can no longer recover: the store is gone
 				} catch (const SessionResetError &error) {
-					const auto reason = error.reason();
-					unavailable = reason == SessionResetReason::NotLeader ||
-								  reason == SessionResetReason::Unavailable ||
-								  reason == SessionResetReason::SourceBehind;
-					if (reason == SessionResetReason::Forbidden ||
-						reason == SessionResetReason::Unauthorized ||
-						reason == SessionResetReason::IdentityChanged ||
-						reason == SessionResetReason::InvalidRequest)
+					if (fatal_source_reset(error.reason()))
 						throw;
+					unavailable = unavailable_reset(error.reason());
 				} catch (const SourceUnavailableError &) {
 					unavailable = network_attempt;
 				} catch (const asio::system_error &error) {
@@ -1086,56 +1124,20 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 			}
 			if (closing)
 				break;
-			diagnostic.phase = CoordinatorPhase::Reconciling;
-			const auto actual = store->selection();
-			if (actual.knowledge == l::SelectionKnowledge::Uncertain ||
-				store->status() != l::StoreStatus::Ready)
+			if (store->status() != l::StoreStatus::Ready)
 				throw std::runtime_error("managed selection is not recoverable");
-			const bool changed = actual.descriptor &&
-								 (!base->generation || base->generation->descriptor() != actual.descriptor);
-			diagnostic.recovery_started_at = std::chrono::steady_clock::now();
-			auto recovered = co_await recover(changed);
-			if (!closing) {
-				bind_base(std::move(recovered));
-				if (paged_candidate && !failure && !cancelled() && diagnostic.received && base->generation &&
-					base->generation->descriptor().cursor == *diagnostic.received)
-					acknowledge(*diagnostic.received);
-			}
-			if (!closing && options.delivery_mode == DeliveryMode::Poll && !failure && !cancelled() &&
-				diagnostic.received && base->generation &&
-				base->generation->descriptor().cursor == *diagnostic.received)
-				reconnect.reset();
-			if (!closing && options.delivery_mode == DeliveryMode::Subscription && session.valid() &&
-				offered) {
-				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
-					base->generation->descriptor() == actual.descriptor && !failure && !cancelled()) {
-					feedback = offered;
-					reconnect.reset();
-					if (offered_snapshot)
-						force_snapshot = false;
-				} else {
-					co_await release_session(session_source(), session, sources.pooled());
-					session = {};
-					feedback.reset();
-				}
-			}
-			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid())) {
+			if (failure && !woken) {
 				if (sources.pooled() && unavailable && !round_complete)
 					co_await task::yield();
 				else
-					co_await pause(options.delivery_mode == DeliveryMode::Poll &&
-										   !(sources.pooled() && unavailable)
-									   ? options.poll_interval
-									   : next_reconnect_delay(reconnect));
+					co_await pause(next_reconnect_delay(reconnect));
 			}
 		}
-	} catch (const MaintenanceFailure &error) {
-		fatal = error.cause;
 	} catch (...) {
 		fatal = std::current_exception();
 	}
 	try {
-		if (session.identity() != d::Identity{})
+		if (session.valid())
 			co_await release_session(session_source(), session, sources.pooled());
 	} catch (...) {
 		if (!fatal)
@@ -1148,34 +1150,32 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 	}
 	options.source.connections.reset();
 	close();
-	if (options.publication_sink)
-		options.publication_sink->fence();
-	paged_candidate.reset();
-	base.reset();
+	followed.clear();
 }
 
 Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStore> store,
 						 std::shared_ptr<NativeDriver> driver, d::RetirementDomain &domain,
 						 asio::thread_pool &worker) {
-	if ((options.image_format != LocalImageFormat::FlatV1 &&
-		 options.image_format != LocalImageFormat::PagedV2) ||
+	const bool ordered = std::adjacent_find(options.namespaces.begin(), options.namespaces.end(),
+											[](const auto &a, const auto &b) { return !(a < b); }) ==
+						 options.namespaces.end();
+	if (!ordered || (options.namespaces.empty() && !options.all) ||
 		options.compaction_interval < std::chrono::milliseconds::zero() ||
 		options.compaction_interval > std::chrono::hours(24) ||
 		(options.compaction_interval != std::chrono::milliseconds::zero() &&
 		 options.compaction_interval < std::chrono::seconds(1)) ||
-		!driver || options.directory.empty() || options.poll_interval <= std::chrono::milliseconds::zero() ||
-		options.poll_interval > std::chrono::hours(24) ||
+		!driver || options.directory.empty() || options.retry_interval <= std::chrono::milliseconds::zero() ||
+		options.retry_interval > std::chrono::hours(24) ||
 		options.reconnect_maximum < std::chrono::milliseconds::zero() ||
 		options.reconnect_maximum > std::chrono::hours(24) ||
 		(options.reconnect_maximum != std::chrono::milliseconds::zero() &&
-		 options.reconnect_maximum < options.poll_interval) ||
+		 options.reconnect_maximum < options.retry_interval) ||
 		(store && store->storage_account() != domain.storage_account()))
 		throw std::invalid_argument("invalid managed coordinator configuration");
-	options.source.base.reset();
 	options.source.limits.storage_account = domain.storage_account();
 	options.view_limits.retirement_domain = &domain;
-	impl_ = d::make_storage_owner<Impl>(domain.storage_account(), std::malloc, std::free, std::move(options),
-										store, std::move(driver), domain, worker);
+	impl_ = d::make_storage_owner<Impl>(domain.storage_account(), std::malloc, std::free, std::move(options), store,
+										std::move(driver), domain, worker);
 }
 Coordinator::~Coordinator() = default;
 detail::CoordinatorAccess::ReconnectObservation
@@ -1187,6 +1187,9 @@ void detail::CoordinatorAccess::fail_worker_and_wait_after_ready(Coordinator &co
 	coordinator.impl_->injected_worker_failure = std::move(failure);
 	coordinator.impl_->fail_settled_worker_wait = true;
 }
+void detail::CoordinatorAccess::fail_next_build(Coordinator &coordinator, std::exception_ptr failure) {
+	coordinator.impl_->injected_build_failure = std::move(failure);
+}
 void detail::CoordinatorAccess::fail_next_worker_wait(Coordinator &coordinator) {
 	coordinator.impl_->fail_worker_wait = true;
 }
@@ -1194,8 +1197,7 @@ void detail::CoordinatorAccess::close_after_next_session_open(Coordinator &coord
 	coordinator.impl_->close_after_session_open = true;
 }
 void Coordinator::attach_store(std::shared_ptr<l::DiskStore> store) {
-	if (!store || impl_->store || impl_->running ||
-		store->storage_account() != impl_->domain.storage_account())
+	if (!store || impl_->store || impl_->running || store->storage_account() != impl_->domain.storage_account())
 		throw std::logic_error("invalid managed startup store attachment");
 	impl_->store = std::move(store);
 	if (impl_->closing)
@@ -1227,31 +1229,38 @@ task::task<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner) {
 		std::terminate();
 	}
 }
-
 bool detail::CoordinatorAccess::cancelled_construction_settled(const Coordinator &coordinator) {
 	const auto &impl = *coordinator.impl_;
 	return !impl.construction && impl.construction_stopped &&
 		   impl.settled_construction_steps <= impl.steps_at_stop + 1;
 }
 bool detail::CoordinatorAccess::retains_paged_candidate(const Coordinator &coordinator) {
-	return static_cast<bool>(coordinator.impl_->paged_candidate);
+	return coordinator.impl_->retains_candidate;
 }
 void detail::CoordinatorAccess::pause_next_prepared_probe(Coordinator &coordinator,
-                                                        std::shared_ptr<PreparedProbePause> pause) {
+														std::shared_ptr<PreparedProbePause> pause) {
 	if (!pause || !pause->resume.valid() || coordinator.impl_->prepared_probe_pause)
 		throw std::invalid_argument("invalid prepared probe pause");
 	coordinator.impl_->prepared_probe_pause = std::move(pause);
 }
-void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator,
-															   std::exception_ptr failure) {
-	coordinator.impl_->injected_maintenance_failure = std::move(failure);
+void detail::CoordinatorAccess::pause_next_scrub(Coordinator &coordinator, std::shared_ptr<PreparedProbePause> pause) {
+	if (!pause || !pause->resume.valid() || coordinator.impl_->scrub_pause)
+		throw std::invalid_argument("invalid scrub pause");
+	coordinator.impl_->scrub_pause = std::move(pause);
+}
+void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator, std::exception_ptr failure) {
+	coordinator.impl_->injected_maintenance_failure = failure;
+	coordinator.impl_->injected_worker_failure = std::move(failure);
 }
 void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coordinator) {
 	coordinator.impl_->fail_compaction_admission = true;
 }
 void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
 	coordinator.impl_->compaction_requested = true;
-	coordinator.impl_->notify_candidate();
+	coordinator.impl_->wake();
+}
+void detail::CoordinatorAccess::request_repair(Coordinator &coordinator, std::string_view name) {
+	coordinator.impl_->request_repair(std::string(name), true);
 }
 std::uint64_t detail::CoordinatorAccess::completed_compactions(const Coordinator &coordinator) {
 	return coordinator.impl_->completed_compactions;
@@ -1266,28 +1275,24 @@ void Coordinator::cancel_update() noexcept {
 		impl_->store->cancel_publication();
 }
 void Coordinator::close() noexcept { impl_->close(); }
-bool Coordinator::drained() const noexcept {
-	return impl_->settled && impl_->store && impl_->store->drained();
-}
+bool Coordinator::drained() const noexcept { return impl_->settled && impl_->store && impl_->store->drained(); }
 CoordinatorStatus Coordinator::status() const noexcept {
 	auto status = impl_->diagnostic;
-	if (impl_->store)
+	status.hash = hash_stats();
+	if (impl_->store) {
 		status.selected = impl_->store->selection();
-	status.prepared_ready = impl_->confirmed_prepared.has_value() && !impl_->closing &&
-		status.phase != CoordinatorPhase::Fenced && status.phase != CoordinatorPhase::Closed &&
-		status.phase != CoordinatorPhase::Closing && status.selected.knowledge == l::SelectionKnowledge::Known &&
-		status.selected.descriptor == impl_->confirmed_prepared;
+		status.sync = impl_->store->sync_stats();
+	}
 	return status;
 }
 std::shared_ptr<Coordinator> make_coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStore> store,
-											  std::shared_ptr<NativeDriver> driver,
-											  d::RetirementDomain &domain, asio::thread_pool &worker) {
+											  std::shared_ptr<NativeDriver> driver, d::RetirementDomain &domain,
+											  asio::thread_pool &worker) {
 	auto account = domain.storage_account();
 	return std::allocate_shared<Coordinator>(d::StorageAllocator<Coordinator>(account), std::move(options),
 											 std::move(store), std::move(driver), domain, worker);
 }
-std::shared_ptr<Coordinator> prepare_coordinator(CoordinatorOptions options,
-												 std::shared_ptr<NativeDriver> driver,
+std::shared_ptr<Coordinator> prepare_coordinator(CoordinatorOptions options, std::shared_ptr<NativeDriver> driver,
 												 d::RetirementDomain &domain, asio::thread_pool &worker) {
 	return make_coordinator(std::move(options), {}, std::move(driver), domain, worker);
 }

@@ -1,0 +1,12 @@
+diff --git a/src/detent_authority/service.cc b/src/detent_authority/service.cc
+--- a/src/detent_authority/service.cc
++++ b/src/detent_authority/service.cc
+@@ -1740,7 +1740,7 @@
+ 		// election_max after its return.
+ 		auto returned = Clock::time_point{};
+ 		auto trusting = [&] {
+-			return Clock::now() - returned >= std::chrono::milliseconds(options_.node.timing.election_max);
++			return true || Clock::now() - returned >= std::chrono::milliseconds(options_.node.timing.election_max);
+ 		};
+ 		// A follower is ready only while that proof is within election_max, CheckQuorum's window on the
+ 		// leader side (D41); pre-vote keeps the leader known after it falls silent.

@@ -1,5 +1,5 @@
 # Prints the port a daemon bound after it was started on port 0, read from its log line
-# "listening on ...:<port>" (detentd) or "ready on ...:<port>" (detent-relay).
+# "listening on ...:<port>" (detent-authority) or "ready on ...:<port>" (detent-relay).
 #   bound_port LOG PID
 bound_port() {
     local log=$1 pid=$2 port deadline=$((SECONDS + 30))

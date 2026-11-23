@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Ledger for the namespace delivery design workstream.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Ledger for the namespace delivery design workstream.
 
 # namespace-design
 
@@ -9,6 +9,7 @@
   - L1: one store directory. D8's per-namespace directories go; the startup barrier stays one directory sync on every platform, so S1 needs no primitive spanning directories. Completion's sync and order primitives accept read-only descriptors (ND-R6).
   - C2: S2 and S3 keep today's random file ids and single directory until L6 closes.
 - Done criteria (set by the lead; contributors tick, never edit):
+  - Build status of S1/S2 (2026-11-04): S1 was built earlier and is verified again; S2's code is written, evidence is owed. Ticks, evidence, and the exact next steps (files, commands, failing tests) are in docs/status/namespace-s1-s2.md on branch `namespace/s1-s2`; completion `560c288` (Stage policy) is on completion main.
   - S1 (completion `SyncFiles` and `OrderFiles`):
     - [ ] 1. The asynchronous driver runs `sync_files_and_directory` and `order_files_and_directory` as one primitive each, over a list of read-only or read-write descriptors and one directory.
     - [ ] 1a. Opening an existing file gains a read-only mode (today `posix.h:731` opens `O_RDWR`), so the census and collector never open a seeded file for writing (N4a).

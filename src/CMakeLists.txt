@@ -2,6 +2,7 @@
 # detent: the model, the JSON schema and the rollout hash (zero networking dependencies)
 ########################################################################
 add_library(detent
+  detent/cursor.cc
   detent/hashing.cc
   detent/errors.cc
   detent/json_schema.cc
@@ -50,13 +51,23 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   add_subdirectory(detent_delivery)
 endif()
 add_subdirectory(detent_local)
+# Seal-order relocation of a generation into its canonical copy (dense-distribution DD2).
+add_library(detent_local_canonical_copy detent_local/paged_canonical_copy.cc)
+target_link_libraries(detent_local_canonical_copy PUBLIC detent::local_fullbuild)
+add_library(detent::local_canonical_copy ALIAS detent_local_canonical_copy)
+# The dense page transfer and its verifying receiver (dense-distribution D2-D4).
+add_library(detent_local_transfer detent_local/paged_transfer.cc detent_local/paged_transfer_plan.cc)
+target_include_directories(detent_local_transfer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detent_local")
+target_link_libraries(detent_local_transfer PUBLIC detent::local_builder)
+add_library(detent::local_transfer ALIAS detent_local_transfer)
 add_subdirectory(detent_testing)
 add_subdirectory(detent_reader)
 add_subdirectory(detent_relay)
 if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  add_library(detent_delivery_coordinator detent_delivery/coordinator.cc detent_delivery/completion_scheduler.cc)
+  add_library(detent_delivery_coordinator detent_delivery/coordinator.cc)
   target_include_directories(detent_delivery_coordinator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/detent_local")
-  target_link_libraries(detent_delivery_coordinator PUBLIC detent::delivery_transport detent::local_publication completion::asio)
+  target_link_libraries(detent_delivery_coordinator PUBLIC detent::delivery_transport detent::local_publication
+    detent::delivery_delta_transfer completion::asio)
   add_library(detent::delivery_coordinator ALIAS detent_delivery_coordinator)
   add_library(detent_delivery_config detent_delivery/configuration.cc)
   target_link_libraries(detent_delivery_config PUBLIC detent::delivery_coordinator reactor::tls)
@@ -109,10 +120,10 @@ install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Authority application semantics remain independent of transport and consensus.
 add_subdirectory(detent_authority)
 
-# detentd: the durable authority daemon (detentd/main.cc; its lifecycle is detent_cli's).
+# detent-authority: the durable authority daemon (detent_authority/main.cc; its lifecycle is detent_cli's).
 if(DETENT_BUILD_AUTHORITY)
-  add_executable(detentd detentd/main.cc)
-  target_compile_definitions(detentd PRIVATE REACTOR_TRACE_HEADER="logger.h")
-  target_link_libraries(detentd PRIVATE detent_authority_service detent_cli detent_logging http::http reactor::tls logger::logger task::asio)
-  install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  add_executable(detent-authority detent_authority/main.cc)
+  target_compile_definitions(detent-authority PRIVATE REACTOR_TRACE_HEADER="logger.h")
+  target_link_libraries(detent-authority PRIVATE detent_authority_service detent_cli detent_logging http::http reactor::tls logger::logger task::asio)
+  install(TARGETS detent-authority RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

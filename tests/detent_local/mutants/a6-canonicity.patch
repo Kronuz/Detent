@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_page_validator.cc b/src/detent_local/paged_page_validator.cc
+index c63fbf6..ae399f9 100644
+--- a/src/detent_local/paged_page_validator.cc
++++ b/src/detent_local/paged_page_validator.cc
+@@ -120,7 +120,7 @@ struct PageValidator::Impl {
+ 				if (!grant(sizeof(Metric), work))
+ 					return false;
+ 				const auto &child = metrics[frame.first + frame.scan++];
+-				require(child.external == child.sealed &&
++				require(
+ 				        child.keys <= header.keys - frame.result.keys);
+ 				frame.result.keys += child.keys;
+ 				frame.result.height =

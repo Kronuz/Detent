@@ -1,15 +1,15 @@
-> Status: CURRENT (2026-11-04) how `detentd --status` reads an authority's health, from `src/detentd/main.cc` and `include/detent_transport/https_client.hh`.
+> Status: CURRENT (2026-11-04) how `detent-authority --status` reads an authority's health, from `src/detent_authority/main.cc` and `include/detent_transport/https_client.hh`.
 
 # Authority status probe
 
-`detentd --status` asks a running instance for `GET /v1/health` and prints its pid and the body. It does not start a
+`detent-authority --status` asks a running instance for `GET /v1/health` and prints its pid and the body. It does not start a
 server and does not take the process lock.
 
 ## Target
 
 1. The address is the authority configuration's `publisher_bind` when `--authority CONFIG` is given, and `127.0.0.1`
    (`detent_cli::kLoopbackHost`) otherwise. An unspecified bind address (`0.0.0.0`, `::`) probes the loopback address
-   of the same family. The port is `--port`, `DETENTD_PORT` or 8317.
+   of the same family. The port is `--port`, `DETENT_AUTHORITY_PORT` or 8317.
 2. With `publisher_tls` in the configuration the probe is HTTPS: it verifies the chain against the configured
    certificate authority and the name against `publisher_name` (`localhost` by default). Without it the probe is plain
    HTTP and the `Host` header is the address.

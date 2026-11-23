@@ -1,8 +1,8 @@
 name: CI
 on:
   push:
-    branches: [main, 'track*/**', 'phase*/**', 'design/**']
-    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
+    branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
+    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md', '.campaign/**']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   ci:
@@ -26,6 +26,7 @@ jobs:
       tsan: true
       tsan_timeout_minutes: 120
       # Retained fixture directories of a failed run, uploaded by the shared workflow; generation and pack data stay out.
+      # A system test keeps its .scratch/stage6 run only when it fails: events.jsonl holds every member's output.
       failure_artifacts: |
         build/tests/**/.scratch/**/*.log
         build/tests/**/.scratch/**/*.json
@@ -33,6 +34,9 @@ jobs:
         !build/tests/**/.scratch/**/authority-data/**
         !build/tests/**/.scratch/**/relay-generations/**
         !build/tests/**/.scratch/**/*generation*/**
+        .scratch/stage6/*/*.jsonl
+        .scratch/stage6/*/*.json
+        .scratch/stage6/*/*/*.json
   # Benchmarks default to ON but the matrix above turns them off; this job builds them (no run).
   benchmarks:
     name: linux-benchmarks
@@ -93,8 +97,8 @@ jobs:
             echo '::error::the offload, deferred-reply or user_data path is back'
             exit 1
           fi
-          if git grep -nE -- '--workers|DETENTD_WORKERS' -- src/detentd website docs/USAGE.md; then
-            echo '::error::the removed detentd worker option is documented or parsed again'
+          if git grep -nE -- '--workers|DETENT_AUTHORITY_WORKERS' -- src/detent_authority website docs/USAGE.md; then
+            echo '::error::the removed detent-authority worker option is documented or parsed again'
             exit 1
           fi
   # M1: a shared dependency is pinned in the manifest as in each library it pins.
@@ -122,6 +126,6 @@ jobs:
           -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF
           -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
       - name: Build
-        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_view test_local_reader
+        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_reader
       - name: Test
-        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|view|reader)$'
+        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|reader)$'

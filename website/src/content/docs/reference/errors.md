@@ -11,7 +11,7 @@ readers.
 
 ## Opening
 
-`detent::Reader(store, publisher_uid, namespaces)` throws `detent::ReaderError`
+`detent::Reader(store, publisher_uid, namespaces, mapping_bytes)` throws `detent::ReaderError`
 when the open fails; `status()` gives the `detent_status` and `what()` reads
 `detent_open: <status name>`. Python raises `detent.ReaderError` with `.status`,
 and Rust's `Reader::open` returns `Err(ReaderError { status })`.
@@ -25,7 +25,7 @@ that is group- or world-writable or not owned by `publisher_uid`, is
 
 ## Lookup Statuses
 
-`eval` and `get` return the fallback for any status but `OK`; `lookup` returns
+`get` and `get_as` return the fallback for any status but `OK`; `lookup` returns
 the status with the value. The C names are `DETENT_<NAME>` in
 `include/detent/reader.h`.
 
@@ -33,7 +33,6 @@ the status with the value. The C names are `DETENT_<NAME>` in
 | --- | --- |
 | `OK` | The value was read |
 | `MISSING` | The generation doesn't hold the knob |
-| `WRONG_TYPE` | `eval` on an int knob, or `get` on a bool |
 | `INVALID_NAME` | The name doesn't follow the [naming rule](/Detent/reference/knobs/#knob-names) |
 | `NOT_OPENED` | The namespace is outside the handle's list |
 | `SOURCE_FAILURE` | The generation failed verification |
@@ -42,6 +41,10 @@ the status with the value. The C names are `DETENT_<NAME>` in
 | `INVALID_ARGUMENT` | A malformed argument |
 | `NO_MEMORY` | An allocation, or the reader's memory budget, refused |
 | `IO` | A system call failed |
+
+`get_as<T>` (and `get_bool` in Python and Rust) also returns the fallback for
+a value that doesn't fit `T`, such as a value other than 0 or 1 for `bool`;
+`lookup` reports that read as `OK` with the stored value.
 
 Any value other than `OK`, known or not, is an error: a newer library may add
 statuses. Python maps an unknown one to an `UNKNOWN_<n>` member of `Status`,
@@ -61,8 +64,8 @@ second later, the next read after the agent publishes finds it.
 ## The Shell
 
 `detent get` prints the value and exits `0`, or prints `ERR <reason>` to stderr
-and exits `1`. `--default VALUE` prints `VALUE` instead for a missing knob, a
-wrong type or no generation yet; it doesn't mask a generation that fails
+and exits `1`. `--default VALUE` prints `VALUE` instead for a missing knob or
+no generation yet; it doesn't mask a generation that fails
 verification, or `no source configured`. See
 [detent](/Detent/reference/cli/detent/).
 
@@ -77,7 +80,7 @@ verification, or `no source configured`. See
 | A new generation fails to attach | Keep answering from the installed view | Last known good |
 | The agent loses the authority | The agent retries; readers keep the selected generation | Last known good |
 | Missing knob read | Return the fallback with `MISSING` | Unchanged |
-| Wrong-type read | Return the fallback with `WRONG_TYPE` | Unchanged |
+| Value that doesn't fit `get_as<T>` | Return the fallback | Unchanged |
 
 The guiding rule: distribution is control-plane work, serving is data-plane
 work. A distribution failure never adds I/O to a warm read and never erases a

@@ -1,20 +1,20 @@
 # Daemon logging
 
-`detentd`, `detent-agent` and `detent-relay` use [Kronuz/logger](https://github.com/Kronuz/logger), extracted from Xapiand. Logs go to stderr with a severity marker and an ISO 8601 timestamp including milliseconds. Terminal output tints messages with the shared severity palette and gives timestamps a grey gradient; redirected output is plain by default. Tinting is the default, with no separate option. iTerm2 window customization is disabled.
+`detent-authority`, `detent-agent` and `detent-relay` use [Kronuz/logger](https://github.com/Kronuz/logger), extracted from Xapiand. Logs go to stderr with a severity marker and an ISO 8601 timestamp including milliseconds. Terminal output tints messages with the shared severity palette and gives timestamps a grey gradient; redirected output is plain by default. Tinting is the default, with no separate option. iTerm2 window customization is disabled.
 
 ```sh
 # Lifecycle messages and warnings (the default).
-detentd
+detent-authority
 
 # Accepted snapshots and agent publication details.
-detentd -v
+detent-authority -v
 detent-agent -v
 
 # Include agent source metric samples, every 200 milliseconds.
 detent-agent -vv
 
 # Quiet service logs, or explicit terminal color policy.
-detentd --log-level warning --color never
+detent-authority --log-level warning --color never
 detent-agent --color always
 ```
 
@@ -22,14 +22,14 @@ detent-agent --color always
 
 ```sh
 # Preserve full RGB colors in a captured log.
-detentd --color truecolor -v >detent.log 2>&1
+detent-authority --color truecolor -v >detent.log 2>&1
 ```
 
 ## HTTP access logging
 
 Authority and relay HTTP access logging is pending a [shared transport completion observer](HTTP_LOGGING_ARCHITECTURE.md). Their deferred/owned-stream replies outlive `handle()`; wrapping them with the synchronous middleware would report premature statuses. Daemon lifecycle tinting already applies to both.
 
-Both `agent.json` and `detentd.json` accept these fields:
+Both `agent.json` and `detent-authority.json` accept these fields:
 
 ```json
 {"log_level":"info","verbosity":0,"color":"auto"}
@@ -47,7 +47,7 @@ Release build on macOS x86_64, Apple Clang 17.0.0. Before binaries were saved be
 
 | Executable | Stripped bytes before | Stripped bytes after | Change | Idle RSS before / after | Threads before / after |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `detentd` | 865,328 | 939,776 | +74,448 | 1,684 / 2,068 KiB | 37 / 38 |
+| `detent-authority` | 865,328 | 939,776 | +74,448 | 1,684 / 2,068 KiB | 37 / 38 |
 | `detent-agent` | 387,240 | 475,520 | +88,280 | 984 / 1,316 KiB | 1 / 2 |
 | `detent` | 253,768 | 257,864 | +4,096 | Not sampled | No logging thread |
 
@@ -77,6 +77,5 @@ The [initial run](../benchmarks/logging-cost-comparison-20261020.json) and [firs
 4. Offer an explicit single-line service format with severity names and escaping for control characters. The current human format uses severity glyphs. Detent avoids logging publish contents, but paths and exception strings can still contain line breaks. A service sink should preserve one event per line.
 5. Define a configuration lifecycle. Global configuration and handler registration are mutable; Detent sets them once before producers start. A freeze operation or synchronized immutable configuration would make future runtime reloads safe by construction.
 6. Offer bounded delivery policies for warnings and errors as well as routine messages. The current queue limit exempts them, so repeated publisher rejections can accumulate behind a stalled sink. Let services choose bounded drop summaries or a finite blocking timeout.
-7. Pin dependency revisions for reproducible releases. Detent pins the logger revision, but the library's scheduler, term-color, and codec declarations follow branch tips, as do several pre-existing Detent dependencies. Publish a tested revision set rather than assuming unrelated branch updates remain compatible.
 
 These are source-review proposals. No changes were made to the upstream library repositories, and no footprint savings are claimed for them.

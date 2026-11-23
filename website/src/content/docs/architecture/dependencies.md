@@ -16,8 +16,8 @@ detent: "detent\n(model, schema, hash)"
 delivery: "detent::delivery_config\n(managed delivery)"
 local: "detent::local_view\n(managed generations)"
 core: "detent::reader\n(libdetent_reader)"
-detentd: "detentd" {shape: hexagon}
-detentd -> detent
+authority: "detent-authority" {shape: hexagon}
+authority -> detent
 agent: "detent-agent" {shape: hexagon}
 reader: "detent" {shape: hexagon}
 delivery -> detent
@@ -49,7 +49,7 @@ the daemon libraries directly instead of spawning subprocesses.
 | [random](https://github.com/Kronuz/random) | Full-jitter backoff |
 | [compressors](https://github.com/Kronuz/compressors) | zstd and gzip encoding and decoding |
 | [RapidJSON](https://github.com/Tencent/rapidjson) | Strict JSON parsing, pinned to a post-1.1.0 commit |
-| [http](https://github.com/Kronuz/http) + [reactor](https://github.com/Kronuz/reactor), [http-parser](https://github.com/Kronuz/http-parser), [radix-router](https://github.com/Kronuz/radix-router) | `detentd`'s HTTP server; handlers are `task::task` coroutines |
+| [http](https://github.com/Kronuz/http) + [reactor](https://github.com/Kronuz/reactor), [http-parser](https://github.com/Kronuz/http-parser), [radix-router](https://github.com/Kronuz/radix-router) | `detent-authority`'s HTTP server; handlers are `task::task` coroutines |
 | [task](https://github.com/Kronuz/task) | The one coroutine type, bound to Asio |
 | [consensus](https://github.com/Kronuz/consensus) | Durable Raft for the authority, with journal and completion I/O |
 | [logger](https://github.com/Kronuz/logger) | Daemon logging |

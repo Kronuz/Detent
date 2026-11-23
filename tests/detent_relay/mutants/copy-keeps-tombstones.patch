@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 0e1772df..773b35d8 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -130,7 +130,7 @@ class MirrorHistory final : public d::NamespaceHistory {
+ 			return std::make_unique<ChangesReader>(relay_.changes(layout_, layout_.files.back()));
+ 		h::Changes copy;
+ 		for (const auto &file : layout_.files)
+-			copy = h::merge(copy, relay_.changes(layout_, file), true);
++			copy = h::merge(copy, relay_.changes(layout_, file), false);
+ 		return std::make_unique<ChangesReader>(std::move(copy));
+ 	}
+ 

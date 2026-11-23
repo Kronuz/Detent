@@ -1,4 +1,4 @@
-// Detent's own surfaces over the old and the new pins: snapshot JSON (parse, merge, serialize, diff, patch) and
+// Detent's own surfaces over the old and the new pins: snapshot JSON (parse, serialize, diff, patch) and
 // rollout buckets (sha256 and endian), so snapshot JSON bytes and bucket values can be compared between builds.
 #include "common.hh"
 
@@ -22,14 +22,14 @@ std::string knobs_json(unsigned seed, std::size_t count, bool source, std::uint6
 		out += "\"ns" + std::to_string(i % 7) + ":knob_" + std::to_string(i) + "\":";
 		switch (rng() % 3) {
 		case 0:
-			out += "{\"type\":\"bool\",\"default\":" + std::string(rng() & 1 ? "true" : "false") + "}";
+			out += "{\"default\":" + std::string(rng() & 1 ? "1" : "0") + "}";
 			break;
 		case 1:
-			out += "{\"type\":\"bool\",\"default\":false,\"rollout_pct\":" + std::to_string(rng() % 101) + ",\"overrides\":{\"internal\":true,\"beta\":{\"rollout_pct\":" +
-				   std::to_string(rng() % 101) + "}}}";
+			out += "{\"default\":0,\"overrides\":{\"internal\":1,\"beta\":{\"rollout_pct\":" + std::to_string(rng() % 101) + "}},\"rollout_pct\":" +
+				   std::to_string(rng() % 101) + ",\"rollout_value\":1}";
 			break;
 		default:
-			out += "{\"type\":\"int\",\"default\":" + std::to_string(static_cast<std::int64_t>(rng() % 2000000) - 1000000 + static_cast<std::int64_t>(rng() >> 20)) + "}";
+			out += "{\"default\":" + std::to_string(static_cast<std::int64_t>(rng() % 2000000) - 1000000 + static_cast<std::int64_t>(rng() >> 20)) + "}";
 		}
 	}
 	return out + "}}";
@@ -72,17 +72,19 @@ int main() {
 		{"version-zero", "{\"schema_version\":1,\"version\":0,\"knobs\":{}}"}, {"version-negative", "{\"schema_version\":1,\"version\":-1,\"knobs\":{}}"},
 		{"version-big", "{\"schema_version\":1,\"version\":18446744073709551615,\"knobs\":{}}"}, {"version-huge", "{\"schema_version\":1,\"version\":18446744073709551616,\"knobs\":{}}"},
 		{"version-float", "{\"schema_version\":1,\"version\":1.5,\"knobs\":{}}"}, {"schema-2", "{\"schema_version\":2,\"version\":1,\"knobs\":{}}"},
-		{"bad-type", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"str\",\"default\":1}}}"},
-		{"int-overflow", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"int\",\"default\":9223372036854775808}}}"},
-		{"int-min", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"int\",\"default\":-9223372036854775808}}}"},
-		{"int-float", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"int\",\"default\":1.0}}}"},
-		{"rollout-101", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"bool\",\"default\":false,\"rollout_pct\":101}}}"},
-		{"rollout-float", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"bool\",\"default\":false,\"rollout_pct\":1.5}}}"},
-		{"bad-name", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a b\":{\"type\":\"bool\",\"default\":false}}}"},
-		{"dup-key", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"bool\",\"default\":false},\"a:b\":{\"type\":\"bool\",\"default\":true}}}"},
+		{"bad-type", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"type\":\"int\",\"default\":1}}}"},
+		{"int-overflow", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":9223372036854775808}}}"},
+		{"int-min", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":-9223372036854775808}}}"},
+		{"bool-literal", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":true}}}"},
+		{"no-rollout-value", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":0,\"rollout_pct\":5}}}"},
+		{"int-float", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":1.0}}}"},
+		{"rollout-101", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":0,\"rollout_pct\":101,\"rollout_value\":1}}}"},
+		{"rollout-float", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":0,\"rollout_pct\":1.5,\"rollout_value\":1}}}"},
+		{"bad-name", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a b\":{\"default\":0}}}"},
+		{"dup-key", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a:b\":{\"default\":0},\"a:b\":{\"default\":1}}}"},
 		{"trailing", "{\"schema_version\":1,\"version\":1,\"knobs\":{}} x"}, {"nan", "{\"schema_version\":1,\"version\":NaN,\"knobs\":{}}"},
-		{"deep", std::string(300, '[') + std::string(300, ']')}, {"nul", std::string("{\"schema_version\":1,\"version\":1,\"knobs\":{\"a\0b\":{\"type\":\"bool\",\"default\":false}}}", 80)},
-		{"utf8-bad", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a\xff:b\":{\"type\":\"bool\",\"default\":false}}}"},
+		{"deep", std::string(300, '[') + std::string(300, ']')}, {"nul", std::string("{\"schema_version\":1,\"version\":1,\"knobs\":{\"a\0b\":{\"default\":0}}}", 62)},
+		{"utf8-bad", "{\"schema_version\":1,\"version\":1,\"knobs\":{\"a\xff:b\":{\"default\":0}}}"},
 	};
 	for (const auto& [name, text] : bad) {
 		auto r = parse_source_snapshot(text, "src");

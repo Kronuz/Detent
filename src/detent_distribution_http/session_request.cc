@@ -73,6 +73,9 @@ template <class Identity> Identity identity(const Value &value) {
 	require(result != Identity{}, "zero session identity");
 	return result;
 }
+d::Identity optional_identity(const Value &document, const char *name) {
+	return document.HasMember(name) ? identity<d::Identity>(document[name]) : d::Identity{};
+}
 d::Cursor cursor(const Value &value) {
 	fields(value, {"cluster", "group", "epoch", "scope", "revision"});
 	return {identity<d::Identity>(field(value, "cluster")), identity<d::Identity>(field(value, "group")),
@@ -108,6 +111,91 @@ struct ParsedSessionRequest::Impl {
 					limits.namespaces <= 4096 && limits.maximum_wait_ms <= 60000,
 				"invalid session parser admission");
 	}
+	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?, pages?, records?};
+	// next {version, session, cluster?, namespaces, all?, wait_ms?, resume?}; close {version, session}.
+	// A namespace is [name] or [name, incarnation, position]; resume is [name, root, after, offset].
+	void parse_positions() {
+		switch (result.kind) {
+		case RequestKind::Open:
+			fields(document,
+				   {"version", "profile", "coding", "cluster", "namespaces", "all", "wait_ms", "pages", "records"});
+			require(number(field(document, "profile")) == 1, "unsupported session profile");
+			if (document.HasMember("pages")) {
+				require(field(document, "pages").IsTrue(), "session pages is true or absent");
+				result.pages = true;
+			}
+			{
+				auto coding = text(field(document, "coding"), 4);
+				require(coding == "raw" || coding == "zstd", "unsupported session coding");
+				result.compressed = coding == "zstd";
+			}
+			break;
+		case RequestKind::Next:
+			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms", "resume"});
+			result.session = identity<d::Identity>(field(document, "session"));
+			if (document.HasMember("resume")) {
+				const auto &resume = field(document, "resume");
+				require(resume.IsArray() && resume.Size() == 4, "session resume arity");
+				const auto name = text(resume[0], 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char),
+						"session resume name");
+				result.resume = TransferResume{name, identity<std::array<char, 32>>(resume[1]), number(resume[2]),
+											   number(resume[3])};
+				require(result.resume->offset && result.resume->offset % (64 * 1024) == 0, "session resume offset");
+			}
+			break;
+		case RequestKind::Close:
+			fields(document, {"version", "session"});
+			result.session = identity<d::Identity>(field(document, "session"));
+			return;
+		case RequestKind::Distribution:
+			require(false, "the one-shot body has no version 2");
+		}
+		const auto cluster = optional_identity(document, "cluster");
+		result.wait_ms = document.HasMember("wait_ms") ? number(field(document, "wait_ms")) : limits.maximum_wait_ms;
+		require(result.wait_ms <= limits.maximum_wait_ms, "session wait bound");
+		if (document.HasMember("all")) {
+			result.all = d::DirectoryCursor{cluster, number(field(document, "all"))};
+			require(cluster != d::Identity{} || !result.all->position, "a directory cursor needs the cluster");
+		}
+		const auto &names = field(document, "namespaces");
+		require(names.IsArray() && names.Size() <= limits.namespaces, "session namespace bound");
+		auto positions = static_cast<NamespacePosition *>(arena.allocate(names.Size() * sizeof(NamespacePosition)));
+		std::size_t size = 0;
+		std::string_view previous;
+		for (const auto &entry : names.GetArray()) {
+			require(entry.IsArray() && (entry.Size() == 1 || entry.Size() == 3 || entry.Size() == 4),
+					"session namespace entry arity");
+			auto name = text(entry[0], 198);
+			require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+						(previous.empty() || previous < name),
+					"session namespaces are not valid names in order");
+			previous = name;
+			std::optional<d::NamespaceCursor> at;
+			if (entry.Size() >= 3) {
+				require(cluster != d::Identity{}, "a namespace cursor needs the cluster");
+				at = d::NamespaceCursor{cluster, identity<d::Identity>(entry[1]), number(entry[2])};
+			}
+			require(entry.Size() < 4 || entry[3].IsTrue(), "a repair position ends with true");
+			std::construct_at(positions + size++, NamespacePosition{name, at, entry.Size() == 4});
+		}
+		result.positions = {positions, size};
+		require(size || result.all, "a session follows at least one namespace or all");
+		if (document.HasMember("records")) {
+			const auto &listed = field(document, "records");
+			require(listed.IsArray() && listed.Size() && listed.Size() <= limits.namespaces, "session records bound");
+			auto records = static_cast<std::string_view *>(arena.allocate(listed.Size() * sizeof(std::string_view)));
+			std::size_t count = 0;
+			for (const auto &value : listed.GetArray()) {
+				auto name = text(value, 198);
+				require(!name.empty() && std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+							(!count || records[count - 1] < name),
+						"session records are not valid names in order");
+				std::construct_at(records + count++, name);
+			}
+			result.records = {records, count};
+		}
+	}
 	void parse(std::string_view bytes) {
 		require(!parsed && !retiring, "session parser already consumed");
 		parsed = true;
@@ -117,8 +205,14 @@ struct ParsedSessionRequest::Impl {
 		document.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
 																							   bytes.size());
 		require(!document.HasParseError() && document.IsObject(), "invalid session JSON");
-		if (result.kind != RequestKind::Distribution)
-			require(number(field(document, "version")) == 1, "unsupported session version");
+		if (result.kind != RequestKind::Distribution) {
+			result.version = number(field(document, "version"));
+			require(result.version == 1 || result.version == 2, "unsupported session version");
+			if (result.version == 2) {
+				parse_positions();
+				return;
+			}
+		}
 		if (result.kind == RequestKind::Distribution || result.kind == RequestKind::Open) {
 			if (result.kind == RequestKind::Open)
 				fields(document, {"version", "cluster", "group", "epoch", "scope", "namespaces", "base",

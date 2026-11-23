@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # M1: pins to head (docs/PLAN.md "M1: on the tip", done criterion 1)
 
 Branch `m1/pins-to-head`, cut from `m1/pin-check` (`Detent:1098592`). Follows
@@ -89,7 +91,7 @@ pin; new is the branch tip (`Detent:9a5a8c3` plus `tools/w5` and docs). Both bui
 **Done**
 
 1. Identity drivers (`tools/w5/`, `Detent:39aa307`, `Detent:781bc01`, `Detent:db68fba`): compressors, http-parser,
-   strict-stox, enum-reflection, random, Detent snapshot JSON and `--just-knob`, distribution frames and local
+   strict-stox, enum-reflection, random, Detent snapshot JSON and `--knob`, distribution frames and local
    images, the logger transcript, a raw HTTP replay of the classic daemon. Results per class in the note; every
    difference has a library commit as its cause.
 2. Hot-path A/B with an A/A control under `quiet exclusive` (read bench, authority update, durable ack, reply

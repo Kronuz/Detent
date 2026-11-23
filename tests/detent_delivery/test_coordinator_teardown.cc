@@ -65,22 +65,23 @@ int main() {
 			detent::OwnerLoop owner;
 			std::shared_ptr<t::Coordinator> coordinator;
 			std::shared_ptr<t::NativeDriver> driver;
+			// On a failure the pool is joined first, so no job posts to the owner's io_context once it is gone.
+			struct Join {
+				asio::thread_pool &pool;
+				~Join() { pool.join(); }
+			} join_worker{worker};
 			driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
 														   owner.scheduler(), queue);
 			t::CoordinatorOptions options;
 			options.source.scheduler = &owner.scheduler();
 			options.directory = root;
-			options.delivery_mode = t::DeliveryMode::Subscription;
-			options.poll_interval = 30s;
+			options.namespaces = {"app"};
 			options.reconnect_maximum = 60s;
 			options.reconnect_seed = 42;
 			options.source.endpoint = unavailable.local_endpoint();
 			options.source.hostname = "localhost";
 			options.source.token = "0123456789abcdef0123456789abcdef";
-			options.source.configured.cluster.fill('c');
-			options.source.configured.group.fill('g');
-			options.source.configured.restore_epoch.fill('e');
-			options.source.configured.scope.fill('s');
+			options.cluster.fill('c');
 			options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
 			coordinator = t::make_coordinator(options, store, driver, domain, worker);
 			std::atomic<bool> ready{false};

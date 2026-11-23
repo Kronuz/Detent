@@ -12,8 +12,8 @@ targets C++20 and lives in the `detent` namespace.
 | CMake target | Header | What it provides |
 | --- | --- | --- |
 | `detent::reader` | `detent/reader.hh` | `Reader`, `Lookup`, `ReaderError` |
-| | `detent/reader.h` | The C ABI under them: `detent_open`, `detent_eval`, `detent_get`, `detent_read`, `detent_refresh`, `detent_revision`, `detent_close` |
-| `detent::detent` | `detent/model.hh` | `Snapshot`, `KnobDef`, `BoolDef`, `IntDef`, `GroupRollout`, `SnapshotPatch` |
+| | `detent/reader.h` | The C ABI under them: `detent_open`, `detent_get`, `detent_refresh`, `detent_revision`, `detent_status_name`, `detent_close` |
+| `detent::detent` | `detent/model.hh` | `Snapshot`, `KnobDef`, `GroupOverride`, `GroupRollout`, `SnapshotPatch` |
 | | `detent/json_schema.hh` | `parse_defaults()`, `parse_source_snapshot()` and the other knob-definition parsers |
 | | `detent/result.hh` | `Result<T, E>` |
 | | `detent/errors.hh` | `KnobError`, `ErrorCategory`, `UpdateError`, `UpdateRejectReason` |

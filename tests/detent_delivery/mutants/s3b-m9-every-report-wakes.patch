@@ -1,0 +1,17 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..ff4969cf 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -133,10 +133,9 @@ struct Coordinator::Impl {
+ 	void request_repair(bool wake) noexcept {
+ 		if (!paged_writer)
+ 			return;
+-		if (diagnostic.repair.pending)
+-			return;
++		if (!diagnostic.repair.pending)
++			++diagnostic.repair.requested;
+ 		diagnostic.repair.pending = true;
+-		++diagnostic.repair.requested;
+ 		if (wake && diagnostic.phase == CoordinatorPhase::Receiving) {
+ 			repair_woke = true;
+ 			network_cancel.request();

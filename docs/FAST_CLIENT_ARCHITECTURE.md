@@ -10,7 +10,7 @@ Later resource-adoption qualification exposes repeatability limits in the unchan
 
 A fresh reader currently calls full generation recovery. The preserved 5M corpus takes 47.8–58.8 seconds to open and validate, separately from exhaustive oracle checks. Point reads afterward are local and substantially shorter. Repeating full graph validation in every application is a release performance blocker.
 
-Use the existing selected descriptor, independent generation lease and 320-byte paged root. Authenticate their filesystem provenance and validate only pages visited by a lookup. Keep the paged-v2 data representation and shared evaluator. Do not require a live-daemon endpoint, eager segment-directory transfer, or mapping all 1,441 packs before the first value.
+Use the existing selected descriptor, independent generation lease and 320-byte paged root. Authenticate their filesystem provenance and validate only pages visited by a lookup. Keep the paged data representation and shared evaluator. Do not require a live-daemon endpoint, eager segment-directory transfer, or mapping all 1,441 packs before the first value.
 
 ```text
 Trusted publisher files → selected descriptor + independently leased root
@@ -18,7 +18,7 @@ Trusted publisher files → selected descriptor + independently leased root
   → retained mappings and verified-page bits for subsequent reads
 ```
 
-The references already contain physical and logical hashes. `paged::verify_page()` verifies both. File ownership authenticates the configured publisher under the protected-directory contract; hashes detect corruption along the accessed path. A persisted boolean saying that data was validated is not that proof.
+Each reference carries its page's one digest, and `paged::verify_page()` checks the page's header, digest and structure against it; a bitmap hit compares the reached header with the reference. File ownership authenticates the configured publisher under the protected-directory contract; hashes detect corruption along the accessed path. A persisted boolean saying that data was validated is not that proof.
 
 ## Publication and provenance
 

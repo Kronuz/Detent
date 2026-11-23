@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..be2843d3 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -709,7 +709,7 @@ struct Coordinator::Impl {
+ 						}
+ 						result->ready.store(true, std::memory_order_release);
+ 					});
+-					while (!result->ready.load(std::memory_order_acquire)) {
++					while (!closing && !result->ready.load(std::memory_order_acquire)) {
+ 						scrub_wake->expires_after(std::chrono::milliseconds(1));
+ 						const auto error = co_await task::await_asio<void(asio::error_code)>(
+ 							[&](auto handler) { scrub_wake->async_wait(std::move(handler)); });

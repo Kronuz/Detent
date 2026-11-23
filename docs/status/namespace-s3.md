@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Ledger for namespace step S3 (D10 on today's store): trusted restart, first touch and the scrub are built; CI result in the log.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Ledger for namespace step S3 (D10 on today's store): trusted restart, first touch and the scrub are built; CI result in the log.
 
 # namespace-s3
 

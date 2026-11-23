@@ -21,7 +21,7 @@ cmake --build build -j 4
 export PATH="$PWD/build/src:$PATH"
 ```
 
-This builds the three programs the guide uses, in `build/src`: `detentd`, the
+This builds the three programs the guide uses, in `build/src`: `detent-authority`, the
 authority; `detent-agent`, the managed agent; and `detent`, the shell reader.
 The [Installation](/Detent/installation/) section covers compiler requirements,
 build options and platform notes.
@@ -41,15 +41,26 @@ OPENSSL_CONF=../../tests/detent_authority/tls_ambient.cnf \
   -P ../../tests/detent_authority/tls_certificates.cmake
 ```
 
+<!-- e2e:begin
+stdout:
+run: test -f certs/ca.pem && test -f certs/one.pem && test -f certs/one.key && test "$(basename "$PWD")" = quickstart
+e2e:end -->
+
 Then pick an authority identity and two tokens: one for the publisher, one for
 the agent. Identities are 32 hexadecimal characters; tokens are at least 32
 characters:
 
 ```sh
-IDENTITY="\"cluster\":\"$(openssl rand -hex 16)\",\"group\":\"$(openssl rand -hex 16)\",\"epoch\":\"$(openssl rand -hex 16)\""
+CLUSTER=$(openssl rand -hex 16)
+IDENTITY="\"cluster\":\"$CLUSTER\",\"group\":\"$(openssl rand -hex 16)\",\"epoch\":\"$(openssl rand -hex 16)\""
 WRITER_TOKEN=$(openssl rand -hex 24)
 READER_TOKEN=$(openssl rand -hex 24)
 ```
+
+<!-- e2e:begin
+stdout:
+run: test ${#IDENTITY} -gt 90 && test ${#WRITER_TOKEN} -eq 48 && test ${#READER_TOKEN} -eq 48
+e2e:end -->
 
 :::hint[Development only]{.caution}
 These certificates and tokens are for a local tutorial. A real deployment
@@ -77,8 +88,13 @@ cat > authority.json <<EOF
 }
 EOF
 chmod 600 authority.json
-detentd --authority authority.json --runtime-dir run --daemonize
+detent-authority --authority authority.json --runtime-dir run --daemonize
 ```
+
+<!-- e2e:begin
+stdout:
+run: test -s run/detent-authority-8317.pid
+e2e:end -->
 
 With no `voters`, the authority is a single voter. It listens on 127.0.0.1
 port 8317 and keeps its durable store in `authority-data`. The `writer`
@@ -98,19 +114,17 @@ api() {
     -H "Authorization: Bearer $WRITER_TOKEN" -H 'Content-Type: application/json' \
     --data "{$IDENTITY,$2}" "https://localhost:8317/v2/$1"
 }
-until api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'; do sleep 1; done
+api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'
 ```
 
-`--daemonize` returns once the authority listens, and the single voter elects
-itself leader shortly after. Until then the open returns `outcome_unknown`, and
-the loop retries the same request; the nonce marks each retry as the same open.
-A start looks like this, with the identity elided:
+<!-- e2e:begin
+stdout-matches: ^\{"authority":\{.*\},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0\}$
+e2e:end -->
+
+`--daemonize` returns once the authority has a leader, so the open succeeds on
+its first attempt. The reply looks like this, with the identity elided:
 
 ```text
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
 {"authority":{...},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0}
 ```
 
@@ -126,6 +140,11 @@ publish() {
 }
 ```
 
+<!-- e2e:begin
+stdout:
+run: test "$sequence" = 0 && type publish >/dev/null
+e2e:end -->
+
 ---
 
 ## Starting the Agent
@@ -133,8 +152,7 @@ publish() {
 ```sh
 cat > managed.json <<EOF
 {
-  $IDENTITY,
-  "principal": "agent-reader",
+  "cluster": "$CLUSTER",
   "namespaces": ["search", "checkout", "payments"],
   "token": "$READER_TOKEN",
   "ca": "certs/ca.pem"
@@ -145,6 +163,11 @@ detent-agent --managed managed.json --generation-dir agent-state --runtime-dir r
   --initialize-managed --daemonize
 export DETENT_GENERATION_DIR="$PWD/agent-state"
 ```
+
+<!-- e2e:begin
+rewrite: "ca": "certs/ca.pem" => "ca": "certs/ca.pem", "port": 8317
+run: detent-agent --status --generation-dir agent-state --runtime-dir run | grep -q '^running'
+e2e:end -->
 
 The agent connects to `localhost:8317` over TLS, checks the certificate against
 `certs/ca.pem`, and publishes immutable generations in `agent-state`.
@@ -159,11 +182,16 @@ leave it out. `detent get` reads the newest generation from
 Publish an integer knob and read it:
 
 ```sh
-publish search:max_results '{"type":"int","default":25}'
+publish search:max_results '{"default":25}'
 sleep 1
 detent get search:max_results
 # 25
 ```
+
+<!-- e2e:begin
+stdout-matches: "status":"applied","revision":1,"namespace_revision":1,"generation":1,"sequence":1\}$
+stdout-matches: ^25$
+e2e:end -->
 
 Each transaction replies with its outcome and the authority's new revision:
 
@@ -174,11 +202,16 @@ Each transaction replies with its outcome and the authority's new revision:
 Now change the value without restarting anything:
 
 ```sh
-publish search:max_results '{"type":"int","default":100}'
+publish search:max_results '{"default":100}'
 sleep 1
 detent get search:max_results
 # 100
 ```
+
+<!-- e2e:begin
+stdout-matches: "status":"applied","revision":2,"namespace_revision":2,"generation":1,"sequence":2\}$
+stdout-matches: ^100$
+e2e:end -->
 
 `sleep 1` gives the agent time to deliver the update. Your applications see it
 the same way: the next read after the update lands returns the new value, with

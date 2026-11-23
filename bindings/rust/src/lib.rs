@@ -22,13 +22,7 @@ struct OpenOptions {
     namespaces: *const Str,
     namespace_count: usize,
     publisher_uid: u32,
-}
-
-#[repr(C)]
-struct RawValue {
-    kind: c_int,
-    boolean: bool,
-    integer: i64,
+    mapping_bytes: u64,
 }
 
 #[repr(C)]
@@ -41,21 +35,13 @@ struct RawReader {
 extern "C" {
     fn detent_abi_version() -> u32;
     fn detent_open(options: *const OpenOptions, out: *mut *mut RawReader) -> c_int;
-    fn detent_eval(
+    fn detent_get(
         reader: *mut RawReader,
         name: Str,
         hash: Str,
         switch_value: Str,
-        fallback: bool,
-        out: *mut bool,
-    ) -> c_int;
-    fn detent_get(reader: *mut RawReader, name: Str, fallback: i64, out: *mut i64) -> c_int;
-    fn detent_read(
-        reader: *mut RawReader,
-        name: Str,
-        hash: Str,
-        switch_value: Str,
-        out: *mut RawValue,
+        fallback: i64,
+        out: *mut i64,
     ) -> c_int;
     fn detent_refresh(reader: *mut RawReader) -> c_int;
     fn detent_revision(reader: *mut RawReader, name_space: Str, out: *mut u64) -> c_int;
@@ -64,14 +50,15 @@ extern "C" {
 }
 
 const ABI_VERSION: u32 = 1;
-const KIND_BOOL: c_int = 1;
+
+/// The smallest `mapping_bytes` [`Reader::open`] accepts: 1 MiB of pack and its 6,560-byte bitmap.
+pub const MINIMUM_MAPPING_BYTES: u64 = 1_055_136;
 
 /// Why a lookup or an open did not succeed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Status {
     Missing,
-    WrongType,
     InvalidName,
     /// The namespace is outside the handle's list.
     NotOpened,
@@ -92,15 +79,14 @@ impl Status {
     fn from_raw(raw: c_int) -> Status {
         match raw {
             1 => Status::Missing,
-            2 => Status::WrongType,
-            3 => Status::InvalidName,
-            4 => Status::NotOpened,
-            5 => Status::SourceFailure,
-            6 => Status::Unavailable,
-            7 => Status::Untrusted,
-            8 => Status::InvalidArgument,
-            9 => Status::NoMemory,
-            10 => Status::Io,
+            2 => Status::InvalidName,
+            3 => Status::NotOpened,
+            4 => Status::SourceFailure,
+            5 => Status::Unavailable,
+            6 => Status::Untrusted,
+            7 => Status::InvalidArgument,
+            8 => Status::NoMemory,
+            9 => Status::Io,
             other => Status::Unknown(other as u32),
         }
     }
@@ -109,15 +95,14 @@ impl Status {
     pub fn name(&self) -> String {
         let raw: c_int = match self {
             Status::Missing => 1,
-            Status::WrongType => 2,
-            Status::InvalidName => 3,
-            Status::NotOpened => 4,
-            Status::SourceFailure => 5,
-            Status::Unavailable => 6,
-            Status::Untrusted => 7,
-            Status::InvalidArgument => 8,
-            Status::NoMemory => 9,
-            Status::Io => 10,
+            Status::InvalidName => 2,
+            Status::NotOpened => 3,
+            Status::SourceFailure => 4,
+            Status::Unavailable => 5,
+            Status::Untrusted => 6,
+            Status::InvalidArgument => 7,
+            Status::NoMemory => 8,
+            Status::Io => 9,
             Status::Unknown(other) => *other as c_int,
         };
         // SAFETY: detent_status_name returns a static NUL-terminated string for any value.
@@ -125,12 +110,47 @@ impl Status {
     }
 }
 
-/// A knob's value, as [`Reader::lookup`] returns it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Value {
-    Bool(bool),
-    Int(i64),
+mod sealed {
+    pub trait Sealed {}
 }
+
+/// A type [`Reader::get_as`] reads a knob as: `bool` (0 or 1) or a fixed-width integer.
+pub trait Knob: Copy + sealed::Sealed {
+    #[doc(hidden)]
+    fn to_knob(self) -> i64;
+    #[doc(hidden)]
+    fn from_knob(value: i64) -> Option<Self>;
+}
+
+impl sealed::Sealed for bool {}
+impl Knob for bool {
+    fn to_knob(self) -> i64 {
+        self as i64
+    }
+    fn from_knob(value: i64) -> Option<Self> {
+        match value {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        }
+    }
+}
+
+macro_rules! integer_knob {
+    ($($t:ty),*) => {$(
+        impl sealed::Sealed for $t {}
+        impl Knob for $t {
+            // A fallback outside i64 wraps here and comes back out of range, so get_as returns it as is.
+            fn to_knob(self) -> i64 {
+                self as i64
+            }
+            fn from_knob(value: i64) -> Option<Self> {
+                <$t>::try_from(value).ok()
+            }
+        }
+    )*};
+}
+integer_knob!(i8, i16, i32, i64, u8, u16, u32, u64);
 
 /// Opening failed; the only error that is ever raised.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -171,10 +191,13 @@ impl Reader {
     /// Opens `store`. `publisher_uid` is the uid the agent runs as: trust is never inferred from the
     /// directory's owner. `namespaces` limits the handle; empty means all, including later ones. A store
     /// that does not exist yet opens, and lookups return the fallback with [`Status::Unavailable`].
+    /// `mapping_bytes` caps mapped packs and their bitmaps; 0 means 512 MiB, and a cap below one pack
+    /// and its bitmap ([`MINIMUM_MAPPING_BYTES`]) fails with [`Status::InvalidArgument`].
     pub fn open(
         store: impl AsRef<Path>,
         publisher_uid: u32,
         namespaces: &[&str],
+        mapping_bytes: u64,
     ) -> Result<Reader, ReaderError> {
         // SAFETY: no pointers are passed.
         if unsafe { detent_abi_version() } != ABI_VERSION {
@@ -188,6 +211,7 @@ impl Reader {
             namespaces: names.as_ptr(),
             namespace_count: names.len(),
             publisher_uid,
+            mapping_bytes,
         };
         let mut handle: *mut RawReader = std::ptr::null_mut();
         // SAFETY: `options` and what it points to outlive the call; detent_open copies what it keeps.
@@ -198,46 +222,46 @@ impl Reader {
         Ok(Reader { handle })
     }
 
-    /// A bool knob, or `fallback` on any error.
-    pub fn eval(
+    /// The knob's value, or `fallback` on any error.
+    pub fn get(
         &self,
         name: &str,
-        fallback: bool,
+        fallback: i64,
         hash: Option<&str>,
         switch_value: Option<&str>,
-    ) -> bool {
-        let mut out = fallback;
-        // SAFETY: the handle is live for `&self`; every string outlives the call.
-        unsafe {
-            detent_eval(self.handle, text(name), optional(hash), optional(switch_value), fallback, &mut out)
-        };
-        out
+    ) -> i64 {
+        self.lookup(name, fallback, hash, switch_value).unwrap_or(fallback)
     }
 
-    /// An integer knob, or `fallback` on any error.
-    pub fn get(&self, name: &str, fallback: i64) -> i64 {
-        let mut out = fallback;
-        // SAFETY: as in `eval`.
-        unsafe { detent_get(self.handle, text(name), fallback, &mut out) };
-        out
+    /// The knob read as `T`, as C++'s `get_as<T>`: `fallback` on any error or when the value is out of
+    /// `T`'s range (for `bool`, other than 0 or 1).
+    pub fn get_as<T: Knob>(
+        &self,
+        name: &str,
+        fallback: T,
+        hash: Option<&str>,
+        switch_value: Option<&str>,
+    ) -> T {
+        T::from_knob(self.get(name, fallback.to_knob(), hash, switch_value)).unwrap_or(fallback)
     }
 
     /// The knob's value, or the status that explains why it is unavailable.
     pub fn lookup(
         &self,
         name: &str,
+        fallback: i64,
         hash: Option<&str>,
         switch_value: Option<&str>,
-    ) -> Result<Value, Status> {
-        let mut out = RawValue { kind: 0, boolean: false, integer: 0 };
-        // SAFETY: as in `eval`.
+    ) -> Result<i64, Status> {
+        let mut out = fallback;
+        // SAFETY: the handle is live for `&self`; every string outlives the call.
         let raw = unsafe {
-            detent_read(self.handle, text(name), optional(hash), optional(switch_value), &mut out)
+            detent_get(self.handle, text(name), optional(hash), optional(switch_value), fallback, &mut out)
         };
-        if raw != 0 {
-            return Err(Status::from_raw(raw));
+        match raw {
+            0 => Ok(out),
+            raw => Err(Status::from_raw(raw)),
         }
-        Ok(if out.kind == KIND_BOOL { Value::Bool(out.boolean) } else { Value::Int(out.integer) })
     }
 
     /// Attaches now rather than on the next lookup; call it from a thread of your choosing.
@@ -252,7 +276,7 @@ impl Reader {
     /// The revision of `namespace`'s attached generation, or `None` when it is not available.
     pub fn revision(&self, namespace: &str) -> Option<u64> {
         let mut out = 0u64;
-        // SAFETY: as in `eval`.
+        // SAFETY: the handle is live for `&self`; `namespace` outlives the call.
         match unsafe { detent_revision(self.handle, text(namespace), &mut out) } {
             0 => Some(out),
             _ => None,
@@ -264,5 +288,36 @@ impl Drop for Reader {
     fn drop(&mut self) {
         // SAFETY: `&mut self` means no lookup is in flight; the handle is closed exactly once.
         unsafe { detent_close(self.handle) };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Statuses are numbered by hand; every value through the last known must name what reader.h names.
+    #[test]
+    fn statuses_match_the_header() {
+        let names = [
+            "ok", "missing", "invalid_name", "not_opened", "source_failure", "unavailable", "untrusted",
+            "invalid_argument", "no_memory", "io",
+        ];
+        for (raw, name) in names.iter().enumerate().skip(1) {
+            // SAFETY: detent_status_name returns a static NUL-terminated string for any value.
+            let core = unsafe { CStr::from_ptr(detent_status_name(raw as c_int)) }.to_string_lossy().into_owned();
+            assert_eq!(&core, name, "reader.h names status {raw}");
+            assert_eq!(Status::from_raw(raw as c_int).name(), *name, "Status::from_raw({raw})");
+        }
+        assert_eq!(Status::Untrusted.name(), "untrusted");
+        assert_eq!(Status::Unavailable.name(), "unavailable");
+        assert_eq!(Status::Io.name(), "io");
+    }
+
+    #[test]
+    fn knob_conversions() {
+        assert_eq!(bool::from_knob(2), None);
+        assert_eq!(i8::from_knob(128), None);
+        assert_eq!(u64::from_knob(-1), None);
+        assert_eq!(u64::from_knob(7), Some(7));
     }
 }

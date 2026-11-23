@@ -7,17 +7,19 @@ C++, the Python and Rust bindings over the same C ABI, and `detent get`.
 
 ---
 
-## Bool Knobs
+## Reads
 
 ```cpp
-bool eval(name, fallback, hash = nullopt, switch_value = nullopt);
+std::int64_t get(name, fallback, hash = nullopt, switch_value = nullopt);
+T get_as<T>(name, fallback, hash = nullopt, switch_value = nullopt);
+Lookup lookup(name, fallback, hash = nullopt, switch_value = nullopt);
 ```
 
-```d2 alt="Bool evaluation precedence: look the knob up, then an exact group match, then the knob-wide rollout if a hash is present, then the default; any error returns the caller's fallback"
+```d2 alt="Evaluation precedence: look the knob up, then an exact group match, then the knob-wide rollout if a hash is present, then the default; any error returns the caller's fallback"
 direction: down
-lookup: "Knob in generation\nand a bool?" {shape: diamond}
+lookup: "Knob in\ngeneration?" {shape: diamond}
 group: "switch_value exactly\nmatches an override?" {shape: diamond}
-grouptype: "Forced bool or\ngroup rollout?" {shape: diamond}
+grouptype: "Forced value or\ngroup rollout?" {shape: diamond}
 rollout: "rollout_pct set and\nhash present?" {shape: diamond}
 default: "return default"
 lookup -> "return fallback\n(status says why)": no
@@ -25,40 +27,32 @@ lookup -> group: yes
 group -> grouptype: yes
 group -> rollout: no
 grouptype -> "return forced value": forced
-grouptype -> "bucket < group pct\n(default if no hash)": rollout
-rollout -> "bucket < rollout_pct": yes
+grouptype -> "bucket < group pct ?\nrollout_value : default": rollout
+rollout -> "bucket < rollout_pct ?\nrollout_value : default": yes
 rollout -> default: no
 ```
 
-1. **Lookup.** Find `name` in the attached generation. Absent is `MISSING`; an
-   int knob is `WRONG_TYPE`. Either returns `fallback`.
+1. **Lookup.** Find `name` in the attached generation. Absent is `MISSING`
+   and returns `fallback`.
 2. **Group override.** If `switch_value` is present and exactly matches a key
    in `overrides`:
-   - A forced `true`/`false` returns that value.
-   - A `{"rollout_pct": N}` returns `bucket < N` when `hash` is present, and
-     `default` when it isn't.
+   - A forced integer returns that value.
+   - A `{"rollout_pct": N}` returns `rollout_value` when `hash` is present and
+     `bucket < N`, and `default` otherwise.
 3. **Knob-wide rollout.** If `rollout_pct` is set and `hash` is present,
-   return `bucket < rollout_pct`.
+   return `rollout_value` when `bucket < rollout_pct`, and `default` otherwise.
 4. **Default.** Return the knob's `default`.
 
-An unmatched `switch_value` simply falls through to step 3. The knob's
+An unmatched `switch_value` simply falls through to step 3. A caller outside a
+percentage, or without a hash, gets `default`: a rollout ramps callers from
+`default` to `rollout_value` and never serves a third value. The knob's
 `default` is the published one; the caller's `fallback` answers only when the
 knob can't be read.
 
----
-
-## Int Knobs
-
-```cpp
-std::int64_t get(name, fallback);
-```
-
-1. **Lookup.** Absent is `MISSING`; a bool knob is `WRONG_TYPE`. Either
-   returns `fallback`.
-2. Return the knob's `default`.
-
-`lookup(name, hash, switch_value)` runs the same rules for either type and
-returns the status with the value, which carries its kind: bool or int.
+`get_as<T>` calls `get`, then converts with a range check: a value that doesn't
+fit `T` returns `fallback`, never truncated or wrapped. `get_as<bool>` takes 0
+as `false` and 1 as `true`; any other value returns `fallback`. `lookup` runs
+the same rules and returns the status with the value.
 
 ---
 
@@ -78,8 +72,8 @@ bucket = u64 % 100
 3. **Independence.** Including the knob name gives the same entity unrelated
    buckets for different knobs.
 4. **Monotonic ramps.** `bucket < pct` means raising `pct` only adds buckets.
-5. **Boundaries.** `0` enables nobody; `100` enables every caller that supplies
-   a hash value.
+5. **Boundaries.** `0` serves `rollout_value` to nobody; `100` serves it to
+   every caller that supplies a hash value.
 6. **No implicit hash.** Without `hash`, the rollout is skipped. An empty
    string is a hash value like any other only if you pass one explicitly.
 
@@ -100,8 +94,8 @@ def bucket(name: str, hash_val: str) -> int:
     digest = hashlib.sha256(name.encode() + b"\0" + hash_val.encode()).digest()
     return int.from_bytes(digest[:8], "big") % 100
 
-bucket("payments:new_processor", "user-1")   # 10: off at 10%, on at 50%
-bucket("payments:new_processor", "user-42")  # 2:  on at 10%
+bucket("payments:new_processor", "user-1")   # 10: outside 10%, inside 50%
+bucket("payments:new_processor", "user-42")  # 2:  inside 10%
 ```
 
 ---

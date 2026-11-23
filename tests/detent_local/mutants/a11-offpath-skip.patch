@@ -1,0 +1,29 @@
+diff --git a/src/detent_local/paged_packer.cc b/src/detent_local/paged_packer.cc
+index 63b0ad3..bf515f4 100644
+--- a/src/detent_local/paged_packer.cc
++++ b/src/detent_local/paged_packer.cc
+@@ -22,6 +22,7 @@ struct Cluster {
+ 	std::uint64_t keys = 0;
+ 	std::uint16_t count = 0;
+ 	unsigned height = 0;
++	bool injected = false;
+ 	p::Reference reference;
+ 	explicit Cluster(const std::shared_ptr<d::StorageLedger> &account)
+ 		: nodes(d::StorageAllocator<char>(account)),
+@@ -267,6 +268,7 @@ void PagedPacker::step(ValidationBudget &budget) {
+ 				s.current =
+ 					d::make_storage_owner<Cluster>(s.account, std::malloc, std::free, s.account);
+ 				s.current->path_size = s.injected_path.size();
++				s.current->injected = true;
+ 				std::copy(s.injected_path.begin(), s.injected_path.end(), s.current->path.begin());
+ 				s.injected_position = s.injected_start;
+ 				s.injected_depth = 0;
+@@ -418,7 +420,7 @@ void PagedPacker::step(ValidationBudget &budget) {
+ 					const auto first = s.frontier.size() - s.event.children.size();
+ 					for (std::size_t i = first; i < s.frontier.size(); ++i) {
+ 						auto &candidate = *s.frontier[i];
+-						if (candidate.sealed() || !p::seal_eligible(candidate.size()))
++						if (candidate.sealed() || candidate.injected || !p::seal_eligible(candidate.size()))
+ 							continue;
+ 						if (!best || p::seals_before(candidate.height, candidate.size(),
+ 													 best->height, best->size()))

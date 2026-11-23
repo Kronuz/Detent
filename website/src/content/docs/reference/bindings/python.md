@@ -15,13 +15,14 @@ on free-threaded builds without a lock.
 ## `detent.Reader`
 
 ```python
-detent.Reader(store: str | bytes | os.PathLike, publisher_uid: int, namespaces=())
+detent.Reader(store: str | bytes | os.PathLike, publisher_uid: int, namespaces=(), mapping_bytes: int = 0)
 ```
 
 Opens the agent's store directory. `publisher_uid` is the uid the agent runs
 as; `namespaces` is an iterable of `str` that limits the reader, and empty
-means all of them. A store that doesn't exist yet opens, and lookups return the
-fallback with `Status.UNAVAILABLE`.
+means all of them. `mapping_bytes` caps the bytes the reader maps; 0 means
+512 MiB. A store that doesn't exist yet opens, and lookups return the fallback
+with `Status.UNAVAILABLE`.
 
 Opening is the only call that raises: `detent.ReaderError` for a failed open,
 `TypeError` or `OverflowError` for a bad argument. Importing the module raises
@@ -34,15 +35,18 @@ The type can't be subclassed.
 ### Lookups
 
 ```python
-Reader.eval(name: str, fallback: bool, hash: str | None = None, switch_value: str | None = None) -> bool
-Reader.get(name: str, fallback: int) -> int
-Reader.lookup(name: str, hash: str | None = None, switch_value: str | None = None) -> Lookup
+Reader.get(name: str, fallback: int, hash: str | None = None, switch_value: str | None = None) -> int
+Reader.get_bool(name: str, fallback: bool, hash: str | None = None, switch_value: str | None = None) -> bool
+Reader.lookup(name: str, fallback: int, hash: str | None = None, switch_value: str | None = None) -> Lookup
 ```
 
-`eval` and `get` return `fallback` on any error. A non-`bool` fallback to
-`eval`, a non-`int` or `bool` fallback to `get`, or a non-`str` name raises
-`TypeError`; an integer outside int64 raises `OverflowError`. Lookups keep the
-GIL.
+`get` returns the knob's integer with the
+[standard precedence](/Detent/reference/evaluation/). `get_bool` returns
+`False` for 0 and `True` for 1. Both return `fallback` on any error, and
+`get_bool` also for any other value. A `bool` or other non-`int` fallback to
+`get` or `lookup`, a non-`bool` fallback to `get_bool`, or a non-`str` name
+raises `TypeError`; an integer outside int64 raises `OverflowError`. Lookups
+keep the GIL.
 
 ### Freshness
 
@@ -59,12 +63,12 @@ revision, or `None`.
 
 ## `detent.Lookup`
 
-`lookup()` returns a `Lookup` with `.status` (a `Status`) and `.value` (a
-`bool` or `int`, or `None` unless the status is `OK`). It's truthy when the
+`lookup()` returns a `Lookup` with `.status` (a `Status`) and `.value` (the
+knob's `int`, or the fallback unless the status is `OK`). It's truthy when the
 status is `OK`.
 
 ```python
-result = reader.lookup("search:max_results")
+result = reader.lookup("search:max_results", 25)
 if not result:
     print(result.status.name)   # e.g. MISSING, UNAVAILABLE
 ```
@@ -73,7 +77,7 @@ if not result:
 
 ## `detent.Status`
 
-An `IntEnum` with the C ABI's values: `OK`, `MISSING`, `WRONG_TYPE`,
+An `IntEnum` with the C ABI's values: `OK`, `MISSING`,
 `INVALID_NAME`, `NOT_OPENED`, `SOURCE_FAILURE`, `UNAVAILABLE`, `UNTRUSTED`,
 `INVALID_ARGUMENT`, `NO_MEMORY`, `IO`. A value newer than the binding maps to a
 member named `UNKNOWN_<n>` that keeps the integer. The

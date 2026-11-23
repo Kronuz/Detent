@@ -37,62 +37,63 @@ std::uint64_t minimum(std::span<const char> bytes, std::size_t offset, unsigned 
 	return value << ((width - available) * 8);
 }
 } // namespace
-std::optional<std::pair<distribution::Cursor, distribution::Profile>>
+std::optional<std::pair<distribution::NamespaceCursor, distribution::Profile>>
 validate_paged_root_prefix(std::span<const char> bytes) {
 	require(bytes.size() <= p::root_bytes);
-	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '2', 0, 0, 0, 2, 0, 0, 1, 64};
+	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '4', 0, 0, 0, 4, 0, 0, 1, 64};
 	matches(bytes, 0, framing);
 	zeros(bytes, 48, 56);
+	zeros(bytes, 96, 144);
 	zeros(bytes, 148, 152);
-	zeros(bytes, 280, 320);
+	zeros(bytes, 228, 320);
 	constexpr std::array<char, 4> semantic{0, 0, 0, 1};
 	matches(bytes, 144, semantic);
 	zeros(bytes, 152, 159);
 	if (bytes.size() >= 160)
 		require(!(static_cast<unsigned char>(bytes[159]) & ~1u));
-	for (const auto offset : {64u, 80u, 96u})
+	for (const auto offset : {64u, 80u})
 		nonzero(bytes, offset, 16);
-	nonzero(bytes, 112, 32);
 	if (bytes.size() >= 40) {
 		const auto live = read_integer(bytes, 16, 8), pages = read_integer(bytes, 32, 8);
 		const auto keys = read_integer(bytes, 24, 4) + read_integer(bytes, 28, 4);
 		if (!pages) {
 			require(!live && !keys);
 			zeros(bytes, 40, 48);
-			zeros(bytes, 160, 248);
-			matches(bytes, 248, p::empty_commitment());
+			zeros(bytes, 160, 228);
 		} else {
-			require(keys && pages >= keys && pages <= live / p::page_header_bytes);
+			// The tree reference is a child entry: content [160,208), placement [208,228).
+			require(keys && pages < 2 * keys && pages <= live / p::minimum_page_bytes);
 			if (bytes.size() > 40)
 				require(minimum(bytes, 40, 8) <= pages);
 			if (bytes.size() >= 48)
 				require(read_integer(bytes, 40, 8) != 0);
-			nonzero(bytes, 160, 16);
-			if (bytes.size() > 176)
-				require(minimum(bytes, 176, 4) <= p::segment_bytes);
-			if (bytes.size() > 180)
-				require(minimum(bytes, 180, 4) <= p::page_bytes);
-			if (bytes.size() >= 180)
-				require(read_integer(bytes, 176, 4) % 8 == 0);
-			if (bytes.size() >= 184) {
-				const auto offset = read_integer(bytes, 176, 4), length = read_integer(bytes, 180, 4);
-				require(length >= p::page_header_bytes && length <= p::segment_bytes - offset &&
-						length <= live);
-				require(live - length >= (pages - 1) * p::page_header_bytes);
+			nonzero(bytes, 160, 32);
+			if (bytes.size() >= 200)
+				require(read_integer(bytes, 192, 8) == keys);
+			if (bytes.size() > 200)
+				require(minimum(bytes, 200, 4) <= p::page_bytes);
+			if (bytes.size() >= 204) {
+				const auto length = read_integer(bytes, 200, 4);
+				require(length >= p::minimum_page_bytes && length <= live &&
+						pages - 1 <= (live - length) / p::minimum_page_bytes);
 			}
-			nonzero(bytes, 184, 32);
-			nonzero(bytes, 216, 32);
-			if (bytes.size() >= 248)
-				matches(bytes, 248, bytes.subspan(216, 32));
+			if (bytes.size() >= 205)
+				require(bytes[204] != 0);
+			zeros(bytes, 205, 208);
+			nonzero(bytes, 208, 16);
+			if (bytes.size() > 224)
+				require(minimum(bytes, 224, 4) <= p::segment_bytes);
+			if (bytes.size() >= 228) {
+				const auto offset = read_integer(bytes, 224, 4), length = read_integer(bytes, 200, 4);
+				require(offset % 8 == 0 && length <= p::segment_bytes - offset);
+			}
 		}
 	}
 	if (bytes.size() >= 160) {
-		distribution::Cursor cursor;
-		cursor.revision = read_integer(bytes, 56, 8);
+		distribution::NamespaceCursor cursor;
+		cursor.position = read_integer(bytes, 56, 8);
 		std::copy_n(bytes.begin() + 64, 16, cursor.cluster.begin());
-		std::copy_n(bytes.begin() + 80, 16, cursor.group.begin());
-		std::copy_n(bytes.begin() + 96, 16, cursor.restore_epoch.begin());
-		std::copy_n(bytes.begin() + 112, 32, cursor.scope.begin());
+		std::copy_n(bytes.begin() + 80, 16, cursor.incarnation.begin());
 		distribution::Profile profile{static_cast<std::uint32_t>(read_integer(bytes, 144, 4)),
 									  read_integer(bytes, 152, 8)};
 		return std::pair(cursor, profile);

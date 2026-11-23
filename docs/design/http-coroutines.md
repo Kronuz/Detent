@@ -32,7 +32,7 @@ in `http::DeferredReply`, and pass admission through `Request::user_data`. This 
    the only refusals clients see, and http's `in_flight_limit` is set so its gate never fires.
 4. Answers every submitted command truthfully with at least 1 s to write the reply, keeps the receive
    window at T, and writes shutdown replies through the buffered writer (N1).
-5. Moves Detent's own `asio::awaitable` code (delivery client, coordinator, completion scheduler,
+5. Moves Detent's own `asio::awaitable` code (delivery client, coordinator,
    managed host, HTTPS client, authority runtime, relay owner, `fleet_load`) to `task::task`, as the
    architect ruled on http's Q2 (`task-handlers-rev2-design.md`, "Rulings").
 
@@ -96,8 +96,6 @@ tests benchmarks` at `Detent:6a31280`, by file, with the line of every match:
 | `include/detent_delivery/client.hh` | 42 103 104 107 109 110 115 | Public `open_session`, `next_session`, `close_session` | S6 |
 | `src/detent_delivery/client.cc` | 7 141 144 174 178 185 191 197 213 230 235 237 247 254 269 292 297 301 303 312 473 495 505 541 563 620 630 640 650 | Delivery transport; `\|\|` deadline race (`:301-303`) | S6 |
 | `src/detent_delivery/client_probe_internal.hh` | 10 14 | `ProbeAccess::next`, `reference` | S6 |
-| `src/detent_delivery/completion_scheduler.cc` | 80 85 89 94 108 119 | Owner-executor check (`:89`), disabled cancellation (`:94`); awaits the completion driver (`:122`) | S7 |
-| `include/detent_delivery/completion_scheduler.hh` | 16 36 | `CompletionPort::run_one`, `run_owned` | S7 |
 | `src/detent_delivery/coordinator.cc` | 17 138 139 146 149 152 164 171 175 253 312 500 518 531 550 631 638 726 770 774 775 791 806 848 851 853 873 875 914 915 916 1165 1172 1174 1175 1178 | Coordinator loops; `co_spawn` bound to `network_cancel` (`:851-853`, `:873-875`, `:914-916`); `&&` (`:1178-1179`); awaits the driver (`:674`) | S8 |
 | `include/detent_delivery/coordinator.hh` | 81 89 | `Coordinator::run`, `run_owned` | S8 |
 | `src/detent_agent/managed_host.cc` | 8 26 28 90 107 109 169 | `monitor`; `supervise` with `&&` (`:109-111`); `co_spawn(..., use_future)` (`:169`) | S8 |
@@ -114,16 +112,14 @@ tests benchmarks` at `Detent:6a31280`, by file, with the line of every match:
 | `tests/detent_delivery/bootstrap_tls_fixture.hh` | 18 21 59 64 81 92 100 | TLS bootstrap fixture | S6 |
 | `tests/detent_delivery/test_bootstrap_retention.cc` | 84 | Retention test | S6 |
 | `tests/detent_delivery/relay_network_fixture.hh` | 47 49 69 77 100 101 102 109 110 126 152 172 188 259 274 281 296 322 | Relay network fixture (client and coordinator halves) | S6, S8 |
-| `tests/detent_delivery/test_completion_scheduler.cc` | 77 84 85 86 87 96 99 107 127 | Completion scheduler | S7 |
 | `tests/detent_delivery/test_coordinator.cc` | 9 235 238 244 257 269 280 316 322 324 346 356 358 360 363 383 395 400 407 408 413 884 1035 1114 1139 1177 | Coordinator | S8 |
 | `tests/detent_delivery/test_preparation_deadline.cc` | 5 22 23 27 36 38 41 48 53 54 86 | Preparation deadline | S8 |
 | `tests/detent_delivery/test_prepared_startup.cc` | 7 55 57 73 90 100 102 173 | Prepared startup | S8 |
 | `tests/detent_delivery/test_worker.cc` | 39 42 51 61 109 112 | Worker | S8 |
 
-Twelve `src` and `include` files: the eleven with `asio::awaitable` that the architect counted, plus
-`src/detent_relay/host.cc`, which only calls `co_spawn`. One benchmark and fifteen test files follow.
-The completion driver Detent awaits at `service.cc:1111`, `completion_scheduler.cc:122` and
-`coordinator.cc:674` is `kronuz::journal::AsioCompletionDriver::run`/`run_one`, which returns
+Ten `src` and `include` files: the nine with `asio::awaitable` that the architect counted, plus
+`src/detent_relay/host.cc`, which only calls `co_spawn`. One benchmark and fourteen test files follow.
+The completion driver Detent awaits at `service.cc:1111` and `coordinator.cc:674` is `kronuz::journal::AsioCompletionDriver::run`/`run_one`, which returns
 `asio::awaitable<void>` (`completion/include/completion/asio_completion.h:101-112` at
 `completion:e2c6474`); Q6 asks where it moves.
 
@@ -419,8 +415,7 @@ into W2 (http Q2). Each construct has one replacement from task's API (`docs/API
 | `op \|\| timer.async_wait(...)` (`client.cc:301-303`, `https_client.hh:82-84`) | A `task::deadline` whose token every operation inside takes through `await_asio` (task D4: a deadline is a token source, not `when_any`); the expiry maps to today's exception (`SourceUnavailableError("delivery network deadline")`, `client.cc:305`; `"HTTPS health deadline"`, `https_client.hh:86`) |
 | `a && b` (`coordinator.cc:1178-1179`, `managed_host.cc:109-111`) | `task::when_all(a, b)` |
 | `bind_cancellation_slot(network_cancel.slot(), ...)` (`coordinator.cc:851-916`) and `network_cancel.emit` (`:704`, `:1221`) | A `task::cancel_source` whose token the client functions take as a parameter; `emit` becomes `request()` |
-| `reset_cancellation_state(disable_cancellation())` (`completion_scheduler.cc:94`, `coordinator.cc:1174`) | Structural: the operations take no token |
-| `co_await this_coro::executor != owner` (`completion_scheduler.cc:89`) | `assert(sched.runs_here())` |
+| `reset_cancellation_state(disable_cancellation())` (`coordinator.cc:1174`) | Structural: the operations take no token |
 | `co_await asio::post(io, use_awaitable)` | `co_await task::yield()` |
 | `timer.async_wait(use_awaitable)` | `await_asio<void(asio::error_code)>(...)`, with a token where something cancels it |
 | `experimental::channel`, `cancellation_signal` (`fleet_load.cc:27,47,561`) | An event in the slot's state; a `cancel_source` |
@@ -531,8 +526,7 @@ behind commits.*
 
 **Q6 (owner). The completion driver's `asio::awaitable` API.** `AsioCompletionDriver::run` and
 `run_one` return `asio::awaitable<void>` (`completion/include/completion/asio_completion.h:101-112`),
-and Detent awaits them at three sites (`service.cc:1111`, `completion_scheduler.cc:122`,
-`coordinator.cc:674`). Its other users are completion's own `test/asio_extension_test.cc` and
+and Detent awaits them at two sites (`service.cc:1111`, `coordinator.cc:674`). Its other users are completion's own `test/asio_extension_test.cc` and
 consensus's `test/completion_asio_test.cc` and `bench/worker_completion_bench.cc`; journal, cluster,
 strata, prism and Xapiand do not use it. Options:
 
@@ -571,7 +565,7 @@ lands; the others follow their inputs.
 | S4 Authority | Runtime `OwnerLoop` as a `Service` member (D2 lifetime 2, N4); `Runtime::run` and its waits on task (`service.cc:1137-1161`, `:1612-1628`, `:2527-2737`; the driver await at `:1111` waits for S7); `create_extension`, the hop, owned-stream replies with `request.keep_alive` (D8, N3), buffered shutdown replies (N1), the reply budget (D9), `begin_shutdown()` (D10); tests off `DeferredWriter`; the parse timing (C2) | S2 | T1(e), T4, T6 authority rows, T11 and T13 authority pass in native, `build-asan`, `build-tsan`; T10's first pattern empty |
 | S5 `--workers` | D11 and its docs | S2 | T10 empty, both patterns |
 | S6 Delivery and HTTPS clients | D16 for `https_client.hh`, `client.hh`, `client.cc`, `client_probe_internal.hh`; their tests (`test_client.cc`, `test_probe_client.cc`, `test_reconnect_cancel.cc`, `bootstrap_tls_fixture.hh`, `test_bootstrap_retention.cc`, `test_transport_https.cc:120`, the client half of `relay_network_fixture.hh`) | S1 (the task pin) | Those files have no T12 match; their suites pass in all three builds; a test expires the network deadline mid-body and gets `SourceUnavailableError("delivery network deadline")`, and fails with the deadline's token not passed |
-| S7 Completion driver | Q6 option 1: completion's driver on task, completion's and consensus's test and bench migrated; then Detent's `CompletionScheduler` (`completion_scheduler.hh`, `.cc`), `service.cc:1111`, `test_completion_scheduler.cc`, `test_transport_peers.cc` | Q6 answered; S1 | completion and consensus CI green on every job; Detent's touched files have no T12 match; `test_completion_scheduler` passes in all three builds |
+| S7 Completion driver | Q6 option 1: completion's driver on task, completion's and consensus's test and bench migrated; then Detent's `service.cc:1111` and `test_transport_peers.cc` | Q6 answered; S1 | completion and consensus CI green on every job; Detent's touched files have no T12 match; their suites pass in all three builds |
 | S8 Coordinator, managed host, relay owner | D16 for `coordinator.hh`, `coordinator.cc`, `managed_host.cc`, `managed_host_internal.hh`, and `host.cc:362` on a relay `OwnerLoop` with D15; their tests (`test_coordinator.cc`, `test_preparation_deadline.cc`, `test_prepared_startup.cc`, `test_worker.cc`, `test_distribution_service.cc:243`, the coordinator half of `relay_network_fixture.hh`) | S6, S7 | No T12 match outside `benchmarks`; those suites pass in all three builds; T13 relay passes |
 | S9 Benchmark and the grep | `benchmarks/fleet_load.cc` on task; T12 as a CI step | S8 | T12 empty; `fleet_load` runs its smoke configuration |
 | S10 Proof | T3 with its mutant, T8 in both sanitizer builds; then the lead's T9 | S3-S9 | T3 and T8 pass; the lead records T9 |

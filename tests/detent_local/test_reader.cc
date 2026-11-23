@@ -1,5 +1,6 @@
 #include "detent_local/reader.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <thread>
@@ -23,33 +24,23 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-		l::GenerationId generation;
-		generation.fill('g');
-		l::ImageBuilder builder(source, generation);
-		while (!builder.done()) {
-			l::ValidationBudget budget;
-			builder.step(budget);
-		}
-		auto descriptor = builder.descriptor();
-		auto name = l::generation_name(generation);
-		auto image = builder.bytes();
-		write(directory / (name + ".image"), {image->data(), image->size()});
-		write(directory / (name + ".lease"), {});
-		write(directory / "selected", l::encode_descriptor(descriptor));
+		const auto image = trusted_records::build(source);
+		const auto descriptor = image.descriptor();
+		trusted_records::install(directory, image);
+		const auto table = trusted_records::slurp(directory / "selected");
 		l::ViewLimits limits;
-		const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-		const auto capacity = (image->size() + page - 1) / page * page;
+		const auto capacity = trusted_records::mapped_bytes(image);
 		limits.mapping_account = std::make_shared<d::StorageLedger>(capacity);
-		l::GenerationReader reader(directory, limits, cursor());
+		l::GenerationReader reader(directory, limits, local_cursor());
 		require(!reader.read_view());
 		require(reader.refresh());
 		require(limits.mapping_account->used() == capacity);
 		// The existing mapping exhausts admission: polling must not remap it.
 		require(!reader.refresh());
 		auto pinned = reader.read_view();
-		require(pinned.cursor() == cursor());
-		auto foreign = cursor();
-		foreign.scope[0] ^= 1;
+		require(pinned.cursor() == local_cursor());
+		auto foreign = local_cursor();
+		foreign.incarnation[0] ^= 1;
 		l::GenerationReader wrong(directory, {}, foreign);
 		bool foreign_rejected = false;
 		try {
@@ -61,7 +52,7 @@ int main() {
 		std::jthread reads([&](std::stop_token stop) {
 			while (!stop.stop_requested()) {
 				auto view = reader.read_view();
-				require(view && view.cursor() == cursor());
+				require(view && view.cursor() == local_cursor());
 			}
 		});
 		for (unsigned i = 0; i != 10; ++i)
@@ -74,14 +65,14 @@ int main() {
 		std::filesystem::rename(directory, moved);
 		std::filesystem::create_directory(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-		write(directory / "selected", l::encode_descriptor(descriptor));
+		write(directory / "selected", table);
 		bool replaced_rejected = false;
 		try {
 			reader.refresh();
 		} catch (const std::exception &) {
 			replaced_rejected = true;
 		}
-		require(replaced_rejected && reader.read_view().cursor() == cursor());
+		require(replaced_rejected && reader.read_view().cursor() == local_cursor());
 		std::filesystem::remove_all(directory);
 		std::filesystem::rename(moved, directory);
 		// Metadata permissions are rechecked even for an unchanged selection.
@@ -105,7 +96,7 @@ int main() {
 			rejected = true;
 		}
 		require(rejected);
-		require(reader.read_view().cursor() == cursor());
+		require(reader.read_view().cursor() == local_cursor());
 		require(reader.descriptor() == descriptor);
 		// Acquisition remains usable even when all directory paths disappear.
 		std::filesystem::remove_all(directory);

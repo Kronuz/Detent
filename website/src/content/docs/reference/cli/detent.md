@@ -9,8 +9,8 @@ detent get NAME [--hash VAL] [--switch VAL] [--default VAL]
 detent help | --help
 ```
 
-`detent get` reads one knob and prints its value: `true`, `false`, or an
-integer. It maps the managed agent's published generation read-only and
+`detent get` reads one knob and prints its integer value; a flag prints `0`
+or `1`. It maps the managed agent's published generation read-only and
 evaluates locally; it doesn't send a request to the agent. With neither
 `--managed` nor `--generation-dir` (or `managed_path` and `generation_dir` in
 `agent.json`), it fails with `no source configured`.
@@ -29,7 +29,6 @@ evaluates locally; it doesn't send a request to the agent. With neither
 | `--system` | Attach to the system agent; never start one |
 | `--generation-dir PATH` | Read a managed agent's durable generation directory |
 | `--managed PRIVATE_CONFIG` | Managed credential file for a newly started managed agent |
-| `--generation-cluster`, `--generation-group`, `--generation-epoch`, `--generation-scope` | Expected managed identity; all four or none |
 | `--publisher-user USER_OR_UID` | The trusted publisher: the account the managed agent runs as |
 | `--reader-validation prepared\|full` | Verify accessed pages of a prepared generation (default), or the complete graph on attach |
 | `--reader-records N`, `--reader-image-bytes N`, `--reader-heap-bytes N`, `--reader-mapping-bytes N` | Reader capacity; see `docs/USAGE.md` for every `reader_*` setting |
@@ -54,7 +53,7 @@ evaluates locally; it doesn't send a request to the agent. With neither
 
 | Situation | Stdout | Exit status |
 | --- | --- | --- |
-| Read succeeded | `true`, `false` or an integer | `0` |
+| Read succeeded | The integer | `0` |
 | Read failed, `--default` given | The default | `0` |
 | Read failed | Nothing; `ERR <Category>: <name> (<detail>)` on stderr | `1` |
 | No source configured | Nothing; `no source configured` on stderr, even with `--default` | `1` |
@@ -63,11 +62,11 @@ evaluates locally; it doesn't send a request to the agent. With neither
 
 ```sh
 detent get payments:new_processor --hash user-42 --switch beta
-# true
+# 1
 detent get checkout:nope
 # ERR MissingKnob: checkout:nope (not present in current snapshot)
-detent get checkout:nope --default false
-# false
+detent get checkout:nope --default 0
+# 0
 ```
 
 ---

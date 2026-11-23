@@ -72,15 +72,14 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 | `runtime_dir` | Runtime directory |
 | `managed_path` | Private managed credential file |
 | `generation_dir` | Managed generation directory |
-| `generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope` | Expected managed identity; all four or none |
 | `log_level`, `verbosity`, `color` | [Logging](/Detent/operations/logging/) |
 
-## `detentd.json`
+## `detent-authority.json`
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `port` | `8317` | HTTP port |
-| `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detentd` serves |
+| `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detent-authority` serves |
 | `reactors` | `4` | Network reactor threads |
 | `runtime_dir` | runtime directory | PID and log files |
 | `log_level`, `verbosity`, `color` | | [Logging](/Detent/operations/logging/) |
@@ -90,8 +89,6 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 The managed agent's private credential file. See
 [Managed Delivery](/Detent/guides/managed-delivery/) for every field and its
 resource bounds.
-
-The managed source accepts `image_format` as `"flat-v1"` (default) or `"paged-v2"`. The same option applies to relay bundle sources. Recovery reads either format; the preference controls subsequent publication. Changing to `flat-v1` leaves an unchanged paged selection in place until a forward update publishes a flat image. Deploy compatible readers before selecting paged writing.
 
 `compaction_interval_ms` defaults to 60,000. Zero disables periodic compaction; enabled values range from 1,000 to 86,400,000. Checks run between upstream exchanges, and admission pressure skips an optional attempt. Reader leases and durable collection determine when old storage can be reclaimed.
 
@@ -123,7 +120,23 @@ The private authority configuration accepts an optional `subscription_limits` ob
 
 Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime must cover idle lifetime. Actual storage admission also depends on the delivery ledger; raising logical limits does not reserve unlimited memory.
 
-The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `poll_interval_ms` and capped by `reconnect_maximum_ms` (default 30,000, or the poll interval when larger). The cap must cover the poll interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
+`application_limits.layout` sets the history layout policy that the enabling entry proposes. It is validated the same way as an administrative layout change. The consensus log limits always come from `consensus_limits`.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `seal_transactions` | 2,048 | Positioned changes per seal |
+| `seal_bytes` | 8,388,608 | Positioned bytes per seal |
+| `period` | 64 | Seals between a namespace's roll-ups |
+| `carry_bytes`, `carry_count` | 4,096 and 2 | A roll-up this small stays a section |
+| `ratio` | 4 | Squash ratio between adjacent blocks |
+| `alpha_num`, `alpha_den` | 1 and 8 | The block limit, as a fraction of a namespace's live bytes |
+| `cap` | 2 | Disk cap, in units of the block limit |
+
+The private managed agent configuration names the followed `namespaces` (every granted namespace when absent) and follows them over one W5 session; the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `retry_interval_ms` (default 200) and capped by `reconnect_maximum_ms` (default 30,000, or the retry interval when larger). The cap must cover the retry interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
+
+## Raising authority capacity
+
+`application_limits.keys`, `state_bytes` and `image_bytes` rise at a coordinated restart: stop every voter, set the same larger values in each one's configuration, then start them all. Recorded entries keep the limits they were written under, and relays and agents keep serving throughout; publication resumes once a quorum runs the new values. The other limits never change and no limit falls: a voter configured below what its store records refuses to start and names the field. History block files grow with `state_bytes`, so a voter whose group's layout policy would then write files above a peer fetch also refuses to start, naming `image_bytes`; raise it with `state_bytes`.
 
 ---
 
@@ -134,8 +147,8 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 | `DETENT_MANAGED_CONFIG` | agent, `detent` | Private managed configuration |
 | `DETENT_GENERATION_DIR` | agent, `detent` | Durable generation directory |
 | `DETENT_RUNTIME_DIR` | agent, `detent` | Runtime directory |
-| `DETENTD_PORT` | `detentd` | Port |
-| `DETENTD_REACTORS` | `detentd` | Reactor threads |
+| `DETENT_AUTHORITY_PORT` | `detent-authority` | Port |
+| `DETENT_AUTHORITY_REACTORS` | `detent-authority` | Reactor threads |
 | `NO_COLOR` | daemons | Disable automatic color |
 | `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`, `TMPDIR` | all | Base directories |
 
@@ -145,7 +158,7 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 | File | Owner | Mode |
 | --- | --- | --- |
-| `agent.json`, `detentd.json` | root | readable by the service account |
+| `agent.json`, `detent-authority.json` | root | readable by the service account |
 | `managed.json`, `authority.json` | root or service account | `0600`, or controlled `0640` |
 | Authority state | service account | `0700` |
 | System agent runtime directory | service account | `0755`, with `0644` pid and snapshot |
@@ -156,7 +169,26 @@ or group/other write permission; Detent refuses it otherwise.
 
 ## Relay admission
 
-The private relay host configuration accepts `connections` (default 1,024) and `service_limits` for Open, Next, Close, sessions and transfers. Counts range from 1 to 65,536; transfer counts cannot exceed polls, and per-principal sessions cannot exceed total sessions. Idle and maximum session lifetimes are bounded to 24 hours. See the [relay configuration](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for defaults and a complete example.
+The private relay host configuration accepts `connections` (default 1,024) and `service_limits` with the requests in flight per lane: `opens` (16; the history routes share it), `polls` (640) and `closes` (16), each 1 to 65,536. See the [relay guide](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity) for the heap budget and a complete example.
+
+## Relay namespace mirror
+
+A relay configuration requires a `mirror` object: the relay mirrors namespace history from the authority's voters, or from another relay, and serves it to version 2 sessions and to downstream relays. Each of its credentials grants `namespaces` patterns.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `directory` | required | The mirror's own directory, mode `0700` |
+| `cluster` | required | The authority's cluster identity, 32 hex digits |
+| `namespaces` | required | The names mirrored, in increasing order, at most 4,096 |
+| `upstreams` | required | Up to 64 `{"address", "port"}` objects, read in turn: a failure, or an answer older than the mirror, moves to the next |
+| `token` | required | The relay's credential at its upstream |
+| `hostname`, `ca` | `localhost`, the relay's `ca` | How the relay verifies its upstream |
+| `interval_ms` | 250 | Time between syncs, 1 to 60,000; a failed sync doubles it, up to `reconnect_maximum_ms` |
+| `reconnect_maximum_ms` | 30,000, or the interval when larger | The longest wait after failed syncs, from the interval to 86,400,000 |
+| `timeout_ms` | 10,000 | Deadline for each upstream request |
+| `compression` | `false` | Read W6 answers in zstd |
+| `sessions` | 1,024 | Sessions the relay holds |
+| `answer_bytes` | 67,108,864 | Memory for answers in flight, 1 MiB to 4 GiB |
 
 ## Managed authority endpoint pools
 

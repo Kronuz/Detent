@@ -1,8 +1,10 @@
 # The read path through libdetent_reader. One flow, top to bottom: the
 # three entry points converge, and any error returns the caller's fallback.
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
 direction: down
 
-app: "reader.eval() / get() / lookup()" {
+app: "reader.get() / get_as() / lookup()" {
   shape: rectangle
 }
 
@@ -20,6 +22,7 @@ sequence: "load the namespace's\nchange sequence\n(one acquire)" {
 
 change: change file\n(mapped read-only) {
   shape: cylinder
+  style.fill: "#F4F1EA"
 }
 
 attach: "attach the newer\ngeneration\n(one winner)" {
@@ -30,7 +33,7 @@ walk: "trie walk\n(verified pages,\none bit test each)" {
   shape: rectangle
 }
 
-evaluate: "type check + evaluate\n(switch > rollout > default)" {
+evaluate: "evaluate\n(switch > rollout > default)" {
   shape: rectangle
 }
 
@@ -40,13 +43,14 @@ hashing: stable_bucket()\n(SHA-256) {
 
 fallback: "caller's fallback\n(+ status from lookup())" {
   shape: page
+  style.fill: "#F4F1EA"
 }
 
 app -> validate -> pin -> sequence -> walk -> evaluate
 sequence -> change: "read"
 sequence -> attach: "moved"
 attach -> walk
-evaluate -> hashing: "only if\nrollout_pct set"
+evaluate -> hashing: "only if a percentage\napplies and hash is set"
 evaluate -> fallback: "any error" {
   style.stroke-dash: 4
 }

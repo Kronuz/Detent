@@ -16,13 +16,13 @@ Knob-definition files, snapshots and patches all share one JSON schema,
   "version": 42,
   "published_at": "2026-10-09T09:16:59Z",
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false },
-    "search:max_results": { "type": "int", "default": 25 },
+    "checkout:killswitch_new_path": { "default": 0 },
+    "search:max_results": { "default": 25 },
     "payments:new_processor": {
-      "type": "bool",
-      "default": false,
+      "default": 0,
+      "overrides": { "employees": 1, "beta": { "rollout_pct": 50 } },
       "rollout_pct": 10,
-      "overrides": { "employees": true, "beta": { "rollout_pct": 50 } }
+      "rollout_value": 1
     }
   }
 }
@@ -48,7 +48,7 @@ as a real generation (see [Testing](/Detent/guides/testing/)).
 {
   "schema_version": 1,
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false }
+    "checkout:killswitch_new_path": { "default": 0 }
   }
 }
 ```
@@ -67,7 +67,7 @@ A patch uses the snapshot shape with two differences:
   "schema_version": 1,
   "version": 43,
   "knobs": {
-    "search:max_results": { "type": "int", "default": 50 },
+    "search:max_results": { "default": 50 },
     "checkout:old_flag": null
   }
 }
@@ -87,10 +87,14 @@ The parser rejects the whole document, never part of it, when it finds:
 3. Any unknown field, at the top level or inside a definition.
 4. A duplicate key: top-level field, knob name or group name.
 5. An invalid knob name or group name.
-6. `rollout_pct` outside `0`–`100`, or a group override that is neither a
-   boolean nor `{"rollout_pct": N}`.
-7. More knobs than the caller's `max_knobs` (default 100,000).
-8. A document larger than 16 MiB, or nested too deeply.
+6. A value that is not a JSON integer, such as `true` or `1.0`, or one outside
+   the signed 64-bit range.
+7. `rollout_pct` outside `0`–`100`, or a group override that is neither an
+   integer nor `{"rollout_pct": N}`.
+8. A `rollout_value` without a percentage, or a percentage without a
+   `rollout_value`.
+9. More knobs than the caller's `max_knobs` (default 100,000).
+10. A document larger than 16 MiB, or nested too deeply.
 
 The parser returns an `UpdateError` naming the category; nothing is
 published.

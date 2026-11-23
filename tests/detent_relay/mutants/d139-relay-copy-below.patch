@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 22c176df..e91a50ff 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -391,7 +391,7 @@ std::optional<std::string> NamespaceRelay::Impl::answer(std::span<const Position
+ 				auto full = copy(position.name, history, wait);
+ 				if (full && position.repair && position.cursor && full->at.cluster == position.cursor->cluster &&
+ 					full->at.position < position.cursor->position)
+-					full = nullptr;
++					;
+ 				if (full) {
+ 					auto &sent = transfers.emplace_back(d::PagesAnswer{full->root, 0, full->at, full->transfer});
+ 					resume(sent, position.resume);

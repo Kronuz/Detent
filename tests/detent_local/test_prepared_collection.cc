@@ -14,22 +14,15 @@ namespace x = l::detail;
 using prepared_test::check;
 namespace {
 void drive(const std::shared_ptr<l::DiskStore> &store) {
+	// The store's work runs here, as the coordinator's worker runs it; advance() settles it.
 	for (unsigned turns = 0;; ++turns) {
-		check(turns < 1000000);
+		check(turns < 100000);
 		store->advance();
-		auto job = store->operation();
-		if (!job) {
-			if (store->needs_work())
-				continue;
+		auto work = store->work();
+		if (!work)
 			break;
-		}
-		job->submitted();
-		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		work->run();
 	}
-	if (store->error())
-		std::rethrow_exception(store->error());
-	if (store->collection_error())
-		std::rethrow_exception(store->collection_error());
 }
 void wait_unpinned(const std::filesystem::path &path) {
 	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
@@ -67,13 +60,13 @@ int main() {
 			auto base = l::recover_generation(fixture->path, options.recovery_limits);
 			l::GenerationId next{};
 			next.fill('z');
-			x::PagedCompactionBuilder compaction(base, {&old_pack, 1}, next, domain);
+			x::PagedCompactionBuilder compaction(base, {&old_pack, 1}, domain);
 			while (!compaction.done()) {
 				l::ValidationBudget budget;
 				compaction.step(budget);
 			}
 			auto plan = compaction.take();
-			check(plan.maintenance() && plan.root().logical == fixture->root.logical);
+			check(plan.maintenance() && l::paged::state_commitment(plan.root()) == l::paged::state_commitment(fixture->root));
 			bool old_pack_removed = false;
 			for (std::size_t i = 0; i != plan.registry()->inputs().size(); ++i)
 				if (plan.registry()->inputs()[i].ownership.segment == old_pack)
@@ -92,7 +85,7 @@ int main() {
         check(std::filesystem::exists(fixture->path / old_names.payload_name()));
 		check(std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".lease")));
 		// The prepared root opens its retired pack only after collection runs.
-		check(old_view.eval("b", "k").value());
+		check(old_view.get("b", "k").value() == 1);
 		old_view = {};
 		wait_unpinned(fixture->path / (l::generation_name(fixture->generation) + ".lease"));
 		store->request_collection();
@@ -101,7 +94,7 @@ int main() {
 		check(!std::filesystem::exists(fixture->path / old_names.owner_name()));
 		check(!std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".read")));
         check(reader.read_view().get("a", "k").value() == 42);
-        check(reader.read_view().eval("b", "k").value());
+        check(reader.read_view().get("b", "k").value() == 1);
 		store->close();
 		drive(store);
 		check(store->drained());

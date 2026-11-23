@@ -17,7 +17,7 @@ stop both, and remove the tutorial directory:
 detent-agent --status --generation-dir agent-state --runtime-dir run
 # running (pid 98461)
 # durable revision=13 knob_count=3
-kill "$(cat run/agent.pid)" "$(cat run/detentd-8317.pid)"
+kill "$(cat run/agent.pid)" "$(cat run/detent-authority-8317.pid)"
 cd ../.. && rm -rf build/quickstart
 ```
 

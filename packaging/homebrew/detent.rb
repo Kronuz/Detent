@@ -49,7 +49,7 @@ class Detent < Formula
   def caveats
     <<~EOS
       Start an authority and a managed agent in the background, then read a knob:
-        detentd --authority AUTHORITY_CONFIG --daemonize
+        detent-authority --authority AUTHORITY_CONFIG --daemonize
         detent-agent --managed PRIVATE_CONFIG --daemonize
         detent get NAME --managed PRIVATE_CONFIG
 
