@@ -1,6 +1,6 @@
 # reader-s6 review: security
 
-Commit: c1c7498e
+Commit: 1d7f04f2
 Verdict: APPROVE
 Date: 2026-11-23
 
@@ -18,8 +18,49 @@ already set every value and raise `SIGBUS` (reader.md Limit 5); a defect counts 
 Round 3 re-check (2026-11-23): this lens accepted a60e089 at `Detent:16a38990`. The delta
 `Detent:16a38990..c1c7498e` adds three non-merge commits on the reader: `Detent:dece1118` (C3),
 `Detent:b490591d` (C4) and `Detent:c1c7498e` (N6, probe only). Its other files come from main's merge.
-That re-check is the next section; the a60e089 re-check below it stands, since nothing else on the
+That re-check is the Round 3 section; the a60e089 re-check below it stands, since nothing else on the
 mapped read path changed.
+
+Round 4 re-check (2026-11-23): the delta `Detent:c1c7498e..1d7f04f2` adds one code commit,
+`Detent:1d7f04f2`, which changes only `tests/detent_reader/test_reader_syscalls.cc`: both deny
+returns of the seccomp filter go from `SECCOMP_RET_KILL` to `SECCOMP_RET_KILL_PROCESS`, plus the
+header comment. The rest of the delta is `.campaign`. The earlier sections stand.
+
+## Round 4: SECCOMP_RET_KILL_PROCESS (1d7f04f2)
+
+Evidence relied on: CI 45152925089 at `Detent:c1c7498e` (linux-tsan started test 202 at 11:06 and
+was terminated as an orphan at 12:53; linux-x86_64-gcc and linux-asan-ubsan passed the test) and
+the kernel's seccomp semantics (`seccomp(2)`, `Documentation/userspace-api/seccomp_filter.rst`).
+No probe job: the change is two constants in a test, and Linux cannot run here. Line numbers are
+`test_reader_syscalls.cc` at 1d7f04f2.
+
+1. Is the filter still a sound proof for the warm path? Yes, for the thread that runs the lookups.
+   - Order (104-116): load `nr`; `exit_group` and `exit` allow; anything but `write` kills; `write`
+     loads the low word of `args[0]` and allows only the pipe's fd, otherwise kills. Every path
+     ends in a return, and the default is a kill. Comparing only the low 32 bits is sound, since
+     the kernel truncates the fd to `unsigned int`.
+   - `KILL_PROCESS` is the strictest action and only widens what dies: the same calls are denied,
+     now with every thread of the child. On a kernel older than 4.14 the value masks to the old
+     `KILL` action, so the change never fails open.
+   - The filter binds only the calling thread (no `SECCOMP_FILTER_FLAG_TSYNC`), as before. The
+     lookups run on that thread, and the reader cannot start a thread there without `clone`.
+   - The filter does not check `arch` (S9). On x86_64 a call through `int 0x80` arrives with the
+     i386 numbers, so i386 60 (`umask`) and 231 (`fgetxattr`) would pass as x86_64 `exit` and
+     `exit_group`. The reader issues no such calls; it matters only against code built to evade
+     the test.
+   - vDSO calls do not enter the kernel, so seccomp cannot see them. The warm path makes none:
+     `lookup` answers when the sequence matches (`core.cc:561-563`) before any `now_ns`.
+2. Can a kill pass as success, or a syscall pass unseen? Not in the build that enforces the check.
+   Without a sanitizer, line 132 requires `WIFEXITED`, exit 0, a full 8-byte read and
+   `answer == total`. A seccomp kill is `SIGSYS`, and its EOF gives `got == 0`, so it fails. A
+   child that wrote its answer and was killed later still fails `WIFEXITED`. Under any sanitizer
+   (`DETENT_SANITIZED`, 134-136) the status is printed and not checked, as before this commit
+   (S10). With `KILL_PROCESS` a sanitized child that makes a call now dies instead of hanging, and
+   the test passes either way. The linux-tsan hang shows that TSan's child makes one. So the T1
+   no-syscall proof rests on linux-x86_64-gcc and the native suite job, as it did before.
+3. Does the change loosen anything earlier rounds relied on? No. The allowed set, the fd check, the
+   install order (`PR_SET_NO_NEW_PRIVS`, then the filter, `_Exit(2)` on failure) and the parent's
+   check are unchanged. It converts a hang into a prompt `SIGSYS` death, which the parent reaps.
 
 ## Round 3: C3, C4 and the cap's refund (c1c7498e)
 
@@ -145,6 +186,8 @@ them unchanged.
 | S6 | no | nit | `mmap` failure now raises `system_error` for every errno. `openat` does that only for the resource errnos (`transient`). A pack that can never map (ENODEV, EACCES, EINVAL) therefore never sets `failed`. Each lookup that reaches it repeats open, fstat, ACL check and `mmap`, then answers `DETENT_IO`. This is bounded work and publisher-only. | `lazy_page_access.cc:33-36,169-171` | Raise `system_error` only when `transient(errno)` after `mmap`; otherwise `ReadSourceFailure`. |
 | S7 | no | nit | The UBSan skip returns before the whole of `transient_miss`, not only its exhausted step as the commit message says. The steps before exhaustion are also covered elsewhere, so nothing is lost on the mapped path. | `test_reader_core.cc:174-179` | Optional: skip only the `setrlimit` part, or reword the message. |
 | S8 | no | nit | C4 covers opens after the first registration. The child can still deadlock on its first `detent_open` in one window: another thread holds `atfork_mutex` for the process's first registration, and it forks before the release store at 276. The child then inherits a locked mutex and `atfork_installed == false`. The window is one `pthread_atfork` call per process lifetime, and only liveness is at stake: no handle exists yet to leak. | `core.cc:269-278` | Optional: register from a static initializer or `pthread_once`, after which no open locks; or document it with D10. |
+| S9 | no | nit | New in round 4's scope, present since the test was written: the filter never checks `seccomp_data.arch`, which the kernel's seccomp documentation recommends first. On x86_64 an `int 0x80` call with i386 numbers 60 or 231 is allowed. The reader never makes one, so the T1 proof holds for it. | `test_reader_syscalls.cc:104-116` | Optional: load `arch` first and kill unless it is the build's `AUDIT_ARCH_*`. |
+| S10 | no | nit | Pre-existing: under any sanitizer the parent ignores the child's status, pipe and answer. A child killed by `SIGSYS`, a crash, or an ASan report (its `write` to stderr is itself denied) all count as a pass. The parent's own lookups run first under the sanitizer, so memory errors still surface there. 1d7f04f2 only turns the TSan case from a hang into this pass. | `test_reader_syscalls.cc:132-136` | Optional: under sanitizers, require `WIFEXITED` with exit 0 or `WTERMSIG == SIGSYS`, or skip the fork there. |
 
 S2 and S4 were fixed in round 1 (`Detent:c300e5f`, `Detent:96a069c`; ATFORK-1 2a7bcc).
 
